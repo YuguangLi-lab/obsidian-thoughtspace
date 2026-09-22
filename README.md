@@ -2,7 +2,7 @@
 
 为 Obsidian 开发的可视化研究与写作插件。在白板上组织 Markdown 笔记、文本、图片与 PDF，用连线和思维导图展开想法，再将材料整理成文章。
 
-当前版本：**0.97.0**。桌面端插件，最低声明版本 Obsidian 1.6.0；本次原生交互验收使用 1.13.7。
+当前版本：**0.97.1**。桌面端插件，最低声明版本 Obsidian 1.6.0；本次原生交互验收使用 1.13.7。
 
 ## 主要功能
 
@@ -15,9 +15,9 @@
 
 ## 安装
 
-1. 在本仓库的 [Releases](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/latest) 下载 `thoughtspace-0.97.0.zip`。
+1. 在本仓库的 [Releases](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/latest) 下载 `thoughtspace-0.97.1.zip`。
 2. 解压得到 `thoughtspace` 文件夹，将它放入仓库的 `.obsidian/plugins/` 目录。
-3. 在 Obsidian 设置 → 第三方插件中启用 **ThoughtSpace 思维白板**。
+3. 在 Obsidian 设置 → 第三方插件中启用 **ThoughtSpace Whiteboard**。
 
 也可以下载 Release 中的 `main.js`、`manifest.json` 和 `styles.css`，将这三个文件放到 `.obsidian/plugins/thoughtspace/`。
 

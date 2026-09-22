@@ -1,7 +1,7 @@
 {
   "id": "thoughtspace",
-  "name": "ThoughtSpace 思维白板",
-  "version": "0.97.0",
+  "name": "ThoughtSpace Whiteboard",
+  "version": "0.97.1",
   "minAppVersion": "1.6.0",
   "description": "Visual research workspace with mind maps, linked Markdown cards, writing and optional standalone calendar integration.",
   "author": "ThoughtSpace",
