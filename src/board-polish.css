@@ -1,7 +1,8 @@
-/* Whiteboard 0.98.4: a compact, theme-native tool surface.
+/* Whiteboard 0.98.6: a compact, theme-native tool surface.
    This file owns the final canvas chrome. Content geometry, text typography,
    custom fills and source-editor measurements are deliberately unchanged. */
 .ts-root .ts-main {
+  container-name: ts-board-canvas;
   --ts-board-panel: var(--background-primary);
   --ts-board-line: color-mix(in srgb, var(--background-modifier-border) 88%, transparent);
   --ts-board-hover: var(--background-modifier-hover);
@@ -68,7 +69,7 @@
   box-shadow: none !important;
 }
 .ts-root .ts-board-rail .ts-primary:hover { background: color-mix(in srgb, var(--ts-accent) 17%, var(--background-primary)) !important; }
-.ts-root .ts-board-rail .ts-rail-divider { margin: 4px 7px; background: var(--ts-board-line); }
+.ts-root .ts-board-rail .ts-rail-divider { flex: 0 0 1px; height: 1px; min-height: 1px; margin: 5px 7px; background: var(--ts-board-line); }
 
 /* Overflow uses short, consistently aligned rows. Position remains owned by
    the rail; the context menu retains its mouse-relative inline coordinates. */
@@ -111,7 +112,7 @@
   max-width: calc(100% - 32px);
 }
 .ts-root .ts-floating-formatbar > .ts-commandbar {
-  padding: 5px !important;
+  padding: 6px !important;
   gap: 0 !important;
   border-color: var(--ts-board-line) !important;
   border-radius: 11px !important;
@@ -124,7 +125,7 @@
   scrollbar-color: var(--background-modifier-border) transparent;
 }
 .ts-root .ts-floating-formatbar .ts-commandbar > .ts-selection-tools {
-  gap: 6px;
+  gap: 4px !important;
   padding: 0 !important;
   margin: 0 !important;
   border: 0 !important;
@@ -136,30 +137,34 @@
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 5px;
+  gap: 2px;
   min-height: 30px;
-  padding: 0 3px;
+  padding: 0 2px 0 7px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--background-secondary) 70%, transparent);
   color: var(--text-muted);
   white-space: nowrap;
 }
-.ts-root .ts-floating-formatbar .ts-format-field > span { font-size: 11px; }
+/* Reset legacy container rules: a value such as "默认" needs its field label. */
+.ts-root .ts-floating-formatbar .ts-format-field > span { display: inline !important; font-size: 10px; font-weight: 500; color: var(--text-muted); }
 .ts-root .ts-floating-formatbar .ts-format-field select {
   height: 28px;
   min-height: 28px;
   max-width: 116px;
-  border: 1px solid var(--ts-board-line);
-  border-radius: 6px !important;
-  background-color: var(--background-primary) !important;
+  border: 1px solid transparent;
+  border-radius: 5px !important;
+  background-color: transparent !important;
   color: var(--text-normal);
   box-shadow: none;
   font-size: 12px;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 .ts-root .ts-floating-formatbar .ts-format-field select:hover { background-color: var(--ts-board-hover) !important; }
 .ts-root .ts-floating-formatbar .ts-format-field:is([data-format="字体"], [data-format="边框线型"]) {
   border-inline-start: 1px solid var(--ts-board-line);
-  padding-inline-start: 7px;
-  margin-inline-start: 2px;
+  padding-inline-start: 9px;
+  margin-inline-start: 5px;
 }
 .ts-root .ts-floating-formatbar .ts-fill-custom input[type=color] {
   width: 24px;
@@ -237,7 +242,10 @@
 .ts-root .ts-inspector .ts-choice { min-height: 31px; border-radius: 7px; }
 
 /* Canvas controls and zoom read as a quiet bottom dock, with a matching map. */
-.ts-root .ts-main > .ts-footer { left: 12px; right: 12px; bottom: 12px; gap: 8px; }
+.ts-root .ts-main > .ts-footer { left: 12px; right: 12px; bottom: 12px; gap: 8px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: end; }
+.ts-root .ts-footer .ts-canvas-summary { overflow: hidden; text-overflow: ellipsis; align-self: center; }
+.ts-root .ts-footer .ts-canvas-controls { width: max-content; max-width: 100%; overflow-x: auto; scrollbar-width: thin; }
+.ts-root .ts-footer .ts-zoom { justify-self: end; }
 .ts-root .ts-footer :is(.ts-canvas-controls, .ts-zoom) {
   padding: 4px;
   border-color: var(--ts-board-line);
@@ -273,18 +281,30 @@
 }
 .ts-root[data-glass=true][data-surface=soft] .ts-footer :is(.ts-canvas-controls, .ts-zoom) { background: var(--ts-board-panel); backdrop-filter: none; }
 
-@container (max-width: 760px) {
-  .ts-root .ts-floating-formatbar .ts-format-field > span { display: none; }
-  .ts-root .ts-floating-formatbar .ts-format-field { gap: 0; }
+@container ts-board-canvas (max-width: 760px) {
+  .ts-root .ts-floating-formatbar .ts-format-field { gap: 1px; padding-inline-start: 5px; }
+  .ts-root .ts-floating-formatbar .ts-format-field select { max-width: 102px; }
   .ts-root .ts-floating-formatbar .ts-selection-tools > .ts-md-mode { font-size: 12px; }
+  .ts-root .ts-main > .ts-footer { grid-template-columns: minmax(0, 1fr) auto; }
+  .ts-root .ts-footer .ts-canvas-summary { display: none; }
 }
-@container (max-width: 510px) {
+@container ts-board-canvas (max-width: 600px) {
+  .ts-root .ts-canvas-controls .ts-snap-toggle > span:nth-child(2),
+  .ts-root .ts-canvas-controls .ts-snap-state { display: none; }
+  .ts-root .ts-canvas-controls .ts-snap-toggle { width: 28px; padding-inline: 0 !important; justify-content: center; }
+}
+@container ts-board-canvas (max-width: 510px) {
   .ts-root .ts-main > .ts-board-rail { left: 8px; max-height: calc(100% - 156px); }
-  .ts-root .ts-main > .ts-rail-popover { left: 60px; max-width: calc(100% - 68px); max-height: calc(100% - 120px); }
+  .ts-root .ts-main > .ts-rail-popover { left: 60px; max-width: calc(100% - 68px); max-height: calc(100% - 156px); }
   .ts-root .ts-main > .ts-floating-formatbar { top: 8px; max-width: calc(100% - 16px); }
   .ts-root .ts-main > .ts-footer { left: 8px; right: 8px; bottom: 8px; gap: 5px; }
   .ts-root .ts-main > .ts-minimap { right: 8px; bottom: 104px; }
-  .ts-root .ts-canvas-controls .ts-snap-toggle > span:last-child { display: none; }
+}
+@container ts-board-canvas (max-width: 420px) {
+  .ts-root .ts-main > .ts-footer { grid-template-columns: minmax(0, 1fr); }
+  .ts-root .ts-footer .ts-canvas-controls { grid-row: 1; }
+  .ts-root .ts-footer .ts-zoom { grid-row: 2; }
+  .ts-root .ts-main > .ts-board-rail, .ts-root .ts-main > .ts-rail-popover { max-height: calc(100% - 210px); }
 }
 @media (prefers-reduced-transparency: reduce) {
   .ts-root[data-glass=true][data-surface=soft] .ts-main > .ts-board-rail,

@@ -8,7 +8,7 @@ ThoughtSpace is a visual research and writing workspace for Obsidian. Organize l
 
 为 Obsidian 开发的可视化研究与写作插件。在白板上组织 Markdown 笔记、文本、图片与 PDF，用连线和思维导图展开想法，再将材料整理成文章。
 
-当前开发版本：**0.98.5**（已发布版本请以 Releases 为准）。桌面端插件，需要 Obsidian 1.13.7 或更新版本，最低版本按已有原生交互验收环境声明。
+当前开发版本：**0.98.6**（已发布版本请以 Releases 为准）。桌面端插件，需要 Obsidian 1.13.7 或更新版本，最低版本按已有原生交互验收环境声明。
 
 ## 主要功能
 
