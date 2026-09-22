@@ -1,4 +1,4 @@
-/* Whiteboard 0.96: a compact, theme-native tool surface.
+/* Whiteboard 0.98.4: a compact, theme-native tool surface.
    This file owns the final canvas chrome. Content geometry, text typography,
    custom fills and source-editor measurements are deliberately unchanged. */
 .ts-root .ts-main {
@@ -15,6 +15,25 @@
   --ts-board-menu-shadow: 0 2px 5px #00000032, 0 14px 36px #00000048;
 }
 
+/* Grid is a positioning aid, not a second layer competing with note content.
+   Its origin and spacing still follow the board transform and snap setting. */
+.ts-root .ts-main > .ts-stage {
+  background-color: color-mix(in srgb, var(--background-primary) 72%, var(--background-secondary));
+  --ts-grid-ink: color-mix(in srgb, var(--text-muted) 9%, transparent);
+  --ts-dot-ink: color-mix(in srgb, var(--text-muted) 27%, transparent);
+}
+.ts-root[data-snap=true] .ts-main > .ts-stage {
+  --ts-grid-ink: color-mix(in srgb, var(--ts-accent) 12%, transparent);
+  --ts-dot-ink: color-mix(in srgb, var(--ts-accent) 36%, transparent);
+}
+.ts-root[data-background=grid] .ts-main > .ts-stage {
+  background-image: linear-gradient(to right, var(--ts-grid-ink) 1px, transparent 1px), linear-gradient(to bottom, var(--ts-grid-ink) 1px, transparent 1px);
+}
+.ts-root[data-background=dots] .ts-main > .ts-stage { background-image: radial-gradient(var(--ts-dot-ink) .8px, transparent .8px); }
+@media (prefers-contrast: more) {
+  .ts-root[data-background] .ts-main > .ts-stage { --ts-grid-ink: color-mix(in srgb, var(--text-muted) 22%, transparent); --ts-dot-ink: var(--text-muted); }
+}
+
 /* The creation rail stays in the actual center of the available canvas. */
 .ts-root .ts-main > .ts-board-rail {
   top: 50%;
@@ -22,7 +41,7 @@
   width: 44px;
   max-height: calc(100% - 132px);
   border-color: var(--ts-board-line);
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--ts-board-panel);
   box-shadow: var(--ts-board-shadow);
 }
@@ -119,7 +138,7 @@
   align-items: center;
   gap: 5px;
   min-height: 30px;
-  padding: 0 2px;
+  padding: 0 3px;
   color: var(--text-muted);
   white-space: nowrap;
 }
@@ -128,9 +147,9 @@
   height: 28px;
   min-height: 28px;
   max-width: 116px;
-  border: 1px solid transparent;
+  border: 1px solid var(--ts-board-line);
   border-radius: 6px !important;
-  background-color: transparent !important;
+  background-color: var(--background-primary) !important;
   color: var(--text-normal);
   box-shadow: none;
   font-size: 12px;

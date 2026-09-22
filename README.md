@@ -2,13 +2,13 @@
 
 ThoughtSpace is a visual research and writing workspace for Obsidian. Organize linked Markdown notes, text, images, and PDFs on a whiteboard; connect ideas with mind maps and turn grouped material into a Markdown draft. It integrates with vault files, tags, properties, and native editing. The standalone calendar plugin is optional.
 
-**Desktop only · Obsidian 1.13.7 or newer.** Download `thoughtspace-0.98.3.zip` from [Releases](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/latest), extract the folder to `.obsidian/plugins/`, and enable **ThoughtSpace Whiteboard** in Community plugins. When upgrading, keep your existing `data.json`.
+**Desktop only · Obsidian 1.13.7 or newer.** Download `thoughtspace-<version>.zip` from [Releases](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/latest), extract the folder to `.obsidian/plugins/`, and enable **ThoughtSpace Whiteboard** in Community plugins. When upgrading, keep your existing `data.json`.
 
 ## 中文说明
 
 为 Obsidian 开发的可视化研究与写作插件。在白板上组织 Markdown 笔记、文本、图片与 PDF，用连线和思维导图展开想法，再将材料整理成文章。
 
-当前版本：**0.98.3**。桌面端插件，需要 Obsidian 1.13.7 或更新版本，最低版本按已有原生交互验收环境声明。
+当前开发版本：**0.98.4**（已发布版本请以 Releases 为准）。桌面端插件，需要 Obsidian 1.13.7 或更新版本，最低版本按已有原生交互验收环境声明。
 
 ## 主要功能
 
@@ -21,13 +21,13 @@ ThoughtSpace is a visual research and writing workspace for Obsidian. Organize l
 
 ## 安装
 
-1. 在本仓库的 [Releases](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/latest) 下载 `thoughtspace-0.98.3.zip`。
+1. 在本仓库的 [Releases](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/latest) 下载 `thoughtspace-<version>.zip`。
 2. 解压得到 `thoughtspace` 文件夹，将它放入仓库的 `.obsidian/plugins/` 目录。
 3. 在 Obsidian 设置 → 第三方插件中启用 **ThoughtSpace Whiteboard**。
 
 也可以下载 Release 中的 `main.js`、`manifest.json` 和 `styles.css`，将这三个文件放到 `.obsidian/plugins/thoughtspace/`。
 
-升级时替换这三个运行文件即可，保留已有 `data.json`。建议先备份自己的仓库。插件尚未通过 Obsidian 社区插件市场分发。
+升级时替换这三个运行文件即可，保留已有 `data.json`。建议先备份自己的仓库。社区目录的版本同步与 GitHub Release 分开发生，请以各自页面显示的版本为准。
 
 ## 思维导图快捷操作
 

@@ -1121,9 +1121,9 @@ class NavigatorView extends ItemView {
   async onOpen(){
     this.contentEl.empty();this.contentEl.addClass('ts-root','ts-dock');
     const quick=this.contentEl.createDiv('ts-dock-quick');button(quick,'收集笔记','plus',()=>this.plugin.quickCapture(),'ts-primary');button(quick,'新建白板','panels-top-left',()=>this.plugin.promptBoard(),'ts-icon-button');button(quick,'白板模板','layout-template',()=>new TemplatePicker(this.app,this.plugin).open(),'ts-icon-button');
-    const entry=this.contentEl.createDiv({cls:'ts-dock-hub-entry',attr:{role:'navigation','aria-label':'知识空间快捷入口'}});button(entry,'空间总览','compass',()=>this.plugin.openSpaceHub());const excerpt=button(entry,'笔记摘录','notebook-pen',()=>this.plugin.openExcerptNote());excerpt.setAttribute('aria-label','打开笔记摘录');excerpt.title='打开笔记摘录';
-    const organize=this.contentEl.createDiv('ts-dock-organize');const tidy=button(organize,'整理白板','layout-dashboard',()=>this.plugin.openBoardOrganizer(this.bound&&!this.bound.closed?this.bound:undefined),'ts-dock-organize-button');tidy.title='整理当前白板 · 选择布局，预览后应用';
-    const preview=button(organize,'分组预览','panels-top-left',()=>this.plugin.openSectionCatalog(this.bound&&!this.bound.closed?this.bound:undefined),'ts-dock-organize-button ts-dock-section-preview');preview.title='分组预览 · 搜索、查看缩略图并定位分组';
+    const entry=this.contentEl.createDiv({cls:'ts-dock-shortcuts',attr:{role:'navigation','aria-label':'知识空间快捷入口'}});button(entry,'空间总览','compass',()=>this.plugin.openSpaceHub());const excerpt=button(entry,'笔记摘录','notebook-pen',()=>this.plugin.openExcerptNote());excerpt.setAttribute('aria-label','打开笔记摘录');excerpt.title='打开笔记摘录';
+    const tidy=button(entry,'整理白板','layout-dashboard',()=>this.plugin.openBoardOrganizer(this.bound&&!this.bound.closed?this.bound:undefined),'ts-dock-organize-button');tidy.title='整理当前白板 · 选择布局，预览后应用';
+    const preview=button(entry,'分组预览','panels-top-left',()=>this.plugin.openSectionCatalog(this.bound&&!this.bound.closed?this.bound:undefined),'ts-dock-organize-button ts-dock-section-preview');preview.title='分组预览 · 搜索、查看缩略图并定位分组';
     this.host=this.contentEl.createDiv('ts-dock-host');
     this.registerEvent(this.app.vault.on('create',()=>{if(!this.bound)this.bind();}));this.registerEvent(this.app.vault.on('delete',()=>{if(!this.bound)this.bind();}));this.registerEvent(this.app.vault.on('rename',()=>{if(!this.bound)this.bind();}));
     this.bind(this.plugin.currentBoard);
