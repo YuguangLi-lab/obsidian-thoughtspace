@@ -4,6 +4,7 @@
 .ts-mindmap-studio .modal-title{font-size:24px;letter-spacing:-.025em;margin:0 0 5px}
 .ts-mm-intro{color:var(--text-muted);margin:0 0 20px;font-size:12px}
 .ts-mm-body{display:grid;grid-template-columns:240px minmax(280px,1fr) 178px;gap:18px;min-height:500px}
+.ts-mindmap-studio .ts-mm-body[hidden]{display:none}
 .ts-mm-outline{display:flex;flex-direction:column;min-height:0;min-width:0;border-right:1px solid var(--mm-line);padding-right:16px}
 .ts-mm-outline-heading{display:flex;align-items:center;gap:3px;margin-bottom:12px;font-size:12px}
 .ts-mm-outline-heading strong{flex:1}

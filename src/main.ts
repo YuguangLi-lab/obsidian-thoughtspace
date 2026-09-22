@@ -1577,7 +1577,7 @@ class BoardView extends FileView {
       const legacy=s.board.nodes.filter(n=>n.kind==='text' && n.autoSize===undefined);
       if(legacy.length && !s.blocked)s.change(b=>b.nodes.filter(n=>n.kind==='text' && n.autoSize===undefined).forEach(n=>fitTextNode(n,this.contentEl)));
       this.paint();await this.plugin.ensureDock(false);if(this.app.workspace.activeLeaf===this.leaf)this.plugin.currentBoard=this;this.plugin.refreshDock();
-    } catch (e) { this.session = undefined;this.contentEl.querySelectorAll<HTMLElement>('.ts-board-rail,.ts-commandbar,.ts-footer').forEach(el=>el.inert=true);this.minimap?.empty();this.inspector?.removeClass('is-visible');this.selectionTools?.empty();this.world.style.transform=''; this.world.empty(); this.status.setText('文件无法读取 · 原文件保持不变'); this.world.createDiv({ cls: 'ts-error', text: `无法打开白板：${String(e)}。请检查 JSON 文件或恢复备份。` }); report(e); }
+    } catch (e) { this.session = undefined;this.contentEl.querySelectorAll<HTMLElement>('.ts-board-rail,.ts-commandbar,.ts-footer').forEach(el=>el.inert=true);this.minimap?.empty();this.inspector?.removeClass('is-visible');this.selectionTools?.empty();this.world.style.removeProperty('transform'); this.world.empty(); this.status.setText('文件无法读取 · 原文件保持不变'); this.world.createDiv({ cls: 'ts-error', text: `无法打开白板：${String(e)}。请检查 JSON 文件或恢复备份。` }); report(e); }
   }
   async onUnloadFile() { this.searchModal?.close();this.searchModal=undefined;this.reuseModal?.close();this.reuseModal=undefined;await this.finishInlineForNavigation(); if(this.plugin.currentBoard===this)this.plugin.clearMaterialDrag();this.clearCanvasGesture();this.clearNodes();this.finishMarquee(true); this.sidebarRun++; this.unsubscribe?.(); this.unsubscribe = undefined; if (this.session) await this.session.flush(); this.session = undefined;this.plugin.refreshDock(); }
   async onClose() { this.objectMenu?.hide();this.searchModal?.close();this.searchModal=undefined;this.reuseModal?.close();this.reuseModal=undefined;await this.finishInlineForNavigation();if(this.plugin.currentBoard===this)this.plugin.clearMaterialDrag();this.clearCanvasGesture();this.closed=true;this.plugin.refreshDock();this.sidebar?.remove(); this.finishMarquee(true); this.sidebarRun++; if (this.sidebarTimer) window.clearTimeout(this.sidebarTimer); this.unsubscribe?.(); cancelAnimationFrame(this.renderFrame);this.clearNodes(); }
@@ -1669,7 +1669,7 @@ class BoardView extends FileView {
     const detailIds=new Set([...visible].sort((a,b)=>Number(this.selected.has(b.id))-Number(this.selected.has(a.id))).slice(0,this.plugin.settings.previewLimit).map(n=>n.id));
     for (const n of [...visible].sort((a, b) => Number(a.kind !== 'section') - Number(b.kind !== 'section'))) {
       const rect = map.createSvg('rect', { cls: 'ts-map-node', attr: { x: n.x * z + ox, y: n.y * z + oy, width: n.width * z, height: n.height * z, rx: 3 } });
-      rect.classList.add(`ts-color-${n.color}`);if(n.kind==='card'&&n.transparent)rect.style.fill='none';else if(n.kind==='card'&&n.fillColor&&n.fillColor!=='none')rect.style.fill=n.fillColor.startsWith('#')?n.fillColor:cardFillHex[n.fillColor as Card['color']]; if (n.kind === 'section') rect.classList.add('ts-map-section');
+      rect.classList.add(`ts-color-${n.color}`);if(n.kind==='card'&&n.transparent)rect.classList.add('is-transparent');else if(n.kind==='card'&&n.fillColor&&n.fillColor!=='none')rect.style.fill=n.fillColor.startsWith('#')?n.fillColor:cardFillHex[n.fillColor as Card['color']]; if (n.kind === 'section') rect.classList.add('ts-map-section');
       if (!interactive && n.kind !== 'section' && n.width * z > 58 && n.height * z > 28) {
         const label = map.createSvg('text', { cls: 'ts-map-title', attr: { x: n.x * z + ox + 5, y: n.y * z + oy + 13 } });
         const title = n.title || n.file?.split('/').pop()?.replace(/\.(md|thoughtspace)$/, '') || n.text?.split('\n')[0] || ''; 
@@ -2279,7 +2279,7 @@ class BoardView extends FileView {
     add('新建子白板','folder-plus',async()=>{await this.navigate(file);this.newChildBoard();});
     add('复制白板','copy',async()=>{const copy=await this.plugin.duplicateBoard(file);await this.plugin.openBoard(copy);});
     add('复制白板链接','link',()=>navigator.clipboard.writeText(boardLink(this.app.vault.getName(),file.path)));
-    add('在文件列表中显示','folder-search',()=>{const explorer=this.app.workspace.getLeavesOfType('file-explorer')[0];if(explorer){this.app.workspace.revealLeaf(explorer);(explorer.view as any).revealInFolder?.(file);}});
+    add('在文件列表中显示','folder-search',async()=>{const explorer=this.app.workspace.getLeavesOfType('file-explorer')[0];if(explorer){await this.app.workspace.revealLeaf(explorer);(explorer.view as any).revealInFolder?.(file);}});
     menu.addSeparator();add('保存布局快照','history',async()=>{await this.plugin.saveLayoutSnapshot(file);new Notice('布局快照已保存');});add('恢复布局快照…','rotate-ccw',()=>this.plugin.showSnapshots(file));
     add('导出 Markdown 大纲','file-down',()=>this.plugin.exportOutline(file));add('导出原生链接索引','network',()=>this.plugin.exportNativeIndex(file));
     if(this.file!==file)add('引用到当前白板','plus',()=>this.addBoard(file));menu.showAtMouseEvent(event);
@@ -2916,7 +2916,7 @@ class ThoughtSpaceSettings extends PluginSettingTab {
   display() {
     const { containerEl } = this; containerEl.empty(); containerEl.addClass('ts-settings');containerEl.dataset.accent=this.plugin.settings.accent;
     const hero = containerEl.createDiv('ts-settings-hero'); setIcon(hero.createDiv('ts-settings-logo'), 'network');
-    const intro = hero.createDiv(); intro.createEl('h2', { text: 'ThoughtSpace' }); intro.createEl('p', { text: '知识空间 · 让阅读、思考与整理保持顺手。' });
+    const intro = hero.createDiv(); new Setting(intro).setName('ThoughtSpace').setHeading(); intro.createEl('p', { text: '知识空间 · 让阅读、思考与整理保持顺手。' });
     const tabs = containerEl.createDiv('ts-settings-tabs');
     for (const [id, label, icon] of [['appearance', '界面与阅读', 'palette'], ['board','白板体验','sliders-horizontal'], ['filing', '文件与归档', 'folders'],['images','图片与图床','image']] as const) {
       const tab = button(tabs, label, icon, () => { this.page = id; this.display(); }); tab.toggleClass('is-active', this.page === id);
@@ -2931,7 +2931,7 @@ class ThoughtSpaceSettings extends PluginSettingTab {
     if(this.page==='board'){boardPreferenceControls(containerEl.createDiv('ts-board-preferences'),this.plugin.settings,persist);return;}
     if (this.page === 'appearance') {
       new Setting(containerEl).setName('笔记 Markdown 工具栏').setDesc('在普通笔记和侧栏笔记的编辑模式显示格式工具；使用原生撤销与自动保存。').addToggle(t=>t.setValue(this.plugin.settings.noteMarkdownToolbar!==false).onChange(value=>{this.plugin.settings.noteMarkdownToolbar=value;this.plugin.noteToolbar?.refresh();act(persist);}));
-      containerEl.createEl('h3', { text: '画布外观', cls: 'ts-settings-section' });
+      new Setting(containerEl).setName('画布外观').setHeading().setClass('ts-settings-section');
       new Setting(containerEl).setName('界面材质').setDesc('柔光保留轻盈层次，纸感使用实色面板和更清晰的边界。').addDropdown(d=>d.addOptions({soft:'柔光',paper:'纸感'}).setValue(this.plugin.settings.surfaceStyle).onChange(value=>{this.plugin.settings.surfaceStyle=value as 'soft'|'paper';act(persist);}));
       new Setting(containerEl).setName('阅读桌字号').setDesc('仅影响独立阅读桌，保留白板对象字号；重新打开阅读桌生效。').addDropdown(d=>d.addOptions({'14':'14 px','16':'16 px','18':'18 px','20':'20 px'}).setValue(String(this.plugin.settings.readingSize)).onChange(value=>{this.plugin.settings.readingSize=Number(value);act(persist);}));
       new Setting(containerEl).setName('阅读桌行宽').setDesc('标准行宽适合长文，宽版适合表格。重新打开阅读桌生效。').addDropdown(d=>d.addOptions({standard:'标准 · 680 px',wide:'宽版 · 920 px'}).setValue(this.plugin.settings.readingWidth).onChange(value=>{this.plugin.settings.readingWidth=value as 'standard'|'wide';act(persist);}));
@@ -2939,21 +2939,21 @@ class ThoughtSpaceSettings extends PluginSettingTab {
       new Setting(containerEl).setName('画布背景').setDesc('为卡片提供轻量的位置参照，或使用纯净背景。').addDropdown(drop => drop.addOptions({dots:'点阵',grid:'网格',plain:'纯色'}).setValue(this.plugin.settings.canvasBackground).onChange(value => { this.plugin.settings.canvasBackground = value as AppearanceSettings['canvasBackground']; act(persist); }));
       new Setting(containerEl).setName('液态玻璃效果').setDesc('半透明磨砂、柔和高光和圆角层次；关闭后使用实色界面。').addToggle(toggle=>toggle.setValue(this.plugin.settings.glassEffects!==false).onChange(value=>{this.plugin.settings.glassEffects=value;act(persist);}));
       new Setting(containerEl).setName('显示小地图').setDesc('显示当前位置和白板全貌；窄窗格会自动收起。').addToggle(toggle => toggle.setValue(this.plugin.settings.showMinimap).onChange(value => { this.plugin.settings.showMinimap = value; act(persist); }));
-      containerEl.createEl('h3', { text: '阅读与空间', cls: 'ts-settings-section' });
+      new Setting(containerEl).setName('阅读与空间').setHeading().setClass('ts-settings-section');
       new Setting(containerEl).setName('界面密度').setDesc('舒适布局展示卡片摘要；紧凑布局节省侧栏空间。').addDropdown(drop => drop.addOptions({comfortable:'舒适',compact:'紧凑'}).setValue(this.plugin.settings.density).onChange(value => { this.plugin.settings.density = value as AppearanceSettings['density']; act(persist); }));
       containerEl.createDiv({ cls: 'ts-settings-tip', text: '在左侧切换卡片、白板、任务与大纲。选中内容后，在顶部调整文字和边框；右键打开更多操作。⌘ / Ctrl + F 查找白板内容，右键白板名称可重命名。外观选项实时应用。' });
       return;
     }
     containerEl.createEl('p', { cls: 'ts-muted', text: '多标签默认使用 Obsidian 返回的第一个标签（属性标签优先）；单张卡片可通过右键选择归档标签。' });
-    containerEl.createEl('h3', { text: '自动整理', cls: 'ts-settings-section' });
+    new Setting(containerEl).setName('自动整理').setHeading().setClass('ts-settings-section');
     new Setting(containerEl).setName('自动按标签归档').setDesc('仅自动管理卡片目录内的笔记。在原生编辑器或属性区修改标签后移动文件；删除最后一个标签时放入“未分类”。').addToggle(toggle => toggle.setValue(this.plugin.settings.autoFileCards).onChange(value => { this.plugin.settings.autoFileCards = value; act(persist); }));
     new Setting(containerEl).setName('清理空标签文件夹').setDesc('归档后，原标签文件夹为空时放入回收站。含笔记、附件或其他文件的文件夹始终保留。').addToggle(toggle => toggle.setValue(this.plugin.settings.cleanupEmptyFolders).onChange(value => { this.plugin.settings.cleanupEmptyFolders = value; act(persist); }));
-    containerEl.createEl('h3', { text: '保存位置', cls: 'ts-settings-section' });
+    new Setting(containerEl).setName('保存位置').setHeading().setClass('ts-settings-section');
     let cards = this.plugin.settings.cardFolder;const journals = this.plugin.journalRoot;
     new Setting(containerEl).setName('卡片根目录').setDesc('标签 #研究/阅读 → 此目录/研究/阅读。没有标签 → 此目录/未分类。').addText(input => input.setValue(cards).onChange(value => { cards = value; }));
     new Setting(containerEl).setName('日历与日记').setDesc('已独立为 ThoughtSpace 日历与日记。日记目录、任务和外观请在新插件的设置中管理。');
     new Setting(containerEl).setName('保存目录设置').setDesc('修改目录只影响之后的新建和归档；不会批量移动旧根目录。').addButton(btn => btn.setButtonText('保存目录').setCta().onClick(() => act(async () => { Object.assign(this.plugin.settings, validateFolders(cards, journals)); await persist(); new Notice('目录设置已保存'); })));
-    containerEl.createEl('h3', { text: '整理已有文件', cls: 'ts-settings-section' });
+    new Setting(containerEl).setName('整理已有文件').setHeading().setClass('ts-settings-section');
     new Setting(containerEl).setName('整理已有卡片').setDesc('仅整理卡片根目录内的 Markdown；每次移动前备份，同名文件自动加序号。').addButton(btn => btn.setButtonText('按标签整理').onClick(() => act(async () => { btn.setDisabled(true); try { await this.plugin.fileAllCards(); } finally { btn.setDisabled(false); } })));
     new Setting(containerEl).setName('整理旧日记').setDesc('将日记根目录下的 YYYY-MM-DD.md 移到年/月目录。同日目标已存在时保留两个版本，不覆盖。').addButton(btn => btn.setButtonText('整理为年/月').onClick(() => act(async () => { btn.setDisabled(true); try { await this.plugin.fileOldJournals(); } finally { btn.setDisabled(false); } })));
     containerEl.createEl('p', { cls: 'ts-muted', text: `归档前的笔记、白板引用备份和移动记录保存在 ${this.app.vault.configDir}/plugins/thoughtspace/filing-backups/。文件移动不属于白板布局撤销。Obsidian 原生文件列表与搜索保持可用。` });

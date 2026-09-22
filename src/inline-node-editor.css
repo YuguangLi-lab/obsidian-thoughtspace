@@ -4,6 +4,7 @@
 .ts-root .ts-node.is-inline-editing > :is(.ts-resize,.ts-connect-port) {display:none;}
 .ts-root .ts-inline-editor {position:absolute;inset:0;pointer-events:none;border-radius:inherit;background:transparent;color:inherit;}
 .ts-root .ts-inline-input {position:absolute;display:block;resize:none;box-sizing:border-box;min-width:0;min-height:0;margin:0;border:0!important;border-radius:0!important;box-shadow:none!important;outline:none!important;background:transparent!important;white-space:pre-wrap;overflow-wrap:anywhere;overflow:auto;user-select:text;cursor:text;pointer-events:auto;}
+.ts-root .ts-inline-editor > :is(.ts-inline-input,.ts-inline-native) {color:var(--ts-text-ink,var(--text-normal));}
 .ts-root .ts-inline-measure {position:absolute;left:-100000px;top:0;visibility:hidden;pointer-events:none;}
 .ts-root .ts-inline-editor :is(button,.ts-inline-editor-bar,.ts-inline-editor-status) {pointer-events:auto;}
 .ts-root .ts-inline-input::placeholder {color:var(--text-faint);font-size:14px;}

@@ -2231,6 +2231,7 @@
 .ts-root .ts-node.is-inline-editing > :is(.ts-resize,.ts-connect-port):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {display:none;}
 .ts-root .ts-inline-editor:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {position:absolute;inset:0;pointer-events:none;border-radius:inherit;background:transparent;color:inherit;}
 .ts-root .ts-inline-input:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {position:absolute;display:block;resize:none;box-sizing:border-box;min-width:0;min-height:0;margin:0;border:0!important;border-radius:0!important;box-shadow:none!important;outline:none!important;background:transparent!important;white-space:pre-wrap;overflow-wrap:anywhere;overflow:auto;user-select:text;cursor:text;pointer-events:auto;}
+.ts-root .ts-inline-editor > :is(.ts-inline-input,.ts-inline-native):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {color:var(--ts-text-ink,var(--text-normal));}
 .ts-root .ts-inline-measure:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {position:absolute;left:-100000px;top:0;visibility:hidden;pointer-events:none;}
 .ts-root .ts-inline-editor :is(button,.ts-inline-editor-bar,.ts-inline-editor-status):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {pointer-events:auto;}
 .ts-root .ts-inline-input:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::placeholder {color:var(--text-faint);font-size:14px;}
@@ -3051,6 +3052,7 @@
 .ts-mindmap-studio .modal-title:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){font-size:24px;letter-spacing:-.025em;margin:0 0 5px}
 .ts-mm-intro:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){color:var(--text-muted);margin:0 0 20px;font-size:12px}
 .ts-mm-body:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){display:grid;grid-template-columns:240px minmax(280px,1fr) 178px;gap:18px;min-height:500px}
+.ts-mindmap-studio .ts-mm-body[hidden]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){display:none}
 .ts-mm-outline:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){display:flex;flex-direction:column;min-height:0;min-width:0;border-right:1px solid var(--mm-line);padding-right:16px}
 .ts-mm-outline-heading:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){display:flex;align-items:center;gap:3px;margin-bottom:12px;font-size:12px}
 .ts-mm-outline-heading strong:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){flex:1}
@@ -3629,5 +3631,14 @@
   .ts-root .ts-main:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { --ts-board-line: var(--text-muted); }
   .ts-root .ts-node.is-selected:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { outline-width: 2px; }
 }
+
+/* Transparent cards stay transparent in the minimap in both themes. */
+.ts-map-node.is-transparent:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),
+.theme-dark .ts-map-node.is-transparent:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { fill: none; }
+
+/* Keep the settings hierarchy when using Obsidian's native heading rows. */
+.ts-settings-hero .setting-item:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { padding: 0; margin: 0 0 5px; border: 0; }
+.ts-settings-hero .setting-item-name:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { font-size: 25px; font-weight: 600; letter-spacing: -.6px; }
+.ts-settings-section .setting-item-name:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { font-size: inherit; font-weight: inherit; color: inherit; }
 
 /* END board-polish generated */

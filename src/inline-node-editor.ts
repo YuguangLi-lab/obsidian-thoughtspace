@@ -32,7 +32,6 @@ export class InlineNodeEditor {
   if(options.markdown){try{this.native=new NativeMarkdownDraft(options.app,this.el,options.value,options.file);}catch(e){console.warn('ThoughtSpace live editor unavailable; using source editor',e);fallback=true;}}
   if(this.native)this.input=this.native;else{const input=this.el.createEl('textarea',{cls:'ts-inline-input',attr:{'aria-label':options.label,placeholder:options.placeholder,spellcheck:'false'}});input.value=options.value;this.input=input;}
   const style=getComputedStyle(this.body);for(const key of ['fontFamily','fontSize','fontWeight','lineHeight','letterSpacing','textAlign','paddingTop','paddingRight','paddingBottom','paddingLeft'] as const)this.input.style[key]=key==='fontFamily'?(this.body.style.fontFamily||'var(--font-text)'):style[key];
-  this.input.style.color='var(--ts-text-ink,var(--text-normal))';
   this.observer=new ResizeObserver(()=>this.scheduleLayout());this.observer.observe(node);this.observer.observe(this.body);this.syncGeometry();
   this.status=this.el.createDiv({cls:'ts-inline-editor-status',attr:{role:'status','aria-live':'polite'}});
   if(fallback)this.status.setText('当前 Obsidian 不支持内嵌实时预览，已切换为 Markdown 源码编辑');

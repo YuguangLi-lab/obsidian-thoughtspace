@@ -1,21 +1,28 @@
 {
   "name": "obsidian-thoughtspace",
-  "version": "0.97.1",
+  "version": "0.97.2",
   "private": true,
   "scripts": {
     "build": "tsc --noEmit && node esbuild.mjs",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "tsx --test tests/*.test.ts",
+    "lint": "eslint src/ package.json",
+    "lint:report": "eslint src/ package.json --format json --output-file dist/eslint-report.json"
   },
   "devDependencies": {
     "@codemirror/state": "6.5.0",
     "@codemirror/view": "6.38.6",
+    "@eslint/js": "9.39.5",
+    "@eslint/json": "0.14.0",
     "@types/node": "^22.0.0",
     "esbuild": "^0.25.0",
+    "eslint": "9.39.5",
+    "eslint-plugin-obsidianmd": "0.4.2",
     "obsidian": "latest",
     "postcss": "8.5.28",
     "postcss-selector-parser": "7.1.6",
     "tsx": "^4.20.0",
-    "typescript": "^5.8.0"
+    "typescript": "^5.8.0",
+    "typescript-eslint": "8.70.1"
   },
   "dependencies": {
     "@radix-ui/colors": "^3.0.0"

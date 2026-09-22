@@ -192,7 +192,7 @@ export class WritingView extends ItemView {
   grip.ondblclick=()=>{apply(320);this.manuscriptNative?.resize();this.app.workspace.requestSaveLayout();};
   grip.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();e.stopPropagation();apply(e.key==='Home'?240:e.key==='End'?520:this.dockWidth+(e.key==='ArrowLeft'?20:-20));this.manuscriptNative?.resize();this.app.workspace.requestSaveLayout();};
  }
- private fitTitle(){if(!this.titleInput?.isConnected)return;this.titleInput.style.height='auto';this.titleInput.style.height=(this.titleInput.scrollHeight+2)+'px';}
+ private fitTitle(){if(!this.titleInput?.isConnected)return;this.titleInput.setCssStyles({height:'auto'});this.titleInput.style.height=(this.titleInput.scrollHeight+2)+'px';}
  onResize(){this.syncDock();this.manuscriptNative?.resize();}
  private closeDock(){this.dockOpen=false;this.compactDockRequested=false;this.syncDock();this.app.workspace.requestSaveLayout();}
  private toggleDock(){const open=this.dock.hidden;this.dockOpen=open;this.compactDockRequested=open&&this.contentEl.clientWidth<=900;this.syncDock();this.app.workspace.requestSaveLayout();}
