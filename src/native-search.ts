@@ -1,10 +1,33 @@
 import {createHash} from 'crypto';
 import type {Board} from './model';
-import {boardLink} from './deeplinks';
+import {boardLink,parseBoardLink} from './deeplinks';
 export const SEARCH_FOLDER='ThoughtSpace/白板搜索';
 export const searchIndexPath=(path:string)=>`${SEARCH_FOLDER}/${path}.md`;
+export function searchBoardPath(path:string){
+ if(!path.startsWith(SEARCH_FOLDER+'/')||!path.endsWith('.thoughtspace.md'))return;
+ const file=path.slice(SEARCH_FOLDER.length+1,-3);
+ if(!file||/(^\/|(^|\/)\.\.?(\/|$)|\\|[\u0000-\u001f])/.test(file))return;
+ return file;
+}
 const checksum=(text:string)=>createHash('sha256').update(text).digest('hex');
 export function isManagedSearchIndex(text:string){const match=/^<!-- thoughtspace-search-v1:([a-f0-9]{64}) -->\n/.exec(text);return !!match&&checksum(text.slice(match[0].length))===match[1];}
+/** Resolve only generated navigation links, never links quoted inside node content. */
+export function searchIndexTarget(path:string,text:string,vault:string,line?:number){
+ const file=searchBoardPath(path);if(!file||!isManagedSearchIndex(text))return;
+ let target:{file:string;node?:string},fence='';
+ const lines=text.split('\n'),opening=/^\[打开白板\]\((obsidian:\/\/thoughtspace\?[^\s]+)\)$/.exec(lines[3]||'');
+ if(!opening)return;
+ try{target=parseBoardLink(Object.fromEntries(new URL(opening[1]).searchParams),vault);if(target.file!==file||target.node)return;}catch{return;}
+ const limit=typeof line==='number'&&Number.isInteger(line)&&line>=0&&line<lines.length?line:0;
+ for(let i=0;i<=limit&&i<lines.length;i++){
+  const value=lines[i];
+  if(fence){if(value===fence)fence='';continue;}
+  const code=/^(`{3,})text$/.exec(value);if(code){fence=code[1];continue;}
+  const link=/^\[(?:打开白板|定位 对象|定位 分组|定位连线起点)\]\((obsidian:\/\/thoughtspace\?[^\s]+)\)$/.exec(value);if(!link)continue;
+  try{const parsed=parseBoardLink(Object.fromEntries(new URL(link[1]).searchParams),vault);if(parsed.file!==file)return;target=parsed;}catch{return;}
+ }
+ return target;
+}
 /** Code fences retain exact searchable characters without executing embeds or tasks. */
 const plain=(text:string)=>{let longest=0;for(const match of text.matchAll(/`+/g))longest=Math.max(longest,match[0].length);const fence='`'.repeat(Math.max(3,longest+1));return `${fence}text\n${text}\n${fence}`;};
 export function boardSearchDocument(board:Board,path:string,vault:string){

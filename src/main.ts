@@ -1,6 +1,6 @@
 import {mediaDimensions} from './media-geometry';
 import {setBoardEdgeStyle,inheritNewEdgeStyle} from './model';
-import {BoardSearchSync,SEARCH_FOLDER} from './native-search';
+import {BoardSearchSync,SEARCH_FOLDER,searchBoardPath,searchIndexTarget} from './native-search';
 import {PdfDocumentPool} from './pdf-document-pool';
 import {discloseBranches,makeChildConnection,type BranchDisclosure} from './branch-disclosure';
 import {pdfCard,pdfSubpath,pdfPage,renderPdfThumbnail,isPdfFile,pdfDropReference,pdfPageKey} from './pdf-card';
@@ -295,6 +295,7 @@ export default class ThoughtSpace extends Plugin {
   private dockOpening?: Promise<WorkspaceLeaf>;private materialsOpening?:Promise<WorkspaceLeaf>;private materialFeedback?:()=>void;private materialDrag?:{token:string;text?:string;label?:string;run:(view:BoardView,point:{x:number;y:number})=>Promise<void>};
   readonly pdfDocuments=new PdfDocumentPool(loadPdfJs,{set:(fn,ms)=>window.setTimeout(fn,ms),clear:id=>window.clearTimeout(id)});
   private searchSync?:BoardSearchSync;private searchTimer?:number;
+  private searchNavigationSequence=0;private searchNavigationStopped=false;
   private knownTags = new Map<TFile, string>();
   private hierarchyQueue: Promise<unknown> = Promise.resolve();
   private filingQueue: Promise<unknown> = Promise.resolve();
@@ -456,8 +457,34 @@ export default class ThoughtSpace extends Plugin {
     this.registerEvent(vault.on('delete',file=>{if(file instanceof TFile)enqueue(file.path);else this.rebuildBoardSearch();}));
     this.registerEvent(vault.on('rename',(file,old)=>{if(file instanceof TFile){enqueue(old);enqueue(file.path);}else this.rebuildBoardSearch();}));
     this.app.workspace.onLayoutReady(()=>this.rebuildBoardSearch());
+    this.registerEvent(this.app.workspace.on('file-open',file=>act(()=>this.openSearchResult(file))));
+    this.app.workspace.onLayoutReady(()=>act(()=>this.openSearchResult(this.app.workspace.getActiveFile())));
     this.addCommand({id:'rebuild-native-search',name:'重建白板原生搜索索引',callback:()=>{errors.clear();this.rebuildBoardSearch();}});
-    this.register(()=>{if(this.searchTimer!==undefined)window.clearTimeout(this.searchTimer);this.searchSync?.stop();});
+    this.register(()=>{this.searchNavigationStopped=true;this.searchNavigationSequence++;if(this.searchTimer!==undefined)window.clearTimeout(this.searchTimer);this.searchSync?.stop();});
+  }
+  private async openSearchResult(file:TFile|null){
+    const sequence=++this.searchNavigationSequence,workspace=this.app.workspace;
+    if(this.searchNavigationStopped||this.settings.boardSearchEnabled===false||!file||!searchBoardPath(file.path))return;
+    const path=file.path;
+    // file-open can fire while the previous BoardView is still attached to the result leaf.
+    await new Promise<void>(resolve=>requestAnimationFrame(()=>resolve()));
+    if(this.searchNavigationStopped||sequence!==this.searchNavigationSequence||file.path!==path)return;
+    const view=workspace.getActiveViewOfType(MarkdownView);
+    if(!view||view.file!==file)return;
+    const alive=()=>!this.searchNavigationStopped&&sequence===this.searchNavigationSequence&&workspace.getActiveViewOfType(MarkdownView)===view&&view.file===file&&file.path===path;
+    const content=await this.app.vault.cachedRead(file);if(!alive())return;
+    // Native search applies the match location after opening the Markdown view.
+    await new Promise<void>(resolve=>requestAnimationFrame(()=>resolve()));
+    if(!alive()||view.editor.getValue()!==content)return;
+    const state=view.getEphemeralState(),line=typeof state.line==='number'?state.line:view.editor.getCursor().line;
+    const target=searchIndexTarget(path,content,this.app.vault.getName(),line);if(!target)return;
+    const board=this.app.vault.getAbstractFileByPath(target.file);
+    if(!(board instanceof TFile)||!isWorkspaceFile(board)){new Notice('搜索结果对应的白板已移动或删除，请重建白板搜索索引');return;}
+    // Reuse the result tab, including Cmd/Ctrl-click tabs, instead of leaving an index tab behind.
+    const leaf=view.leaf;await leaf.openFile(board,{state:{tsSearchRedirect:true}});
+    await new Promise<void>(resolve=>requestAnimationFrame(()=>resolve()));
+    const opened=workspace.getActiveViewOfType(BoardView);
+    if(!this.searchNavigationStopped&&opened&&leaf.view===opened&&opened.file===board&&!opened.closed&&target.node&&opened.session?.board.nodes.some(n=>n.id===target.node))opened.revealNode(target.node);
   }
   rebuildBoardSearch(){if(this.settings.boardSearchEnabled===false)return;for(const file of this.app.vault.getFiles()){
     if(file.extension===EXT&&isWorkspaceFile(file))this.searchSync?.enqueue(file.path);
@@ -1356,7 +1383,8 @@ class BoardView extends FileView {
     const paths = Array.isArray(state.tsTrail) ? state.tsTrail : [];
     this.trail = [...new Set(paths)].filter((p): p is string => typeof p === 'string' && p !== state.file).slice(0, 64)
       .map(p => this.app.vault.getAbstractFileByPath(p)).filter((f): f is TFile => f instanceof TFile && f.extension === EXT);
-    await super.setState(state, result); this.renderNavigation();
+    const {tsSearchRedirect,...savedState}=state;
+    await super.setState(savedState, result);if(tsSearchRedirect===true)result.history=false;this.renderNavigation();
   }
   async navigate(file: TFile, trail: TFile[] = []) {
     this.navigationQueue = this.navigationQueue.catch(() => {}).then(async () => {
