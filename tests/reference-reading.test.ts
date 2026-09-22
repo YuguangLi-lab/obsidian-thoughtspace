@@ -1,0 +1,8 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {referenceReading} from '../src/reference-reading';
+const text='# Parent\nintro\n## Child\nchild body\n# Next\nother';const pos=(a:number,b:number)=>({start:{offset:a},end:{offset:b}});const cache={headings:[{heading:'Parent',level:1,position:pos(0,8)},{heading:'Child',level:2,position:pos(text.indexOf('## Child'),text.indexOf('## Child')+8)},{heading:'Next',level:1,position:pos(text.indexOf('# Next'),text.indexOf('# Next')+6)}]};
+test('section reading includes children but stops before sibling',()=>{const r=referenceReading(text,cache,'#Parent');assert.match(r.markdown,/child body/);assert.ok(!r.markdown.includes('# Next'));assert.equal(r.line,1);});
+test('child section excludes parent content',()=>{const r=referenceReading(text,cache,'#Child');assert.ok(!r.markdown.includes('intro'));assert.equal(r.line,3);});
+test('block reading is restricted to original block',()=>{const raw='before\nclaim ^id\nafter',r=referenceReading(raw,{blocks:{id:{id:'id',position:pos(7,16)}}},'#^id');assert.equal(r.markdown,'claim ^id');});
+test('missing anchors reject rather than reading another section',()=>assert.throws(()=>referenceReading(text,cache,'#Missing')));
+test('whole-note reading omits complete frontmatter',()=>{const r=referenceReading('---\na: b\n---\n# Body',null,'');assert.equal(r.markdown,'# Body');assert.equal(r.line,4);});
+test('long reading is bounded without mutating source',()=>{const raw='x'.repeat(50000);const r=referenceReading(raw,null,'');assert.equal(r.markdown.length,40000);assert.ok(r.truncated);assert.equal(raw.length,50000);});

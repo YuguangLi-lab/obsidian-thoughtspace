@@ -1,0 +1,14 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {cleanFavorites,remapFavorites,outlineNodes,taskSummary,visibleTasks,boardTemplates} from '../src/navigation';
+import {Card} from '../src/model';
+test('Favorite settings discard unsafe values and deduplicate valid paths',()=>{assert.deepEqual(cleanFavorites(['a.thoughtspace','a.thoughtspace','../b.thoughtspace','/a.thoughtspace','a//c.thoughtspace',1,'x.md','目录/b.thoughtspace']),['a.thoughtspace','目录/b.thoughtspace']);assert.deepEqual(cleanFavorites({}),[]);});
+test('Renaming a board or parent folder retains favorites without changing unrelated paths',()=>{assert.deepEqual(remapFavorites(['a/x.thoughtspace','ab/x.thoughtspace'],'a','b'),['b/x.thoughtspace','ab/x.thoughtspace']);assert.deepEqual(remapFavorites(['b/x.thoughtspace'],'b/x.thoughtspace','b/y.thoughtspace'),['b/y.thoughtspace']);});
+test('Deleting a favorite folder removes only its subtree',()=>{assert.deepEqual(remapFavorites(['a/x.thoughtspace','ab/x.thoughtspace'],'a'),['ab/x.thoughtspace']);});
+test('Task progress handles empty, mixed and complete scopes',()=>{assert.deepEqual(taskSummary([]),{total:0,done:0,percent:0});assert.deepEqual(taskSummary([{checked:true},{checked:false},{checked:false}]),{total:3,done:1,percent:33});assert.equal(taskSummary([{checked:true}]).percent,100);});
+test('Task state filter preserves source metadata and order',()=>{const tasks=[{checked:false,line:2},{checked:true,line:3},{checked:false,line:9}];assert.deepEqual(visibleTasks(tasks,'todo').map(t=>t.line),[2,9]);assert.deepEqual(visibleTasks(tasks,'done').map(t=>t.line),[3]);assert.deepEqual(visibleTasks(tasks,'all'),tasks);});
+const nodes:Card[]=[{id:'b',kind:'card',file:'资料/B.md',x:200,y:0,width:300,height:200,color:'sand'},{id:'s',kind:'section',title:'Research',x:0,y:-50,width:900,height:700,color:'blue'},{id:'a',kind:'card',file:'资料/A.md',x:0,y:0,width:300,height:200,color:'green'}];
+const title=(n:Card)=>n.title||n.file||'';
+test('Outline follows spatial order without mutating board nodes',()=>{assert.deepEqual(outlineNodes(nodes,'','all',title).map(n=>n.id),['s','a','b']);assert.deepEqual(nodes.map(n=>n.id),['b','s','a']);});
+test('Outline combines type and case-insensitive query filters',()=>{assert.deepEqual(outlineNodes(nodes,'research','section',title).map(n=>n.id),['s']);assert.equal(outlineNodes(nodes,'资料','section',title).length,0);assert.deepEqual(outlineNodes(nodes,' A.md ','card',title).map(n=>n.id),['a']);});
+test('Each template contains four distinct editable note briefs and actionable tasks',()=>{assert.equal(new Set(boardTemplates.map(t=>t.id)).size,3);for(const t of boardTemplates){assert.equal(t.titles.length,4);assert.equal(new Set(t.titles).size,4);assert.equal(t.bodies.length,4);assert.ok(t.bodies.some(b=>b.includes('- [ ]')));}});

@@ -1,0 +1,58 @@
+import {App,Modal,Notice,setIcon} from 'obsidian';
+import {Board,Color,colors,colorNames} from './model';
+import {Rect} from './board-tools';
+import {themeSurface} from './ui-tokens';
+import * as studio from './board-studio';
+export interface StudioHost{layout?:()=>void;read?:()=>void;board:()=>Board;ids:()=>Set<string>;commit:(edit:(b:Board)=>void)=>void;select:(ids:Set<string>)=>void;reveal:(id:string)=>void;tour:(ids:string[])=>void;viewport:()=>Rect;}
+/** A scoped editor: every callback rechecks its original board in the host. */
+export class BoardStudioModal extends Modal{
+ private page!:HTMLElement;private nav!:HTMLElement;private scopeLabel!:HTMLElement;private selected:Set<string>;private section='选择';
+ constructor(app:App,private host:StudioHost){super(app);this.selected=host.ids();}
+ private run(action:()=>unknown){try{Promise.resolve(action()).catch(e=>new Notice(String(e)));}catch(e){new Notice(String(e));}}
+ private btn(el:HTMLElement,title:string,icon:string,action:()=>unknown,disabled=false){const b=el.createEl('button',{attr:{'aria-label':title}});if(icon)setIcon(b.createSpan(),icon);b.createSpan({text:title});b.disabled=disabled;b.onclick=()=>this.run(action);return b;}
+ private note(text:string){this.page.createDiv({cls:'ts-studio-note',text});}
+ private form(){return this.page.createDiv('ts-studio-form');}
+ private input(el:HTMLElement,label:string,value='',type='text'){const l=el.createEl('label');l.createSpan({text:label});return l.createEl('input',{type,value,attr:{'aria-label':label}});}
+ private select(el:HTMLElement,label:string,options:Record<string,string>){const l=el.createEl('label');l.createSpan({text:label});const s=l.createEl('select',{attr:{'aria-label':label}});for(const[value,text]of Object.entries(options))s.createEl('option',{value,text});return s;}
+ private change(edit:(b:Board)=>void){this.host.commit(edit);new Notice('白板已更新，可撤销');this.render();}
+ private applySelection(ids:Set<string>){this.host.select(ids);this.selected=ids;this.render();}
+ private tool(title:string,description:string,icon:string,action:()=>unknown,disabled=false){const b=this.btn(this.page,title,icon,action,disabled);b.addClass('ts-studio-tool');b.createEl('small',{text:description});return b;}
+ onOpen(){themeSurface(this.modalEl);this.modalEl.addClass('ts-studio-modal');this.titleEl.setText('白板工作台');this.contentEl.createDiv({cls:'ts-studio-intro',text:'整理内容、组织关系，让下一步更清晰。'});this.scopeLabel=this.contentEl.createDiv('ts-studio-scope');this.nav=this.contentEl.createDiv({cls:'ts-studio-nav',attr:{role:'group','aria-label':'工作台分区'}});for(const [name,icon]of [['选择','mouse-pointer-2'],['文本','type'],['排列','layout-dashboard'],['连线','waypoints'],['阅读','book-open']])this.btn(this.nav,name,icon,()=>{this.section=name;this.render();});this.page=this.contentEl.createDiv('ts-studio-page');this.render();}
+ private render(){const board=this.host.board();this.selected=new Set([...this.selected].filter(id=>board.nodes.some(n=>n.id===id)));const ids=this.selected,nodes=board.nodes.filter(n=>ids.has(n.id));this.scopeLabel.setText(`已选 ${ids.size} 项 · ${nodes.filter(n=>n.locked).length} 项锁定 · 共 ${board.nodes.length} 个对象`);this.nav.querySelectorAll('button').forEach(b=>{const active=b.getAttribute('aria-label')===this.section;b.toggleClass('is-active',active);b.setAttribute('aria-pressed',String(active));});this.page.empty();this.page.scrollTop=0;
+ if(this.section==='选择'){
+ this.tool('反向选择','选择当前选区之外的对象','flip-horizontal',()=>this.applySelection(studio.selectStudio(this.host.board(),ids,'invert')));
+ this.tool('选择相似对象','按首个对象的类型或颜色扩展选区','scan',()=>{this.page.empty();const f=this.form(),s=this.select(f,'相似依据',{type:'相同类型',color:'相同颜色'});this.btn(f,'选择相似对象','check',()=>this.applySelection(studio.selectStudio(this.host.board(),ids,s.value as 'type'|'color')));},!ids.size);
+ this.tool('选择整条关系链','沿连接扩展到所有可达对象，包含循环关系','network',()=>this.applySelection(studio.selectStudio(this.host.board(),ids,'component')),!ids.size);
+ this.tool('选择当前视口','选取与当前画布范围相交的内容对象','scan-line',()=>this.applySelection(studio.selectStudio(this.host.board(),ids,'viewport',this.host.viewport())));
+ this.tool('保存与管理选区','为常用对象组合命名，之后一键选回','bookmark',()=>this.selectionSets());
+ }else if(this.section==='文本'){
+ this.tool('查找替换文本','先预览再替换；仅修改所选未锁定的文本框','replace',()=>this.replacePanel(),!ids.size);
+ this.tool('合并文本框','按从上到下的顺序合并；外部连线改接到首个文本','combine',()=>{this.host.commit(b=>{const id=studio.mergeTexts(b,ids);this.selected=new Set([id]);});this.host.select(this.selected);this.render();},nodes.filter(n=>n.kind==='text'&&!n.locked).length<2);
+ this.tool('按段落拆分文本','空行分段；原有连线保留在第一个段落','split',()=>{this.host.commit(b=>{this.selected=new Set(studio.splitParagraphs(b,ids));});this.host.select(this.selected);this.render();},nodes.filter(n=>n.kind==='text'&&!n.locked).length!==1);
+ this.note('这些操作保留原始 Markdown 笔记文件；合并和拆分支持白板撤销。思维导图主题不会自动转换。');
+ }else if(this.section==='排列'){
+ this.tool('布局预览','网格、瀑布流和分类分栏；先比较再应用','layout-dashboard',()=>{this.close();this.host.layout?.();},ids.size<2||!this.host.layout);
+ this.tool('固定间距排列','按指定间距横排或竖排，保留各对象尺寸','align-horizontal-space-around',()=>{this.page.empty();const f=this.form(),axis=this.select(f,'排列方向',{x:'横向',y:'纵向'}),gap=this.input(f,'对象间距','32','number');this.note('分组框和锁定对象保持原位；排列其中的内容可能改变分组归属。');this.btn(f,'应用排列','check',()=>this.change(b=>studio.stackSelection(b,ids,axis.value as 'x'|'y',Number(gap.value))));},ids.size<2);
+ this.tool('环形排列','围绕所选对象的平均中心排成一圈','circle',()=>{this.page.empty();const f=this.form(),radius=this.input(f,'环形半径','500','number');this.note('半径较小时对象可能重叠，可撤销后加大半径。');this.btn(f,'应用环形排列','check',()=>this.change(b=>studio.radialSelection(b,ids,Number(radius.value))));},ids.size<3);
+ this.tool('精确位置与尺寸','输入 X、Y、宽、高；本次尺寸改为手动管理','ruler',()=>{const n=nodes[0];this.page.empty();const f=this.form(),x=this.input(f,'X',String(n.x),'number'),y=this.input(f,'Y',String(n.y),'number'),w=this.input(f,'宽度',String(n.width),'number'),h=this.input(f,'高度',String(n.height),'number');this.btn(f,'应用尺寸','check',()=>this.change(b=>studio.geometry(b,n.id,{x:Number(x.value),y:Number(y.value),width:Number(w.value),height:Number(h.value)})));},nodes.length!==1||!!nodes[0]?.locked||!!nodes[0]?.collapsed||nodes[0]?.kind==='section');
+ }else if(this.section==='连线'){
+ this.tool('顺序串联','按阅读顺序依次连线；跳过已有连接','workflow',()=>this.change(b=>studio.connectSelection(b,ids)),ids.size<2);
+ this.tool('中心辐射连接','以阅读顺序中的首个对象为中心连接其他对象','share-2',()=>this.change(b=>studio.connectSelection(b,ids,true)),ids.size<2);
+ this.tool('反转所选连接','交换内部普通连线的起止节点和端点','arrow-left-right',()=>this.change(b=>studio.reverseEdges(b,ids)),!studio.selectionEdges(board,ids).length);
+ this.tool('批量连接样式','统一内部普通连线的路径、箭头、颜色和虚线','palette',()=>this.edgePanel(),!studio.selectionEdges(board,ids).length);
+ this.note('连线操作跳过锁定对象；反转与样式修改保留思维导图分支规则。');
+ }else{
+ this.tool('集中阅读与回顾','打开阅读桌，逐篇阅读并管理进度','book-open',()=>{this.close();this.host.read?.();},!this.host.read);
+ this.tool('选区阅读巡览','按阅读顺序逐个聚焦，浮动导航随时退出','presentation',()=>{this.close();this.host.tour(studio.readingOrder(nodes.filter(n=>n.kind!=='section')).map(n=>n.id));},!nodes.some(n=>n.kind!=='section'));
+ this.tool('复制选区 Markdown','文本保留换行；笔记与图片生成 Obsidian 链接','file-code',async()=>{await navigator.clipboard.writeText(studio.selectionMarkdown(this.host.board(),ids));new Notice('已复制选区 Markdown');},!ids.size);
+ this.tool('复制选区 CSV','导出类型、名称、路径、坐标、尺寸和颜色','table',async()=>{await navigator.clipboard.writeText(studio.selectionCSV(this.host.board(),ids));new Notice('已复制选区 CSV');},!ids.size);
+ this.tool('白板概览','查看内容构成、文件数量和重复引用','chart-no-axes-combined',()=>this.statsPanel());
+ this.tool('关系浏览器','搜索连接名称或端点，跳到关联内容','git-compare-arrows',()=>this.relationships());
+ }
+ }
+ private selectionSets(){this.page.empty();const board=this.host.board(),f=this.form(),input=this.input(f,'选区名称');this.btn(f,'保存当前选区','bookmark-plus',()=>{this.host.commit(b=>studio.saveSelection(b,this.selected,input.value));this.selectionSets();},!this.selected.size);const list=this.page.createDiv('ts-studio-list');for(const set of board.selectionSets||[]){const row=list.createDiv('ts-studio-saved'),valid=set.ids.filter(id=>board.nodes.some(n=>n.id===id));this.btn(row,`${set.name} · ${valid.length} 项`,'bookmark',()=>this.applySelection(new Set(valid)),!valid.length);this.btn(row,'重命名选区','pencil',()=>{const name=input.value.trim();if(!name||name.length>60)throw Error('请在名称框输入 1–60 个字符');this.host.commit(b=>{if(b.selectionSets?.some(s=>s.id!==set.id&&s.name===name))throw Error('名称已存在');const target=b.selectionSets?.find(s=>s.id===set.id);if(target)target.name=name;});this.selectionSets();});this.btn(row,'删除选区','x',()=>{this.host.commit(b=>{b.selectionSets=b.selectionSets?.filter(s=>s.id!==set.id);});this.selectionSets();});}if(!list.children.length)this.note('尚未保存选区。选取一组经常一起使用的对象，为它们命名。');this.note('删除选区仅移除这条记录；不会移除白板对象。最多保存 30 个选区。');}
+ private replacePanel(){this.page.empty();const f=this.form(),search=this.input(f,'查找文字'),replacement=this.input(f,'替换为');const result=this.page.createDiv('ts-studio-preview');this.btn(f,'预览替换','search',()=>{const preview=studio.replacementPreview(this.host.board(),this.selected,search.value,replacement.value);result.empty();result.createDiv({text:`${preview.length} 个文本框 · ${preview.reduce((s,p)=>s+p.count,0)} 处匹配`});for(const p of preview.slice(0,20)){const row=result.createDiv('ts-studio-diff');row.createEl('del',{text:p.before.slice(0,400)});row.createEl('ins',{text:p.after.slice(0,400)});}this.btn(result,'确认替换','check',()=>this.change(b=>studio.replaceText(b,preview)),!preview.length);});this.note('按字面查找，区分大小写。预览每条最多 400 字、前 20 条；应用覆盖全部匹配。');}
+ private edgePanel(){this.page.empty();const f=this.form(),path=this.select(f,'路径',{curve:'曲线',straight:'直线',elbow:'直角'}),arrow=this.select(f,'箭头',{forward:'单向',both:'双向',none:'无箭头'}),color=this.select(f,'连线颜色',Object.fromEntries(colors.map(c=>[c,colorNames[c]]))),dash=this.select(f,'线型',{solid:'实线',dashed:'虚线'});this.btn(f,'应用连接样式','check',()=>this.change(b=>studio.styleEdges(b,this.selected,{style:path.value as 'curve',direction:arrow.value as 'forward',color:color.value as Color,dashed:dash.value==='dashed'})));}
+ private statsPanel(){this.page.empty();const data=studio.studioStats(this.host.board()),list=this.page.createEl('dl',{cls:'ts-studio-stats'});for(const[key,label]of Object.entries({objects:'对象',edges:'连线',notes:'笔记卡片',texts:'文本框',images:'图片',groups:'分组',uniqueFiles:'不同文件',repeatedReferences:'重复引用'})){const row=list.createDiv();row.createEl('dt',{text:label});row.createEl('dd',{text:String(data[key as keyof typeof data])});}this.note('重复引用表示同一文件在白板内的额外出现次数，不代表文件重复。');}
+ private relationships(){this.page.empty();const search=this.input(this.form(),'搜索关系或对象'),list=this.page.createDiv('ts-studio-list');const render=()=>{list.empty();const board=this.host.board(),byId=new Map(board.nodes.map(n=>[n.id,n])),q=search.value.trim().toLocaleLowerCase(),edges=board.edges.filter(e=>`${studio.nodeName(byId.get(e.from)!)} ${e.label} ${studio.nodeName(byId.get(e.to)!)}`.toLocaleLowerCase().includes(q));list.createDiv({cls:'ts-studio-note',text:`${edges.length} 条关系 · 最多显示 100 条`});for(const e of edges.slice(0,100)){const row=list.createDiv('ts-studio-relation');row.createDiv({text:e.label||'未命名关系'});this.btn(row,studio.nodeName(byId.get(e.from)!),'arrow-up-right',()=>{this.close();this.host.reveal(e.from);});row.createSpan({text:e.direction==='both'?'↔':e.direction==='none'?'—':'→'});this.btn(row,studio.nodeName(byId.get(e.to)!),'arrow-up-right',()=>{this.close();this.host.reveal(e.to);});}};search.oninput=()=>this.run(render);render();}
+}

@@ -1,0 +1,21 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {editorMatches,editorReplacement,editorMatchLines,editorSearchSeed} from '../src/editor-search';
+const opt={caseSensitive:false,wholeWord:false};
+test('literal search treats metacharacters and dollars literally',()=>{assert.deepEqual(editorMatches('a.* [x] a.*','a.*',opt),[{from:0,to:3},{from:8,to:11}]);assert.equal(editorReplacement('abc', [{from:0,to:3}], '$&')?.text,'$&');});
+test('case sensitivity is optional',()=>{assert.equal(editorMatches('Note note NOTE','note',opt).length,3);assert.equal(editorMatches('Note note NOTE','note',{...opt,caseSensitive:true}).length,1);});
+test('whole words do not match within words or identifiers',()=>{assert.equal(editorMatches('cat cats bob_cat cat.','cat',{...opt,wholeWord:true}).length,2);});
+test('unicode folds retain source offsets',()=>{assert.deepEqual(editorMatches('İ x x','x',opt),[{from:2,to:3},{from:4,to:5}]);assert.deepEqual(editorMatches('😀 k K','k',opt),[{from:3,to:4},{from:5,to:6}]);});
+test('unicode word boundaries include CJK and combining marks',()=>{assert.equal(editorMatches('研究 研究者','研究',{...opt,wholeWord:true}).length,1);assert.equal(editorMatches('a\u0301 a','a',{...opt,wholeWord:true}).length,1);});
+test('selected range excludes matches crossing either boundary',()=>{assert.deepEqual(editorMatches('abc abc abc','abc',{...opt,range:{from:1,to:10}}),[{from:4,to:7}]);});
+test('empty query has no matches',()=>assert.deepEqual(editorMatches('abc','',opt),[]));
+test('replace all preserves gaps outside literal matches',()=>{const s='cat / cat!',plan=editorReplacement(s,editorMatches(s,'cat',opt),'dog')!;assert.equal(s.slice(0,plan.from)+plan.text+s.slice(plan.to),'dog / dog!');assert.equal(plan.count,2);});
+test('single deletion adjusts length exactly',()=>{assert.deepEqual(editorReplacement('a cat b',[{from:2,to:5}],''),{from:2,to:5,text:'',delta:-3,count:1});});
+test('replacement refuses invalid and overlapping ranges',()=>{assert.throws(()=>editorReplacement('abcd',[{from:0,to:3},{from:2,to:4}],'x'));assert.throws(()=>editorReplacement('a',[{from:0,to:2}],'x'));});
+test('search refuses invalid selection offsets',()=>assert.throws(()=>editorMatches('x','x',{...opt,range:{from:-1,to:1}})));
+test('work and output have explicit bounds',()=>{assert.throws(()=>editorMatches('x'.repeat(10001),'x',opt));assert.throws(()=>editorMatches('x'.repeat(2000001),'x',opt));assert.throws(()=>editorReplacement('x'.repeat(2000000),[{from:0,to:1}],'xx'));});
+test('line breaks and CRLF are matched without normalization',()=>{assert.deepEqual(editorMatches('a\r\nb\r\na','\r\n',opt),[{from:1,to:3},{from:4,to:6}]);});
+
+test('search seed never joins selected paragraphs',()=>{assert.equal(editorSearchSeed('a\nb',0,3),'');assert.equal(editorSearchSeed('a\r\nb',0,4),'');assert.equal(editorSearchSeed('alpha',0,5),'alpha');});
+test('line index keeps original LF and CRLF positions',()=>{const text='x\r\nx\nx',matches=editorMatches(text,'x',opt);assert.deepEqual(editorMatchLines(text,matches),[1,2,3]);assert.deepEqual(editorMatchLines(text,[]),[]);});
+test('line index handles several matches on the same line and final empty line',()=>{const text='x x\nx\n';assert.deepEqual(editorMatchLines(text,editorMatches(text,'x',opt)),[1,1,2]);});

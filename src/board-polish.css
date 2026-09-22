@@ -1,0 +1,280 @@
+/* Whiteboard 0.96: a compact, theme-native tool surface.
+   This file owns the final canvas chrome. Content geometry, text typography,
+   custom fills and source-editor measurements are deliberately unchanged. */
+.ts-root .ts-main {
+  --ts-board-panel: var(--background-primary);
+  --ts-board-line: color-mix(in srgb, var(--background-modifier-border) 88%, transparent);
+  --ts-board-hover: var(--background-modifier-hover);
+  --ts-board-active: color-mix(in srgb, var(--ts-accent) 10%, var(--background-primary));
+  --ts-board-shadow: 0 1px 2px #00000006, 0 5px 18px #0000000c;
+  --ts-board-menu-shadow: 0 2px 5px #00000008, 0 14px 36px #00000016;
+  --ts-board-control: 32px;
+}
+.theme-dark .ts-root .ts-main {
+  --ts-board-shadow: 0 1px 2px #00000028, 0 5px 18px #00000032;
+  --ts-board-menu-shadow: 0 2px 5px #00000032, 0 14px 36px #00000048;
+}
+
+/* The creation rail stays in the actual center of the available canvas. */
+.ts-root .ts-main > .ts-board-rail {
+  top: 50%;
+  left: 12px;
+  width: 44px;
+  max-height: calc(100% - 132px);
+  border-color: var(--ts-board-line);
+  border-radius: 12px;
+  background: var(--ts-board-panel);
+  box-shadow: var(--ts-board-shadow);
+}
+.ts-root .ts-board-rail .ts-rail-tools { padding: 5px; gap: 2px; }
+.ts-root .ts-board-rail .ts-button {
+  flex-basis: var(--ts-board-control);
+  width: var(--ts-board-control) !important;
+  min-width: var(--ts-board-control);
+  height: var(--ts-board-control) !important;
+  min-height: var(--ts-board-control);
+  border-radius: 8px !important;
+  color: var(--text-muted);
+}
+.ts-root .ts-board-rail .ts-button svg { width: 17px; height: 17px; stroke-width: 1.75; }
+.ts-root .ts-board-rail .ts-button:hover { background: var(--ts-board-hover) !important; color: var(--text-normal); }
+.ts-root .ts-board-rail .ts-button:is(.is-active, [aria-expanded=true]) {
+  background: var(--ts-board-active) !important;
+  color: var(--ts-accent) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ts-accent) 23%, transparent) !important;
+}
+.ts-root .ts-board-rail .ts-primary {
+  background: var(--ts-board-active) !important;
+  color: var(--ts-accent) !important;
+  box-shadow: none !important;
+}
+.ts-root .ts-board-rail .ts-primary:hover { background: color-mix(in srgb, var(--ts-accent) 17%, var(--background-primary)) !important; }
+.ts-root .ts-board-rail .ts-rail-divider { margin: 4px 7px; background: var(--ts-board-line); }
+
+/* Overflow uses short, consistently aligned rows. Position remains owned by
+   the rail; the context menu retains its mouse-relative inline coordinates. */
+.ts-root .ts-main > .ts-rail-popover {
+  top: 50%;
+  left: 66px;
+  width: 232px;
+  max-width: calc(100% - 78px);
+  max-height: calc(100% - 132px);
+  padding: 6px;
+  border-color: var(--ts-board-line);
+  border-radius: 12px;
+  background: var(--ts-board-panel);
+  box-shadow: var(--ts-board-menu-shadow);
+  scrollbar-width: thin;
+  scrollbar-color: var(--background-modifier-border) transparent;
+}
+.ts-root .ts-rail-popover .ts-tool-cluster::before {
+  padding: 8px 10px 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .02em;
+}
+.ts-root .ts-rail-popover .ts-tool-cluster + .ts-tool-cluster { margin-top: 5px; padding-top: 3px; border-color: var(--ts-board-line); }
+.ts-root .ts-rail-popover .ts-rail-actions .ts-button {
+  height: 32px;
+  min-height: 32px;
+  border-radius: 7px;
+  gap: 10px;
+  padding-inline: 10px !important;
+}
+.ts-root .ts-rail-popover .ts-rail-actions .ts-button:hover { background: var(--ts-board-hover); }
+.ts-root .ts-rail-popover .ts-button > span:first-child { display: flex; flex: 0 0 16px; color: var(--text-muted); }
+
+/* One floating row, scrollable on a split pane. Never wrap formatting controls
+   into a tall panel that covers the document being edited. */
+.ts-root .ts-main > .ts-floating-formatbar {
+  top: 12px;
+  max-width: calc(100% - 32px);
+}
+.ts-root .ts-floating-formatbar > .ts-commandbar {
+  padding: 5px !important;
+  gap: 0 !important;
+  border-color: var(--ts-board-line) !important;
+  border-radius: 11px !important;
+  background: var(--ts-board-panel) !important;
+  box-shadow: var(--ts-board-shadow) !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--background-modifier-border) transparent;
+}
+.ts-root .ts-floating-formatbar .ts-commandbar > .ts-selection-tools {
+  gap: 6px;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  min-height: 30px;
+  width: max-content;
+  flex-wrap: nowrap;
+}
+.ts-root .ts-floating-formatbar .ts-format-field {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 0 2px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.ts-root .ts-floating-formatbar .ts-format-field > span { font-size: 11px; }
+.ts-root .ts-floating-formatbar .ts-format-field select {
+  height: 28px;
+  min-height: 28px;
+  max-width: 116px;
+  border: 1px solid transparent;
+  border-radius: 6px !important;
+  background-color: transparent !important;
+  color: var(--text-normal);
+  box-shadow: none;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.ts-root .ts-floating-formatbar .ts-format-field select:hover { background-color: var(--ts-board-hover) !important; }
+.ts-root .ts-floating-formatbar .ts-format-field:is([data-format="字体"], [data-format="边框线型"]) {
+  border-inline-start: 1px solid var(--ts-board-line);
+  padding-inline-start: 7px;
+  margin-inline-start: 2px;
+}
+.ts-root .ts-floating-formatbar .ts-fill-custom input[type=color] {
+  width: 24px;
+  height: 24px;
+  border-color: var(--ts-board-line);
+  border-radius: 6px;
+  background: transparent;
+}
+.ts-root .ts-floating-formatbar .ts-selection-tools > .ts-md-mode {
+  height: 30px;
+  min-height: 30px;
+  background: var(--ts-board-active) !important;
+  color: var(--ts-accent);
+  border-radius: 7px !important;
+}
+.ts-root .ts-floating-formatbar .ts-markdown-tools { gap: 0; }
+.ts-root .ts-floating-formatbar .ts-md-group { gap: 1px; padding-inline: 5px; }
+.ts-root .ts-floating-formatbar .ts-md-group + .ts-md-group::before { top: 6px; bottom: 6px; background: var(--ts-board-line); }
+.ts-root .ts-floating-formatbar .ts-markdown-tools .ts-md-button { height: 30px; min-height: 30px; border-radius: 6px !important; }
+.ts-root .ts-floating-formatbar :is(button, select, input):focus-visible { outline: 2px solid var(--ts-accent); outline-offset: -2px; }
+
+/* A selected object is distinguished by an outline, never a new fill or a
+   highlighted title strip. No transform, width or content padding transitions. */
+.ts-root .ts-node:is(.is-selected, .is-inline-editing) { outline-color: var(--ts-accent); outline-offset: 3px; }
+.ts-root .ts-node.is-selected:not(.is-inline-editing) { outline-width: 1.5px; }
+.ts-root .ts-node.ts-text.is-selected { outline-width: 1.5px; outline-offset: 3px; }
+.ts-root .ts-node.ts-card.is-selected { outline-color: var(--ts-accent); outline-offset: 3px; }
+.ts-root .ts-node.is-inline-editing { outline-width: 2px; }
+.ts-root .ts-node.is-selected:not(.is-inline-editing) > .ts-connect-port:not(.ts-endpoint-port) {
+  color: var(--ts-accent) !important;
+  background: var(--background-primary) !important;
+  box-shadow: 0 0 0 1px var(--ts-board-line), 0 1px 4px #00000012 !important;
+}
+.ts-root .ts-node > .ts-connect-port:is(:hover, :focus-visible):not(.ts-endpoint-port) {
+  color: var(--background-primary) !important;
+  background: var(--ts-accent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ts-accent) 18%, transparent) !important;
+}
+.ts-root .ts-node > .ts-connect-port:disabled { opacity: .4; cursor: default; }
+.ts-root .ts-node.ts-card > .ts-card-actions { border-color: var(--ts-board-line); border-radius: 7px; box-shadow: 0 2px 7px #00000010; }
+.ts-root .ts-node.ts-card > .ts-card-actions .ts-icon-button { color: var(--text-muted); }
+.ts-root .ts-node.ts-card > .ts-card-actions .ts-icon-button:hover:not(:disabled) { color: var(--text-normal); background: var(--ts-board-hover); }
+
+/* Summary cards must retain readable contrast when the board zooms out.
+   Light theme tints cannot be reused behind the dark theme's light text. */
+.theme-dark .ts-root .ts-node.ts-node-summary {
+  background: color-mix(in srgb, var(--ts-tone) 22%, var(--background-primary)) !important;
+}
+
+/* Context actions stay beside the pointer; CSS only refines their surface. */
+.ts-root .ts-main > .ts-inspector {
+  width: 236px;
+  gap: 2px;
+  padding: 6px;
+  border-color: var(--ts-board-line) !important;
+  border-radius: 11px !important;
+  background: var(--ts-board-panel) !important;
+  box-shadow: var(--ts-board-menu-shadow) !important;
+  backdrop-filter: none;
+}
+.ts-root .ts-inspector .ts-inspector-heading {
+  min-height: 28px;
+  padding: 4px 5px 8px 9px;
+  margin-bottom: 3px;
+  top: -6px;
+  background: var(--ts-board-panel);
+  border-bottom-color: var(--ts-board-line);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+.ts-root .ts-inspector > .ts-button { height: 31px; min-height: 31px; border-radius: 7px !important; font-size: 12px !important; }
+.ts-root .ts-inspector .ts-button:hover { background: var(--ts-board-hover) !important; }
+.ts-root .ts-inspector-divider { margin: 5px 6px; background: var(--ts-board-line); }
+.ts-root .ts-inspector .ts-choice { min-height: 31px; border-radius: 7px; }
+
+/* Canvas controls and zoom read as a quiet bottom dock, with a matching map. */
+.ts-root .ts-main > .ts-footer { left: 12px; right: 12px; bottom: 12px; gap: 8px; }
+.ts-root .ts-footer :is(.ts-canvas-controls, .ts-zoom) {
+  padding: 4px;
+  border-color: var(--ts-board-line);
+  border-radius: 10px !important;
+  background: var(--ts-board-panel);
+  box-shadow: var(--ts-board-shadow) !important;
+}
+.ts-root .ts-footer :is(.ts-canvas-controls, .ts-zoom) .ts-button { height: 28px; min-height: 28px; border-radius: 6px !important; }
+.ts-root .ts-canvas-controls .ts-snap-toggle.is-active {
+  background: var(--ts-board-active) !important;
+  color: var(--ts-accent) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ts-accent) 18%, transparent);
+}
+.ts-root .ts-background-switch .ts-button.is-active { background: var(--ts-board-active) !important; box-shadow: none; }
+.ts-root .ts-grid-spacing { border-color: var(--ts-board-line); }
+.ts-root .ts-footer .ts-zoom [role=button] { display: grid; place-items: center; min-height: 28px; min-width: 44px; border-radius: 6px; color: var(--text-normal); }
+.ts-root .ts-main > .ts-minimap {
+  bottom: 64px;
+  right: 12px;
+  border-color: var(--ts-board-line);
+  border-radius: 10px !important;
+  background: var(--ts-board-panel);
+  box-shadow: var(--ts-board-shadow) !important;
+}
+.ts-root .ts-minimap .ts-map-viewport { fill: color-mix(in srgb, var(--ts-accent) 6%, transparent); stroke: var(--ts-accent); stroke-width: 1.3px; }
+
+/* Glass is limited to two small tools. Cards, the menu and the whole canvas do
+   not acquire a blur layer, including on large boards. */
+.ts-root[data-glass=true][data-surface=soft] .ts-main > .ts-board-rail,
+.ts-root[data-glass=true][data-surface=soft] .ts-floating-formatbar > .ts-commandbar {
+  background: color-mix(in srgb, var(--ts-board-panel) 95%, transparent) !important;
+  backdrop-filter: blur(8px);
+}
+.ts-root[data-glass=true][data-surface=soft] .ts-footer :is(.ts-canvas-controls, .ts-zoom) { background: var(--ts-board-panel); backdrop-filter: none; }
+
+@container (max-width: 760px) {
+  .ts-root .ts-floating-formatbar .ts-format-field > span { display: none; }
+  .ts-root .ts-floating-formatbar .ts-format-field { gap: 0; }
+  .ts-root .ts-floating-formatbar .ts-selection-tools > .ts-md-mode { font-size: 12px; }
+}
+@container (max-width: 510px) {
+  .ts-root .ts-main > .ts-board-rail { left: 8px; max-height: calc(100% - 156px); }
+  .ts-root .ts-main > .ts-rail-popover { left: 60px; max-width: calc(100% - 68px); max-height: calc(100% - 120px); }
+  .ts-root .ts-main > .ts-floating-formatbar { top: 8px; max-width: calc(100% - 16px); }
+  .ts-root .ts-main > .ts-footer { left: 8px; right: 8px; bottom: 8px; gap: 5px; }
+  .ts-root .ts-main > .ts-minimap { right: 8px; bottom: 104px; }
+  .ts-root .ts-canvas-controls .ts-snap-toggle > span:last-child { display: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .ts-root[data-glass=true][data-surface=soft] .ts-main > .ts-board-rail,
+  .ts-root[data-glass=true][data-surface=soft] .ts-floating-formatbar > .ts-commandbar { background: var(--ts-board-panel) !important; backdrop-filter: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ts-root .ts-main :is(.ts-board-rail, .ts-rail-popover, .ts-floating-formatbar, .ts-inspector, .ts-footer) :is(button, select, input) { transition: none !important; }
+}
+@media (prefers-contrast: more) {
+  .ts-root .ts-main { --ts-board-line: var(--text-muted); }
+  .ts-root .ts-node.is-selected { outline-width: 2px; }
+}

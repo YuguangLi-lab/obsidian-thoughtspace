@@ -1,0 +1,5 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {Card} from '../src/model';import {indexPreview,searchPreview} from '../src/layout-preview-search';
+const nodes:Card[]=[{id:'a',kind:'card',file:'Research/ALPHA.md',x:0,y:0,width:200,height:100,color:'green'},{id:'b',kind:'text',text:'研究结论\n正文不属于标题',x:0,y:0,width:200,height:100,color:'green'}];
+test('preview search matches title and path with normalized case and width',()=>{const index=indexPreview(nodes);assert.deepEqual(searchPreview(index,'research ａｌｐｈａ').map(n=>n.id),['a']);assert.deepEqual(searchPreview(index,'研究').map(n=>n.id),['b']);});
+test('empty and unmatched searches do not select arbitrary content',()=>{const index=indexPreview(nodes);assert.deepEqual(searchPreview(index,'  '),[]);assert.deepEqual(searchPreview(index,'unmatched'),[]);});
+test('search indexes do not change input objects or duplicate matching entries',()=>{const before=JSON.stringify(nodes),index=indexPreview(nodes);assert.equal(searchPreview(index,'alpha alpha').length,1);assert.equal(JSON.stringify(nodes),before);});

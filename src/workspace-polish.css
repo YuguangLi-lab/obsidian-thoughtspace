@@ -1,0 +1,123 @@
+/* 0.60 — Research workspace. Layout inspiration: Primer ActionList, shadcn Sidebar,
+   Radix Themes surfaces. Native DOM and existing Radix Colors; no copied components. */
+:is(.ts-root,.ts-journal,.ts-ui-modal,.ts-settings,.ts-native-header,.ts-note-markdown-toolbar) {
+ --ts-work-line:color-mix(in srgb,var(--background-modifier-border) 72%,transparent);
+ --ts-work-wash:color-mix(in srgb,var(--ts-accent) 6%,var(--background-primary));
+ --ts-work-hover:color-mix(in srgb,var(--ts-accent) 9%,var(--background-primary));
+ --ts-work-panel:var(--background-primary);
+ --ts-work-raised:var(--background-primary);
+ --ts-work-shadow:0 2px 4px #14251e08,0 8px 24px #14251e0b;
+ --ts-work-ring:color-mix(in srgb,var(--ts-accent) 28%,transparent);
+}
+.theme-dark :is(.ts-root,.ts-journal,.ts-ui-modal,.ts-settings,.ts-native-header,.ts-note-markdown-toolbar) {
+ --ts-work-raised:color-mix(in srgb,var(--background-primary) 92%,white);
+ --ts-work-shadow:0 2px 4px #00000020,0 8px 24px #00000035;
+}
+/* Canvas chrome: light floating tools, flat content, no layout animation. */
+.ts-root .ts-commandbar {margin:10px 12px 0!important;border:1px solid var(--ts-work-line)!important;border-radius:12px!important;gap:5px!important;padding:5px!important;background:var(--ts-work-raised)!important;box-shadow:var(--ts-work-shadow)!important;}
+.ts-root .ts-commandbar>.ts-toolbar {gap:4px!important;}
+.ts-root .ts-commandbar .ts-button {border-radius:7px!important;}
+.ts-root .ts-commandbar .ts-button:not(.ts-primary):hover {background:var(--ts-work-hover)!important;color:var(--ts-accent);}
+.ts-root .ts-commandbar .ts-primary {border-radius:8px!important;}
+.ts-root .ts-commandbar .ts-toolbar-divider {margin-inline:4px;border-color:var(--ts-work-line);}
+.ts-root :is(.ts-canvas-controls,.ts-zoom-controls,.ts-minimap) {border-radius:12px;border-color:var(--ts-work-line);background:var(--ts-work-raised);box-shadow:var(--ts-work-shadow);}
+.ts-root .ts-minimap-title {font-size:10px;font-weight:550;letter-spacing:.025em;color:var(--text-muted);}
+.ts-root .ts-card:not(.is-transparent) {border-radius:12px;box-shadow:0 2px 3px #00000007,0 6px 16px #00000005;}
+.ts-root .ts-card:not(.is-transparent)>.ts-node-header {background:color-mix(in srgb,var(--ts-tone) 5%,transparent);border-radius:11px 11px 0 0;}
+.ts-root .ts-card.is-folded:not(.is-transparent)>.ts-node-header {border-radius:11px;}
+.ts-root .ts-card:not(.is-transparent)>.ts-card-meta {border-top-color:var(--ts-work-line);background:transparent;}
+.ts-root .ts-node.is-selected {outline-color:var(--ts-accent);}
+.ts-root .ts-card.is-transparent {box-shadow:none!important;}
+.ts-native-header {gap:3px;}
+.ts-native-header .ts-button {border-radius:7px;}
+.ts-native-header .ts-button:hover {background:var(--ts-work-hover);}
+/* Calendar: one gradient surface, readable targets, quiet year navigation. */
+/* Task controls read as a single section, with the view selector in its heading. */
+/* Journal: a date masthead and an uninterrupted reading column. */
+/* Timeline keeps its duration rail, with clearer current-task and time labels. */
+:is(.ts-root,.ts-journal,.ts-native-header) :is(button,input,select,summary):focus-visible {outline:2px solid var(--ts-accent);outline-offset:2px;}
+@media(prefers-reduced-motion:reduce){:is(.ts-root,.ts-journal,.ts-native-header) * {transition:none!important;scroll-behavior:auto!important;}}
+
+/* 0.61 — A shared inset navigation and reading surface, scoped to plugin UI.
+   Primer ActionList leading/trailing visuals and shadcn Sidebar composition. */
+/* Reading and material workspaces: quiet navigation beside an open document. */
+.ts-ui-modal.ts-reading-desk {background:var(--background-primary);}
+.ts-ui-modal.ts-reading-desk .ts-reading-heading {padding-bottom:4px;}
+.ts-ui-modal.ts-reading-desk .ts-reading-heading h2 {font-size:21px;font-weight:600;letter-spacing:-.02em;}
+.ts-ui-modal.ts-reading-desk .ts-reading-tools {padding:0 0 12px;border:0;border-bottom:1px solid var(--ts-work-line);border-radius:0;background:transparent;box-shadow:none;gap:8px;}
+.ts-ui-modal.ts-reading-desk .ts-reading-tools :is(input,select) {height:32px;border:1px solid var(--ts-work-line);border-radius:7px;background-color:var(--background-primary);box-shadow:none;font-size:12px;}
+.ts-ui-modal.ts-reading-desk .ts-reading-layout {gap:20px;}
+.ts-ui-modal.ts-reading-desk .ts-reading-aside {padding:0 12px 0 0;border:0;border-right:1px solid var(--ts-work-line);border-radius:0;background:transparent;}
+.ts-ui-modal.ts-reading-desk .ts-reading-aside-tabs {padding:3px;border:0;border-radius:8px;background:var(--background-secondary);}
+.ts-ui-modal.ts-reading-desk .ts-reading-aside-tabs button {height:28px;padding:4px;border-radius:5px;font-size:12px;}
+.ts-ui-modal.ts-reading-desk .ts-reading-aside-tabs button[aria-pressed=true] {background:var(--background-primary);color:var(--text-normal);box-shadow:0 1px 3px #00000009;}
+.ts-ui-modal.ts-reading-desk .ts-reading-item {margin:4px 0;padding:12px 8px;border:1px solid transparent;border-radius:7px;background:transparent;box-shadow:none;font-size:12px;}
+.ts-ui-modal.ts-reading-desk .ts-reading-item[aria-pressed=true] {background:var(--ts-work-wash);border-color:transparent;box-shadow:inset 2px 0 var(--ts-accent);}
+.ts-ui-modal.ts-reading-desk .ts-reading-item:hover {background:var(--background-modifier-hover);}
+.ts-ui-modal.ts-reading-desk .ts-reading-item small {font-size:11px;color:var(--text-muted);}
+.ts-ui-modal.ts-reading-desk .ts-reading-count {padding:8px 4px;font-size:11px;}
+.ts-ui-modal.ts-reading-desk .ts-reading-page {padding:12px clamp(12px,2vw,24px) 24px;border:0;border-radius:0;background:transparent;box-shadow:none;}
+.ts-ui-modal.ts-reading-desk .ts-reading-page-head h2 {font-size:26px;font-weight:600;line-height:1.4;}
+.ts-ui-modal.ts-reading-desk .ts-reading-eyebrow {font-size:11px;letter-spacing:.04em;color:var(--text-muted);}
+.ts-ui-modal.ts-reading-desk .ts-reading-source {font-size:11px;color:var(--text-muted);}
+.ts-ui-modal.ts-reading-desk .ts-reading-actions {gap:6px;}
+.ts-ui-modal.ts-reading-desk .ts-reading-actions button {height:30px;border:1px solid var(--ts-work-line);border-radius:6px;background:transparent;font-size:12px;box-shadow:none;}
+.ts-ui-modal.ts-reading-desk .ts-reading-actions button[aria-pressed=true] {background:var(--ts-work-wash);border-color:var(--ts-work-ring);color:var(--ts-accent);}
+.ts-ui-modal.ts-reading-desk .ts-reading-footer {padding-top:8px;border:0;}
+.ts-ui-modal.ts-reading-desk .ts-reading-footer button {height:30px;border-radius:7px;font-size:12px;}
+:is(.ts-materials-modal,.ts-materials-panel) .ts-materials-tabs {gap:4px;padding:3px;border:0;border-radius:8px;background:var(--background-secondary);}
+:is(.ts-materials-modal,.ts-materials-panel) .ts-materials-tabs button {flex:1;min-height:30px;padding:6px;font-size:12px;border-radius:6px;}
+:is(.ts-materials-modal,.ts-materials-panel) .ts-materials-tabs button[aria-selected=true] {background:var(--background-primary);color:var(--text-normal);box-shadow:0 1px 3px #00000009;}
+:is(.ts-materials-modal,.ts-materials-panel) .ts-materials-tabs button::after {display:none;}
+:is(.ts-materials-modal,.ts-materials-panel) .ts-materials-body {border:0;border-top:1px solid var(--ts-work-line);border-radius:0;}
+:is(.ts-materials-modal,.ts-materials-panel) .ts-materials-library {padding:12px 8px;background:var(--background-primary);border-right-color:var(--ts-work-line);}
+:is(.ts-materials-modal,.ts-materials-panel) .ts-materials-detail {background:var(--background-primary);}
+:is(.ts-materials-modal,.ts-materials-panel) .ts-materials-fragment {border-color:var(--ts-work-line);border-radius:8px;background:transparent;box-shadow:none;}
+@container(max-width:520px) {
+ .ts-ui-modal.ts-reading-desk .ts-reading-page {padding:12px 8px;}
+ .ts-ui-modal.ts-reading-desk .ts-reading-page-head h2 {font-size:21px;}
+ .ts-ui-modal.ts-reading-desk .ts-reading-layout {gap:12px;}
+ .ts-ui-modal.ts-reading-desk .ts-reading-aside {padding-right:8px;}
+}
+
+/* 0.54.1 — A slim canvas rail; typography and border controls keep their top position. */
+.ts-root .ts-board-rail {position:absolute;left:14px;top:calc(50% - 40px);transform:translateY(-50%);z-index:55;width:42px;max-height:calc(100% - 104px);border:1px solid var(--ts-work-line);border-radius:14px;background:var(--ts-work-raised);box-shadow:var(--ts-work-shadow);overflow-y:auto;scrollbar-width:none;overscroll-behavior:contain;}
+.ts-root .ts-rail-tools {display:flex;flex-direction:column;gap:2px;padding:4px;}
+.ts-root .ts-board-rail .ts-button {display:flex!important;align-items:center;justify-content:center;flex:0 0 32px;width:32px!important;min-width:32px;height:32px!important;min-height:32px;margin:0!important;padding:7px!important;border:0!important;border-radius:7px!important;background:transparent!important;box-shadow:none!important;color:var(--text-muted);}
+.ts-root .ts-board-rail .ts-button > span:last-child {display:none!important;}
+.ts-root .ts-board-rail .ts-button svg {width:18px;height:18px;stroke-width:1.7;}
+.ts-root .ts-board-rail .ts-button:hover {background:var(--ts-work-hover)!important;color:var(--text-normal);}
+.ts-root .ts-board-rail .ts-button:is(.is-active,[aria-expanded=true]) {background:var(--ts-soft)!important;color:var(--ts-accent)!important;}
+.ts-root .ts-board-rail .ts-primary {color:var(--ts-accent)!important;}
+.ts-root .ts-board-rail .ts-button:focus-visible,.ts-root .ts-rail-popover .ts-button:focus-visible {outline:2px solid var(--ts-accent);outline-offset:-2px;}
+.ts-root .ts-rail-popover {position:absolute;left:66px;top:calc(50% - 40px);transform:translateY(-50%);z-index:56;width:232px;max-width:calc(100% - 80px);max-height:calc(100% - 100px);padding:7px;border:1px solid var(--ts-work-line);border-radius:14px;background:var(--ts-work-raised);box-shadow:var(--ts-work-shadow);overflow:auto;overscroll-behavior:contain;}
+.ts-root .ts-rail-popover[hidden] {display:none!important;}
+.ts-root .ts-rail-popover .ts-rail-actions,.ts-root .ts-rail-popover .ts-tool-cluster {display:flex!important;flex-direction:column;align-items:stretch;gap:2px;margin:0;padding:0;border:0;overflow:visible;}
+.ts-root .ts-rail-popover .ts-tool-cluster::before {content:attr(aria-label);padding:9px 9px 5px;color:var(--text-faint);font-size:11px;}
+.ts-root .ts-rail-popover .ts-tool-cluster + .ts-tool-cluster {border-top:1px solid var(--ts-work-line);margin-top:6px;padding-top:3px;}
+.ts-root .ts-rail-popover .ts-rail-actions .ts-button {display:flex!important;align-items:center;justify-content:flex-start;gap:9px;width:100%;height:33px;min-height:33px;padding:6px 9px!important;border:0;background:transparent;box-shadow:none;border-radius:6px;font-size:12px;color:var(--text-normal);}
+.ts-root .ts-rail-popover .ts-rail-actions .ts-button > span:last-child {display:inline!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ts-root .ts-rail-popover .ts-button svg {width:16px;height:16px;}
+.ts-root .ts-rail-popover .ts-button:hover {background:var(--ts-work-hover);}
+.ts-root .ts-commandbar > .ts-selection-tools {border-left:0!important;padding-left:2px!important;margin-left:0!important;}
+@container(max-width:510px){.ts-root .ts-board-rail{left:8px;}.ts-root .ts-rail-popover{left:58px;max-width:calc(100% - 68px);}}
+
+/* Collapse the format surface only when neither object nor mind-map controls exist. */
+.ts-root .ts-commandbar:not(:has(> .ts-selection-tools.is-visible)) {display:none!important;}
+.ts-root.ts-native-chrome > .ts-topbar:not(:has(.ts-selection-tools.is-visible)) {display:none!important;}
+
+/* The overflow menu has its own layout instead of inheriting the legacy canvas toolbar. */
+.ts-root .ts-rail-popover > .ts-rail-actions {position:static;inset:auto;transform:none;width:100%;max-width:none;background:transparent;box-shadow:none;border-radius:0;}
+
+/* Object editing floats over the canvas and never changes its layout origin. */
+.ts-root .ts-main > .ts-floating-formatbar {position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:54;display:block;width:max-content;max-width:calc(100% - 28px);height:auto;min-height:0;padding:0!important;margin:0;gap:0;border:0;background:transparent;box-shadow:none;pointer-events:none;}
+.ts-root .ts-floating-formatbar > .ts-commandbar {margin:0!important;width:max-content;max-width:100%;flex-wrap:nowrap!important;pointer-events:auto;}
+.ts-root .ts-floating-formatbar:not(:has(.ts-selection-tools.is-visible)) {display:none!important;}
+
+/* Mind-map creation shares the side rail; the top overlay only formats objects. */
+.ts-root .ts-board-rail .ts-mindmap-tools {display:none;flex-direction:column;flex-wrap:nowrap;flex-shrink:0;align-items:center;gap:2px;margin:3px 0 0;padding:5px 0 0;border:0;border-top:1px solid var(--ts-work-line);}
+.ts-root .ts-board-rail .ts-mindmap-tools.is-visible {display:flex;}
+
+/* Small control feedback only; the board-polish module owns final surfaces. */
+.ts-root .ts-board-rail .ts-button {transition:background-color 120ms ease,color 120ms ease;}
+@media(prefers-reduced-motion:reduce){.ts-root .ts-board-rail .ts-button {transition:none;}}

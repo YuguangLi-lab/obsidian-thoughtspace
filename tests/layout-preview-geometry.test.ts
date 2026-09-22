@@ -1,0 +1,10 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {previewConnection,zoomPreviewAt,focusPreviewRect} from '../src/layout-preview-geometry';
+const rect=(x:number,y:number,width=100,height=60)=>({x,y,width,height});
+test('preview curves start and end on horizontal card boundaries',()=>{assert.equal(previewConnection(rect(0,0),rect(300,0)),'M100,30C200,30 200,30 300,30');});
+test('vertical preview curves respect different card sizes',()=>{assert.equal(previewConnection(rect(0,0),rect(0,300)),'M50,60C50,180 50,180 50,300');});
+test('overlapping and coincident cards do not produce inverted preview connections',()=>{assert.equal(previewConnection(rect(0,0),rect(20,0)),'');assert.equal(previewConnection(rect(0,0),rect(0,0)),'');});
+test('diagonal and reverse connections have finite cubic geometry',()=>{for(const [a,b]of [[rect(0,0),rect(300,180)],[rect(300,180),rect(0,0)]]){const p=previewConnection(a,b);assert.ok(p.includes('C'));assert.ok(!/NaN|Infinity/.test(p));}});
+test('pointer zoom preserves screen position of its world anchor',()=>{const base=rect(-100,50,1000,700),camera={zoom:2,pan:{x:40,y:-20}},point={x:600,y:250},next=zoomPreviewAt(base,camera,1.5,point);for(const axis of ['x','y'] as const){const center=base[axis]+(axis==='x'?base.width:base.height)/2;assert.ok(Math.abs((point[axis]-center-camera.pan[axis])*camera.zoom-(point[axis]-center-next.pan[axis])*next.zoom)<1e-9);}});
+test('center zoom preserves panning and clamps both limits',()=>{const base=rect(0,0,1000,700),camera={zoom:2,pan:{x:40,y:-20}};assert.deepEqual(zoomPreviewAt(base,camera,2),{zoom:4,pan:camera.pan});assert.equal(zoomPreviewAt(base,camera,100).zoom,32);assert.equal(zoomPreviewAt(base,camera,.01).zoom,1);});
+
+test('finding an object centers it and accounts for letterboxing on long rows',()=>{const b=rect(0,0,12000,200),n=rect(5000,20,200,80),c=focusPreviewRect(b,n,1.5);assert.equal(b.x+b.width/2+c.pan.x,n.x+n.width/2);assert.equal(b.y+b.height/2+c.pan.y,n.y+n.height/2);assert.equal(c.zoom,32);});

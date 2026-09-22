@@ -1,0 +1,11 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';
+import {starterMindmap} from '../src/mindmap-studio';
+import {layoutMindmap,validateBranches} from '../src/mindmap';
+import {branchMarkdown} from '../src/mindmap-flow';
+import {clone,parseBoard} from '../src/model';
+const fixture=()=>{let i=0;return starterMindmap('中心',()=>String(++i));};
+test('B01: folded descendants follow their parent during a layout change',()=>{const b=fixture(),parent=b.nodes[1],child=b.nodes[2];parent.branchFolded=true;const dx=child.x-parent.x,dy=child.y-parent.y;layoutMindmap(b,parent.id,'left');assert.equal(child.x-parent.x,dx);assert.equal(child.y-parent.y,dy);});
+test('B02: branch Markdown exports hosted images consistently with writing exports',()=>{const b=fixture();Object.assign(b.nodes[2],{kind:'image',file:'附件/a.png',imageUrl:'https://images.example.com/a.png'});assert.match(branchMarkdown(b,b.nodes[0].id),/https:\/\/images.example.com\/a.png/);});
+test('B03: empty IDs cannot bypass tree cycle validation',()=>{const b=fixture();b.nodes=b.nodes.slice(0,2);b.nodes[0].id='';b.nodes[1].id='a';b.edges=[{id:'x',from:'',to:'a',kind:'branch',label:''},{id:'y',from:'a',to:'',kind:'branch',label:''}];assert.throws(()=>validateBranches(b));});
+import {mindmapSignature} from '../src/mindmap-studio';
+test('B22: workbench detects concurrently changed writing and saved view state',()=>{const b=fixture(),before=mindmapSignature(b);b.writing={title:'new article',order:[]};assert.notEqual(mindmapSignature(b),before);});

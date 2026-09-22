@@ -1,0 +1,17 @@
+import {Board} from './model';
+import {topicRows,topicLabel,TopicResult} from './mindmap-editor';
+import {mindmapRoot} from './mindmap';
+import {saveTopicRelation,removeTopicRelation} from './mindmap-branches';
+export function renderTopicRelations(host:HTMLElement,board:Board,selected:string,apply:(r:TopicResult)=>void){
+ const rows=topicRows(board,mindmapRoot(board,selected)),byId=new Map(board.nodes.map(n=>[n.id,n])),source=byId.get(selected)!;
+ const columns=host.createDiv('ts-mm-relation-columns'),form=columns.createDiv('ts-mm-relation-form'),list=columns.createDiv('ts-mm-relation-list');
+ form.createEl('small',{text:'起点主题'});form.createEl('strong',{text:topicLabel(source).slice(0,100)});
+ const search=form.createEl('input',{type:'search',attr:{'aria-label':'搜索关联主题',placeholder:'搜索目标主题…'}}),target=form.createEl('select',{attr:{'aria-label':'关联目标',size:'6'}}),hint=form.createEl('small');
+ const label=form.createEl('input',{attr:{'aria-label':'关系名称',placeholder:'例如：支持、反驳、需要验证',maxlength:'200'}}),direction=form.createEl('select',{attr:{'aria-label':'关系方向'}});for(const [value,text]of [['forward','单向关联 →'],['both','双向关联 ↔'],['none','无方向关联 —']])direction.createEl('option',{value,text});
+ const status=form.createEl('p',{attr:{role:'status'},cls:'ts-mm-help'}),save=form.createEl('button',{text:'添加关联线',cls:'mod-cta'});let editing:string|undefined;
+ const fill=(chosen=target.value)=>{target.empty();const q=search.value.trim().toLocaleLowerCase(),matches=rows.filter(r=>r.node.id!==selected&&topicLabel(r.node).toLocaleLowerCase().includes(q)),visible=matches.slice(0,80);const picked=rows.find(r=>r.node.id===chosen&&r.node.id!==selected);if(picked&&!visible.some(r=>r.node.id===chosen)){if(visible.length===80)visible.pop();visible.unshift(picked);}for(const {node}of visible)target.createEl('option',{value:node.id,text:topicLabel(node).replace(/\s+/g,' ').slice(0,100)});target.value=visible.some(r=>r.node.id===chosen)?chosen:visible[0]?.node.id||'';hint.setText(matches.length>80?`${matches.length} 项匹配 · 显示前 80 项，请继续搜索`:`${matches.length} 个可选主题`);save.disabled=!target.value||!!source.locked;};
+ target.onchange=()=>save.disabled=!target.value||!!source.locked;search.oninput=()=>fill('');save.onclick=()=>{try{apply(saveTopicRelation(board,selected,{target:target.value,label:label.value,direction:direction.value as 'forward'|'both'|'none',id:editing}));}catch(e){status.setText(String(e));}};
+ list.createEl('h4',{text:'已有关系'});const relations=board.edges.filter(e=>e.kind!=='branch'&&(e.from===selected||e.to===selected));if(!relations.length)list.createEl('p',{text:'添加关联，连接不同分支里的观点。',cls:'ts-mm-help'});
+ for(const edge of relations.slice(0,80)){const outgoing=edge.from===selected,other=byId.get(outgoing?edge.to:edge.from),row=list.createDiv('ts-mm-relation-row');row.createEl('strong',{text:`${outgoing?'→':'←'} ${other?topicLabel(other).slice(0,60):'主题已移除'}`});row.createSpan({text:edge.label||'未命名关系'});const buttons=row.createDiv();if(outgoing&&rows.some(r=>r.node.id===edge.to)){const edit=buttons.createEl('button',{text:'编辑'});edit.onclick=()=>{editing=edge.id;search.value='';fill(edge.to);label.value=edge.label;direction.value=edge.direction||'forward';save.setText('保存关联线');};}const remove=buttons.createEl('button',{text:'移除'});remove.onclick=()=>{try{apply(removeTopicRelation(board,selected,edge.id));}catch(e){status.setText(String(e));}};}
+ if(relations.length>80)list.createEl('small',{text:'显示前 80 条关系；更多关系可在白板管理。'});fill();
+}

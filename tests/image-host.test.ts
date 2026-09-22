@@ -1,0 +1,21 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {remoteImageUrl,imageMarkdown,imageHostApi,uploadHostedImage} from '../src/image-host';
+import {emptyBoard,parseBoard,canvasExport,History,clone} from '../src/model';
+import {selectionMarkdown} from '../src/board-studio';
+import {boardOutline} from '../src/workspace-tools';
+const url='https://images.example.com/a(b).png?token=abc%2F123';
+const app=(api:unknown)=>({plugins:{plugins:{'fast-image-bed':{imageHostApi:api}}}});
+test('Accept signed HTTPS links without rewriting the signature',()=>assert.equal(remoteImageUrl(url),url));
+test('Reject executable, local, credential-bearing and injected URLs',()=>{for(const value of ['javascript:alert(1)','data:image/png;base64,AA','http://host/a','file:///tmp/a','https://u:p@host/a','https://host/a\nhi','https://host/<a>','https://host/\\a',null,123])assert.equal(remoteImageUrl(value),undefined);});
+test('Markdown safely encodes link parentheses',()=>assert.equal(imageMarkdown(url),'![](https://images.example.com/a%28b%29.png?token=abc%2F123)'));
+test('Only negotiated API v1 is accepted',()=>{assert.equal(imageHostApi(app({version:2,upload(){},status(){}})),undefined);assert.equal(imageHostApi({}),undefined);assert.equal(imageHostApi(app({version:1})),undefined);});
+test('Missing or unconfigured plugin never uploads',async()=>{await assert.rejects(uploadHostedImage({},new ArrayBuffer(1),'a.png','a.thoughtspace'),/启用极速图床/);await assert.rejects(uploadHostedImage(app({version:1,status:()=>({ready:false}),upload:()=>{throw Error('must not run');}}),new ArrayBuffer(1),'a.png','a.thoughtspace'),/配置 COS/);});
+test('Pass bytes and board origin through the provider without credential access',async()=>{const bytes=new ArrayBuffer(2);let received:unknown;const result=await uploadHostedImage(app({version:1,status:()=>({ready:true}),upload:async(r:unknown)=>{received=r;return{url};}}),bytes,'中文.png','材料/白板.thoughtspace','image/png');assert.equal(result,url);assert.deepEqual(received,{consumer:'thoughtspace',sourcePath:'材料/白板.thoughtspace',name:'中文.png',mimeType:'image/png',bytes});});
+test('Provider errors cannot expose secret error details',async()=>{await assert.rejects(uploadHostedImage(app({version:1,status:()=>({ready:true}),upload:async()=>{throw Error('secret-token');}}),new ArrayBuffer(1),'a.png','a.thoughtspace'),e=>e instanceof Error&&!e.message.includes('secret-token'));});
+test('Invalid provider URL is not persisted',async()=>{await assert.rejects(uploadHostedImage(app({version:1,status:()=>({ready:true}),upload:async()=>({url:'javascript:alert(1)'})}),new ArrayBuffer(1),'a.png','a.thoughtspace'),/HTTPS/);});
+function board(){const b=emptyBoard();b.version=3;b.nodes=[{id:'img',kind:'image',file:'附件/local.png',imageUrl:url,x:0,y:0,width:320,height:240,color:'blue'}];return b;}
+test('Hosted image round-trips with its local backup',()=>assert.deepEqual(parseBoard(JSON.stringify(board())),board()));
+test('Invalid URL and remote URL on note nodes rejected',()=>{const b=board();b.nodes[0].imageUrl='javascript:x';assert.throws(()=>parseBoard(JSON.stringify(b)));b.nodes[0].imageUrl=url;b.nodes[0].kind='card';b.nodes[0].file='a.md';assert.throws(()=>parseBoard(JSON.stringify(b)));});
+test('Exports use hosted URL for Markdown and local backup for native Canvas',()=>{const b=board();assert.match(selectionMarkdown(b,new Set(['img'])),/https:\/\//);assert.match(boardOutline(b,'白板'),/https:\/\//);assert.match(JSON.stringify(canvasExport(b)),/附件\/local.png/);});
+test('Old local-only image boards remain readable',()=>{const b=board();delete b.nodes[0].imageUrl;assert.deepEqual(parseBoard(JSON.stringify(b)),b);});

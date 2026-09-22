@@ -1,0 +1,149 @@
+/* A three-pane workspace: structure, canvas, appearance. Scoped to this dialog. */
+.modal.ts-mindmap-studio{width:min(1260px,96vw);max-width:96vw;max-height:94vh;padding:24px;--mm-line:var(--background-modifier-border);font-family:var(--font-interface);border-radius:18px}
+.ts-mindmap-studio .modal-content{overflow:auto;margin:0}
+.ts-mindmap-studio .modal-title{font-size:24px;letter-spacing:-.025em;margin:0 0 5px}
+.ts-mm-intro{color:var(--text-muted);margin:0 0 20px;font-size:12px}
+.ts-mm-body{display:grid;grid-template-columns:240px minmax(280px,1fr) 178px;gap:18px;min-height:500px}
+.ts-mm-outline{display:flex;flex-direction:column;min-height:0;min-width:0;border-right:1px solid var(--mm-line);padding-right:16px}
+.ts-mm-outline-heading{display:flex;align-items:center;gap:3px;margin-bottom:12px;font-size:12px}
+.ts-mm-outline-heading strong{flex:1}
+.ts-mm-outline input[type=search]{width:100%;height:34px;border-radius:8px;font-size:12px;margin-bottom:12px}
+.ts-mm-topic-list{overflow:auto;max-height:48vh;min-height:250px;flex:1}
+.ts-mm-topic-list .ts-mm-topic-row{display:flex;align-items:center;gap:8px;width:100%;text-align:left;box-shadow:none;border:0;border-radius:7px;background:transparent;margin:2px 0;height:34px;padding:6px 8px 6px calc(8px + var(--depth)*12px);font-size:12px;color:var(--text-normal)}
+.ts-mm-topic-row>span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ts-mm-topic-row>span:first-child{display:flex;color:var(--text-faint);flex:none}
+.ts-mm-topic-row svg{width:13px;height:13px}
+.ts-mm-topic-list .ts-mm-topic-row[aria-selected=true]{background:var(--background-modifier-hover);color:var(--text-accent);font-weight:600;box-shadow:inset 2px 0 var(--interactive-accent)}
+.ts-mm-outline-hint{font-size:10px;line-height:1.8;color:var(--text-faint);white-space:pre-line;margin-top:12px}
+.ts-mm-pager{display:flex;align-items:center;justify-content:space-between;gap:4px;font-size:10px;color:var(--text-muted);padding:10px 0}
+.ts-mm-controls{display:flex;flex-direction:column;gap:16px;min-width:0}
+.ts-mm-controls h3{font-size:11px;margin:0;color:var(--text-muted);font-weight:600}
+.ts-mm-field{display:flex;flex-direction:column;gap:7px;font-size:11px;color:var(--text-muted)}
+.ts-mm-field select{width:100%;max-width:100%;height:32px;border-radius:7px;font-size:12px}
+.ts-mm-layouts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:-7px}
+.ts-mm-layouts button{display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:center;height:68px;padding:7px 2px;font-size:10px;border:1px solid var(--mm-line);border-radius:9px;box-shadow:none;background:var(--background-primary);transition:background .12s,border-color .12s}
+.ts-mm-layouts button[aria-pressed=true]{border-color:var(--interactive-accent);background:var(--background-modifier-hover);color:var(--text-accent)}
+.ts-mm-layouts svg{width:18px;height:18px}
+.ts-mm-check{display:flex;align-items:center;gap:7px;font-size:11px;line-height:1.6}
+.ts-mm-help{white-space:pre-line;font-size:10px;color:var(--text-faint);line-height:1.8;margin:0}
+.ts-mm-scene{display:flex;flex-direction:column;min-width:0;border:1px solid var(--mm-line);border-radius:12px;overflow:hidden;background:var(--background-secondary)}
+.ts-mm-preview-bar{display:flex;gap:5px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--mm-line);font-size:11px;color:var(--text-muted)}
+.ts-mm-preview-bar>span{margin-right:auto}
+.ts-mm-preview-bar>button{font-size:10px;box-shadow:none;background:transparent;padding:4px 6px;height:28px}
+.ts-mm-preview-actions{display:flex;gap:2px}
+.ts-mm-preview{flex:1;min-height:250px;display:flex;flex-direction:column;padding:16px;background-image:radial-gradient(var(--background-modifier-border) .7px,transparent .7px);background-size:20px 20px}
+.ts-mm-preview>svg{width:100%;height:100%;min-height:250px;flex:1;max-height:42vh}
+.ts-mm-preview text{fill:var(--text-normal);font-family:var(--font-text);font-size:14px;pointer-events:none}
+.ts-mm-preview small{font-size:10px;color:var(--text-muted)}
+.ts-mm-editor{background:var(--background-primary);border-top:1px solid var(--mm-line);padding:10px 12px}
+.ts-mm-commandbar{display:flex;gap:3px;flex-wrap:wrap;padding-bottom:10px;margin-bottom:8px;border-bottom:1px solid var(--mm-line)}
+.ts-mindmap-studio :is(.ts-mm-commandbar,.ts-mm-outline-heading,.ts-mm-preview-actions,.ts-mm-pager)>button{display:flex;align-items:center;justify-content:center;flex:none;width:28px;height:28px;padding:5px;background:transparent;box-shadow:none;border-radius:6px;color:var(--text-muted)}
+.ts-mindmap-studio :is(.ts-mm-commandbar,.ts-mm-outline-heading,.ts-mm-preview-actions,.ts-mm-pager) svg{width:15px;height:15px}
+.ts-mindmap-studio button:hover:not(:disabled){background:var(--background-modifier-hover);color:var(--text-accent)}
+.ts-mindmap-studio button:focus-visible{outline:2px solid var(--interactive-accent);outline-offset:2px}
+.ts-mm-edit-label{display:flex;flex-direction:column;gap:6px;font-size:10px;color:var(--text-muted)}
+.ts-mm-edit-label textarea,.ts-mm-batch textarea{display:block;width:100%;resize:vertical;font:13px/1.6 var(--font-text);color:var(--text-normal);border-radius:7px;padding:8px 10px;min-height:60px;max-height:160px}
+.ts-mm-batch{margin-top:10px;font-size:11px;color:var(--text-muted)}
+.ts-mm-batch summary{cursor:pointer;padding:4px 0}
+.ts-mm-batch[open] textarea{margin:8px 0}
+.ts-mm-batch button{font-size:11px;height:28px}
+.ts-mm-empty{padding:20px 8px;font-size:12px;color:var(--text-muted)}
+.ts-mm-footer{display:flex;align-items:center;gap:8px;margin-top:18px;padding-top:16px;border-top:1px solid var(--mm-line)}
+.ts-mm-footer>[role=status]{flex:1;font-size:11px;color:var(--text-muted);line-height:1.5}
+.ts-mm-footer button{border-radius:8px;font-size:12px}
+@media(max-width:1000px){.ts-mm-body{grid-template-columns:200px minmax(240px,1fr)}.ts-mm-controls{grid-column:1/-1;display:grid;grid-template-columns:1fr 2fr 1fr 1fr;align-items:center;gap:12px}.ts-mm-controls h3,.ts-mm-help{display:none}.ts-mm-layouts{grid-template-columns:repeat(4,1fr);margin:0}.ts-mm-layouts button{height:52px;gap:4px}.ts-mm-check{grid-column:1/-1}.ts-mm-outline{padding-right:12px}}
+@media(max-width:620px){.modal.ts-mindmap-studio{padding:16px}.ts-mm-body{grid-template-columns:minmax(0,1fr);gap:14px}.ts-mm-outline{border:0;padding:0}.ts-mm-topic-list{min-height:110px;max-height:180px}.ts-mm-outline-hint{display:none}.ts-mm-controls{grid-template-columns:1fr 1fr}.ts-mm-preview,.ts-mm-preview>svg{min-height:200px}.ts-mm-footer{flex-wrap:wrap}.ts-mm-footer>[role=status]{min-width:100%}}
+@media(prefers-reduced-motion:reduce){.ts-mm-layouts button{transition:none}}
+
+.ts-mm-topic-list .ts-mm-topic-row[data-drop=true]{outline:2px solid var(--interactive-accent);background:var(--background-modifier-hover)}
+.ts-mm-preview>svg{touch-action:none;cursor:grab}
+.ts-mm-preview>svg:active{cursor:grabbing}
+.modal.ts-mindmap-studio{display:flex;flex-direction:column}
+.ts-mindmap-studio .modal-content{min-height:0}
+.ts-mm-body{max-height:calc(94vh - 220px);overflow:auto}
+@media(max-width:620px){.ts-mm-body{min-height:260px;max-height:calc(94vh - 220px)}.ts-mm-controls{padding-bottom:6px}.ts-mm-layouts{grid-template-columns:1fr 1fr}.ts-mm-layouts button{height:56px}}
+/* Fixed scene height keeps Apply and pointer targets stable while text auto-fits. */
+.ts-mm-preview>svg{height:300px;flex:none}
+@media(max-width:620px){.ts-mm-preview>svg{height:220px}}
+/* 0.90: staged content tools share one workspace, with no stacked dialogs. */
+.ts-mm-intro{margin-bottom:14px}
+.ts-mm-workflow-bar{display:flex;gap:5px;flex-wrap:wrap;padding:0 0 14px;margin-bottom:16px;border-bottom:1px solid var(--mm-line)}
+.ts-mm-workflow-bar button{display:flex;align-items:center;gap:7px;font-size:11px;height:32px;padding:6px 10px;border-radius:7px;box-shadow:none;background:transparent;border-color:transparent}
+.ts-mm-workflow-bar button:first-child{background:var(--background-modifier-hover);color:var(--text-accent)}
+.ts-mm-workflow-bar button:nth-child(4){margin-left:auto}
+.ts-mm-workflow-bar svg{width:14px;height:14px}
+.ts-mm-body{min-height:360px;max-height:calc(94vh - 260px)}
+.ts-mm-controls{overflow:auto;padding-right:3px;gap:12px}
+.ts-mm-markdown-tools{display:flex;gap:3px;margin-top:6px}
+.ts-mm-markdown-tools button{display:flex;align-items:center;justify-content:center;width:27px;height:27px;padding:5px;border:0;border-radius:5px;background:transparent;box-shadow:none;color:var(--text-muted)}
+.ts-mm-markdown-tools svg{width:14px;height:14px}
+.ts-mm-tool-sheet{border:1px solid var(--mm-line);border-radius:12px;overflow:auto;max-height:calc(94vh - 260px);background:var(--background-secondary)}
+.ts-mm-tool-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--mm-line)}
+.ts-mm-tool-head h3{margin:0;font-size:16px;font-weight:600;letter-spacing:-.02em}
+.ts-mm-tool-head button{font-size:11px;box-shadow:none;border:0;background:transparent;color:var(--text-muted)}
+.ts-mm-tool-columns{display:grid;grid-template-columns:1fr 1fr;min-height:320px}
+.ts-mm-tool-fields{display:flex;flex-direction:column;gap:14px;padding:20px;border-right:1px solid var(--mm-line)}
+.ts-mm-tool-fields .ts-mm-help{display:block;font-size:12px;line-height:1.8;color:var(--text-muted)}
+.ts-mm-tool-fields textarea{width:100%;resize:vertical;min-height:60px;max-height:280px;border-radius:8px;padding:10px 12px;font:13px/1.7 var(--font-text);background:var(--background-primary)}
+.ts-mm-tool-fields select{height:34px;border-radius:7px;font-size:12px}
+.ts-mm-tool-preview{padding:20px;overflow:auto;max-height:420px;font-size:12px;line-height:1.7;overflow-wrap:anywhere;background:var(--background-primary)}
+.ts-mm-tool-preview:empty:before{content:'预览后再确认，白板原文暂不改变';display:block;color:var(--text-faint);margin:80px auto;text-align:center}
+.ts-mm-tool-preview>strong{display:block;margin-bottom:16px;color:var(--text-accent);font-weight:600}
+.ts-mm-import-row{padding-top:5px;padding-bottom:5px;border-bottom:1px solid var(--mm-line)}
+.ts-mm-replace-row{margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--mm-line)}
+.ts-mm-replace-row small{font-size:10px;color:var(--text-faint)}
+.ts-mm-replace-row pre{font:12px/1.7 var(--font-text);white-space:pre-wrap;word-break:break-word;margin:5px 0 10px}
+.ts-mm-replace-row pre:last-child{color:var(--text-accent)}
+.ts-mm-replace-checks{display:flex;gap:16px;flex-wrap:wrap;font-size:12px}
+.ts-mm-replace-checks label{display:flex;gap:6px;align-items:center}
+.ts-mm-tool-actions{display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid var(--mm-line)}
+.ts-mm-tool-actions button{font-size:12px;border-radius:7px}
+.ts-mm-presentation-bar{display:flex;align-items:center;gap:10px;padding:0 0 14px;font-size:12px}
+.ts-mm-presentation-bar>button{display:flex;align-items:center;justify-content:center;height:30px;border-radius:7px;font-size:11px}
+.ts-mm-slide-title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;color:var(--text-muted)}
+.ts-mindmap-studio.is-presenting :is(.ts-mm-workflow-bar,.ts-mm-outline,.ts-mm-controls,.ts-mm-editor,.ts-mm-preview-bar,.ts-mm-footer){display:none}
+.ts-mindmap-studio.is-presenting .ts-mm-body{grid-template-columns:1fr;max-height:calc(94vh - 160px)}
+.ts-mindmap-studio.is-presenting .ts-mm-preview>svg{height:55vh;max-height:55vh}
+@media(max-width:620px){.ts-mm-workflow-bar{gap:3px;margin-bottom:12px;padding-bottom:10px}.ts-mm-workflow-bar button{font-size:10px;padding:5px 7px}.ts-mm-workflow-bar button:nth-child(4){margin-left:0}.ts-mm-tool-columns{grid-template-columns:1fr}.ts-mm-tool-fields{border-right:0;border-bottom:1px solid var(--mm-line);padding:14px}.ts-mm-tool-preview{max-height:200px;padding:14px}.ts-mm-body{min-height:230px}.ts-mm-tool-head{padding:12px}.ts-mm-tool-head h3{font-size:14px}}
+/* Presets are original editable structures, shared by new-map and workbench flows. */
+.modal.ts-mindmap-presets-modal{width:min(1100px,95vw);max-width:95vw;max-height:94vh;padding:24px;border-radius:18px;font-family:var(--font-interface)}
+.ts-mindmap-presets-modal .modal-content{overflow:auto;margin:0}
+.ts-mm-presets{display:grid;grid-template-columns:minmax(300px,1fr) minmax(280px,1.1fr);gap:22px;padding:20px}
+.ts-mm-preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ts-mm-preset-card{display:flex;flex-direction:column;gap:7px;text-align:left;white-space:normal;height:auto;padding:14px;border:1px solid var(--background-modifier-border);border-radius:10px;background:var(--background-primary);box-shadow:none}
+.ts-mm-preset-card small{font-size:10px;color:var(--text-faint)}
+.ts-mm-preset-card strong{font-size:14px;font-weight:600;color:var(--text-normal)}
+.ts-mm-preset-card span{font-size:11px;line-height:1.7;color:var(--text-muted)}
+.ts-mm-preset-card[aria-pressed=true]{border-color:var(--interactive-accent);box-shadow:inset 0 0 0 1px var(--interactive-accent);background:var(--background-modifier-hover)}
+.ts-mm-preset-detail{min-width:0;display:flex;flex-direction:column;gap:12px}
+.ts-mm-preset-detail :is(input,select){width:100%;height:36px;border-radius:7px;font-size:12px}
+.ts-mm-preset-preview{display:flex;align-items:center;justify-content:center;min-height:280px;background:#fff;border:1px solid var(--background-modifier-border);border-radius:12px;padding:14px;flex:1;overflow:hidden}
+.ts-mm-preset-preview svg{display:block;width:100%;height:300px;max-height:40vh}
+.ts-mm-preset-status{font-size:11px;color:var(--text-muted);margin:0;line-height:1.7}
+.ts-mm-preset-detail>.mod-cta{align-self:flex-end;font-size:12px;border-radius:8px}
+.ts-mm-workflow-bar button:nth-child(4){margin-left:0}.ts-mm-workflow-bar button:nth-child(5){margin-left:auto}
+@media(max-width:760px){.ts-mm-presets{grid-template-columns:1fr;padding:14px}.ts-mm-preset-preview svg{height:220px}.ts-mm-preset-preview{min-height:220px}.modal.ts-mindmap-presets-modal{padding:16px}.ts-mm-workflow-bar button:nth-child(5){margin-left:0}}
+/* Branch controls and relationships keep advanced operations out of the editing row. */
+.ts-mm-branch-controls{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ts-mm-branch-controls small{grid-column:1/-1;font-size:11px;color:var(--text-muted);margin-bottom:2px}
+.ts-mm-branch-controls button{font-size:10px;padding:5px;height:29px;border-radius:6px;box-shadow:none}
+.ts-mm-workflow-bar select{height:32px;font-size:11px;border-radius:7px;max-width:140px}
+.ts-mm-relation-columns{display:grid;grid-template-columns:1fr 1fr;gap:24px;padding:22px}
+.ts-mm-relation-form{display:flex;flex-direction:column;gap:12px;min-width:0}
+.ts-mm-relation-form>strong{font-size:14px;overflow-wrap:anywhere}
+.ts-mm-relation-form>small{font-size:11px;color:var(--text-muted)}
+.ts-mm-relation-form :is(input,select){width:100%;font-size:12px;border-radius:7px;min-height:34px}
+.ts-mm-relation-form select[size]{height:158px;padding:5px}
+.ts-mm-relation-form option{padding:5px}
+.ts-mm-relation-form>.mod-cta{align-self:flex-end;border-radius:7px;font-size:12px}
+.ts-mm-relation-list{min-width:0;border-left:1px solid var(--mm-line);padding-left:22px;overflow:auto;max-height:420px}
+.ts-mm-relation-list h4{margin:0 0 16px;font-size:12px;color:var(--text-muted)}
+.ts-mm-relation-row{display:flex;flex-direction:column;gap:9px;padding:12px 0;border-bottom:1px solid var(--mm-line);overflow-wrap:anywhere}
+.ts-mm-relation-row strong{font-size:12px;font-weight:500}.ts-mm-relation-row>span{font-size:11px;color:var(--text-muted)}
+.ts-mm-relation-row>div{display:flex;gap:6px}.ts-mm-relation-row button{font-size:10px;border-radius:6px;height:26px;box-shadow:none}
+@media(max-width:620px){.ts-mm-relation-columns{grid-template-columns:1fr;padding:14px}.ts-mm-relation-list{padding:0;border:0}.ts-mm-controls .ts-mm-branch-controls{grid-column:1/-1;grid-template-columns:repeat(4,1fr)}}
+
+/* Template maintenance sits beside the structural controls, not over the canvas. */
+.ts-mindmap-studio .ts-mm-auto-repair {width:100%;min-height:32px;border:1px solid var(--background-modifier-border);border-radius:8px;background:var(--background-secondary);color:var(--text-accent);font-size:12px;font-weight:600;}
+.ts-mindmap-studio .ts-mm-auto-repair:hover {background:var(--background-modifier-hover);}
+.ts-mindmap-studio .ts-mm-auto-repair:focus-visible {outline:2px solid var(--interactive-accent);outline-offset:2px;}

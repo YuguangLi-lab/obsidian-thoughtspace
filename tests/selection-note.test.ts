@@ -1,0 +1,9 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {selectionNoteTitle,sameNoteSelection} from '../src/selection-note';
+const selected=(text:string,phrase:string)=>({text,start:text.indexOf(phrase),end:text.indexOf(phrase)+phrase.length});
+test('Concept selection retains plain phrase and allows surrounding Markdown emphasis',()=>{assert.equal(selectionNoteTitle(selected('认识 **系统思维** 的价值','系统思维')),'系统思维');assert.equal(selectionNoteTitle(selected('研究 #标签 方法','#标签')),'#标签');});
+test('Rejects empty, multiline, oversized and invalid selections',()=>{for(const s of [{text:'',start:0,end:0},{text:'a\nb',start:0,end:3},{text:'x'.repeat(121),start:0,end:121},{text:'a',start:-1,end:1},{text:'[name]',start:0,end:6}])assert.throws(()=>selectionNoteTitle(s));});
+test('Does not nest links in existing wikilinks or Markdown links',()=>{for(const text of ['[[目标|概念]]','[概念](Notes/target.md)','![概念](image.png)'])assert.throws(()=>selectionNoteTitle(selected(text,'概念')));});
+test('Protects YAML, code, inline literals and hidden comments',()=>{for(const text of ['---\ntitle: 概念\n---\n正文','```\n概念\n```','`概念`','%% 概念 %%','<!-- 概念 -->','    概念'])assert.throws(()=>selectionNoteTitle(selected(text,'概念')));});
+test('Protected code blocks containing quoted literal lines cannot be linked',()=>{assert.throws(()=>selectionNoteTitle(selected('```markdown\n> 概念\n```','概念')));});
+test('Selection guards require same document, range and writable editor',()=>{const s=selected('概念与材料','概念');assert.equal(sameNoteSelection(s,{...s}),true);assert.equal(sameNoteSelection(s,{...s,text:'其他与材料'}),false);assert.equal(sameNoteSelection(s,{...s,start:1}),false);assert.equal(sameNoteSelection(s,{...s,disabledReason:'组字中'}),false);assert.throws(()=>selectionNoteTitle({...s,disabledReason:'多光标'}));});

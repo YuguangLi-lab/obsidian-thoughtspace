@@ -1,0 +1,144 @@
+/* Shared visual language. Native content, node geometry and custom colors remain owned
+   by their existing components; this layer styles workspace surfaces and controls. */
+:is(.ts-root,.ts-journal,.ts-ui-modal,.ts-settings,.ts-native-header,.ts-writing,.ts-note-markdown-toolbar){
+ --ts-design-line:color-mix(in srgb,var(--background-modifier-border) 78%,transparent);
+ --ts-design-panel:var(--background-primary);
+ --ts-design-wash:color-mix(in srgb,var(--ts-accent,var(--interactive-accent)) 4%,var(--background-secondary));
+ --ts-design-hover:color-mix(in srgb,var(--ts-accent,var(--interactive-accent)) 8%,var(--background-primary));
+ --ts-design-shadow:0 1px 2px #00000006,0 6px 20px #00000009;
+ --ts-design-radius:10px;
+}
+.theme-dark :is(.ts-root,.ts-journal,.ts-ui-modal,.ts-writing){--ts-design-shadow:0 1px 3px #00000020,0 8px 24px #00000022;}
+/* Sidebar presentation is owned by sidebar.css. */
+/* Board chrome and selected-state rules live in board-polish.css. */
+.ts-native-header{border-bottom-color:var(--ts-design-line);}
+.ts-native-header .ts-button{border-radius:6px;}
+.ts-root .ts-card:not(.is-transparent){box-shadow:0 1px 2px #00000008,0 5px 14px #00000006;}
+.ts-root .ts-card.is-transparent{box-shadow:none!important;}
+/* Calendar and tasks are adjacent sections, with no repeated inner card frame. */
+/* Diary has a clear date masthead and a calm, uninterrupted reading column. */
+/* Writing chrome follows the same 8/12 px rhythm. Article and native editor
+   geometry/typography remain owned by the writing module. */
+.ts-writing{--writing-line:var(--ts-design-line);--writing-soft:var(--background-secondary);--writing-gutter:12px;}
+.ts-writing .ts-writing-header{background:var(--background-primary);border-color:var(--ts-design-line);padding-inline:16px;gap:12px;}
+.ts-writing .ts-writing-header-actions{gap:4px;}
+.ts-writing .ts-writing-switch{padding:3px;border:0;border-radius:8px;background:var(--background-secondary);}
+.ts-writing .ts-writing-switch .ts-writing-button{height:28px;border-radius:5px;}
+.ts-writing .ts-writing-button.mod-cta{height:32px;border-radius:7px;}
+.ts-writing :is(.ts-writing-composer,.ts-writing-dock){border-radius:10px;border-color:var(--ts-design-line);box-shadow:none;}
+.ts-writing :is(.ts-writing-formatbar,.ts-writing-dock-head){background:var(--background-primary);border-bottom-color:var(--ts-design-line);}
+.ts-writing .ts-writing-dock-head{min-height:48px;padding:8px;gap:4px;}
+.ts-writing .ts-writing-dock-head .is-active{background:var(--ts-design-hover);box-shadow:none;}
+.ts-writing .ts-writing-formatbar .ts-md-select{border-radius:5px;}
+.ts-writing .ts-writing-panel-head{min-height:40px;padding:8px 12px;}
+.ts-writing .ts-writing-panel-head h3{font-size:12px;font-weight:600;color:var(--text-normal);}
+.ts-writing .ts-writing-search{height:32px;margin:0 12px 8px;padding:0 8px;border:1px solid transparent;background:var(--background-secondary);border-radius:8px;}
+.ts-writing .ts-writing-search:focus-within{background:var(--background-primary);border-color:var(--writing-accent);}
+.ts-writing .ts-writing-filters{gap:6px;padding:0 12px 8px;}
+.ts-writing .ts-writing-filters button{height:28px;font-size:12px;padding-inline:8px;}
+.ts-writing .ts-writing-filters select{height:28px;font-size:11px;}
+.ts-writing .ts-writing-list{padding:0 8px 12px;}
+.ts-writing .ts-writing-material{margin:3px 0;padding:8px;gap:8px;border-radius:7px;border-color:transparent;}
+.ts-writing .ts-writing-material:hover{border-color:transparent;background:var(--background-modifier-hover);}
+.ts-writing .ts-writing-material-icon{height:28px;width:28px;border-radius:6px;background:transparent;color:var(--text-muted);}
+.ts-writing .ts-writing-material.is-current-reference{background:var(--ts-design-hover);border-color:transparent;box-shadow:inset 2px 0 var(--writing-accent);}
+.ts-writing .ts-writing-reference-heading{padding:12px;gap:8px;background:var(--background-primary);border-bottom-color:var(--ts-design-line);}
+.ts-writing .ts-writing-reference-tabs{padding:8px 8px 0;gap:4px;}
+.ts-writing .ts-writing-reference-tab{border-radius:6px;background:transparent;}
+.ts-writing .ts-writing-reference-tab.is-active{background:var(--ts-design-hover);border-color:transparent;}
+.ts-writing .ts-writing-reference-tab>.ts-writing-button:first-child{font-size:12px;}
+.ts-writing .ts-writing-entry{border-radius:8px;border-color:var(--ts-design-line);}
+.ts-writing .ts-writing-entry.is-selected{border-radius:8px;}
+.ts-writing :is(.ts-writing-ref-label,.ts-writing-name small,.ts-writing-panel-foot,.ts-writing-reference-kind,.ts-writing-status-mode,.ts-writing-status-text,.ts-writing-preview-summary){font-size:11px;color:var(--text-muted);}
+@container(max-width:450px){.ts-writing .ts-writing-header{padding-inline:8px;gap:8px;}.ts-writing .ts-writing-filters{padding-inline:8px;gap:4px;}.ts-writing .ts-writing-filters button{padding-inline:6px;}}
+/* Shared secondary workspaces: settings, property views and reading materials. */
+.ts-settings .setting-item{padding:16px 0;border-color:var(--ts-design-line);}
+.ts-settings .setting-item-name{font-weight:550;}
+.ts-settings .setting-item-description{line-height:1.7;}
+.ts-settings :is(select,input[type=text],input[type=number]){border-radius:6px;box-shadow:none;}
+.ts-db-saved-views{border-radius:9px;border-color:var(--background-modifier-border);box-shadow:none;}
+:is(.ts-root,.ts-journal,.ts-writing,.ts-settings) :is(button,select,summary):focus-visible{outline:2px solid var(--ts-accent,var(--interactive-accent));outline-offset:2px;}
+@media(prefers-reduced-motion:reduce){:is(.ts-root,.ts-journal,.ts-writing,.ts-settings) :is(button,select){transition:none!important;}}
+
+.ts-root .ts-alignment-guide{position:absolute;pointer-events:none;z-index:8;background:var(--interactive-accent);box-shadow:0 0 0 1px color-mix(in srgb,var(--background-primary) 45%,transparent);}
+
+/* Content titles and zoom summaries follow Obsidian body typography. */
+.ts-root .ts-node {font-family:var(--font-text);}
+
+/* Stable workspace feedback and shared module entry styling; native fonts are inherited. */
+.ts-native-header .view-actions{align-items:center;gap:3px;}
+.ts-native-header .ts-save-status{display:flex;flex:0 0 auto;min-width:64px;width:76px;max-width:168px;height:24px;padding:0 7px;margin-inline:2px 5px;border-radius:6px;background:var(--ts-design-wash);font-size:11px;overflow:hidden;white-space:nowrap;}
+.ts-native-header .ts-save-status::before{flex:0 0 5px;}
+.ts-native-header .ts-save-status[data-state=saving]::before{background:var(--text-muted);opacity:.7;}
+.ts-native-header .ts-save-status[data-state=error]{background:color-mix(in srgb,var(--text-error) 8%,var(--background-primary));}
+.ts-native-header .ts-header-action.ts-workflow-entry{background:var(--ts-design-wash);color:var(--text-normal);}
+.ts-native-header .ts-header-action.ts-workflow-entry:hover{background:var(--ts-design-hover);color:var(--ts-accent);}
+.ts-native-header .ts-header-action:focus-visible,.ts-root.ts-dock .ts-tabs>.ts-button:focus-visible{outline:2px solid var(--ts-accent);outline-offset:2px;}
+@container(max-width:700px){.ts-native-header .ts-save-status{display:flex!important;min-width:18px;max-width:18px;width:18px;padding:0;justify-content:center;font-size:0!important;margin-inline:1px 3px;background:transparent;}.ts-native-header .ts-save-status::before{width:6px;height:6px;flex-basis:6px;opacity:1;}}
+
+/* Async lists retain their content while the next result is prepared off screen. */
+.ts-root.ts-dock .ts-library{position:relative;overflow-anchor:none;}
+.ts-root.ts-dock .ts-library[aria-busy=true]{box-shadow:inset 0 2px color-mix(in srgb,var(--ts-accent) 20%,transparent);}
+.ts-root.ts-dock .ts-library[aria-busy=true]:empty::before{content:'正在读取…';display:block;padding:20px 12px;color:var(--text-muted);font-size:12px;}
+.ts-root.ts-dock .ts-sidebar-refresh-error{position:sticky;bottom:0;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;margin-top:8px;border:1px solid color-mix(in srgb,var(--text-error) 20%,var(--background-modifier-border));border-radius:8px;background:var(--background-primary);color:var(--text-muted);font-size:11px;box-shadow:0 2px 8px #00000008;}
+.ts-root.ts-dock .ts-sidebar-refresh-error .ts-icon-button{flex:0 0 26px;width:26px;height:26px;color:var(--text-error);}
+
+/* Pending actions keep their place and icon, rather than creating duplicate pages. */
+.ts-native-header .ts-header-action.is-busy,.ts-root .ts-header-action.is-busy{cursor:progress;opacity:.65;background:var(--ts-design-wash);box-shadow:inset 0 0 0 1px var(--ts-design-line);}
+.ts-header-action.is-busy svg{opacity:.65;}
+/* Keep asynchronous writing handoffs quiet and readable without leaving stale controls active. */
+.ts-writing .ts-writing-transition {
+  width: min(540px, calc(100% - 32px));
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: 540px;
+  margin: clamp(24px, 6vh, 64px) auto;
+  padding: 20px 24px;
+  color: var(--text-normal);
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 14px;
+}
+.ts-writing .ts-writing-transition-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  height: 36px;
+  color: var(--text-muted);
+  background: var(--background-secondary);
+  border-radius: 10px;
+}
+.ts-writing .ts-writing-transition > div { min-width: 0; display: grid; gap: 5px; }
+.ts-writing .ts-writing-transition strong { font-size: var(--font-ui-medium); overflow-wrap: anywhere; }
+.ts-writing .ts-writing-transition > div > span { color: var(--text-muted); font-size: var(--font-ui-small); line-height: 1.6; }
+/* Reading: keep search visible, disclose less frequent controls without removing them. */
+.ts-ui-modal.ts-reading-desk .ts-reading-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 0 0 12px;
+}
+.ts-ui-modal.ts-reading-desk .ts-reading-tools > input { flex: 1 1 220px; min-width: 0; }
+.ts-ui-modal.ts-reading-desk .ts-reading-filter-panel { min-width: 0; margin: 0; border: 0; padding: 0; }
+.ts-ui-modal.ts-reading-desk .ts-reading-filter-panel > summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  padding: 4px 8px;
+  border-radius: 7px;
+  cursor: pointer;
+  list-style: none;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+.ts-ui-modal.ts-reading-desk .ts-reading-filter-panel > summary::-webkit-details-marker { display: none; }
+.ts-ui-modal.ts-reading-desk .ts-reading-filter-panel > summary svg { width: 15px; height: 15px; display: block; }
+.ts-ui-modal.ts-reading-desk .ts-reading-filter-panel > summary:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.ts-ui-modal.ts-reading-desk .ts-reading-filter-panel > summary:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
+.ts-ui-modal.ts-reading-desk .ts-reading-filter-panel[open] { flex-basis: 100%; }
+.ts-ui-modal.ts-reading-desk .ts-reading-filter-panel[open] > summary { color: var(--ts-accent); width: fit-content; }
+.ts-ui-modal.ts-reading-desk .ts-reading-filter-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(130px,1fr)); gap: 8px; padding-top: 10px; }
+.ts-ui-modal.ts-reading-desk .ts-reading-filter-grid select { width: 100%; min-width: 0; max-width: 100%; height: 32px; }

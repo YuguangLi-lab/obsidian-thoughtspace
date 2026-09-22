@@ -1,0 +1,23 @@
+{
+  "name": "obsidian-thoughtspace",
+  "version": "0.97.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc --noEmit && node esbuild.mjs",
+    "test": "tsx --test tests/*.test.ts"
+  },
+  "devDependencies": {
+    "@codemirror/state": "6.5.0",
+    "@codemirror/view": "6.38.6",
+    "@types/node": "^22.0.0",
+    "esbuild": "^0.25.0",
+    "obsidian": "latest",
+    "postcss": "8.5.28",
+    "postcss-selector-parser": "7.1.6",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.0"
+  },
+  "dependencies": {
+    "@radix-ui/colors": "^3.0.0"
+  }
+}

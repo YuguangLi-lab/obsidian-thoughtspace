@@ -1,0 +1,37 @@
+/* Journal 0.42.0: one reading surface, restrained calendar, progressive task controls.
+   Scoped to the journal view; the whiteboard and native Markdown are unaffected. */
+/* Shared controls also work in native thoughtspace-tasks Markdown blocks. */
+.ts-task-head-actions {display:flex;align-items:center;gap:3px;}
+.ts-task-view-switch {display:flex;gap:6px;margin:0 0 12px;}
+.ts-task-view-switch button {display:flex;align-items:center;justify-content:center;gap:5px;padding:4px 9px;height:29px;font-size:11px;box-shadow:none;border:1px solid var(--background-modifier-border);background:transparent;color:var(--text-muted);border-radius:6px;}
+.ts-task-view-switch button svg {width:13px;height:13px;}
+.ts-task-view-switch .is-active {background:var(--background-secondary);color:var(--text-normal);font-weight:600;}
+.ts-task-quadrants {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:start;}
+.ts-task-quick-tabs {display:flex;gap:4px;padding:3px;margin:0 0 12px;border-radius:8px;background:var(--background-secondary);}
+.ts-task-quick-tabs button {flex:1;min-width:0;padding:4px;font-size:11px;height:29px;border:0;box-shadow:none;background:transparent;color:var(--text-muted);}
+.ts-task-quick-tabs .is-active {background:var(--background-primary);color:var(--text-normal);font-weight:600;}
+.ts-task-summary>button {display:flex;gap:5px;align-items:baseline;justify-content:center;height:auto;padding:7px 2px;box-shadow:none;border:0;background:transparent;}
+.ts-task-group-select {width:100%;height:28px;font-size:11px;margin:0 0 7px;}
+.ts-task-result-header {display:flex;justify-content:space-between;align-items:center;gap:5px;}
+.ts-task-result-header>button {padding:0 3px;height:24px;font-size:10px;box-shadow:none;background:none;border:0;}
+.ts-task-empty-actions {display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:9px;}
+.ts-task-empty-actions button {font-size:11px;padding:3px 7px;height:auto;min-height:26px;box-shadow:none;}
+.ts-task-group-heading {display:flex;justify-content:space-between;gap:8px;padding:13px 0 6px;font-size:10px;color:var(--text-muted);}
+.ts-task-group-heading span:first-child {min-width:0;overflow-wrap:anywhere;}
+.ts-task-group-heading span:last-child {flex:none;font-variant-numeric:tabular-nums;}
+/* Calendar flows directly into capture and a compact task list. */
+/* 0.44: quieter daily planning, visible drag destinations, independent quadrant scrolling. */
+.ts-task-quadrants {gap:9px;align-items:stretch;}
+.ts-task-drag-grip {position:absolute;right:-2px;top:3px;color:var(--text-faint);opacity:.6;}
+.ts-task-drag-grip svg {width:12px;height:14px;}
+/* 0.45: icon-led task capture; progressive disclosure over permanent form chrome.
+   Interaction references: Primer IconButton, Radix Segmented Control. Native Obsidian DOM. */
+/* View controls are icons in the same title row as capture and task actions. */
+.ts-task-view-switch button {width:28px;padding:5px;}
+/* Year navigation shares the month heading; no separate footer row. */
+/* 0.46: compact planner hierarchy. References: DayPicker's calendar anatomy,
+   Primer icon view controls and Radix tabs; existing Radix palette, native DOM. */
+/* 0.46.1: month-proportional grid and a readable relationship with the task area. */
+/* Subtle calendar-only gradient, kept behind controls without narrowing the grid. */
+
+/* Visual day planner: a continuous rail with colored duration capsules. */

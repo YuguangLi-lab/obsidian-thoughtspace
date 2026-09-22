@@ -1,0 +1,10 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { tagFolder, journalFolder, localDay, validateFolders } from '../src/filing';
+test('Nested Unicode tags map to nested directories',()=>assert.equal(tagFolder('#研究/阅读'),'ThoughtSpace/卡片/研究/阅读'));
+test('Tag folders preserve distinct names and custom roots',()=>{assert.equal(tagFolder('A_B/文献','卡片库'),'卡片库/A_B/文献');assert.notEqual(tagFolder('#a-b'),tagFolder('#a_b'));});
+test('Unsafe or empty tag segments cannot become filesystem paths',()=>{for(const tag of ['#','../x','a/../x','a//b','/a','a\\b','a:b','a./b'])assert.throws(()=>tagFolder(tag));});
+test('Journal hierarchy handles year rollover and leap day',()=>{assert.equal(journalFolder('2028-02-29'),'ThoughtSpace/日记/2028/02');assert.equal(journalFolder('2027-01-01','日志'),'日志/2027/01');});
+test('Invalid dates are not silently normalized or migrated',()=>{for(const day of ['2026-02-29','2026-13-01','2026-04-31','2026-1-01','../../2026'])assert.throws(()=>journalFolder(day));});
+test('Local date uses local calendar components',()=>assert.equal(localDay(new Date(2026,0,2,0,5)),'2026-01-02'));
+test('Settings reject absolute, traversal and overlapping roots',()=>{for(const pair of [['/cards','日记'],['../cards','日记'],['cards','cards/diary'],['cards/sub','cards'],['cards','cards']])assert.throws(()=>validateFolders(...pair as [string,string]));assert.deepEqual(validateFolders(' 卡片/ ',' 日记/ '),{cardFolder:'卡片',journalFolder:'日记'});});

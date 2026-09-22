@@ -1,0 +1,13 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';
+import {gridLanding,visibleGridSize} from '../src/canvas-controls';import {snapSelection} from '../src/workspace-tools';import {emptyBoard,Board} from '../src/model';
+const board=(nodes:any[]):Board=>({...emptyBoard(),nodes});
+test('grid landing previews final coordinates without mutating board',()=>{const b=board([{id:'a',x:35,y:53}]);assert.deepEqual(gridLanding(b,new Set(['a']),24),{x:24,y:48,dx:-11,dy:-5});assert.equal(b.nodes[0].x,35);});
+test('preview and final snap use the same anchor with locked nodes ignored',()=>{const b=board([{id:'locked',x:4,y:4,locked:true},{id:'a',x:-37,y:50},{id:'b',x:100,y:110}]),ids=new Set(['locked','a','b']),p=gridLanding(b,ids,24)!;snapSelection(b,ids,24);assert.equal(b.nodes[1].x,p.x);assert.equal(b.nodes[1].y,p.y);assert.equal(b.nodes[2].x-b.nodes[1].x,137);assert.equal(b.nodes[0].x,4);});
+test('empty and locked-only selections have no preview',()=>{assert.equal(gridLanding(board([{id:'a',x:1,y:2,locked:true}]),new Set(['a']),24),undefined);assert.equal(gridLanding(emptyBoard(),new Set(),24),undefined);});
+test('bad spacing cannot poison node coordinates',()=>{for(const step of [0,-1,NaN,Infinity])assert.throws(()=>gridLanding(emptyBoard(),new Set(),step));});
+test('all supported spacings produce matching repeated snaps',()=>{for(const step of [8,16,24,32,48,64]){const b=board([{id:'a',x:-17,y:83}]);snapSelection(b,new Set(['a']),step);const first=JSON.stringify(b);snapSelection(b,new Set(['a']),step);assert.equal(JSON.stringify(b),first);}});
+
+test('zoomed-out major grid stays readable and aligned to actual snap increments',()=>{for(const step of [8,16,24,32,48,64])for(const zoom of [.08,.15,.39,.75,1,2]){const size=visibleGridSize(step,zoom),multiple=size/(step*zoom);assert.ok(size>=12);assert.equal(Math.log2(multiple)%1,0);if(step*zoom>=12)assert.equal(multiple,1);else assert.ok(size<24);}});
+test('visual grid density never changes final snap precision',()=>{const b=board([{id:'a',x:35,y:53}]),ids=new Set(['a']),before=gridLanding(b,ids,16);visibleGridSize(16,.1);assert.deepEqual(gridLanding(b,ids,16),before);snapSelection(b,ids,16);assert.deepEqual([b.nodes[0].x,b.nodes[0].y],[32,48]);});
+test('invalid display scale falls back to a finite grid',()=>{for(const [step,zoom] of [[0,1],[16,0],[NaN,1],[16,Infinity]])assert.equal(visibleGridSize(step,zoom),16);});
+test('grid preserves the locked axis both in preview and at drop',()=>{const b=board([{id:'a',x:42,y:7}]);assert.deepEqual(gridLanding(b,new Set(['a']),16,new Set(['y'])),{x:48,y:7,dx:6,dy:0});assert.deepEqual(gridLanding(b,new Set(['a']),16,new Set(['x'])),{x:42,y:0,dx:0,dy:-7});});

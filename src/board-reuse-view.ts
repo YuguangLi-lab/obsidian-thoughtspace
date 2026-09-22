@@ -1,0 +1,33 @@
+import {App,Modal,Notice,setIcon} from 'obsidian';
+import {Board,Card,cardFillHex,emptyBoard} from './model';
+import {ReuseBundle,ReuseOptions,reusePlan,reuseBounds} from './board-reuse';
+import {themeSurface} from './ui-tokens';
+export interface ReuseDestination{path:string;title:string;board:Board;}
+export interface ReuseHost{title:string;bundle:(branches:boolean)=>ReuseBundle;pick:(done:(destination:ReuseDestination)=>void)=>void;apply:(destination:ReuseDestination|null,name:string,options:ReuseOptions,bundle:ReuseBundle )=>Promise<unknown>;}
+export class BoardReuseModal extends Modal{
+ private destination:ReuseDestination|null=null;private newBoard=false;private options:ReuseOptions={branches:true,placement:'right',frame:''};private bundle!:ReuseBundle;private summary!:HTMLElement;private preview!:HTMLElement;private stats!:HTMLElement;private targetLabel!:HTMLElement;private submit!:HTMLButtonElement;private name!:HTMLInputElement;private error!:HTMLElement;private busy=false;private closed=false;private committed=false;
+ constructor(app:App,private host:ReuseHost){super(app);}
+ private run(action:()=>unknown){try{Promise.resolve(action()).catch(e=>this.fail(e));}catch(e){this.fail(e);}}
+ private fail(e:unknown){if(!this.closed)this.error.setText(e instanceof Error?e.message:String(e));}
+ private button(el:HTMLElement,label:string,icon:string,fn:()=>unknown){const b=el.createEl('button',{attr:{'aria-label':label}});setIcon(b.createSpan(),icon);b.createSpan({text:label});b.onclick=()=>this.run(fn);return b;}
+ onOpen(){themeSurface(this.modalEl);this.modalEl.addClass('ts-board-reuse');this.titleEl.setText('复用到其他白板');this.contentEl.createDiv({cls:'ts-reuse-intro',text:'把整理好的内容带到新的主题，笔记原文持续共用。'});
+  const route=this.contentEl.createDiv('ts-reuse-route'),source=route.createDiv();source.createEl('small',{text:'来自'});source.createEl('strong',{text:this.host.title});setIcon(route.createSpan(),'arrow-right');const target=route.createDiv();target.createEl('small',{text:'添加到'});this.targetLabel=target.createEl('strong',{text:'选择目标白板'});
+  const choices=this.contentEl.createDiv('ts-reuse-destinations');this.button(choices,'选择已有白板','folder-open',()=>{if(this.busy)return;this.host.pick(d=>{if(this.closed||this.busy)return;this.destination=d;this.newBoard=false;this.name.hidden=true;this.targetLabel.setText(d.title);this.render();});});this.button(choices,'新建独立白板','file-plus',()=>{if(this.busy)return;this.destination=null;this.newBoard=true;this.name.hidden=false;this.targetLabel.setText('新的白板');this.render();this.name.focus();});
+  this.name=this.contentEl.createEl('input',{cls:'ts-reuse-name',value:this.host.title+' · 延伸',attr:{'aria-label':'新白板名称',maxlength:'100'}});this.name.hidden=true;
+  this.summary=this.contentEl.createDiv('ts-reuse-summary');const form=this.contentEl.createDiv('ts-reuse-options');
+  const branch=form.createEl('label'),check=branch.createEl('input',{type:'checkbox'});check.checked=true;branch.createSpan({text:'包含整个导图分支'});check.onchange=()=>{this.options.branches=check.checked;this.run(()=>{this.bundle=this.host.bundle(check.checked);this.render();});};
+  const place=form.createEl('select',{attr:{'aria-label':'放置位置'}});place.createEl('option',{value:'right',text:'放在现有内容右侧'});place.createEl('option',{value:'below',text:'放在现有内容下方'});place.onchange=()=>{this.options.placement=place.value as 'right'|'below';this.run(()=>this.render());};
+  const frame=this.contentEl.createEl('input',{cls:'ts-reuse-name',attr:{placeholder:'可选：用一个命名分组框包住这批内容','aria-label':'外层分组名称',maxlength:'100'}});frame.oninput=()=>{this.options.frame=frame.value;this.run(()=>this.render());};
+  this.preview=this.contentEl.createDiv({cls:'ts-reuse-preview',attr:{'aria-label':'目标白板位置预览'}});this.stats=this.contentEl.createDiv('ts-reuse-stats');this.error=this.contentEl.createDiv({cls:'ts-reuse-error',attr:{role:'alert'}});
+  const foot=this.contentEl.createDiv('ts-reuse-footer');foot.createSpan({text:'原白板保留 · 添加后打开目标 · 可在目标白板撤销'});this.submit=this.button(foot,'添加并打开','arrow-up-right',()=>this.apply());this.submit.addClass('mod-cta');this.run(()=>{this.bundle=this.host.bundle(true);this.render();});
+ }
+ private render(){if(this.closed)return;this.error.empty();const b=this.bundle,target=this.destination?.board||emptyBoard();let serial=0;const used=new Set([...target.nodes,...target.edges].map(n=>n.id)),plan=reusePlan(b,target,this.options,()=>{let id;do{id=`preview-${++serial}`;}while(used.has(id));return id;});this.summary.setText(`${b.nodes.length} 个对象 · ${b.edges.length} 条内部连线${b.externalEdges?` · ${b.externalEdges} 条跨选区连线留在原白板`:''}`);this.submit.disabled=this.committed||this.busy||(!this.destination&&!this.newBoard);
+  this.preview.empty();const all=[...target.nodes,...plan.nodes],box=reuseBounds(all),ns='http://www.w3.org/2000/svg',svg=this.preview.ownerDocument.createElementNS(ns,'svg');svg.setAttribute('viewBox',`${box.x-24} ${box.y-24} ${box.width+48} ${box.height+48}`);svg.setAttribute('aria-hidden','true');
+  const rect=(n:Card,old:boolean)=>{const el=this.preview.ownerDocument.createElementNS(ns,'rect');for(const [k,v]of Object.entries({x:n.x,y:n.y,width:n.width,height:n.height,rx:8,fill:n.kind==='section'?'none':old?'var(--background-modifier-border)':cardFillHex[n.color],stroke:old?'var(--text-faint)':'var(--text-accent)','stroke-width':2,'vector-effect':'non-scaling-stroke',opacity:old?.45:.85}))el.setAttribute(k,String(v));svg.appendChild(el);};
+  target.nodes.slice(0,160).forEach(n=>rect(n,true));plan.nodes.slice(0,240).forEach(n=>rect(n,false));this.preview.appendChild(svg);this.stats.setText(`灰色：已有内容 · 彩色：本次添加${plan.reusedNotes?` · ${plan.reusedNotes} 张笔记已在目标中，本次增加独立卡片位置`:''}${(target.nodes.length>160||plan.nodes.length>240)?' · 缩略图省略部分对象，实际完整添加':''}`);
+ }
+ private async apply(){if(this.committed||this.busy||(!this.destination&&!this.newBoard))return;if(this.newBoard&&!this.name.value.trim()){this.fail(Error('请填写新白板名称'));return;}this.busy=true;this.submit.disabled=true;this.modalEl.addClass('is-busy');this.contentEl.querySelectorAll<HTMLInputElement|HTMLSelectElement|HTMLButtonElement>('input,select,button').forEach(e=>e.disabled=true);
+  try{await this.host.apply(this.destination,this.name.value,this.options,this.bundle);this.close();}catch(e){this.committed=!!(e as {committed?:boolean})?.committed;this.fail(e);}finally{this.busy=false;this.modalEl.removeClass('is-busy');if(!this.closed){this.contentEl.querySelectorAll<HTMLInputElement|HTMLSelectElement|HTMLButtonElement>('input,select,button').forEach(e=>e.disabled=false);this.submit.disabled=this.committed||(!this.destination&&!this.newBoard);}}
+ }
+ onClose(){this.closed=true;this.destination=null;this.bundle={nodes:[],edges:[],externalEdges:0};this.contentEl.empty();}
+}
