@@ -9,3 +9,15 @@ test('unselected boards and absent edge selection do not scan unrelated nodes or
  const b=emptyBoard();let reads=0;Object.defineProperty(b,'nodes',{get(){reads++;return []}});Object.defineProperty(b,'edges',{get(){reads++;return []}});
  assert.equal(selectionFormatKey(b,new Set(),undefined),'[false,"nodes",[]]');assert.equal(reads,0);
 });
+
+
+test('batch formatting refreshes on connection styles or scope changes, not geometry',()=>{
+ const b=emptyBoard();b.nodes=[card,{...card,id:'b'}];b.edges=[{id:'e',from:'c',to:'b',label:'',style:'curve'}];
+ const ids=new Set(['c','b']),batch={target:'edges' as const,scope:'internal' as const,edges:b.edges};
+ const key=selectionFormatKey(b,ids,undefined,false,batch);
+ b.nodes[1].x=500;b.viewport.x=80;
+ assert.equal(selectionFormatKey(b,ids,undefined,false,batch),key);
+ assert.notEqual(selectionFormatKey(b,ids,undefined,false,{...batch,scope:'connected'}),key);
+ assert.notEqual(selectionFormatKey(b,ids,undefined,false,{...batch,target:'nodes'}),key);
+ b.edges[0].color='red';assert.notEqual(selectionFormatKey(b,ids,undefined,false,batch),key);
+});

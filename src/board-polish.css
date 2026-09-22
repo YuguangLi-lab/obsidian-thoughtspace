@@ -355,3 +355,20 @@
 /* Node geometry is fitted from source dimensions, so visual and hit bounds coincide. */
 .ts-root .ts-media-card .ts-pdf-preview canvas { width: 100%; height: 100%; }
 .ts-root .ts-media-card .ts-pdf-preview { flex: 1 1 0; min-width: 0; }
+
+/* Batch formatting uses a compact object/connection switch in the existing top row. */
+.ts-root .ts-floating-formatbar .ts-batch-format-switch {
+  display: flex; flex: none; align-items: center; gap: 2px; padding: 2px;
+  margin-right: 4px; border-radius: 8px; background: var(--background-secondary);
+}
+.ts-root .ts-floating-formatbar .ts-batch-format-switch .ts-button {
+  height: 28px; min-height: 28px; padding: 0 8px !important; gap: 5px;
+  border-radius: 6px !important; background: transparent !important;
+  box-shadow: none !important; color: var(--text-muted); white-space: nowrap;
+}
+.ts-root .ts-floating-formatbar .ts-batch-format-switch .ts-button.is-active {
+  background: var(--ts-board-panel) !important; color: var(--ts-accent);
+  box-shadow: 0 1px 3px #0000000c !important;
+}
+.ts-root .ts-floating-formatbar .ts-batch-format-switch svg { width: 14px; height: 14px; }
+.ts-root .ts-floating-formatbar .ts-batch-format-empty { color: var(--text-muted); font-size: 12px; padding: 0 8px; white-space: nowrap; }

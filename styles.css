@@ -3713,4 +3713,21 @@
 .ts-root .ts-media-card .ts-pdf-preview canvas:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { width: 100%; height: 100%; }
 .ts-root .ts-media-card .ts-pdf-preview:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { flex: 1 1 0; min-width: 0; }
 
+/* Batch formatting uses a compact object/connection switch in the existing top row. */
+.ts-root .ts-floating-formatbar .ts-batch-format-switch:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  display: flex; flex: none; align-items: center; gap: 2px; padding: 2px;
+  margin-right: 4px; border-radius: 8px; background: var(--background-secondary);
+}
+.ts-root .ts-floating-formatbar .ts-batch-format-switch .ts-button:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  height: 28px; min-height: 28px; padding: 0 8px !important; gap: 5px;
+  border-radius: 6px !important; background: transparent !important;
+  box-shadow: none !important; color: var(--text-muted); white-space: nowrap;
+}
+.ts-root .ts-floating-formatbar .ts-batch-format-switch .ts-button.is-active:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background: var(--ts-board-panel) !important; color: var(--ts-accent);
+  box-shadow: 0 1px 3px #0000000c !important;
+}
+.ts-root .ts-floating-formatbar .ts-batch-format-switch svg:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { width: 14px; height: 14px; }
+.ts-root .ts-floating-formatbar .ts-batch-format-empty:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { color: var(--text-muted); font-size: 12px; padding: 0 8px; white-space: nowrap; }
+
 /* END board-polish generated */

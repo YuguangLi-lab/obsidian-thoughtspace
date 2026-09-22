@@ -5,6 +5,7 @@ import {PdfDocumentPool} from './pdf-document-pool';
 import {discloseBranches,makeChildConnection,type BranchDisclosure} from './branch-disclosure';
 import {pdfCard,pdfSubpath,pdfPage,renderPdfThumbnail,isPdfFile,pdfDropReference,pdfPageKey} from './pdf-card';
 import {selectionFormatKey} from './selection-format';
+import {selectionEdges,patchSelectionEdges,type SelectionEdgeScope,type SelectionEdgePatch} from './selection-edges';
 import {cardDisplayTitle,setCardTitle} from './card-title-model';
 import {bindCardTitle} from './card-title-edit';
 import {noteRenamePath} from './note-rename';
@@ -1159,6 +1160,7 @@ class BoardView extends FileView {
   private stage!: HTMLElement; private world!: HTMLElement; private svg!: SVGSVGElement;
   sidebar!: HTMLElement; closed=false; private dockContext?:HTMLElement; private list!: HTMLElement; private status!: HTMLElement; private inspector!: HTMLElement; private zoomLabel!: HTMLElement;
   private nodeScopes=new Map<string,Component>(); private nodeKeys=new Map<string,string>(); private previewQueue=new RenderQueue(); private pdfPreviewQueue=new RenderQueue(2); private renderFrame=0; private viewportOnlyRender=true; private mapKey=''; private mapViewport?:()=>void; private connectSide?:Side; private selected = new Set<string>(); private selectedEdge?: string;
+  private batchFormatTarget:'nodes'|'edges'='nodes';private batchEdgeScope:SelectionEdgeScope='internal';
   private mode: 'select' | 'connect' = 'select'; private connectFrom?: string; private connectButton?: HTMLButtonElement;
   private tab: 'library' | 'boards' | 'tasks' | 'outline' = 'boards'; private query = '';private sidebarQueries=new Map<string,string>(); private tag = ''; private sidebarRun = 0;private sidebarContentKey='';
   private boardScope:'spaces'|'favorites'='spaces';private boardSort:'title'|'updated'='title';
@@ -1168,7 +1170,7 @@ class BoardView extends FileView {
   private libraryScope: LibraryScope = 'vault'; private librarySort: LibrarySort = 'updated';
   private selectionTool = false; private selectionButton?: HTMLButtonElement;
   private sectionTool=false; private sectionButton?:HTMLButtonElement; private sectionHint?:HTMLElement;
-  private marquee?: {id:number;start:{x:number;y:number};base:Set<string>;box:HTMLElement;section?:boolean;rect?:SectionRect;};
+  private marquee?: {id:number;start:{x:number;y:number};base:Set<string>;baseEdge?:string;box:HTMLElement;section?:boolean;rect?:SectionRect;};
   private focusMode = false; private focusButton?: HTMLElement;
   private trail: TFile[] = []; private crumbs!: HTMLElement; private boardStats!: HTMLElement;
   private minimap!: HTMLElement; private collapsedBoards = new Set<string>();
@@ -1524,7 +1526,7 @@ class BoardView extends FileView {
     (nativeHeader?.querySelector('.view-actions') || fallbackActions)?.prepend(...extras);
     this.applyPreferences();
     this.selectionTools=commands.createDiv({cls:'ts-selection-tools',attr:{'aria-label':'选中对象格式'}});
-    this.stage = main.createDiv({ cls: 'ts-stage', attr: { tabindex: '0', 'aria-label': '思维白板，使用侧边工具栏添加内容，双击已有节点编辑，空格拖动平移，滚轮缩放；思维导图：Tab 子主题，Enter 同级，Shift+Tab 父主题，方向键切换，F2 编辑' } });
+    this.stage = main.createDiv({ cls: 'ts-stage', attr: { tabindex: '0', 'aria-label': '思维白板，空白处左键拖动框选，Shift 累加选择，空格加左键或中键平移；使用侧边工具栏添加内容，双击已有节点编辑，空格拖动平移，滚轮缩放；思维导图：Tab 子主题，Enter 同级，Shift+Tab 父主题，方向键切换，F2 编辑' } });
     this.world = this.stage.createDiv('ts-world'); this.svg = this.world.createSvg('svg', { cls: 'ts-edges' });this.edgeLayer=new EdgeLayer(this.svg,this.markerId,id=>this.labelEdge(id));
     const rail=main.createDiv({cls:'ts-board-rail',attr:{role:'toolbar','aria-label':'白板创作工具','aria-orientation':'vertical'}});
     const railTools=rail.createDiv('ts-rail-tools');
@@ -1535,7 +1537,7 @@ class BoardView extends FileView {
     button(workspace,'白板写作模式','notebook-pen',()=>this.plugin.openWriting(this));button(workspace,'打开笔记摘录','notebook-pen',()=>this.openMaterials());button(workspace,'插入 PDF 卡片','file-plus',()=>this.insertPdfCard());button(workspace,'阅读 PDF','file-text',()=>new ReadingSourcePicker(this.app,file=>this.plugin.openExcerptNote(file),true).open());
     button(workspace,'白板操作','command',()=>this.boardActions());
     button(workspace,'连线统一为直线','move-up-right',()=>this.unifyEdgeStyle('straight'));
-    this.selectionButton = button(organize, '框选', 'scan', () => this.toggleSelectionTool());
+    this.selectionButton = button(organize, '框选', 'scan', () => this.toggleSelectionTool());this.selectionButton.title='空白处左键拖动框选 · Shift 累加 · 空格拖动平移';
     button(creation, '新建卡片', 'plus', () => this.newCard(), 'ts-primary');
     button(creation,'文本','type',()=>this.newText());button(creation,'图片','image-plus',()=>this.imageMenu());
     const insert=button(creation, '插入笔记', 'file-input', () => this.insertExistingNote(), 'ts-insert-note-entry');insert.title='插入已有 Markdown 笔记或 PDF · 搜索名称或路径';creation.insertBefore(insert,creation.children[1]);
@@ -1591,6 +1593,9 @@ class BoardView extends FileView {
     this.registerDomEvent(this.stage, 'pointermove', e => this.pointerMove(e));
     this.registerDomEvent(this.stage, 'pointerup', e => this.pointerUp(e));
     this.registerDomEvent(this.stage, 'pointercancel', e => this.pointerUp(e, true));
+    // A floating panel may swallow the release after pointer capture is lost.
+    this.registerDomEvent(this.contentEl.ownerDocument,'pointerup',e=>this.finishMarqueeFromDocument(e),{capture:true});
+    this.registerDomEvent(this.contentEl.ownerDocument,'pointercancel',e=>this.finishMarqueeFromDocument(e,true),{capture:true});
     this.registerDomEvent(this.stage,'lostpointercapture',e=>{if(this.linkDrag?.id===e.pointerId)this.finishLinkDrag(e,true);if(this.gesture?.id===e.pointerId)this.pointerUp(e,true);if(this.marquee?.id===e.pointerId)this.finishMarquee(true);});
     this.registerDomEvent(this.contentEl.ownerDocument.defaultView!,'blur',()=>{this.cancelConnection();this.flushPointer(false);this.setSectionTool(false);this.space=false;if(this.gesture)this.pointerUp(new PointerEvent('pointercancel',{pointerId:this.gesture.id}),true);if(this.marquee)this.finishMarquee(true);});
     this.registerDomEvent(this.stage, 'wheel', e => { if (!this.session) return; e.preventDefault(); if (this.gesture || this.marquee || this.linkDrag) return; if(Date.now()-this.lastWheelHistory>600)this.rememberViewport();this.lastWheelHistory=Date.now();const dy=wheelDelta(e.deltaY,e.deltaMode,this.stage.clientHeight),dx=wheelDelta(e.deltaX,e.deltaMode,this.stage.clientWidth);if(this.plugin.settings.wheelMode==='pan'&&!e.ctrlKey&&!e.metaKey){this.session.board.viewport.x-=e.shiftKey?dy:dx;this.session.board.viewport.y-=e.shiftKey?0:dy;this.transform();this.session.persist();}else this.zoom(Math.exp(-dy*.002*this.plugin.settings.zoomSpeed),e.clientX,e.clientY); }, { passive: false });
@@ -2300,7 +2305,7 @@ class BoardView extends FileView {
   private renderEdges() {
     if(!this.session)return;if(!this.edgeLayer||this.edgeLayer.root!==this.svg)this.edgeLayer=new EdgeLayer(this.svg,this.markerId,id=>this.labelEdge(id));
     const display=inlineDisplayBoard(this.displayBoard(),this.inlineTarget===this.inlineGeometry?.id?this.inlineGeometry:undefined);
-    this.edgeLayer.render(visibleBranchBoard(display),this.stage.clientWidth,this.stage.clientHeight,this.selectedEdge,this.relatedFocus);
+    this.edgeLayer.render(visibleBranchBoard(display),this.stage.clientWidth,this.stage.clientHeight,this.selectedEdge,this.relatedFocus,this.batchFormatTarget==='edges'&&this.selected.size>1?new Set(selectionEdges(display,this.selected,this.batchEdgeScope).map(e=>e.id)):undefined);
     const nextPorts=new Map<Element,string>();
     const edge=display.edges.find(e=>e.id===this.selectedEdge),a=edge&&display.nodes.find(n=>n.id===edge.from),b=edge&&display.nodes.find(n=>n.id===edge.to);
     if(edge&&a&&b){const sides=connectionSides(a,b,edge);for(const[id,side,title]of [[a.id,sides.fromSide,'拖动重接起点'],[b.id,sides.toSide,'拖动重接终点']]){const port=this.positions.get(id)?.querySelector(`[data-side="${side}"]`);if(port)nextPorts.set(port,title);}}
@@ -2350,9 +2355,33 @@ class BoardView extends FileView {
     add('导出 Markdown 大纲','file-down',()=>this.plugin.exportOutline(file));add('导出原生链接索引','network',()=>this.plugin.exportNativeIndex(file));
     if(this.file!==file)add('引用到当前白板','plus',()=>this.addBoard(file));menu.showAtMouseEvent(event);
   }
+  private buildBatchEdgeTools(host:HTMLElement,owner:Session,nodeIds:ReadonlySet<string>,edges:Board['edges']){
+    const scope=host.createEl('label',{cls:'ts-format-field'});scope.createSpan({text:'范围'});
+    const scopeInput=scope.createEl('select',{attr:{'aria-label':'批量连线范围',title:'自动跳过锁定或隐藏节点的连线'}});
+    scopeInput.createEl('option',{value:'internal',text:'选中对象之间'});scopeInput.createEl('option',{value:'connected',text:'所有相连'});scopeInput.value=this.batchEdgeScope;
+    scopeInput.onchange=()=>{if(!scopeInput.isConnected||this.session!==owner||this.batchFormatTarget!=='edges'||this.selected.size!==nodeIds.size||[...nodeIds].some(id=>!this.selected.has(id))||!['internal','connected'].includes(scopeInput.value))return;this.batchEdgeScope=scopeInput.value as SelectionEdgeScope;this.renderSelectionTools();this.renderEdges();};
+    const edgeIds=new Set(edges.map(e=>e.id)),scopeAtBuild=this.batchEdgeScope;
+    const select=(label:string,options:Record<string,string>,values:string[],patch:(value:string)=>SelectionEdgePatch)=>{
+      const field=host.createEl('label',{cls:'ts-format-field',attr:{'data-format':label}});field.createSpan({text:label});
+      const input=field.createEl('select',{attr:{'aria-label':label}}),same=values.every(v=>v===values[0]);
+      if(!same)input.createEl('option',{value:'',text:'混合'}).disabled=true;
+      for(const[value,text]of Object.entries(options))input.createEl('option',{value,text});input.value=same?values[0]:'';input.disabled=owner.blocked||!edges.length;
+      input.onchange=()=>act(()=>{
+        if(!input.isConnected||input.disabled)return;this.requireOwner(owner);
+        if(this.batchFormatTarget!=='edges'||this.batchEdgeScope!==scopeAtBuild||this.selected.size!==nodeIds.size||[...nodeIds].some(id=>!this.selected.has(id)))return;
+        const change=patch(input.value);owner.change(b=>{const current=new Set(selectionEdges(b,nodeIds,scopeAtBuild).map(e=>e.id));patchSelectionEdges(b,new Set([...edgeIds].filter(id=>current.has(id))),change);});
+      });
+    };
+    if(!edges.length){host.createSpan({cls:'ts-batch-format-empty',text:'此范围没有可修改的连线'});return;}
+    select('连线路径',{curve:'曲线',straight:'直线',elbow:'圆角折线'},edges.map(e=>e.style||'curve'),value=>({style:value as Board['edges'][number]['style']}));
+    select('连线方向',{forward:'单向',both:'双向',none:'无箭头'},edges.map(e=>e.direction||'forward'),value=>({direction:value as Board['edges'][number]['direction']}));
+    select('连线线型',{solid:'实线',dashed:'虚线'},edges.map(e=>e.dashed?'dashed':'solid'),value=>({dashed:value==='dashed'}));
+    select('连线颜色',{default:'默认',...colorNames},edges.map(e=>e.color||'default'),value=>({color:value==='default'?undefined:value as Board['edges'][number]['color']}));
+  }
   private renderSelectionTools(){
     const host=this.selectionTools,owner=this.session;if(!host)return;
-    const editor=this.inline,key=selectionFormatKey(owner?.board,this.selected,this.selectedEdge,owner?.blocked)+'|'+JSON.stringify([this.inlineId,!!this.inlineAppearance]);
+    const batch=owner&&!this.selectedEdge&&this.selected.size>1?{target:this.batchFormatTarget,scope:this.batchEdgeScope,edges:selectionEdges(owner.board,this.selected,this.batchEdgeScope)}:undefined;
+    const editor=this.inline,key=selectionFormatKey(owner?.board,this.selected,this.selectedEdge,owner?.blocked,batch)+'|'+JSON.stringify([this.inlineId,!!this.inlineAppearance]);
     const cached=this.selectionFormatCache;
     if(cached?.host===host&&cached.owner===owner&&cached.editor===editor&&cached.key===key)return;
     this.selectionFormatCache=undefined;
@@ -2374,6 +2403,18 @@ class BoardView extends FileView {
     }}
     const nodes=owner?.board.nodes.filter(n=>this.selected.has(n.id)) || [];host.toggleClass('is-visible',nodes.length>0);if(!owner||!nodes.length)return;
     const ids=new Set(nodes.map(n=>n.id)),texts=nodes.filter(n=>n.kind==='text'||n.kind==='card');
+    if(nodes.length>1){
+      const edges=selectionEdges(owner.board,ids,this.batchEdgeScope);
+      const switcher=host.createEl('div',{cls:'ts-batch-format-switch',attr:{role:'group','aria-label':'批量修改对象或连线'}});
+      for(const [target,label,icon]of [['nodes',`对象 ${nodes.length}`,'layers'],['edges',`连线 ${edges.length}`,'git-commit-horizontal']] as const){
+        const tab=button(switcher,label,icon,()=>{this.batchFormatTarget=target;this.renderSelectionTools();this.renderEdges();});
+        tab.toggleClass('is-active',this.batchFormatTarget===target);tab.setAttribute('aria-pressed',String(this.batchFormatTarget===target));
+      }
+      if(this.batchFormatTarget==='edges'){
+        this.buildBatchEdgeTools(host,owner,ids,edges);return;
+      }
+    }
+
     if(nodes.length===1&&nodes[0].kind==='card'){
       const node=nodes[0],editor=this.inlineId===node.id?this.inline:undefined;
       if(editor){
@@ -2613,11 +2654,12 @@ class BoardView extends FileView {
   private syncSelectionTool() { this.selectionButton?.toggleClass('is-active',this.selectionTool);this.selectionButton?.setAttribute('aria-pressed',String(this.selectionTool));this.stage?.toggleClass('ts-select-tool',this.selectionTool); }
   private toggleConnectionTool(){const active=this.mode!=='connect';this.clearCanvasGesture();this.selectionTool=false;this.syncSelectionTool();this.mode=active?'connect':'select';this.connectButton?.toggleClass('is-active',active);this.stage.focus();this.renderInspector();}
   toggleSelectionTool(){const active=!this.selectionTool;this.clearCanvasGesture();this.selectionTool=active;this.syncSelectionTool();this.stage.focus();}
+  private finishMarqueeFromDocument(e:PointerEvent,cancelled=false){if(this.marquee?.id===e.pointerId)this.pointerUp(e,cancelled);}
   private finishMarquee(cancelled=false){
     this.flushPointer(!cancelled);
     const m=this.marquee;if(!m)return;this.marquee=undefined;m.box.remove();
     if(this.stage.hasPointerCapture(m.id))this.stage.releasePointerCapture(m.id);
-    if(cancelled)this.selected=m.base;
+    if(cancelled){this.selected=m.base;this.selectedEdge=m.baseEdge;}
     if(m.section){this.setSectionTool(false);if(!cancelled&&m.rect&&validSectionRect(m.rect))this.newSection(undefined,m.rect);}
     this.updateSelection();
   }
@@ -2649,12 +2691,13 @@ class BoardView extends FileView {
       this.connectNode(id);
       this.renderBoard(); return;
     }
-    this.selectedEdge = undefined;
-    if (!id && !this.space && e.button === 0 && (e.shiftKey || this.selectionTool)) {
+    const baseEdge=this.selectedEdge;this.selectedEdge = undefined;
+    if (!id && !this.space && e.button === 0 && this.mode !== 'connect') {
       const base = new Set(this.selected);
       if (!e.shiftKey) this.selected.clear();
       const box = this.world.createDiv('ts-marquee');
-      this.marquee = {id:e.pointerId,start:this.point(e.clientX,e.clientY),base,box};
+      this.marquee = {id:e.pointerId,start:this.point(e.clientX,e.clientY),base,baseEdge,box};
+      this.batchFormatTarget='nodes';this.batchEdgeScope='internal';
       // base 恢复取消前的选择；累加仅在按住 Shift 时启用。
       box.dataset.additive = String(e.shiftKey);this.updateSelection();this.stage.setPointerCapture(e.pointerId);e.preventDefault();return;
     }
@@ -2745,8 +2788,9 @@ class BoardView extends FileView {
   private updateSelection() {
     this.syncCanvasControls();
     this.positions.forEach((el, id) => el.toggleClass('is-selected', this.selected.has(id)));
-    this.svg.querySelectorAll('.ts-edge').forEach(el => el.classList.toggle('is-selected', el.getAttribute('data-edge') === this.selectedEdge));
-    this.renderInspector();this.sidebar?.querySelectorAll('[data-outline-id]').forEach(el=>el.toggleClass('is-selected',this.selected.has((el as HTMLElement).dataset.outlineId!)));if(!this.gesture&&!this.marquee)this.scheduleRender();
+    const batch=!this.marquee&&this.session&&this.batchFormatTarget==='edges'&&this.selected.size>1?new Set(selectionEdges(this.session.board,this.selected,this.batchEdgeScope).map(e=>e.id)):undefined;
+    this.svg.querySelectorAll('.ts-edge').forEach(el => {const id=el.getAttribute('data-edge');el.classList.toggle('is-selected', id===this.selectedEdge||!!id&&!!batch?.has(id));});
+    if(!this.marquee)this.renderInspector();this.sidebar?.querySelectorAll('[data-outline-id]').forEach(el=>el.toggleClass('is-selected',this.selected.has((el as HTMLElement).dataset.outlineId!)));if(!this.gesture&&!this.marquee)this.scheduleRender();
   }
   private key(e: KeyboardEvent) {
     if(e.isComposing||e.keyCode===229)return;
