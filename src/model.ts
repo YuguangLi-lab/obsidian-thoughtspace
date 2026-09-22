@@ -15,13 +15,14 @@ export const validCardFill=(value:unknown):value is CardFill=>typeof value==='st
 export const cardFillHex:Record<Color,string>={sand:'#e8d8a8',blue:'#bbd5e7',green:'#bedbca',rose:'#eac6cc',purple:'#d6cbe8',orange:'#edc49a',red:'#e7b1ae',teal:'#a9d4c9',cyan:'#a9d8e4',lime:'#cad9a3',slate:'#bdc8d2',brown:'#d2bca9'};
 export interface Card { mindmapRules?:{layout:'right'|'left'|'down'|'bilateral';density:'compact'|'standard'|'relaxed';automatic:boolean};textMaxWidth?:number; imageUrl?:string; transparent?:boolean; fillColor?:CardFill; branchFolded?:boolean; review?:'later'|'reading'|'done'; id: string; kind: 'card' | 'section' | 'board' | 'text' | 'image' | 'pdf'; pdfPage?:number; x: number; y: number; width: number; height: number; color: Color; file?: string; title?: string; collapsed?: boolean; expandedHeight?: number; text?: string; topic?: boolean; textColor?: Color | 'default'; fontSize?: number; fontFamily?: 'default' | 'serif' | 'mono'; textAlign?: 'left' | 'center' | 'right'; autoSize?: boolean; autoFit?:boolean; preferredWidth?:number; locked?:boolean; customBorder?:boolean; borderStyle?:'solid'|'dashed'|'dotted'; borderWidth?:number }
 export interface Edge { id: string; from: string; to: string; label: string; style?: 'curve'|'straight'|'elbow'; direction?: 'forward'|'both'|'none'; dashed?: boolean; color?: Color; fromSide?: Side; toSide?: Side; kind?: 'branch' }
-export interface Board { mindmapLayout?:'right'|'left'|'down'|'bilateral'; mindmapDensity?:'compact'|'standard'|'relaxed'; writing?:WritingState; selectionSets?:{id:string;name:string;ids:string[]}[]; spaceId?:string; snapToGrid?:boolean; savedViews?:{id:string;name:string;viewport:{x:number;y:number;zoom:number}}[]; version: 1 | 2 | 3; mode?: 'free'|'mindmap'; mindmapDirection?: 'right'|'down'; nodes: Card[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }
+export interface Board { defaultEdgeStyle?:Edge['style']; mindmapLayout?:'right'|'left'|'down'|'bilateral'; mindmapDensity?:'compact'|'standard'|'relaxed'; writing?:WritingState; selectionSets?:{id:string;name:string;ids:string[]}[]; spaceId?:string; snapToGrid?:boolean; savedViews?:{id:string;name:string;viewport:{x:number;y:number;zoom:number}}[]; version: 1 | 2 | 3; mode?: 'free'|'mindmap'; mindmapDirection?: 'right'|'down'; nodes: Card[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }
 export const emptyBoard = (): Board => ({ version: 1, nodes: [], edges: [], viewport: { x: 60, y: 60, zoom: 1 } });
 export const uid = () => crypto.randomUUID();
 export const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 export function parseBoard(text: string): Board {
   const b = JSON.parse(text);
   if (![1, 2, 3].includes(b?.version) || !Array.isArray(b.nodes) || !Array.isArray(b.edges)) throw new Error('不支持的白板格式或版本');
+  if(b.defaultEdgeStyle!==undefined&&(!['curve','straight','elbow'].includes(b.defaultEdgeStyle)||b.version!==3))throw Error('白板默认连线路径无效');
   const ids = new Set<string>();
   for (const n of b.nodes) {
     if (!n || typeof n.id !== 'string' || !n.id.trim() || ids.has(n.id) || !(b.version === 3 ? ['card','section','board','text','image','pdf'] : b.version === 2 ? ['card', 'section', 'board'] : ['card', 'section']).includes(n.kind) ||
@@ -209,4 +210,13 @@ export function tidyBoard(board: Board, selected: Set<string> = new Set()) {
     }
     y += Math.max(...row.map(n => n.height)) + 75;
   }
+}
+
+/** A board-wide choice updates existing routes and supplies defaults for future edges. */
+export function setBoardEdgeStyle(board:Board,style:NonNullable<Edge['style']>){
+ board.version=3;board.defaultEdgeStyle=style;for(const edge of board.edges)edge.style=style;
+}
+export function inheritNewEdgeStyle(board:Board,before:Board){
+ if(!board.defaultEdgeStyle)return;const previous=new Set(before.edges.map(edge=>edge.id));
+ for(const edge of board.edges)if(!previous.has(edge.id))edge.style=board.defaultEdgeStyle;
 }

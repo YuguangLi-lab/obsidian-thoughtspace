@@ -1,3 +1,4 @@
+import {setBoardEdgeStyle,inheritNewEdgeStyle} from './model';
 import {BoardSearchSync,SEARCH_FOLDER} from './native-search';
 import {PdfDocumentPool} from './pdf-document-pool';
 import {discloseBranches,makeChildConnection,type BranchDisclosure} from './branch-disclosure';
@@ -223,7 +224,7 @@ class Session {
   emit(kind:SessionUpdate='board') { this.listeners.forEach(fn => {try{fn(kind);}catch(e){report(e);}}); }
   change(fn: (b: Board) => void, before = clone(this.board), allowLocked=false, recordHistory=true) {
     if (this.blocked) { new Notice('白板已暂停写入，请关闭所有该白板标签页后重新打开。'); return; }
-    try { fn(this.board); const nodeIndex=new Map(this.board.nodes.map(n=>[n.id,n]));for(const old of before.nodes.filter(n=>n.locked&&!allowLocked)){const current=nodeIndex.get(old.id);if(!current)throw Error('请先解锁对象再移出或转换');if(current.locked)Object.assign(current,{x:old.x,y:old.y,width:old.width,height:old.height,collapsed:old.collapsed,expandedHeight:old.expandedHeight});}assertBoardGeometry(this.board);validateBranches(this.board);reflowAutomaticMindmaps(this.board,before);assertBoardGeometry(this.board); } catch(e) { this.board=before; throw e; } if (this.board.version < 2 && this.board.nodes.some(n => n.kind === 'board')) this.board.version = 2;
+    try { fn(this.board); inheritNewEdgeStyle(this.board,before); const nodeIndex=new Map(this.board.nodes.map(n=>[n.id,n]));for(const old of before.nodes.filter(n=>n.locked&&!allowLocked)){const current=nodeIndex.get(old.id);if(!current)throw Error('请先解锁对象再移出或转换');if(current.locked)Object.assign(current,{x:old.x,y:old.y,width:old.width,height:old.height,collapsed:old.collapsed,expandedHeight:old.expandedHeight});}assertBoardGeometry(this.board);validateBranches(this.board);reflowAutomaticMindmaps(this.board,before);assertBoardGeometry(this.board); } catch(e) { this.board=before; throw e; } if (this.board.version < 2 && this.board.nodes.some(n => n.kind === 'board')) this.board.version = 2;
     if(recordHistory)this.history.push(before); this.persist(); this.emit();
   }
   undo(redo = false) { if (this.blocked) return; const b = redo ? this.history.redo(this.board) : this.history.undo(this.board); if (b) { this.board = b; this.persist(); this.emit(); } }
@@ -1317,10 +1318,12 @@ class BoardView extends FileView {
   }
   private promptEdgeText(id:string){const owner=this.requireOwner(),edge=owner.board.edges.find(e=>e.id===id);if(!edge)return;const expected=JSON.stringify(edge);new TextModal(this.app,'在线条中间插入文本','',text=>{this.insertTextOnEdge(id,text,expected,owner);}).open();}
   reworkTexts(mode:'merge'|'split',ids:ReadonlySet<string>=this.selected){const owner=this.requireOwner();let result:string[]=[];const draft=studioDraft(owner.board,b=>{result=mode==='merge'?[mergeTexts(b,ids)]:splitParagraphs(b,ids);const nodes=result.map(id=>b.nodes.find(n=>n.id===id)!);let y=nodes[0].y;for(const n of nodes){fitTextNode(n,this.contentEl);if(mode==='split'){n.y=y;y+=n.height+24;}}});if(draft)owner.change(()=>{owner.board=draft;});this.selected=new Set(result);this.contextOpen=false;this.relatedFocus=undefined;this.renderBoard();this.focusSelection();return result;}
+  unifyEdgeStyle(style:NonNullable<Board['defaultEdgeStyle']>='straight'){const owner=this.requireOwner();if(owner.blocked)return;if(owner.board.defaultEdgeStyle===style&&owner.board.edges.every(edge=>edge.style===style))return;owner.change(b=>setBoardEdgeStyle(b,style));new Notice('当前白板连线路径已统一，后续新连线沿用此设置；可撤销');}
   boardActions(){const owner=this.session;if(!owner)return;const ids=new Set(this.selected),one=owner.board.nodes.find(n=>ids.has(n.id)),has=ids.size>0,section=owner.board.nodes.some(n=>ids.has(n.id)&&n.kind==='section');const actions:BoardAction[]=[];
     const add=(label:string,group:string,icon:string,run:()=>unknown,disabled=false,hint?:string)=>actions.push({label,group,icon,run:()=>{this.requireOwner(owner);this.selected=new Set([...ids].filter(id=>owner.board.nodes.some(n=>n.id===id)));return run();},disabled,hint});
     add('分层聚焦关联','关系','radar',()=>this.exploreRelations('connected',ids,1),!has);
     add('选择上游内容','关系','arrow-up-left',()=>this.exploreRelations('upstream',ids),!has);add('选择下游内容','关系','arrow-down-right',()=>this.exploreRelations('downstream',ids),!has);add('两点最短路径','关系','route',()=>this.exploreRelations('path',ids),ids.size!==2);add('聚焦所选关系','关系','scan-eye',()=>this.exploreRelations('focus',ids),!has);add('解除所选内部连线','关系','unlink',()=>this.disconnectSelection(ids),ids.size<2);
+    add('连线统一为直线','样式与排列','move-up-right',()=>this.unifyEdgeStyle('straight'));
     add('整理白板','样式与排列','layout-dashboard',()=>this.openLayoutPlanner());
     add('打开笔记摘录','内容','notebook-pen',()=>this.openMaterials());add('复用到其他白板','内容','copy-plus',()=>this.openReuse(),!has);
     add('分支大纲与笔记','导图','file-tree',()=>this.openBranchOutline(one!.id),ids.size!==1||one?.kind==='section');add('移动分支到主题…','导图','git-pull-request',()=>this.moveBranchPrompt(one!.id),ids.size!==1||one?.kind==='section');add('分支独立为主题','导图','git-branch',()=>this.moveBranch(one!.id,undefined),ids.size!==1||!one||!branchState(owner.board).parents.has(one.id));
@@ -1502,6 +1505,7 @@ class BoardView extends FileView {
     const creation=toolbar.createDiv({cls:'ts-tool-cluster ts-cluster-create',attr:{role:'group','aria-label':'创作内容'}}),organize=toolbar.createDiv({cls:'ts-tool-cluster',attr:{role:'group','aria-label':'组织内容'}}),workspace=toolbar.createDiv({cls:'ts-tool-cluster',attr:{role:'group','aria-label':'白板与历史'}});
     button(workspace,'白板写作模式','notebook-pen',()=>this.plugin.openWriting(this));button(workspace,'打开笔记摘录','notebook-pen',()=>this.openMaterials());button(workspace,'插入 PDF 卡片','file-plus',()=>this.insertPdfCard());button(workspace,'阅读 PDF','file-text',()=>new ReadingSourcePicker(this.app,file=>this.plugin.openExcerptNote(file),true).open());
     button(workspace,'白板操作','command',()=>this.boardActions());
+    button(workspace,'连线统一为直线','move-up-right',()=>this.unifyEdgeStyle('straight'));
     this.selectionButton = button(organize, '框选', 'scan', () => this.toggleSelectionTool());
     button(creation, '新建卡片', 'plus', () => this.newCard(), 'ts-primary');
     button(creation,'文本','type',()=>this.newText());button(creation,'图片','image-plus',()=>this.imageMenu());
@@ -2076,7 +2080,7 @@ class BoardView extends FileView {
       } else if(n.kind==='pdf'){
         this.renderPdfCard(n,el,header,scope);
       } else if(n.kind==='image'){
-        const file=this.app.vault.getAbstractFileByPath(n.file!),remote=remoteImageUrl(n.imageUrl);setIcon(header.createSpan(),'image');header.createSpan({text:file instanceof TFile?file.basename:remote?'图床图片':'图片不存在'});if(remote)header.createSpan({text:'图床',cls:'ts-muted'});
+        const file=this.app.vault.getAbstractFileByPath(n.file!),remote=remoteImageUrl(n.imageUrl);header.remove();el.setAttribute('aria-label',n.title||(file instanceof TFile?file.basename:'图片'));el.addClass('ts-media-card');
         if(file instanceof TFile||remote){const local=file instanceof TFile?this.app.vault.getResourcePath(file):undefined;let fallback=false;const img=el.createEl('img',{cls:'ts-image-body',attr:{src:remote||local!,alt:n.title||(file instanceof TFile?file.basename:'图床图片'),draggable:'false',referrerpolicy:'no-referrer'}});img.onerror=()=>{if(remote&&local&&!fallback){fallback=true;img.src=local;img.title='图床暂不可用，显示本地备份';return;}img.replaceWith(el.createDiv({cls:'ts-missing',text:'图片无法显示，请检查图床或本地备份'}));};el.ondblclick=e=>{e.stopPropagation();act(()=>remote?require('electron').shell.openExternal(remote):this.app.workspace.getLeaf('tab').openFile(file as TFile));};}
         else el.createDiv({cls:'ts-missing',text:'找不到图片文件，请右键重新关联。'});
       } else {
@@ -2135,9 +2139,8 @@ class BoardView extends FileView {
     this.requireOwner(owner);pdfPage(page);const current=owner!.board.nodes.find(n=>n.id===id);if(current?.pdfPage===page||current?.pdfPage===undefined&&page===1)return;owner!.change(b=>{const node=b.nodes.find(n=>n.id===id);if(node?.kind!=='pdf')throw Error('PDF 卡片已变化');if(node.locked)throw Error('请先解锁卡片');node.pdfPage=page;});
   }
   private renderPdfCard(n:Card,el:HTMLElement,header:HTMLElement,scope:Component) {
-    const owner=this.session!,file=this.app.vault.getAbstractFileByPath(n.file!);setIcon(header.createSpan(),'file-text');
-    header.createSpan({text:file instanceof TFile?file.basename:n.title||'PDF 文件',cls:'ts-pdf-title'});
-    header.createSpan({text:'PDF',cls:'ts-pdf-badge'});
+    const owner=this.session!,file=this.app.vault.getAbstractFileByPath(n.file!);el.addClass('ts-media-card');el.setAttribute('aria-label',`${file instanceof TFile?file.basename:n.title||'PDF 文件'} · 第 ${n.pdfPage||1} 页`);
+    if(n.collapsed){setIcon(header.createSpan(),'file-text');header.createSpan({text:file instanceof TFile?file.basename:n.title||'PDF 文件',cls:'ts-pdf-title'});}
     const fold=button(header,n.collapsed?'展开 PDF':'折叠 PDF',n.collapsed?'chevron-down':'chevron-up',()=>this.mutate(b=>foldCards(b,new Set([n.id]),!n.collapsed)),'ts-icon-button');fold.disabled=owner.blocked||!!n.locked;fold.setAttribute('aria-expanded',String(!n.collapsed));
     if(n.collapsed){el.createDiv({cls:'ts-pdf-folded-info',text:`第 ${n.pdfPage||1} 页 · 已折叠`});return;}
     const preview=el.createDiv('ts-pdf-preview'),footer=el.createDiv('ts-pdf-controls'),page=n.pdfPage||1;
@@ -2197,7 +2200,7 @@ class BoardView extends FileView {
     if(this.linkTargetPort!==targetPort){this.linkTargetPort?.removeClass('is-target-port');targetPort?.addClass('is-target-port');this.linkTargetPort=targetPort;}
     this.linkTarget=target;
     const label=target?byId!.get(target.id):undefined,other=label||{...from,id:'preview',x:point.x,y:point.y,width:0,height:0};
-    const edge=this.linkDrag?.edge&&owner.board.edges.find(e=>e.id===this.linkDrag!.edge!.id),style=edge?.style||this.plugin.settings.defaultEdgeStyle;
+    const edge=this.linkDrag?.edge&&owner.board.edges.find(e=>e.id===this.linkDrag!.edge!.id),style=edge?.style||owner.board.defaultEdgeStyle||this.plugin.settings.defaultEdgeStyle;
     const geometryKey=[from.id,from.x,from.y,from.width,from.height,other.id,other.x,other.y,other.width,other.height,style,this.connectSide,target?.side,this.linkDrag?.edge?.end].join('|');
     if(!this.linkPreview?.isConnected){this.linkPreview=this.svg.createSvg('path',{cls:'ts-connection-preview',attr:{'vector-effect':'non-scaling-stroke'}});this.connectionGeometryKey='';}
     if(geometryKey!==this.connectionGeometryKey){
@@ -2336,6 +2339,7 @@ class BoardView extends FileView {
       select('连线方向',{forward:'单向',both:'双向',none:'无箭头'},edge.direction||'forward',(e,v)=>e.direction=v as typeof e.direction);
       select('连线线型',{solid:'实线',dashed:'虚线'},edge.dashed?'dashed':'solid',(e,v)=>e.dashed=v==='dashed');
       select('连线颜色',{default:'默认',...colorNames},edge.color||'default',(e,v)=>{if(v==='default')delete e.color;else e.color=v as typeof e.color;});
+      button(host,'当前路径应用到全部连线','git-commit-horizontal',()=>this.unifyEdgeStyle(edge.style||'curve'),'ts-icon-button');
       button(host,'关系说明','text-cursor-input',()=>this.labelEdge(edge.id),'ts-icon-button');
       button(host,'跳转起点','arrow-left',()=>this.revealNode(edge.from),'ts-icon-button');button(host,'跳转终点','arrow-right',()=>this.revealNode(edge.to),'ts-icon-button');return;
     }}
