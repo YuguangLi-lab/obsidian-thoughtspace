@@ -3641,4 +3641,11 @@
 .ts-settings-hero .setting-item-name:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { font-size: 25px; font-weight: 600; letter-spacing: -.6px; }
 .ts-settings-section .setting-item-name:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { font-size: inherit; font-weight: inherit; color: inherit; }
 
+/* PDF disclosure remains compact and keyboard controls share the native palette. */
+.ts-root .ts-pdf.is-folded > .ts-node-header:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { border-bottom: 0; }
+.ts-root .ts-pdf-folded-info:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { padding: 0 12px 8px; color: var(--text-muted); font: 11px/1.4 var(--font-interface); }
+.ts-root .ts-pdf > .ts-node-header .ts-icon-button:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { flex: none; min-width: 26px; height: 26px; padding: 4px; }
+.ts-root .ts-pdf-controls:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { font-variant-numeric: tabular-nums; }
+.ts-root .ts-branch-toggle:focus-visible:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { outline: 2px solid var(--interactive-accent); outline-offset: 3px; }
+
 /* END board-polish generated */

@@ -8,7 +8,7 @@ export function marqueeSelection(nodes:readonly Card[],r:Rect):Set<string> {
   return new Set(nodes.filter(n=>n.kind==='section' ? n.x>=r.x&&n.y>=r.y&&n.x+n.width<=r.x+r.width&&n.y+n.height<=r.y+r.height : n.x<r.x+r.width&&n.x+n.width>r.x&&n.y<r.y+r.height&&n.y+n.height>r.y).map(n=>n.id));
 }
 export function foldCards(board:Board,ids:ReadonlySet<string>,fold:boolean){
-  for(const n of board.nodes)if(n.kind==='card'&&!n.locked&&ids.has(n.id)){
+  for(const n of board.nodes)if((n.kind==='card'||n.kind==='pdf')&&!n.locked&&ids.has(n.id)){
     if(fold&&!n.collapsed){n.expandedHeight=n.height;n.height=72;n.collapsed=true;}
     else if(!fold&&n.collapsed){n.height=n.expandedHeight!;delete n.expandedHeight;delete n.collapsed;}
   }

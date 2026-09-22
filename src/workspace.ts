@@ -1,6 +1,6 @@
 /** 安装备份可由原生文件管理器查看，但不作为当前工作台资料，也不随重命名改写。 */
 export function isWorkspaceFile(file: {path: string}): boolean {
-  return file.path !== 'ThoughtSpace-plugin-backups' && !file.path.startsWith('ThoughtSpace-plugin-backups/');
+  return !file.path.startsWith('ThoughtSpace/白板搜索/') && file.path !== 'ThoughtSpace-plugin-backups' && !file.path.startsWith('ThoughtSpace-plugin-backups/');
 }
 export interface AppearanceSettings {
   surfaceStyle:'soft'|'paper';readingSize:number;readingWidth:'standard'|'wide';

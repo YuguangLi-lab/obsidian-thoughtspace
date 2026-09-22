@@ -287,3 +287,10 @@
 .ts-settings-hero .setting-item { padding: 0; margin: 0 0 5px; border: 0; }
 .ts-settings-hero .setting-item-name { font-size: 25px; font-weight: 600; letter-spacing: -.6px; }
 .ts-settings-section .setting-item-name { font-size: inherit; font-weight: inherit; color: inherit; }
+
+/* PDF disclosure remains compact and keyboard controls share the native palette. */
+.ts-root .ts-pdf.is-folded > .ts-node-header { border-bottom: 0; }
+.ts-root .ts-pdf-folded-info { padding: 0 12px 8px; color: var(--text-muted); font: 11px/1.4 var(--font-interface); }
+.ts-root .ts-pdf > .ts-node-header .ts-icon-button { flex: none; min-width: 26px; height: 26px; padding: 4px; }
+.ts-root .ts-pdf-controls { font-variant-numeric: tabular-nums; }
+.ts-root .ts-branch-toggle:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 3px; }
