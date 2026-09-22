@@ -66,8 +66,6 @@ node scripts/install.mjs "/absolute/path/to/your/vault"
 
 卡片内嵌 Markdown 编辑使用 Obsidian 内部构造接口；不兼容时回退到源码编辑。建议在自己的主题和插件组合中验证。
 
-详细更新见 [CHANGELOG.md](CHANGELOG.md)。本项目独立实现，不隶属于 Heptabase 或 Simple Mind Map。
-
 ## 许可证
 
 [MIT](LICENSE)。第三方组件与许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
