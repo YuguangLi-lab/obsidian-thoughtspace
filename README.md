@@ -2,13 +2,13 @@
 
 ThoughtSpace is a visual research and writing workspace for Obsidian. Organize linked Markdown notes, text, images, and PDFs on a whiteboard; connect ideas with mind maps and turn grouped material into a Markdown draft. It integrates with vault files, tags, properties, and native editing. The standalone calendar plugin is optional.
 
-**Desktop only · Obsidian 1.13.7 or newer.** Download `thoughtspace-0.98.1.zip` from [Releases](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/latest), extract the folder to `.obsidian/plugins/`, and enable **ThoughtSpace Whiteboard** in Community plugins. When upgrading, keep your existing `data.json`.
+**Desktop only · Obsidian 1.13.7 or newer.** Download `thoughtspace-0.98.2.zip` from [Releases](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/latest), extract the folder to `.obsidian/plugins/`, and enable **ThoughtSpace Whiteboard** in Community plugins. When upgrading, keep your existing `data.json`.
 
 ## 中文说明
 
 为 Obsidian 开发的可视化研究与写作插件。在白板上组织 Markdown 笔记、文本、图片与 PDF，用连线和思维导图展开想法，再将材料整理成文章。
 
-当前版本：**0.98.1**。桌面端插件，需要 Obsidian 1.13.7 或更新版本，最低版本按已有原生交互验收环境声明。
+当前版本：**0.98.2**。桌面端插件，需要 Obsidian 1.13.7 或更新版本，最低版本按已有原生交互验收环境声明。
 
 ## 主要功能
 
@@ -21,7 +21,7 @@ ThoughtSpace is a visual research and writing workspace for Obsidian. Organize l
 
 ## 安装
 
-1. 在本仓库的 [Releases](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/latest) 下载 `thoughtspace-0.98.1.zip`。
+1. 在本仓库的 [Releases](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/latest) 下载 `thoughtspace-0.98.2.zip`。
 2. 解压得到 `thoughtspace` 文件夹，将它放入仓库的 `.obsidian/plugins/` 目录。
 3. 在 Obsidian 设置 → 第三方插件中启用 **ThoughtSpace Whiteboard**。
 
@@ -47,7 +47,7 @@ ThoughtSpace is a visual research and writing workspace for Obsidian. Organize l
 
 ## 图片与连线路径
 
-图片不显示文件名栏和装饰边框，PDF 展开时仅显示页面；悬停或键盘聚焦 PDF 时显示浮动翻页与折叠控件，触屏保持控件可见。
+图片和 PDF 卡片按原图或当前页面的实际比例适配尺寸，选中框与连线锚点贴合内容；拖动缩放保持比例。图片不显示文件名栏和装饰边框，PDF 展开时仅显示页面；悬停或键盘聚焦 PDF 时显示浮动翻页与折叠控件，触屏保持控件可见。
 
 侧边 **更多白板工具 → 连线统一为直线** 会修改当前白板全部连线，后续新建连线和导图分支也使用直线。选中一条连线后，顶部 **当前路径应用到全部连线** 可统一为曲线、直线或圆角折线。支持撤销，不改变颜色、箭头和连接关系；不改动其他白板。
 

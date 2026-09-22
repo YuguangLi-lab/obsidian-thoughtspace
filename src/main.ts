@@ -1,3 +1,4 @@
+import {mediaDimensions} from './media-geometry';
 import {setBoardEdgeStyle,inheritNewEdgeStyle} from './model';
 import {BoardSearchSync,SEARCH_FOLDER} from './native-search';
 import {PdfDocumentPool} from './pdf-document-pool';
@@ -1890,7 +1891,7 @@ class BoardView extends FileView {
     menu.addItem(i=>i.setTitle('从电脑导入图片…').setIcon('upload').onClick(()=>{const input=document.createElement('input');input.type='file';input.accept='.png,.jpg,.jpeg,.gif,.webp,.avif,.bmp';input.multiple=true;input.onchange=()=>act(()=>{this.requireOwner(owner);return this.importImages(Array.from(input.files||[]),position,owner);});input.click();}));
     const r=this.stage.getBoundingClientRect(),v=this.session!.board.viewport;menu.showAtPosition({x:Math.min(r.right-240,Math.max(r.left,position.x*v.zoom+v.x+r.left)),y:Math.min(r.bottom-100,Math.max(r.top,position.y*v.zoom+v.y+r.top))});
   }
-  addImage(file:TFile,position=this.point(),size={width:320,height:240},imageUrl?:string){this.requireOwner();if(imageUrl&&!remoteImageUrl(imageUrl))throw Error('图床地址无效');if(!isImage(file.path))throw new Error('请选择支持的图片文件');const id=uid();this.selected=new Set([id]);this.selectedEdge=undefined;this.mutate(b=>{b.version=3;b.nodes.push({id,kind:'image',file:file.path,...(imageUrl?{imageUrl}:{}),x:position.x-size.width/2,y:position.y-size.height/2,width:size.width,height:size.height+42,color:'blue'});});}
+  addImage(file:TFile,position=this.point(),size={width:320,height:240},imageUrl?:string){this.requireOwner();const fitted=mediaDimensions(size.width,size.width,size.height);if(!fitted)throw Error('图片尺寸无效');size=fitted;if(imageUrl&&!remoteImageUrl(imageUrl))throw Error('图床地址无效');if(!isImage(file.path))throw new Error('请选择支持的图片文件');const id=uid();this.selected=new Set([id]);this.selectedEdge=undefined;this.mutate(b=>{b.version=3;b.nodes.push({id,kind:'image',file:file.path,...(imageUrl?{imageUrl}:{}),x:position.x-size.width/2,y:position.y-size.height/2,width:size.width,height:size.height,color:'blue'});});}
   private hostedUploads=new Set<string>();
   async uploadExistingImage(nodeId:string){
     const owner=this.requireOwner(),node=owner.board.nodes.find(n=>n.id===nodeId);
@@ -2080,8 +2081,8 @@ class BoardView extends FileView {
       } else if(n.kind==='pdf'){
         this.renderPdfCard(n,el,header,scope);
       } else if(n.kind==='image'){
-        const file=this.app.vault.getAbstractFileByPath(n.file!),remote=remoteImageUrl(n.imageUrl);header.remove();el.setAttribute('aria-label',n.title||(file instanceof TFile?file.basename:'图片'));el.addClass('ts-media-card');
-        if(file instanceof TFile||remote){const local=file instanceof TFile?this.app.vault.getResourcePath(file):undefined;let fallback=false;const img=el.createEl('img',{cls:'ts-image-body',attr:{src:remote||local!,alt:n.title||(file instanceof TFile?file.basename:'图床图片'),draggable:'false',referrerpolicy:'no-referrer'}});img.onerror=()=>{if(remote&&local&&!fallback){fallback=true;img.src=local;img.title='图床暂不可用，显示本地备份';return;}img.replaceWith(el.createDiv({cls:'ts-missing',text:'图片无法显示，请检查图床或本地备份'}));};el.ondblclick=e=>{e.stopPropagation();act(()=>remote?require('electron').shell.openExternal(remote):this.app.workspace.getLeaf('tab').openFile(file as TFile));};}
+        const owner=this.session!,file=this.app.vault.getAbstractFileByPath(n.file!),remote=remoteImageUrl(n.imageUrl);header.remove();el.setAttribute('aria-label',n.title||(file instanceof TFile?file.basename:'图片'));el.addClass('ts-media-card');
+        if(file instanceof TFile||remote){const local=file instanceof TFile?this.app.vault.getResourcePath(file):undefined;let fallback=false;const img=el.createEl('img',{cls:'ts-image-body',attr:{src:remote||local!,alt:n.title||(file instanceof TFile?file.basename:'图床图片'),draggable:'false',referrerpolicy:'no-referrer'}});const fit=()=>{if(!img.isConnected||this.session!==owner)return;const size=mediaDimensions(n.width,img.naturalWidth,img.naturalHeight);if(size)this.queueNodeFit(n,size);};img.onload=fit;scope.register(()=>{img.onload=null;img.onerror=null;});if(img.complete)fit();img.onerror=()=>{if(remote&&local&&!fallback){fallback=true;img.src=local;img.title='图床暂不可用，显示本地备份';return;}img.replaceWith(el.createDiv({cls:'ts-missing',text:'图片无法显示，请检查图床或本地备份'}));};el.ondblclick=e=>{e.stopPropagation();act(()=>remote?require('electron').shell.openExternal(remote):this.app.workspace.getLeaf('tab').openFile(file as TFile));};}
         else el.createDiv({cls:'ts-missing',text:'找不到图片文件，请右键重新关联。'});
       } else {
         const file = this.app.vault.getAbstractFileByPath(n.file!);
@@ -2157,7 +2158,7 @@ class BoardView extends FileView {
     preview.setAttribute('aria-busy','true');preview.createSpan({text:'正在加载页面…',cls:'ts-pdf-loading'});
     this.pdfPreviewQueue.add(()=>preview.isConnected,async()=>{
       try {
-        const result=await renderPdfThumbnail({host:preview,src:this.app.vault.getResourcePath(file)+(this.app.vault.getResourcePath(file).includes('?')?'&':'?')+'ts_mtime='+stamp,page,load:loadPdfJs,pool:file.stat.size<=32*1024*1024?this.plugin.pdfDocuments:undefined,register:dispose=>scope.register(dispose),alive:()=>preview.isConnected&&this.session===owner&&file.stat.mtime===stamp});
+        const result=await renderPdfThumbnail({host:preview,src:this.app.vault.getResourcePath(file)+(this.app.vault.getResourcePath(file).includes('?')?'&':'?')+'ts_mtime='+stamp,page,load:loadPdfJs,onSize:size=>{const fitted=mediaDimensions(n.width,size.width,size.height);if(fitted)this.queueNodeFit(n,fitted);},pool:file.stat.size<=32*1024*1024?this.plugin.pdfDocuments:undefined,register:dispose=>scope.register(dispose),alive:()=>preview.isConnected&&this.session===owner&&file.stat.mtime===stamp});
         if(!result||!preview.isConnected)return;total=result.total;if(this.pdfTotals.size>128)this.pdfTotals.clear();this.pdfTotals.set(file.path,{stamp,total});indicator.setText(`${page} / ${total}`);indicator.setAttribute('aria-label',`选择页码，第 ${page} 页，共 ${total} 页`);next.disabled=owner.blocked||!!n.locked||page>=result.total;
       } catch(error) {
         if(!preview.isConnected)return;preview.empty();preview.createSpan({cls:'ts-pdf-error',text:error instanceof Error?error.message:'暂时无法预览 PDF，请在右侧阅读器打开'});

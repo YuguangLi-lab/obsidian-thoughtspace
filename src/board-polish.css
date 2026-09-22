@@ -332,3 +332,7 @@
 @media (prefers-reduced-motion: reduce) {
   .ts-root .ts-media-card > .ts-node-header, .ts-root .ts-media-card .ts-pdf-controls { transition: none; }
 }
+
+/* Node geometry is fitted from source dimensions, so visual and hit bounds coincide. */
+.ts-root .ts-media-card .ts-pdf-preview canvas { width: 100%; height: 100%; }
+.ts-root .ts-media-card .ts-pdf-preview { flex: 1 1 0; min-width: 0; }

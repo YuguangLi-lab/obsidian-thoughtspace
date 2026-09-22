@@ -16,7 +16,7 @@ export function pdfCard(id:string,file:string,x:number,y:number,width=320):Card 
  return{id,kind:'pdf',file,pdfPage:1,x:x-width/2,y:y-70,width,height:400,color:'slate'};
 }
 /** Bounded canvases; an optional short-lived document pool avoids reparsing on each flip. */
-export async function renderPdfThumbnail(options:{host:HTMLElement;src:string;page:number;load:()=>Promise<any>;register:(dispose:()=>void)=>void;alive:()=>boolean;pool?:PdfDocumentPool}) {
+export async function renderPdfThumbnail(options:{host:HTMLElement;src:string;page:number;load:()=>Promise<any>;register:(dispose:()=>void)=>void;alive:()=>boolean;pool?:PdfDocumentPool;onSize?:(size:{width:number;height:number})=>void}) {
  const {host,src,load,register,alive}=options,requested=pdfPage(options.page);
  let disposed=false,task:any,render:any,canvas:HTMLCanvasElement|undefined,destroyed=false;let lease:ReturnType<PdfDocumentPool['acquire']>|undefined;
  const destroy=async()=>{lease?.release();if(task&&!destroyed){destroyed=true;try{await task.destroy();}catch{/* Cancellation can race a failed worker. */}}};
@@ -36,7 +36,7 @@ export async function renderPdfThumbnail(options:{host:HTMLElement;src:string;pa
   canvas=host.ownerDocument.createElement('canvas');canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);canvas.setAttribute('aria-label',`PDF 第 ${requested} 页缩略图`);canvas.setAttribute('role','img');
   const context=canvas.getContext('2d');if(!context)throw Error('无法创建 PDF 缩略图');
   render=page.render({canvasContext:context,viewport});await render.promise;if(!live())return;
-  host.replaceChildren(canvas);return{page:requested,total};
+  host.replaceChildren(canvas);options.onSize?.(original);return{page:requested,total};
  } catch(error){if(live())throw error;}finally{await destroy();}
 }
 

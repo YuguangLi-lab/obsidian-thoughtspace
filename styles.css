@@ -3686,4 +3686,8 @@
   .ts-root .ts-media-card > .ts-node-header:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)), .ts-root .ts-media-card .ts-pdf-controls:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { transition: none; }
 }
 
+/* Node geometry is fitted from source dimensions, so visual and hit bounds coincide. */
+.ts-root .ts-media-card .ts-pdf-preview canvas:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { width: 100%; height: 100%; }
+.ts-root .ts-media-card .ts-pdf-preview:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { flex: 1 1 0; min-width: 0; }
+
 /* END board-polish generated */

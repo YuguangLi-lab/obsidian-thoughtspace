@@ -1,0 +1,12 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {mediaDimensions} from '../src/media-geometry';
+import {resized} from '../src/board-experience';
+import {nodeFitChanges} from '../src/node-fit-batch';
+import type {Card} from '../src/model';
+const node=(kind:'image'|'pdf'):Card=>({id:'a',kind,file:kind==='pdf'?'a.pdf':'a.png',x:0,y:0,width:300,height:400,color:'slate'});
+test('portrait and landscape media use exact source proportions without title or footer space',()=>{assert.deepEqual(mediaDimensions(300,600,800),{width:300,height:400});assert.deepEqual(mediaDimensions(300,1200,600),{width:300,height:150});assert.deepEqual(mediaDimensions(300,800,800),{width:300,height:300});});
+test('changing PDF page orientation preserves chosen width instead of progressively shrinking',()=>{let size=mediaDimensions(300,600,800)!;for(let i=0;i<20;i++)size=mediaDimensions(size.width,800,i%2?1200:400)!;assert.equal(size.width,300);assert.equal(size.height,450);});
+test('invalid dimensions cannot mutate media geometry',()=>{for(const value of [0,-1,NaN,Infinity]){assert.equal(mediaDimensions(300,value,800),undefined);assert.equal(mediaDimensions(value,600,800),undefined);assert.equal(mediaDimensions(300,600,value),undefined);}});
+test('small images respect board geometry minima without distortion',()=>{const s=mediaDimensions(20,1000,100)!;assert.ok(s.width>=80&&s.height>=60);assert.equal(s.width/s.height,10);});
+test('image and PDF drag resizing always keeps aspect ratio without needing Shift',()=>{for(const kind of ['image','pdf'] as const){const n=node(kind);for(const [dx,dy]of [[90,0],[0,180],[-999,-999]]){const s=resized(n,dx,dy,false);assert.ok(Math.abs(s.width/s.height-n.width/n.height)<1e-10);assert.ok(s.width>=80&&s.height>=60);}}});
+test('media fits obey stale-render, locked, collapsed and editing protections',()=>{for(const kind of ['image','pdf'] as const){const n=node(kind),fits=new Map([['a',{width:300,height:150,key:'current'}]]),keys=new Map([['a','current']]);assert.equal(nodeFitChanges([n],fits,keys,new Set()).get('a')?.height,150);for(const blocked of [{...n,locked:true},{...n,collapsed:true}])assert.equal(nodeFitChanges([blocked],fits,keys,new Set()).size,0);assert.equal(nodeFitChanges([n],fits,new Map([['a','old']]),new Set()).size,0);assert.equal(nodeFitChanges([n],fits,keys,new Set(['a'])).size,0);}});
