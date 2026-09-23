@@ -30,7 +30,7 @@ export function parseBoard(text: string): Board {
       !colors.includes(n.color) || (['card','board','image','pdf'].includes(n.kind) && (typeof n.file !== 'string' || !(n.kind === 'pdf' ? /\.pdf$/i.test(n.file) : n.kind === 'image' ? /\.(png|jpe?g|gif|webp|avif|bmp)$/i.test(n.file) : n.file.endsWith(n.kind === 'board' ? '.thoughtspace' : '.md')) || /(^\/|(^|\/)\.\.?(\/|$)|\\)/.test(n.file))) ||
       (n.kind === 'section' && typeof n.title !== 'string')) throw new Error('白板节点数据不完整');
     if ((n.collapsed !== undefined && typeof n.collapsed !== 'boolean') ||
-      (n.collapsed && (!['card','pdf'].includes(n.kind) || n.height !== 72 || !Number.isFinite(n.expandedHeight) || n.expandedHeight < 60)) ||
+      (n.collapsed && (!['card','pdf','board'].includes(n.kind) || n.height !== 72 || !Number.isFinite(n.expandedHeight) || n.expandedHeight < 60)) ||
       (!n.collapsed && n.expandedHeight !== undefined)) throw new Error('卡片折叠数据不完整');
     if ((n.kind === 'text' && typeof n.text !== 'string') || (n.topic !== undefined && (b.version !== 3 || typeof n.topic !== 'boolean'))) throw new Error('文本或主题数据不完整');
     if ((n.textColor !== undefined && !['default',...colors].includes(n.textColor)) ||

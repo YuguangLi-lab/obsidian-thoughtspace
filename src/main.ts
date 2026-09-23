@@ -1281,7 +1281,15 @@ class BoardView extends FileView {
   }
   selectBranch(){const owner=this.requireOwner(),ids=new Set(this.selected);branchDescendants(owner.board,ids).forEach(id=>ids.add(id));this.foldBranches(ids,false);this.selected=ids;this.updateSelection();}
   foldBranches(ids:ReadonlySet<string>,fold:boolean,disclosure?:BranchDisclosure){const owner=this.requireOwner(),state=branchState(owner.board);const targets=owner.board.nodes.filter(n=>ids.has(n.id)&&state.children.has(n.id));if(!targets.length)return;
-    this.cancelConnection();owner.change(b=>{if(disclosure)discloseBranches(b,ids,disclosure);else{b.version=3;for(const n of b.nodes)if(ids.has(n.id)&&state.children.has(n.id)){if(fold)n.branchFolded=true;else delete n.branchFolded;}}});
+    const apply=(b:Board)=>{if(disclosure)discloseBranches(b,ids,disclosure);else{b.version=3;for(const n of b.nodes)if(ids.has(n.id)&&state.children.has(n.id)){if(fold)n.branchFolded=true;else delete n.branchFolded;}}};
+    const editing=new Set([this.inlineId,this.inlineTarget].filter((id):id is string=>!!id));for(const[id,el]of this.positions)if(el.querySelector('.ts-card-title-input'))editing.add(id);
+    if(editing.size){
+      // Disclosure changes flags only: copy nodes without cloning note contents or
+      // touching the live editor. One-level expansion can also hide a deeper draft.
+      const draft={...owner.board,nodes:owner.board.nodes.map(n=>({...n}))};apply(draft);const hidden=branchState(draft).hidden;
+      if([...editing].some(id=>hidden.has(id))){new Notice('请先完成子节点编辑，再折叠分支');return;}
+    }
+    this.cancelConnection();owner.change(apply);
     const hidden=branchState(owner.board).hidden;this.selected=new Set([...this.selected].filter(id=>!hidden.has(id)));const edge=owner.board.edges.find(e=>e.id===this.selectedEdge);if(edge&&(hidden.has(edge.from)||hidden.has(edge.to)))this.selectedEdge=undefined;this.contextOpen=false;this.renderBoard();
   }
   async openMindmapStudio(){const owner=this.requireOwner();if(this.inline&&!await this.inline.commit())return;this.requireOwner(owner);
@@ -2096,20 +2104,28 @@ class BoardView extends FileView {
         setIcon(header.createSpan(), 'folder-open'); header.createSpan({ text: n.title });
         header.title='双击重命名 · 拖动标题移动框内内容';header.ondblclick=e=>{e.stopPropagation();this.renameSection(n.id);};
       } else if (n.kind === 'board') {
+        const owner=this.session;
         const file = this.app.vault.getAbstractFileByPath(n.file!);
         el.addClass('ts-board-portal'); setIcon(header.createSpan('ts-portal-icon'), 'panels-top-left');
-        header.createSpan({ text: file instanceof TFile ? file.basename : n.title || '白板不存在' });
-        const preview = el.createDiv('ts-portal-preview'), meta = el.createDiv('ts-portal-meta');
+        header.createSpan({ cls:'ts-portal-title',text: file instanceof TFile ? file.basename : n.title || '白板不存在' });
+        const fold=button(header,n.collapsed?'展开子白板':'折叠子白板',n.collapsed?'chevron-down':'chevron-up',()=>{
+          this.requireOwner(owner);this.mutate(b=>foldCards(b,new Set([n.id]),!n.collapsed));
+        },'ts-icon-button ts-portal-fold');
+        fold.disabled=owner.blocked||!!n.locked;fold.setAttribute('aria-expanded',String(!n.collapsed));
+        fold.onpointerdown=e=>e.stopPropagation();fold.ondblclick=e=>e.stopPropagation();
         if (file instanceof TFile) {
-          preview.createSpan({ text: '正在读取白板…', cls: 'ts-map-empty' });
-          act(async () => {
-            try { const child = await this.plugin.readBoard(file); if (!preview.isConnected) return; preview.empty(); this.mapPreview(preview, child);
-              meta.createSpan({ text: `${child.nodes.filter(n => n.kind === 'card').length} 张卡片 · ${boardLinks(child).length} 个子白板` });
-            } catch { if (preview.isConnected) preview.setText('白板无法读取，请检查文件'); }
-          });
-          button(meta, '进入白板', 'arrow-up-right', () => this.enterBoard(file));
+          if(!n.collapsed){
+            const preview = el.createDiv('ts-portal-preview'), meta = el.createDiv('ts-portal-meta');
+            preview.createSpan({ text: '正在读取白板…', cls: 'ts-map-empty' });
+            act(async () => {
+              try { const child = await this.plugin.readBoard(file); if (!preview.isConnected||this.session!==owner) return; preview.empty(); this.mapPreview(preview, child);
+                meta.createSpan({ text: `${child.nodes.filter(n => n.kind === 'card').length} 张卡片 · ${boardLinks(child).length} 个子白板` });
+              } catch { if (preview.isConnected&&this.session===owner) preview.setText('白板无法读取，请检查文件'); }
+            });
+            button(meta, '进入白板', 'arrow-up-right', () => this.enterBoard(file));
+          }else button(header,'进入白板','arrow-up-right',()=>this.enterBoard(file),'ts-icon-button');
           el.ondblclick = e => { if ((e.target as Element).closest('button')) return; e.stopPropagation(); act(() => this.enterBoard(file)); };
-        } else { preview.createDiv({ cls: 'ts-missing', text: '找不到子白板。原入口保留，可以重新关联。' }); }
+        } else if(!n.collapsed) { el.createDiv('ts-portal-preview').createDiv({ cls: 'ts-missing', text: '找不到子白板。原入口保留，可以重新关联。' }); }
       } else if(n.kind==='text'){
         header.remove();this.queueTextFit(n);
         el.dataset.ink=n.textColor || 'default';const presentation=textExcerptPresentation(n.text||'');el.toggleClass('has-excerpt-source',!!presentation.sources.length);const textBody=el.createDiv({cls:'ts-text-body'});for(const part of yingjianTextParts(presentation.sources.length?presentation.body.trimEnd():presentation.body)){if(!part.link){textBody.appendText(part.text);continue;}const a=textBody.createEl('a',{cls:'ts-video-timestamp',text:part.text,href:part.link,attr:{title:'在影笺回看 '+part.text}});a.onpointerdown=e=>e.stopPropagation();a.onclick=e=>{e.preventDefault();e.stopPropagation();act(()=>require('electron').shell.openExternal(part.link!));};}if(presentation.sources.length){textBody.appendText('\u2060');this.addSourceBadge(textBody,this.session.file,presentation.sources,scope);}textBody.style.fontFamily=textFontFamily(n.fontFamily);textBody.style.fontSize=`${n.fontSize || 16}px`;textBody.style.textAlign=n.textAlign || 'left';el.ondblclick=e=>{if((e.target as Element).closest('button,a'))return;e.stopPropagation();this.editText(n.id);};
@@ -2610,6 +2626,7 @@ class BoardView extends FileView {
         add('选择 PDF 页码…','hash',()=>this.choosePdfPage(node.id),true,locked);
       }else if(node.kind==='board'){
         add('进入子白板','arrow-up-right',()=>file instanceof TFile&&this.enterBoard(file),false,!(file instanceof TFile));
+        add(node.collapsed?'展开子白板':'折叠子白板',node.collapsed?'chevron-down':'chevron-up',()=>this.foldSelection(!node.collapsed),true,locked);
       }else{
         add('重命名分组框','pencil',()=>this.renameSection(node.id),true,locked);
         add('选择框内内容','scan',()=>{this.selected=new Set(owner.board.nodes.filter(n=>contained(node,n)).map(n=>n.id));this.updateSelection();},false);
@@ -2919,7 +2936,7 @@ class BoardView extends FileView {
       for(const n of nodes){const row=list.createDiv({cls:'ts-outline-row',attr:{'data-outline-id':n.id}});row.toggleClass('is-selected',this.selected.has(n.id));
         const target=button(row,name(n),n.kind==='section'?'group':n.kind==='board'?'panels-top-left':n.kind==='text'?'type':n.kind==='image'?'image':'file-text',()=>this.revealNode(n.id),'ts-outline-title');target.title=n.file||n.title||'';
         if(['card','text','image'].includes(n.kind))button(row,'阅读 '+name(n),'book-open',()=>this.openReadingDesk(new Set([n.id])),'ts-icon-button ts-outline-read');
-        if(n.kind==='card'||n.kind==='pdf')button(row,n.collapsed?'展开卡片':'折叠卡片',n.collapsed?'chevron-down':'chevron-up',()=>this.mutate(b=>foldCards(b,new Set([n.id]),!n.collapsed)),'ts-icon-button');
+        if(n.kind==='card'||n.kind==='pdf'||n.kind==='board'){const label=n.kind==='board'?'子白板':n.kind==='pdf'?'PDF':'卡片';const fold=button(row,`${n.collapsed?'展开':'折叠'}${label}`,n.collapsed?'chevron-down':'chevron-up',()=>this.mutate(b=>foldCards(b,new Set([n.id]),!n.collapsed)),'ts-icon-button');fold.disabled=this.session.blocked||!!n.locked;fold.setAttribute('aria-expanded',String(!n.collapsed));}
         else row.createSpan({text:n.kind==='section'?'分组':n.kind==='text'?'文本':n.kind==='image'?'图片':'白板',cls:'ts-outline-kind'});
       }
       if(!nodes.length)list.createDiv({text:'没有匹配的对象。试试其他关键词或类型。',cls:'ts-sidebar-empty'});return;

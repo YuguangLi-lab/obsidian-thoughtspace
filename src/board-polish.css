@@ -399,6 +399,30 @@
 .ts-root .ts-media-card .ts-pdf-preview canvas { width: 100%; height: 100%; }
 .ts-root .ts-media-card .ts-pdf-preview { flex: 1 1 0; min-width: 0; }
 
+/* Child boards use the same compact, restorable fold as note cards. */
+.ts-root .ts-board-portal > .ts-node-header {
+  flex: none;
+  min-height: 44px;
+  gap: 8px;
+  padding: 10px 12px !important;
+}
+.ts-root .ts-board-portal .ts-portal-title { flex: 1; min-width: 0; }
+.ts-root .ts-board-portal > .ts-node-header .ts-icon-button {
+  flex: none;
+  height: 28px;
+  min-width: 28px;
+  padding: 4px;
+  color: var(--text-muted);
+}
+.ts-root .ts-board-portal > .ts-node-header .ts-icon-button:hover { color: var(--text-normal); }
+.ts-root .ts-board-portal.is-folded > .ts-node-header {
+  height: 100%;
+  border-bottom: 0;
+  background: transparent;
+  border-radius: inherit;
+}
+.ts-root .ts-board-portal.is-folded .ts-portal-title { font-weight: 600; }
+
 /* Batch formatting uses a compact object/connection switch in the existing top row. */
 .ts-root .ts-floating-formatbar .ts-batch-format-switch {
   display: flex; flex: none; align-items: center; gap: 2px; padding: 2px;
