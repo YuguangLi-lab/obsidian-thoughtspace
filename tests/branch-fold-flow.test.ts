@@ -4,13 +4,13 @@ import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import {emptyBoard,clone,parseBoard,History,type Board,type Card} from '../src/model';
 import {branchState,visibleBranchBoard,validateBranches} from '../src/mindmap';
-import {discloseBranches,makeChildConnection} from '../src/branch-disclosure';
+import {discloseBranches,makeChildConnection,makeChildConnections} from '../src/branch-disclosure';
 
 const source=readFileSync('src/main.ts','utf8');
 const start=source.indexOf('  foldBranches('),end=source.indexOf('  async openMindmapStudio()',start);
 assert.ok(start>=0&&end>start);
 const notices:string[]=[];
-const View=new Function('branchState','discloseBranches','Notice',transformSync(`class View{${source.slice(start,end)}};return View`,{loader:'ts'}).code)(branchState,discloseBranches,class{constructor(message:string){notices.push(message);}});
+const View=new Function('branchState','discloseBranches','makeChildConnections','Notice',transformSync(`class View{${source.slice(start,end)}};return View`,{loader:'ts'}).code)(branchState,discloseBranches,makeChildConnections,class{constructor(message:string){notices.push(message);}});
 function node(id:string,kind:Card['kind']='text'):Card{return{id,kind,...(kind==='text'?{text:id}:{}),...(['board','card','pdf'].includes(kind)?{file:`${id}.${kind==='board'?'thoughtspace':kind==='card'?'md':'pdf'}`} :{}),title:id,x:0,y:0,width:200,height:120,color:'green'};}
 function fixture(){
  notices.length=0;
@@ -103,4 +103,35 @@ test('expand-all is allowed when it reveals the active editor',()=>{
 test('legacy collapse entry point also refuses to hide an active editor',()=>{
  const{v,board,notices}=fixture();v.inlineId='child';const before=clone(board);
  v.foldBranches(new Set(['portal']),true);assert.deepEqual(board,before);assert.equal(notices.length,1);
+});
+
+test('one-click setup converts ordinary children and folds in one undo step without moving cards',()=>{
+ const{v,board,history}=fixture();delete board.edges[0].kind;const before=clone(board);
+ v.foldBranches(new Set(['portal']),true,'collapse',true);
+ assert.deepEqual(hidden(board),['child','grand','last','ordinary']);
+ assert.deepEqual(board.nodes.map(({branchFolded,...n})=>n),before.nodes);
+ assert.deepEqual(board.edges.map(({kind,direction,...e})=>e),before.edges.map(({kind,direction,...e})=>e));
+ const undo=history.undo(board)!;assert.deepEqual(undo,before);assert.equal(history.undo(undo),undefined);
+ v.foldBranches(new Set(['portal']),false,'level');assert.deepEqual(hidden(board),['grand','last']);
+});
+test('setup does not change edges when an active child editor prevents folding',()=>{
+ const{v,board,stats,notices}=fixture();delete board.edges[0].kind;v.inlineTarget='ordinary';const before=clone(board);
+ v.foldBranches(new Set(['portal']),true,'collapse',true);
+ assert.deepEqual(board,before);assert.deepEqual(stats(),{renders:0,cancels:0});assert.equal(notices.length,1);
+});
+test('setup rejects conflicting parentage atomically and preserves selected objects',()=>{
+ const{v,board,stats}=fixture();board.edges.push({id:'conflict',from:'ordinary',to:'child',kind:'branch',label:''});delete board.edges[0].kind;const before=clone(board);
+ assert.throws(()=>v.foldBranches(new Set(['portal']),true,'collapse',true));assert.deepEqual(board,before);assert.deepEqual(stats(),{renders:0,cancels:0});
+});
+test('setup ignores bidirectional and undirected relations',()=>{
+ for(const direction of ['both','none'] as const){const{v,board}=fixture();board.edges[3].direction=direction;
+ v.foldBranches(new Set(['portal']),true,'collapse',true);assert.deepEqual(hidden(board),['child','grand','last']);assert.equal(board.edges[3].kind,undefined);}
+});
+test('setup rejects a locked endpoint without partially converting other children',()=>{
+ const{v,board}=fixture();board.nodes[4].locked=true;const before=clone(board);
+ assert.throws(()=>v.foldBranches(new Set(['portal']),true,'collapse',true),/解锁/);assert.deepEqual(board,before);
+});
+test('setup rejects cycles without mutating live board',()=>{
+ const{v,board}=fixture();board.edges.push({id:'back',from:'last',to:'portal',label:''});const before=clone(board);
+ assert.throws(()=>v.foldBranches(new Set(['last']),true,'collapse',true));assert.deepEqual(board,before);
 });

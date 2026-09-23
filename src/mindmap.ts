@@ -1,4 +1,5 @@
 import type { Board, Card, Edge } from './model';
+import {sectionFoldState,sectionDisplayNode,unfoldSectionAncestors} from './sections';
 /** 分支是单父级森林，普通关系线不参与树结构。 */
 export function validateBranches(b:Board){
   const nodes=new Map(b.nodes.map(n=>[n.id,n])),parents=new Map<string,string>();
@@ -70,12 +71,15 @@ export function previewMindmapSize(board:Board,id:string,width:number,height:num
  return display;
 }
 
-/** Derived in O(nodes + edges); no descendant copies are stored in the document. */
+/** Branch traversal is O(nodes + edges); folded frame membership uses logical
+ * geometry only when a frame is folded. No descendant copies are persisted. */
 export function branchState(b:Board){
  const children=new Map<string,string[]>(),parents=new Map<string,string>();
  for(const e of b.edges)if(e.kind==='branch'){const list=children.get(e.from)||[];list.push(e.to);children.set(e.from,list);parents.set(e.to,e.from);}
- const hidden=new Set<string>(),pending=b.nodes.filter(n=>n.branchFolded).flatMap(n=>children.get(n.id)||[]);
+ const hidden=new Set<string>(),pending:string[]=[];let hasSectionFolds=false;
+ for(const node of b.nodes){if(node.branchFolded)pending.push(...(children.get(node.id)||[]));if(node.sectionFolded)hasSectionFolds=true;}
  while(pending.length){const id=pending.pop()!;if(hidden.has(id))continue;hidden.add(id);pending.push(...(children.get(id)||[]));}
+ if(hasSectionFolds)for(const id of sectionFoldState(b).hidden)hidden.add(id);
  return{children,parents,hidden};
 }
 export function branchDescendants(b:Board,roots:ReadonlySet<string>){
@@ -83,8 +87,8 @@ export function branchDescendants(b:Board,roots:ReadonlySet<string>){
  while(pending.length){const id=pending.pop()!;for(const child of children.get(id)||[])if(!ids.has(child)){ids.add(child);pending.push(child);}}
  return ids;
 }
-export function visibleBranchBoard(b:Board):Board{if(!b.nodes.some(n=>n.branchFolded))return b;const {hidden}=branchState(b);return hidden.size?{...b,nodes:b.nodes.filter(n=>!hidden.has(n.id)),edges:b.edges.filter(e=>!hidden.has(e.from)&&!hidden.has(e.to))}:b;}
-export function unfoldAncestors(b:Board,id:string){const {parents}=branchState(b),nodes=new Map(b.nodes.map(n=>[n.id,n])),seen=new Set<string>();let parent=parents.get(id);while(parent&&!seen.has(parent)){seen.add(parent);const node=nodes.get(parent);if(node)delete node.branchFolded;parent=parents.get(parent);}}
+export function visibleBranchBoard(b:Board):Board{if(!b.nodes.some(n=>n.branchFolded||n.sectionFolded))return b;const {hidden}=branchState(b);return hidden.size||b.nodes.some(n=>n.sectionFolded)?{...b,nodes:b.nodes.filter(n=>!hidden.has(n.id)).map(sectionDisplayNode),edges:b.edges.filter(e=>!hidden.has(e.from)&&!hidden.has(e.to))}:b;}
+export function unfoldAncestors(b:Board,id:string){unfoldSectionAncestors(b,id);const {parents}=branchState(b),nodes=new Map(b.nodes.map(n=>[n.id,n])),seen=new Set<string>();let parent=parents.get(id);while(parent&&!seen.has(parent)){seen.add(parent);const node=nodes.get(parent);if(node)delete node.branchFolded;parent=parents.get(parent);}}
 
 /** A folded branch is one movement unit. Locked descendants pin the complete unit. */
 export function foldedMoveUnits(board:Board,ids:ReadonlySet<string>){

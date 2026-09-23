@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { emptyBoard, parseBoard, removeNodes, canvasExport, History, contained, fitViewport, extractTasks, toggleTask, safeName, clone } from '../src/model';
+import { Card, colors, emptyBoard, parseBoard, removeNodes, canvasExport, History, contained, fitViewport, extractTasks, toggleTask, safeName, clone } from '../src/model';
 const fixture = () => {
   const b = emptyBoard();
   b.nodes = [{ id: 's', kind: 'section', title: '研究', x: -50, y: -50, width: 800, height: 600, color: 'blue' },
@@ -9,6 +9,46 @@ const fixture = () => {
   b.edges = [{ id: 'e', from: 'a', to: 'b', label: '支持' }]; return b;
 };
 test('Unicode notes and negative coordinates survive round-trip', () => { const b = fixture(); assert.deepEqual(parseBoard(JSON.stringify(b)), b); });
+test('text backgrounds round-trip presets, six-digit hex and transparency without changing legacy defaults',()=>{
+  const b=emptyBoard();b.version=3;
+  b.nodes=[{id:'text',kind:'text',text:'保留文本与默认样式',x:10,y:20,width:240,height:120,color:'blue'}];
+  assert.deepEqual(parseBoard(JSON.stringify(b)),b);
+  for(const fillColor of ['none',...colors,'#Aa00fF'] as const)for(const transparent of [true,false]){
+    Object.assign(b.nodes[0],{fillColor,transparent});
+    assert.deepEqual(parseBoard(JSON.stringify(b)),b);
+  }
+  b.nodes[0].fillColor='#Aa00fF';b.nodes[0].transparent=true;
+  const history=new History();history.push(b);delete b.nodes[0].transparent;
+  assert.equal(parseBoard(JSON.stringify(b)).nodes[0].fillColor,'#Aa00fF');
+  const restored=history.undo(b)!;
+  assert.equal(restored.nodes[0].transparent,true);
+  assert.equal(restored.nodes[0].fillColor,'#Aa00fF');
+  assert.deepEqual(parseBoard(JSON.stringify(restored)),restored);
+});
+test('background validation still rejects unsupported object kinds and unsafe style values',()=>{
+  const b=emptyBoard();b.version=3;
+  const n:Card={id:'object',kind:'text',text:'text',x:0,y:0,width:300,height:200,color:'blue'};
+  for(const kind of ['section','board','image','pdf'] as const){
+    b.nodes=[{...n,kind,...(kind==='section'?{title:'Section'}:{file:`object.${kind==='board'?'thoughtspace':kind==='image'?'png':'pdf'}`})}];
+    assert.doesNotThrow(()=>parseBoard(JSON.stringify(b)));
+    b.nodes[0].fillColor='#aabbcc';
+    assert.throws(()=>parseBoard(JSON.stringify(b)),/背景颜色无效/);
+    delete b.nodes[0].fillColor;b.nodes[0].transparent=false;
+    assert.throws(()=>parseBoard(JSON.stringify(b)),/透明样式无效/);
+  }
+  for(const kind of ['card','text'] as const){
+    b.nodes=[{...n,kind,...(kind==='card'?{file:'object.md'}:{})}];
+    for(const fillColor of ['url(x)','red; color: blue','#abc','#aabbccdd','#zzzzzz','',123,null]){
+      Object.assign(b.nodes[0],{fillColor});
+      assert.throws(()=>parseBoard(JSON.stringify(b)),/背景颜色无效/);
+    }
+    delete b.nodes[0].fillColor;
+    for(const transparent of ['true',0,null]){
+      Object.assign(b.nodes[0],{transparent});
+      assert.throws(()=>parseBoard(JSON.stringify(b)),/透明样式无效/);
+    }
+  }
+});
 test('Reject malformed or future-version data without treating it as an empty board', () => {
   for (const raw of ['', '{}', 'null', '{"version":2,"nodes":[],"edges":[]}']) assert.throws(() => parseBoard(raw));
   const b = fixture(); b.nodes[1].width = NaN; assert.throws(() => parseBoard(JSON.stringify(b)));

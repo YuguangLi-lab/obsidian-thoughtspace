@@ -1,4 +1,4 @@
-import type {Board} from './model';
+import type {Board,Card,Edge} from './model';
 import {branchState,validateBranches} from './mindmap';
 export type BranchDisclosure='collapse'|'level'|'all';
 /** Reveal one frontier per action. Existing hidden descendants are not expanded en masse. */
@@ -19,4 +19,32 @@ export function makeChildConnection(board:Board,edgeId:string){
  if(board.nodes.some(n=>(n.id===edge.from||n.id===edge.to)&&n.locked))throw Error('请先解锁连线两端');
  const candidate={...board,version:3 as const,edges:board.edges.map(e=>e.id===edgeId?{...e,kind:'branch' as const}:e)};
  validateBranches(candidate);board.version=3;edge.kind='branch';edge.direction='forward';
+}
+
+function isChildRelation(edge:Edge){return edge.kind!=='branch'&&(!edge.direction||edge.direction==='forward')&&edge.from!==edge.to;}
+function childNodes(board:Board){const nodes=new Map<string,Card>();for(const node of board.nodes)if(node.kind!=='section')nodes.set(node.id,node);return nodes;}
+/** Transaction-local index; scope it to visible/selected roots instead of retaining stale candidates. */
+export function childConnectionCandidates(board:Board,roots?:ReadonlySet<string>):Map<string,string[]> {
+ const result=new Map<string,string[]>();if(roots&&!roots.size)return result;
+ let nodes:Map<string,Card>|undefined;
+ for(const edge of board.edges){
+  if((roots&&!roots.has(edge.from))||!isChildRelation(edge))continue;
+  nodes??=childNodes(board);if(!nodes.has(edge.from)||!nodes.has(edge.to))continue;
+  const ids=result.get(edge.from);if(ids)ids.push(edge.id);else result.set(edge.from,[edge.id]);
+ }
+ return result;
+}
+/** Validate the whole conversion before changing anything, including on conflicts. */
+export function makeChildConnections(board:Board,roots:ReadonlySet<string>){
+ if(!roots.size)return;
+ let nodes:Map<string,Card>|undefined,edges:Edge[]|undefined;
+ for(let i=0;i<board.edges.length;i++){
+  const edge=board.edges[i];if(!roots.has(edge.from)||!isChildRelation(edge))continue;
+  nodes??=childNodes(board);const from=nodes.get(edge.from),to=nodes.get(edge.to);if(!from||!to)continue;
+  if(from.locked||to.locked)throw Error('请先解锁连线两端');
+  edges??=board.edges.slice();edges[i]={...edge,kind:'branch',direction:'forward'};
+ }
+ if(!edges)return;
+ validateBranches({...board,version:3,edges});
+ board.version=3;board.edges=edges;
 }

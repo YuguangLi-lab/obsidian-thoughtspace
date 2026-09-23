@@ -4,7 +4,7 @@
 .ts-root .ts-main {
   container-name: ts-board-canvas;
   --ts-board-panel: var(--background-primary);
-  --ts-board-line: color-mix(in srgb, var(--background-modifier-border) 88%, transparent);
+  --ts-board-line: color-mix(in srgb, var(--background-modifier-border) 74%, transparent);
   --ts-board-hover: var(--background-modifier-hover);
   --ts-board-active: color-mix(in srgb, var(--ts-accent) 10%, var(--background-primary));
   --ts-board-shadow: 0 1px 3px #00000008, 0 4px 14px #00000009;
@@ -69,7 +69,7 @@
   box-shadow: none !important;
 }
 .ts-root .ts-board-rail .ts-primary:hover { background: color-mix(in srgb, var(--ts-accent) 17%, var(--background-primary)) !important; }
-.ts-root .ts-board-rail .ts-rail-divider { flex: 0 0 1px; height: 1px; min-height: 1px; margin: 4px 7px; background: var(--ts-board-line); }
+.ts-root .ts-board-rail .ts-rail-divider { flex: 0 0 1px; height: 1px; min-height: 1px; margin: 4px 8px; background: var(--ts-board-line); }
 
 /* Overflow uses short, consistently aligned rows. Position remains owned by
    the rail; the context menu retains its mouse-relative inline coordinates. */
@@ -94,35 +94,48 @@
   padding: 8px 9px 5px;
   background: var(--ts-board-panel);
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: .01em;
 }
-.ts-root .ts-rail-popover .ts-tool-cluster + .ts-tool-cluster { margin-top: 6px; padding-top: 2px; border-color: var(--ts-board-line); }
+.ts-root .ts-rail-popover .ts-tool-cluster + .ts-tool-cluster { margin-top: 6px; padding-top: 2px; border-top: 0; }
 .ts-root .ts-rail-popover .ts-rail-actions .ts-button {
   height: 32px;
   min-height: 32px;
   border-radius: 7px;
-  gap: 9px;
+  gap: 8px;
   padding-inline: 9px !important;
 }
 .ts-root .ts-rail-popover .ts-rail-actions .ts-button:hover { background: var(--ts-board-active); color: var(--text-normal); }
 .ts-root .ts-rail-popover .ts-button:is(:hover, :focus-visible) > span:first-child { color: var(--ts-accent); }
 .ts-root .ts-rail-popover .ts-button > span:first-child { display: flex; flex: 0 0 16px; color: var(--text-muted); }
+.ts-root .ts-rail-popover .ts-button svg { width: 16px; height: 16px; }
 
 /* One floating row, scrollable on a split pane. Never wrap formatting controls
    into a tall panel that covers the document being edited. */
 .ts-root .ts-main > .ts-floating-formatbar {
   top: 12px;
   max-width: calc(100% - 32px);
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  min-width: 0;
+  gap: 0;
+  border: 1px solid var(--ts-board-line);
+  border-radius: 10px;
+  background: var(--ts-board-panel);
+  box-shadow: var(--ts-board-shadow);
 }
-.ts-root .ts-floating-formatbar > .ts-commandbar {
+.ts-root .ts-main > .ts-floating-formatbar > .ts-commandbar {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
   padding: 4px !important;
   gap: 0 !important;
-  border-color: var(--ts-board-line) !important;
-  border-radius: 10px !important;
-  background: var(--ts-board-panel) !important;
-  box-shadow: var(--ts-board-shadow) !important;
+  border: 0 !important;
+  border-radius: 9px !important;
+  background: transparent !important;
+  box-shadow: none !important;
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
@@ -130,6 +143,18 @@
   scrollbar-width: thin;
   scrollbar-color: var(--background-modifier-border) transparent;
 }
+/* The arrows own real space beside the scroll viewport, including its scrollbar. */
+.ts-root .ts-floating-formatbar > .ts-format-scroll {
+  flex: 0 0 26px;
+  width: 26px;
+  min-width: 26px;
+  height: 30px;
+  margin-inline: 2px;
+  padding: 0 !important;
+  pointer-events: auto;
+}
+.ts-root .ts-floating-formatbar > .ts-format-scroll svg { width: 15px; height: 15px; }
+.ts-root .ts-floating-formatbar > .ts-format-scroll[hidden] { display: none !important; }
 .ts-root .ts-floating-formatbar .ts-commandbar > .ts-selection-tools {
   gap: 2px !important;
   padding: 0 !important;
@@ -139,25 +164,44 @@
   width: max-content;
   flex-wrap: nowrap;
 }
-.ts-root .ts-floating-formatbar .ts-format-field {
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-format-field {
+  --ts-format-value-width: 96px;
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
-  gap: 1px;
+  gap: 4px;
   min-height: 30px;
-  padding: 0 2px 0 6px;
+  padding: 0 2px 0 7px;
   border-radius: 7px;
   background: transparent;
   color: var(--text-muted);
   white-space: nowrap;
 }
-.ts-root .ts-floating-formatbar .ts-format-field:is(:hover, :focus-within) { background: var(--ts-board-active); }
-/* Reset legacy container rules: a value such as "默认" needs its field label. */
-.ts-root .ts-floating-formatbar .ts-format-field > span { display: inline !important; font-size: 10px; font-weight: 500; color: var(--text-muted); }
-.ts-root .ts-floating-formatbar .ts-format-field select {
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-format-field:is(:hover, :focus-within) { background: var(--ts-board-active); }
+/* Retain a visible field identity when the value is only "默认" or "混合". */
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-format-field > span {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-format-field > .ts-format-label-icon {
+  width: 14px;
+  height: 14px;
+  opacity: .8;
+}
+.ts-root .ts-floating-formatbar .ts-format-label-icon svg { width: 14px; height: 14px; stroke-width: 1.6; }
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-format-field:focus-within > .ts-format-label-icon { color: var(--ts-accent); opacity: 1; }
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-format-field select {
   height: 28px;
   min-height: 28px;
-  max-width: 108px;
+  width: var(--ts-format-value-width);
+  min-width: 0;
+  max-width: var(--ts-format-value-width);
+  padding-inline: 6px 22px !important;
   border: 1px solid transparent;
   border-radius: 5px !important;
   background-color: transparent !important;
@@ -168,12 +212,31 @@
   font-variant-numeric: tabular-nums;
 }
 /* Leave room for the unit and native select arrow, including three-digit sizes. */
-.ts-root .ts-floating-formatbar .ts-format-field[data-format="字号"] select { width: 76px; max-width: 76px; padding-inline: 7px 22px !important; }
-.ts-root .ts-floating-formatbar .ts-format-field select:hover { background-color: var(--ts-board-hover) !important; }
-.ts-root .ts-floating-formatbar .ts-format-field:is([data-format="字体"], [data-format="边框线型"]) {
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-format-field[data-format="字号"] { --ts-format-value-width: 76px; }
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-format-field:is([data-format="字体"], [data-format="卡片颜色"]) { --ts-format-value-width: 108px; }
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-format-field[data-format="范围"] { --ts-format-value-width: 128px; }
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-format-field select:hover { background-color: var(--ts-board-hover) !important; }
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-format-field:is([data-format="字体"], [data-format="边框线型"]) {
+  padding-inline-start: 8px;
+  margin-inline-start: 6px;
   border-inline-start: 1px solid var(--ts-board-line);
-  padding-inline-start: 9px;
-  margin-inline-start: 7px;
+  border-radius: 0 7px 7px 0;
+}
+.ts-root .ts-floating-formatbar .ts-style-transfer {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 1px;
+  padding-inline-end: 6px;
+  margin-inline-end: 4px;
+  border-inline-end: 1px solid var(--ts-board-line);
+}
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-style-transfer .ts-button {
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 !important;
 }
 .ts-root .ts-floating-formatbar .ts-fill-custom input[type=color] {
   width: 24px;
@@ -192,21 +255,139 @@
 }
 .ts-root .ts-floating-formatbar .ts-markdown-tools { gap: 0; }
 .ts-root .ts-floating-formatbar .ts-md-group { gap: 1px; padding-inline: 5px; }
-.ts-root .ts-floating-formatbar .ts-md-group + .ts-md-group::before { top: 6px; bottom: 6px; background: var(--ts-board-line); }
+.ts-root .ts-floating-formatbar .ts-md-group + .ts-md-group::before { top: 8px; bottom: 8px; background: var(--ts-board-line); }
 .ts-root .ts-floating-formatbar .ts-markdown-tools .ts-md-button { height: 30px; min-height: 30px; border-radius: 6px !important; }
 .ts-root .ts-floating-formatbar :is(button, select, input):disabled { opacity: .45; cursor: default; }
-.ts-root .ts-floating-formatbar :is(button, select, input):focus-visible { outline: 2px solid var(--ts-accent); outline-offset: -2px; }
+.ts-root :is(.ts-floating-formatbar, .ts-board-rail, .ts-rail-popover, .ts-inspector, .ts-card-actions) :is(button, select, input, [role=button]):focus-visible { outline: 2px solid var(--ts-accent); outline-offset: -2px; }
 
 /* Native document header: title, history, then workspace actions.
    Preserve native tooltips and horizontal access to actions on narrow leaves. */
 .ts-native-header .view-header-title-container { min-width: 88px; }
 .ts-native-header .view-actions { gap: 2px; padding-block: 2px; max-width: calc(100% - 144px); overscroll-behavior-x: contain; scroll-padding-inline: 4px; }
 .ts-native-header .ts-header-action { width: 28px; height: 28px; color: var(--text-muted); border-radius: 6px; }
+.ts-native-header .ts-header-action svg { width: 16px; height: 16px; }
 .ts-native-header .ts-header-action:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
 .ts-native-header .ts-header-action:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: -2px; }
 .ts-native-header .ts-save-status { width: 68px; margin-inline: 4px 6px; padding-inline: 5px; border-radius: 5px; font-variant-numeric: tabular-nums; }
 .ts-native-header .ts-header-action.ts-workflow-entry { background: transparent; box-shadow: none; }
 .ts-native-header .ts-header-action.is-active { background: var(--background-modifier-hover); color: var(--interactive-accent); }
+
+/* The action panel has its own compact layout, separate from studio/settings.
+   Scope every rule to the dialog so the calendar and other command lists keep
+   their native presentation. Search, result state and list each stay visible. */
+.ts-ui-modal.ts-board-action-modal {
+  --ts-action-panel: var(--background-primary);
+  --ts-action-subtle: var(--background-secondary);
+  --ts-action-line: color-mix(in srgb, var(--background-modifier-border) 78%, transparent);
+  --ts-action-active: color-mix(in srgb, var(--ts-accent) 10%, var(--background-primary));
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: min(600px, calc(100vw - 32px));
+  max-width: calc(100vw - 24px);
+  max-height: min(720px, calc(100dvh - 48px));
+  padding: 20px !important;
+  border-color: var(--ts-action-line) !important;
+  border-radius: 12px !important;
+  background: var(--ts-action-panel) !important;
+  color: var(--text-normal);
+  font-family: var(--font-interface);
+  container: ts-action-panel / inline-size;
+}
+.ts-board-action-modal .modal-title { margin: 0 28px 14px 0; font-size: 18px; line-height: 1.4; font-weight: 600; letter-spacing: 0; color: var(--text-normal); }
+.ts-board-action-modal .modal-content { display: flex; flex: 1 1 auto; flex-direction: column; min-width: 0; min-height: 0; margin: 0; overflow: hidden; }
+.ts-board-action-modal .ts-action-search-row { display: grid; flex: none; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.ts-ui-modal.ts-board-action-modal .ts-action-search-row > input.ts-board-action-search {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  margin: 0;
+  padding-inline: 10px;
+  border: 1px solid var(--ts-action-line);
+  border-radius: 7px;
+  background: var(--ts-action-panel);
+  color: var(--text-normal);
+  font-size: 13px;
+  box-shadow: none;
+}
+.ts-ui-modal.ts-board-action-modal .ts-action-search-row > input.ts-board-action-search::placeholder { color: var(--text-muted); }
+.ts-ui-modal.ts-board-action-modal .ts-action-search-row > input.ts-board-action-search:focus { border-color: var(--ts-accent); box-shadow: none; }
+.ts-board-action-modal .ts-action-available {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 36px;
+  min-width: 0;
+  padding: 0 10px;
+  border: 1px solid var(--ts-action-line);
+  border-radius: 7px;
+  background: var(--ts-action-panel);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: none;
+}
+.ts-board-action-modal .ts-action-available:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.ts-board-action-modal .ts-action-available[aria-pressed=true] { border-color: color-mix(in srgb, var(--ts-accent) 35%, var(--ts-action-line)); background: var(--ts-action-active); color: var(--ts-accent); }
+.ts-board-action-modal .ts-action-tabs { display: flex; flex: none; flex-wrap: wrap; gap: 3px; padding: 10px 0 8px; border: 0; }
+.ts-board-action-modal .ts-action-tabs button { min-width: 0; min-height: 28px; height: 28px; padding: 0 8px; border: 0; border-radius: 5px; background: transparent; color: var(--text-muted); font-size: 11px; line-height: 1.4; font-weight: 400; box-shadow: none; }
+.ts-board-action-modal .ts-action-tabs button:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.ts-board-action-modal .ts-action-tabs button[aria-pressed=true] { background: var(--ts-action-active); color: var(--ts-accent); font-weight: 600; }
+.ts-board-action-modal .ts-action-count { flex: none; min-height: 26px; padding: 0 2px 7px; border-bottom: 1px solid var(--ts-action-line); color: var(--text-muted); font-size: 11px; line-height: 1.6; font-variant-numeric: tabular-nums; }
+.ts-board-action-modal .ts-board-action-list { flex: 1 1 auto; min-width: 0; min-height: 0; padding: 0 3px 6px 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scroll-padding-block: 30px 8px; scrollbar-width: thin; scrollbar-color: var(--background-modifier-border) transparent; }
+.ts-board-action-modal .ts-board-action-group { position: sticky; top: 0; z-index: 1; padding: 12px 9px 6px; background: var(--ts-action-panel); color: var(--text-muted); font-size: 11px; line-height: 1.5; font-weight: 600; letter-spacing: 0; }
+.ts-board-action-modal .ts-board-action-list > button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 9px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 36px;
+  height: auto;
+  margin: 1px 0;
+  padding: 8px 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-normal);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: left;
+  white-space: normal;
+  box-shadow: none;
+}
+.ts-board-action-modal .ts-board-action-list > button > span:first-child { display: flex; flex: 0 0 16px; align-items: center; color: var(--text-muted); }
+.ts-board-action-modal .ts-board-action-list > button > span:nth-child(2) { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.ts-board-action-modal .ts-board-action-list svg { width: 16px; height: 16px; }
+.ts-board-action-modal .ts-board-action-list > button:hover:not(:disabled) { background: var(--background-modifier-hover); color: var(--text-normal); }
+.ts-board-action-modal .ts-board-action-list > button.is-current:not(:disabled) { background: var(--ts-action-active); color: var(--text-normal); }
+.ts-board-action-modal .ts-board-action-list > button.is-current > span:first-child { color: var(--ts-accent); }
+.ts-board-action-modal .ts-board-action-list > button:disabled { opacity: 1; background: transparent; color: var(--text-faint); cursor: not-allowed; }
+.ts-board-action-modal .ts-board-action-list > button:disabled > span:first-child { color: var(--text-faint); }
+.ts-board-action-modal .ts-board-action-list kbd { flex: 0 1 auto; max-width: 44%; margin-left: auto; padding: 1px 4px; border: 1px solid var(--ts-action-line); border-radius: 4px; background: transparent; color: var(--text-muted); font-family: var(--font-interface); font-size: 10px; line-height: 1.5; text-align: right; white-space: normal; overflow-wrap: anywhere; box-shadow: none; }
+.ts-board-action-modal .ts-board-action-list > button:disabled kbd { color: var(--text-faint); }
+.ts-board-action-modal .ts-action-footer { flex: none; margin-top: 4px; padding: 10px 2px 0; border-top: 1px solid var(--ts-action-line); color: var(--text-muted); font-size: 11px; line-height: 1.6; }
+.ts-board-action-modal .ts-action-empty { margin: 12px 0 6px; padding: 24px 12px; border-radius: 8px; background: var(--ts-action-subtle); color: var(--text-muted); font-size: 13px; line-height: 1.8; text-align: center; }
+.ts-board-action-modal .ts-action-empty button { height: 30px; margin-top: 10px; padding: 0 10px; border: 1px solid var(--ts-action-line); border-radius: 6px; background: var(--ts-action-panel); color: var(--text-normal); font-size: 12px; box-shadow: none; }
+.ts-board-action-modal :is(button, input):focus-visible { outline: 2px solid var(--ts-accent); outline-offset: -2px; }
+@container ts-action-panel (max-width: 420px) {
+  .ts-board-action-modal .ts-action-search-row { gap: 6px; }
+  .ts-board-action-modal .ts-action-available { padding-inline: 8px; }
+  .ts-board-action-modal .ts-action-tabs { gap: 2px; }
+  .ts-board-action-modal .ts-action-tabs button { padding-inline: 7px; }
+  .ts-board-action-modal .ts-board-action-list > button { gap: 7px; padding-inline: 7px; font-size: 12px; }
+  .ts-board-action-modal .ts-action-footer { font-size: 10px; }
+}
+@media (max-width: 420px), (max-height: 520px) {
+  .ts-ui-modal.ts-board-action-modal { max-height: calc(100dvh - 24px); padding: 14px !important; }
+  .ts-board-action-modal .modal-title { margin-bottom: 10px; }
+}
+@media (prefers-contrast: more) {
+  .ts-ui-modal.ts-board-action-modal { --ts-action-line: var(--text-muted); }
+}
 
 /* A selected object is distinguished by an outline, never a new fill or a
    highlighted title strip. No transform, width or content padding transitions. */
@@ -227,7 +408,8 @@
 }
 .ts-root .ts-node > .ts-connect-port:disabled { opacity: .4; cursor: default; }
 .ts-root .ts-node.ts-card > .ts-card-actions { border-color: var(--ts-board-line); border-radius: 7px; box-shadow: 0 2px 7px #00000010; }
-.ts-root .ts-node.ts-card > .ts-card-actions .ts-icon-button { color: var(--text-muted); }
+.ts-root .ts-node.ts-card > .ts-card-actions .ts-icon-button { display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
+.ts-root .ts-node.ts-card > .ts-card-actions .ts-icon-button svg { width: 14px; height: 14px; }
 .ts-root .ts-node.ts-card > .ts-card-actions .ts-icon-button:hover:not(:disabled) { color: var(--text-normal); background: var(--ts-board-hover); }
 
 /* Summary cards must retain readable contrast when the board zooms out.
@@ -258,15 +440,16 @@
   font-size: 11px;
   font-weight: 500;
 }
-.ts-root .ts-inspector > .ts-button { height: 31px; min-height: 31px; border-radius: 7px !important; font-size: 12px !important; }
+.ts-root .ts-inspector > .ts-button { height: 32px; min-height: 32px; gap: 8px; border-radius: 7px !important; font-size: 12px !important; }
+.ts-root .ts-inspector > .ts-button svg { flex: none; width: 16px; height: 16px; }
 .ts-root .ts-inspector .ts-button:hover { background: var(--ts-board-hover) !important; }
 .ts-root .ts-inspector-divider { margin: 5px 6px; background: var(--ts-board-line); }
-.ts-root .ts-inspector .ts-choice { min-height: 31px; border-radius: 7px; }
+.ts-root .ts-inspector .ts-choice { min-height: 32px; border-radius: 7px; }
 
 /* Canvas controls and zoom read as a quiet bottom dock, with a matching map. */
 .ts-root .ts-main > .ts-footer { left: 12px; right: 12px; bottom: 12px; gap: 8px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: end; }
 .ts-root .ts-footer .ts-canvas-summary { overflow: hidden; text-overflow: ellipsis; align-self: center; }
-.ts-root .ts-footer .ts-canvas-controls { width: max-content; max-width: 100%; overflow-x: auto; scrollbar-width: thin; }
+.ts-root .ts-footer .ts-canvas-controls { width: max-content; min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scroll-padding-inline: 4px; scrollbar-width: thin; }
 .ts-root .ts-footer .ts-zoom { justify-self: end; }
 .ts-root .ts-footer :is(.ts-canvas-controls, .ts-zoom) {
   padding: 4px;
@@ -277,7 +460,7 @@
 }
 .ts-root .ts-footer :is(.ts-canvas-controls, .ts-zoom) .ts-button { height: 28px; min-height: 28px; border-radius: 6px !important; }
 .ts-root .ts-footer :is(.ts-canvas-controls, .ts-zoom) :is(button, select, [role=button]):focus-visible { outline: 2px solid var(--ts-accent); outline-offset: -2px; }
-.ts-root .ts-footer .ts-background-switch { padding-inline-start: 6px; margin-inline-start: 3px; border-inline-start: 1px solid var(--ts-board-line); }
+.ts-root .ts-footer .ts-background-switch { padding-inline-start: 4px; margin-inline-start: 4px; border-inline-start: 0; }
 .ts-root .ts-footer .ts-zoom > .ts-button:last-child { margin-inline-start: 3px; }
 .ts-root .ts-canvas-controls .ts-snap-toggle.is-active {
   background: var(--ts-board-active) !important;
@@ -300,15 +483,15 @@
 /* Glass is limited to two small tools. Cards, the menu and the whole canvas do
    not acquire a blur layer, including on large boards. */
 .ts-root[data-glass=true][data-surface=soft] .ts-main > .ts-board-rail,
-.ts-root[data-glass=true][data-surface=soft] .ts-floating-formatbar > .ts-commandbar {
+.ts-root[data-glass=true][data-surface=soft] .ts-main > .ts-floating-formatbar {
   background: color-mix(in srgb, var(--ts-board-panel) 95%, transparent) !important;
   backdrop-filter: blur(8px);
 }
 .ts-root[data-glass=true][data-surface=soft] .ts-footer :is(.ts-canvas-controls, .ts-zoom) { background: var(--ts-board-panel); backdrop-filter: none; }
 
 @container ts-board-canvas (max-width: 760px) {
-  .ts-root .ts-floating-formatbar .ts-format-field { gap: 1px; padding-inline-start: 5px; }
-  .ts-root .ts-floating-formatbar .ts-format-field select { max-width: 102px; }
+  .ts-root .ts-floating-formatbar .ts-commandbar .ts-format-field { gap: 3px; }
+  .ts-root .ts-floating-formatbar .ts-commandbar .ts-format-field:has(> .ts-format-label-icon) > .ts-format-label { display: none; }
   .ts-root .ts-floating-formatbar .ts-selection-tools > .ts-md-mode { font-size: 12px; }
   .ts-root .ts-main > .ts-footer { grid-template-columns: minmax(0, 1fr) auto; }
   .ts-root .ts-footer .ts-canvas-summary { display: none; }
@@ -333,7 +516,7 @@
 }
 @media (prefers-reduced-transparency: reduce) {
   .ts-root[data-glass=true][data-surface=soft] .ts-main > .ts-board-rail,
-  .ts-root[data-glass=true][data-surface=soft] .ts-floating-formatbar > .ts-commandbar { background: var(--ts-board-panel) !important; backdrop-filter: none; }
+  .ts-root[data-glass=true][data-surface=soft] .ts-main > .ts-floating-formatbar { background: var(--ts-board-panel) !important; backdrop-filter: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .ts-root .ts-main :is(.ts-board-rail, .ts-rail-popover, .ts-floating-formatbar, .ts-inspector, .ts-footer) :is(button, select, input) { transition: none !important; }
@@ -448,3 +631,149 @@
 }
 .ts-root .ts-floating-formatbar .ts-batch-format-switch svg { width: 14px; height: 14px; }
 .ts-root .ts-floating-formatbar .ts-batch-format-empty { color: var(--text-muted); font-size: 12px; padding: 0 8px; white-space: nowrap; }
+
+/* A light setup affordance, distinct from an established branch's +/- control. */
+.ts-root .ts-node > .ts-branch-setup { top: 0; border-style: dashed; }
+.ts-root .ts-node > .ts-branch-setup:hover { background: var(--background-modifier-hover); border-style: solid; }
+.ts-root .ts-node > .ts-branch-toggle:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* Folded groups retain their logical bounds; only this compact heading is painted. */
+.ts-root .ts-section > .ts-node-header { display: flex; align-items: center; gap: 8px; }
+.ts-root .ts-section .ts-section-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ts-root .ts-section > .ts-node-header .ts-section-fold { flex: none; width: 28px; min-width: 28px; height: 28px; margin-left: auto; padding: 4px; }
+.ts-root .ts-section.is-section-folded { border-style: solid; background: var(--ts-board-panel,var(--background-primary)); }
+.ts-root .ts-section.is-section-folded > .ts-node-header { height: 100%; padding-block: 12px; border-bottom: 0; }
+.ts-settings .ts-settings-tabs { display: flex; flex-wrap: wrap; gap: 4px; }
+.ts-settings .ts-settings-tabs .ts-button { flex: 1 1 128px; }
+.ts-root .ts-section.is-section-folded > .ts-node-header {
+  box-sizing: border-box; width: 100% !important; max-width: none !important; height: 100%;
+  margin: 0 !important; padding: 12px 14px !important; background: transparent !important;
+  box-shadow: none !important; border-radius: inherit;
+}
+
+/* Text backgrounds follow card fills without changing text measurement or borders. */
+.ts-root .ts-node.ts-text.has-card-fill:not(.is-transparent) {
+  background: color-mix(in srgb, var(--ts-card-fill) 38%, var(--ts-surface)) !important;
+  backdrop-filter: none;
+}
+.theme-dark .ts-root .ts-node.ts-text.has-card-fill:not(.is-transparent) {
+  background: color-mix(in srgb, var(--ts-card-fill) 20%, var(--ts-surface)) !important;
+}
+.ts-root .ts-node.ts-text.is-transparent {
+  background: transparent !important;
+  backdrop-filter: none !important;
+}
+
+/* Content search keeps its controls and footer in place while results scroll.
+   The dialog owns these tokens; canvas geometry and editing surfaces are untouched. */
+.ts-ui-modal.ts-board-search {
+  --ts-search-panel: var(--background-primary);
+  --ts-search-subtle: var(--background-secondary);
+  --ts-search-line: color-mix(in srgb, var(--background-modifier-border) 72%, transparent);
+  --ts-search-active: color-mix(in srgb, var(--ts-accent) 8%, var(--background-primary));
+  display: flex; flex-direction: column; min-width: 0;
+  width: min(760px, calc(100vw - 32px)); max-width: 760px;
+  height: min(760px, calc(100dvh - 64px)); max-height: calc(100dvh - 32px);
+  padding: 22px !important; overflow: hidden;
+  border: 1px solid var(--ts-search-line) !important; border-radius: 12px !important;
+  background: var(--ts-search-panel) !important;
+  font-family: var(--font-interface); color: var(--text-normal);
+  container: ts-search-panel / inline-size;
+}
+.ts-board-search .modal-title {
+  display: flex; flex: none; flex-direction: column; align-items: flex-start; gap: 3px;
+  min-width: 0; margin: 0 28px 16px 0;
+  font-size: 18px; line-height: 1.4; font-weight: 600; letter-spacing: 0; color: var(--text-normal);
+}
+.ts-board-search .modal-title small { min-width: 0; max-width: 100%; font-size: 12px; line-height: 1.5; font-weight: 400; color: var(--text-muted); white-space: normal; overflow-wrap: anywhere; }
+.ts-board-search .modal-content { display: flex; flex: 1 1 auto; flex-direction: column; min-width: 0; min-height: 0; margin: 0; overflow: hidden; }
+.ts-board-search .ts-board-search-bar {
+  display: flex; flex: none; align-items: center; gap: 4px; min-width: 0;
+  padding: 4px; border: 1px solid var(--ts-search-line); border-radius: 8px;
+  background: var(--ts-search-panel); box-shadow: none;
+}
+.ts-board-search .ts-board-search-bar:focus-within { border-color: var(--ts-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ts-accent) 10%, transparent); }
+.ts-board-search .ts-board-search-bar > span { display: flex; flex: 0 0 16px; margin-inline: 6px 2px; color: var(--text-muted); }
+.ts-board-search .ts-board-search-bar > span svg { width: 16px; height: 16px; }
+.ts-ui-modal.ts-board-search .ts-board-search-bar > input[type=search] {
+  flex: 1 1 auto; width: 0; min-width: 0; height: 32px; margin: 0; padding: 0 4px;
+  border: 0; border-radius: 4px; background: transparent; box-shadow: none;
+  font-family: var(--font-interface); font-size: 13px; color: var(--text-normal);
+}
+.ts-board-search .ts-board-search-bar > input[type=search]::placeholder { color: var(--text-muted); }
+.ts-board-search .ts-board-search-bar > input[type=search]::-webkit-search-cancel-button { display: none; }
+.ts-board-search .ts-board-search-bar > button,
+.ts-board-search .ts-board-search-row-actions > button {
+  display: flex; flex: 0 0 30px; align-items: center; justify-content: center;
+  width: 30px; min-width: 30px; height: 30px; min-height: 30px; padding: 6px;
+  border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); box-shadow: none;
+}
+.ts-board-search .ts-board-search-bar > button:hover,
+.ts-board-search .ts-board-search-row-actions > button:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.ts-board-search .ts-board-search-bar > button[hidden] { display: none; }
+.ts-board-search button svg { flex: none; width: 16px; height: 16px; }
+.ts-board-search .ts-board-search-filters { display: grid; flex: none; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 10px 0 0; }
+.ts-ui-modal.ts-board-search .modal-content .ts-board-search-filters > select {
+  width: 100%; min-width: 0; max-width: 100%; height: 32px; padding-inline: 9px 24px;
+  border: 0; border-radius: 6px; background-color: var(--ts-search-subtle); box-shadow: none;
+  appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--text-muted) 50%), linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+  background-position: calc(100% - 12px) center, calc(100% - 8px) center; background-size: 4px 4px; background-repeat: no-repeat;
+  font-family: var(--font-interface); color: var(--text-normal); font-size: 12px; text-overflow: ellipsis;
+}
+.ts-board-search .ts-board-search-options { display: flex; flex: none; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 5px 12px; margin: 12px 2px 8px; font-size: 11px; line-height: 1.6; color: var(--text-muted); }
+.ts-board-search .ts-board-search-options > label { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.ts-board-search .ts-board-search-options input[type=checkbox] { flex: none; width: 14px; height: 14px; margin: 0; }
+.ts-board-search .ts-board-search-options > span { margin-left: auto; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ts-board-search .ts-board-search-results {
+  flex: 1 1 auto; min-width: 0; min-height: 0; max-height: none;
+  padding: 6px 0; border-top: 1px solid var(--ts-search-line);
+  overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+  scroll-padding-block: 6px; scrollbar-width: thin; scrollbar-color: var(--background-modifier-border) transparent;
+}
+.ts-board-search .ts-board-search-row { display: flex; align-items: flex-start; gap: 5px; min-width: 0; margin: 2px 0; padding: 4px 5px; border: 0; border-radius: 8px; }
+.ts-board-search .ts-board-search-row:hover { background: var(--background-modifier-hover); }
+.ts-board-search .ts-board-search-row.is-active { background: var(--ts-search-active); }
+.ts-board-search .ts-board-search-row > button.ts-board-search-pick { display: block; flex: 1 1 auto; min-width: 0; height: auto; padding: 7px 5px; border: 0; border-radius: 5px; background: transparent; color: var(--text-normal); font-family: var(--font-interface); line-height: 1.5; text-align: left; white-space: normal; box-shadow: none; }
+.ts-board-search .ts-board-search-heading { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: start; gap: 7px; min-width: 0; }
+.ts-board-search .ts-board-search-heading > span { display: flex; margin-top: 2px; color: var(--text-muted); }
+.ts-board-search .is-active .ts-board-search-heading > span { color: var(--ts-accent); }
+.ts-board-search .ts-board-search-heading strong { min-width: 0; font-size: 13px; line-height: 1.5; font-weight: 600; white-space: normal; overflow-wrap: anywhere; }
+.ts-board-search .ts-board-search-heading small { margin-top: 1px; padding: 1px 5px; border: 0; border-radius: 4px; background: var(--ts-search-subtle); color: var(--text-muted); font-size: 10px; line-height: 1.6; white-space: nowrap; }
+.ts-board-search .ts-board-search-location { margin-top: 5px; color: var(--text-muted); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.ts-board-search .ts-board-search-excerpt { margin-top: 5px; color: var(--text-muted); font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
+.ts-board-search .ts-board-search-path { margin-top: 4px; color: var(--text-muted); font-size: 10px; line-height: 1.6; overflow-wrap: anywhere; }
+.ts-board-search .ts-board-search-row-actions { display: flex; flex: none; flex-direction: row; align-items: center; gap: 2px; padding-top: 3px; }
+.ts-board-search .ts-board-search-index-status { flex: none; padding: 8px 2px; color: var(--text-muted); font-size: 10px; line-height: 1.6; overflow-wrap: anywhere; }
+.ts-board-search .ts-board-search-footer { display: grid; flex: none; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 12px; padding: 10px 2px 0; border-top: 1px solid var(--ts-search-line); font-size: 11px; line-height: 1.7; color: var(--text-muted); }
+.ts-board-search .ts-board-search-footer > span { min-width: 0; overflow-wrap: anywhere; }
+.ts-board-search .ts-board-search-footer > button,
+.ts-board-search .ts-board-search-empty-clear,
+.ts-board-search .ts-board-search-more { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; min-height: 30px; height: auto; padding: 5px 9px; border: 1px solid var(--ts-search-line); border-radius: 6px; background: var(--ts-search-panel); color: var(--text-normal); font-family: var(--font-interface); font-size: 12px; line-height: 1.5; box-shadow: none; }
+.ts-board-search .ts-board-search-footer > button:hover:not(:disabled),
+.ts-board-search .ts-board-search-empty-clear:hover,
+.ts-board-search .ts-board-search-more:hover { background: var(--background-modifier-hover); }
+.ts-board-search .ts-board-search-footer > button:disabled { color: var(--text-faint); opacity: 1; cursor: not-allowed; }
+.ts-board-search .ts-board-search-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; min-height: 160px; margin: 8px 0; padding: 26px 18px; border-radius: 8px; background: var(--ts-search-subtle); color: var(--text-muted); font-size: 13px; line-height: 1.8; text-align: center; overflow-wrap: anywhere; }
+.ts-board-search .ts-board-search-empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.ts-board-search .ts-board-search-more { width: 100%; margin: 8px 0 2px; color: var(--text-muted); }
+.ts-board-search :is(button, select, input[type=checkbox]):focus-visible { outline: 2px solid var(--ts-accent); outline-offset: -2px; }
+.ts-board-search .ts-board-search-bar > input[type=search]:focus-visible { outline: none; }
+@container ts-search-panel (max-width: 420px) {
+  .ts-board-search .ts-board-search-filters { gap: 5px; }
+  .ts-ui-modal.ts-board-search .modal-content .ts-board-search-filters > select { padding-inline: 6px 20px; font-size: 11px; }
+  .ts-board-search .ts-board-search-row { gap: 2px; padding-inline: 3px; }
+  .ts-board-search .ts-board-search-row-actions { flex-direction: column; gap: 2px; }
+  .ts-board-search .ts-board-search-heading { gap: 6px; }
+  .ts-board-search .ts-board-search-footer { grid-template-columns: minmax(0, 1fr); gap: 7px; }
+  .ts-board-search .ts-board-search-footer > span { font-size: 10px; }
+  .ts-board-search .ts-board-search-footer > button { justify-self: end; }
+}
+@media (max-width: 420px), (max-height: 520px) {
+  .ts-ui-modal.ts-board-search { height: calc(100dvh - 24px); max-height: calc(100dvh - 24px); padding: 14px !important; }
+  .ts-board-search .modal-title { margin-bottom: 12px; }
+}
+@media (max-height: 520px) {
+  .ts-board-search .ts-board-search-empty { min-height: 0; margin: 0; padding: 8px; gap: 6px; font-size: 12px; line-height: 1.6; }
+  .ts-board-search .ts-board-search-empty-clear { min-height: 28px; padding-block: 4px; }
+}
+@media (prefers-contrast: more) { .ts-ui-modal.ts-board-search { --ts-search-line: var(--text-muted); } }

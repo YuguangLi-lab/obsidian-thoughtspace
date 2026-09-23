@@ -69,6 +69,13 @@ function fixture(nodes:model.Card[]=[card()],zoom=.54,edges:model.Edge[]=[]){
 const dimensions=(n:model.Card)=>({width:n.width,height:n.height});
 const close=(actual:number,expected:number)=>assert.ok(Math.abs(actual-expected)<1e-9,`${actual} != ${expected}`);
 
+test('a high canvas drag threshold does not delay an explicit resize handle',()=>{
+ const f=fixture();f.view.plugin.settings.dragThreshold=12;f.view.pointerDown(f.event());
+ f.view.pointerMove(f.event(2,0));f.flush();assert.equal(f.capture.size,0);assert.equal(f.positions.get('card')!.style.width,'300px');
+ f.view.pointerMove(f.event(8,0));f.flush();assert.equal(f.capture.size,1);assert.equal(f.positions.get('card')!.style.width,'308px');assert.equal(f.current().width,300);assert.equal(f.calls.persist,0);
+ f.view.pointerUp(f.event(8,0));assert.equal(f.current().width,308);assert.equal(f.calls.persist,1);assert.equal(f.capture.size,0);
+});
+
 for(const zoom of [.54,1])test(`card resize at zoom ${zoom} previews locally, saves once, and preserves viewport`,()=>{
   const f=fixture([card()],zoom),before=structuredClone(f.session.board);
   f.view.pointerDown(f.event());assert.equal(f.view.gesture.resize,'card');assert.equal(f.capture.size,0);

@@ -1,4 +1,5 @@
 import {branchState} from './mindmap';
+import {sectionMovementPinned} from './sections';
 import { Board, Card, contained, selectionMemberships, movableSelection } from './model';
 export interface Rect { x:number; y:number; width:number; height:number; }
 export function selectionRect(a:{x:number;y:number},b:{x:number;y:number}):Rect { return {x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(b.x-a.x),height:Math.abs(b.y-a.y)}; }
@@ -21,7 +22,7 @@ export function alignSelection(board:Board,ids:ReadonlySet<string>,action:Alignm
   const pinned=new Set<string>();for(const n of board.nodes)if(n.locked){let id=parents.get(n.id);while(id!==undefined&&!pinned.has(id)){pinned.add(id);id=parents.get(id);}}
 
   const sections=selected.filter(n=>n.kind==='section');
-  const units=selected.filter(n=>!(n.branchFolded&&pinned.has(n.id))).filter(n=>!sections.some(s=>s.id!==n.id&&contained(s,n)));
+  const units=selected.filter(n=>!(n.branchFolded&&pinned.has(n.id))&&!sectionMovementPinned(n,board.nodes)).filter(n=>!sections.some(s=>s.id!==n.id&&contained(s,n)));
   if(units.length<(action.startsWith('distribute')?3:2))throw new Error(action.startsWith('distribute')?'请至少选择三个独立对象':'请至少选择两个独立对象');
   const memberships=selectionMemberships(board,units);for(const[id,members]of memberships)memberships.set(id,members.filter(n=>!n.locked));
   const seen=new Set<string>();

@@ -1,3 +1,4 @@
+import {childConnectionCandidates} from '../src/branch-disclosure';
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {transformSync} from 'esbuild';
 const source=readFileSync('src/main.ts','utf8');
 const code=source.slice(source.indexOf('  private contextMenu(e:'),source.indexOf('  private clearCanvasGesture()',source.indexOf('  private contextMenu(e:')));
@@ -7,7 +8,7 @@ class NativeMenu {
  addItem(fn:any){const item:any={setTitle(v:any){this.title=v;return this},setIcon(){return this},setDisabled(v:any){this.disabled=v;return this},onClick(v:any){this.run=v;return this}};fn(item);this.items.push(item);return this;}
  addSeparator(){return this;}showAtMouseEvent(e:any){this.event=e;NativeMenu.shown.push(this);return this;}hide(){this.hidden=true;}onHide(){}
 }
-const View=new Function('Menu','TFile','act','branchState',transformSync('class View{'+code+'}\nreturn View',{loader:'ts'}).code)(NativeMenu,File,(fn:any)=>fn(),()=>({parents:new Map(),children:new Map()}));
+const View=new Function('Menu','TFile','act','branchState','childConnectionCandidates',transformSync('class View{'+code+'}\nreturn View',{loader:'ts'}).code)(NativeMenu,File,(fn:any)=>fn(),()=>({parents:new Map(),children:new Map()}),childConnectionCandidates);
 function fixture(kind='card',count=1){NativeMenu.shown=[];const file=new File();const view=new View();view.session={blocked:false,board:{nodes:Array.from({length:count},(_,i)=>({id:String(i),kind,file:file.path})),edges:[]},change:(fn:any)=>fn(view.session.board)};view.selected=new Set(count>1?view.session.board.nodes.map((n:any)=>n.id):[]);view.app={vault:{getAbstractFileByPath:()=>file}};view.clearCanvasGesture=()=>{};view.finishMarquee=()=>{};view.stage={removeClass(){},focus(){}};view.point=(x:any,y:any)=>({x,y});view.updateSelection=()=>{};view.positions=new Map();view.requireOwner=()=>view.session;const event={clientX:112,clientY:246,preventDefault(){},stopPropagation(){},target:{closest:(s:string)=>s==='[data-id]'?{getAttribute:()=> '0'}:null}};return{view,event};}
 test('right click opens native menu at original mouse event, not fixed inspector',()=>{const{view,event}=fixture();view.contextMenu(event);assert.equal(NativeMenu.shown.length,1);assert.equal(NativeMenu.shown[0].event,event);assert.equal(view.contextOpen,false);});
 test('card menu is compact and separates card title from file rename',()=>{const{view,event}=fixture();view.contextMenu(event);const titles=NativeMenu.shown[0]?.items.map(i=>i.title)||[];assert.ok(titles.includes('修改卡片标题'));assert.ok(titles.includes('编辑卡片'));assert.ok(titles.includes('右侧打开笔记'));assert.ok(!titles.includes('重命名笔记'));assert.ok(titles.length<=12);});
@@ -22,3 +23,12 @@ test('missing files disable tag editing and stale menu cannot edit another board
 
 test('child-board context menu can fold and expand the portal at any camera zoom',()=>{const{view,event}=fixture('board');let folded:boolean|undefined;view.foldSelection=(value:boolean)=>folded=value;view.contextMenu(event);NativeMenu.shown.at(-1)!.items.find(i=>i.title==='折叠子白板').run();assert.equal(folded,true);view.session.board.nodes[0].collapsed=true;view.contextMenu(event);NativeMenu.shown.at(-1)!.items.find(i=>i.title==='展开子白板').run();assert.equal(folded,false);});
 test('locked child-board portal remains openable but cannot be folded',()=>{const{view,event}=fixture('board');view.session.board.nodes[0].locked=true;view.contextMenu(event);const items=NativeMenu.shown[0].items;assert.equal(items.find(i=>i.title==='折叠子白板').disabled,true);assert.equal(items.find(i=>i.title==='进入子白板').disabled,false);});
+
+test('ordinary outgoing arrow exposes one-click child setup on the parent menu',()=>{
+ const{view,event}=fixture('card',2);view.selected=new Set(['0']);
+ view.session.board.edges.push({id:'arrow',from:'0',to:'1',label:'',direction:'forward'});
+ const calls:any[]=[];view.foldBranches=(...args:any[])=>calls.push(args);
+ view.contextMenu(event);const action=NativeMenu.shown[0].items.find(i=>i.title==='设为子节点并折叠');
+ assert.ok(action);assert.equal(action.disabled,false);action.run();
+ assert.deepEqual([...calls[0][0]],['0']);assert.deepEqual(calls[0].slice(1),[true,'collapse',true]);
+});

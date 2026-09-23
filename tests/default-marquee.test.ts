@@ -324,3 +324,107 @@ test('a section draft released through document and stage creates at most one se
     assert.equal(f.view.marquee,undefined);assert.equal(f.calls.inspector,1);
   }
 });
+
+for(const [button,key] of [[0,'leftDrag'],[1,'middleDrag'],[2,'rightDrag']] as const){
+ for(const action of ['pan','select','none'])test(`${key} can map blank-canvas dragging to ${action}`,()=>{
+  const f=fixture();f.view.selectionTool=false;f.view.plugin.settings[key]=action;const before=structuredClone(f.board.nodes);
+  f.view.pointerDown(f.event(0,0,{button}));f.view.pointerMove(f.event(240,100,{button,buttons:button===0?1:button===1?4:2}));f.flush();f.view.pointerUp(f.event(240,100,{button}));
+  assert.deepEqual(f.board.nodes,before);assert.equal(f.calls.writes,0);assert.equal(f.capture.size,0);
+  assert.deepEqual(f.board.viewport,action==='pan'?{x:240,y:100,zoom:1}:{x:0,y:0,zoom:1});
+  assert.deepEqual(ids(f.view),action==='select'?['a','b']:['old']);
+  assert.equal(f.calls.persist,action==='pan'?1:0);
+ });
+}
+
+test('blank-canvas custom bindings preserve node left drag, resize, and right menus',()=>{
+ for(const leftDrag of ['pan','select','none']){
+  const f=fixture();f.view.selectionTool=false;f.view.plugin.settings.leftDrag=leftDrag;f.view.plugin.settings.rightDrag='pan';
+  const card=new Element();card.dataset.id='a';const target=new Element({'[data-id]':card,'.ts-resize':card});
+  f.view.pointerDown(f.event(30,30,{target}));assert.equal(f.view.gesture.pan,false);assert.equal(f.view.gesture.resize,'a');
+  f.view.pointerUp(f.event(30,30,{target}),true);
+  f.view.pointerDown(f.event(30,30,{button:2,target}));assert.equal(f.view.rightMarquee,undefined);assert.equal(f.view.gesture,undefined);
+  f.view.contextMenu(f.event(30,30,{button:2,target}));assert.equal(f.calls.menus,1);assert.equal(f.menus[0].node,'a');
+ }
+});
+
+test('middle mapping never becomes a node move or resize; pan still works over nodes',()=>{
+ for(const middleDrag of ['pan','select','none']){
+  const f=fixture();f.view.plugin.settings.middleDrag=middleDrag;
+  const card=new Element();card.dataset.id='a';const target=new Element({'[data-id]':card,'.ts-resize':card});
+  f.view.pointerDown(f.event(30,30,{button:1,target}));
+  assert.equal(f.view.marquee,undefined);assert.equal(f.view.gesture?.pan,middleDrag==='pan'?true:undefined);
+  if(f.view.gesture)f.view.pointerUp(f.event(30,30,{button:1,target}),true);
+ }
+});
+
+test('Space, Shift and explicit tools override disabled left dragging on blank canvas',()=>{
+ for(const override of ['space','shift','select','section']){
+  const f=fixture();f.view.plugin.settings.leftDrag='none';f.view.selectionTool=override==='select';f.view.space=override==='space';f.view.sectionTool=override==='section';
+  f.view.pointerDown(f.event(0,0,{shiftKey:override==='shift'}));
+  if(override==='space')assert.equal(f.view.gesture.pan,true);
+  else assert.ok(f.view.marquee);
+  if(override==='section')assert.equal(f.view.marquee.section,true);
+ }
+});
+
+test('right pan preserves stationary context-menu timing and suppresses menus after a real drag',()=>{
+ for(const dragged of [false,true]){
+  const f=fixture();f.view.selectionTool=false;f.view.plugin.settings.rightDrag='pan';f.view.pointerDown(f.event(0,0,{button:2}));
+  f.view.contextMenu(f.event(0,0,{button:2}));assert.equal(f.calls.menus,0);
+  f.view.pointerUp(f.event(dragged?240:2,dragged?100:2,{button:2}));f.view.contextMenu(f.event(240,100,{button:2}));
+  assert.equal(f.calls.menus,dragged?0:1);assert.equal(f.calls.history,dragged?1:0);assert.equal(f.calls.persist,dragged?1:0);
+  assert.equal(f.view.rightMarquee,undefined);
+ }
+});
+
+test('right pan uses original screen coordinates and finishes once through document release',()=>{
+ const f=fixture();f.view.selectionTool=false;f.view.plugin.settings.rightDrag='pan';Object.assign(f.board.viewport,{x:400,y:200,zoom:.5});
+ f.view.pointerDown(f.event(20,30,{button:2}));f.view.pointerMove(f.event(70,100,{button:2,buttons:2}));f.flush();
+ assert.deepEqual(f.board.viewport,{x:450,y:270,zoom:.5});assert.deepEqual(ids(f.view),['old']);assert.equal(f.calls.persist,0);
+ const release=f.event(120,140,{button:2});f.view.finishMarqueeFromDocument(release);const after={...f.calls};f.view.pointerUp(release);
+ assert.deepEqual(f.board.viewport,{x:500,y:310,zoom:.5});assert.deepEqual(f.calls,after);assert.equal(f.calls.persist,1);assert.equal(f.calls.history,1);assert.equal(f.capture.size,0);
+});
+
+test('Escape, pointer cancellation and lost capture restore a right-pan viewport',()=>{
+ for(const cancellation of ['escape','pointer','capture']){
+  const f=fixture();f.view.selectionTool=false;f.view.plugin.settings.rightDrag='pan';f.view.selectedEdge='keep';
+  f.view.pointerDown(f.event(0,0,{button:2}));f.view.pointerMove(f.event(100,80,{button:2,buttons:2}));f.flush();
+  assert.deepEqual(f.board.viewport,{x:100,y:80,zoom:1});
+  if(cancellation==='escape')f.view.key({key:'Escape',target:new Element(),preventDefault(){}});
+  else if(cancellation==='pointer')f.view.finishMarqueeFromDocument(f.event(100,80,{button:2}),true);
+  else f.view.pointerCaptureLost(f.event(100,80,{button:2}));
+  f.view.pointerUp(f.event(100,80,{button:2}));f.view.contextMenu(f.event(100,80,{button:2}));
+  assert.deepEqual(f.board.viewport,{x:0,y:0,zoom:1});assert.deepEqual(ids(f.view),['old']);assert.equal(f.view.selectedEdge,'keep');
+  assert.equal(f.calls.history,0);assert.equal(f.calls.menus,0);assert.equal(f.capture.size,0);assert.equal(f.frames.size,0);assert.equal(f.view.rightMarquee,undefined);
+ }
+});
+
+test('malformed or missing drag preferences retain existing defaults',()=>{
+ for(const invalid of [undefined,null,'invalid',{},0])for(const [button,key] of [[0,'leftDrag'],[1,'middleDrag'],[2,'rightDrag']] as const){
+  const f=fixture();f.view.selectionTool=false;f.view.plugin.settings[key]=invalid;
+  f.view.pointerDown(f.event(0,0,{button}));f.view.pointerUp(f.event(240,100,{button}));
+  assert.deepEqual(f.board.viewport,button===2?{x:0,y:0,zoom:1}:{x:240,y:100,zoom:1});
+  assert.deepEqual(ids(f.view),button===2?['a','b']:['old']);
+ }
+});
+
+test('a high custom threshold keeps pan and right selection still until the pointer crosses it',()=>{
+ for(const [button,action] of [[0,'pan'],[1,'pan'],[2,'pan'],[2,'select']] as const){
+  const f=fixture();f.view.selectionTool=false;f.view.plugin.settings.dragThreshold=12;f.view.plugin.settings.rightDrag=action;
+  const before=structuredClone(f.board.nodes);f.view.pointerDown(f.event(0,0,{button}));
+  f.view.pointerMove(f.event(6,6,{button,buttons:button===0?1:button===1?4:2}));f.flush();
+  assert.deepEqual(f.board.viewport,{x:0,y:0,zoom:1});assert.deepEqual(ids(f.view),['old']);assert.equal(f.view.marquee,undefined);assert.equal(f.capture.size,0);assert.equal(f.calls.persist,0);
+  f.view.pointerMove(f.event(13,4,{button,buttons:button===0?1:button===1?4:2}));f.flush();assert.equal(f.capture.size,1);
+  if(action==='pan')assert.deepEqual(f.board.viewport,{x:13,y:4,zoom:1});else{assert.equal(f.view.rightMarquee.moved,true);assert.ok(f.view.marquee);}
+  f.view.pointerUp(f.event(13,4,{button}));assert.equal(f.capture.size,0);assert.equal(f.calls.persist,action==='pan'?1:0);assert.deepEqual(f.board.nodes,before);
+ }
+});
+test('node dragging uses screen-pixel threshold before applying zoom-scaled geometry',()=>{
+ const f=fixture();f.view.selectionTool=false;f.view.plugin.settings.dragThreshold=12;f.board.viewport.zoom=.5;
+ f.view.positionNode=()=>{};f.view.renderEdges=()=>{};
+ const card=new Element();card.dataset.id='a';const target=new Element({'[data-id]':card});
+ f.view.pointerDown(f.event(0,0,{target}));f.view.pointerMove(f.event(8,0,{target,buttons:1}));f.flush();
+ assert.equal(f.view.gesture.draft.get('a').x,20);assert.equal(f.capture.size,0);assert.equal(f.calls.writes,0);
+ f.view.pointerMove(f.event(14,0,{target,buttons:1}));f.flush();assert.equal(f.view.gesture.draft.get('a').x,48);assert.equal(f.board.nodes[0].x,20);
+ f.view.pointerUp(f.event(14,0,{target}));assert.equal(f.board.nodes[0].x,48);assert.equal(f.calls.writes,1);assert.equal(f.capture.size,0);
+});

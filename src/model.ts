@@ -4,9 +4,10 @@ import type {WritingState} from './writing';
 import {markdownRows} from './markdown-context';
 import {yingjianNotePath} from './yingjian';
 /** Capture provenance survives independent text/image editing and safe note renames. */
-export interface Card { videoCapture?:{id:string;note:string} }
+export interface Card { videoCapture?:{id:string;note:string}; sectionFolded?:boolean }
 import { connectionSides, Side } from './connections';
 import { branchState, validateBranches } from './mindmap';
+import {sectionContains,sectionMovementPinned} from './sections';
 /** 笔记卡片保留 Markdown 引用；独立文本与布局保存在白板内，图片保留附件引用。 */
 export type Color = 'sand' | 'blue' | 'green' | 'rose' | 'purple' | 'orange' | 'red' | 'teal' | 'cyan' | 'lime' | 'slate' | 'brown';
 export const colors: Color[] = ['sand', 'blue', 'green', 'rose', 'purple', 'orange', 'red', 'teal', 'cyan', 'lime', 'slate', 'brown'];
@@ -49,12 +50,13 @@ function assertBoardData(b:unknown):asserts b is Board {
     if(n.pdfPage!==undefined&&(n.kind!=='pdf'||!isFiniteNumber(n.pdfPage)||!Number.isSafeInteger(n.pdfPage)||n.pdfPage<1))throw Error('PDF 页码无效');
     if(n.imageUrl!==undefined&&(n.kind!=='image'||!remoteImageUrl(n.imageUrl)))throw Error('图床图片地址无效');
     if(n.videoCapture!==undefined&&(!isOneOf(n.kind,['text','image'])||!isRecord(n.videoCapture)||typeof n.videoCapture.id!=='string'||!/^[a-f0-9-]{36}$/.test(n.videoCapture.id)||!yingjianNotePath(n.videoCapture.note)))throw Error('视频记录来源无效');
-    if(n.transparent!==undefined&&(n.kind!=='card'||typeof n.transparent!=='boolean'))throw Error('卡片透明样式无效');
-    if(n.fillColor!==undefined&&(n.kind!=='card'||!validCardFill(n.fillColor)))throw Error('卡片背景颜色无效');
+    if(n.transparent!==undefined&&(!isOneOf(n.kind,['card','text'])||typeof n.transparent!=='boolean'))throw Error('对象透明样式无效');
+    if(n.fillColor!==undefined&&(!isOneOf(n.kind,['card','text'])||!validCardFill(n.fillColor)))throw Error('对象背景颜色无效');
     if(n.preferredWidth!==undefined&&(n.kind!=='card'||!isFiniteNumber(n.preferredWidth)||n.preferredWidth<220||n.preferredWidth>520))throw Error('卡片默认宽度无效');
     if(n.customBorder!==undefined&&typeof n.customBorder!=='boolean')throw Error('边框颜色设置无效');
     if((n.locked!==undefined&&typeof n.locked!=='boolean')||(n.autoFit!==undefined&&(n.kind!=='card'||typeof n.autoFit!=='boolean'))||(n.borderWidth!==undefined&&!isOneOf(n.borderWidth,[0,1,2,3,4]))||(n.borderStyle!==undefined&&!isOneOf(n.borderStyle,['solid','dashed','dotted'])))throw Error('对象样式或锁定状态不完整');
     if(n.branchFolded!==undefined&&(b.version!==3||typeof n.branchFolded!=='boolean'||n.kind==='section'))throw Error('导图折叠状态无效');
+    if(n.sectionFolded!==undefined&&(b.version!==3||typeof n.sectionFolded!=='boolean'||n.kind!=='section'))throw Error('分组折叠状态无效');
     if(n.review!==undefined&&(!isOneOf(n.review,['later','reading','done'])||!isOneOf(n.kind,['card','text','image'])))throw Error('阅读状态无效');
     ids.add(n.id);
   }
@@ -154,9 +156,10 @@ function selectionExpansion(board:Board){
   const nodes=new Map(board.nodes.map(n=>[n.id,n]));let children:Map<string,string[]>|undefined;
   const expand=(selected:ReadonlySet<string>)=>{
     const ids=new Set([...selected].filter(id=>nodes.has(id)));
-    // Frames own contained content, not other frames. Preserve that existing rule.
+    // Open frames keep their existing membership rule. A folded frame also carries
+    // nested frames so their hidden boundaries do not detach from their contents.
     const sections=board.nodes.filter(n=>n.kind==='section'&&ids.has(n.id));
-    for(const section of sections)for(const n of board.nodes)if(contained(section,n))ids.add(n.id);
+    for(const section of sections)for(const n of board.nodes)if(section.sectionFolded?sectionContains(section,n):contained(section,n))ids.add(n.id);
     const pending=[...ids].filter(id=>nodes.get(id)?.branchFolded),seen=new Set<string>();
     if(pending.length){children??=branchState(board).children;while(pending.length){const id=pending.pop()!;if(seen.has(id))continue;seen.add(id);for(const child of children.get(id)||[]){ids.add(child);pending.push(child);}}}
     return ids;
@@ -172,7 +175,7 @@ export function selectionMemberships(board:Board,roots:readonly Card[]){
 }
 /** Expand only unlocked movement roots; locked frames must not drag their contents. */
 export function movableSelection(board:Board,selected:ReadonlySet<string>):Set<string>{
-  const roots=new Set(board.nodes.filter(n=>selected.has(n.id)&&!n.locked).map(n=>n.id));
+  const roots=new Set(board.nodes.filter(n=>selected.has(n.id)&&!n.locked&&!sectionMovementPinned(n,board.nodes)).map(n=>n.id));
   const expanded=expandedSelection(board,roots);
   return new Set(board.nodes.filter(n=>expanded.has(n.id)&&!n.locked).map(n=>n.id));
 }

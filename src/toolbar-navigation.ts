@@ -1,7 +1,7 @@
 /** Arrow navigation is confined to buttons; selects and application shortcuts keep native behavior. */
 export function toolbarNavigation(row:HTMLElement){
  const move=(event:KeyboardEvent)=>{
-  if(event.altKey||event.ctrlKey||event.metaKey||event.shiftKey)return;
+  if(event.isComposing||event.keyCode===229||event.altKey||event.ctrlKey||event.metaKey||event.shiftKey)return;
   if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
   const target=event.target as HTMLElement;if(target.tagName!=='BUTTON')return;
   const buttons=Array.from(row.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')).filter(b=>b.getClientRects().length>0),at=buttons.indexOf(target as HTMLButtonElement);

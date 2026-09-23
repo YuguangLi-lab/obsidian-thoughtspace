@@ -1,22 +1,40 @@
 import {isRecord,isOneOf} from './value-guards';
 import {Board,Card,clone,contained} from './model';
+export type BoardDragAction='pan'|'select'|'none';
 export interface BoardPreferences {
  toolbarDensity:'compact'|'comfortable';wheelMode:'zoom'|'pan';zoomSpeed:number;gridStep:number;previewLimit:number;detailZoom:number;
+ leftDrag:BoardDragAction;rightDrag:BoardDragAction;middleDrag:BoardDragAction;reverseWheelZoom:boolean;boardQuickKeys:boolean;
+ panSpeed:number;reverseWheelPan:boolean;zoomAnchor:'pointer'|'center';dragThreshold:number;arrowNudge:boolean;deleteKeys:boolean;
  defaultCardWidth:number;defaultTextSize:number;defaultEdgeStyle:'curve'|'straight'|'elbow';defaultEdgeDirection:'forward'|'both'|'none';
  showCardTags:boolean;showPorts:boolean;showBoardHints:boolean;axisLock:boolean;alignmentGuides:boolean;aspectLock:boolean;nudgeStep:number;fastNudge:number;
 }
-export const defaultBoardPreferences:BoardPreferences={toolbarDensity:'compact',wheelMode:'zoom',zoomSpeed:1,gridStep:24,previewLimit:100,detailZoom:.45,defaultCardWidth:300,defaultTextSize:16,defaultEdgeStyle:'curve',defaultEdgeDirection:'forward',showCardTags:true,showPorts:true,showBoardHints:true,axisLock:true,alignmentGuides:true,aspectLock:true,nudgeStep:1,fastNudge:10};
+export const defaultBoardPreferences:BoardPreferences={toolbarDensity:'compact',wheelMode:'zoom',zoomSpeed:1,leftDrag:'pan',rightDrag:'select',middleDrag:'pan',reverseWheelZoom:false,boardQuickKeys:true,panSpeed:1,reverseWheelPan:false,zoomAnchor:'pointer',dragThreshold:4,arrowNudge:true,deleteKeys:true,gridStep:24,previewLimit:100,detailZoom:.45,defaultCardWidth:300,defaultTextSize:16,defaultEdgeStyle:'curve',defaultEdgeDirection:'forward',showCardTags:true,showPorts:true,showBoardHints:true,axisLock:true,alignmentGuides:true,aspectLock:true,nudgeStep:1,fastNudge:10};
+export const boardInputPreferenceKeys=['leftDrag','rightDrag','middleDrag','wheelMode','zoomSpeed','reverseWheelZoom','boardQuickKeys','panSpeed','reverseWheelPan','zoomAnchor','dragThreshold','arrowNudge','deleteKeys','nudgeStep','fastNudge'] as const;
+export function resetBoardInputPreferences(settings:BoardPreferences){for(const key of boardInputPreferenceKeys)Object.assign(settings,{[key]:defaultBoardPreferences[key]});}
+/** A separate input page owns its fields; a legacy combined page still owns its four old controls. */
+export function resetBoardPagePreferences(settings:BoardPreferences,includeMouse=true){
+ const inputKeys:ReadonlySet<string>=new Set(boardInputPreferenceKeys),legacyKeys:ReadonlySet<string>=new Set(['wheelMode','zoomSpeed','nudgeStep','fastNudge']);
+ for(const key of Object.keys(defaultBoardPreferences) as (keyof BoardPreferences)[])if(!inputKeys.has(key)||(includeMouse&&legacyKeys.has(key)))Object.assign(settings,{[key]:defaultBoardPreferences[key]});
+}
+export type BoardMousePreset='default'|'leftSelect'|'trackpad';
+/** Mouse presets deliberately exclude keyboard, appearance and content preferences. */
+export function applyBoardMousePreset(settings:BoardPreferences,preset:BoardMousePreset){
+ const keys=['leftDrag','rightDrag','middleDrag','wheelMode','zoomSpeed','panSpeed','reverseWheelZoom','reverseWheelPan','zoomAnchor','dragThreshold'] as const;
+ for(const key of keys)Object.assign(settings,{[key]:defaultBoardPreferences[key]});
+ if(preset==='leftSelect'){settings.leftDrag='select';settings.rightDrag='pan';}
+ if(preset==='trackpad')settings.wheelMode='pan';
+}
 export function cleanBoardPreferences(raw:unknown):BoardPreferences{
  const input=isRecord(raw)?raw:{},out={...defaultBoardPreferences};for(const k of Object.keys(out) as (keyof BoardPreferences)[]){const v=input[k];if(typeof out[k]==='boolean'&&typeof v==='boolean')Object.assign(out,{[k]:v});}
- const ranges={zoomSpeed:[.3,2],gridStep:[8,64],previewLimit:[20,160],detailZoom:[.2,.9],defaultCardWidth:[220,520],defaultTextSize:[12,32],nudgeStep:[1,10],fastNudge:[10,100]};for(const[k,[min,max]]of Object.entries(ranges)){const v=input[k];if(typeof v==='number'&&Number.isFinite(v))Object.assign(out,{[k]:Math.min(max,Math.max(min,v))});}
- for(const[k,values]of Object.entries({toolbarDensity:['compact','comfortable'],wheelMode:['zoom','pan'],defaultEdgeStyle:['curve','straight','elbow'],defaultEdgeDirection:['forward','both','none']})){const value=input[k];if(isOneOf(value,values))Object.assign(out,{[k]:value});}return out;
+ const ranges={zoomSpeed:[.3,2],panSpeed:[.3,3],dragThreshold:[2,12],gridStep:[8,64],previewLimit:[20,160],detailZoom:[.2,.9],defaultCardWidth:[220,520],defaultTextSize:[12,32],nudgeStep:[1,10],fastNudge:[10,100]};for(const[k,[min,max]]of Object.entries(ranges)){const v=input[k];if(typeof v==='number'&&Number.isFinite(v))Object.assign(out,{[k]:Math.min(max,Math.max(min,v))});}
+ for(const[k,values]of Object.entries({toolbarDensity:['compact','comfortable'],wheelMode:['zoom','pan'],leftDrag:['pan','select','none'],rightDrag:['pan','select','none'],middleDrag:['pan','select','none'],zoomAnchor:['pointer','center'],defaultEdgeStyle:['curve','straight','elbow'],defaultEdgeDirection:['forward','both','none']})){const value=input[k];if(isOneOf(value,values))Object.assign(out,{[k]:value});}return out;
 }
 export type ObjectFilter={kind:string;color:string;query:string};
 export function filterObjects(nodes:Card[],filter:ObjectFilter){const q=filter.query.toLocaleLowerCase().trim();return new Set(nodes.filter(n=>(!filter.kind||n.kind===filter.kind)&&(!filter.color||n.color===filter.color)&&(!q||`${n.file||''} ${n.title||''} ${n.text||''}`.toLocaleLowerCase().includes(q))).map(n=>n.id));}
 export type NodeStyle=Pick<Card,'transparent'|'fillColor'|'color'|'textColor'|'fontFamily'|'fontSize'|'textAlign'|'customBorder'|'borderStyle'|'borderWidth'>;
 const styleKeys=['transparent','fillColor','color','textColor','fontFamily','fontSize','textAlign','customBorder','borderStyle','borderWidth'] as const;
 export function readNodeStyle(n:Card):NodeStyle{const result={color:n.color} as NodeStyle;for(const k of styleKeys)if(n[k]!==undefined)Object.assign(result,{[k]:n[k]});return result;}
-export function applyNodeStyle(board:Board,ids:ReadonlySet<string>,style:NodeStyle){for(const n of board.nodes.filter(n=>ids.has(n.id)&&!n.locked))for(const k of styleKeys){if((k==='fillColor'||k==='transparent')&&n.kind!=='card')continue;if(style[k]===undefined)delete n[k];else Object.assign(n,{[k]:style[k]});}}
+export function applyNodeStyle(board:Board,ids:ReadonlySet<string>,style:NodeStyle){for(const n of board.nodes.filter(n=>ids.has(n.id)&&!n.locked))for(const k of styleKeys){if((k==='fillColor'||k==='transparent')&&n.kind!=='card'&&n.kind!=='text')continue;if(style[k]===undefined)delete n[k];else Object.assign(n,{[k]:style[k]});}}
 export function stepLayers(board:Board,ids:ReadonlySet<string>,up:boolean){const picked=(n:Card)=>ids.has(n.id)&&!n.locked;for(let i=up?board.nodes.length-2:1;up?i>=0:i<board.nodes.length;up?i--:i++){const other=i+(up?1:-1);if(picked(board.nodes[i])&&!picked(board.nodes[other])&&(board.nodes[i].kind==='section')===(board.nodes[other].kind==='section')){[board.nodes[i],board.nodes[other]]=[board.nodes[other],board.nodes[i]];}}}
 export function fitSections(board:Board,ids:ReadonlySet<string>,padding=28){for(const section of board.nodes.filter(n=>n.kind==='section'&&ids.has(n.id)&&!n.locked)){const nodes=board.nodes.filter(n=>contained(section,n));if(!nodes.length)continue;const x=Math.min(...nodes.map(n=>n.x)),y=Math.min(...nodes.map(n=>n.y));const right=Math.max(...nodes.map(n=>n.x+n.width)),bottom=Math.max(...nodes.map(n=>n.y+n.height));Object.assign(section,{x:x-padding,y:y-padding-24,width:right-x+padding*2,height:bottom-y+padding*2+24});}}
 export function directionalNode(nodes:Card[],id:string,direction:'left'|'right'|'up'|'down'){
