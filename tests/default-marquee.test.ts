@@ -139,6 +139,16 @@ test('a fresh right click after a right drag is not swallowed, including a card 
   assert.equal(f.calls.menus,1);assert.equal(f.menus[0].node,'a');assert.equal(f.view.marquee,undefined);assert.equal(f.view.gesture,undefined);
 });
 
+test('macOS Control-click after a right marquee opens its menu without starting another gesture',()=>{
+  const f=fixture();f.view.pointerDown(f.event(0,0,{button:2}));f.view.pointerUp(f.event(240,100,{button:2}));
+  f.view.contextMenu(f.event(240,100,{button:2}));assert.equal(f.calls.menus,0);
+  const card=new Element();card.dataset.id='a';const target=new Element({'[data-id]':card});
+  f.view.pointerDown(f.event(30,30,{button:0,ctrlKey:true,target}));
+  assert.equal(f.view.rightMarquee,undefined);assert.equal(f.view.marquee,undefined);assert.equal(f.view.gesture,undefined);
+  f.view.contextMenu(f.event(30,30,{button:2,ctrlKey:true,target}));
+  assert.equal(f.calls.menus,1);assert.equal(f.menus[0].node,'a');assert.deepEqual(f.board.viewport,{x:0,y:0,zoom:1});
+});
+
 test('right dragging on a card never starts an object move or moves its geometry',()=>{
   const f=fixture(),card=new Element();card.dataset.id='a';const before=structuredClone(f.board.nodes),target=new Element({'[data-id]':card});
   f.view.pointerDown(f.event(30,30,{button:2,target}));f.view.pointerMove(f.event(240,100,{button:2,target}));f.flush();f.view.pointerUp(f.event(240,100,{button:2,target}));

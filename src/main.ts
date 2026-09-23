@@ -2685,7 +2685,7 @@ class BoardView extends FileView {
   }
   private pointerDown(e: PointerEvent) {
     // A new physical click must never inherit suppression from a previous drag.
-    if(e.button===2||e.pointerType==='touch')this.suppressBoardContext=false;
+    if(e.button===2||(e.button===0&&e.ctrlKey)||e.pointerType==='touch')this.suppressBoardContext=false;
     if (!this.session || this.session.blocked || e.button > 2 || this.gesture || this.marquee || this.rightMarquee || this.linkDrag) return;
     // macOS Control + 单击也会触发右键菜单，不能先作为左键拖动或连线处理。
     if (e.button === 0 && e.ctrlKey) return;
