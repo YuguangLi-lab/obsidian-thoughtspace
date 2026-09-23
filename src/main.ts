@@ -1171,6 +1171,8 @@ class BoardView extends FileView {
   private selectionTool = false; private selectionButton?: HTMLButtonElement;
   private sectionTool=false; private sectionButton?:HTMLButtonElement; private sectionHint?:HTMLElement;
   private marquee?: {id:number;start:{x:number;y:number};base:Set<string>;baseEdge?:string;box:HTMLElement;section?:boolean;rect?:SectionRect;};
+  private rightMarquee?:{id:number;x:number;y:number;start:{x:number;y:number};event:PointerEvent;menu?:MouseEvent;owner:Session;moved:boolean;additive:boolean};
+  private suppressBoardContext=false;
   private focusMode = false; private focusButton?: HTMLElement;
   private trail: TFile[] = []; private crumbs!: HTMLElement; private boardStats!: HTMLElement;
   private minimap!: HTMLElement; private collapsedBoards = new Set<string>();
@@ -1191,7 +1193,7 @@ class BoardView extends FileView {
   }
   private markerId = `ts-arrow-${uid()}`;
   private alignmentLines:HTMLElement[]=[];
-  private gesture?: { draft:Map<string,Card>;targets:DragTarget[];alignmentReady?:boolean;lockedAxis?:'x'|'y';alignment?:AlignmentIndex;guides?:Guide[];originals:Map<string,Card>;idSet:Set<string>; id: number; x: number; y: number; before: Board; ids: string[]; pan: boolean; resize?: string };
+  private gesture?: { draft:Map<string,Card>;targets:DragTarget[];alignmentReady?:boolean;lockedAxis?:'x'|'y';alignment?:AlignmentIndex;guides?:Guide[];originals:Map<string,Card>;idSet:Set<string>; id: number; x: number; y: number; before: Board; ids: string[]; pan: boolean; clearSelectionOnClick?:boolean;resize?: string };
   private inspectorChoiceState?:{title:string;choices:{label:string;checked?:boolean;swatch?:string;run:()=>unknown}[];grid:boolean;owner:Session|undefined;key:string};
   private selectionTools?:HTMLElement;
   private selectionFormatCache?:{host:HTMLElement;owner:Session|undefined;editor:InlineNodeEditor|undefined;key:string};
@@ -1526,7 +1528,7 @@ class BoardView extends FileView {
     (nativeHeader?.querySelector('.view-actions') || fallbackActions)?.prepend(...extras);
     this.applyPreferences();
     this.selectionTools=commands.createDiv({cls:'ts-selection-tools',attr:{'aria-label':'选中对象格式'}});
-    this.stage = main.createDiv({ cls: 'ts-stage', attr: { tabindex: '0', 'aria-label': '思维白板，空白处左键拖动框选，Shift 累加选择，空格加左键或中键平移；使用侧边工具栏添加内容，双击已有节点编辑，空格拖动平移，滚轮缩放；思维导图：Tab 子主题，Enter 同级，Shift+Tab 父主题，方向键切换，F2 编辑' } });
+    this.stage = main.createDiv({ cls: 'ts-stage', attr: { tabindex: '0', 'aria-label': '思维白板，空白处左键拖动平移，右键拖动框选，右键单击打开菜单，Shift 累加选择，空格加左键或中键也可平移；使用侧边工具栏添加内容，双击已有节点编辑，滚轮缩放；思维导图：Tab 子主题，Enter 同级，Shift+Tab 父主题，方向键切换，F2 编辑' } });
     this.world = this.stage.createDiv('ts-world'); this.svg = this.world.createSvg('svg', { cls: 'ts-edges' });this.edgeLayer=new EdgeLayer(this.svg,this.markerId,id=>this.labelEdge(id));
     const rail=main.createDiv({cls:'ts-board-rail',attr:{role:'toolbar','aria-label':'白板创作工具','aria-orientation':'vertical'}});
     const railTools=rail.createDiv('ts-rail-tools');
@@ -1537,7 +1539,7 @@ class BoardView extends FileView {
     button(workspace,'白板写作模式','notebook-pen',()=>this.plugin.openWriting(this));button(workspace,'打开笔记摘录','notebook-pen',()=>this.openMaterials());button(workspace,'插入 PDF 卡片','file-plus',()=>this.insertPdfCard());button(workspace,'阅读 PDF','file-text',()=>new ReadingSourcePicker(this.app,file=>this.plugin.openExcerptNote(file),true).open());
     button(workspace,'白板操作','command',()=>this.boardActions());
     button(workspace,'连线统一为直线','move-up-right',()=>this.unifyEdgeStyle('straight'));
-    this.selectionButton = button(organize, '框选', 'scan', () => this.toggleSelectionTool());this.selectionButton.title='空白处左键拖动框选 · Shift 累加 · 空格拖动平移';
+    this.selectionButton = button(organize, '框选', 'scan', () => this.toggleSelectionTool());this.selectionButton.title='空白处右键拖动框选 · 开启后也可左键框选 · Shift 累加 · 空格拖动平移';
     button(creation, '新建卡片', 'plus', () => this.newCard(), 'ts-primary');
     button(creation,'文本','type',()=>this.newText());button(creation,'图片','image-plus',()=>this.imageMenu());
     const insert=button(creation, '插入笔记', 'file-input', () => this.insertExistingNote(), 'ts-insert-note-entry');insert.title='插入已有 Markdown 笔记或 PDF · 搜索名称或路径';creation.insertBefore(insert,creation.children[1]);
@@ -1596,9 +1598,9 @@ class BoardView extends FileView {
     // A floating panel may swallow the release after pointer capture is lost.
     this.registerDomEvent(this.contentEl.ownerDocument,'pointerup',e=>this.finishMarqueeFromDocument(e),{capture:true});
     this.registerDomEvent(this.contentEl.ownerDocument,'pointercancel',e=>this.finishMarqueeFromDocument(e,true),{capture:true});
-    this.registerDomEvent(this.stage,'lostpointercapture',e=>{if(this.linkDrag?.id===e.pointerId)this.finishLinkDrag(e,true);if(this.gesture?.id===e.pointerId)this.pointerUp(e,true);if(this.marquee?.id===e.pointerId)this.finishMarquee(true);});
-    this.registerDomEvent(this.contentEl.ownerDocument.defaultView!,'blur',()=>{this.cancelConnection();this.flushPointer(false);this.setSectionTool(false);this.space=false;if(this.gesture)this.pointerUp(new PointerEvent('pointercancel',{pointerId:this.gesture.id}),true);if(this.marquee)this.finishMarquee(true);});
-    this.registerDomEvent(this.stage, 'wheel', e => { if (!this.session) return; e.preventDefault(); if (this.gesture || this.marquee || this.linkDrag) return; if(Date.now()-this.lastWheelHistory>600)this.rememberViewport();this.lastWheelHistory=Date.now();const dy=wheelDelta(e.deltaY,e.deltaMode,this.stage.clientHeight),dx=wheelDelta(e.deltaX,e.deltaMode,this.stage.clientWidth);if(this.plugin.settings.wheelMode==='pan'&&!e.ctrlKey&&!e.metaKey){this.session.board.viewport.x-=e.shiftKey?dy:dx;this.session.board.viewport.y-=e.shiftKey?0:dy;this.transform();this.session.persist();}else this.zoom(Math.exp(-dy*.002*this.plugin.settings.zoomSpeed),e.clientX,e.clientY); }, { passive: false });
+    this.registerDomEvent(this.stage,'lostpointercapture',e=>this.pointerCaptureLost(e));
+    this.registerDomEvent(this.contentEl.ownerDocument.defaultView!,'blur',()=>{this.cancelRightMarquee();this.cancelConnection();this.flushPointer(false);this.setSectionTool(false);this.space=false;if(this.gesture)this.pointerUp(new PointerEvent('pointercancel',{pointerId:this.gesture.id}),true);if(this.marquee)this.finishMarquee(true);});
+    this.registerDomEvent(this.stage, 'wheel', e => { if (!this.session) return; e.preventDefault(); if (this.gesture || this.marquee || this.rightMarquee || this.linkDrag) return; if(Date.now()-this.lastWheelHistory>600)this.rememberViewport();this.lastWheelHistory=Date.now();const dy=wheelDelta(e.deltaY,e.deltaMode,this.stage.clientHeight),dx=wheelDelta(e.deltaX,e.deltaMode,this.stage.clientWidth);if(this.plugin.settings.wheelMode==='pan'&&!e.ctrlKey&&!e.metaKey){this.session.board.viewport.x-=e.shiftKey?dy:dx;this.session.board.viewport.y-=e.shiftKey?0:dy;this.transform();this.session.persist();}else this.zoom(Math.exp(-dy*.002*this.plugin.settings.zoomSpeed),e.clientX,e.clientY); }, { passive: false });
     const openStageLink=(e:MouseEvent)=>{
       const link = (e.target as Element).closest('a'); if (!link) return;
       if (link.classList.contains('internal-link')) {
@@ -2528,6 +2530,13 @@ class BoardView extends FileView {
   }
   /** 菜单绑定打开时的会话和选择，避免异步选择器写到后来切换的白板。 */
   private contextMenu(e: MouseEvent) {
+    // macOS can dispatch this before release; other platforms dispatch it afterwards.
+    // Delay a blank-canvas right click until it is distinguishable from a marquee.
+    if(e.button===2&&this.rightMarquee){e.preventDefault();e.stopPropagation();this.rightMarquee.menu=e;return;}
+    if(e.button===2&&this.suppressBoardContext){e.preventDefault();e.stopPropagation();return;}
+    this.showBoardContextMenu(e);
+  }
+  private showBoardContextMenu(e:MouseEvent){
     const owner = this.session; if (!owner) return;
     e.preventDefault(); e.stopPropagation();
     this.clearCanvasGesture();this.finishMarquee(true);
@@ -2621,7 +2630,7 @@ class BoardView extends FileView {
     add(node.kind==='section'&&ids.size===1?'移除分组框（保留内容）':ids.size>1?'移出所选内容（保留文件）':'移出白板（保留文件）','trash-2',()=>this.deleteSelection());
   }
   private clearCanvasGesture(){
-    this.cancelConnection();this.flushPointer(false);
+    this.cancelRightMarquee();this.cancelConnection();this.flushPointer(false);
     this.finishMarquee(true);this.setSectionTool(false);
     if(this.gesture&&this.session)this.pointerUp(new PointerEvent('pointercancel',{pointerId:this.gesture.id}),true);
     this.previewGridLanding();this.drawAlignmentGuides([]);
@@ -2654,7 +2663,12 @@ class BoardView extends FileView {
   private syncSelectionTool() { this.selectionButton?.toggleClass('is-active',this.selectionTool);this.selectionButton?.setAttribute('aria-pressed',String(this.selectionTool));this.stage?.toggleClass('ts-select-tool',this.selectionTool); }
   private toggleConnectionTool(){const active=this.mode!=='connect';this.clearCanvasGesture();this.selectionTool=false;this.syncSelectionTool();this.mode=active?'connect':'select';this.connectButton?.toggleClass('is-active',active);this.stage.focus();this.renderInspector();}
   toggleSelectionTool(){const active=!this.selectionTool;this.clearCanvasGesture();this.selectionTool=active;this.syncSelectionTool();this.stage.focus();}
-  private finishMarqueeFromDocument(e:PointerEvent,cancelled=false){if(this.marquee?.id===e.pointerId)this.pointerUp(e,cancelled);}
+  private finishMarqueeFromDocument(e:PointerEvent,cancelled=false){if(this.marquee?.id===e.pointerId||this.rightMarquee?.id===e.pointerId)this.pointerUp(e,cancelled);}
+  private pointerCaptureLost(e:PointerEvent){if(this.rightMarquee?.id===e.pointerId){this.pointerUp(e,true);return;}if(this.linkDrag?.id===e.pointerId)this.finishLinkDrag(e,true);if(this.gesture?.id===e.pointerId)this.pointerUp(e,true);if(this.marquee?.id===e.pointerId)this.finishMarquee(true);}
+  private cancelRightMarquee(){
+    if(!this.rightMarquee)return;this.rightMarquee=undefined;this.suppressBoardContext=true;
+    this.flushPointer(false);this.finishMarquee(true);
+  }
   private finishMarquee(cancelled=false){
     this.flushPointer(!cancelled);
     const m=this.marquee;if(!m)return;this.marquee=undefined;m.box.remove();
@@ -2670,12 +2684,19 @@ class BoardView extends FileView {
     this.inspectorChoices('对齐与分布',Object.entries(alignmentLabels).map(([action,label])=>({label,run:()=>{this.requireOwner(owner);owner.change(b=>alignSelection(b,ids,action as Alignment));}})));
   }
   private pointerDown(e: PointerEvent) {
-    if (!this.session || this.session.blocked || e.button > 1 || this.gesture || this.marquee || this.linkDrag) return;
+    // A new physical click must never inherit suppression from a previous drag.
+    if(e.button===2||e.pointerType==='touch')this.suppressBoardContext=false;
+    if (!this.session || this.session.blocked || e.button > 2 || this.gesture || this.marquee || this.rightMarquee || this.linkDrag) return;
     // macOS Control + 单击也会触发右键菜单，不能先作为左键拖动或连线处理。
     if (e.button === 0 && e.ctrlKey) return;
-    let selectionChanged=this.contextOpen||!!this.contextPoint||!!this.inspectorChoiceState||!!this.selectedEdge;
-    this.contextOpen=false;this.contextPoint=undefined;this.inspectorChoiceState=undefined;
     const target = e.target as Element;
+    if(e.button===2){
+      if(this.space||target.closest('a,input,textarea,select,button,[contenteditable=true],.ts-inline-editor')||target.closest('[data-id]')||target.closest('[data-edge]'))return;
+      this.rightMarquee={id:e.pointerId,x:e.clientX,y:e.clientY,start:this.point(e.clientX,e.clientY),event:e,owner:this.session,moved:false,additive:e.shiftKey};
+      this.stage.focus();e.preventDefault();return;
+    }
+    let selectionChanged=this.contextOpen||!!this.contextPoint||!!this.inspectorChoiceState;
+    this.contextOpen=false;this.contextPoint=undefined;this.inspectorChoiceState=undefined;
     const handle=target.closest<SVGElement>('[data-edge-end]');if(handle&&e.button===0){const edge=this.session.board.edges.find(edge=>edge.id===handle.dataset.edge);if(edge){const end=handle.dataset.edgeEnd as 'from'|'to';this.startLinkDrag(e,end==='from'?edge.to:edge.from,end==='from'?edge.toSide:edge.fromSide,{id:edge.id,end,expected:JSON.stringify(edge)});}return;}
     if (target.closest('a,input,textarea,select,button,[contenteditable=true],.ts-inline-editor')) return;
     this.stage.focus();
@@ -2691,8 +2712,8 @@ class BoardView extends FileView {
       this.connectNode(id);
       this.renderBoard(); return;
     }
-    const baseEdge=this.selectedEdge;this.selectedEdge = undefined;
-    if (!id && !this.space && e.button === 0 && this.mode !== 'connect') {
+    if (!id && !this.space && e.button === 0 && this.mode !== 'connect' && (e.shiftKey||this.selectionTool)) {
+      const baseEdge=this.selectedEdge;this.selectedEdge = undefined;
       const base = new Set(this.selected);
       if (!e.shiftKey) this.selected.clear();
       const box = this.world.createDiv('ts-marquee');
@@ -2702,25 +2723,39 @@ class BoardView extends FileView {
       box.dataset.additive = String(e.shiftKey);this.updateSelection();this.stage.setPointerCapture(e.pointerId);e.preventDefault();return;
     }
     const pan = this.space || e.button === 1 || !id;
-    if (!pan && id) { if (e.shiftKey) { if (this.selected.has(id)) this.selected.delete(id); else this.selected.add(id);selectionChanged=true; } else if (!this.selected.has(id)) {this.selected = new Set([id]);selectionChanged=true;} }
-    else if (!this.space && e.button === 0) {selectionChanged=selectionChanged||this.selected.size>0;this.selected.clear();}
+    if (!pan && id) { selectionChanged=selectionChanged||!!this.selectedEdge;this.selectedEdge=undefined;if (e.shiftKey) { if (this.selected.has(id)) this.selected.delete(id); else this.selected.add(id);selectionChanged=true; } else if (!this.selected.has(id)) {this.selected = new Set([id]);selectionChanged=true;} }
     // Re-clicking an existing selection does not need to rebuild its inspector or node styles.
     if(selectionChanged)this.updateSelection();
     const board=this.session.board,ids=pan?new Set<string>():movableSelection(board,this.selected);
     // Panning only restores the viewport; do not clone note payloads or build target indexes.
     const before:Board=pan?{version:board.version,nodes:[],edges:[],viewport:{...board.viewport}}:dragStartSnapshot(board);
     const resize=target.closest('.ts-resize') ? id || undefined : undefined;
-    this.gesture = { draft:new Map(before.nodes.filter(n=>!pan&&!n.locked&&(resize?n.id===resize:ids.has(n.id))).map(n=>[n.id,{...n}])), targets:pan?[]:dragTargets(this.session.board.nodes,ids,resize), originals:new Map(before.nodes.map(n=>[n.id,n])),idSet:ids, id: e.pointerId, x: e.clientX, y: e.clientY, before, ids: [...ids], pan, resize };
+    this.gesture = { draft:new Map(before.nodes.filter(n=>!pan&&!n.locked&&(resize?n.id===resize:ids.has(n.id))).map(n=>[n.id,{...n}])), targets:pan?[]:dragTargets(this.session.board.nodes,ids,resize), originals:new Map(before.nodes.map(n=>[n.id,n])),idSet:ids, id: e.pointerId, x: e.clientX, y: e.clientY, before, ids: [...ids], pan, clearSelectionOnClick:pan&&!this.space&&e.button===0&&!id,resize };
     // 点击时不捕获指针，否则浏览器会把 dblclick 的目标改成画布。
     // 真正超过拖动阈值后再捕获，保留双击编辑与越界拖动两种行为。
     e.preventDefault();
   }
   private pointerMove(e:PointerEvent){
-    if(!this.gesture&&!this.marquee&&this.mode!=='connect')return;
+    if(!this.gesture&&!this.marquee&&!this.rightMarquee&&this.mode!=='connect')return;
+    const owner=this.rightMarquee||this.linkDrag||this.marquee||this.gesture;if(owner&&owner.id!==e.pointerId)return;
     this.pendingPointer=e;if(!this.pointerFrame)this.pointerFrame=requestAnimationFrame(()=>{this.pointerFrame=0;this.flushPointer();});
   }
   private flushPointer(apply=true){if(this.pointerFrame)cancelAnimationFrame(this.pointerFrame);this.pointerFrame=0;const e=this.pendingPointer;this.pendingPointer=undefined;if(apply&&e)this.applyPointerMove(e);}
   private applyPointerMove(e: PointerEvent) {
+    const right=this.rightMarquee;
+    if(right){
+      if(right.id!==e.pointerId)return;
+      if(!right.moved){
+        if(Math.hypot(e.clientX-right.x,e.clientY-right.y)<4)return;
+        right.moved=true;this.cancelConnection();this.setSectionTool(false);this.objectMenu?.hide();this.contextOpen=false;this.contextPoint=undefined;this.inspectorChoiceState=undefined;
+        const base=new Set(this.selected),baseEdge=this.selectedEdge,box=this.world.createDiv('ts-marquee');
+        if(!right.additive)this.selected.clear();this.selectedEdge=undefined;
+        this.marquee={id:right.id,start:right.start,base,baseEdge,box};box.dataset.additive=String(right.additive);
+        this.batchFormatTarget='nodes';this.batchEdgeScope='internal';this.stage.focus();this.updateSelection();
+        // A fast release can be the first event beyond the threshold; it needs no capture.
+        if(e.buttons!==0)this.stage.setPointerCapture(e.pointerId);
+      }
+    }
     if(this.linkDrag){if(this.linkDrag.id!==e.pointerId)return;if(Math.hypot(e.clientX-this.linkDrag.x,e.clientY-this.linkDrag.y)>4)this.linkDrag.moved=true;this.previewConnection(e.clientX,e.clientY);return;}
     if(this.mode==='connect'&&this.connectFrom&&!this.gesture&&!this.marquee){this.previewConnection(e.clientX,e.clientY);return;}
 
@@ -2757,6 +2792,15 @@ class BoardView extends FileView {
     this.previewGridLanding(g.resize||g.guides?.length||e.altKey?undefined:g.idSet,g.lockedAxis?new Set([g.lockedAxis]):undefined);this.renderEdges();
   }
   private pointerUp(e: PointerEvent, cancelled = false) {
+    const right=this.rightMarquee;
+    if(right){
+      if(right.id!==e.pointerId)return;cancelled=cancelled||right.owner!==this.session;
+      this.flushPointer(!cancelled);if(!cancelled)this.applyPointerMove(e);
+      this.rightMarquee=undefined;this.suppressBoardContext=true;
+      if(right.moved)this.finishMarquee(cancelled);
+      else if(!cancelled)this.showBoardContextMenu(right.menu||right.event);
+      return;
+    }
     if(this.linkDrag){this.flushPointer(!cancelled);this.finishLinkDrag(e,cancelled);return;}
     this.flushPointer(!cancelled);
     if(!cancelled&&(this.marquee||(this.gesture&&Number.isFinite(this.gesture.x)&&Number.isFinite(this.gesture.y))))this.applyPointerMove(e);
@@ -2781,6 +2825,8 @@ class BoardView extends FileView {
           if(changes.size)this.session.change(b=>{for(const n of b.nodes){const patch=changes.get(n.id);if(patch)Object.assign(n,patch);}});
         }catch(error){new Notice(String(error).replace(/^Error: /,''));}
       }
+    } else if(g.clearSelectionOnClick){
+      this.selected.clear();this.selectedEdge=undefined;this.updateSelection();
     }
     if (moved || cancelled) this.renderBoard();
     if(this.pendingFits.size)this.nodeFitQueue.schedule();
@@ -2795,6 +2841,7 @@ class BoardView extends FileView {
   private key(e: KeyboardEvent) {
     if(e.isComposing||e.keyCode===229)return;
     if ((e.target as Element).closest('input,textarea,select,[contenteditable=true]')) return;
+    if(this.rightMarquee){if(e.key==='Escape'){e.preventDefault();this.cancelRightMarquee();}return;}
     if(!this.gesture&&!this.marquee&&(e.metaKey||e.ctrlKey)&&e.shiftKey&&e.key.toLowerCase()==='p'){e.preventDefault();e.stopPropagation();this.boardActions();return;}
     if(!this.gesture&&!this.marquee&&e.altKey&&!e.metaKey&&!e.ctrlKey&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){e.preventDefault();if(e.shiftKey){const direction=({ArrowLeft:'left',ArrowRight:'right',ArrowUp:'up',ArrowDown:'down'} as const)[e.key as 'ArrowLeft'],node=directionalNode(this.session?.board.nodes||[],[...this.selected][0],direction);if(node)this.revealNode(node.id);}else if(e.key==='ArrowLeft'||e.key==='ArrowRight')this.travelViewport(e.key==='ArrowRight');return;}
     if(this.linkDrag){if(e.key==='Escape'){e.preventDefault();this.cancelConnection();this.flushPointer(false);}return;}

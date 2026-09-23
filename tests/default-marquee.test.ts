@@ -18,6 +18,8 @@ function take(start:string,end:string){
   return source.slice(a,b);
 }
 const methods=take('  private finishMarqueeFromDocument(', '  private foldSelection(')
+  +take('  private clearCanvasGesture(', '  private syncCanvasControls(')
+  +take('  private contextMenu(', '  /** Compact native context menu;')
   +take('  private pointerDown(', '  private matches(');
 
 class Element {
@@ -28,42 +30,50 @@ class Element {
   closest(selector:string){return this.selectors[selector]||null;}
   getAttribute(name:string){return name==='data-id'?this.dataset.id:name==='data-edge'?this.dataset.edge:null;}
   toggleClass(name:string,on:boolean){if(on)this.classes.add(name);else this.classes.delete(name);}
+  addClass(name:string){this.classes.add(name);}
+  removeClass(name:string){this.classes.delete(name);}
   querySelectorAll(){return [];}
   remove(){this.removed=true;}
 }
 
 const node=(id:string,x:number,y=20,patch:Partial<model.Card>={}):model.Card=>({id,kind:'card',file:`${id}.md`,x,y,width:80,height:60,color:'sand',...patch});
 function fixture(nodes:model.Card[]=[node('a',20),node('b',150),node('old',500)]){
-  const frames=new Map<number,()=>void>();let frameId=0;
+  const frames=new Map<number,()=>void>();let frameId=0,now=1000;
+  const calls={inspector:0,controls:0,render:0,schedule:0,persist:0,writes:0,history:0,menus:0,focus:0};
+  const menus:{node?:string;edge?:string;position?:{x:number;y:number}}[]=[];
+  class Menu {onHide(){}hide(){}showAtMouseEvent(){calls.menus++;}}
   const deps={...model,...mindmap,...boardTools,...dragDraft,...dragTargets,...experience,validSectionRect,
+    Menu,
+    Date:{now:()=>now},
+    PointerEvent:class {constructor(_type:string,fields:Record<string,unknown>){Object.assign(this,fields);}},
     requestAnimationFrame:(fn:()=>void)=>{frames.set(++frameId,fn);return frameId;},
     cancelAnimationFrame:(id:number)=>frames.delete(id)};
   const View=new Function(...Object.keys(deps),transformSync(`class View{${methods}};return View`,{loader:'ts'}).code)(...Object.values(deps));
   const view=new View(),board={...model.emptyBoard(),nodes,viewport:{x:0,y:0,zoom:1}};
-  const calls={inspector:0,controls:0,render:0,schedule:0,persist:0,writes:0,history:0};
   const capture=new Set<number>(),boxes:Element[]=[];
-  const stage=Object.assign(new Element(),{clientWidth:1000,clientHeight:700,focus(){},
+  const stage=Object.assign(new Element(),{clientWidth:1000,clientHeight:700,focus(){calls.focus++;},
     setPointerCapture:(id:number)=>capture.add(id),hasPointerCapture:(id:number)=>capture.has(id),releasePointerCapture:(id:number)=>capture.delete(id)});
   Object.assign(view,{session:{board,blocked:false,persist(){calls.persist++;},change(fn:(b:model.Board)=>void){calls.writes++;fn(board);}},
-    selected:new Set(['old']),selectionTool:false,space:false,mode:'select',pointerFrame:0,dragging:false,
+    selected:new Set(['old']),selectionTool:true,space:false,mode:'select',pointerFrame:0,dragging:false,
     stage,world:{createDiv(){const box=new Element();boxes.push(box);return box;}},svg:new Element(),
     positions:new Map(nodes.map(n=>[n.id,new Element()])),pendingFits:new Map(),nodeFitQueue:{schedule(){}},
     plugin:{settings:{axisLock:true,alignmentGuides:false,gridStep:24}},viewTrail:{remember(){calls.history++;}},
     point(x:number,y:number){const v=board.viewport;return {x:(x-v.x)/v.zoom,y:(y-v.y)/v.zoom};},
     syncCanvasControls(){calls.controls++;},renderInspector(){calls.inspector++;},renderBoard(){calls.render++;},scheduleRender(){calls.schedule++;},
-    cancelConnection(){view.mode='select';view.connectFrom=undefined;},previewGridLanding(){},drawAlignmentGuides(){},setSectionTool(){}});
+    cancelConnection(){view.mode='select';view.connectFrom=undefined;},previewGridLanding(){},drawAlignmentGuides(){},setSectionTool(){},
+    renderObjectActions(_menu:Menu,n?:model.Card,e?:model.Edge,position?:{x:number;y:number}){menus.push({node:n?.id,edge:e?.id,position});}});
   function event(x=0,y=0,extra:Record<string,unknown>={}){return {pointerId:1,button:0,clientX:x,clientY:y,target:new Element(),shiftKey:false,ctrlKey:false,metaKey:false,altKey:false,preventDefault(){},stopPropagation(){},...extra};}
   function flush(){const pending=[...frames.values()];frames.clear();pending.forEach(fn=>fn());}
-  return {view,board,calls,capture,boxes,frames,event,flush};
+  return {view,board,calls,capture,boxes,frames,menus,event,flush,advance(ms:number){now+=ms;}};
 }
 const ids=(view:any)=>[...view.selected].sort();
 
-test('blank-canvas left drag selects cards without Shift or the selection tool and leaves the camera still',()=>{
-  const f=fixture();f.view.pointerDown(f.event());
-  assert.ok(f.view.marquee,'ordinary left drag must start a marquee');assert.equal(f.view.gesture,undefined);
+test('blank-canvas left drag pans without modifiers, retaining selection and leaving object geometry unchanged',()=>{
+  const f=fixture();f.view.selectionTool=false;f.view.selectedEdge='selected-edge';const before=structuredClone(f.board.nodes);f.view.pointerDown(f.event());
+  assert.equal(f.view.marquee,undefined);assert.equal(f.view.gesture.pan,true);
   f.view.pointerMove(f.event(240,100));f.flush();f.view.pointerUp(f.event(240,100));
-  assert.deepEqual(ids(f.view),['a','b']);assert.deepEqual(f.board.viewport,{x:0,y:0,zoom:1});
-  assert.equal(f.calls.persist,0);assert.equal(f.calls.writes,0);assert.equal(f.capture.size,0);
+  assert.deepEqual(ids(f.view),['old']);assert.equal(f.view.selectedEdge,'selected-edge');assert.deepEqual(f.board.viewport,{x:240,y:100,zoom:1});
+  assert.deepEqual(f.board.nodes,before);assert.equal(f.calls.persist,1);assert.equal(f.calls.writes,0);assert.equal(f.capture.size,0);
 });
 
 test('Shift-marquee adds to the existing selection while an ordinary marquee replaces it',()=>{
@@ -90,9 +100,90 @@ test('Space-left-drag and middle-drag remain panning gestures and preserve selec
 });
 
 test('single clicking empty canvas clears selection without moving or saving the board',()=>{
-  const f=fixture();f.view.selectedEdge='edge';f.view.pointerDown(f.event(300,200));f.view.pointerUp(f.event(300,200));
+  const f=fixture();f.view.selectionTool=false;f.view.selectedEdge='edge';f.view.pointerDown(f.event(300,200));assert.deepEqual(ids(f.view),['old']);f.view.pointerUp(f.event(300,200));
   assert.deepEqual(ids(f.view),[]);assert.equal(f.view.selectedEdge,undefined);
   assert.deepEqual(f.board.viewport,{x:0,y:0,zoom:1});assert.equal(f.calls.persist,0);assert.equal(f.calls.writes,0);
+});
+
+test('right drag from blank canvas selects at final release without moving the camera or nodes',()=>{
+  const f=fixture();f.view.selectionTool=false;const before=structuredClone(f.board.nodes);
+  f.view.pointerDown(f.event(0,0,{button:2}));assert.equal(f.view.marquee,undefined);assert.deepEqual(ids(f.view),['old']);assert.equal(f.calls.focus,1,'the pending gesture must receive Escape even if another editor was focused');
+  f.view.pointerUp(f.event(240,100,{button:2}));
+  assert.deepEqual(ids(f.view),['a','b']);assert.deepEqual(f.board.viewport,{x:0,y:0,zoom:1});assert.deepEqual(f.board.nodes,before);
+  f.view.contextMenu(f.event(240,100,{button:2}));assert.equal(f.calls.menus,0);assert.deepEqual(ids(f.view),['a','b']);assert.equal(f.capture.size,0);
+});
+
+test('contextmenu delivered on press is held until right click or drag is known',()=>{
+  for(const dragged of [false,true]){
+    const f=fixture();f.view.selectionTool=false;f.view.pointerDown(f.event(0,0,{button:2}));
+    f.view.contextMenu(f.event(0,0,{button:2}));assert.equal(f.calls.menus,0);assert.deepEqual(ids(f.view),['old']);
+    if(dragged){f.view.pointerMove(f.event(240,100,{button:2}));f.flush();}
+    f.view.pointerUp(f.event(dragged?240:1,dragged?100:1,{button:2}));
+    assert.equal(f.calls.menus,dragged?0:1);assert.deepEqual(ids(f.view),dragged?['a','b']:[]);
+    f.view.contextMenu(f.event(dragged?240:1,dragged?100:1,{button:2}));assert.equal(f.calls.menus,dragged?0:1,'late native contextmenu must not duplicate the menu');
+  }
+});
+
+test('right click with sub-threshold jitter shows one menu even when contextmenu arrives after release',()=>{
+  const f=fixture();f.view.selectionTool=false;f.view.pointerDown(f.event(0,0,{button:2}));f.view.pointerMove(f.event(2,2,{button:2}));f.flush();
+  assert.equal(f.view.marquee,undefined);assert.equal(f.capture.size,0);assert.deepEqual(ids(f.view),['old']);
+  f.view.pointerUp(f.event(2,2,{button:2}));f.view.contextMenu(f.event(2,2,{button:2}));
+  assert.equal(f.calls.menus,1);assert.equal(f.calls.persist,0);assert.equal(f.calls.writes,0);
+});
+
+test('a fresh right click after a right drag is not swallowed, including a card menu',()=>{
+  const f=fixture();f.view.pointerDown(f.event(0,0,{button:2}));f.view.pointerUp(f.event(240,100,{button:2}));
+  f.view.contextMenu(f.event(240,100,{button:2}));assert.equal(f.calls.menus,0);
+  const card=new Element();card.dataset.id='a';const target=new Element({'[data-id]':card});
+  f.view.pointerDown(f.event(30,30,{button:2,target}));f.view.contextMenu(f.event(30,30,{button:2,target}));
+  assert.equal(f.calls.menus,1);assert.equal(f.menus[0].node,'a');assert.equal(f.view.marquee,undefined);assert.equal(f.view.gesture,undefined);
+});
+
+test('right dragging on a card never starts an object move or moves its geometry',()=>{
+  const f=fixture(),card=new Element();card.dataset.id='a';const before=structuredClone(f.board.nodes),target=new Element({'[data-id]':card});
+  f.view.pointerDown(f.event(30,30,{button:2,target}));f.view.pointerMove(f.event(240,100,{button:2,target}));f.flush();f.view.pointerUp(f.event(240,100,{button:2,target}));
+  assert.equal(f.view.marquee,undefined);assert.equal(f.view.gesture,undefined);assert.deepEqual(f.board.nodes,before);assert.deepEqual(f.board.viewport,{x:0,y:0,zoom:1});
+});
+
+test('Escape restores the previous selection for pending and active right marquees and suppresses release menus',()=>{
+  for(const dragged of [false,true]){
+    const f=fixture();f.view.selectedEdge='edge';f.view.pointerDown(f.event(0,0,{button:2}));
+    if(dragged){f.view.pointerMove(f.event(240,100,{button:2}));f.flush();assert.deepEqual(ids(f.view),['a','b']);}
+    f.view.key({key:'Escape',target:new Element(),preventDefault(){}});
+    f.view.pointerUp(f.event(240,100,{button:2}));f.view.contextMenu(f.event(240,100,{button:2}));
+    assert.deepEqual(ids(f.view),['old']);assert.equal(f.view.selectedEdge,'edge');assert.equal(f.calls.menus,0);assert.equal(f.capture.size,0);assert.equal(f.frames.size,0);
+  }
+});
+
+test('holding the right button after Escape cannot revive a cancelled menu when eventually released',()=>{
+  const f=fixture();f.view.pointerDown(f.event(0,0,{button:2}));f.view.pointerMove(f.event(240,100,{button:2}));f.flush();
+  f.view.key({key:'Escape',target:new Element(),preventDefault(){}});f.advance(5000);
+  f.view.pointerUp(f.event(240,100,{button:2}));f.view.contextMenu(f.event(240,100,{button:2}));
+  assert.equal(f.calls.menus,0);assert.deepEqual(ids(f.view),['old']);
+  f.view.pointerDown(f.event(300,200,{button:2}));f.view.pointerUp(f.event(300,200,{button:2}));f.view.contextMenu(f.event(300,200,{button:2}));
+  assert.equal(f.calls.menus,1,'a new physical click restores the ordinary menu');
+});
+
+test('pointer cancellation and lost capture cancel right selection once without accepting or showing a menu',()=>{
+  for(const lost of [false,true]){
+    const f=fixture();f.view.pointerDown(f.event(0,0,{button:2}));f.view.pointerMove(f.event(240,100,{button:2}));f.flush();
+    if(lost){f.capture.clear();f.view.pointerCaptureLost(f.event(240,100,{button:2}));}else f.view.finishMarqueeFromDocument(f.event(240,100,{button:2}),true);
+    f.view.pointerUp(f.event(240,100,{button:2}));f.view.contextMenu(f.event(240,100,{button:2}));
+    assert.deepEqual(ids(f.view),['old']);assert.equal(f.view.marquee,undefined);assert.equal(f.view.rightMarquee,undefined);assert.equal(f.calls.menus,0);assert.equal(f.capture.size,0);
+  }
+});
+
+test('right marquee retains Shift additive selection and board-space geometry at non-default zoom',()=>{
+  const f=fixture();Object.assign(f.board.viewport,{x:400,y:200,zoom:.5});
+  f.view.pointerDown(f.event(520,250,{button:2,shiftKey:true}));f.view.finishMarqueeFromDocument(f.event(400,200,{button:2,shiftKey:true}));
+  assert.deepEqual(ids(f.view),['a','b','old']);assert.deepEqual(f.board.viewport,{x:400,y:200,zoom:.5});assert.equal(f.calls.writes,0);assert.equal(f.calls.persist,0);
+});
+
+test('touch left dragging pans by default while the explicit selection tool and Shift keep marquee access',()=>{
+  const f=fixture();f.view.selectionTool=false;f.view.pointerDown(f.event(0,0,{pointerType:'touch'}));f.view.pointerUp(f.event(50,70,{pointerType:'touch'}));
+  assert.deepEqual(f.board.viewport,{x:50,y:70,zoom:1});
+  const explicit=fixture();explicit.view.pointerDown(explicit.event());explicit.view.pointerUp(explicit.event(240,100));assert.deepEqual(ids(explicit.view),['a','b']);
+  const shift=fixture();shift.view.selectionTool=false;shift.view.pointerDown(shift.event(0,0,{shiftKey:true}));shift.view.pointerUp(shift.event(110,100,{shiftKey:true}));assert.deepEqual(ids(shift.view),['a','old']);
 });
 
 test('right click and macOS Control-click do not begin a marquee or alter selection',()=>{

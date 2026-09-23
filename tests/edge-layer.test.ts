@@ -31,6 +31,10 @@ class SvgElement {
  removeAttribute(key:string){this.ownerDocument.writes++;this.attributes.delete(key);}
  appendChild(child:SvgElement){this.ownerDocument.writes++;child.parent=this;this.children.push(child);return child;}
  remove(){this.ownerDocument.writes++;if(this.parent)this.parent.children=this.parent.children.filter(child=>child!==this);this.parent=undefined;}
+ closest(selector:string):SvgElement|null{
+  for(let el:SvgElement|undefined=this;el;el=el.parent){if(selector==='[aria-label]'&&el.hasAttribute('aria-label'))return el;}
+  return null;
+ }
  querySelector(selector:string):SvgElement|null{
   for(const child of this.children){
    if(selector.startsWith('.')?child.classList.contains(selector.slice(1)):child.tag===selector)return child;
@@ -50,6 +54,59 @@ function fixture(){
  const path=(id:string)=>{const found=group(id).querySelector('.ts-edge');assert.ok(found);return found;};
  return{doc,root,board,layer,edited,group,path,render:(selected?:string,batch?:ReadonlySet<string>,focus?:ReadonlySet<string>)=>layer.render(board,1000,800,selected,focus,batch)};
 }
+
+function descendants(root:SvgElement):SvgElement[]{return root.children.flatMap(child=>[child,...descendants(child)]);}
+function namedHandles(f:ReturnType<typeof fixture>,edge:string){
+ const group=f.group(edge).querySelector('.ts-edge-handles');assert.ok(group);
+ assert.equal(group.children.length,2);
+ const elements=descendants(f.root),ids:string[]=[];
+ for(const [index,handle] of group.children.entries()){
+  assert.equal(handle.tag,'circle');assert.equal(handle.getAttribute('role'),'button');
+  assert.equal(handle.getAttribute('aria-label'),null,'SVG must not enter Obsidian\'s HTMLElement-only tooltip path');
+  const labelledBy=handle.getAttribute('aria-labelledby');assert.ok(labelledBy,'handle needs an accessible name reference');assert.ok(labelledBy.trim());
+  const references=labelledBy.trim().split(/\s+/);assert.equal(references.length,1);
+  const matches=elements.filter(el=>el.getAttribute('id')===references[0]);assert.equal(matches.length,1,'name reference must resolve uniquely in the rendered SVG');
+  const title=matches[0];assert.equal(title.tag,'title');assert.equal(title.parent,handle);
+  assert.equal(title.textContent,index===0?'拖动重接起点':'拖动重接终点');ids.push(references[0]);
+ }
+ assert.equal(new Set(ids).size,2,'start and end handles must have different title IDs');
+ return{group,ids};
+}
+
+/** Native delegated tooltips select an aria-label ancestor, then require HTMLElement.isShown(). */
+function delegatedTooltip(target:SvgElement){
+ const labelled=target.closest('[aria-label]');
+ if(!labelled)return false;
+ return (labelled as unknown as {isShown():boolean}).isShown();
+}
+
+test('direct reconnect handles use distinct SVG title references for their accessible names',()=>{
+ const f=fixture();f.render('ab');namedHandles(f,'ab');
+});
+
+test('hovering reconnect SVG handles never enters the native HTMLElement tooltip path',()=>{
+ const f=fixture();f.render('ab');const handles=f.group('ab').querySelector('.ts-edge-handles');assert.ok(handles);
+ for(const handle of handles.children){
+  assert.equal('isShown' in handle,false,'the SVG harness deliberately has no HTMLElement helper');
+  assert.doesNotThrow(()=>assert.equal(delegatedTooltip(handle),false));
+ }
+ // This control proves that the simulation reproduces the original native error.
+ const unsafe=f.doc.createElementNS('http://www.w3.org/2000/svg','circle');unsafe.setAttribute('aria-label','旧手柄');
+ assert.throws(()=>delegatedTooltip(unsafe),/isShown/);
+});
+
+test('reconnect title references survive batch switches and rebuilds without writes on reuse',()=>{
+ const f=fixture(),batch=new Set(['ab','ac']);f.render('ab',batch);const initial=namedHandles(f,'ab'),writes=f.doc.writes;
+ f.render('ab',new Set(batch));assert.equal(f.doc.writes,writes);assert.deepEqual(namedHandles(f,'ab'),initial);
+ f.render(undefined,batch);assert.equal(f.group('ab').querySelector('.ts-edge-handles'),null);
+ for(const id of initial.ids)assert.equal(descendants(f.root).some(el=>el.getAttribute('id')===id),false,'removed handles must leave no stale title targets');
+ f.render('ac',batch);namedHandles(f,'ac');
+ f.render('ab',batch);const recreated=namedHandles(f,'ab');assert.notEqual(recreated.group,initial.group);
+ assert.equal(f.group('ac').querySelector('.ts-edge-handles'),null);
+ f.layer.clear();f.render('ab',batch);const rebuilt=namedHandles(f,'ab');assert.notEqual(rebuilt.group,recreated.group);
+ const ids=descendants(f.root).map(el=>el.getAttribute('id')).filter((id):id is string=>id!==null);assert.equal(new Set(ids).size,ids.length,'rebuilt SVG must contain no duplicate IDs');
+ const rebuiltWrites=f.doc.writes;f.render('ab',batch);assert.equal(f.doc.writes,rebuiltWrites);assert.deepEqual(namedHandles(f,'ab'),rebuilt);
+});
 
 test('batch selection highlights every chosen edge without reconnect handles or changed styles',()=>{
  const f=fixture();f.render();const a=f.path('ab'),b=f.path('ac');
