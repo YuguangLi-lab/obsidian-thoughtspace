@@ -1,7 +1,8 @@
-import {App,TFile} from 'obsidian';
-import {Annotation,Transaction,TransactionSpec} from '@codemirror/state';
-import {ViewUpdate} from '@codemirror/view';
+import {App,TFile,Editor} from 'obsidian';
+import {Annotation,Transaction,TransactionSpec,EditorSelection} from '@codemirror/state';
+import {ViewUpdate,EditorView} from '@codemirror/view';
 import {releaseEditorResource} from './editor-cleanup';
+import {isRecord} from './value-guards';
 
 /** The small draft surface shared by a textarea and Obsidian's live editor. */
 export interface DraftInput extends EventTarget {
@@ -15,37 +16,58 @@ export interface DraftInput extends EventTarget {
 // discover it once per App, and fall back to a textarea if a future host changes it.
 // Constructor discovery follows the MIT-licensed EmbeddedMarkdownEditor by
 // Matthew Meyers / Fevol; see THIRD_PARTY_NOTICES.md.
-const constructors=new WeakMap<App,any>();
+interface DraftOwner {app:App;file:TFile|null;getMode():string;onMarkdownScroll():void;syncScroll():void;editMode?:NativeEditorEngine;editor?:NativeEditorEngine['editor'];}
+interface NativeEditorEngine {getDynamicExtensions():unknown;cm:EditorView;editor:Pick<Editor,'getValue'|'undo'|'redo'>;sourceMode:boolean;load():void;set(value:string,clear:boolean):void;show():void;unload():void;destroy():void;}
+interface NativeEditorConstructor {new(app:App,host:HTMLElement,owner:DraftOwner):NativeEditorEngine;prototype:{getDynamicExtensions():unknown};}
+interface MarkdownProbe {editable:boolean;editMode:unknown;showEditor():void;unload():void;}
+type EmbedFactory=(options:{app:App;containerEl:HTMLElement},file:null,subpath:string)=>unknown;
+function isEmbedFactory(value:unknown):value is EmbedFactory{return typeof value==='function';}
+function isProbe(value:unknown):value is MarkdownProbe{return isRecord(value)&&typeof value.showEditor==='function'&&typeof value.unload==='function';}
+function isNativeConstructor(value:unknown):value is NativeEditorConstructor{
+ if(typeof value!=='function')return false;
+ const prototype:unknown=Object.getOwnPropertyDescriptor(value,'prototype')?.value;
+ return isRecord(prototype)&&typeof prototype.getDynamicExtensions==='function';
+}
+function isNativeEngine(value:unknown):value is NativeEditorEngine{
+ if(!isRecord(value)||!(value.cm instanceof EditorView)||!isRecord(value.editor))return false;const editor=value.editor;
+ return ['getValue','undo','redo'].every(key=>typeof editor[key]==='function')&&['load','set','show','unload','destroy'].every(key=>typeof value[key]==='function');
+}
+function isTransactionArray(value:unknown):value is readonly Transaction[]{return Array.isArray(value)&&value.every((item:unknown)=>item instanceof Transaction);}
+const constructors=new WeakMap<App,NativeEditorConstructor>();
 const localDraftEdit=Annotation.define<boolean>();
-function editorConstructor(app:App){
- let Base=constructors.get(app);if(Base)return Base;
- const probe=(app as any).embedRegistry.embedByExtension.md({app,containerEl:document.createElement('div')},null,'');
- try{probe.editable=true;probe.showEditor();Base=Object.getPrototypeOf(Object.getPrototypeOf(probe.editMode)).constructor;
-  if(typeof Base!=='function'||typeof Base.prototype.getDynamicExtensions!=='function')throw Error('Embedded Markdown editor unavailable');
+function editorConstructor(app:App,parent:HTMLElement){
+ const cached=constructors.get(app);if(cached)return cached;
+ if(!isRecord(app)||!isRecord(app.embedRegistry)||!isRecord(app.embedRegistry.embedByExtension)||!isEmbedFactory(app.embedRegistry.embedByExtension.md))throw Error('Embedded Markdown editor unavailable');
+ const containerEl=parent.createDiv();containerEl.remove();
+ const probe=app.embedRegistry.embedByExtension.md({app,containerEl},null,'');
+ if(!isProbe(probe))throw Error('Embedded Markdown editor unavailable');
+ try{probe.editable=true;probe.showEditor();if(!isRecord(probe.editMode))throw Error('Embedded Markdown editor unavailable');
+  const first:unknown=Object.getPrototypeOf(probe.editMode),second:unknown=isRecord(first)?Object.getPrototypeOf(first):undefined,Base=isRecord(second)?second.constructor:undefined;
+  if(!isNativeConstructor(Base))throw Error('Embedded Markdown editor unavailable');
   constructors.set(app,Base);return Base;
  }finally{probe.unload();}
 }
 
 /** A native CM6 live-preview instance owning an unsaved draft, never a file view. */
 export class NativeMarkdownDraft extends EventTarget implements DraftInput {
- readonly host:HTMLElement;private engine:any;private ready=false;private disposed=false;private locked=false;private intendedSelection?:{from:number;to:number;nativeFrom?:number;nativeTo?:number};private stopEvents?:()=>void;
+ readonly host:HTMLElement;private engine!:NativeEditorEngine;private ready=false;private disposed=false;private locked=false;private intendedSelection?:{from:number;to:number;nativeFrom?:number;nativeTo?:number};private stopEvents?:()=>void;
  constructor(app:App,parent:HTMLElement,value:string,file?:TFile){
-  super();const Base=editorConstructor(app);this.host=parent.createDiv('ts-inline-native');
-  const self=this,events:(()=>void)[]=[];
+  super();const Base=editorConstructor(app,parent);this.host=parent.createDiv('ts-inline-native');
+  const updated=(update:ViewUpdate)=>this.editorUpdated(update),events:(()=>void)[]=[];
   const listen=(type:string,handler:EventListener,capture=false)=>{this.host.addEventListener(type,handler,capture);events.push(()=>this.host.removeEventListener(type,handler,capture));};
   this.stopEvents=()=>{for(const remove of events.splice(0))releaseEditorResource('native draft event',remove);};
   class DraftEditor extends Base {
    // Do not broadcast editor-change for an unsaved draft or invoke a file save.
-   onUpdate(update:ViewUpdate){self.editorUpdated(update);}
+   onUpdate(update:ViewUpdate){updated(update);}
   }
-  const owner:any={app,file:file||null,getMode:()=>'source',onMarkdownScroll:()=>{},syncScroll:()=>{}};
+  const owner:DraftOwner={app,file:file||null,getMode:()=>'source',onMarkdownScroll:()=>{},syncScroll:()=>{}};
   try{
-   this.engine=new (DraftEditor as any)(app,this.host,owner);owner.editMode=this.engine;owner.editor=this.engine.editor;
+   this.engine=new DraftEditor(app,this.host,owner);if(!isNativeEngine(this.engine))throw Error('Embedded Markdown editor unavailable');owner.editMode=this.engine;owner.editor=this.engine.editor;
    // The host's live-preview plugin schedules selection normalization on a
    // timer. A shrink/disposal can make that old range invalid before it runs.
    // Guard this instance only: never discard content-changing transactions.
    const cm=this.engine.cm,dispatch=cm.dispatch.bind(cm);
-   cm.dispatch=(...specs:any[])=>this.dispatchNative(dispatch,...specs);
+   cm.dispatch=(...specs:(Transaction|readonly Transaction[]|TransactionSpec)[])=>this.dispatchNative(dispatch,...specs);
    this.engine.sourceMode=false;this.engine.load();this.engine.set(value,true);this.engine.show();
    this.engine.cm.contentDOM.setAttribute('aria-label','编辑卡片 Markdown · 实时预览');
    for(const type of ['compositionstart','compositionend','keyup','mouseup'])listen(type,()=>this.emit(type));
@@ -55,21 +77,21 @@ export class NativeMarkdownDraft extends EventTarget implements DraftInput {
    this.ready=true;
   }catch(e){this.dispose();throw e;}
  }
- private dispatchNative(dispatch:(...specs:any[])=>void,...specs:any[]){
+ private dispatchNative(dispatch:EditorView['dispatch'],...specs:(Transaction|readonly Transaction[]|TransactionSpec)[]){
   if(this.disposed)return;
   const cm=this.engine.cm,spec=specs.length===1?specs[0]:undefined;
-  if(spec?.selection&&!spec.changes&&!spec.startState){
-   const ranges=spec.selection.ranges||[spec.selection],length=cm.state.doc.length;
-   if(ranges.some((r:any)=>r.anchor<0||r.anchor>length||(r.head??r.anchor)<0||(r.head??r.anchor)>length))return;
+  if(spec&&!Array.isArray(spec)&&!(spec instanceof Transaction)&&'selection' in spec&&spec.selection&&!spec.changes){
+   const ranges=spec.selection instanceof EditorSelection?spec.selection.ranges:[spec.selection],length=cm.state.doc.length;
+   if(ranges.some(r=>r.anchor<0||r.anchor>length||(r.head??r.anchor)<0||(r.head??r.anchor)>length))return;
   }
   // Host capture-phase shortcuts can run before our DOM key handler. Protect
   // the document transaction itself while a save owns the captured draft.
   if(this.locked){
-   const transaction=spec instanceof Transaction?spec:cm.state.update(...specs);
-   if(!transaction.docChanged)dispatch(transaction);
+   const transactions=spec instanceof Transaction?[spec]:isTransactionArray(spec)?spec: [cm.state.update(...specs.filter((value):value is TransactionSpec=>!(value instanceof Transaction)&&!Array.isArray(value)))];
+   if(transactions.every(transaction=>!transaction.docChanged)){if(transactions.length===1)dispatch(transactions[0]);else dispatch(transactions);}
    return;
   }
-  dispatch(...specs);
+  if(spec instanceof Transaction)dispatch(spec);else if(Array.isArray(spec))dispatch(spec);else dispatch(...specs.filter((value):value is TransactionSpec=>!(value instanceof Transaction)&&!Array.isArray(value)));
  }
  private editorUpdated(update:ViewUpdate){
   if(!this.ready||this.disposed)return;

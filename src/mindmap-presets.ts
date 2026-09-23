@@ -1,6 +1,6 @@
 import {sizeTemplateTopic} from './mindmap-sizing';
 import {Board,Card,clone,emptyBoard,uid,parseBoard} from './model';
-import {MindmapLayout,validateBranches} from './mindmap';
+import {validateBranches} from './mindmap';
 import {mindmapPlan} from './mindmap-studio';
 import {appendTopicOutline,parseTopicOutline} from './mindmap-content';
 import {TopicResult} from './mindmap-editor';
@@ -18,7 +18,7 @@ export function presetMindmap(id:string,title?:string,makeId:()=>string=uid,meas
  const preset=mindmapPresets.find(p=>p.id===id);if(!preset)throw Error('模板不存在');const label=title?.trim()||preset.name;if(label.length>200)throw Error('标题最多 200 字');
  const b=emptyBoard();b.version=3;const root=makeId();b.nodes.push({id:root,kind:'text',topic:true,text:label,x:0,y:0,width:Math.max(220,Math.min(460,label.length*24+36)),height:Math.max(80,Math.ceil(label.length/17)*40+28),color:'green',fontSize:24});
  const result=appendTopicOutline(b,root,parseTopicOutline(preset.outline),makeId);for(const n of result.board.nodes){sizeTemplateTopic(n);measure?.(n);}result.board.nodes[0].mindmapRules={layout:preset.layout,density:'standard',automatic:true};
- return mindmapPlan(result.board,root,{layout:preset.layout as MindmapLayout,density:'standard',depth:'all',rainbow:true}).board;
+ return mindmapPlan(result.board,root,{layout:preset.layout,density:'standard',depth:'all',rainbow:true}).board;
 }
 /** Add a complete independent tree without moving or replacing existing content. */
 export function insertPreset(source:Board,preset:Board):TopicResult{

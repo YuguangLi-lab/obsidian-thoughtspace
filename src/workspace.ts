@@ -22,7 +22,7 @@ export function noteExcerpt(text: string, limit = 150): string {
   return text.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/, '')
     .replace(/^\s*(`{3,}|~{3,}).*\r?\n[\s\S]*?^\s*\1\s*$/gm, '')
     .replace(/^# .*(?:\r?\n|$)/m, '').replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
-    .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_m, path, label) => label || path)
+    .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_m:string, path:string, label:string|undefined) => label || path)
     .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/(^|\s)#[\p{L}\p{N}_/-]+/gu, '$1')
     .replace(/^\s*[-*+]\s+\[[ xX]\]\s*/gm, '').replace(/^[\s>#*-]+/gm, '').replace(/[*_`~]/g, '')
     .replace(/\s+/g, ' ').trim().slice(0, limit);

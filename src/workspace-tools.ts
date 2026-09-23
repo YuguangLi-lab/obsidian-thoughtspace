@@ -15,7 +15,7 @@ export function cardHeight(body:HTMLElement,node:Card){const chrome=92;return Ma
 export function measureNoteCard(preview:HTMLElement,preferredWidth=240):{width:number;height:number}{
  const px=(value:string)=>{const n=parseFloat(value);return Number.isFinite(n)?n:0;};
  const card=preview.closest<HTMLElement>('.ts-node'),style=card&&getComputedStyle(card),border=style?px(style.borderLeftWidth)+px(style.borderRightWidth):2;
- const chrome=card?Array.from(card.children).filter((e):e is HTMLElement=>e instanceof HTMLElement&&e.matches('.ts-node-header,.ts-card-meta')).reduce((sum,e)=>{const c=getComputedStyle(e);return c.display==='none'?sum:sum+e.offsetHeight+px(c.marginTop)+px(c.marginBottom);},0)+(style?px(style.borderTopWidth)+px(style.borderBottomWidth):2):96;
+ const chrome=card?Array.from(card.children).filter((e):e is HTMLElement=>e.instanceOf(HTMLElement)&&e.matches('.ts-node-header,.ts-card-meta')).reduce((sum,e)=>{const c=getComputedStyle(e);return c.display==='none'?sum:sum+e.offsetHeight+px(c.marginTop)+px(c.marginBottom);},0)+(style?px(style.borderTopWidth)+px(style.borderBottomWidth):2):96;
  const probe=preview.cloneNode(true) as HTMLElement;Object.assign(probe.style,{position:'fixed',left:'-100000px',top:'0',width:'max-content',maxWidth:`${520-border}px`,minWidth:`${Math.max(80,preferredWidth-border)}px`,height:'auto',maxHeight:'none',overflow:'visible',display:'block',flex:'none',visibility:'hidden'});preview.parentElement!.appendChild(probe);
  try{const inner=Math.ceil(probe.offsetWidth),width=inner+border;probe.style.width=`${inner}px`;return{width,height:Math.min(1100,Math.max(150,Math.ceil(probe.scrollHeight+chrome)))}}finally{probe.remove();}
 }

@@ -1,3 +1,4 @@
+import {isRecord,isUnknownArray,isFiniteNumber,isOneOf} from './value-guards';
 import {remoteImageUrl} from './image-host';
 import type {WritingState} from './writing';
 import {markdownRows} from './markdown-context';
@@ -18,63 +19,67 @@ export interface Edge { id: string; from: string; to: string; label: string; sty
 export interface Board { defaultEdgeStyle?:Edge['style']; mindmapLayout?:'right'|'left'|'down'|'bilateral'; mindmapDensity?:'compact'|'standard'|'relaxed'; writing?:WritingState; selectionSets?:{id:string;name:string;ids:string[]}[]; spaceId?:string; snapToGrid?:boolean; savedViews?:{id:string;name:string;viewport:{x:number;y:number;zoom:number}}[]; version: 1 | 2 | 3; mode?: 'free'|'mindmap'; mindmapDirection?: 'right'|'down'; nodes: Card[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }
 export const emptyBoard = (): Board => ({ version: 1, nodes: [], edges: [], viewport: { x: 60, y: 60, zoom: 1 } });
 export const uid = () => crypto.randomUUID();
-export const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
+// Internal snapshots deliberately use JSON semantics, including omitted undefined fields.
+export const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 export function parseBoard(text: string): Board {
-  const b = JSON.parse(text);
-  if (![1, 2, 3].includes(b?.version) || !Array.isArray(b.nodes) || !Array.isArray(b.edges)) throw new Error('不支持的白板格式或版本');
-  if(b.defaultEdgeStyle!==undefined&&(!['curve','straight','elbow'].includes(b.defaultEdgeStyle)||b.version!==3))throw Error('白板默认连线路径无效');
+  const b:unknown = JSON.parse(text);
+  assertBoardData(b);validateBranches(b);return b;
+}
+function assertBoardData(b:unknown):asserts b is Board {
+  if (!isRecord(b) || !isOneOf(b.version,[1,2,3]) || !isUnknownArray(b.nodes) || !isUnknownArray(b.edges)) throw new Error('不支持的白板格式或版本');
+  if(b.defaultEdgeStyle!==undefined&&(!isOneOf(b.defaultEdgeStyle,['curve','straight','elbow'])||b.version!==3))throw Error('白板默认连线路径无效');
   const ids = new Set<string>();
   for (const n of b.nodes) {
-    if (!n || typeof n.id !== 'string' || !n.id.trim() || ids.has(n.id) || !(b.version === 3 ? ['card','section','board','text','image','pdf'] : b.version === 2 ? ['card', 'section', 'board'] : ['card', 'section']).includes(n.kind) ||
-      !['x', 'y', 'width', 'height'].every(k => Number.isFinite(n[k])) || n.width < 80 || n.height < 60 ||
-      !colors.includes(n.color) || (['card','board','image','pdf'].includes(n.kind) && (typeof n.file !== 'string' || !(n.kind === 'pdf' ? /\.pdf$/i.test(n.file) : n.kind === 'image' ? /\.(png|jpe?g|gif|webp|avif|bmp)$/i.test(n.file) : n.file.endsWith(n.kind === 'board' ? '.thoughtspace' : '.md')) || /(^\/|(^|\/)\.\.?(\/|$)|\\)/.test(n.file))) ||
+    if (!isRecord(n) || typeof n.id !== 'string' || !n.id.trim() || ids.has(n.id) || !isOneOf(n.kind,b.version === 3 ? ['card','section','board','text','image','pdf'] : b.version === 2 ? ['card','section','board'] : ['card','section']) ||
+      ![n.x,n.y].every(isFiniteNumber) || !isFiniteNumber(n.width) || !isFiniteNumber(n.height) || n.width < 80 || n.height < 60 ||
+      !isOneOf(n.color,colors) || (isOneOf(n.kind,['card','board','image','pdf']) && (typeof n.file !== 'string' || !(n.kind === 'pdf' ? /\.pdf$/i.test(n.file) : n.kind === 'image' ? /\.(png|jpe?g|gif|webp|avif|bmp)$/i.test(n.file) : n.file.endsWith(n.kind === 'board' ? '.thoughtspace' : '.md')) || /(^\/|(^|\/)\.\.?(\/|$)|\\)/.test(n.file))) ||
       (n.kind === 'section' && typeof n.title !== 'string')) throw new Error('白板节点数据不完整');
+    if(['file','title','text'].some(key=>n[key]!==undefined&&typeof n[key]!=='string'))throw new Error('白板节点数据不完整');
     if ((n.collapsed !== undefined && typeof n.collapsed !== 'boolean') ||
-      (n.collapsed && (!['card','pdf','board'].includes(n.kind) || n.height !== 72 || !Number.isFinite(n.expandedHeight) || n.expandedHeight < 60)) ||
+      (n.collapsed && (!isOneOf(n.kind,['card','pdf','board']) || n.height !== 72 || !isFiniteNumber(n.expandedHeight) || n.expandedHeight < 60)) ||
       (!n.collapsed && n.expandedHeight !== undefined)) throw new Error('卡片折叠数据不完整');
     if ((n.kind === 'text' && typeof n.text !== 'string') || (n.topic !== undefined && (b.version !== 3 || typeof n.topic !== 'boolean'))) throw new Error('文本或主题数据不完整');
-    if ((n.textColor !== undefined && !['default',...colors].includes(n.textColor)) ||
-      (n.fontSize !== undefined && (!Number.isFinite(n.fontSize) || n.fontSize < 12 || n.fontSize > 48)) ||
-      (n.fontFamily !== undefined && !['default','serif','mono'].includes(n.fontFamily)) ||
-      (n.textAlign !== undefined && !['left','center','right'].includes(n.textAlign)) ||
+    if ((n.textColor !== undefined && !isOneOf(n.textColor,['default',...colors])) ||
+      (n.fontSize !== undefined && (!isFiniteNumber(n.fontSize) || n.fontSize < 12 || n.fontSize > 48)) ||
+      (n.fontFamily !== undefined && !isOneOf(n.fontFamily,['default','serif','mono'])) ||
+      (n.textAlign !== undefined && !isOneOf(n.textAlign,['left','center','right'])) ||
       (n.autoSize !== undefined && typeof n.autoSize !== 'boolean')) throw new Error('文本样式数据不完整');
-    if(n.mindmapRules!==undefined&&(!n.mindmapRules||typeof n.mindmapRules!=='object'||!['right','left','down','bilateral'].includes(n.mindmapRules.layout)||!['compact','standard','relaxed'].includes(n.mindmapRules.density)||typeof n.mindmapRules.automatic!=='boolean'||n.kind==='section'))throw Error('导图自动布局规则无效');
-    if(n.textMaxWidth!==undefined&&(n.kind!=='text'||!Number.isFinite(n.textMaxWidth)||n.textMaxWidth<160||n.textMaxWidth>720))throw Error('主题换行宽度无效');
-    if(n.pdfPage!==undefined&&(n.kind!=='pdf'||!Number.isSafeInteger(n.pdfPage)||n.pdfPage<1))throw Error('PDF 页码无效');
+    if(n.mindmapRules!==undefined&&(!isRecord(n.mindmapRules)||!isOneOf(n.mindmapRules.layout,['right','left','down','bilateral'])||!isOneOf(n.mindmapRules.density,['compact','standard','relaxed'])||typeof n.mindmapRules.automatic!=='boolean'||n.kind==='section'))throw Error('导图自动布局规则无效');
+    if(n.textMaxWidth!==undefined&&(n.kind!=='text'||!isFiniteNumber(n.textMaxWidth)||n.textMaxWidth<160||n.textMaxWidth>720))throw Error('主题换行宽度无效');
+    if(n.pdfPage!==undefined&&(n.kind!=='pdf'||!isFiniteNumber(n.pdfPage)||!Number.isSafeInteger(n.pdfPage)||n.pdfPage<1))throw Error('PDF 页码无效');
     if(n.imageUrl!==undefined&&(n.kind!=='image'||!remoteImageUrl(n.imageUrl)))throw Error('图床图片地址无效');
-    if(n.videoCapture!==undefined&&(!['text','image'].includes(n.kind)||!n.videoCapture||typeof n.videoCapture.id!=='string'||!/^[a-f0-9-]{36}$/.test(n.videoCapture.id)||!yingjianNotePath(n.videoCapture.note)))throw Error('视频记录来源无效');
+    if(n.videoCapture!==undefined&&(!isOneOf(n.kind,['text','image'])||!isRecord(n.videoCapture)||typeof n.videoCapture.id!=='string'||!/^[a-f0-9-]{36}$/.test(n.videoCapture.id)||!yingjianNotePath(n.videoCapture.note)))throw Error('视频记录来源无效');
     if(n.transparent!==undefined&&(n.kind!=='card'||typeof n.transparent!=='boolean'))throw Error('卡片透明样式无效');
     if(n.fillColor!==undefined&&(n.kind!=='card'||!validCardFill(n.fillColor)))throw Error('卡片背景颜色无效');
-    if(n.preferredWidth!==undefined&&(n.kind!=='card'||!Number.isFinite(n.preferredWidth)||n.preferredWidth<220||n.preferredWidth>520))throw Error('卡片默认宽度无效');
+    if(n.preferredWidth!==undefined&&(n.kind!=='card'||!isFiniteNumber(n.preferredWidth)||n.preferredWidth<220||n.preferredWidth>520))throw Error('卡片默认宽度无效');
     if(n.customBorder!==undefined&&typeof n.customBorder!=='boolean')throw Error('边框颜色设置无效');
-    if((n.locked!==undefined&&typeof n.locked!=='boolean')||(n.autoFit!==undefined&&(n.kind!=='card'||typeof n.autoFit!=='boolean'))||(n.borderWidth!==undefined&&![0,1,2,3,4].includes(n.borderWidth))||(n.borderStyle!==undefined&&!['solid','dashed','dotted'].includes(n.borderStyle)))throw Error('对象样式或锁定状态不完整');
+    if((n.locked!==undefined&&typeof n.locked!=='boolean')||(n.autoFit!==undefined&&(n.kind!=='card'||typeof n.autoFit!=='boolean'))||(n.borderWidth!==undefined&&!isOneOf(n.borderWidth,[0,1,2,3,4]))||(n.borderStyle!==undefined&&!isOneOf(n.borderStyle,['solid','dashed','dotted'])))throw Error('对象样式或锁定状态不完整');
     if(n.branchFolded!==undefined&&(b.version!==3||typeof n.branchFolded!=='boolean'||n.kind==='section'))throw Error('导图折叠状态无效');
-    if(n.review!==undefined&&(!['later','reading','done'].includes(n.review)||!['card','text','image'].includes(n.kind)))throw Error('阅读状态无效');
+    if(n.review!==undefined&&(!isOneOf(n.review,['later','reading','done'])||!isOneOf(n.kind,['card','text','image'])))throw Error('阅读状态无效');
     ids.add(n.id);
   }
   const edgeIds = new Set<string>();
   for (const e of b.edges) {
-    if (!e || typeof e.id !== 'string' || !e.id.trim() || edgeIds.has(e.id) || !ids.has(e.from) || !ids.has(e.to) || e.from === e.to || typeof e.label !== 'string') throw new Error('白板连线数据不完整');
-    for (const [key, values] of Object.entries({style:['curve','straight','elbow'],direction:['forward','both','none'],color:colors,fromSide:['top','right','bottom','left'],toSide:['top','right','bottom','left'],kind:['branch']})) if(e[key] !== undefined && (b.version !== 3 || !values.includes(e[key]))) throw new Error('连线样式不完整');
+    if (!isRecord(e) || typeof e.id !== 'string' || !e.id.trim() || edgeIds.has(e.id) || typeof e.from!=='string' || typeof e.to!=='string' || !ids.has(e.from) || !ids.has(e.to) || e.from === e.to || typeof e.label !== 'string') throw new Error('白板连线数据不完整');
+    for (const [key, values] of Object.entries({style:['curve','straight','elbow'],direction:['forward','both','none'],color:colors,fromSide:['top','right','bottom','left'],toSide:['top','right','bottom','left'],kind:['branch']})) if(e[key] !== undefined && (b.version !== 3 || !isOneOf(e[key],values))) throw new Error('连线样式不完整');
     if(e.dashed !== undefined && (b.version !== 3 || typeof e.dashed !== 'boolean')) throw new Error('连线样式不完整');
     edgeIds.add(e.id);
   }
-  if (!b.viewport || !['x', 'y', 'zoom'].every(k => Number.isFinite(b.viewport[k])) || b.viewport.zoom < .15 || b.viewport.zoom > 2.5) throw new Error('白板视口数据不完整');
-  if((b.mode !== undefined && (b.version !== 3 || !['free','mindmap'].includes(b.mode))) || (b.mindmapDirection !== undefined && (b.version !== 3 || !['right','down'].includes(b.mindmapDirection)))) throw new Error('导图设置不完整');
-  if((b.mindmapLayout!==undefined&&(b.version!==3||!['right','left','down','bilateral'].includes(b.mindmapLayout)))||(b.mindmapDensity!==undefined&&(b.version!==3||!['compact','standard','relaxed'].includes(b.mindmapDensity))))throw Error('思维导图布局设置无效');
+  if (!isRecord(b.viewport) || ![b.viewport.x,b.viewport.y].every(isFiniteNumber) || !isFiniteNumber(b.viewport.zoom) || b.viewport.zoom < .15 || b.viewport.zoom > 2.5) throw new Error('白板视口数据不完整');
+  if((b.mode !== undefined && (b.version !== 3 || !isOneOf(b.mode,['free','mindmap']))) || (b.mindmapDirection !== undefined && (b.version !== 3 || !isOneOf(b.mindmapDirection,['right','down'])))) throw new Error('导图设置不完整');
+  if((b.mindmapLayout!==undefined&&(b.version!==3||!isOneOf(b.mindmapLayout,['right','left','down','bilateral'])))||(b.mindmapDensity!==undefined&&(b.version!==3||!isOneOf(b.mindmapDensity,['compact','standard','relaxed']))))throw Error('思维导图布局设置无效');
   if(b.spaceId!==undefined&&(typeof b.spaceId!=='string'||!/^[a-zA-Z0-9-]{1,80}$/.test(b.spaceId)))throw Error('空间标识无效');
   if(b.snapToGrid!==undefined&&typeof b.snapToGrid!=='boolean')throw Error('吸附设置无效');
-  if(b.savedViews!==undefined){if(!Array.isArray(b.savedViews)||b.savedViews.length>50)throw Error('保存视角无效');const seen=new Set();for(const v of b.savedViews){if(typeof v.id!=='string'||seen.has(v.id)||typeof v.name!=='string'||!v.name.trim()||v.name.length>100||!v.viewport||!['x','y','zoom'].every(k=>Number.isFinite(v.viewport[k]))||v.viewport.zoom<.15||v.viewport.zoom>2.5)throw Error('保存视角无效');seen.add(v.id);}}
-  if(b.selectionSets!==undefined){if(!Array.isArray(b.selectionSets)||b.selectionSets.length>30)throw Error('保存选区无效');const seen=new Set<string>();for(const s of b.selectionSets){if(!s||typeof s.id!=='string'||seen.has(s.id)||typeof s.name!=='string'||!s.name.trim()||s.name.length>60||!Array.isArray(s.ids)||s.ids.length>100000||s.ids.some((id:unknown)=>typeof id!=='string')||new Set(s.ids).size!==s.ids.length)throw Error('保存选区无效');seen.add(s.id);}}
-  if(b.writing!==undefined){const w=b.writing;if(!w||typeof w.title!=='string'||w.title.length>160||!Array.isArray(w.order)||w.order.length>100000||w.order.some((id:unknown)=>typeof id!=='string')||new Set(w.order).size!==w.order.length||(w.referenceId!==undefined&&typeof w.referenceId!=='string')||(w.draftPath!==undefined&&typeof w.draftPath!=='string'))throw Error('写作顺序数据无效');
+  if(b.savedViews!==undefined){if(!isUnknownArray(b.savedViews)||b.savedViews.length>50)throw Error('保存视角无效');const seen=new Set();for(const v of b.savedViews){if(!isRecord(v)||typeof v.id!=='string'||seen.has(v.id)||typeof v.name!=='string'||!v.name.trim()||v.name.length>100||!isRecord(v.viewport)||![v.viewport.x,v.viewport.y].every(isFiniteNumber)||!isFiniteNumber(v.viewport.zoom)||v.viewport.zoom<.15||v.viewport.zoom>2.5)throw Error('保存视角无效');seen.add(v.id);}}
+  if(b.selectionSets!==undefined){if(!isUnknownArray(b.selectionSets)||b.selectionSets.length>30)throw Error('保存选区无效');const seen=new Set<string>();for(const s of b.selectionSets){if(!isRecord(s)||typeof s.id!=='string'||seen.has(s.id)||typeof s.name!=='string'||!s.name.trim()||s.name.length>60||!isUnknownArray(s.ids)||s.ids.length>100000||s.ids.some((id:unknown)=>typeof id!=='string')||new Set(s.ids).size!==s.ids.length)throw Error('保存选区无效');seen.add(s.id);}}
+  if(b.writing!==undefined){const w=b.writing;if(!isRecord(w)||typeof w.title!=='string'||w.title.length>160||!isUnknownArray(w.order)||w.order.length>100000||w.order.some((id:unknown)=>typeof id!=='string')||new Set(w.order).size!==w.order.length||(w.referenceId!==undefined&&typeof w.referenceId!=='string')||(w.draftPath!==undefined&&typeof w.draftPath!=='string'))throw Error('写作顺序数据无效');
     if(w.manuscript!==undefined&&(typeof w.manuscript!=='string'||w.manuscript.length>1000000))throw Error('写作正文数据无效');
     if(w.includeSources!==undefined&&typeof w.includeSources!=='boolean')throw Error('写作来源选项无效');
-    if(w.referenceIds!==undefined&&(!Array.isArray(w.referenceIds)||w.referenceIds.length>12||w.referenceIds.some((id:unknown)=>typeof id!=='string')||new Set(w.referenceIds).size!==w.referenceIds.length))throw Error('写作参考数据无效');
-    if(w.chapters!==undefined&&(!Array.isArray(w.chapters)||w.chapters.length>500||w.chapters.some((c:any)=>!c||typeof c.id!=='string'||typeof c.title!=='string'||c.title.length>160||typeof c.body!=='string'||c.body.length>100000||b.nodes.some((n:any)=>n.id===c.id))||new Set(w.chapters.map((c:any)=>c.id)).size!==w.chapters.length))throw Error('写作章节数据无效');
-    if(w.options!==undefined){if(!w.options||typeof w.options!=='object'||Array.isArray(w.options))throw Error('写作选项无效');for(const o of Object.values(w.options) as any[]){if(!o||typeof o!=='object'||Array.isArray(o)||(o.title!==undefined&&(typeof o.title!=='string'||o.title.length>160))||(o.note!==undefined&&(typeof o.note!=='string'||o.note.length>20000))||(o.level!==undefined&&![0,2,3,4].includes(o.level))||(o.excluded!==undefined&&typeof o.excluded!=='boolean'))throw Error('写作选项无效');}}
+    if(w.referenceIds!==undefined&&(!isUnknownArray(w.referenceIds)||w.referenceIds.length>12||w.referenceIds.some((id:unknown)=>typeof id!=='string')||new Set(w.referenceIds).size!==w.referenceIds.length))throw Error('写作参考数据无效');
+    const chapter=(c:unknown):c is {id:string;title:string;body:string}=>isRecord(c)&&typeof c.id==='string'&&typeof c.title==='string'&&c.title.length<=160&&typeof c.body==='string'&&c.body.length<=100000&&!ids.has(c.id);
+    if(w.chapters!==undefined&&(!isUnknownArray(w.chapters)||w.chapters.length>500||!w.chapters.every(chapter)||new Set(w.chapters.map(c=>c.id)).size!==w.chapters.length))throw Error('写作章节数据无效');
+    if(w.options!==undefined){if(!isRecord(w.options))throw Error('写作选项无效');for(const o of Object.values(w.options)){if(!isRecord(o)||(o.title!==undefined&&(typeof o.title!=='string'||o.title.length>160))||(o.note!==undefined&&(typeof o.note!=='string'||o.note.length>20000))||(o.level!==undefined&&!isOneOf(o.level,[0,2,3,4]))||(o.excluded!==undefined&&typeof o.excluded!=='boolean'))throw Error('写作选项无效');}}
   }
-  validateBranches(b);
-  return b;
 }
 export function removeNodes(b: Board, ids: Set<string>): void {
   b.nodes = b.nodes.filter(n => !ids.has(n.id));
@@ -135,7 +140,7 @@ export function toggleTask(content: string, task: Task): string {
   lines[task.line]=task.source.slice(0,at)+(task.checked?'[ ]':'[x]')+task.source.slice(at+3);
   return lines.join('\n');
 }
-export function safeName(name: string): string { return name.replace(/[\\/:*?"<>|\[\]#^]/g, '-').replace(/^\.+/, '').trim().slice(0, 100) || '未命名'; }
+export function safeName(name: string): string { return name.replace(/[\\/:*?"<>|[\]#^]/g, '-').replace(/^\.+/, '').trim().slice(0, 100) || '未命名'; }
 
 export function boardLinks(board: Board): string[] { return [...new Set(board.nodes.filter(n => n.kind === 'board').map(n => n.file!))]; }
 /** 多父级引用合法，但不能把祖先放进后代；检查只访问可达子图。 */

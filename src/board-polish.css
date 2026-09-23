@@ -355,6 +355,13 @@
 .ts-root .ts-pdf-folded-info { padding: 0 12px 8px; color: var(--text-muted); font: 11px/1.4 var(--font-interface); }
 .ts-root .ts-pdf > .ts-node-header .ts-icon-button { flex: none; min-width: 26px; height: 26px; padding: 4px; }
 .ts-root .ts-pdf-controls { font-variant-numeric: tabular-nums; }
+/* Keep disclosure outside both the resize corner and the right connection port. */
+.ts-root .ts-node > .ts-branch-toggle {
+  left: calc(100% + 18px); right: auto; top: 50%; transform: translateY(-50%);
+}
+.ts-root .ts-node > .ts-resize {
+  z-index: 10; width: 22px; height: 22px; pointer-events: auto; touch-action: none;
+}
 .ts-root .ts-branch-toggle:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 3px; }
 
 /* Media sits directly on the canvas; controls appear only when approached. */

@@ -18,4 +18,4 @@ export function searchExcerpt(entry:BoardSearchEntry,query:string,limit=140){
  const body=entry.body.replace(/\s+/g,' ').trim(),lower=body.toLocaleLowerCase(),words=query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean),positions=words.map(w=>lower.indexOf(w)).filter(i=>i>=0),start=Math.max(0,(positions.length?Math.min(...positions):0)-32);
  return (start?'…':'')+body.slice(start,start+limit)+(body.length>start+limit?'…':'');
 }
-export function searchDirectory(entries:readonly BoardSearchEntry[],link:(id:string)=>string){const escape=(s:string)=>s.replace(/[\r\n]+/g,' ').replace(/[\\\[\]*_`]/g,'\\$&');return entries.map(e=>`- [${escape(e.title)}](${link(e.id)}) · ${searchKinds[e.kind]} · ${escape(e.groups.map(g=>g.title).join(' / ')||'未分组')}`).join('\n')+'\n';}
+export function searchDirectory(entries:readonly BoardSearchEntry[],link:(id:string)=>string){const escape=(s:string)=>s.replace(/[\r\n]+/g,' ').replace(/[\\[\]*_`]/g,'\\$&');return entries.map(e=>`- [${escape(e.title)}](${link(e.id)}) · ${searchKinds[e.kind]} · ${escape(e.groups.map(g=>g.title).join(' / ')||'未分组')}`).join('\n')+'\n';}

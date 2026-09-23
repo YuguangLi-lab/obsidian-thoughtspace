@@ -1,6 +1,6 @@
 export function remoteImageUrl(value:unknown):string|undefined{
  if(typeof value!=='string'||value.length>8192||/[\s\\<>]/.test(value))return;
- try{const url=new URL(value);if(url.protocol==='https:'&&!url.username&&!url.password&&url.hostname)return url.href;}catch{}
+ try{const url=new URL(value);if(url.protocol==='https:'&&!url.username&&!url.password&&url.hostname)return url.href;}catch{/* Invalid URLs are rejected by returning undefined. */}
 }
 export function imageMarkdown(url:string){const valid=remoteImageUrl(url);if(!valid)throw Error('图床地址必须是有效的 HTTPS 图片链接');return `![](${valid.replace(/\(/g,'%28').replace(/\)/g,'%29')})`;}
 

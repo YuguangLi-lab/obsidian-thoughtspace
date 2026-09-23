@@ -1,3 +1,4 @@
+import {isRecord,isUnknownArray,isFiniteNumber,isOneOf} from './value-guards';
 import {Board, Card, Color} from './model';
 
 export type HubScope = 'boards'|'favorites'|'recent'|'notes'|'inbox'|'shared';
@@ -6,14 +7,15 @@ export interface HubFilter {scope:HubScope;query:string;tag:string;sort:HubSort;
 export interface SavedHubFilter {id:string;name:string;filter:HubFilter}
 export interface HubPreferences {view:'gallery'|'list';saved:SavedHubFilter[];recent:{path:string;at:number}[]}
 export const defaultHubFilter:HubFilter={scope:'boards',query:'',tag:'',sort:'updated',includeJournals:false};
-const scopes=['boards','favorites','recent','notes','inbox','shared'];
-export function cleanHubFilter(value:Partial<HubFilter>|null|undefined):HubFilter {
-  return {scope:scopes.includes(value?.scope||'')?value!.scope!:'boards',query:typeof value?.query==='string'?value.query.slice(0,200):'',tag:typeof value?.tag==='string'?value.tag.slice(0,100):'',sort:['updated','title','size'].includes(value?.sort||'')?value!.sort!:'updated',includeJournals:value?.includeJournals===true};
+const scopes=['boards','favorites','recent','notes','inbox','shared'] as const;
+export function cleanHubFilter(raw:unknown):HubFilter {
+  const value=isRecord(raw)?raw:{};
+  return {scope:isOneOf(value.scope,scopes)?value.scope:'boards',query:typeof value.query==='string'?value.query.slice(0,200):'',tag:typeof value.tag==='string'?value.tag.slice(0,100):'',sort:isOneOf(value.sort,['updated','title','size'] as const)?value.sort:'updated',includeJournals:value.includeJournals===true};
 }
 export function cleanHubPreferences(raw:unknown):HubPreferences {
-  const value=(raw&&typeof raw==='object'?raw:{}) as Partial<HubPreferences>,saved:SavedHubFilter[]=[],recent:HubPreferences['recent']=[];
-  for(const item of Array.isArray(value.saved)?value.saved:[]){if(saved.length===20)break;if(item&&typeof item.id==='string'&&item.id.length<=80&&typeof item.name==='string'&&item.name.trim()&&!saved.some(s=>s.id===item.id))saved.push({id:item.id,name:item.name.trim().slice(0,50),filter:cleanHubFilter(item.filter)});}
-  for(const item of Array.isArray(value.recent)?value.recent:[]){if(recent.length===24)break;if(item&&typeof item.path==='string'&&item.path.endsWith('.thoughtspace')&&Number.isFinite(item.at)&&item.at>0&&!recent.some(s=>s.path===item.path))recent.push({path:item.path,at:item.at});}
+  const value=isRecord(raw)?raw:{},saved:SavedHubFilter[]=[],recent:HubPreferences['recent']=[];
+  for(const item of isUnknownArray(value.saved)?value.saved:[]){if(saved.length===20)break;if(isRecord(item)&&typeof item.id==='string'&&item.id.length<=80&&typeof item.name==='string'&&item.name.trim()&&!saved.some(s=>s.id===item.id))saved.push({id:item.id,name:item.name.trim().slice(0,50),filter:cleanHubFilter(item.filter)});}
+  for(const item of isUnknownArray(value.recent)?value.recent:[]){if(recent.length===24)break;if(isRecord(item)&&typeof item.path==='string'&&item.path.endsWith('.thoughtspace')&&isFiniteNumber(item.at)&&item.at>0&&!recent.some(s=>s.path===item.path))recent.push({path:item.path,at:item.at});}
   return {view:value.view==='list'?'list':'gallery',saved,recent};
 }
 export function rememberBoard(prefs:HubPreferences,path:string,at=Date.now()):HubPreferences {return {...prefs,recent:[{path,at},...prefs.recent.filter(x=>x.path!==path)].slice(0,24)};}

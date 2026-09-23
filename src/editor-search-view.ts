@@ -34,14 +34,14 @@ export class EditorSearchModal extends Modal {
   this.contentEl.createDiv({cls:'ts-editor-search-hint',text:'按源码字面匹配，包含代码、链接和属性。先检查预览；替换可在编辑器中撤销。'});
   this.query.oninput=()=>this.schedule(true);this.replacement.oninput=()=>this.schedule(false);
   for(const input of [this.query,this.replacement]){
-   input.addEventListener('compositionstart',()=>{this.composing=true;clearTimeout(this.timer);this.timer=undefined;this.actions.forEach(b=>b.disabled=true);});
+   input.addEventListener('compositionstart',()=>{this.composing=true;this.contentEl.win.clearTimeout(this.timer);this.timer=undefined;this.actions.forEach(b=>b.disabled=true);});
    input.addEventListener('compositionend',()=>{this.composing=false;this.schedule(input===this.query);});
   }
   this.query.onkeydown=e=>{if(this.composing||e.isComposing||e.keyCode===229||e.ctrlKey||e.metaKey||e.altKey||e.key!=='Enter')return;e.preventDefault();if(this.timer!==undefined)this.settle();else this.step(e.shiftKey?-1:1);};
   this.render();this.query.focus();this.query.select();
  }
- private schedule(reset:boolean){if(this.closed)return;clearTimeout(this.timer);this.timer=undefined;this.pendingReset ||= reset;this.actions.forEach(b=>b.disabled=true);if(this.composing)return;this.timer=window.setTimeout(()=>this.settle(),120);}
- private settle(){clearTimeout(this.timer);this.timer=undefined;if(this.closed||this.composing)return;const reset=this.pendingReset;this.pendingReset=false;if(reset)this.active=0;this.render(reset);}
+ private schedule(reset:boolean){if(this.closed)return;this.contentEl.win.clearTimeout(this.timer);this.timer=undefined;this.pendingReset ||= reset;this.actions.forEach(b=>b.disabled=true);if(this.composing)return;this.timer=this.contentEl.win.setTimeout(()=>this.settle(),120);}
+ private settle(){this.contentEl.win.clearTimeout(this.timer);this.timer=undefined;if(this.closed||this.composing)return;const reset=this.pendingReset;this.pendingReset=false;if(reset)this.active=0;this.render(reset);}
  private validate(){const current=this.host.read();if(this.closed||this.composing||current.disabledReason)throw Error(current.disabledReason||(this.composing?'请先完成输入法组字':'查找窗口已关闭'));if(current.text!==this.expected)throw Error('编辑内容已变化，请刷新后检查预览再替换');}
  private render(recalculate=true){if(this.closed)return;this.error.empty();this.preview.empty();
   try{this.validate();if(recalculate){this.matches=editorMatches(this.expected,this.query.value,{caseSensitive:this.sensitive.checked,wholeWord:this.whole.checked,range:this.scoped.checked?this.selectedRange:undefined});this.lines=editorMatchLines(this.expected,this.matches);}}
@@ -54,7 +54,7 @@ export class EditorSearchModal extends Modal {
   this.preview.createEl('small',{text:`替换预览 · 全部替换将处理 ${this.matches.length} 处`});const next=this.preview.createEl('pre');next.appendText(before);next.createEl('ins',{text:this.replacement.value||'〔删除匹配文字〕'});next.appendText(after);
  }
  private step(delta:number){if(!this.matches.length)return;this.active=(this.active+delta+this.matches.length)%this.matches.length;this.render(false);}
- private refresh(){if(this.composing)return;clearTimeout(this.timer);this.timer=undefined;this.pendingReset=false;const s=this.host.read();if(s.disabledReason)throw Error(s.disabledReason);if(s.text.length>2000000)throw Error('当前内容超过 2,000,000 字符，请使用 Obsidian 原生查找');if(s.text!==this.expected){this.selectedRange=undefined;this.scoped.checked=false;this.scoped.disabled=true;}this.expected=s.text;this.active=0;this.render();}
+ private refresh(){if(this.composing)return;this.contentEl.win.clearTimeout(this.timer);this.timer=undefined;this.pendingReset=false;const s=this.host.read();if(s.disabledReason)throw Error(s.disabledReason);if(s.text.length>2000000)throw Error('当前内容超过 2,000,000 字符，请使用 Obsidian 原生查找');if(s.text!==this.expected){this.selectedRange=undefined;this.scoped.checked=false;this.scoped.disabled=true;}this.expected=s.text;this.active=0;this.render();}
  private replace(all:boolean){
   this.validate();const current=editorMatches(this.expected,this.query.value,{caseSensitive:this.sensitive.checked,wholeWord:this.whole.checked,range:this.scoped.checked?this.selectedRange:undefined});
   const chosen=all?current:current.slice(this.active,this.active+1),plan=editorReplacement(this.expected,chosen,this.replacement.value);if(!plan)return;
@@ -63,5 +63,5 @@ export class EditorSearchModal extends Modal {
    this.active=0;this.render();if(!all&&this.matches.length){const next=this.matches.findIndex(m=>m.from>=plan.from+this.replacement.value.length);this.active=Math.max(0,next);this.render(false);}this.status.setText(`已替换 ${plan.count} 处 · 剩余 ${this.matches.length} 处`);this.query.focus({preventScroll:true});
   }finally{this.busy=false;this.actions.forEach(b=>b.disabled=!this.matches.length);}
  }
- onClose(){this.closed=true;clearTimeout(this.timer);this.expected='';this.matches=[];this.lines=[];this.pendingReset=false;this.selectedRange=undefined;this.actions=[];this.contentEl.empty();this.done();}
+ onClose(){this.closed=true;this.contentEl.win.clearTimeout(this.timer);this.expected='';this.matches=[];this.lines=[];this.pendingReset=false;this.selectedRange=undefined;this.actions=[];this.contentEl.empty();this.done();}
 }

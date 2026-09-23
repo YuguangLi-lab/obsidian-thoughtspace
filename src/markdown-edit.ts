@@ -131,8 +131,8 @@ export function planMarkdownEdit(text:string,start:number,end:number,command:Mar
  }
  if(['link','image','wikilink'].includes(command)){
   const label=(selected||'文字').replace(/[\r\n]+/g,' ');
-  if(command==='wikilink'){const target=(selected||'笔记名称').replace(/[\r\n\[\]|]/g,' ');return replace(start,end,'[['+target+']]',2,2+target.length);}
-  const prefix=(command==='image'?'!':'')+'['+label.replace(/([\\\[\]])/g,'\\$1')+'](';
+  if(command==='wikilink'){const target=(selected||'笔记名称').replace(/[\r\n[\]|]/g,' ');return replace(start,end,'[['+target+']]',2,2+target.length);}
+  const prefix=(command==='image'?'!':'')+'['+label.replace(/([\\[\]])/g,'\\$1')+'](';
   return replace(start,end,prefix+'https://)',prefix.length,prefix.length+8);
  }
  if(['bullet','ordered','task','quote','paragraph','h1','h2','h3','h4','h5','h6'].includes(command)){

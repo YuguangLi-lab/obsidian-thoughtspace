@@ -1,7 +1,8 @@
+import {hasAsciiControl} from './value-guards';
 /** 标签的斜线对应真实目录层级，不接受路径跳转或平台非法字符。 */
 export function tagFolder(tag: string, root = 'ThoughtSpace/卡片'): string {
   const parts = tag.replace(/^#/, '').split('/');
-  if (parts.some(p => !p || p === '.' || p === '..' || /[\\:*?"<>|\[\]#^\x00-\x1f]/.test(p) || /[. ]$/.test(p) || /^\s/.test(p))) throw new Error(`标签不能用作文件夹：${tag}`);
+  if (parts.some(p => !p || p === '.' || p === '..' || /[\\:*?"<>|[\]#^]/.test(p) || hasAsciiControl(p) || /[. ]$/.test(p) || /^\s/.test(p))) throw new Error(`标签不能用作文件夹：${tag}`);
   return `${root}/${parts.join('/')}`;
 }
 export function journalFolder(day: string, root = 'ThoughtSpace/日记'): string {
@@ -16,7 +17,7 @@ export interface FilingSettings { cardFolder: string; journalFolder: string; aut
 export const defaultFilingSettings: FilingSettings = { cardFolder: 'ThoughtSpace/卡片', journalFolder: 'ThoughtSpace/日记', autoFileCards: true, cleanupEmptyFolders: true };
 export function vaultFolder(value: string): string {
   const path = value.trim().replace(/\/$/, '');
-  if (!path || path.startsWith('.') || path.startsWith('/') || path.split('/').some(p => !p || p === '.' || p === '..' || /[\\:*?"<>|\x00-\x1f]/.test(p) || /[. ]$/.test(p))) throw new Error('请输入仓库内的有效文件夹路径，不含开头斜线或 ..');
+  if (!path || path.startsWith('.') || path.startsWith('/') || path.split('/').some(p => !p || p === '.' || p === '..' || /[\\:*?"<>|]/.test(p) || hasAsciiControl(p) || /[. ]$/.test(p))) throw new Error('请输入仓库内的有效文件夹路径，不含开头斜线或 ..');
   return path;
 }
 export function validateFolders(card: string, journal: string) {

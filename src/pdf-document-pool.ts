@@ -10,8 +10,7 @@ export class PdfDocumentPool {
  acquire(src:string){
   if(this.closed)throw Error('PDF 阅读器已关闭');
   let entry=this.entries.get(src);
-  if(!entry){entry={promise:Promise.resolve(undefined as unknown as PdfDocumentProxy),refs:0,expired:false};const current=entry;
-   current.promise=this.load().then(api=>{if(current.expired)throw Error('PDF 加载已取消');current.task=api.getDocument({url:src});return current.task.promise;}).catch((error:unknown)=>{this.drop(src,current);throw error;});this.entries.set(src,current);
+  if(!entry){const current:Entry={refs:0,expired:false,promise:this.load().then(api=>{if(current.expired)throw Error('PDF 加载已取消');current.task=api.getDocument({url:src});return current.task.promise;}).catch((error:unknown)=>{this.drop(src,current);throw error;})};entry=current;this.entries.set(src,current);
   }
   const current=entry;current.refs++;if(current.timer!==undefined)this.timers.clear(current.timer);current.timer=undefined;
   this.entries.delete(src);this.entries.set(src,current);this.trim();let released=false;

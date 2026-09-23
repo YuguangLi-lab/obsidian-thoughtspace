@@ -6,7 +6,7 @@ export type FragmentKind='paragraph'|'quote'|'task'|'code';
 export interface Fragment {id:string;kind:FragmentKind;title:string;heading:string;body:string;start:number;end:number;selection?:{from:number;to:number}}
 export const fragmentLabels:Record<FragmentKind,string>={paragraph:'段落',quote:'引用',task:'待办',code:'代码'};
 export interface OutlineTopic {title:string;parent:number|null;depth:number}
-const plain=(s:string)=>s.replace(/!?\[([^\]]+)\]\([^)]*\)/g,'$1').replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g,(_,a,b)=>b||a).replace(/[*`~]/g,'').trim();
+const plain=(s:string)=>s.replace(/!?\[([^\]]+)\]\([^)]*\)/g,'$1').replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g,(_match:string,a:string,b:string|undefined)=>b||a).replace(/[*`~]/g,'').trim();
 /** Line numbers remain tied to the source. Fenced blocks and frontmatter never become fake headings. */
 function sourceLines(raw:string){
  if(raw.length>500000)throw Error('材料超过 500,000 字符，请先选取一个章节');
@@ -100,7 +100,7 @@ export class MaterialProgress {
  clear(){this.sources.clear();}
 }
 
-export const pdfLiteralText=(text:string)=>text.replace(/([!-/:-@\[-`{-~])/g,'\\$1');
+export const pdfLiteralText=(text:string)=>text.replace(/([!-/:-@[-`{-~])/g,'\\$1');
 
 /** Plain PDF text stays plain on the board; escape it only when creating Markdown. */
 export function excerptNoteMarkdown(raw:string){

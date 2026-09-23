@@ -1,3 +1,4 @@
+import {hasAsciiControl} from './value-guards';
 import {createHash} from 'crypto';
 import type {Board} from './model';
 import {boardLink,parseBoardLink} from './deeplinks';
@@ -6,7 +7,7 @@ export const searchIndexPath=(path:string)=>`${SEARCH_FOLDER}/${path}.md`;
 export function searchBoardPath(path:string){
  if(!path.startsWith(SEARCH_FOLDER+'/')||!path.endsWith('.thoughtspace.md'))return;
  const file=path.slice(SEARCH_FOLDER.length+1,-3);
- if(!file||/(^\/|(^|\/)\.\.?(\/|$)|\\|[\u0000-\u001f])/.test(file))return;
+ if(!file||hasAsciiControl(file)||/(^\/|(^|\/)\.\.?(\/|$)|\\)/.test(file))return;
  return file;
 }
 const checksum=(text:string)=>createHash('sha256').update(text).digest('hex');

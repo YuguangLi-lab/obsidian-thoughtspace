@@ -17,11 +17,11 @@ class NoteToolbar extends Component implements MarkdownToolbarEditor {
  private range?:{text:string;from:number;to:number;nativeFrom:number;nativeTo:number};
  constructor(private app:App,readonly view:MarkdownView,readonly file:TFile,readonly editor:Editor,private make:CreateLinkedNote){
   super();this.host=view.contentEl.createDiv({cls:'ts-note-markdown-toolbar',attr:{role:'toolbar','aria-label':'笔记 Markdown 工具栏'}});
-  view.contentEl.prepend(this.host);this.notice=this.host.createSpan({cls:'ts-note-edit-notice',attr:{role:'status','aria-live':'polite','aria-atomic':'true',title:'内容或选区已变化，本次操作未执行。请确认后重试。'}});const self=this;
+  view.contentEl.prepend(this.host);this.notice=this.host.createSpan({cls:'ts-note-edit-notice',attr:{role:'status','aria-live':'polite','aria-atomic':'true',title:'内容或选区已变化，本次操作未执行。请确认后重试。'}});const readValue=()=>this.valid()?editor.getValue():'',readSelection=()=>this.valid()?this.selection():{from:0,to:0};
   this.input=new class extends EventTarget {
-   get value(){return self.valid()?editor.getValue():'';}
-   get selectionStart(){return self.valid()?self.selection().from:0;}
-   get selectionEnd(){return self.valid()?self.selection().to:0;}
+   get value(){return readValue();}
+   get selectionStart(){return readSelection().from;}
+   get selectionEnd(){return readSelection().to;}
   }();
  }
  onload(){

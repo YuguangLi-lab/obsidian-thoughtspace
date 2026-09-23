@@ -40,7 +40,7 @@ export function planLayout(board:Board,ids:ReadonlySet<string>,options:LayoutOpt
   for(let i=0;i<blocks.length;i+=cols){const row=blocks.slice(i,i+cols);let x=original.x;for(const block of row){for(const n of block.items){n.x+=x;n.y+=y;}lanes.push({label:block.label,x,y,width:block.bounds.width});x+=block.bounds.width+gap*2+32;}y+=Math.max(...row.map(g=>g.bounds.height))+gap*2+56;}
  }else if(options.mode==='row'||options.mode==='column'){let x=original.x,y=original.y;for(const n of nodes){n.x=x;n.y=y;if(options.mode==='row')x+=n.width+gap;else y+=n.height+gap;}}
  else if(options.mode==='grid'||options.mode==='masonry'){
-  const cols=Math.min(options.columns,nodes.length),width=Math.max(...nodes.map(n=>n.width)),bottoms=Array(cols).fill(original.y);let rowY=original.y;
+  const cols=Math.min(options.columns,nodes.length),width=Math.max(...nodes.map(n=>n.width)),bottoms=Array.from({length:cols},()=>original.y);let rowY=original.y;
   if(options.mode==='grid')for(let i=0;i<nodes.length;i+=cols){const row=nodes.slice(i,i+cols);row.forEach((n,j)=>{n.x=original.x+j*(width+gap);n.y=rowY;});rowY+=Math.max(...row.map(n=>n.height))+gap;}
   else for(const n of nodes){const column=bottoms.indexOf(Math.min(...bottoms));n.x=original.x+column*(width+gap);n.y=bottoms[column];bottoms[column]+=n.height+gap;}
  }else{

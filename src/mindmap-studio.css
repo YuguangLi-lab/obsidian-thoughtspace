@@ -20,7 +20,7 @@
 .ts-mm-topic-list .ts-mm-topic-row[aria-selected=true]{background:var(--background-modifier-hover);color:var(--text-accent);font-weight:600;box-shadow:inset 2px 0 var(--interactive-accent)}
 .ts-mm-outline-hint{font-size:10px;line-height:1.8;color:var(--text-faint);white-space:pre-line;margin-top:12px}
 .ts-mm-pager{display:flex;align-items:center;justify-content:space-between;gap:4px;font-size:10px;color:var(--text-muted);padding:10px 0}
-.ts-mm-controls{display:flex;flex-direction:column;gap:16px;min-width:0}
+.ts-mm-controls{display:flex;flex-direction:column;min-width:0}
 .ts-mm-controls h3{font-size:11px;margin:0;color:var(--text-muted);font-weight:600}
 .ts-mm-field{display:flex;flex-direction:column;gap:7px;font-size:11px;color:var(--text-muted)}
 .ts-mm-field select{width:100%;max-width:100%;height:32px;border-radius:7px;font-size:12px}
@@ -36,7 +36,7 @@
 .ts-mm-preview-bar>button{font-size:10px;box-shadow:none;background:transparent;padding:4px 6px;height:28px}
 .ts-mm-preview-actions{display:flex;gap:2px}
 .ts-mm-preview{flex:1;min-height:250px;display:flex;flex-direction:column;padding:16px;background-image:radial-gradient(var(--background-modifier-border) .7px,transparent .7px);background-size:20px 20px}
-.ts-mm-preview>svg{width:100%;height:100%;min-height:250px;flex:1;max-height:42vh}
+.ts-mm-preview>svg{width:100%;min-height:250px;max-height:42vh}
 .ts-mm-preview text{fill:var(--text-normal);font-family:var(--font-text);font-size:14px;pointer-events:none}
 .ts-mm-preview small{font-size:10px;color:var(--text-muted)}
 .ts-mm-editor{background:var(--background-primary);border-top:1px solid var(--mm-line);padding:10px 12px}
@@ -73,7 +73,6 @@
 .ts-mm-workflow-bar{display:flex;gap:5px;flex-wrap:wrap;padding:0 0 14px;margin-bottom:16px;border-bottom:1px solid var(--mm-line)}
 .ts-mm-workflow-bar button{display:flex;align-items:center;gap:7px;font-size:11px;height:32px;padding:6px 10px;border-radius:7px;box-shadow:none;background:transparent;border-color:transparent}
 .ts-mm-workflow-bar button:first-child{background:var(--background-modifier-hover);color:var(--text-accent)}
-.ts-mm-workflow-bar button:nth-child(4){margin-left:auto}
 .ts-mm-workflow-bar svg{width:14px;height:14px}
 .ts-mm-controls{overflow:auto;padding-right:3px;gap:12px}
 .ts-mm-markdown-tools{display:flex;gap:3px;margin-top:6px}

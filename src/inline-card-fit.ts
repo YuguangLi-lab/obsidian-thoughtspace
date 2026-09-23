@@ -17,7 +17,7 @@ export class InlineCardFit {
  private async measure(value:string,revision:number){
   const parent=this.preview.parentElement;if(this.disposed||!parent)return;const scope=new Component();scope.load();const holder=parent.createDiv('ts-inline-measure'),probe=this.preview.cloneNode(false) as HTMLElement;holder.appendChild(probe);let released=false;const release=()=>{if(released)return;released=true;releaseEditorResource('measurement scope',()=>scope.unload());releaseEditorResource('measurement surface',()=>holder.remove());};this.release=release;
   try{await MarkdownRenderer.render(this.app,markdownPreview(excerptPresentation(value).body),probe,this.path,scope);
-   probe.querySelectorAll('p').forEach(p=>{if(Array.from(p.childNodes).every(n=>n.nodeType===3?!n.textContent?.trim():n instanceof Element&&n.matches('a.tag')))p.remove();});
+   probe.querySelectorAll('p').forEach(p=>{if(Array.from(p.childNodes).every(n=>n.nodeType===3?!n.textContent?.trim():n.instanceOf(Element)&&n.matches('a.tag')))p.remove();});
    if(!this.disposed&&revision===this.revision&&this.preview.isConnected){const size=measureNoteCard(probe,this.preferredWidth),key=`${size.width}:${size.height}`;if(Number.isFinite(size.width)&&Number.isFinite(size.height)&&size.width>=80&&size.height>=60&&key!==this.sizeKey){this.sizeKey=key;this.apply(size);}}
   }catch{/* Keep the last valid frame when a renderer cannot preview a draft. */}finally{release();if(this.release===release)this.release=undefined;}
  }

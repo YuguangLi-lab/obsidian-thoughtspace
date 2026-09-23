@@ -4,7 +4,7 @@ import type {Fragment} from './materials';
 export function videoSource(value:unknown):string|undefined{
  if(typeof value!=='string'||!value||value.length>8192||/[\r\n\0]/.test(value))return;
  if(value.startsWith('/')&&!value.startsWith('//')&&/\.(mp4|mov|m4v|webm|ogv|mkv|ogg|mp3|m4a|wav)$/i.test(value))return value;
- try{const u=new URL(value);if(u.protocol==='https:'&&!u.username&&!u.password&&!u.port&&['youtube.com','www.youtube.com','m.youtube.com','youtu.be','www.bilibili.com','bilibili.com','pan.baidu.com'].includes(u.hostname))return value;}catch{}
+ try{const u=new URL(value);if(u.protocol==='https:'&&!u.username&&!u.password&&!u.port&&['youtube.com','www.youtube.com','m.youtube.com','youtu.be','www.bilibili.com','bilibili.com','pan.baidu.com'].includes(u.hostname))return value;}catch{/* Invalid source links are rejected by returning undefined. */}
 }
 export function yingjianLink(video:string,time:number,note?:string,vault?:string){
  if(!videoSource(video)||!Number.isFinite(time)||time<0||time>100000000)throw Error('视频来源或时间无效');
@@ -13,7 +13,7 @@ export function yingjianLink(video:string,time:number,note?:string,vault?:string
 }
 export function parseYingjianLink(link:string,source?:string){
  try{const u=new URL(link);if(u.protocol!=='yingjian:'||u.hostname!=='open'||u.username||u.password||u.port||!['','/'].includes(u.pathname))return;
- const video=videoSource(u.searchParams.get('video')),t=u.searchParams.get('t');if(!video||!t||!/^\d+(?:\.\d+)?$/.test(t)||source&&video!==source)return;const time=Number(t);if(time>100000000)return;return{video,time};}catch{}
+ const video=videoSource(u.searchParams.get('video')),t=u.searchParams.get('t');if(!video||!t||!/^\d+(?:\.\d+)?$/.test(t)||source&&video!==source)return;const time=Number(t);if(time>100000000)return;return{video,time};}catch{/* Invalid source links are rejected by returning undefined. */}
 }
 export interface VideoMoment {id:string;time:number;label:string;link:string;fragment:Fragment;}
 function videoRows(text:string){const lines=text.split('\n'),safe=[...lines];let fence='';
@@ -51,7 +51,7 @@ export function yingjianTextParts(text:string):{text:string;link?:string}[]{
  const parts:{text:string;link?:string}[]=[];const lines=text.split('\n');let cursor=0,offset=0;
  for(const row of videoRows(text)){
   if(!row.code)for(const m of maskInlineCode(row.visible).matchAll(/\[((?:\d{1,3}:)?\d{1,2}:\d{2}(?:\.\d{1,3})?)\]\((yingjian:\/\/open\?[^)\s]+)\)/g)){
-   if(!parseYingjianLink(m[2]))continue;const start=offset+m.index!;if(start>cursor)parts.push({text:text.slice(cursor,start)});parts.push({text:m[1],link:m[2]});cursor=start+m[0].length;
+   if(!parseYingjianLink(m[2]))continue;const start=offset+m.index;if(start>cursor)parts.push({text:text.slice(cursor,start)});parts.push({text:m[1],link:m[2]});cursor=start+m[0].length;
   }offset+=lines[row.line].length+1;
  }
  if(cursor<text.length)parts.push({text:text.slice(cursor)});return parts;

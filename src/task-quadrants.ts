@@ -1,5 +1,4 @@
 import {inlineLiteralRanges} from './markdown-literals';
-import {maskInlineCode,outsideInlineCode} from './markdown-literals';
 import type {PlannedTask} from './task-planner-model';
 export type TaskQuadrant='q1'|'q2'|'q3'|'q4';
 export const TASK_QUADRANTS:{id:TaskQuadrant;label:string;hint:string}[]=[
@@ -24,5 +23,5 @@ export function setTaskQuadrant(text:string,target:TaskQuadrant|'auto'){
  const clean=stripQuadrant(body).trimEnd();if(target==='auto')return clean+id;
  const last=inlineLiteralRanges(clean).at(-1),raw=last?clean.slice(last.from):'',open=last?.comment&&(raw.startsWith('<!--')?!raw.endsWith('-->'):raw.length<4||!raw.endsWith('%%'));
  const marker=`<!-- thoughtspace:quadrant=${target} -->`;
- return (open?clean.slice(0,last!.from).trimEnd()+' '+marker+' '+raw:clean+' '+marker)+id;
+ return (open?clean.slice(0,last.from).trimEnd()+' '+marker+' '+raw:clean+' '+marker)+id;
 }

@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {transformSync} from 'esbuild';
 class BoardView{file:any;fitCalls=0;fit(){this.fitCalls++}}
 const source=readFileSync('src/main.ts','utf8');
-function method(name:string,next:string,deps:Record<string,unknown>={}){const start=source.indexOf('  async '+name+'('),end=source.indexOf('\n  '+next,start);return new Function('BoardView','VIEW','WRITING','requestAnimationFrame',...Object.keys(deps),transformSync('class Host{'+source.slice(start,end)+'};return Host.prototype.'+name,{loader:'ts'}).code)(BoardView,'board','writing',(fn:()=>void)=>fn(),...Object.values(deps));}
+function method(name:string,next:string,deps:Record<string,unknown>={}){const start=source.indexOf('  async '+name+'('),end=source.indexOf('\n  '+next,start);return new Function('BoardView','VIEW','WRITING','window',...Object.keys(deps),transformSync('class Host{'+source.slice(start,end)+'};return Host.prototype.'+name,{loader:'ts'}).code)(BoardView,'board','writing',{requestAnimationFrame:(fn:()=>void)=>fn()},...Object.values(deps));}
 // Import remains optional before introducing the in-flight coalescer so the old path can be reproduced.
 import {SharedOpen} from '../src/view-opening';
 function fixture(){const leaves:any[]=[],file={path:'a.thoughtspace'},owner={blocked:false,flush:async()=>{}},board={file,session:owner,prepareWriting:async()=>{},closed:false};let creates=0;

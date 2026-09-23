@@ -1,4 +1,4 @@
-import type {Board,Card} from './model';import {connectionPath} from './connections';import {viewportRect,edgeBounds,intersects} from './rendering';
+import type {Board} from './model';import {connectionPath} from './connections';import {viewportRect,edgeBounds,intersects} from './rendering';
 const NS='http://www.w3.org/2000/svg';let handleTitle=0;
 function attr(el:Element,key:string,value:string|number|undefined){if(value===undefined){if(el.hasAttribute(key))el.removeAttribute(key);}else if(el.getAttribute(key)!==String(value))el.setAttribute(key,String(value));}
 function svg<K extends keyof SVGElementTagNameMap>(parent:Element,tag:K,cls:string){const el=parent.ownerDocument.createElementNS(NS,tag);if(cls)el.setAttribute('class',cls);parent.appendChild(el);return el;}

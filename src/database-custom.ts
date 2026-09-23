@@ -1,3 +1,4 @@
+import {isRecord,isUnknownArray,isOneOf} from './value-guards';
 import {DatabaseFilter,propertyKeys,dateValid} from './database';
 export type CustomType='text'|'number'|'date'|'checkbox'|'list';
 export interface CustomField{key:string;type:CustomType}
@@ -21,9 +22,14 @@ export function customMatches(fm:Record<string,unknown>,conditions:CustomConditi
  if(field.type==='date'&&typeof value==='string'&&typeof expected==='string'&&dateValid(value))return c.op==='gte'?value>=expected:value<=expected;return false;
  }catch{return false;} });}
 export function cleanDatabasePreferences(value:unknown):DatabasePreferences{
- const raw=value as Partial<DatabasePreferences>|undefined,fields:CustomField[]=[],views:SavedDatabaseView[]=[];
- for(const f of Array.isArray(raw?.fields)?raw.fields:[])if(f&&validCustomKey(f.key)&&['text','number','date','checkbox','list'].includes(f.type)&&!fields.some(e=>e.key===f.key)&&fields.length<30)fields.push({key:f.key,type:f.type});
- for(const v of Array.isArray(raw?.views)?raw.views:[])if(v&&typeof v.id==='string'&&typeof v.name==='string'&&v.name.trim()&&['cards','vault','board'].includes(v.source)&&['table','kanban'].includes(v.layout)&&v.filter&&typeof v.filter.query==='string'&&['updated','title','due','priority'].includes(v.filter.sort)&&Array.isArray(v.conditions)&&views.length<50)views.push({...v,conditions:v.conditions.filter(c=>c&&fields.some(f=>f.key===c.key)&&['eq','contains','gte','lte','empty'].includes(c.op)&&typeof c.value==='string').slice(0,20)});
+ const raw=isRecord(value)?value:{},fields:CustomField[]=[],views:SavedDatabaseView[]=[];
+ for(const f of isUnknownArray(raw.fields)?raw.fields:[])if(isRecord(f)&&validCustomKey(f.key)&&isOneOf(f.type,['text','number','date','checkbox','list'] as const)&&!fields.some(e=>e.key===f.key)&&fields.length<30)fields.push({key:f.key,type:f.type});
+ for(const v of isUnknownArray(raw.views)?raw.views:[]){
+  if(!isRecord(v)||typeof v.id!=='string'||typeof v.name!=='string'||!v.name.trim()||!isOneOf(v.source,['cards','vault','board'] as const)||!isOneOf(v.layout,['table','kanban'] as const)||!isRecord(v.filter)||typeof v.filter.query!=='string'||!isOneOf(v.filter.sort,['updated','title','due','priority'] as const)||!isUnknownArray(v.conditions)||views.length>=50)continue;
+  const f=v.filter,conditions:CustomCondition[]=[];
+  for(const c of v.conditions)if(isRecord(c)&&typeof c.key==='string'&&fields.some(f=>f.key===c.key)&&isOneOf(c.op,['eq','contains','gte','lte','empty'] as const)&&typeof c.value==='string'&&conditions.length<20)conditions.push({key:c.key,op:c.op,value:c.value});
+  views.push({id:v.id,name:v.name,source:v.source,layout:v.layout,...(typeof v.boardPath==='string'?{boardPath:v.boardPath}:{}),filter:{query:v.filter.query,sort:v.filter.sort,tag:typeof f.tag==='string'?f.tag:'',status:typeof f.status==='string'?f.status:'',priority:typeof f.priority==='string'?f.priority:'',overdue:f.overdue===true,today:typeof f.today==='string'?f.today:''},conditions});
+ }
  return {fields,views};
 }
 /** Bases and UI share typed operands. Bracket notation preserves native property names. */

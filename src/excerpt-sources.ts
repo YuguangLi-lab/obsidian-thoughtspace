@@ -38,7 +38,7 @@ export function textExcerptPresentation(raw:string,onSource?:(line:number,source
 export function sourceLinkTarget(link:string){
  if(link.startsWith('[['))return link.slice(2,-2).split('|')[0];
  const match=link.match(/^\[[^\n]*?\]\((.+)\)$/);if(!match)return '';
- let target=match[1].replace(/^<|>$/g,'');try{target=decodeURIComponent(target);}catch{}return target;
+ let target=match[1].replace(/^<|>$/g,'');try{target=decodeURIComponent(target);}catch{/* Keep literal percent escapes when the target is not URI-encoded. */}return target;
 }
 export function conceptDocument(title:string,notes:{title:string;link:string;body:string}[]){
  const heading=title.replace(/[\r\n]/g,' ').trim().slice(0,100);if(!heading||notes.length<2||notes.length>50)throw Error('请选择 2–50 篇笔记并填写概念名称');

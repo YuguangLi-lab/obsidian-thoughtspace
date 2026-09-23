@@ -1,7 +1,8 @@
+import {isRecord,isUnknownArray} from './value-guards';
 import {CustomField,CustomCondition,SavedDatabaseView,DatabasePreferences,customValue,customMatches,validCustomKey,databaseBase} from './database-custom';
 import { themeSurface } from './ui-tokens';
 import { App, Component, Modal, Notice, TFile, getAllTags, parseYaml, stringifyYaml, setIcon } from 'obsidian';
-import { DatabaseFilter, DatabaseRow, NoteProperties, PropertyField, databaseCsv, filterRows, isOverdue, priorities, propertyKeys, propertyPatch, readProperties, statuses } from './database';
+import { DatabaseFilter, DatabaseRow, PropertyField, databaseCsv, filterRows, isOverdue, priorities, propertyKeys, propertyPatch, readProperties, statuses } from './database';
 import { LibraryScope, isWorkspaceFile, libraryFiles, noteExcerpt } from './workspace';
 import { localDay } from './filing';
 
@@ -27,7 +28,8 @@ export class PropertyStore {
       await this.app.vault.adapter.write(`${root}/record.json`,JSON.stringify({path:file.path,field:key,value:next ?? null},null,2));
       if (await this.app.vault.read(file) !== raw) throw new Error('备份期间笔记发生变化，请刷新后重试。');
       // processFrontMatter 本身在最新文件上处理属性；回调再确认属性集合未发生变化。
-      await this.app.fileManager.processFrontMatter(file, fm => {
+      await this.app.fileManager.processFrontMatter(file, (fm:unknown) => {
+        if (!isRecord(fm))throw Error('属性区域必须是键值结构');
         if (JSON.stringify(fm) !== JSON.stringify(parsed)) throw new Error('属性已发生变化，请刷新后重试。');
         if (next === undefined) delete fm[key]; else fm[key] = next;
       });
@@ -39,9 +41,9 @@ export function parseRecord(raw: string): Record<string,unknown> {
   const match = raw.match(/^---\r?\n([\s\S]*?)^---[ \t]*(?:\r?\n|$)/m);
   if (raw.startsWith('---\n') || raw.startsWith('---\r\n')) {
     if (!match) throw new Error('属性区域没有闭合，请在原文中修复');
-    const parsed = parseYaml(match[1]);
+    const parsed:unknown = parseYaml(match[1]);
     if (parsed == null) return {};
-    if (typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('属性区域必须是键值结构');
+    if (!isRecord(parsed)) throw new Error('属性区域必须是键值结构');
     return parsed;
   }
   return {};
@@ -168,7 +170,7 @@ export class DatabaseModal extends Modal {
     btn(modal.contentEl,'添加字段','plus',()=>{void(async()=>{const key=input.value.trim();if(!validCustomKey(key))throw Error('名称无效，或与内置字段重复');if(this.host.preferences.fields.some(f=>f.key===key))throw Error('该字段已显示');if(this.host.preferences.fields.length>=30)throw Error('最多显示 30 个自定义字段');this.host.preferences.fields.push({key,type:type.value as CustomField['type']});await this.persist();modal.close();this.renderCustomFilters();this.render();})().catch(e=>new Notice(String(e)));});
     for(const f of this.host.preferences.fields){const row=modal.contentEl.createDiv('ts-db-field-definition');row.createSpan({text:`${f.key} · ${f.type}`});btn(row,'移除显示列','x',()=>{void(async()=>{if(this.host.preferences.views.some(v=>v.conditions.some(c=>c.key===f.key)))throw Error('保存的筛选仍在使用此字段，请先修改或删除相关视图');this.host.preferences.fields=this.host.preferences.fields.filter(v=>v!==f);this.conditions=this.conditions.filter(c=>c.key!==f.key);await this.persist();row.remove();this.renderCustomFilters();this.render();})().catch(e=>new Notice(String(e)));});}modal.open();
   }
-  private customControl(parent:HTMLElement,row:RecordRow,field:CustomField){const value=row.fields[field.key],input=parent.createEl('input',{type:field.type==='checkbox'?'checkbox':field.type==='date'?'date':field.type==='number'?'number':'text',attr:{'aria-label':`${row.title} ${field.key}`}});if(field.type==='number')input.step='any';if(field.type==='checkbox')input.checked=value===true;else input.value=Array.isArray(value)?value.join(', '):value==null?'':String(value);input.disabled=this.busy;input.onchange=()=>void this.updateCustom(row,field,field.type==='checkbox'?input.checked:input.value);}
+  private customControl(parent:HTMLElement,row:RecordRow,field:CustomField){const value=row.fields[field.key],input=parent.createEl('input',{type:field.type==='checkbox'?'checkbox':field.type==='date'?'date':field.type==='number'?'number':'text',attr:{'aria-label':`${row.title} ${field.key}`}});if(field.type==='number')input.step='any';if(field.type==='checkbox')input.checked=value===true;else input.value=isUnknownArray(value)?value.map(v=>typeof v==='string'||typeof v==='number'||typeof v==='boolean'?String(v):JSON.stringify(v)??'').join(', '):value==null?'':typeof value==='string'||typeof value==='number'||typeof value==='boolean'?String(value):JSON.stringify(value)??'';input.disabled=this.busy;input.onchange=()=>void this.updateCustom(row,field,field.type==='checkbox'?input.checked:input.value);}
   private async updateCustom(row:RecordRow,field:CustomField,value:string|boolean){if(this.busy)return;this.busy=true;this.run++;try{await this.store.updateCustom(row.file,field,value,row.raw);}catch(e){new Notice(String(e));}finally{this.busy=false;if(this.active)await this.load();}}
   private renderCustomFilters(){this.customBar.empty();if(!this.host.preferences.fields.length)return;
     for(const [i,c]of this.conditions.entries()){const row=this.customBar.createDiv('ts-db-condition');const field=this.host.preferences.fields.find(f=>f.key===c.key);if(!field)continue;row.createSpan({text:field.key});const options:Record<string,string>={eq:'等于',empty:'未填写',...(field.type==='text'||field.type==='list'?{contains:'包含'}:{}),...(field.type==='number'||field.type==='date'?{gte:'不小于',lte:'不大于'}:{})};this.select(row,'字段比较方式',options,c.op,v=>{c.op=v as CustomCondition['op'];this.renderCustomFilters();this.render();});

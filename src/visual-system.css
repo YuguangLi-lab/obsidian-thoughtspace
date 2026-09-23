@@ -66,8 +66,8 @@
 .ts-root .ts-node {font-family:var(--font-text);}
 
 /* Stable workspace feedback and shared module entry styling; native fonts are inherited. */
-.ts-native-header .view-actions{align-items:center;gap:3px;}
-.ts-native-header .ts-save-status{display:flex;flex:0 0 auto;min-width:64px;width:76px;max-width:168px;height:24px;padding:0 7px;margin-inline:2px 5px;border-radius:6px;background:var(--ts-design-wash);font-size:11px;overflow:hidden;white-space:nowrap;}
+.ts-native-header .view-actions{align-items:center;}
+.ts-native-header .ts-save-status{display:flex;flex:0 0 auto;min-width:64px;width:76px;max-width:168px;height:24px;padding:0 7px;background:var(--ts-design-wash);font-size:11px;overflow:hidden;white-space:nowrap;}
 .ts-native-header .ts-save-status::before{flex:0 0 5px;}
 .ts-native-header .ts-save-status[data-state=saving]::before{background:var(--text-muted);opacity:.7;}
 .ts-native-header .ts-save-status[data-state=error]{background:color-mix(in srgb,var(--text-error) 8%,var(--background-primary));}

@@ -4,8 +4,8 @@ const vectors={top:[0,-1],right:[1,0],bottom:[0,1],left:[-1,0]} as const;
 export function connectionSides(a:Card,b:Card,e:Partial<Edge>={}) {
   const dx=b.x+b.width/2-a.x-a.width/2,dy=b.y+b.height/2-a.y-a.height/2;
   const horizontal=Math.abs(dx)/(a.width+b.width)>=Math.abs(dy)/(a.height+b.height);
-  return {fromSide:e.fromSide|| (horizontal?(dx>=0?'right':'left'):(dy>=0?'bottom':'top')) as Side,
-    toSide:e.toSide|| (horizontal?(dx>=0?'left':'right'):(dy>=0?'top':'bottom')) as Side};
+  return {fromSide:e.fromSide|| (horizontal?(dx>=0?'right':'left'):(dy>=0?'bottom':'top')),
+    toSide:e.toSide|| (horizontal?(dx>=0?'left':'right'):(dy>=0?'top':'bottom'))};
 }
 export const connectionAnchor=(n:Pick<Card,'x'|'y'|'width'|'height'>,s:Side)=>({x:n.x+(s==='left'?0:s==='right'?n.width:n.width/2),y:n.y+(s==='top'?0:s==='bottom'?n.height:n.height/2)});
 export function connectionPath(a:Card,b:Card,e:Partial<Edge>={}) {

@@ -4,7 +4,7 @@
 .ts-material-landing.is-evidence.is-blocked{border-color:var(--text-error)!important;color:var(--text-error);}
 /* A quiet, scoped writing workspace. Obsidian owns fonts, colors and Markdown. */
 .ts-writing-leaf>.view-header{display:none;}
-.ts-writing{border:0!important;border-radius:0!important;box-shadow:none!important;padding:0!important;height:100%;min-height:0;display:flex;flex-direction:column;background:var(--background-primary);container-type:inline-size;--writing-accent:var(--ts-accent,var(--text-accent));--writing-line:var(--background-modifier-border);--writing-soft:color-mix(in srgb,var(--background-secondary) 70%,var(--background-primary));--writing-gutter:14px;}
+.ts-writing{border:0!important;border-radius:0!important;box-shadow:none!important;padding:0!important;height:100%;min-height:0;display:flex;flex-direction:column;background:var(--background-primary);container-type:inline-size;--writing-accent:var(--ts-accent,var(--text-accent));}
 .ts-writing .ts-writing-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-width:0;height:30px;padding:0 9px;border:0;border-radius:7px;box-shadow:none;background:transparent;color:var(--text-muted);font-size:12px;line-height:1.4;font-weight:500;white-space:nowrap;cursor:pointer;}
 .ts-writing .ts-writing-button:hover{background:var(--background-modifier-hover);color:var(--text-normal);}
 .ts-writing .ts-writing-button:focus-visible{outline:2px solid var(--interactive-accent);outline-offset:2px;}
@@ -17,7 +17,7 @@
 .ts-writing-identity strong{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;letter-spacing:0;line-height:1.5;}
 .ts-writing-identity>span{font-size:11px;color:var(--text-muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .ts-writing .ts-writing-dock-toggle.is-active{background:var(--writing-soft);color:var(--writing-accent);}
-.ts-writing .ts-writing-button.mod-cta{height:34px;padding:0 14px;background:var(--writing-accent);color:var(--background-primary);font-weight:600;}
+.ts-writing .ts-writing-button.mod-cta{padding:0 14px;background:var(--writing-accent);color:var(--background-primary);font-weight:600;}
 .ts-writing.is-generating .ts-writing-header .mod-cta{opacity:.5;pointer-events:none;}
 .ts-writing-layout{display:grid;grid-template-columns:minmax(0,1fr) 14px clamp(240px,var(--writing-dock-width,320px),42%);flex:1;min-height:0;position:relative;padding:var(--writing-gutter);background:var(--writing-soft);}
 .ts-writing-layout>div{min-width:0;min-height:0;}
@@ -30,7 +30,7 @@
 .ts-writing .ts-writing-search input{width:100%;min-width:0;height:100%;padding:0;border:0;background:transparent;box-shadow:none;font-size:12px;}
 .ts-writing-search:focus-within{border-color:var(--interactive-accent);}
 .ts-writing-filters{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;padding:0 14px 12px;flex:none;}
-.ts-writing .ts-writing-filters button{font-size:11px;height:25px;padding:0 8px;border-radius:5px;}
+.ts-writing .ts-writing-filters button{padding:0 8px;border-radius:5px;}
 .ts-writing .ts-writing-filters .is-active{color:var(--writing-accent);background:color-mix(in srgb,var(--writing-accent) 9%,transparent);font-weight:650;}
 .ts-writing-filters select{margin-left:auto;max-width:110px;height:26px;font-size:11px;border:0;background:transparent;box-shadow:none;color:var(--text-muted);}
 .ts-writing-list{padding:0 8px 20px;overflow:auto;min-height:0;flex:1;}
@@ -89,7 +89,7 @@
 .ts-writing-reference-tabs{display:flex;overflow-x:auto;padding:10px 12px 0;gap:5px;flex:none;border:0;scrollbar-width:thin;}
 .ts-writing-reference-tab{display:flex;align-items:center;border:1px solid transparent;border-radius:6px;flex:none;max-width:180px;background:var(--writing-soft);}
 .ts-writing-reference-tab.is-active{background:var(--background-primary);border-color:color-mix(in srgb,var(--writing-accent) 35%,var(--writing-line));}
-.ts-writing .ts-writing-reference-tab>.ts-writing-button:first-child{overflow:hidden;display:block;text-overflow:ellipsis;font-size:11px;}.ts-writing .ts-writing-reference-tab>.is-icon{width:22px;min-width:22px;}
+.ts-writing .ts-writing-reference-tab>.ts-writing-button:first-child{overflow:hidden;display:block;text-overflow:ellipsis;}.ts-writing .ts-writing-reference-tab>.is-icon{width:22px;min-width:22px;}
 .ts-writing-reference-content{display:flex;flex-direction:column;padding:0;overflow:hidden;flex:1;min-height:0;overflow-wrap:anywhere;}
 .ts-writing-reference-heading{display:flex;align-items:center;gap:10px;flex:none;padding:18px 16px 16px;border-bottom:1px solid color-mix(in srgb,var(--writing-line) 65%,transparent);}
 .ts-writing-reference-identity{min-width:0;flex:1;}
@@ -117,7 +117,7 @@
 .ts-writing-dock{display:flex;flex-direction:column;min-width:0;min-height:0;margin:0;border:1px solid color-mix(in srgb,var(--writing-line) 75%,transparent);border-radius:12px;overflow:hidden;background:var(--background-primary);}
 .ts-writing-dock-head{display:flex;align-items:center;gap:5px;min-height:54px;padding:9px 10px;background:var(--writing-soft);border-bottom:1px solid var(--writing-line);flex:none;}
 .ts-writing-dock-head>.is-icon{margin-left:auto;}
-.ts-writing .ts-writing-dock-head .is-active{background:var(--background-primary);color:var(--writing-accent);box-shadow:0 1px 3px #00000008;font-weight:650;}
+.ts-writing .ts-writing-dock-head .is-active{color:var(--writing-accent);font-weight:650;}
 .ts-writing-resize{position:relative;cursor:col-resize;touch-action:none;outline:none;}
 .ts-writing-resize::after{content:"";position:absolute;top:50%;left:5px;width:4px;height:40px;border-radius:4px;background:var(--writing-line);transform:translateY(-50%);}
 .ts-writing-resize:is(:hover,:focus-visible,.is-resizing)::after{background:var(--writing-accent);height:64px;}
@@ -150,7 +150,7 @@
 @container(max-width:600px){.ts-writing .ts-inline-native{--file-margins:24px 20px;}.ts-writing-manuscript .cm-scroller{padding:20px 24px!important;}}
 
 .ts-writing-manuscript,.ts-writing-entry-markdown{display:flex;flex-direction:column;}
-.ts-writing .ts-writing-formatbar{flex:0 0 auto;align-self:stretch;max-width:100%;width:100%;min-height:54px;margin:0;padding:10px 12px;border:0;border-bottom:1px solid var(--writing-line);border-radius:0;background:var(--writing-soft);box-shadow:none;--ts-soft:var(--background-modifier-hover);--ts-accent:var(--writing-accent);}
+.ts-writing .ts-writing-formatbar{flex:0 0 auto;align-self:stretch;max-width:100%;width:100%;min-height:54px;margin:0;padding:10px 12px;border:0;border-bottom:1px solid var(--writing-line);border-radius:0;box-shadow:none;--ts-soft:var(--background-modifier-hover);--ts-accent:var(--writing-accent);}
 .ts-writing-manuscript>.ts-inline-native,.ts-writing-entry-markdown>.ts-inline-native{flex:1 1 0;height:auto;min-height:0;}
 .ts-writing .ts-writing-manuscript>.ts-writing-formatbar{height:54px;max-height:54px;padding:6px 12px;}
 .ts-writing .ts-writing-formatbar>.ts-markdown-tools{margin-inline:auto;}
@@ -164,7 +164,7 @@
 .ts-writing .ts-writing-formatbar .ts-md-button svg{width:15px;height:15px;}
 .ts-writing .ts-writing-source-editor{flex:1 1 0;min-height:0;height:auto;}
 .ts-db-saved-views,.ts-db-condition,.ts-db-field-definition{display:flex;align-items:center;gap:8px;margin:10px 0;flex-wrap:wrap;}
-.ts-db-saved-views{padding:10px 12px;border:1px solid var(--background-modifier-border);border-radius:10px;background:var(--background-secondary);}
+.ts-db-saved-views{padding:10px 12px;border:1px solid var(--background-modifier-border);background:var(--background-secondary);}
 .ts-db-saved-views select{min-width:190px;flex:1;}
 .ts-db-custom-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
 .ts-db-condition{margin:0;padding:5px 8px;border-radius:8px;background:var(--background-secondary);font-size:12px;}

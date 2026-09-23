@@ -56,7 +56,7 @@ export function periodSpec(kind:'week'|'month'|'year',anchor:string){
 export function journalExcerpt(text:string):string {
   return stripInlineComments(text).replace(/(?:^## 待办与未完成\r?\n\s*)?```thoughtspace-tasks[^\n]*\n[\s\S]*?```\r?\n?/gm,'').replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/,'').replace(/^# \d{4}-\d{2}-\d{2}\r?\n/,'')
     .replace(/^#{1,6} .+$/gm,'').replace(/^\s*-\s*\[[ xX]\]\s*$/gm,'').replace(/<!--[\s\S]*?-->/g,'').replace(/!?\[\[([^|\]]+)(?:\|([^\]]+))?\]\]/g,(_match,path:string,label?:string)=>label||path.split('/').pop()!.replace(/\.md$/i,''))
-    .replace(/\[([^\]]+)\]\([^)]*\)/g,'$1').replace(/[#*`\[\]]/g,'').replace(/\s+/g,' ').trim().slice(0,140);
+    .replace(/\[([^\]]+)\]\([^)]*\)/g,'$1').replace(/[#*`[\]]/g,'').replace(/\s+/g,' ').trim().slice(0,140);
 }
 
 /** Month/year keyboard movement clamps the date instead of overflowing into March. */

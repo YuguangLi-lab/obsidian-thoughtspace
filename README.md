@@ -1,74 +1,72 @@
 # ThoughtSpace Whiteboard
 
-ThoughtSpace is a visual research and writing workspace for Obsidian. Organize linked Markdown notes, text, images, and PDFs on a whiteboard; connect ideas with mind maps and turn grouped material into a Markdown draft. It integrates with vault files, tags, properties, and native editing. The standalone calendar plugin is optional.
+[English](README.md) · [中文](README.zh-CN.md)
 
-**Desktop only · Obsidian 1.13.7 or newer.** Download `thoughtspace-<version>.zip` from [Releases](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/latest), extract the folder to `.obsidian/plugins/`, and enable **ThoughtSpace Whiteboard** in Community plugins. When upgrading, keep your existing `data.json`.
+A visual research and writing workspace for Obsidian. Arrange linked Markdown notes, text, images, and PDFs on a whiteboard, connect ideas with mind maps, and turn grouped material into a Markdown draft. Your notes remain files in your vault.
 
-## 中文说明
+**Desktop only · Obsidian 1.13.7 or newer.**
 
-为 Obsidian 开发的可视化研究与写作插件。在白板上组织 Markdown 笔记、文本、图片与 PDF，用连线和思维导图展开想法，再将材料整理成文章。
+## Features
 
-当前开发版本：**0.98.8**（已发布版本请以 Releases 为准）。桌面端插件，需要 Obsidian 1.13.7 或更新版本，最低版本按已有原生交互验收环境声明。
+- **Whiteboards:** pan, zoom, connect cards, name groups, nest boards, arrange layouts, and search content.
+- **Markdown cards:** insert existing notes, edit in place, use independent card titles, and resize or fold previews.
+- **Mind maps:** start with presets, add linked topics, navigate with the keyboard, and collapse or expand branches one level at a time.
+- **Reading:** display PDF pages, capture excerpts with source links, and organize evidence alongside your notes.
+- **Writing:** arrange cards and groups into an outline and export a Markdown draft while keeping references nearby.
+- **Obsidian integration:** use vault files, native tags, properties, bookmarks, search, and the Markdown editing toolbar. The calendar and journal integration requires the separate optional calendar plugin.
 
-## 主要功能
+## Install and update
 
-- 无限白板：平移缩放、连接端点、分组、子白板、整理布局、搜索和小地图。
-- 笔记卡片：引用已有 Markdown 文件、原位编辑、独立卡片标题、透明样式和正文自适应。
-- 思维导图：模板、自动布局、分支折叠、连续创建主题和键盘导航。
-- 阅读摘录：支持笔记与 PDF，摘录保留来源链接，可拖入白板整理。
-- 白板写作：组合卡片与分组，生成 Markdown 草稿，保留参考材料。
-- Obsidian 联动：文件、标签、属性、链接和编辑工具栏；日历与日记已拆为独立插件，可选安装。
+In Obsidian, open **Settings → Community plugins**, search for **ThoughtSpace Whiteboard**, then install and enable it. Use the community-plugin update checker for updates.
 
-## 安装
+For manual installation, download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/latest). Put all three files in `<your-vault>/.obsidian/plugins/thoughtspace/`, then enable the plugin. When updating, replace only these three files and keep your existing `data.json` and snapshots. Back up your vault before upgrading.
 
-1. 在本仓库的 [Releases](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/latest) 下载 `thoughtspace-<version>.zip`。
-2. 解压得到 `thoughtspace` 文件夹，将它放入仓库的 `.obsidian/plugins/` 目录。
-3. 在 Obsidian 设置 → 第三方插件中启用 **ThoughtSpace Whiteboard**。
+GitHub releases and the community directory update independently; check the version shown by each service. Release assets are limited to the three files installed by Obsidian. The source build can also generate an installation ZIP locally.
 
-也可以下载 Release 中的 `main.js`、`manifest.json` 和 `styles.css`，将这三个文件放到 `.obsidian/plugins/thoughtspace/`。
+## Whiteboard controls
 
-升级时替换这三个运行文件即可，保留已有 `data.json`。建议先备份自己的仓库。社区目录的版本同步与 GitHub Release 分开发生，请以各自页面显示的版本为准。
-
-## 白板鼠标操作
-
-- 空白处按住**左键拖动**：平移画布。
-- 空白处按住**右键拖动**：框选对象；按住 Shift 可累加选择。
-- **右键单击**：打开当前位置的菜单；拖动框选结束后不会额外弹出菜单。
-- 卡片上的左键拖动仍用于移动卡片；也可用工具栏的框选工具、空格加左键或中键完成选择和平移。
-
-## 思维导图快捷操作
-
-| 操作 | 效果 |
+| Gesture | Action |
 | --- | --- |
-| 点击主题边缘的加号 | 创建已连线的子主题并进入编辑 |
-| 从主题拖线到空白处 | 创建子主题并自动排版 |
-| Tab | 保存当前主题并添加子主题 |
-| Enter | 添加同级主题 |
-| Shift+Enter | 编辑时换行 |
-| 方向键 | 退出编辑后，切换同一主题树中的可见主题 |
-| Shift+Tab | 退出编辑后，返回父主题 |
-| F2 | 原位编辑选中的主题 |
-| Esc | 取消当前连线或编辑 |
+| Drag with the left button on empty space | Pan the board |
+| Drag with the right button on empty space | Select objects; hold Shift to add to the selection |
+| Right-click without dragging | Open the context menu beside the pointer |
+| Drag a card | Move it |
+| Drag the lower-right handle | Resize it |
+| Use the branch toggle beside a parent | Collapse children or expand the next level |
 
-普通白板中的文本不会被强制变为思维导图。导图中孤立的普通卡片保留方向键微调。
+The selection tool, Space + left-drag, and middle-button drag provide alternative controls. The branch toggle and resize handle have separate hit areas, including when zoomed out.
 
-## 图片与连线路径
+## Mind map controls
 
-图片和 PDF 卡片按原图或当前页面的实际比例适配尺寸，选中框与连线锚点贴合内容；拖动缩放保持比例。图片不显示文件名栏和装饰边框，PDF 展开时仅显示页面；悬停或键盘聚焦 PDF 时显示浮动翻页与折叠控件，触屏保持控件可见。
+| Key or action | Result |
+| --- | --- |
+| Click a topic's plus port | Create a linked child and start editing |
+| Drag a connection to empty space | Create and arrange a child topic |
+| Tab | Save the topic and add a child |
+| Enter | Add a sibling |
+| Shift + Enter | Insert a line break while editing |
+| Arrow keys outside editing | Navigate visible topics in the same tree |
+| Shift + Tab outside editing | Return to the parent |
+| F2 | Edit the selected topic |
+| Esc | Cancel the current connection or edit |
 
-侧边 **更多白板工具 → 连线统一为直线** 会修改当前白板全部连线，后续新建连线和导图分支也使用直线。选中一条连线后，顶部 **当前路径应用到全部连线** 可统一为曲线、直线或圆角折线。支持撤销，不改变颜色、箭头和连接关系；不改动其他白板。
+Ordinary whiteboard text is not automatically converted into mind-map topics.
 
-## 白板搜索、PDF 和逐层展开
+## Search and PDFs
 
-- **原生搜索**：默认自动生成 `ThoughtSpace/白板搜索/` 下的 Markdown 索引。保存后稍候即可用 Obsidian 搜索查找白板文字、卡片标题、分组名称和连线说明；打开搜索结果中的定位链接可返回节点。已有 Markdown 笔记的正文直接搜索原文件。PDF 目前索引文件名和页码，不做全文提取或 OCR。
-- 索引不包含位置变化，移动卡片不会重复写入相同内容。重命名或删除白板后自动整理对应索引；手工修改过的索引保留并提示。设置 → 界面与阅读可关闭自动更新；命令面板可运行“重建白板原生搜索索引”。
-- **PDF 卡片**：右上角箭头折叠/展开，保留页码和展开前尺寸。点击选中 PDF 卡片后，`PageUp` / `PageDown` 翻页，`Home` / `End` 跳到首页/末页。页面底部仍可点按翻页或输入页码。首次读取页数后才允许向后翻页，编辑输入框时不会拦截这些按键。
-- PDF 缩略图限制画布尺寸，并复用最多两个闲置文档、20 秒后清理；超过 32 MiB 的文件不保留文档缓存。折叠和离开画面会取消缩略图渲染。大文件的首次加载仍取决于文档复杂度。
-- **连线子节点**：父节点上的减号折叠分支，加号只展开下一层。右键父节点提供“展开下一层”和“展开所有子节点”；`Ctrl/Cmd+Shift+Enter` 切换折叠/逐层展开。普通连线可右键选择“允许折叠（设为父子分支）”；不允许循环或多个父节点。折叠只改变显示，保留节点、连线和笔记文件，支持撤销重做。
+Native search integration writes Markdown indexes to `ThoughtSpace/白板搜索/`. These indexes include board text, card titles, group names, and connection labels. Follow a result's location link to return to its board. Linked notes remain searchable through their original files. PDF indexing currently covers filenames and page numbers, not PDF full text or OCR. Index generation can be disabled in settings.
 
-## 开发
+Select a PDF card to use **PageUp / PageDown** or **Home / End**. Page navigation and folding are also available on the card. Rendering uses bounded thumbnail sizes, cancels work for folded or offscreen cards, and limits retained PDF documents. First load still depends on document size and complexity.
 
-需要 Node.js 22 和 npm。
+## Data access and compatibility
+
+ThoughtSpace reads vault files for search, linked cards, and optional integrations, and writes board files, edited notes, generated indexes, and settings. Copy commands write to the clipboard only when invoked. Remote images and the optional image-host integration can contact external services; the image-host option is off by default. See [data access and security](SECURITY.md) for details.
+
+In-place live preview uses an undocumented Obsidian editor interface. If it is unavailable, the plugin falls back to source editing. Test upgrades with your own themes and plugin combination. Automated tests and the directory scorecard are useful checks, not guarantees of compatibility or security.
+
+## Development
+
+Requires Node.js 22 and npm:
 
 ```sh
 npm ci
@@ -78,24 +76,10 @@ npm run build
 python3 scripts/package.py
 ```
 
-发布前运行官方 `eslint-plugin-obsidianmd` 规则；错误会阻止 CI，建议项保留为警告。社区目录会独立扫描并检查构建结果，本地检查不能替代官方审核。
+The build produces `main.js` and synchronizes the generated sections of `styles.css`. Packaging creates a ZIP and checksums in `dist/`; it does not include vault content, credentials, or local backups. Obsidian and CodeMirror are supplied by the host application.
 
-构建输出为 `main.js`，同时同步插件样式到 `styles.css`。打包脚本将当前版本的安装 ZIP、独立运行文件和校验清单写入 `dist/`。Obsidian 与 CodeMirror 由宿主提供，不打包另一份编辑器。
+See [CONTRIBUTING.md](CONTRIBUTING.md) for testing and release conventions. CI runs the official Obsidian lint rules, tests, and build. The release workflow builds the tagged source and generates GitHub artifact attestations for the runtime assets before publication.
 
-安装到自己的测试仓库：
+## License
 
-```sh
-node scripts/install.mjs "/absolute/path/to/your/vault"
-```
-
-安装脚本会备份目标仓库已有插件文件，并验证安装后的 SHA-256。
-
-## 验证与兼容性
-
-0.97.0 已通过 1142 项自动测试、34 项 Obsidian 运行时流程检查及 6 项真实鼠标/键盘检查。开发者本机的 5000 节点纯模块基准中，包含草稿历史的连续新增主题 p50 从 37.62 ms 降至 21.58 ms；这不代表包含渲染、保存和其他插件开销的端到端性能保证。
-
-卡片内嵌 Markdown 编辑使用 Obsidian 内部构造接口；不兼容时回退到源码编辑。建议在自己的主题和插件组合中验证。
-
-## 许可证
-
-[MIT](LICENSE)。第三方组件与许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+[MIT](LICENSE). Third-party components and licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

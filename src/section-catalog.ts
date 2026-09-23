@@ -13,6 +13,6 @@ export function selectSections(entries:readonly SectionEntry[],query='',sort:Sec
  });
 }
 export function sectionDirectory(entries:readonly SectionEntry[],link:(id:string)=>string){
- const escape=(s:string)=>s.replace(/[\r\n]+/g,' ').replace(/[\\\[\]*_`]/g,'\\$&');
+ const escape=(s:string)=>s.replace(/[\r\n]+/g,' ').replace(/[\\[\]*_`]/g,'\\$&');
  return entries.map(e=>`- [${escape(e.section.title||'未命名分组')}](${link(e.section.id)}) · ${e.members.length} 项内容`).join('\n')+'\n';
 }

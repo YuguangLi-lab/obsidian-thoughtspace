@@ -1,3 +1,4 @@
+import {isRecord,isOneOf} from './value-guards';
 import {Board,Card,clone,contained} from './model';
 export interface BoardPreferences {
  toolbarDensity:'compact'|'comfortable';wheelMode:'zoom'|'pan';zoomSpeed:number;gridStep:number;previewLimit:number;detailZoom:number;
@@ -5,10 +6,10 @@ export interface BoardPreferences {
  showCardTags:boolean;showPorts:boolean;showBoardHints:boolean;axisLock:boolean;alignmentGuides:boolean;aspectLock:boolean;nudgeStep:number;fastNudge:number;
 }
 export const defaultBoardPreferences:BoardPreferences={toolbarDensity:'compact',wheelMode:'zoom',zoomSpeed:1,gridStep:24,previewLimit:100,detailZoom:.45,defaultCardWidth:300,defaultTextSize:16,defaultEdgeStyle:'curve',defaultEdgeDirection:'forward',showCardTags:true,showPorts:true,showBoardHints:true,axisLock:true,alignmentGuides:true,aspectLock:true,nudgeStep:1,fastNudge:10};
-export function cleanBoardPreferences(input:Partial<BoardPreferences>):BoardPreferences{
- const out={...defaultBoardPreferences};for(const k of Object.keys(out) as (keyof BoardPreferences)[]){const v=input[k];if(typeof out[k]==='boolean'&&typeof v==='boolean')Object.assign(out,{[k]:v});}
- const ranges={zoomSpeed:[.3,2],gridStep:[8,64],previewLimit:[20,160],detailZoom:[.2,.9],defaultCardWidth:[220,520],defaultTextSize:[12,32],nudgeStep:[1,10],fastNudge:[10,100]};for(const[k,[min,max]]of Object.entries(ranges)){const v=input[k as keyof BoardPreferences];if(typeof v==='number'&&Number.isFinite(v))Object.assign(out,{[k]:Math.min(max,Math.max(min,v))});}
- for(const[k,values]of Object.entries({toolbarDensity:['compact','comfortable'],wheelMode:['zoom','pan'],defaultEdgeStyle:['curve','straight','elbow'],defaultEdgeDirection:['forward','both','none']})){const value=input[k as keyof BoardPreferences];if(values.includes(value as string))Object.assign(out,{[k]:value});}return out;
+export function cleanBoardPreferences(raw:unknown):BoardPreferences{
+ const input=isRecord(raw)?raw:{},out={...defaultBoardPreferences};for(const k of Object.keys(out) as (keyof BoardPreferences)[]){const v=input[k];if(typeof out[k]==='boolean'&&typeof v==='boolean')Object.assign(out,{[k]:v});}
+ const ranges={zoomSpeed:[.3,2],gridStep:[8,64],previewLimit:[20,160],detailZoom:[.2,.9],defaultCardWidth:[220,520],defaultTextSize:[12,32],nudgeStep:[1,10],fastNudge:[10,100]};for(const[k,[min,max]]of Object.entries(ranges)){const v=input[k];if(typeof v==='number'&&Number.isFinite(v))Object.assign(out,{[k]:Math.min(max,Math.max(min,v))});}
+ for(const[k,values]of Object.entries({toolbarDensity:['compact','comfortable'],wheelMode:['zoom','pan'],defaultEdgeStyle:['curve','straight','elbow'],defaultEdgeDirection:['forward','both','none']})){const value=input[k];if(isOneOf(value,values))Object.assign(out,{[k]:value});}return out;
 }
 export type ObjectFilter={kind:string;color:string;query:string};
 export function filterObjects(nodes:Card[],filter:ObjectFilter){const q=filter.query.toLocaleLowerCase().trim();return new Set(nodes.filter(n=>(!filter.kind||n.kind===filter.kind)&&(!filter.color||n.color===filter.color)&&(!q||`${n.file||''} ${n.title||''} ${n.text||''}`.toLocaleLowerCase().includes(q))).map(n=>n.id));}

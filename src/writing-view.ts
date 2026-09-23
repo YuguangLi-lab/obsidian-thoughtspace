@@ -2,7 +2,7 @@ import type {SessionUpdate} from './session-events';
 import {imageMarkdown,remoteImageUrl} from './image-host';
 import {Component,ItemView,MarkdownRenderer,Menu,Notice,TFile,WorkspaceLeaf,parseLinktext,setIcon} from 'obsidian';
 import {Board,Card,clone} from './model';
-import {WritingState,WritingOption,moveWriting,writingUnits,writingItems,writingOrder,writingParts,writingName,writingMarkdown,writingSignature,writingWordCount} from './writing';
+import {WritingState,WritingOption,moveWriting,writingItems,writingOrder,writingParts,writingName,writingMarkdown,writingSignature,writingWordCount} from './writing';
 import {rebaseFragment,excerptNoteMarkdown} from './materials';
 import {readCurrentNativeNote} from './native-note-state';
 import {writingFormatToolbar} from './writing-format-toolbar';
@@ -10,12 +10,12 @@ import {DraftInput,NativeMarkdownDraft} from './native-markdown-editor';
 import {themeSurface} from './ui-tokens';
 export const WRITING='thoughtspace-writing';
 interface WritingSession {board:Board;file:TFile;blocked:boolean;status?:string;listeners:Set<(kind:SessionUpdate)=>void>;change:(f:(b:Board)=>void,before?:Board,allowLocked?:boolean,recordHistory?:boolean)=>void;flush:()=>Promise<void>}
-export interface WritingHost {session:(file:TFile)=>Promise<WritingSession>;release:(session:any)=>Promise<void>;openBoard:(file:TFile)=>Promise<unknown>;createUnique:(folder:string,name:string,ext:string,text:string)=>Promise<TFile>;openNoteInSidebar:(file:TFile)=>Promise<WorkspaceLeaf>}
+export interface WritingHost<S extends WritingSession=WritingSession> {session:(file:TFile)=>Promise<S>;release:(session:S)=>Promise<void>;openBoard:(file:TFile)=>Promise<unknown>;createUnique:(folder:string,name:string,ext:string,text:string)=>Promise<TFile>;openNoteInSidebar:(file:TFile)=>Promise<WorkspaceLeaf>}
 const kinds:Record<string,string>={section:'分组',card:'笔记',image:'图片',text:'文本'};
 const icons:Record<string,string>={section:'folder-open',card:'file-text',image:'image',text:'type'};
-export class WritingView extends ItemView {
+export class WritingView<S extends WritingSession=WritingSession> extends ItemView {
  private file?:TFile;
- private owner?:WritingSession;
+ private owner?:S;
  private list!:HTMLElement;
  private outline!:HTMLElement;
  private reference!:HTMLElement;
@@ -58,12 +58,12 @@ export class WritingView extends ItemView {
  private history:WritingState[]=[];
  private future:WritingState[]=[];
  private pendingFields=new Map<string,()=>void>();
- private fieldTimer?:ReturnType<typeof setTimeout>;
+ private fieldTimer?:number;
  private changing=false;
  private flushing=false;
  private lastSignature='';
  private previewSignature='';
- constructor(leaf:WorkspaceLeaf,private host:WritingHost){super(leaf);}
+ constructor(leaf:WorkspaceLeaf,private host:WritingHost<S>){super(leaf);}
  getViewType(){return WRITING;}
  getDisplayText(){return (this.file?.basename||'白板')+' · 写作';}
  getIcon(){return 'notebook-pen';}
@@ -325,13 +325,13 @@ export class WritingView extends ItemView {
    if(raw.length>60000)reading.createEl('small',{text:'预览前 60,000 字符；打开原文查看完整材料。'});
   }catch(e){if(run===this.revision)reading.createEl('p',{text:'无法读取参考材料：'+String(e)});}
  }
- private queueField(key:string,fn:()=>void){this.pendingFields.set(key,fn);if(this.fieldTimer)clearTimeout(this.fieldTimer);this.fieldTimer=setTimeout(()=>{try{this.flushFields();}catch(e){new Notice(String(e));}},250);}
- private flushFields(){if(this.flushing||!this.pendingFields.size)return;if(this.fieldTimer)clearTimeout(this.fieldTimer);this.fieldTimer=undefined;const pending=[...this.pendingFields.values()];this.flushing=true;try{for(const fn of pending)fn();this.pendingFields.clear();}finally{this.flushing=false;}}
+ private queueField(key:string,fn:()=>void){this.pendingFields.set(key,fn);if(this.fieldTimer)this.containerEl.win.clearTimeout(this.fieldTimer);this.fieldTimer=this.containerEl.win.setTimeout(()=>{try{this.flushFields();}catch(e){new Notice(String(e));}},250);}
+ private flushFields(){if(this.flushing||!this.pendingFields.size)return;if(this.fieldTimer)this.containerEl.win.clearTimeout(this.fieldTimer);this.fieldTimer=undefined;const pending=[...this.pendingFields.values()];this.flushing=true;try{for(const fn of pending)fn();this.pendingFields.clear();}finally{this.flushing=false;}}
  private commitFields(){this.flushFields();const active=this.contentEl.ownerDocument.activeElement;if(active instanceof HTMLElement&&this.contentEl.contains(active))active.blur();const title=this.titleInput.value.trim()||this.file!.basename;if(this.state().title!==title)this.update(s=>s.title=title);}
  private disposeEditors(){this.manuscriptRun++;this.manuscriptToolbar?.();this.manuscriptToolbar=undefined;this.entryToolbars.forEach(dispose=>dispose());this.entryToolbars=[];this.manuscriptNative?.dispose();this.manuscriptNative=undefined;this.manuscriptInput=undefined;this.entryEditors.forEach(editor=>editor.dispose());this.entryEditors=[];}
  private markdownInput(parent:HTMLElement,value:string,whole:boolean):DraftInput{
   try{const native=new NativeMarkdownDraft(this.app,parent,value,this.file);native.host.querySelector('.cm-content')?.setAttribute('aria-label',whole?'文章 Markdown 正文':'章节 Markdown 正文');if(whole)this.manuscriptNative=native;else this.entryEditors.push(native);for(const type of ['dragstart','keydown','paste'])parent.addEventListener(type,e=>e.stopPropagation());this.attachFormatToolbar(parent,native,native,whole);return native;}
-  catch(e){parent.createDiv({cls:'ts-writing-small-empty',text:'实时预览暂不可用，已切换为 Markdown 源码编辑。'});const input=parent.createEl('textarea',{value,cls:'ts-writing-source-editor',attr:{'aria-label':'Markdown 源码'}});this.attachFormatToolbar(parent,input,undefined,whole);return input;}
+  catch{parent.createDiv({cls:'ts-writing-small-empty',text:'实时预览暂不可用，已切换为 Markdown 源码编辑。'});const input=parent.createEl('textarea',{value,cls:'ts-writing-source-editor',attr:{'aria-label':'Markdown 源码'}});this.attachFormatToolbar(parent,input,undefined,whole);return input;}
  }
  private attachFormatToolbar(parent:HTMLElement,input:DraftInput,native:NativeMarkdownDraft|undefined,whole:boolean){const dispose=writingFormatToolbar(parent,input,native,()=>!this.owner||this.owner.blocked,message=>new Notice(message));if(whole){this.manuscriptToolbar?.();this.manuscriptToolbar=dispose;}else this.entryToolbars.push(dispose);}
  private articleSignature(){return this.state().manuscript!==undefined?'manuscript:'+this.state().manuscript:writingSignature(this.ensure().board);}
@@ -427,7 +427,7 @@ export class WritingView extends ItemView {
   catch(error){const values=[this.manuscriptInput?.value,...this.entryInputs.map(input=>input.value)].filter((value):value is string=>value!==undefined);if(values.length)recovery={text:values.join('\n\n---\n\n'),name:(this.file?.basename||'文章')+'-未保存正文'};else new Notice(String(error));}
   // Detach synchronously: saving/recovery can take time or fail after the view has closed.
   const owner=this.owner;this.owner=undefined;
-  this.pendingFields.clear();if(this.fieldTimer)clearTimeout(this.fieldTimer);this.fieldTimer=undefined;
+  this.pendingFields.clear();if(this.fieldTimer)this.containerEl.win.clearTimeout(this.fieldTimer);this.fieldTimer=undefined;
   this.disposeEditors();this.stop?.();this.stop=undefined;this.preview?.unload();this.preview=undefined;this.article?.unload();this.article=undefined;
   this.contentEl.empty();this.contentEl.removeAttribute('aria-busy');
   try{if(recovery){try{const file=await this.host.createUnique('ThoughtSpace/草稿',recovery.name,'md',recovery.text);new Notice('当前正文已另存：'+file.path);}catch(error){new Notice('正文保存失败：'+String(error));}}}

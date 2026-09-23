@@ -5,12 +5,12 @@ import {themeSurface} from './ui-tokens';
 export interface BoardSearchHost{title:string;board:()=>Board;locate:(id:string)=>Promise<void>;open:(id:string)=>Promise<void>;link:(id:string)=>string;}
 export class BoardSearchModal extends Modal{
  private entries:BoardSearchEntry[]=[];private input!:HTMLInputElement;private kind!:HTMLSelectElement;private group!:HTMLSelectElement;private color!:HTMLSelectElement;private list!:HTMLElement;private status!:HTMLElement;private indexStatus!:HTMLElement;
- private bodies=new Map<string,string>();private generation=0;private closed=false;private active=0;private limit=40;private timer?:ReturnType<typeof setTimeout>;private full=false;private busy=false;
+ private bodies=new Map<string,string>();private generation=0;private closed=false;private active=0;private limit=40;private timer?:number;private full=false;private busy=false;
  constructor(app:App,private host:BoardSearchHost){super(app);}
  private run(action:()=>unknown){try{Promise.resolve(action()).catch(e=>new Notice(String(e)));}catch(e){new Notice(String(e));}}
  private button(el:HTMLElement,label:string,icon:string,run:()=>unknown){const b=el.createEl('button',{attr:{'aria-label':label,title:label}});setIcon(b,icon);b.onclick=()=>this.run(run);return b;}
  onOpen(){themeSurface(this.modalEl);this.modalEl.addClass('ts-board-search');this.titleEl.setText('搜索白板');this.titleEl.createEl('small',{text:this.host.title});
-  const bar=this.contentEl.createDiv('ts-board-search-bar');setIcon(bar.createSpan(),'search');this.input=bar.createEl('input',{type:'search',attr:{placeholder:'标题、文本、#标签、分组或文件路径…','aria-label':'搜索白板内容'}});this.input.oninput=()=>{this.active=0;this.limit=40;clearTimeout(this.timer);this.timer=setTimeout(()=>this.reset(),90);};this.input.onkeydown=e=>{if(e.isComposing)return;if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();clearTimeout(this.timer);this.active=Math.max(0,Math.min(this.filtered().length-1,this.active+(e.key==='ArrowDown'?1:-1)));this.limit=Math.max(this.limit,this.active+1);this.render();this.list.querySelector('.is-active')?.scrollIntoView({block:'nearest'});}else if(e.key==='Enter'){e.preventDefault();const entry=this.filtered()[this.active];if(entry)this.run(()=>this.locate(entry.id));}};
+  const bar=this.contentEl.createDiv('ts-board-search-bar');setIcon(bar.createSpan(),'search');this.input=bar.createEl('input',{type:'search',attr:{placeholder:'标题、文本、#标签、分组或文件路径…','aria-label':'搜索白板内容'}});this.input.oninput=()=>{this.active=0;this.limit=40;this.contentEl.win.clearTimeout(this.timer);this.timer=this.contentEl.win.setTimeout(()=>this.reset(),90);};this.input.onkeydown=e=>{if(e.isComposing)return;if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();this.contentEl.win.clearTimeout(this.timer);this.active=Math.max(0,Math.min(this.filtered().length-1,this.active+(e.key==='ArrowDown'?1:-1)));this.limit=Math.max(this.limit,this.active+1);this.render();this.list.querySelector('.is-active')?.scrollIntoView({block:'nearest'});}else if(e.key==='Enter'){e.preventDefault();const entry=this.filtered()[this.active];if(entry)this.run(()=>this.locate(entry.id));}};
   this.button(bar,'刷新搜索索引','refresh-cw',()=>this.refresh());
   const filters=this.contentEl.createDiv('ts-board-search-filters');const select=(label:string,options:Record<string,string>)=>{const s=filters.createEl('select',{attr:{'aria-label':label}});for(const [value,text]of Object.entries(options))s.createEl('option',{value,text});s.onchange=()=>this.reset();return s;};
   this.kind=select('对象类型',{'':'全部类型',...searchKinds});this.group=select('所属分组',{'':'全部分组',':none':'未分组'});this.color=select('对象颜色',{'':'全部颜色',...Object.fromEntries(colors.map(c=>[c,colorNames[c]]))});
@@ -26,7 +26,7 @@ export class BoardSearchModal extends Modal{
   const paths=[...new Set(this.entries.filter(e=>e.kind==='card').map(e=>e.path).filter(Boolean))];let used=0,skipped=0,read=0;
   for(let i=0;i<paths.length;i++){if(this.closed||generation!==this.generation)return;const path=paths[i],file=this.app.vault.getAbstractFileByPath(path);if(!(file instanceof TFile)||file.extension!=='md'||file.stat.size>2000000||used+file.stat.size>20000000){skipped++;continue;}
    used+=file.stat.size;try{const raw=await this.app.vault.cachedRead(file);if(this.closed||generation!==this.generation)return;if(file.path!==path||raw.length>2000000){skipped++;continue;}this.bodies.set(path,raw);read++;}catch{skipped++;}
-   if(i%20===0){this.indexStatus.setText(`正在索引正文 · ${i+1} / ${paths.length}`);await new Promise(resolve=>setTimeout(resolve,0));}
+   if(i%20===0){this.indexStatus.setText(`正在索引正文 · ${i+1} / ${paths.length}`);await new Promise(resolve=>this.contentEl.win.setTimeout(resolve,0));}
   }
   if(this.closed||generation!==this.generation)return;this.rebuild();this.reset();this.indexStatus.setText(`已索引 ${read} 篇正文${skipped?` · ${skipped} 篇未读取（失效或超限）`:''} · 单篇 2 MB / 总计 20 MB 上限；修改原文后可刷新`);
  }
@@ -41,5 +41,5 @@ export class BoardSearchModal extends Modal{
   }
   if(entries.length>this.limit){const more=this.button(this.list,'显示更多结果','chevron-down',()=>{this.limit+=40;this.render();});more.addClass('ts-board-search-more');more.appendText(` 再显示 40 项 · 剩余 ${entries.length-this.limit}`);}
  }
- onClose(){this.closed=true;this.generation++;clearTimeout(this.timer);this.entries=[];this.bodies.clear();this.contentEl.empty();}
+ onClose(){this.closed=true;this.generation++;this.contentEl.win.clearTimeout(this.timer);this.entries=[];this.bodies.clear();this.contentEl.empty();}
 }

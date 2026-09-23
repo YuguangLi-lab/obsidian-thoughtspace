@@ -1,7 +1,6 @@
 import {remoteImageUrl} from './image-host';
 import {App,Component,MarkdownRenderer,Modal,Notice,TFile,setIcon} from 'obsidian';
 import {Board,Card} from './model';
-import {nodeName} from './board-studio';
 import {AppearanceSettings} from './workspace';
 import {ReadingOptions,readingTitle,readingItems,readingProgress,readingDigest,markReading,reviewLabels,ReviewState,readingRelations,readingWindow} from './reading-desk';
 import {themeSurface} from './ui-tokens';

@@ -12,7 +12,7 @@ version = manifest['version']
 assert version == json.loads((root / 'package.json').read_text())['version']
 assert '/' not in version and '\\' not in version
 runtime = ['main.js', 'manifest.json', 'styles.css']
-files = runtime + ['README.md', 'CHANGELOG.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md']
+files = runtime + ['README.md', 'README.zh-CN.md', 'SECURITY.md', 'CONTRIBUTING.md', 'CHANGELOG.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md']
 for name in files:
     assert (root / name).is_file(), f'Missing {name}; run npm run build first'
 dist.mkdir(exist_ok=True)

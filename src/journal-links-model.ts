@@ -12,11 +12,11 @@ export function createdNoteDay(file:{path:string;stat:{ctime:number}},journalRoo
 export function createdNoteLink(path:string):string {
   const name=path.split('/').pop()!.replace(/\.md$/i,'');
   // Obsidian's wikilink delimiters cannot represent these legal filename characters.
-  if(/[\[\]#^|\r\n]/.test(path))return `[${name.replace(/[\\\[\]]/g,'\\$&')}](${encodeURI(path).replace(/[()#^|\[\]]/g,c=>'%'+c.charCodeAt(0).toString(16))})`;
+  if(/[[\]#^|\r\n]/.test(path))return `[${name.replace(/[\\[\]]/g,'\\$&')}](${encodeURI(path).replace(/[()#^|[\]]/g,c=>'%'+c.charCodeAt(0).toString(16))})`;
   return `[[${path}|${name}]]`;
 }
 /** Export existing paths safely while retaining compact wikilinks for ordinary names. */
-export function fileReference(path:string){return /[\[\]#^|\r\n]/.test(path)?createdNoteLink(path):`[[${path}]]`;}
+export function fileReference(path:string){return /[[\]#^|\r\n]/.test(path)?createdNoteLink(path):`[[${path}]]`;}
 /** Only the explicitly managed block changes. Everything outside it is byte-preserved. */
 export function syncCreatedNotes(text:string,paths:string[]):string {
   const starts:number[]=[],ends:number[]=[],literals=inlineCodeRanges(text);let offset=0,literal=0;

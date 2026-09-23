@@ -1,5 +1,5 @@
 /* The editor occupies the existing node; its compact action bar floats above it. */
-.ts-root .ts-node.is-inline-editing {overflow:visible!important;z-index:45!important;outline:2px solid var(--ts-accent);outline-offset:2px;}
+.ts-root .ts-node.is-inline-editing {overflow:visible!important;z-index:45!important;outline:2px solid var(--ts-accent);}
 .ts-root .ts-node.is-inline-editing > :is(.ts-text-body,.ts-card-preview) {visibility:hidden;}
 .ts-root .ts-node.is-inline-editing > :is(.ts-resize,.ts-connect-port) {display:none;}
 .ts-root .ts-inline-editor {position:absolute;inset:0;pointer-events:none;border-radius:inherit;background:transparent;color:inherit;}
@@ -8,13 +8,13 @@
 .ts-root .ts-inline-measure {position:absolute;left:-100000px;top:0;visibility:hidden;pointer-events:none;}
 .ts-root .ts-inline-editor :is(button,.ts-inline-editor-bar,.ts-inline-editor-status) {pointer-events:auto;}
 .ts-root .ts-inline-input::placeholder {color:var(--text-faint);font-size:14px;}
-.ts-root .ts-inline-editor-bar {position:absolute;bottom:calc(100% + 9px);left:0;display:flex;align-items:center;gap:3px;width:max-content;max-width:520px;padding:4px 5px 4px 9px;border:1px solid var(--background-modifier-border);border-radius:9px;background:var(--background-primary);box-shadow:0 3px 12px #00000012;white-space:nowrap;}
-.ts-root .ts-inline-editor-label {font:11px var(--font-interface);color:var(--text-muted);padding-right:7px;}
+.ts-root .ts-inline-editor-bar {position:absolute;bottom:calc(100% + 9px);left:0;display:flex;align-items:center;width:max-content;border:1px solid var(--background-modifier-border);white-space:nowrap;}
+.ts-root .ts-inline-editor-label {font:11px var(--font-interface);color:var(--text-muted);}
 .ts-root .ts-inline-editor-bar button {display:flex;align-items:center;justify-content:center;width:26px;height:26px;min-height:26px;padding:5px;border:0;border-radius:6px;background:transparent;box-shadow:none;color:var(--text-muted);}
 .ts-root .ts-inline-editor-bar button:first-of-type {background:var(--ts-soft);color:var(--ts-accent);}
 .ts-root .ts-inline-editor-bar button:hover {background:var(--background-modifier-hover);color:var(--text-normal);}
 .ts-root .ts-inline-editor-bar button svg {width:15px;height:15px;}
-.ts-root .ts-inline-editor-status {position:absolute;top:calc(100% + 8px);left:0;min-width:180px;max-width:400px;width:max-content;padding:5px 8px;border-radius:6px;background:var(--background-primary);box-shadow:0 2px 7px #0000000a;font:11px/1.6 var(--font-interface);color:var(--text-muted);white-space:pre-line;overflow-wrap:anywhere;}
+.ts-root .ts-inline-editor-status {position:absolute;top:calc(100% + 8px);left:0;min-width:180px;width:max-content;background:var(--background-primary);box-shadow:0 2px 7px #0000000a;font:11px/1.6 var(--font-interface);color:var(--text-muted);white-space:pre-line;overflow-wrap:anywhere;}
 .ts-root .ts-inline-editor-status:empty {display:none;}
 .ts-root .ts-inline-editor.has-error .ts-inline-editor-status {color:var(--text-normal);border:1px solid color-mix(in srgb,var(--text-error) 30%,transparent);}
 .ts-root .ts-inline-input[readonly] {cursor:progress;}
@@ -25,12 +25,12 @@
 .ts-root .ts-card-preview > :last-child {margin-bottom:0;}
 
 /* Editing Toolbar-inspired single row: clear groups, restrained chrome, compact icons. */
-:is(.ts-root,.ts-note-markdown-toolbar) .ts-markdown-tools {display:flex;align-items:center;flex:0 0 auto;gap:0;white-space:nowrap;}
+:is(.ts-root,.ts-note-markdown-toolbar) .ts-markdown-tools {display:flex;align-items:center;flex:0 0 auto;white-space:nowrap;}
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-md-group {display:flex;align-items:center;gap:1px;flex:0 0 auto;padding:0 5px;}
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-md-group + .ts-md-group {border-left:1px solid var(--background-modifier-border);}
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-md-group:first-child {padding-left:2px;}
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-md-group:last-child {padding-right:2px;}
-:is(.ts-root,.ts-note-markdown-toolbar) .ts-markdown-tools .ts-md-button {display:flex;align-items:center;justify-content:center;flex:0 0 27px;width:27px;min-width:27px;height:28px;min-height:28px;padding:5px;border:0;border-radius:5px;background:transparent;box-shadow:none;color:var(--text-muted);font:600 13px var(--font-interface);transition:background-color .12s,color .12s;}
+:is(.ts-root,.ts-note-markdown-toolbar) .ts-markdown-tools .ts-md-button {display:flex;align-items:center;justify-content:center;flex:0 0 27px;width:27px;min-width:27px;height:28px;min-height:28px;padding:5px;border:0;background:transparent;box-shadow:none;font:600 13px var(--font-interface);transition:background-color .12s,color .12s;}
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-markdown-tools .ts-md-button:hover,:is(.ts-root,.ts-note-markdown-toolbar) .ts-md-color:hover {background:var(--background-modifier-hover);color:var(--text-normal);}
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-markdown-tools .ts-md-button.is-active {background:var(--ts-soft);color:var(--ts-accent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ts-accent) 15%,transparent);}
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-markdown-tools .ts-md-button svg {width:16px;height:16px;stroke-width:1.8;}
@@ -48,10 +48,9 @@
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-md-color svg {width:16px;height:16px;}
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-md-color::after {position:absolute;content:'';height:3px;left:6px;right:6px;bottom:3px;border-radius:1px;background:var(--ts-md-color);pointer-events:none;}
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-md-color input[type=color] {position:absolute;inset:0;opacity:0;width:100%;height:100%;padding:0;border:0;cursor:pointer;}
-:is(.ts-root,.ts-note-markdown-toolbar) .ts-md-color.is-disabled {opacity:.38;cursor:default;}
+:is(.ts-root,.ts-note-markdown-toolbar) .ts-md-color.is-disabled {cursor:default;}
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-markdown-tools .ts-md-done {background:var(--ts-soft);color:var(--ts-accent);}
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-selection-tools > .ts-md-mode {flex:0 0 auto;height:28px;min-height:28px;padding:4px 8px!important;font-size:12px;border:0!important;box-shadow:none!important;background:var(--background-secondary)!important;color:var(--text-muted);}
-@media(prefers-reduced-motion:reduce){:is(.ts-root,.ts-note-markdown-toolbar) .ts-markdown-tools .ts-md-button {transition:none;}}
 @container(max-width:850px){
  :is(.ts-root,.ts-note-markdown-toolbar) .ts-md-group {gap:0;padding-inline:3px;}
  :is(.ts-root,.ts-note-markdown-toolbar) .ts-markdown-tools .ts-md-button {width:24px;min-width:24px;flex-basis:24px;padding:4px;}
@@ -84,39 +83,33 @@
 
 /* Ordinary Markdown notes share the same compact controls and native theme. */
 .ts-note-with-toolbar {display:flex!important;flex-direction:column;}
-.ts-note-markdown-toolbar {display:flex;align-items:center;flex:0 0 auto;min-height:39px;max-width:100%;padding:5px 8px;overflow-x:auto;overflow-y:hidden;border-bottom:1px solid var(--background-modifier-border);background:var(--background-primary);color:var(--text-normal);--ts-soft:var(--background-modifier-hover);--ts-accent:var(--interactive-accent);scrollbar-width:thin;}
+.ts-note-markdown-toolbar {display:flex;align-items:center;flex:0 0 auto;max-width:100%;overflow-x:auto;overflow-y:hidden;border-bottom:1px solid var(--background-modifier-border);color:var(--text-normal);--ts-soft:var(--background-modifier-hover);--ts-accent:var(--interactive-accent);scrollbar-width:thin;}
 .ts-note-markdown-toolbar[hidden] {display:none;}
 .ts-note-with-toolbar > .markdown-source-view {flex:1 1 0;min-height:0;height:auto;}
-.ts-note-markdown-toolbar .ts-md-group {padding-inline:3px;}
 
 /* Calm, theme-native editing chrome shared by the whiteboard and regular notes. */
-:is(.ts-root,.ts-note-markdown-toolbar) .ts-markdown-tools .ts-md-button {color:var(--text-normal);opacity:.8;border-radius:6px;}
+:is(.ts-root,.ts-note-markdown-toolbar) .ts-markdown-tools .ts-md-button {color:var(--text-normal);opacity:.8;}
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-markdown-tools .ts-md-button:is(:hover,:focus-visible,.is-active) {opacity:1;}
-:is(.ts-root,.ts-note-markdown-toolbar) .ts-markdown-tools .ts-md-button:active:not(:disabled) {background:var(--ts-soft);}
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-markdown-tools .ts-md-button:disabled {opacity:.3;cursor:default;}
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-md-group + .ts-md-group {border-left-color:color-mix(in srgb,var(--text-muted) 16%,transparent);}
-.ts-note-markdown-toolbar {padding:6px 10px;min-height:41px;gap:4px;background:linear-gradient(180deg,var(--background-primary),color-mix(in srgb,var(--background-secondary) 35%,var(--background-primary)));scrollbar-color:var(--background-modifier-border-hover) transparent;}
+.ts-note-markdown-toolbar {padding:6px 10px;min-height:41px;gap:4px;scrollbar-color:var(--background-modifier-border-hover) transparent;}
 .ts-note-markdown-toolbar .ts-md-group {padding-inline:5px;}
 .ts-note-markdown-toolbar .ts-md-button.is-active {background:color-mix(in srgb,var(--interactive-accent) 12%,var(--background-primary));}
-.ts-root .ts-inline-editor-bar {padding:5px 6px 5px 10px;border-radius:10px;box-shadow:0 2px 4px #00000006,0 8px 24px #0000000c;}
-.ts-root .ts-inline-editor-label {letter-spacing:.02em;}
 .ts-root .ts-inline-editor-status {padding:7px 10px;border-radius:8px;max-width:min(400px,80vw);}
 
 /* Editing feedback stays compact and outside the text, including save conflicts. */
-.ts-root .ts-inline-editor-badge {display:inline-flex;align-items:center;gap:5px;padding:3px 6px;margin-right:4px;border-radius:5px;background:var(--background-secondary);color:var(--text-muted);font:10px/1.3 var(--font-interface);white-space:nowrap;}
+.ts-root .ts-inline-editor-badge {display:inline-flex;align-items:center;padding:3px 6px;margin-right:4px;font:10px/1.3 var(--font-interface);white-space:nowrap;}
 .ts-root .ts-inline-editor-badge::before {content:'';width:4px;height:4px;border-radius:50%;background:var(--ts-accent);opacity:.65;}
 .ts-root .ts-inline-editor[data-state=saving] .ts-inline-editor-badge {color:var(--ts-accent);background:var(--ts-soft);}
 .ts-root .ts-inline-editor[data-state=composing] .ts-inline-editor-badge::before {background:var(--text-muted);}
 .ts-root .ts-inline-editor[data-state=error] .ts-inline-editor-badge {color:var(--text-error);background:color-mix(in srgb,var(--text-error) 8%,var(--background-primary));}
 .ts-root .ts-inline-editor[data-state=error] .ts-inline-editor-badge::before {background:var(--text-error);}
 .ts-root .ts-inline-editor-bar button:disabled {opacity:.35;cursor:wait;}
-.ts-root .ts-inline-editor-bar button:focus-visible {outline:2px solid var(--ts-accent);outline-offset:1px;}
-.ts-root .ts-inline-editor.has-error .ts-inline-editor-status {border-left:3px solid var(--text-error);box-shadow:0 3px 12px #00000012;line-height:1.7;background:color-mix(in srgb,var(--text-error) 3%,var(--background-primary));}
+.ts-root .ts-inline-editor.has-error .ts-inline-editor-status {border-left:3px solid var(--text-error);line-height:1.7;background:color-mix(in srgb,var(--text-error) 3%,var(--background-primary));}
 
 /* Focus guides are local to the active group; routine saves need no extra panel. */
-:is(.ts-root,.ts-note-markdown-toolbar) .ts-md-group {border-radius:5px;}
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-md-group:focus-within {background:color-mix(in srgb,var(--ts-accent) 4%,transparent);}
-.ts-root .ts-inline-editor-bar {max-width:min(520px,calc(100vw - 32px));gap:4px;}
+.ts-root .ts-inline-editor-bar {max-width:min(520px,calc(100vw - 32px));}
 .ts-root .ts-inline-editor-label {min-width:0;max-width:160px;overflow:hidden;text-overflow:ellipsis;}
 .ts-root .ts-inline-editor-bar button,.ts-root .ts-inline-editor-badge {flex-shrink:0;}
 .ts-root .ts-inline-editor[data-state=saving] .ts-inline-editor-badge {box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ts-accent) 12%,transparent);}
@@ -127,17 +120,13 @@
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-md-color.is-disabled {opacity:.35;}
 
 /* Appearance controls remain compact, with a local focus cue and a clear mode switch. */
-.ts-root .ts-commandbar .ts-format-field {border-radius:7px;padding:2px 3px;}
 .ts-root .ts-commandbar .ts-format-field:focus-within {background:var(--ts-soft);color:var(--ts-accent);}
-.ts-root .ts-commandbar .ts-format-field select:focus-visible {outline:2px solid color-mix(in srgb,var(--ts-accent) 45%,transparent);outline-offset:1px;}
 .ts-root .ts-selection-tools > .ts-md-mode[aria-pressed="true"] {color:var(--ts-accent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ts-accent) 20%,transparent)!important;}
 
 /* A small content-type label leaves more space around the active draft. */
 .ts-root .ts-inline-editor-label {display:inline-flex;align-items:center;gap:5px;padding-right:3px;letter-spacing:0;}
 .ts-root .ts-inline-editor-kind {display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:5px;color:var(--text-faint);flex:0 0 auto;}
 .ts-root .ts-inline-editor-kind svg {width:13px;height:13px;}
-.ts-root .ts-inline-editor-bar {gap:3px;padding:4px 5px 4px 8px;}
-.ts-root .ts-inline-editor-badge {font-variant-numeric:tabular-nums;}
 
 /* Recovery is visible but quiet; copy remains available while the draft is protected. */
 .ts-root .ts-inline-editor[data-state="recovering"] .ts-inline-editor-badge {color:var(--ts-accent);background:var(--ts-soft);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ts-accent) 15%,transparent);}
@@ -183,7 +172,6 @@
 .ts-root .ts-inline-editor[data-state="multiselect"] .ts-inline-editor-badge::before {width:2px;height:9px;border-radius:1px;background:currentColor;box-shadow:4px 0 0 currentColor;margin-inline-end:4px;opacity:.75;}
 
 /* Native-note tools use short dividers and a subtle surface, with no extra editor row. */
-.ts-note-markdown-toolbar {background:linear-gradient(180deg,color-mix(in srgb,var(--background-secondary) 32%,var(--background-primary)),var(--background-primary));}
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-md-group + .ts-md-group {position:relative;border-inline-start:0;}
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-md-group + .ts-md-group::before {content:'';position:absolute;inset-inline-start:0;top:8px;bottom:8px;width:1px;background:var(--background-modifier-border);pointer-events:none;}
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-markdown-tools .ts-md-button {border-radius:6px;}
@@ -200,7 +188,6 @@
 .ts-root .ts-inline-editor.has-text-selection[data-state="editing"] .ts-inline-editor-bar {border-color:color-mix(in srgb,var(--ts-accent) 28%,var(--background-modifier-border));}
 
 /* A restrained shared editing surface: fixed geometry, clear groups, no layout motion. */
-.ts-root .ts-inline-editor-bar {background:linear-gradient(180deg,color-mix(in srgb,var(--background-secondary) 24%,var(--background-primary)),var(--background-primary));box-shadow:0 1px 2px #00000008,0 4px 14px #0000000e;}
 .ts-root .ts-inline-editor-bar .ts-inline-editor-label {font-weight:500;}
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-md-group:focus-within::before {background:color-mix(in srgb,var(--ts-accent) 30%,var(--background-modifier-border));}
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-markdown-tools .ts-md-button:active:not(:disabled) {background:color-mix(in srgb,var(--ts-accent) 16%,var(--background-primary));color:var(--ts-accent);}
@@ -216,7 +203,7 @@
 .ts-root .ts-inline-editor.has-error .ts-inline-editor-status {padding:8px 11px;border-radius:8px;box-shadow:0 1px 2px #00000008,0 4px 14px #0000000e;}
 
 /* Transparent cards expose the board while keeping readable text, borders and controls. */
-.ts-root .ts-card.is-transparent {background:transparent!important;box-shadow:none!important;backdrop-filter:none!important;}
+.ts-root .ts-card.is-transparent {background:transparent!important;backdrop-filter:none!important;}
 .ts-root .ts-card.is-transparent > :is(.ts-node-header,.ts-card-preview,.ts-card-meta) {background:transparent!important;}
 .ts-root .ts-card.is-transparent .ts-inline-native :is(.markdown-source-view,.cm-editor,.cm-scroller,.cm-content) {background:transparent;}
 
@@ -249,8 +236,7 @@
 .ts-root .ts-preview-error .ts-icon-button {display:inline-flex;align-items:center;gap:5px;flex-shrink:0;padding:4px 7px;min-height:26px;border:0;border-radius:6px;background:var(--background-secondary);box-shadow:none;color:var(--text-normal);}
 .ts-root .ts-preview-error .ts-icon-button:hover {background:var(--background-modifier-hover);color:var(--ts-accent);}
 .ts-root .ts-preview-error .ts-icon-button:focus-visible {outline:2px solid var(--ts-accent);outline-offset:2px;}
-.ts-root .ts-card-meta .ts-tag {font-variant-numeric:tabular-nums;text-decoration:none;}
-.ts-root .ts-card-meta .ts-tag:hover {background:var(--background-modifier-hover);color:var(--text-normal);}
+.ts-root .ts-card-meta .ts-tag {font-variant-numeric:tabular-nums;}
 .ts-root .ts-card-meta .ts-tag:focus-visible {outline:2px solid var(--ts-accent);outline-offset:2px;border-radius:5px;}
 
 /* Folded notes reserve a quiet trailing action area without a colored title strip. */
@@ -259,5 +245,3 @@
 .ts-root .ts-node.ts-card.is-folded > .ts-card-actions {top:50%;transform:translateY(-50%);right:7px;}
 .ts-root .ts-node.ts-card > .ts-card-actions .ts-icon-button:disabled {opacity:.3;cursor:default;}
 .ts-root .ts-node.ts-card > .ts-card-actions .ts-icon-button:focus-visible {outline:2px solid var(--ts-accent);outline-offset:1px;}
-.ts-root .ts-node.ts-card > .ts-card-actions .ts-icon-button:hover:not(:disabled) {background:var(--background-modifier-hover);color:var(--text-normal);}
-@media (prefers-reduced-motion:reduce){.ts-root .ts-node.ts-card .ts-card-actions {transition:none;}}

@@ -1,4 +1,4 @@
-import {App,Modal,Notice,setIcon} from 'obsidian';
+import {App,Modal,setIcon} from 'obsidian';
 import {Board,Card,cardFillHex,emptyBoard} from './model';
 import {ReuseBundle,ReuseOptions,reusePlan,reuseBounds} from './board-reuse';
 import {themeSurface} from './ui-tokens';

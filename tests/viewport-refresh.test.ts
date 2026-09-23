@@ -4,8 +4,9 @@ const method=(a:string,b:string)=>source.slice(source.indexOf(a),source.indexOf(
 function fixture(){
  const frames=new Map<number,()=>void>();let id=0,writes=0;const calls:boolean[]=[];
  const View=new Function('requestAnimationFrame','cancelAnimationFrame','visibleGridSize',transformSync('class View{'+method('  private scheduleRender(', '  private clearNodes(')+method('  private transform()', '  private sourcePopover')+'};return View',{loader:'ts'}).code)((fn:()=>void)=>{frames.set(++id,fn);return id},(n:number)=>frames.delete(n),()=>20);
- const v=new View();v.renderFrame=0;v.viewportOnlyRender=true;v.closed=false;v.session={board:{viewport:{x:0,y:0,zoom:1}}};
- v.world={style:new Proxy({}, {set(t,k,value){writes++;return Reflect.set(t,k,value)}})};v.stage={style:{}};v.plugin={settings:{gridStep:20}};v.zoomLabel={textContent:'100%',setText(){writes++}};v.mapViewport=()=>writes++;
+ const ownerWindow={requestAnimationFrame:(fn:()=>void)=>{frames.set(++id,fn);return id},cancelAnimationFrame:(n:number)=>frames.delete(n)};
+ const v=new View();v.contentEl={ownerDocument:{defaultView:ownerWindow}};v.renderFrame=0;v.viewportOnlyRender=true;v.closed=false;v.session={board:{viewport:{x:0,y:0,zoom:1}}};
+ v.world={style:new Proxy({}, {set(t,k,value){writes++;return Reflect.set(t,k,value)}})};v.stage={style:{},ownerDocument:{defaultView:ownerWindow}};v.plugin={settings:{gridStep:20}};v.zoomLabel={textContent:'100%',setText(){writes++}};v.mapViewport=()=>writes++;
  v.renderBoard=(only=false)=>calls.push(only);
  return {v,frames,calls,writes:()=>writes,flush(){const pending=[...frames.values()];frames.clear();pending.forEach(fn=>fn())}};
 }

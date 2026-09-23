@@ -3,10 +3,10 @@
 /* Shared controls also work in native thoughtspace-tasks Markdown blocks. */
 .ts-task-head-actions {display:flex;align-items:center;gap:3px;}
 .ts-task-view-switch {display:flex;gap:6px;margin:0 0 12px;}
-.ts-task-view-switch button {display:flex;align-items:center;justify-content:center;gap:5px;padding:4px 9px;height:29px;font-size:11px;box-shadow:none;border:1px solid var(--background-modifier-border);background:transparent;color:var(--text-muted);border-radius:6px;}
+.ts-task-view-switch button {display:flex;align-items:center;justify-content:center;gap:5px;height:29px;font-size:11px;box-shadow:none;border:1px solid var(--background-modifier-border);background:transparent;color:var(--text-muted);border-radius:6px;}
 .ts-task-view-switch button svg {width:13px;height:13px;}
 .ts-task-view-switch .is-active {background:var(--background-secondary);color:var(--text-normal);font-weight:600;}
-.ts-task-quadrants {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:start;}
+.ts-task-quadrants {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}
 .ts-task-quick-tabs {display:flex;gap:4px;padding:3px;margin:0 0 12px;border-radius:8px;background:var(--background-secondary);}
 .ts-task-quick-tabs button {flex:1;min-width:0;padding:4px;font-size:11px;height:29px;border:0;box-shadow:none;background:transparent;color:var(--text-muted);}
 .ts-task-quick-tabs .is-active {background:var(--background-primary);color:var(--text-normal);font-weight:600;}
