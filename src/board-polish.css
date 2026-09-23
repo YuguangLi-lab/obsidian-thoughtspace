@@ -1,4 +1,4 @@
-/* Whiteboard 0.98.7: calm surfaces with distinct tool groups.
+/* Whiteboard chrome: calm surfaces with distinct tool groups.
    This file owns the final canvas chrome. Content geometry, text typography,
    custom fills and source-editor measurements are deliberately unchanged. */
 .ts-root .ts-main {
@@ -7,7 +7,7 @@
   --ts-board-line: color-mix(in srgb, var(--background-modifier-border) 88%, transparent);
   --ts-board-hover: var(--background-modifier-hover);
   --ts-board-active: color-mix(in srgb, var(--ts-accent) 10%, var(--background-primary));
-  --ts-board-shadow: 0 1px 2px #00000008, 0 6px 20px #0000000b;
+  --ts-board-shadow: 0 1px 3px #00000008, 0 4px 14px #00000009;
   --ts-board-menu-shadow: 0 2px 5px #00000008, 0 14px 36px #00000016;
   --ts-board-control: 32px;
 }
@@ -39,21 +39,21 @@
 .ts-root .ts-main > .ts-board-rail {
   top: 50%;
   left: 12px;
-  width: 44px;
+  width: 42px;
   max-height: calc(100% - 132px);
   border-color: var(--ts-board-line);
-  border-radius: 13px;
+  border-radius: 11px;
   background: var(--ts-board-panel);
   box-shadow: var(--ts-board-shadow);
 }
-.ts-root .ts-board-rail .ts-rail-tools { padding: 5px; gap: 2px; }
+.ts-root .ts-board-rail .ts-rail-tools { padding: 4px; gap: 1px; }
 .ts-root .ts-board-rail .ts-button {
   flex-basis: var(--ts-board-control);
   width: var(--ts-board-control) !important;
   min-width: var(--ts-board-control);
   height: var(--ts-board-control) !important;
   min-height: var(--ts-board-control);
-  border-radius: 8px !important;
+  border-radius: 7px !important;
   color: var(--text-muted);
 }
 .ts-root .ts-board-rail .ts-button svg { width: 17px; height: 17px; stroke-width: 1.75; }
@@ -69,19 +69,19 @@
   box-shadow: none !important;
 }
 .ts-root .ts-board-rail .ts-primary:hover { background: color-mix(in srgb, var(--ts-accent) 17%, var(--background-primary)) !important; }
-.ts-root .ts-board-rail .ts-rail-divider { flex: 0 0 1px; height: 1px; min-height: 1px; margin: 5px 7px; background: var(--ts-board-line); }
+.ts-root .ts-board-rail .ts-rail-divider { flex: 0 0 1px; height: 1px; min-height: 1px; margin: 4px 7px; background: var(--ts-board-line); }
 
 /* Overflow uses short, consistently aligned rows. Position remains owned by
    the rail; the context menu retains its mouse-relative inline coordinates. */
 .ts-root .ts-main > .ts-rail-popover {
   top: 50%;
-  left: 66px;
-  width: 248px;
+  left: 64px;
+  width: 240px;
   max-width: calc(100% - 78px);
   max-height: calc(100% - 132px);
-  padding: 8px;
+  padding: 6px;
   border-color: var(--ts-board-line);
-  border-radius: 14px;
+  border-radius: 11px;
   background: var(--ts-board-panel);
   box-shadow: var(--ts-board-menu-shadow);
   scrollbar-width: thin;
@@ -89,22 +89,22 @@
 }
 .ts-root .ts-rail-popover .ts-tool-cluster::before {
   position: sticky;
-  top: -8px;
+  top: -6px;
   z-index: 1;
-  padding: 10px 10px 7px;
+  padding: 8px 9px 5px;
   background: var(--ts-board-panel);
   color: var(--text-muted);
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: .04em;
+  letter-spacing: .01em;
 }
-.ts-root .ts-rail-popover .ts-tool-cluster + .ts-tool-cluster { margin-top: 8px; padding-top: 2px; border-color: var(--ts-board-line); }
+.ts-root .ts-rail-popover .ts-tool-cluster + .ts-tool-cluster { margin-top: 6px; padding-top: 2px; border-color: var(--ts-board-line); }
 .ts-root .ts-rail-popover .ts-rail-actions .ts-button {
-  height: 34px;
-  min-height: 34px;
-  border-radius: 8px;
-  gap: 11px;
-  padding-inline: 10px !important;
+  height: 32px;
+  min-height: 32px;
+  border-radius: 7px;
+  gap: 9px;
+  padding-inline: 9px !important;
 }
 .ts-root .ts-rail-popover .ts-rail-actions .ts-button:hover { background: var(--ts-board-active); color: var(--text-normal); }
 .ts-root .ts-rail-popover .ts-button:is(:hover, :focus-visible) > span:first-child { color: var(--ts-accent); }
@@ -117,15 +117,16 @@
   max-width: calc(100% - 32px);
 }
 .ts-root .ts-floating-formatbar > .ts-commandbar {
-  padding: 6px !important;
+  padding: 4px !important;
   gap: 0 !important;
   border-color: var(--ts-board-line) !important;
-  border-radius: 12px !important;
+  border-radius: 10px !important;
   background: var(--ts-board-panel) !important;
   box-shadow: var(--ts-board-shadow) !important;
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
+  scroll-padding-inline: 4px;
   scrollbar-width: thin;
   scrollbar-color: var(--background-modifier-border) transparent;
 }
@@ -198,12 +199,13 @@
 
 /* Native document header: title, history, then workspace actions.
    Preserve native tooltips and horizontal access to actions on narrow leaves. */
-.ts-native-header .view-actions { gap: 3px; padding-block: 2px; }
-.ts-native-header .ts-header-action { color: var(--text-muted); border-radius: 7px; }
+.ts-native-header .view-header-title-container { min-width: 88px; }
+.ts-native-header .view-actions { gap: 2px; padding-block: 2px; max-width: calc(100% - 144px); overscroll-behavior-x: contain; scroll-padding-inline: 4px; }
+.ts-native-header .ts-header-action { width: 28px; height: 28px; color: var(--text-muted); border-radius: 6px; }
 .ts-native-header .ts-header-action:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
 .ts-native-header .ts-header-action:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: -2px; }
-.ts-native-header .ts-save-status { margin-inline: 5px 8px; padding-inline: 7px; border-radius: 5px; font-variant-numeric: tabular-nums; }
-.ts-native-header .ts-workflow-entry { background: transparent; box-shadow: none; }
+.ts-native-header .ts-save-status { width: 68px; margin-inline: 4px 6px; padding-inline: 5px; border-radius: 5px; font-variant-numeric: tabular-nums; }
+.ts-native-header .ts-header-action.ts-workflow-entry { background: transparent; box-shadow: none; }
 .ts-native-header .ts-header-action.is-active { background: var(--background-modifier-hover); color: var(--interactive-accent); }
 
 /* A selected object is distinguished by an outline, never a new fill or a
@@ -311,7 +313,7 @@
   .ts-root .ts-main > .ts-footer { grid-template-columns: minmax(0, 1fr) auto; }
   .ts-root .ts-footer .ts-canvas-summary { display: none; }
 }
-@container ts-board-canvas (max-width: 600px) {
+@container ts-board-canvas (max-width: 660px) {
   .ts-root .ts-canvas-controls .ts-snap-toggle > span:nth-child(2),
   .ts-root .ts-canvas-controls .ts-snap-state { display: none; }
   .ts-root .ts-canvas-controls .ts-snap-toggle { width: 28px; padding-inline: 0 !important; justify-content: center; }
