@@ -23,7 +23,7 @@ function clearLinkedProse(text:string){
  }return result+clearProse(text.slice(at));
 }
 function clearInline(text:string){let at=0,result='';for(const range of inlineCodeRanges(text)){result+=clearLinkedProse(text.slice(at,range.from))+codeBody(text.slice(range.from,range.to));at=range.to;}return result+clearLinkedProse(text.slice(at));}
-export type MarkdownCommand = 'bold'|'italic'|'strike'|'highlight'|'code'|'link'|'image'|'wikilink'|'bullet'|'ordered'|'task'|'quote'|'paragraph'|'h1'|'h2'|'h3'|'h4'|'h5'|'h6'|'codeblock'|'table'|'rule'|'callout'|'underline'|'sup'|'sub'|'indent'|'outdent'|'clear'|'comment'|'math';
+export type MarkdownCommand = 'bold'|'italic'|'strike'|'highlight'|'code'|'link'|'image'|'wikilink'|'bullet'|'ordered'|'task'|'quote'|'paragraph'|'h1'|'h2'|'h3'|'h4'|'h5'|'h6'|'codeblock'|'table'|'rule'|'callout'|'underline'|'sup'|'sub'|'indent'|'outdent'|'clear'|'comment'|'math'|'mathblock';
 export interface MarkdownEdit {text:string;start:number;end:number;}
 export interface MarkdownEditPlan extends MarkdownEdit {change?:{from:number;to:number;text:string};}
 /** Resolve a selection inside inserted text without scanning or splitting the full document. */
@@ -123,7 +123,7 @@ export function planMarkdownEdit(text:string,start:number,end:number,command:Mar
   if(command!=='code'&&!escapedAt(text,start)&&italicSelected&&selected.startsWith(mark)&&selected.endsWith(mark)&&selected.length>=mark.length*2)return replace(start,end,selected.slice(mark.length,-mark.length));
   if(command!=='code'&&!escapedAt(text,start-mark.length)&&italicOutside&&text.slice(start-mark.length,start)===mark&&text.slice(end,end+mark.length)===mark)return replace(start-mark.length,end+mark.length,selected);
   const leading=command==='code'?'':/^\s*/.exec(selected)![0],trailing=command==='code'||!selected.trim()?'':/\s*$/.exec(selected)![0];
-  const content=(command==='code'?selected:selected.trim())||'文字';
+  const content=(command==='code'?selected:selected.trim())||(command==='math'?'x^2':'文字');
   if(command==='code'){const runs=content.match(/`+/g)||[];mark='`'.repeat(Math.max(0,...runs.map(r=>r.length))+1);}
   const pad=command==='code'&&(content.startsWith('`')||content.endsWith('`')||(content.startsWith(' ')&&content.endsWith(' ')&&/[^ ]/.test(content)))?' ':'';
   const offset=leading.length+mark.length+pad.length;
@@ -151,13 +151,23 @@ export function planMarkdownEdit(text:string,start:number,end:number,command:Mar
   }).join(eol);
   return replace(a,b,value);
  }
- let content:string;
+ let content:string,selectionFrom=0,selectionTo:number|undefined;
  if(command==='codeblock'){const body=selected||'代码';const fence='`'.repeat(Math.max(2,...(body.match(/`+/g)||[]).map(r=>r.length))+1);content=fence+eol+body+eol+fence;}
  else if(command==='callout')content='> [!note] '+(selected?'笔记':'标题')+eol+(selected||'内容').split(/\r?\n/).map(line=>'> '+line).join(eol);
  else if(command==='rule')content='---';
- else content='| '+(selected||'标题').replace(/[\r\n|]/g,' ')+' | 标题 |'+eol+'| --- | --- |'+eol+'| 内容 | 内容 |';
+ else if(command==='mathblock'){
+  const body=selected||'E = mc^2';content='$$'+eol+body+eol+'$$';selectionFrom=2+eol.length;selectionTo=selectionFrom+body.length;
+ }
+ else {
+  // A table remains ordinary Markdown. Preserve selected words and rows instead of deleting pipes.
+  const cell=(value:string)=>value.replace(/(?<!\\)(?:\\\\)*\|/g,match=>match.slice(0,-1)+'\\|');
+  const rows=(selected?selected.split(/\r?\n/):['内容','内容']).map(value=>'| '+cell(value)+' |  |  |');
+  content='| 标题 | 标题 | 标题 |'+eol+'| --- | --- | --- |'+eol+rows.join(eol);
+  selectionFrom=selected?content.indexOf(eol,content.indexOf(eol)+eol.length)+eol.length+2:2;
+  selectionTo=selectionFrom+(selected?cell(selected.split(/\r?\n/)[0]).length:2);
+ }
  const before=text.slice(0,start),after=text.slice(end);
  const prefix=before&&!before.endsWith(eol+eol)?before.endsWith(eol)?eol:eol+eol:'';
  const suffix=after&&!after.startsWith(eol+eol)?after.startsWith(eol)?eol:eol+eol:'';
- return replace(start,end,prefix+content+suffix,prefix.length,prefix.length+content.length);
+ return replace(start,end,prefix+content+suffix,prefix.length+selectionFrom,prefix.length+(selectionTo??content.length));
 }

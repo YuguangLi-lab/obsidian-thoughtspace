@@ -17,7 +17,7 @@ test('format plans carry a local change for a phrase at the end of a long note',
  assert.deepEqual(plan.change,{from:prefix.length,to:prefix.length+2,text:'**重点**'});
 });
 test('all supported Markdown commands preserve exact changes and final selections',()=>{
- const commands:MarkdownCommand[]=['bold','italic','strike','highlight','code','link','image','wikilink','bullet','ordered','task','quote','paragraph','h1','h2','h3','h4','h5','h6','codeblock','table','rule','callout','underline','sup','sub','indent','outdent','clear','comment','math'];
+ const commands:MarkdownCommand[]=['bold','italic','strike','highlight','code','link','image','wikilink','bullet','ordered','task','quote','paragraph','h1','h2','h3','h4','h5','h6','codeblock','table','rule','callout','underline','sup','sub','indent','outdent','clear','comment','math','mathblock'];
  for(const text of ['', '前重点后', '第一\n第二\n第三', '前\r\n- [x] 任务\r\n后', '## 标题\n\n**重点**', '正文🙂\n尾部'])
  for(const command of commands)for(const [from,to] of [[0,0],[0,text.length],[Math.floor(text.length/2),text.length],[text.length,text.length]])verify(text,from,to,command);
 });

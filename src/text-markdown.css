@@ -1,0 +1,90 @@
+/* Text frames use the same Markdown renderer as notes. Only their outer padding belongs to the board. */
+.ts-root .ts-text:not(.is-folded) > .ts-text-body.markdown-rendered {
+  min-width: 0;
+  min-height: 0;
+  white-space: normal;
+  --file-line-width: 100%;
+  --file-margins: 0;
+}
+.ts-root .ts-text-markdown {
+  display: flow-root;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.ts-root .ts-text-markdown :is(p,ul,ol,blockquote,pre,table,.callout,.math-block) { margin-block: 1em; }
+.ts-root .ts-text-markdown > :first-child { margin-block-start: 0; }
+.ts-root .ts-text-markdown > :last-child { margin-block-end: 0; }
+.ts-root .ts-text-markdown :is(h1,h2,h3,h4,h5,h6) { margin-block: 1.2em .5em; overflow-wrap: anywhere; }
+.ts-root .ts-text-markdown h1 { font-size: var(--h1-size,1.802em); line-height: var(--h1-line-height,1.2); font-weight: var(--h1-weight,700); }
+.ts-root .ts-text-markdown h2 { font-size: var(--h2-size,1.602em); line-height: var(--h2-line-height,1.2); font-weight: var(--h2-weight,600); }
+.ts-root .ts-text-markdown h3 { font-size: var(--h3-size,1.424em); line-height: var(--h3-line-height,1.3); font-weight: var(--h3-weight,600); }
+.ts-root .ts-text-markdown h4 { font-size: var(--h4-size,1.266em); line-height: var(--h4-line-height,1.4); font-weight: var(--h4-weight,600); }
+.ts-root .ts-text-markdown h5 { font-size: var(--h5-size,1.125em); line-height: var(--h5-line-height,1.5); font-weight: var(--h5-weight,600); }
+.ts-root .ts-text-markdown h6 { font-size: var(--h6-size,1em); line-height: var(--h6-line-height,1.5); font-weight: var(--h6-weight,600); }
+.ts-root .ts-text-markdown :is(ul,ol) { padding-inline-start: 1.65em; }
+.ts-root .ts-text-markdown li { margin-block: .2em; }
+.ts-root .ts-text-markdown li > :is(ul,ol) { margin-block: .25em; }
+.ts-root .ts-text-markdown li > p { margin-block: .3em; }
+.ts-root .ts-text-markdown li.task-list-item { list-style: none; }
+.ts-root .ts-text-markdown :is(code,pre) { font-family: var(--font-monospace); font-size: .9em; }
+.ts-root .ts-text-markdown pre { padding: .7em .9em; border: 1px solid var(--background-modifier-border); border-radius: 6px; background: var(--code-background,var(--background-secondary)); white-space: pre; overflow: auto; scrollbar-width: thin; }
+.ts-root .ts-text-markdown pre code { font-size: inherit; white-space: inherit; }
+.ts-root .ts-text-markdown blockquote { padding-inline: .8em 0; border-inline-start: 2px solid var(--blockquote-border-color,var(--ts-accent)); color: var(--blockquote-color,var(--text-muted)); }
+.ts-root .ts-text-markdown blockquote > :is(:first-child,:last-child) { margin-block: 0; }
+.ts-root .ts-text-markdown mark { background: var(--text-highlight-bg); color: inherit; }
+.ts-root .ts-text-markdown :is(img,svg) { max-width: 100%; }
+.ts-root .ts-text-markdown .callout { padding: .6em .8em; border-radius: var(--callout-radius,6px); }
+.ts-root .ts-text-markdown .callout-content > :first-child { margin-block-start: .35em; }
+.ts-root .ts-text-markdown .callout-content > :last-child { margin-block-end: 0; }
+
+/* Keep native table content readable, and scroll within a manually narrowed frame. */
+.ts-root .ts-text-markdown table { display: block; width: max-content; max-width: 100%; border-collapse: collapse; font: inherit; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.ts-root .ts-text-markdown :is(th,td) { min-width: 5em; padding: .4em .65em; border: 1px solid var(--table-border-color,var(--background-modifier-border)); vertical-align: top; }
+.ts-root .ts-text-markdown th { background: var(--table-header-background,var(--background-secondary)); font-weight: var(--table-header-weight,600); }
+.ts-root .ts-text-markdown .math-block { max-width: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+.ts-root .ts-text-markdown .math-block > mjx-container[display="true"] { margin-block: .35em; }
+.ts-root .ts-text-markdown mjx-container { white-space: normal; }
+
+/* An excerpt keeps its compact source affordance at the end of the final paragraph. */
+.ts-root .ts-text-markdown .ts-source-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: -3px;
+  box-sizing: border-box;
+  width: 20px;
+  min-width: 20px;
+  max-width: 20px;
+  height: 20px;
+  min-height: 0;
+  padding: 2px!important;
+  margin: 0 0 0 5px;
+  border: 0!important;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  box-shadow: none;
+  white-space: normal;
+  font-size: 12px;
+}
+
+/* A renderer failure leaves readable Markdown source, never a collapsed run of words. */
+.ts-root .ts-text-body:is([data-markdown-status="pending"],[data-markdown-status="error"]) > .ts-text-markdown { white-space: pre-wrap; }
+
+/* Board tables read like a note: spacing and a quiet header, without a surrounding grid. */
+.ts-root :is(.ts-text-markdown,.ts-card-preview,.ts-inline-native) :is(table,thead,tbody,tfoot,tr,th,td) {
+  border: 0!important;
+  box-shadow: none!important;
+}
+.ts-root .ts-inline-native :is(.cm-table-widget,.table-wrapper,.table-cell-wrapper) {
+  border: 0!important;
+  box-shadow: none!important;
+}
+.ts-root :is(.ts-text-markdown,.ts-card-preview,.ts-inline-native) th { background: var(--table-header-background,var(--background-secondary)); }

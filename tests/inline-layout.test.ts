@@ -41,3 +41,24 @@ test('a layout warning never masks a real source conflict or disables its retry'
  assert.equal(await e.commit(),false);assert.ok(classes.has('has-error'));assert.match(e.status.text,/来源已被其他窗口修改/);assert.equal(e.layoutHint.hidden,false);assert.equal(e.input.readOnly,false);
  e.options.save=async()=>{};assert.equal(await e.commit(),true);assert.equal(classes.has('has-error'),false);
 });
+
+
+test('native text height is transient, intrinsic, and does not feed back from the larger frame',()=>{
+ const {e}=fixture(),heights:number[]=[];let intrinsic=302;
+ Object.assign(e,{node:{offsetHeight:225},native:{resize(){},intrinsicHeight:()=>intrinsic}});e.body.offsetHeight=223;e.options.nodeKind='text';e.options.temporaryHeight=(height:number)=>{heights.push(height);e.node.offsetHeight=height;e.body.offsetHeight=height-2;};
+ for(let n=0;n<30;n++)e.flushLayout();assert.deepEqual(heights,[304]);assert.equal(e.input.style.height,'302px');
+ intrinsic=140;e.flushLayout();assert.deepEqual(heights,[304,142]);assert.equal(e.value,'正文草稿');
+});
+test('temporary native height has a finite cap and ignores invalid measurements',()=>{
+ const {e}=fixture(),heights:number[]=[];let intrinsic=10000;
+ Object.assign(e,{node:{offsetHeight:225},native:{resize(){},intrinsicHeight:()=>intrinsic}});e.body.offsetHeight=223;e.options.nodeKind='text';e.options.temporaryHeight=(height:number)=>heights.push(height);
+ e.flushLayout();assert.deepEqual(heights,[1200]);for(const value of [NaN,Infinity,-5]){intrinsic=value;e.flushLayout();}assert.deepEqual(heights,[1200]);
+});
+test('native card drafts and fallback source inputs do not opt into temporary text geometry',()=>{
+ const {e}=fixture();let calls=0;e.options.temporaryHeight=()=>calls++;e.options.nodeKind='card';e.native={resize(){},intrinsicHeight:()=>500};e.flushLayout();assert.equal(calls,0);
+ e.options.nodeKind='text';e.native=undefined;e.flushLayout();assert.equal(calls,0);
+});
+test('a failed native-height callback cannot prevent saving or repeat on every layout frame',async()=>{
+ const {e,warnings}=fixture();let calls=0,saved='';Object.assign(e,{node:{offsetHeight:225},native:{resize(){},intrinsicHeight:()=>300}});e.body.offsetHeight=223;e.options.nodeKind='text';e.options.temporaryHeight=()=>{calls++;throw Error('detached board');};e.options.save=async(value:string)=>{saved=value;};
+ e.flushLayout();assert.equal(e.layoutHint.hidden,false);await e.commit();assert.equal(saved,e.value);assert.equal(calls,1);assert.equal(warnings.length,1);
+});

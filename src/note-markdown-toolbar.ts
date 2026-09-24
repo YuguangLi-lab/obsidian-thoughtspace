@@ -7,6 +7,7 @@ import {Transaction} from '@codemirror/state';
 import {releaseEditorResource} from './editor-cleanup';
 import {MarkdownCommand,planMarkdownEdit,insertedPosition} from './markdown-edit';
 import {markdownToolbar,MarkdownToolbarEditor} from './markdown-toolbar';
+import {installToolbarWheel} from './toolbar-scroll';
 
 /** Bind commands to this note's Editor, never to a global active editor or a copy. */
 class NoteToolbar extends Component implements MarkdownToolbarEditor {
@@ -25,6 +26,7 @@ class NoteToolbar extends Component implements MarkdownToolbarEditor {
   }();
  }
  onload(){
+  this.register(installToolbarWheel(this.host));
   markdownToolbar(this.host,this);this.sync();
   this.registerEvent(this.app.workspace.on('editor-change',editor=>{if(editor===this.editor){this.showNotice(false);if(this.range&&this.range.text!==editor.getValue())this.range=undefined;this.notify();}}));
   for(const type of ['pointerdown','keydown','beforeinput'] as const)this.registerDomEvent(this.view.contentEl,type,e=>{if(!this.host.contains(e.target as Node)){this.range=undefined;this.showNotice(false);}},true);

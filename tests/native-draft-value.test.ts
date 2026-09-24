@@ -72,3 +72,17 @@ test('failed reads can retry and disposed drafts release their cached document',
  f.draft.dispose();assert.equal(f.draft.valueCache,undefined);
  Object.defineProperty(f.draft,'engine',{get(){throw Error('destroyed engine');}});assert.equal(f.draft.value,'');
 });
+
+
+test('native intrinsic height uses CM document geometry and own-window padding, not viewport scrollHeight',()=>{
+ const f=fixture();f.cm.contentHeight=260;f.draft.host.ownerDocument={defaultView:{getComputedStyle:()=>({paddingTop:'14px',paddingBottom:'18px'})}};f.draft.host.scrollHeight=900;
+ assert.equal(f.draft.intrinsicHeight(),292);f.draft.host.scrollHeight=1400;assert.equal(f.draft.intrinsicHeight(),292);
+ f.cm.scaleY=.5;f.cm.contentHeight=130;assert.equal(f.draft.intrinsicHeight(),292);f.cm.scaleY=2;f.cm.contentHeight=520;assert.equal(f.draft.intrinsicHeight(),292);
+ for(const value of [NaN,Infinity,-1]){f.cm.contentHeight=value;assert.equal(f.draft.intrinsicHeight(),undefined);}
+ f.draft.disposed=true;Object.defineProperty(f.draft,'engine',{get(){throw Error('closed');}});assert.equal(f.draft.intrinsicHeight(),undefined);
+});
+test('native height and geometry changes request layout without publishing spurious content edits',()=>{
+ const f=fixture(),events:string[]=[];for(const type of ['layout','input','select'])f.draft.addEventListener(type,()=>events.push(type));const update={state:f.cm.state,transactions:[],docChanged:false,selectionSet:false};
+ f.draft.editorUpdated({...update,heightChanged:true});f.draft.editorUpdated({...update,geometryChanged:true});f.draft.editorUpdated(update);assert.deepEqual(events,['layout','layout']);
+ f.draft.disposed=true;f.draft.editorUpdated({...update,heightChanged:true});assert.deepEqual(events,['layout','layout']);
+});

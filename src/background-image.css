@@ -1,0 +1,60 @@
+/* Image backgrounds remain in stage pixels rather than following its world transform. */
+.ts-root[data-background=image] .ts-main > .ts-stage,
+.ts-background-preview {
+ position:relative;
+ isolation:isolate;
+ background-color:var(--background-primary);
+ background-image:none;
+}
+.ts-root[data-background=image] .ts-main > .ts-stage::before,
+.ts-background-preview::before {
+ content:'';
+ position:absolute;
+ inset:0;
+ z-index:0;
+ border-radius:inherit;
+ pointer-events:none;
+ background-image:var(--ts-background-image,none);
+ background-size:var(--ts-background-image-fit,cover);
+ background-repeat:var(--ts-background-image-repeat,no-repeat);
+ background-position:center;
+ opacity:clamp(0,var(--ts-background-image-opacity,.35),1);
+}
+.ts-root[data-background=image] .ts-stage > .ts-world {z-index:1}
+.ts-background-settings.modal {width:min(730px,94vw);max-height:88vh}
+.ts-background-settings .modal-content {overflow:auto}
+.ts-background-settings .modal-title {font-size:22px;letter-spacing:-.025em}
+.ts-background-intro {margin:0 0 22px;color:var(--text-muted);font-size:13px;line-height:1.65}
+.ts-background-settings-body {display:grid;grid-template-columns:minmax(225px,1fr) minmax(0,1.15fr);gap:28px}
+.ts-background-controls h3 {margin:0 0 10px;font-size:12px;font-weight:600;color:var(--text-muted)}
+.ts-background-source {display:flex;align-items:center;gap:10px;min-height:57px;padding:12px;border:1px solid var(--background-modifier-border);border-radius:10px;background:var(--background-primary-alt)}
+.ts-background-source-icon {display:flex;flex:none;color:var(--text-muted)}
+.ts-background-source-icon svg {width:20px;height:20px}
+.ts-background-source-name {min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:12px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
+.ts-background-source-actions {display:flex;gap:8px;margin-top:10px}
+.ts-background-source-actions button {font-size:12px;flex:1}
+.ts-background-controls input[hidden],.ts-background-reload[hidden] {display:none!important}
+.ts-background-file-hint {margin:10px 0 21px;color:var(--text-faint);font-size:10px;line-height:1.7}
+.ts-background-fit-options {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px;padding:3px;border-radius:8px;background:var(--background-secondary)}
+.ts-background-settings .ts-background-fit-options button {height:30px;padding:0 5px;min-width:0;background:transparent;box-shadow:none;font-size:11px;color:var(--text-muted)}
+.ts-background-settings .ts-background-fit-options button[aria-pressed=true] {background:var(--background-primary);color:var(--text-normal);box-shadow:0 1px 3px rgb(0 0 0 / .08)}
+.ts-background-opacity-control {margin-top:24px}
+.ts-background-opacity-control>label {display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;font-size:12px;color:var(--text-muted)}
+.ts-background-opacity-control output {color:var(--text-normal);font-variant-numeric:tabular-nums}
+.ts-background-opacity-control>input {width:100%;margin:0;accent-color:var(--interactive-accent)}
+.ts-background-opacity-limits {display:flex;justify-content:space-between;margin-top:7px;font-size:10px;color:var(--text-faint)}
+.ts-background-preview-pane {display:flex;flex-direction:column;gap:10px;min-width:0}
+.ts-background-preview-heading {font-size:12px;font-weight:600;color:var(--text-muted)}
+.ts-background-settings .ts-background-preview {min-height:302px;flex:1;border:1px solid var(--background-modifier-border);border-radius:13px;overflow:hidden}
+.ts-background-preview-content {position:relative;z-index:1;padding:25px 23px}
+.ts-background-preview-caption {display:inline-block;padding:4px 8px;background:var(--background-primary);border-radius:5px;font-size:10px;letter-spacing:.06em;color:var(--text-muted);opacity:.9}
+.ts-background-preview-note {margin-top:48px;padding:19px 17px;border:1px solid var(--background-modifier-border);border-radius:8px;background:var(--background-primary);box-shadow:0 2px 7px rgb(0 0 0 / .06);transform:rotate(-1deg)}
+.ts-background-preview-note h3 {margin:0 0 12px;font-family:var(--font-text);font-size:17px;font-weight:500;line-height:1.5;color:var(--text-normal)}
+.ts-background-preview-note p {margin:0;font-size:11px;line-height:1.9;color:var(--text-muted)}
+.ts-background-preview-hint {text-align:center;font-size:10px;line-height:1.6;color:var(--text-faint)}
+.ts-background-settings-status {min-height:18px;margin-top:18px;font-size:12px;line-height:1.6;color:var(--text-muted)}
+.ts-background-settings-footer {display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:12px;padding-top:16px;border-top:1px solid var(--background-modifier-border)}
+.ts-background-reload {margin-right:auto;font-size:12px}
+.ts-background-settings :is(button,input):focus-visible {outline:2px solid var(--interactive-accent);outline-offset:2px}
+@media(max-width:600px){.ts-background-settings-body{grid-template-columns:1fr;gap:22px}.ts-background-settings .ts-background-preview{min-height:220px}.ts-background-preview-note{margin-top:25px}.ts-background-file-hint{margin-bottom:16px}.ts-background-opacity-control{margin-top:19px}}
+@media(prefers-contrast:more){.ts-root[data-background=image] .ts-main > .ts-stage::before,.ts-background-preview::before{display:none}}

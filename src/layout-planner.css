@@ -227,3 +227,17 @@
   .ts-layout-planner .ts-layout-modes button[aria-pressed=true] { border-color: var(--ts-accent); }
   .ts-layout-planner .ts-layout-preview-status { color: var(--text-normal); }
 }
+
+/* Named arrangements and explicit grouping stay in the parameter column. */
+.ts-layout-planner .ts-layout-named-presets { flex: none; padding-bottom: 10px; border-bottom: 1px solid var(--ts-layout-line); font-size: 12px; }
+.ts-layout-planner .ts-layout-named-presets summary { padding: 3px 0; cursor: pointer; font-weight: 500; color: var(--text-normal); }
+.ts-layout-planner .ts-layout-named-body { display: flex; flex-direction: column; gap: 9px; padding-top: 10px; }
+.ts-layout-planner .ts-layout-preset-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+.ts-layout-planner .ts-layout-preset-actions button { display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 29px; min-width: 0; padding: 5px 4px; border: 1px solid var(--ts-layout-line); border-radius: 6px; background: var(--ts-layout-panel); box-shadow: none; font-size: 10px; }
+.ts-layout-planner .ts-layout-preset-actions button svg { display: block; width: 12px; height: 12px; }
+.ts-layout-planner .ts-layout-preset-actions button:disabled { opacity: .4; }
+.ts-layout-planner .ts-layout-preset-status { color: var(--text-muted); font-size: 10px; line-height: 1.6; }
+.ts-layout-planner .ts-layout-controls .ts-layout-create-sections { display: flex; flex: none; flex-direction: row; align-items: flex-start; gap: 8px; padding: 10px 0 4px; color: var(--text-normal); font-size: 12px; }
+.ts-layout-planner .ts-layout-controls .ts-layout-create-sections input { flex: none; width: 15px; height: 15px; margin: 1px 0 0; padding: 0; }
+.ts-layout-planner .ts-layout-create-sections small { display: block; margin-top: 4px; color: var(--text-muted); font-size: 10px; line-height: 1.6; }
+.ts-layout-planner .ts-layout-create-sections.is-disabled { opacity: .5; }

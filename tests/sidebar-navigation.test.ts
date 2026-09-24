@@ -9,11 +9,13 @@ import {transformSync} from 'esbuild';
 
 class Control {
  listeners=new Map<string,EventListener>();items:Control[]=[];focused=0;scrolled=0;
+ ownerDocument={defaultView:null};parentElement:Control|null=null;clientWidth=200;scrollWidth=200;
  visible=true;disabled=false;primary=true;tagName='BUTTON';
  addEventListener(type:string,fn:EventListener){this.listeners.set(type,fn);}
  removeEventListener(type:string,fn:EventListener){if(this.listeners.get(type)===fn)this.listeners.delete(type);}
  querySelectorAll(selector:string){return selector==='button:not(:disabled)'?this.items.filter(i=>!i.disabled):this.items;}
  getClientRects(){return this.visible?[{}]:[];}
+ closest(){return this;}
  matches(selector:string){return selector.startsWith(':disabled')?this.disabled:this.primary;}
  focus(options:{preventScroll:boolean}){assert.equal(options.preventScroll,true);this.focused++;}
  scrollIntoView(options:{block:string;inline:string}){assert.deepEqual(options,{block:'nearest',inline:'nearest'});this.scrolled++;}

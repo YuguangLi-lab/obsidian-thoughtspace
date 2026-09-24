@@ -4,32 +4,34 @@ import {sameNoteSelection} from './selection-note';
 import {App,TFile,setIcon,Notice} from 'obsidian';
 import {releaseEditorResource} from './editor-cleanup';
 import {toolbarNavigation} from './toolbar-navigation';
-import {allowsReadOnlyKey} from './inline-editor-keys';
+import {allowsReadOnlyKey,isSimpleTopicContinuation} from './inline-editor-keys';
 import {DraftInput,NativeMarkdownDraft} from './native-markdown-editor';
 import {planMarkdownEdit,MarkdownCommand} from './markdown-edit';
 export interface InlineEditorOptions {
- createLinkedNote?:CreateLinkedNote;app:App;file?:TFile;value:string;label:string;placeholder:string;dispose?:()=>void;markdown?:boolean;focusWithin?:(element:Element|null)=>boolean;
+ createLinkedNote?:CreateLinkedNote;app:App;file?:TFile;contextFile?:TFile;nodeKind?:'text'|'card';value:string;label:string;placeholder:string;dispose?:()=>void;markdown?:boolean;focusWithin?:(element:Element|null)=>boolean;
+ temporaryHeight?:(height:number)=>void;
  selectAll?:boolean;continueTopic?:(sibling:boolean)=>Promise<void>;
  save:(value:string)=>Promise<void>;cancel:()=>void;resize:(value:string,input:DraftInput,appearanceChanged?:boolean)=>void;
 }
 /** One inline draft owns its content until an atomic save succeeds. */
 export class InlineNodeEditor {
  readonly el:HTMLElement;readonly input:DraftInput;private native?:NativeMarkdownDraft;private status:HTMLElement;private pending?:Promise<boolean>;private backingUp=false;private disposed=false;private observer:ResizeObserver;private body:HTMLElement;private composing=false;private toolbarDispose?:()=>void;private actionNavigationDispose?:()=>void;
- private layoutFrame?:number;private focusTimer?:number;private lastLayoutValue?:string;private geometry='';private appearanceChanged=false;private badge:HTMLElement;private actions:HTMLButtonElement[]=[];private fallback=false;private headerKey='';private saveError?:string;private layoutFailures=new Set<'size'|'geometry'>();private layoutHint:HTMLElement;private commandHint?:HTMLElement;private selectionCount=1;private textSelected=false;private retryIcon=false;
+ private layoutFrame?:number;private focusTimer?:number;private lastLayoutValue?:string;private geometry='';private appearanceChanged=false;private badge:HTMLElement;private actions:HTMLButtonElement[]=[];private fallback=false;private headerKey='';private saveError?:string;private layoutFailures=new Set<'size'|'geometry'|'native'>();private nativeHeight=0;private layoutHint:HTMLElement;private commandHint?:HTMLElement;private selectionCount=1;private textSelected=false;private retryIcon=false;
  constructor(private node:HTMLElement,private options:InlineEditorOptions){
   this.body=node.querySelector<HTMLElement>('.ts-text-body,.ts-card-preview')!;
   node.addClass('is-inline-editing');this.el=node.createDiv('ts-inline-editor');
-  const bar=this.el.createDiv({cls:'ts-inline-editor-bar',attr:{role:'toolbar','aria-label':options.markdown?'卡片编辑操作':'文本编辑操作'}});const label=bar.createSpan({cls:'ts-inline-editor-label',attr:{title:options.label}});setIcon(label.createSpan('ts-inline-editor-kind'),options.markdown?'file-text':'type');label.createSpan({text:options.markdown?'笔记编辑':options.continueTopic?'主题编辑':'文本编辑'});if(options.continueTopic)label.title='Tab 添加子主题 · Enter 添加同级主题 · Shift+Enter 换行';this.badge=bar.createSpan({cls:'ts-inline-editor-badge',attr:{role:'status','aria-live':'polite','aria-atomic':'true'}});
+  const kind=options.nodeKind??(options.markdown?'card':'text');
+  const bar=this.el.createDiv({cls:'ts-inline-editor-bar',attr:{role:'toolbar','aria-label':kind==='card'?'卡片编辑操作':'文本编辑操作'}});const label=bar.createSpan({cls:'ts-inline-editor-label',attr:{title:options.label}});setIcon(label.createSpan('ts-inline-editor-kind'),kind==='card'?'file-text':'type');label.createSpan({text:kind==='card'?'笔记编辑':options.continueTopic?'主题编辑':'文本编辑'});if(options.continueTopic)label.title='单行主题末尾：Tab 添加子主题 · Enter 添加同级主题 · Shift+Enter 换行；Markdown 内容沿用原生编辑';this.badge=bar.createSpan({cls:'ts-inline-editor-badge',attr:{role:'status','aria-live':'polite','aria-atomic':'true'}});
   const layoutLabel='尺寸暂未更新，可继续编辑和保存；修改文字或字号后自动重试';
   this.layoutHint=bar.createSpan({cls:'ts-inline-layout-hint',attr:{title:layoutLabel,'aria-label':layoutLabel,role:'img',tabindex:'0'}});setIcon(this.layoutHint,'scan-line');this.layoutHint.hidden=true;
   const commandLabel='内容或选区已变化，本次操作未执行。请确认后重试。';
   this.commandHint=bar.createSpan({cls:'ts-inline-command-hint',attr:{title:commandLabel,'aria-label':commandLabel,role:'status','aria-live':'polite',tabindex:'0'}});setIcon(this.commandHint,'mouse-pointer-2');this.commandHint.hidden=true;
   const button=(label:string,icon:string,run:()=>unknown)=>{const b=bar.createEl('button',{attr:{'aria-label':label,title:label}});setIcon(b,icon);b.onmousedown=e=>e.preventDefault();b.onclick=()=>{if(!this.disposed&&!b.disabled)run();};this.actions.push(b);return b;};
   button('保存并退出编辑 · Ctrl / ⌘ + Enter','check',()=>this.commit());button('取消本次编辑 · Esc','x',()=>this.cancel());button('复制编辑草稿','copy',()=>{void this.el.ownerDocument.defaultView!.navigator.clipboard.writeText(this.input.value).then(()=>{if(!this.disposed)this.feedback('草稿已复制');},()=>{if(!this.disposed)this.feedback('复制失败，请选中文字后复制');});});
-  if(!options.markdown)button('查找与替换','search',()=>{try{this.findText();}catch(e){new Notice(String(e));}});
+  if(kind==='text')button('查找与替换','search',()=>{try{this.findText();}catch(e){new Notice(String(e));}});
   this.actionNavigationDispose=toolbarNavigation(bar);
   let fallback=false;
-  if(options.markdown){try{this.native=new NativeMarkdownDraft(options.app,this.el,options.value,options.file);}catch(e){console.warn('ThoughtSpace live editor unavailable; using source editor',e);fallback=true;}}
+  if(options.markdown){try{this.native=new NativeMarkdownDraft(options.app,this.el,options.value,options.file??options.contextFile,`编辑${kind==='text'?'文本':'卡片'} Markdown · 实时预览`);}catch(e){console.warn('ThoughtSpace live editor unavailable; using source editor',e);fallback=true;}}
   if(this.native)this.input=this.native;else{const input=this.el.createEl('textarea',{cls:'ts-inline-input',attr:{'aria-label':options.label,placeholder:options.placeholder,spellcheck:'false'}});input.value=options.value;this.input=input;}
   const style=getComputedStyle(this.body);for(const key of ['fontFamily','fontSize','fontWeight','lineHeight','letterSpacing','textAlign','paddingTop','paddingRight','paddingBottom','paddingLeft'] as const)this.input.style[key]=key==='fontFamily'?(this.body.style.fontFamily||'var(--font-text)'):style[key];
   this.observer=new ResizeObserver(()=>this.scheduleLayout());this.observer.observe(node);this.observer.observe(this.body);this.syncGeometry();
@@ -37,6 +39,7 @@ export class InlineNodeEditor {
   if(fallback)this.status.setText('当前 Obsidian 不支持内嵌实时预览，已切换为 Markdown 源码编辑');
   this.fallback=fallback;
   this.input.addEventListener('input',()=>{if(this.disposed)return;this.showCommandHint(false);if(!this.el.hasClass('has-error')){const text=this.fallback?'当前使用 Markdown 源码编辑，实时预览不可用':'';if(this.status.textContent!==text)this.status.setText(text);}this.updateState();if(!this.composing)this.scheduleLayout();});
+  this.input.addEventListener('layout',()=>this.scheduleLayout());
   this.input.addEventListener('select',()=>{
    if(this.disposed)return;
    const count=this.input.selectionCount??1,selected=count===1&&this.input.selectionStart<this.input.selectionEnd;
@@ -45,14 +48,14 @@ export class InlineNodeEditor {
   });
   this.input.addEventListener('compositionstart',()=>{if(this.disposed)return;this.composing=true;this.updateState();});this.input.addEventListener('compositionend',()=>{if(this.disposed)return;this.composing=false;this.updateState();this.scheduleLayout();this.checkFocus();});
   this.el.addEventListener('keydown',e=>{
-   if(this.disposed||e.isComposing||e.keyCode===229||this.composing)return;
+   if(this.disposed||e.defaultPrevented||e.isComposing||e.keyCode===229||this.composing)return;
    let handled=true;
    if(this.pending){
     // Leave Tab to browser focus traversal, not native Markdown indentation.
     if(e.key==='Tab'&&!options.continueTopic){e.stopPropagation();return;}
     handled=!allowsReadOnlyKey(e);
    }
-   else if(options.continueTopic&&!options.markdown&&e.target===this.input&&!e.shiftKey&&!e.altKey&&!e.ctrlKey&&!e.metaKey&&(e.key==='Tab'||e.key==='Enter')){if(!e.repeat)void options.continueTopic(e.key==='Enter').catch(error=>new Notice(String(error)));}
+   else if(options.continueTopic&&(e.target===this.input||this.native?.ownsKeyTarget(e.target))&&!e.shiftKey&&!e.altKey&&!e.ctrlKey&&!e.metaKey&&(e.key==='Tab'||e.key==='Enter')&&isSimpleTopicContinuation(this.input.value,this.input.selectionStart,this.input.selectionEnd,this.input.selectionCount)){if(!e.repeat)void options.continueTopic(e.key==='Enter').catch(error=>new Notice(String(error)));}
    else if(e.key==='Escape'){this.cancel();}
    else if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){void this.commit();}
    else if(options.markdown&&(e.ctrlKey||e.metaKey)&&!e.altKey){const key=e.key.toLowerCase(),command:MarkdownCommand|undefined=key==='b'?'bold':key==='i'?'italic':key==='k'?'link':e.shiftKey&&key==='x'?'strike':undefined;if(command){if(this.native&&(this.input.selectionCount??1)>1)handled=false;else this.format(command);}else handled=false;}
@@ -69,9 +72,9 @@ export class InlineNodeEditor {
  checkFocus(){if(this.disposed)return;if(this.focusTimer!==undefined)this.win.clearTimeout(this.focusTimer);this.focusTimer=this.win.setTimeout(()=>{this.focusTimer=undefined;const active=this.el.ownerDocument.activeElement;if(!this.disposed&&!this.composing&&!this.saveError&&!this.el.contains(active)&&!this.options.focusWithin?.(active)&&!this.linkDialog?.modalEl.isConnected&&!this.searchDialog?.modalEl.isConnected)void this.commit();},0);}
  private feedback(message:string){this.status.setText(this.saveError?this.saveError+'\n'+message:message);}
  private scheduleLayout(){if(this.disposed||this.composing||this.layoutFrame!==undefined)return;this.layoutFrame=this.win.requestAnimationFrame(()=>{this.layoutFrame=undefined;this.flushLayout();});}
- private flushLayout(){if(this.layoutFrame!==undefined){this.win.cancelAnimationFrame(this.layoutFrame);this.layoutFrame=undefined;}if(this.disposed)return;const value=this.input.value;if(value!==this.lastLayoutValue||this.appearanceChanged){const appearance=this.appearanceChanged;this.appearanceChanged=false;this.lastLayoutValue=value;this.measureLayout('size',()=>this.options.resize(value,this.input,appearance));}this.syncGeometry();}
+ private flushLayout(){if(this.layoutFrame!==undefined){this.win.cancelAnimationFrame(this.layoutFrame);this.layoutFrame=undefined;}if(this.disposed)return;const value=this.input.value;if(value!==this.lastLayoutValue||this.appearanceChanged){const appearance=this.appearanceChanged;this.appearanceChanged=false;this.lastLayoutValue=value;this.measureLayout('size',()=>this.options.resize(value,this.input,appearance));}this.syncGeometry();this.refreshNativeHeight();}
  /** Presentation is optional: a failed measurement must never prevent content persistence. */
- private measureLayout(part:'size'|'geometry',measure:()=>void){
+ private measureLayout(part:'size'|'geometry'|'native',measure:()=>void){
   try{measure();this.layoutFailures.delete(part);}catch(error){if(!this.layoutFailures.has(part))console.warn('ThoughtSpace inline '+part+' measurement failed',error);this.layoutFailures.add(part);}
   const hidden=this.layoutFailures.size===0;if(this.layoutHint.hidden!==hidden)this.layoutHint.hidden=hidden;
  }
@@ -133,12 +136,14 @@ export class InlineNodeEditor {
   },locate:(expected,match)=>{if(read().disabledReason||!this.focusUnchanged(expected)||this.searchDialog!==modal||!modal.modalEl.isConnected)throw Error('编辑内容已变化，请刷新后重试');this.input.setSelectionRange(match.from,match.to);}},()=>{this.searchDialog=undefined;if(!this.disposed)this.input.focus({preventScroll:true});});this.searchDialog=modal;modal.open();
  }
  private linkDialog?:SelectionNoteModal;
- linkNote(){if(!this.options.markdown||!this.options.file||!this.options.createLinkedNote)throw Error('请在 Markdown 笔记中使用此功能');if(this.linkDialog?.modalEl.isConnected)return;
+ /** A board context resolves links but does not authorize writing a linked note. */
+ get canLinkNote(){return !!(!this.disposed&&this.options.markdown&&this.options.nodeKind!=='text'&&this.options.file?.extension==='md'&&this.options.createLinkedNote);}
+ linkNote(){if(!this.canLinkNote)throw Error('请在 Markdown 笔记中使用此功能');if(this.linkDialog?.modalEl.isConnected)return;
   const read=()=>this.disposed?{text:'',start:0,end:0,disabledReason:'编辑器已关闭'}:this.snapshot();
-  const modal=new SelectionNoteModal(this.options.app,{file:this.options.file,read,replace:(expected,link)=>{
+  const modal=new SelectionNoteModal(this.options.app,{file:this.options.file!,read,replace:(expected,link)=>{
    if(!sameNoteSelection(expected,read())||!this.focusUnchanged(expected.text,{from:expected.start,to:expected.end}))throw Error('编辑器内容或选区已变化，未插入链接');
    const end=expected.start+link.length;if(this.native)this.native.replaceFormatted(link,expected.start,expected.end,end,end);else{this.input.setSelectionRange(expected.start,expected.end);if(!this.input.ownerDocument.execCommand('insertText',false,link)){this.input.setRangeText(link,expected.start,expected.end,'end');this.input.dispatchEvent(new Event('input',{bubbles:true}));}}this.scheduleLayout();
-  }},this.options.createLinkedNote,()=>{this.linkDialog=undefined;if(!this.disposed)this.input.focus({preventScroll:true});});this.linkDialog=modal;modal.open();
+  }},this.options.createLinkedNote!,()=>{this.linkDialog=undefined;if(!this.disposed)this.input.focus({preventScroll:true});});this.linkDialog=modal;modal.open();
  }
  history(redo=false){if(this.disposed||this.pending||this.composing||!this.focusUnchanged(this.input.value))return;if(this.native)this.native.history(redo);else this.input.ownerDocument.execCommand(redo?'redo':'undo');}
  /** Refresh presentation without replacing the draft or touching native undo/selection. */
@@ -153,6 +158,15 @@ export class InlineNodeEditor {
   for(const [property,value] of [['left',left],['top',top],['width',width],['height',height]] as const){const cssValue=`${value}px`;if(this.input.style[property]!==cssValue)this.input.style[property]=cssValue;}
   this.native?.resize();
  });}
+ /** Editing can need room for syntax and table controls; this size is never persisted. */
+ private refreshNativeHeight(){
+  if(this.disposed||this.options.nodeKind!=='text'||!this.options.temporaryHeight||!this.native)return;
+  this.measureLayout('native',()=>{
+   const intrinsic=this.native!.intrinsicHeight();if(intrinsic===undefined||!Number.isFinite(intrinsic)||intrinsic<0)return;
+   const chrome=Math.max(0,this.node.offsetHeight-this.body.offsetHeight),height=Math.min(1200,Math.max(60,Math.ceil(intrinsic+chrome)));
+   if(Number.isFinite(height)&&height!==this.nativeHeight){this.nativeHeight=height;this.options.temporaryHeight!(height);}
+  });
+ }
  get saving(){return !!this.pending;}
  get value(){return this.input.value;}
  get dirty(){return this.input.value!==this.options.value;}

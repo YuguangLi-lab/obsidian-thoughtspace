@@ -1,3 +1,15 @@
+import {consumeMarkdownPreviewWheel} from './markdown-preview-scroll';
+import {InlineTextFit} from './inline-text-fit';
+import {markdownEdit} from './markdown-edit';
+import {SavedViewsModal} from './saved-views-view';
+import {PaperSettingsModal} from './paper-settings-view';
+import {BackgroundImageModal} from './background-image-view';
+import {cleanBackgroundImagePreferences,backgroundImageStamp,validateBackgroundImageBytes,MAX_BACKGROUND_IMAGE_BYTES} from './background-image';
+import {cleanPaperPreferences,paperBaseColor,paperAppearanceStamp} from './paper-appearance';
+import {addSavedView} from './saved-views';
+import {cleanLayoutPresets} from './layout-presets';
+import {GroupOrganizerModal} from './group-organizer-view';
+import {outlineTree} from './group-organizer';
 import {renderTextPreview} from './text-preview';
 import {whenBoardStylesReady} from './stylesheet-ready';
 import {BlankDoubleClick} from './blank-double-click';
@@ -47,6 +59,8 @@ import {WRITING,WritingView} from './writing-view';
 import {appendEvidence,evidenceTarget,MaterialPoint} from './evidence';
 import {preserveToolbarFocus} from './toolbar-focus';
 import {installToolbarOverflow} from './toolbar-overflow';
+import {installToolbarWheel} from './toolbar-scroll';
+import {installRailToolSearch} from './rail-tool-search';
 import {boardWheelIntent} from './board-wheel';
 import {boardInputCommands,type BoardInputAction,type BoardInputCommandTarget} from './board-input-commands';
 import {writeNativeNoteDraft,readCurrentNativeNote} from './native-note-state';
@@ -86,7 +100,7 @@ import { connectionPath, connectionSides, Side } from './connections';
 import { branchDescendants, branchState, visibleBranchBoard, unfoldAncestors, layoutMindmap, reflowAutomaticMindmaps, validateBranches } from './mindmap';
 import { TextModal, EdgeModal, ImagePicker, isImage } from './content-tools';
 import {calendarService,requireCalendar} from './calendar-integration';
-import { boardTemplates, cleanFavorites, remapFavorites, outlineNodes, OutlineKind, taskSummary, TaskFilter, visibleTasks } from './navigation';
+import { boardTemplates, cleanFavorites, remapFavorites,  OutlineKind, taskSummary, TaskFilter, visibleTasks } from './navigation';
 import { Alignment, alignmentLabels, alignSelection, foldCards, marqueeSelection, moveSelection, selectionRect } from './board-tools';
 import { isOverdue, readProperties, statuses } from './database';
 import { DatabaseModal, PropertyStore } from './database-view';
@@ -305,6 +319,9 @@ export default class ThoughtSpace extends Plugin {
   settings:ThoughtSpacePreferences=cleanPluginSettings(null);
   currentBoard?: BoardView;
   private spaceHub?:SpaceHubModal;
+  private paperSettingsModal?:PaperSettingsModal;
+  private backgroundImageModal?:BackgroundImageModal;
+  private backgroundImagesClosed=false;
   private nativeBridge?:NativeBridgeModal;
   private nativeFilePopup?:Menu;
   private dockOpening?: Promise<WorkspaceLeaf>;private materialsOpening?:Promise<WorkspaceLeaf>;private materialFeedback?:()=>void;private materialDrag?:{token:string;text?:string;label?:string;run:(view:BoardView,point:{x:number;y:number})=>Promise<void>};
@@ -318,7 +335,7 @@ export default class ThoughtSpace extends Plugin {
   async onload() {
     this.registerHoverLinkSource('thoughtspace',{display:'ThoughtSpace 思维白板',defaultMod:true});
     const tokens=designTokens(document);this.register(()=>tokens.remove());
-    this.register(()=>{this.spaceHub?.close();this.spaceHub=undefined;this.nativeBridge?.close();this.nativeBridge=undefined;this.nativeFilePopup?.hide();});
+    this.register(()=>{this.backgroundImagesClosed=true;this.backgroundImageModal?.close();this.backgroundImageModal=undefined;this.paperSettingsModal?.close();this.paperSettingsModal=undefined;this.spaceHub?.close();this.spaceHub=undefined;this.nativeBridge?.close();this.nativeBridge=undefined;this.nativeFilePopup?.hide();});
     this.propertyStore = new PropertyStore(this.app, this.manifest.id);
     this.settings = cleanPluginSettings(await this.loadData());
     this.setupBoardSearch();this.register(()=>this.pdfDocuments.clear());
@@ -620,6 +637,39 @@ export default class ThoughtSpace extends Plugin {
   refreshStyleClipboard(){
     for(const leaf of this.app.workspace.getLeavesOfType(VIEW))if(leaf.view instanceof BoardView)leaf.view.refreshStyleControls();
   }
+  backgroundImageResource(path:string){const clean=cleanBackgroundImagePreferences({backgroundImagePath:path}).backgroundImagePath;return clean?this.app.vault.adapter.getResourcePath(clean):'';}
+  openBackgroundImageSettings(){
+    if(this.backgroundImageModal?.modalEl.isConnected){this.backgroundImageModal.modalEl.querySelector<HTMLButtonElement>('button')?.focus();return this.backgroundImageModal;}
+    const modal=new BackgroundImageModal(this.app,{preferences:()=>cleanBackgroundImagePreferences(this.settings),resource:path=>this.backgroundImageResource(path),save:async(preferences,file)=>{
+      if(this.backgroundImagesClosed)throw Error('插件已关闭，请重新打开设置。');
+      const previous={...cleanBackgroundImagePreferences(this.settings),canvasBackground:this.settings.canvasBackground},baseline=backgroundImageStamp(previous),next=cleanBackgroundImagePreferences(preferences);
+      if(file){
+        if(file.size>MAX_BACKGROUND_IMAGE_BYTES)throw Error('请选择不超过 20 MB 的图片。');
+        const bytes=await file.arrayBuffer(),extension=validateBackgroundImageBytes(new Uint8Array(bytes));
+        const folder=normalizePath(`${this.app.vault.configDir}/plugins/${this.manifest.id}/backgrounds`),digest=createHash('sha256').update(new Uint8Array(bytes)).digest('hex');
+        next.backgroundImagePath=`${folder}/${digest}.${extension}`;
+        if(!await this.app.vault.adapter.exists(folder))await this.app.vault.adapter.mkdir(folder);
+        if(await this.app.vault.adapter.exists(next.backgroundImagePath)){
+          const cached=await this.app.vault.adapter.readBinary(next.backgroundImagePath);
+          if(createHash('sha256').update(new Uint8Array(cached)).digest('hex')!==digest)throw Error('已保存的背景图片内容发生变化，请先检查插件 backgrounds 文件夹。为保护原文件，本次未覆盖。');
+        }else await this.app.vault.adapter.writeBinary(next.backgroundImagePath,bytes);
+      }
+      if(this.backgroundImagesClosed)throw Error('插件已关闭，请重新打开设置。');
+      if(backgroundImageStamp(this.settings)!==baseline||this.settings.canvasBackground!==previous.canvasBackground)throw Error('背景已在其他窗口改变，请重新打开设置后应用。');
+      if(next.backgroundImagePath&&!await this.app.vault.adapter.exists(next.backgroundImagePath))throw Error('背景图片已不存在，请重新选择图片。');
+      if(this.backgroundImagesClosed||backgroundImageStamp(this.settings)!==baseline||this.settings.canvasBackground!==previous.canvasBackground)throw Error('背景已改变，请重新打开设置后应用。');
+      const mode=next.backgroundImagePath?'image':'plain';Object.assign(this.settings,next,{canvasBackground:mode});
+      try{await this.savePreferences();}catch(error){if(backgroundImageStamp(this.settings)===backgroundImageStamp(next)&&this.settings.canvasBackground===mode){Object.assign(this.settings,previous);for(const leaf of this.app.workspace.getLeavesOfType(VIEW))if(leaf.view instanceof BoardView)leaf.view.applyPreferences();}throw error;}
+    }});this.backgroundImageModal=modal;modal.open();return modal;
+  }
+  openPaperSettings(){
+    if(this.paperSettingsModal?.modalEl.isConnected){this.paperSettingsModal.modalEl.querySelector<HTMLButtonElement>('button[aria-pressed=true]')?.focus();return this.paperSettingsModal;}
+    const modal=new PaperSettingsModal(this.app,{preferences:()=>cleanPaperPreferences(this.settings),save:async preferences=>{
+      const previous={...cleanPaperPreferences(this.settings),canvasBackground:this.settings.canvasBackground},next=cleanPaperPreferences(preferences);
+      Object.assign(this.settings,next,{canvasBackground:'paper'});
+      try{await this.savePreferences();}catch(error){if(paperAppearanceStamp(this.settings)===paperAppearanceStamp(next)&&this.settings.canvasBackground==='paper'){Object.assign(this.settings,previous);for(const leaf of this.app.workspace.getLeavesOfType(VIEW))if(leaf.view instanceof BoardView)leaf.view.applyPreferences();}throw error;}
+    }});this.paperSettingsModal=modal;modal.open();return modal;
+  }
   async savePreferences() {
     await this.saveData(this.settings);
     for (const leaf of this.app.workspace.getLeavesOfType(VIEW)) if (leaf.view instanceof BoardView) leaf.view.applyPreferences();
@@ -711,11 +761,11 @@ export default class ThoughtSpace extends Plugin {
   }
 
   openBoardOrganizer(view=this.app.workspace.getActiveViewOfType(BoardView)||this.currentBoard){
-    if(view?.session&&!view.closed){view.openLayoutPlanner();return;}
+    if(view?.session&&!view.closed){act(()=>view.openLayoutPlanner());return;}
     const picker=new BoardPicker(this.app,null,async file=>{
       await this.openBoard(file);const target=this.currentBoard;
       if(!target?.session||target.closed||target.file!==file)throw Error('白板尚未就绪，请重新打开后再整理');
-      target.openLayoutPlanner();
+      await target.openLayoutPlanner();
     });
     picker.setPlaceholder('选择要整理的白板…');picker.open();
   }
@@ -1182,7 +1232,7 @@ class BoardView extends FileView {
   private mode: 'select' | 'connect' = 'select'; private connectFrom?: string; private connectButton?: HTMLButtonElement;
   private tab: 'library' | 'boards' | 'tasks' | 'outline' = 'boards'; private query = '';private sidebarQueries=new Map<string,string>(); private tag = ''; private sidebarRun = 0;private sidebarContentKey='';
   private boardScope:'spaces'|'favorites'='spaces';private boardSort:'title'|'updated'='title';
-  private taskFilter:TaskFilter='all';private outlineKind:OutlineKind='all';
+  private taskFilter:TaskFilter='all';private outlineKind:OutlineKind='all';private outlineCollapsed=new Set<string>();private startScreen?:HTMLElement;private savedViewsModal?:SavedViewsModal;private dialogEpoch=0;private groupOrganizer?:GroupOrganizerModal;private layoutPlannerModal?:LayoutPlannerModal;
   private favoriteButton?:HTMLElement;private mindmapButton?:HTMLElement;private mindmapTools?:HTMLElement;private inlineAppearance=false;
   private taskScope: 'board' | 'vault' = 'board'; private sidebarTimer?: number;
   private libraryScope: LibraryScope = 'vault'; private librarySort: LibrarySort = 'updated';
@@ -1330,11 +1380,13 @@ class BoardView extends FileView {
       outline:id=>{this.requireOwner(owner);this.openBranchOutline(id);}
     }).open();
   }
-  openLayoutPlanner(){const owner=this.requireOwner();new LayoutPlannerModal(this.app,{board:()=>this.requireOwner(owner).board,ids:new Set(this.selected),viewport:()=>{this.requireOwner(owner);const v=owner.board.viewport;return{x:-v.x/v.zoom,y:-v.y/v.zoom,width:this.stage.clientWidth/v.zoom,height:this.stage.clientHeight/v.zoom};},commit:edit=>{this.requireOwner(owner);const draft=studioDraft(owner.board,edit);if(draft)owner.change(()=>{owner.board=draft;});},focus:ids=>{this.requireOwner(owner);this.selected=ids;this.contextOpen=false;this.relatedFocus=undefined;this.objectFilter={kind:'',color:'',query:''};this.query='';this.renderBoard();this.focusSelection();}}).open();}
+  async openGroupOrganizer(){const epoch=this.dialogEpoch,owner=this.requireOwner();if(this.inline&&!await this.inline.commit())return;if(epoch!==this.dialogEpoch)return;this.requireOwner(owner);this.groupOrganizer?.close();const modal=new GroupOrganizerModal(this.app,{board:()=>this.requireOwner(owner).board,ids:new Set(this.selected),commit:edit=>{this.requireOwner(owner);const draft=studioDraft(owner.board,edit);if(draft)owner.change(()=>{owner.board=draft;});}});this.groupOrganizer=modal;modal.open();}
+  async openSavedViews(){const epoch=this.dialogEpoch,owner=this.requireOwner();if(this.inline&&!await this.inline.commit())return;if(epoch!==this.dialogEpoch)return;this.requireOwner(owner);this.savedViewsModal?.close();const modal=new SavedViewsModal(this.app,{board:()=>this.requireOwner(owner).board,commit:edit=>{this.requireOwner(owner);const draft=studioDraft(owner.board,edit);if(draft)owner.change(()=>{owner.board=draft;});},restore:id=>{this.requireOwner(owner);this.restoreView(id);}});this.savedViewsModal=modal;modal.open();}
+  async openLayoutPlanner(){const epoch=this.dialogEpoch,owner=this.requireOwner();if(this.inline&&!await this.inline.commit())return;if(epoch!==this.dialogEpoch)return;this.requireOwner(owner);this.layoutPlannerModal?.close();const modal=new LayoutPlannerModal(this.app,{presets:()=>this.plugin.settings.layoutPresets,savePresets:async presets=>{const previous=this.plugin.settings.layoutPresets,next=cleanLayoutPresets(presets);this.plugin.settings.layoutPresets=next;try{await this.plugin.saveData(this.plugin.settings);}catch(error){if(this.plugin.settings.layoutPresets===next)this.plugin.settings.layoutPresets=previous;throw error;}},board:()=>this.requireOwner(owner).board,ids:new Set(this.selected),viewport:()=>{this.requireOwner(owner);const v=owner.board.viewport;return{x:-v.x/v.zoom,y:-v.y/v.zoom,width:this.stage.clientWidth/v.zoom,height:this.stage.clientHeight/v.zoom};},commit:edit=>{this.requireOwner(owner);const draft=studioDraft(owner.board,edit);if(draft)owner.change(()=>{owner.board=draft;});},focus:ids=>{this.requireOwner(owner);this.selected=ids;this.contextOpen=false;this.relatedFocus=undefined;this.objectFilter={kind:'',color:'',query:''};this.query='';this.renderBoard();this.focusSelection();}});this.layoutPlannerModal=modal;modal.open();}
   openReadingDesk(ids:ReadonlySet<string>=this.selected){const owner=this.requireOwner();new ReadingDesk(this.app,{board:()=>this.requireOwner(owner).board,ids:new Set(ids),title:owner.file.basename,settings:this.plugin.settings,commit:edit=>{this.requireOwner(owner);const draft=studioDraft(owner.board,edit);if(draft)owner.change(()=>{owner.board=draft;});},reveal:id=>{this.requireOwner(owner);this.revealNode(id);},open:async file=>{this.requireOwner(owner);return this.plugin.openNoteInSidebar(file);}}).open();}
   private tourBar?:HTMLElement;
   openStudio(){const owner=this.requireOwner();const ensure=()=>this.requireOwner(owner);new BoardStudioModal(this.app,{
-    layout:()=>{ensure();this.openLayoutPlanner();},read:()=>{ensure();this.openReadingDesk();},board:()=>ensure().board,ids:()=>new Set(this.selected),
+    layout:()=>{ensure();act(()=>this.openLayoutPlanner());},read:()=>{ensure();this.openReadingDesk();},board:()=>ensure().board,ids:()=>new Set(this.selected),
     commit:edit=>{const session=ensure(),draft=studioDraft(session.board,b=>{edit(b);const before=new Map(session.board.nodes.map(n=>[n.id,n.text]));for(const n of b.nodes)if(n.kind==='text'&&before.get(n.id)!==n.text)fitTextNode(n,this.contentEl);});if(draft)session.change(()=>{session.board=draft;});},
     select:ids=>{ensure();this.selected=ids;this.contextOpen=false;this.updateSelection();},reveal:id=>{ensure();this.revealNode(id);},
     viewport:()=>{ensure();const v=owner.board.viewport;return{x:-v.x/v.zoom,y:-v.y/v.zoom,width:this.stage.clientWidth/v.zoom,height:this.stage.clientHeight/v.zoom};},
@@ -1396,6 +1448,7 @@ class BoardView extends FileView {
     add('选择上游内容','关系','arrow-up-left',()=>this.exploreRelations('upstream',ids),!has);add('选择下游内容','关系','arrow-down-right',()=>this.exploreRelations('downstream',ids),!has);add('两点最短路径','关系','route',()=>this.exploreRelations('path',ids),ids.size!==2);add('聚焦所选关系','关系','scan-eye',()=>this.exploreRelations('focus',ids),!has);add('解除所选内部连线','关系','unlink',()=>this.disconnectSelection(ids),ids.size<2);
     add('连线统一为直线','样式与排列','move-up-right',()=>this.unifyEdgeStyle('straight'));
     add('整理白板','样式与排列','layout-dashboard',()=>this.openLayoutPlanner());
+    add('移入已有分组','样式与排列','folder-input',()=>this.openGroupOrganizer(),!has);add('管理常用视角','视角','scan',()=>this.openSavedViews());
     add('打开笔记摘录','内容','notebook-pen',()=>this.openMaterials());add('复用到其他白板','内容','copy-plus',()=>this.openReuse(),!has);
     add('分支大纲与笔记','导图','file-tree',()=>this.openBranchOutline(one!.id),ids.size!==1||one?.kind==='section');add('移动分支到主题…','导图','git-pull-request',()=>this.moveBranchPrompt(one!.id),ids.size!==1||one?.kind==='section');add('分支独立为主题','导图','git-branch',()=>this.moveBranch(one!.id,undefined),ids.size!==1||!one||!branchState(owner.board).parents.has(one.id));
     add('选择整个导图分支','导图','list-tree',()=>this.selectBranch(),!has);
@@ -1448,6 +1501,9 @@ class BoardView extends FileView {
     root.dataset.accent = this.plugin.settings.accent;
     root.dataset.density = this.plugin.settings.density;
     root.dataset.background = this.plugin.settings.canvasBackground;
+    const paper=cleanPaperPreferences(this.plugin.settings);root.style.setProperty('--ts-paper-color',paperBaseColor(paper));root.style.setProperty('--ts-paper-texture',String(paper.paperTexture/100));
+    const background=cleanBackgroundImagePreferences(this.plugin.settings),imageResource=this.plugin.backgroundImageResource(background.backgroundImagePath);
+    root.style.setProperty('--ts-background-image',imageResource?`url(${JSON.stringify(imageResource)})`:'none');root.style.setProperty('--ts-background-image-fit',background.backgroundImageFit==='tile'?'auto':background.backgroundImageFit);root.style.setProperty('--ts-background-image-repeat',background.backgroundImageFit==='tile'?'repeat':'no-repeat');root.style.setProperty('--ts-background-image-opacity',String(background.backgroundImageOpacity/100));
     this.syncCanvasControls();if(this.session&&this.stage)this.transform();
     root.toggleClass('ts-hide-minimap', !this.plugin.settings.showMinimap);root.dataset.toolbarDensity=this.plugin.settings.toolbarDensity;root.toggleClass('ts-hide-card-tags',!this.plugin.settings.showCardTags);root.toggleClass('ts-hide-ports',!this.plugin.settings.showPorts);root.toggleClass('ts-hide-hints',!this.plugin.settings.showBoardHints);if(this.stage)this.scheduleRender();
   }
@@ -1528,7 +1584,8 @@ class BoardView extends FileView {
     const commands=top.createDiv({cls:'ts-commandbar',attr:{role:'toolbar','aria-label':'白板工具栏'}});
     this.registerDomEvent(commands,'focusout',()=>this.inline?.checkFocus());
     this.register(toolbarNavigation(commands));
-    this.registerDomEvent(commands,'wheel',e=>{if(!e.ctrlKey&&!e.metaKey&&commands.scrollWidth>commands.clientWidth){e.preventDefault();commands.scrollLeft+=Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY;}},{passive:false});
+    this.register(installToolbarWheel(commands));
+    this.registerDomEvent(commands,'keydown',e=>{if(e.key==='Escape'&&!e.isComposing&&this.inline&&!this.inline.saving){e.preventDefault();e.stopPropagation();this.inline.input.focus({preventScroll:true});}});
     this.register(()=>{extras.forEach(el=>el.remove());nativeHeader?.removeClass('ts-native-header');if(nativeHeader)delete nativeHeader.dataset.glass;nativeTitle?.removeClass('ts-board-title');});
     const body = root.createDiv('ts-body'); this.sidebar = this.contentEl.ownerDocument.createDocumentFragment().createDiv();this.sidebar.className='ts-sidebar';
 
@@ -1564,20 +1621,22 @@ class BoardView extends FileView {
     this.status=this.contentEl.ownerDocument.createDocumentFragment().createDiv();this.status.className='ts-save-status';this.status.setAttribute('role','status');this.status.setAttribute('aria-live','polite');this.status.setAttribute('aria-atomic','true');extras.push(this.status);
     (nativeHeader?.querySelector('.view-actions') || fallbackActions)!.prepend(this.status);
     this.favoriteButton=headerAction('收藏白板','star',()=>this.file&&this.plugin.toggleFavorite(this.file));
-    headerAction('白板写作模式','notebook-pen',()=>this.plugin.openWriting(this)).addClass('ts-workflow-entry');
-    headerAction('打开阅读桌','book-open',()=>this.openReadingDesk()).addClass('ts-workflow-entry');
     headerAction('搜索白板','search',()=>this.findOnBoard());
-    
-    this.mindmapButton=headerAction('思维导图','git-fork',()=>this.toggleMindmap());
-    headerAction('日历与日记','calendar-days',()=>this.plugin.ensureJournal(true)).addClass('ts-workflow-entry');
+    headerAction('常用视角','scan',()=>this.openSavedViews());
     this.focusButton=headerAction('专注模式','focus',()=>this.toggleFocus());
-    headerAction('导出 Canvas','download',()=>this.exportCanvas());
-    headerAction('打开知识空间','network',()=>this.plugin.openSpaceHub());
+    const workspaceEntry=headerAction('工作区','panels-top-left',()=>this.headerWorkspaceMenu(workspaceEntry));workspaceEntry.addClass('ts-workspace-menu-entry');
     (nativeHeader?.querySelector('.view-actions') || fallbackActions)?.prepend(...extras);
     this.applyPreferences();
     this.selectionTools=commands.createDiv({cls:'ts-selection-tools',attr:{'aria-label':'选中对象格式'}});
     this.stage = main.createDiv({ cls: 'ts-stage', attr: { tabindex: '0', 'aria-label': '思维白板；鼠标与快捷键可在插件设置中自定义。Shift 加左键框选，空格加左键平移，右键单击打开菜单，双击空白新建文本，双击已有节点编辑。思维导图：Tab 子主题，Enter 同级，Shift+Tab 父主题' } });
     this.world = this.stage.createDiv('ts-world'); this.svg = this.world.createSvg('svg', { cls: 'ts-edges' });this.edgeLayer=new EdgeLayer(this.svg,this.markerId,id=>this.labelEdge(id));
+    this.startScreen=this.stage.createDiv({cls:'ts-start-screen',attr:{'aria-label':'开始使用白板'}});this.startScreen.hidden=true;
+    this.startScreen.createEl('h2',{cls:'ts-start-heading',text:'从一个想法开始'});
+    this.startScreen.createEl('p',{cls:'ts-start-copy',text:'把文字、笔记和材料放在一起，让思路慢慢清晰。'});
+    const startActions=this.startScreen.createDiv('ts-start-actions');
+    button(startActions,'写下想法','type',()=>this.newText(),'ts-primary');button(startActions,'插入已有笔记','file-input',()=>this.insertExistingNote());button(startActions,'思维导图模板','git-fork',()=>this.plugin.promptMindmap());
+    this.startScreen.createDiv({cls:'ts-start-tip',text:'也可以双击空白处写文本，或把笔记拖进白板。'});
+    this.registerDomEvent(this.startScreen,'wheel',e=>e.stopPropagation(),{passive:true});this.registerDomEvent(this.startScreen,'pointerdown',e=>e.stopPropagation());this.registerDomEvent(this.startScreen,'dblclick',e=>e.stopPropagation());
     const rail=main.createDiv({cls:'ts-board-rail',attr:{role:'toolbar','aria-label':'白板创作工具','aria-orientation':'vertical'}});
     const railTools=rail.createDiv('ts-rail-tools');
     const panel=main.createDiv({cls:'ts-rail-popover',attr:{role:'dialog','aria-label':'更多白板工具'}});panel.hidden=true;
@@ -1589,15 +1648,17 @@ class BoardView extends FileView {
     button(workspace,'连线统一为直线','move-up-right',()=>this.unifyEdgeStyle('straight'));
     this.selectionButton = button(organize, '框选', 'scan', () => this.toggleSelectionTool());this.selectionButton.title='开启后左键框选 · Shift 累加 · 空格加左键平移 · 鼠标操作可在设置中修改';
     button(creation, '新建卡片', 'plus', () => this.newCard(), 'ts-primary');
-    button(creation,'文本','type',()=>this.newText());button(creation,'图片','image-plus',()=>this.imageMenu());
+    button(creation,'文本','type',()=>this.newText());button(creation,'表格','table-2',()=>this.newTable());button(creation,'图片','image-plus',()=>this.imageMenu());
     const insert=button(creation, '插入笔记', 'file-input', () => this.insertExistingNote(), 'ts-insert-note-entry');insert.title='插入已有 Markdown 笔记或 PDF · 搜索名称或路径';creation.insertBefore(insert,creation.children[1]);
     this.connectButton = button(organize, '连线', 'move-up-right', () => this.toggleConnectionTool());
     this.sectionButton=button(organize, '分组框', 'group', () => this.sectionAction(),'ts-section-tool');this.sectionButton.title='框住所选内容，或拖动画出分组框';
     button(organize, '子白板', 'panels-top-left', () => this.newChildBoard());
     button(organize,'分组总览','list-tree',()=>this.sectionNavigator());
+    button(organize,'移入已有分组','folder-input',()=>this.openGroupOrganizer());
     button(organize, '引用白板', 'folder-input', () => new BoardPicker(this.app, this.file, f => this.addBoard(f)).open());
     button(organize,'复用到其他白板','copy-plus',()=>this.openReuse());
     button(workspace,'白板工作台','sliders-horizontal',()=>this.openStudio());
+    button(workspace,'常用视角','scan',()=>this.openSavedViews());
     button(workspace,'视角与快照','bookmark-plus',()=>this.workspaceMenu());
     // Creation and navigation live in the rail; object formatting stays above the canvas.
     railTools.append(this.selectionButton,this.connectButton,...Array.from(creation.children),this.sectionButton,arrange);
@@ -1611,14 +1672,15 @@ class BoardView extends FileView {
     button(this.mindmapTools,'向右整理','align-start-vertical',()=>this.layoutTopics('right'));
     button(this.mindmapTools,'向下整理','align-start-horizontal',()=>this.layoutTopics('down'));
     button(this.mindmapTools,'向上整理','arrow-up-from-line',()=>this.layoutTopics('up'));
-    const more=button(railTools,'更多白板工具','ellipsis',()=>{panel.hidden=!panel.hidden;more.setAttribute('aria-expanded',String(!panel.hidden));if(!panel.hidden)panel.querySelector<HTMLButtonElement>('button')?.focus();});more.setAttribute('aria-haspopup','dialog');more.setAttribute('aria-expanded','false');
+    const toolSearch=installRailToolSearch(panel,toolbar);this.register(toolSearch.dispose);
+    const more=button(railTools,'更多白板工具','ellipsis',()=>{panel.hidden=!panel.hidden;more.setAttribute('aria-expanded',String(!panel.hidden));if(!panel.hidden)toolSearch.open();});more.setAttribute('aria-haspopup','dialog');more.setAttribute('aria-expanded','false');
     for(const entry of [railTools.querySelector('.ts-primary'),this.sectionButton,more])if(entry){const divider=railTools.ownerDocument.createDocumentFragment().createDiv();divider.className='ts-rail-divider';divider.setAttribute('role','separator');divider.setAttribute('aria-orientation','horizontal');railTools.insertBefore(divider,entry);}
     const closeTools=(focus=false)=>{panel.hidden=true;more.setAttribute('aria-expanded','false');if(focus)more.focus();};
     main.addEventListener('pointerdown',e=>{if(!rail.contains(e.target as Node)&&!panel.contains(e.target as Node))closeTools();});
-    panel.addEventListener('click',e=>{if((e.target as Element).closest('button'))closeTools();});
+    panel.addEventListener('click',e=>{if(toolbar.contains(e.target as Node)&&(e.target as Element).closest('button'))closeTools();});
     panel.addEventListener('focusout',()=>(panel.ownerDocument.defaultView||window).setTimeout(()=>{const active=panel.ownerDocument.activeElement;if(!panel.contains(active)&&!rail.contains(active))closeTools();},0));
     for(const area of [rail,panel]){
-      area.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Escape'){e.preventDefault();closeTools(true);return;}if(!(e.target instanceof HTMLButtonElement)||!['ArrowUp','ArrowDown','Home','End'].includes(e.key))return;const buttons=Array.from(area.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')).filter(b=>b.offsetWidth>0),at=buttons.indexOf(e.target);if(at<0)return;e.preventDefault();buttons[e.key==='Home'?0:e.key==='End'?buttons.length-1:(at+(e.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length]?.focus();});
+      area.addEventListener('keydown',e=>{e.stopPropagation();if(e.defaultPrevented||e.isComposing||e.keyCode===229||e.altKey||e.ctrlKey||e.metaKey||e.shiftKey)return;if(e.key==='Escape'){e.preventDefault();closeTools(true);return;}if(!(e.target instanceof HTMLButtonElement)||!['ArrowUp','ArrowDown','Home','End'].includes(e.key))return;const buttons=Array.from(area.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')).filter(b=>b.offsetWidth>0),at=buttons.indexOf(e.target);if(at<0)return;e.preventDefault();buttons[e.key==='Home'?0:e.key==='End'?buttons.length-1:(at+(e.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length]?.focus();});
     }
     const footer=main.createDiv('ts-footer');
     this.canvasControls=footer.createDiv({cls:'ts-canvas-controls',attr:{role:'toolbar','aria-label':'画布控制台'}});
@@ -1628,7 +1690,8 @@ class BoardView extends FileView {
     this.gridSelect=spacing.createEl('select',{attr:{'aria-label':'网格间距'}});for(const step of gridSteps)this.gridSelect.createEl('option',{value:String(step),text:`${step} px`});
     this.gridSelect.onchange=()=>act(async()=>{const value=Number(this.gridSelect!.value);if(!gridSteps.some(step=>step===value))return;this.plugin.settings.gridStep=value;await this.plugin.savePreferences();});
     const backgrounds=this.canvasControls.createDiv({cls:'ts-background-switch',attr:{role:'group','aria-label':'画布背景'}});
-    for(const [value,label,icon] of [['dots','点阵背景','circle-dot'],['grid','网格背景','grid'],['plain','纯色背景','square']] as const){const b=button(backgrounds,label,icon,async()=>{this.plugin.settings.canvasBackground=value;await this.plugin.savePreferences();});b.dataset.backgroundChoice=value;}
+    for(const [value,label,icon] of [['dots','点阵背景','circle-dot'],['grid','网格背景','grid'],['plain','纯色背景','square'],['paper','纸张纹理','file-text']] as const){const b=button(backgrounds,label,icon,async()=>{if(value==='paper'&&this.plugin.settings.canvasBackground==='paper'){this.plugin.openPaperSettings();return;}this.plugin.settings.canvasBackground=value;await this.plugin.savePreferences();});b.dataset.backgroundChoice=value;}
+    button(backgrounds,'纸张外观','palette',()=>this.plugin.openPaperSettings(),'ts-paper-settings-entry');
     this.canvasSummary=footer.createDiv({cls:'ts-canvas-summary',attr:{role:'status','aria-live':'polite'}});
     const zoom=footer.createDiv('ts-zoom');button(zoom,'−','minus',()=>this.zoom(.85));this.zoomLabel=zoom.createSpan({attr:{role:'button',tabindex:'0','aria-label':'缩放比例与视图定位',title:'缩放比例 · 聚焦所选 · 适应全部'}});this.zoomLabel.onclick=()=>this.zoomPresets();this.zoomLabel.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();this.zoomPresets();}};button(zoom,'+','plus',()=>this.zoom(1.18));button(zoom,'适应','scan',()=>this.fit());
     this.snapTarget=this.stage.createDiv({cls:'ts-snap-target',attr:{'aria-hidden':'true'}});this.snapReadout=this.stage.createDiv({cls:'ts-snap-readout',attr:{'aria-hidden':'true'}});
@@ -1660,7 +1723,7 @@ class BoardView extends FileView {
     this.registerDomEvent(this.stage,'lostpointercapture',e=>this.pointerCaptureLost(e));
     this.registerDomEvent(this.contentEl.ownerDocument.defaultView!,'blur',()=>{this.cancelRightMarquee();this.cancelConnection();this.flushPointer(false);this.setSectionTool(false);this.space=false;if(this.gesture)this.pointerUp(new PointerEvent('pointercancel',{pointerId:this.gesture.id}),true);if(this.marquee)this.finishMarquee(true);});
     this.registerDomEvent(this.stage,'wheel',e=>{
-      if(!this.session)return;e.preventDefault();if(this.gesture||this.marquee||this.rightMarquee||this.linkDrag)return;
+      if(!this.session)return;if(consumeMarkdownPreviewWheel(e))return;e.preventDefault();if(this.gesture||this.marquee||this.rightMarquee||this.linkDrag)return;
       const intent=boardWheelIntent(e,this.plugin.settings,this.stage.clientWidth,this.stage.clientHeight);
       if(intent.kind==='pan'?!intent.dx&&!intent.dy:intent.factor===1)return;
       if(Date.now()-this.lastWheelHistory>600)this.rememberViewport();this.lastWheelHistory=Date.now();
@@ -1672,7 +1735,7 @@ class BoardView extends FileView {
       if (link.classList.contains('internal-link')) {
         const path = link.getAttribute('data-href') || link.getAttribute('href');
         const id = link.closest('[data-id]')?.getAttribute('data-id');
-        const source = this.session?.board.nodes.find(n => n.id === id)?.file || '';
+        const source = this.session?.board.nodes.find(n => n.id === id)?.file || this.session?.file.path || '';
         if (path) { e.preventDefault(); e.stopPropagation(); const parts=parseLinktext(path),target=this.app.metadataCache.getFirstLinkpathDest(parts.path,source);act(() => target?.extension==='pdf'&&!Keymap.isModEvent(e)?this.plugin.openNoteInSidebar(target,parts.subpath):this.app.workspace.openLinkText(path, source, Keymap.isModEvent(e)||'tab')); }
       } else if (link.classList.contains('tag')) {
         e.preventDefault(); e.stopPropagation(); this.tag = link.textContent?.trim() || ''; this.selectTab('library','');
@@ -1702,10 +1765,10 @@ class BoardView extends FileView {
     this.registerEvent(this.app.vault.on('modify', f => { if (f instanceof TFile && f.extension === EXT && f !== this.file) { if (this.session?.board.nodes.some(n => n.kind === 'board' && n.file === f.path)) this.scheduleRender(); this.renderSidebar(); } }));
   }
   async onLoadFile(file: TFile) {
-    this.blankClicks.cancel();this.blankClickOwner=undefined;
-    this.tourBar?.remove();this.tourBar=undefined;this.searchModal?.close();this.searchModal=undefined;this.reuseModal?.close();this.reuseModal=undefined;
+    ++this.dialogEpoch;this.blankClicks.cancel();this.blankClickOwner=undefined;
+    this.tourBar?.remove();this.tourBar=undefined;this.searchModal?.close();this.searchModal=undefined;this.reuseModal?.close();this.reuseModal=undefined;this.savedViewsModal?.close();this.savedViewsModal=undefined;this.groupOrganizer?.close();this.groupOrganizer=undefined;this.layoutPlannerModal?.close();this.layoutPlannerModal=undefined;
     this.finishMarquee(true); this.setSectionTool(false); this.selectionTool = false; this.syncSelectionTool();
-    this.viewTrail.clear();this.objectFilter={kind:'',color:'',query:''};this.contextOpen=false;this.relatedFocus=undefined;this.relationLens=undefined;this.clearNodes();this.unsubscribe?.(); this.selected.clear(); this.selectedEdge = undefined; this.connectFrom = undefined;this.connectSide=undefined;this.stage?.removeClass('ts-connecting'); this.mode = 'select'; this.connectButton?.removeClass('is-active');
+    this.viewTrail.clear();this.outlineCollapsed.clear();this.objectFilter={kind:'',color:'',query:''};this.contextOpen=false;this.relatedFocus=undefined;this.relationLens=undefined;this.clearNodes();this.unsubscribe?.(); this.selected.clear(); this.selectedEdge = undefined; this.connectFrom = undefined;this.connectSide=undefined;this.stage?.removeClass('ts-connecting'); this.mode = 'select'; this.connectButton?.removeClass('is-active');
     try {
       const s = await this.plugin.session(file); this.session = s;this.contentEl.querySelectorAll<HTMLElement>('.ts-board-rail,.ts-commandbar,.ts-footer').forEach(el=>el.inert=false); s.listeners.add(this.paint);
       if (!this.svg.isConnected) { this.world.empty(); this.svg = this.world.createSvg('svg', { cls: 'ts-edges' });this.edgeLayer=new EdgeLayer(this.svg,this.markerId,id=>this.labelEdge(id)); }
@@ -1715,8 +1778,8 @@ class BoardView extends FileView {
       this.paint();await this.plugin.ensureDock(false);if(this.app.workspace.getActiveViewOfType(BoardView)===this)this.plugin.currentBoard=this;this.plugin.refreshDock();
     } catch (e) { this.session = undefined;this.contentEl.querySelectorAll<HTMLElement>('.ts-board-rail,.ts-commandbar,.ts-footer').forEach(el=>el.inert=true);this.minimap?.empty();this.inspector?.removeClass('is-visible');this.selectionTools?.empty();this.world.style.removeProperty('transform'); this.world.empty(); this.status.setText('文件无法读取 · 原文件保持不变'); this.world.createDiv({ cls: 'ts-error', text: `无法打开白板：${String(e)}。请检查 JSON 文件或恢复备份。` }); report(e); }
   }
-  async onUnloadFile() { this.blankClicks.cancel();this.blankClickOwner=undefined;this.searchModal?.close();this.searchModal=undefined;this.reuseModal?.close();this.reuseModal=undefined;await this.finishInlineForNavigation(); if(this.plugin.currentBoard===this)this.plugin.clearMaterialDrag();this.clearCanvasGesture();this.clearNodes();this.finishMarquee(true); this.sidebarRun++; this.unsubscribe?.(); this.unsubscribe = undefined; if (this.session) await this.session.flush(); this.session = undefined;this.plugin.refreshDock(); }
-  async onClose() { this.blankClicks.cancel();this.blankClickOwner=undefined;this.objectMenu?.hide();this.searchModal?.close();this.searchModal=undefined;this.reuseModal?.close();this.reuseModal=undefined;await this.finishInlineForNavigation();if(this.plugin.currentBoard===this)this.plugin.clearMaterialDrag();this.clearCanvasGesture();this.closed=true;this.plugin.refreshDock();this.sidebar?.remove(); this.finishMarquee(true); this.sidebarRun++; if (this.sidebarTimer) window.clearTimeout(this.sidebarTimer); this.unsubscribe?.(); (this.contentEl?.ownerDocument?.defaultView||window).cancelAnimationFrame(this.renderFrame);this.clearNodes(); }
+  async onUnloadFile() { ++this.dialogEpoch;this.blankClicks.cancel();this.blankClickOwner=undefined;this.searchModal?.close();this.searchModal=undefined;this.reuseModal?.close();this.reuseModal=undefined;this.savedViewsModal?.close();this.savedViewsModal=undefined;this.groupOrganizer?.close();this.groupOrganizer=undefined;this.layoutPlannerModal?.close();this.layoutPlannerModal=undefined;await this.finishInlineForNavigation(); if(this.plugin.currentBoard===this)this.plugin.clearMaterialDrag();this.clearCanvasGesture();this.clearNodes();this.finishMarquee(true); this.sidebarRun++; this.unsubscribe?.(); this.unsubscribe = undefined; if (this.session) await this.session.flush(); this.session = undefined;this.plugin.refreshDock(); }
+  async onClose() { ++this.dialogEpoch;this.blankClicks.cancel();this.blankClickOwner=undefined;this.objectMenu?.hide();this.searchModal?.close();this.searchModal=undefined;this.reuseModal?.close();this.reuseModal=undefined;this.savedViewsModal?.close();this.savedViewsModal=undefined;this.groupOrganizer?.close();this.groupOrganizer=undefined;this.layoutPlannerModal?.close();this.layoutPlannerModal=undefined;await this.finishInlineForNavigation();if(this.plugin.currentBoard===this)this.plugin.clearMaterialDrag();this.clearCanvasGesture();this.closed=true;this.plugin.refreshDock();this.sidebar?.remove(); this.finishMarquee(true); this.sidebarRun++; if (this.sidebarTimer) window.clearTimeout(this.sidebarTimer); this.unsubscribe?.(); (this.contentEl?.ownerDocument?.defaultView||window).cancelAnimationFrame(this.renderFrame);this.clearNodes(); }
   private point(clientX?: number, clientY?: number) {
     const rect = this.stage.getBoundingClientRect(), v = this.requireOwner().board.viewport;
     return { x: ((clientX ?? rect.left + rect.width / 2) - rect.left - v.x) / v.zoom, y: ((clientY ?? rect.top + rect.height / 2) - rect.top - v.y) / v.zoom };
@@ -1892,6 +1955,13 @@ class BoardView extends FileView {
   async newText(position=this.point(),topic=false){const owner=this.requireOwner();if(this.inline&&!await this.inline.commit())return;this.requireOwner(owner);
     const id=uid();owner.change(b=>{b.version=3;if(topic)b.mode='mindmap';const node:Card={id,kind:'text',text:topic?'中心主题':'',topic,...(topic?{mindmapRules:{layout:b.mindmapLayout||'right',density:b.mindmapDensity||'standard',automatic:true} as NonNullable<Card['mindmapRules']>}:{}),x:position.x-40,y:position.y-30,width:80,height:60,color:topic?'green':'sand',fontSize:this.plugin.settings.defaultTextSize,autoSize:true};fitTextNode(node,this.contentEl);b.nodes.push(node);});this.selected=new Set([id]);this.selectedEdge=undefined;this.contextOpen=false;this.updateSelection();await this.startInlineEdit(id,topic,true);
   }
+  async newTable(position=this.point()){
+    const owner=this.requireOwner();if(this.inline&&!await this.inline.commit())return;this.requireOwner(owner);
+    const template=markdownEdit('',0,0,'table'),id=uid();
+    owner.change(b=>{b.version=3;b.nodes.push({id,kind:'text',text:template.text,x:position.x-40,y:position.y-30,width:520,height:180,textMaxWidth:720,color:'sand',fontSize:this.plugin.settings.defaultTextSize,autoSize:true});});
+    this.selected=new Set([id]);this.selectedEdge=undefined;this.contextOpen=false;this.updateSelection();await this.startInlineEdit(id,false,true);
+    if(this.session===owner&&this.inlineId===id)this.inline?.input.setSelectionRange(template.start,template.end);
+  }
   editText(id:string){act(()=>this.startInlineEdit(id));}
   async prepareNoteOpen(file:TFile){if(this.inline&&this.session?.board.nodes.find(n=>n.id===this.inlineId)?.file===file.path&&!await this.inline.commit())throw Error('白板编辑草稿与原文冲突，草稿已保留。请先处理后再打开原生编辑器。');}
   private endInline(){this.inline?.dispose();this.inline=undefined;this.inlineId=undefined;this.inlineTarget=undefined;this.inlineStyleKey='';this.inlineMeasureKey='';this.inlineGeometry=undefined;this.inlineLayout=undefined;this.renderBoard();}
@@ -1940,12 +2010,17 @@ class BoardView extends FileView {
     this.renderBoard();const el=this.positions.get(id);if(!el){this.inlineTarget=undefined;return;}
     this.pendingFits.delete(id);this.inlineStyleKey=this.nodeAppearanceKey(node);this.inlineMeasureKey=this.nodeMeasureKey(node);let editor:InlineNodeEditor;let draftSize:{width:number;height:number}|undefined;let lastDraftValue=original;
     const cardFit=node.kind==='card'&&node.autoFit?new InlineCardFit(this.app,el.querySelector<HTMLElement>('.ts-card-preview')!,file!.path,node.preferredWidth,size=>{draftSize=size;if(this.session===owner)this.applyInlineSize(id,size);editor?.syncGeometry();}):undefined;
+    let editHeight=0;
+    const applyTextSize=()=>{const current=owner.board.nodes.find(n=>n.id===id);if(this.session!==owner||this.closed||owner.blocked||this.inlineTarget!==id||current?.kind!=='text'||current.locked)return;const size=draftSize??current;this.applyInlineSize(id,{width:size.width,height:Math.max(size.height,editHeight)});editor?.syncGeometry();};
+    const textFit=node.kind==='text'?new InlineTextFit(this.app,el.querySelector<HTMLElement>('.ts-text-body')!,owner.file.path,()=>owner.board.nodes.find(n=>n.id===id),size=>{draftSize=size;applyTextSize();}):undefined;
     const end=()=>{if(this.inline===editor){const doc=this.contentEl.ownerDocument,restore=editor.el.contains(doc.activeElement)||doc.activeElement===doc.body;this.endInline();if(restore)this.stage.focus();}};
-    editor=new InlineNodeEditor(el,{createLinkedNote:(name,source)=>this.plugin.createConceptLinkNote(name,source),app:this.app,file:file instanceof TFile?file:undefined,value:original,label:node.kind==='text'?'编辑白板文本':'编辑卡片 Markdown',selectAll,continueTopic:node.kind==='text'&&owner.board.mode==='mindmap'?sibling=>this.addTopic(sibling,id):undefined,placeholder:node.kind==='text'?'写下想法…':'写下笔记，支持 Markdown…',markdown:node.kind==='card',focusWithin:active=>!!active&&!!this.selectionTools?.closest('.ts-floating-formatbar')?.contains(active),
-      resize:(value,_input,appearanceChanged)=>{const current=owner.board.nodes.find(n=>n.id===id);if(!current)return;if(node.kind==='text'){const draft={...current,text:value};fitTextNode(draft,this.contentEl);if(this.session===owner)this.applyInlineSize(id,draft);}else if(value!==lastDraftValue||appearanceChanged){lastDraftValue=value;cardFit?.schedule(value,appearanceChanged);}},
-      dispose:()=>cardFit?.dispose(),
+    editor=new InlineNodeEditor(el,{createLinkedNote:(name,source)=>this.plugin.createConceptLinkNote(name,source),app:this.app,file:file instanceof TFile?file:undefined,contextFile:owner.file,nodeKind:kind==='text'?'text':'card',value:original,label:node.kind==='text'?'编辑白板 Markdown':'编辑卡片 Markdown',selectAll,continueTopic:node.kind==='text'&&owner.board.mode==='mindmap'?sibling=>this.addTopic(sibling,id):undefined,placeholder:'写下内容，支持 Markdown、公式和表格…',markdown:true,focusWithin:active=>!!active&&!!this.selectionTools?.closest('.ts-floating-formatbar')?.contains(active),
+      temporaryHeight:kind==='text'?height=>{if(Number.isFinite(height)&&height>=60&&height<=1200&&height!==editHeight){editHeight=height;applyTextSize();}}:undefined,
+      resize:(value,_input,appearanceChanged)=>{const current=owner.board.nodes.find(n=>n.id===id);if(!current)return;if(node.kind==='text'){textFit?.schedule(value,appearanceChanged);}else if(value!==lastDraftValue||appearanceChanged){lastDraftValue=value;cardFit?.schedule(value,appearanceChanged);}},
+      dispose:()=>{cardFit?.dispose();textFit?.dispose();},
       cancel:end,
       save:async value=>{
+        textFit?.schedule(value);await textFit?.flush();
         const validate=()=>{this.requireOwner(owner);const current=owner.board.nodes.find(n=>n.id===id);
           if(!current||current.locked||current.kind!==kind)throw Error('对象已改变，草稿保留；请复制后重新编辑');
           if(value!==original&&file instanceof TFile&&(current.file!==file.path||this.app.vault.getAbstractFileByPath(file.path)!==file))throw Error('关联笔记已改变，未写入原文件');
@@ -1953,7 +2028,7 @@ class BoardView extends FileView {
         };
         const current=validate(),sizeBefore={width:current.width,height:current.height,appearance:this.nodeAppearanceKey(current)};
         if(value!==original){if(file instanceof TFile)await writeNativeNoteDraft(this.app,file,original,value,validate);
-          else{if(current.text!==original)throw Error('原文本已变化，未覆盖。请复制草稿后重新编辑');owner.change(b=>{const n=b.nodes.find(n=>n.id===id)!;n.text=value;fitTextNode(n,this.contentEl);});}}
+          else{if(current.text!==original)throw Error('原文本已变化，未覆盖。请复制草稿后重新编辑');owner.change(b=>{const n=b.nodes.find(n=>n.id===id)!;n.text=value;if(draftSize)Object.assign(n,draftSize);else fitTextNode(n,this.contentEl);});}}
         // Content is committed. A changed/removed card must not receive an old draft size.
         const latest=owner.board.nodes.find(n=>n.id===id);
         if(draftSize&&Number.isFinite(draftSize.width)&&Number.isFinite(draftSize.height)&&draftSize.width>=80&&draftSize.height>=60&&value!==original&&this.session===owner&&!this.closed&&!owner.blocked&&latest?.kind===kind&&!latest.locked&&latest.autoFit&&latest.file===file?.path&&latest.width===sizeBefore.width&&latest.height===sizeBefore.height&&this.nodeAppearanceKey(latest)===sizeBefore.appearance){
@@ -2151,16 +2226,11 @@ class BoardView extends FileView {
     }
     }
     this.updateBackToContent();const b = this.displayBoard();if(!viewportOnly){this.syncCanvasControls();this.contentEl.toggleClass('ts-mindmap-mode',b.mode==='mindmap');this.mindmapButton?.toggleClass('is-active',b.mode==='mindmap');this.mindmapButton?.setAttribute('aria-pressed',String(b.mode==='mindmap'));}
-    this.world.querySelectorAll('.ts-empty').forEach(el=>el.remove());
+    if(this.startScreen)this.startScreen.hidden=!!b.nodes.length;
     if(!viewportOnly){this.updateObjectFilter();this.renderSaveStatus(); this.fileTitle?.setText(this.file?.basename || '研究工作台'); this.renderNavigation();}
     const v=b.viewport;this.world.style.transform=`translate(${v.x}px, ${v.y}px) scale(${v.zoom})`;this.stage.style.backgroundSize=`${visibleGridSize(this.plugin.settings.gridStep,v.zoom)}px ${visibleGridSize(this.plugin.settings.gridStep,v.zoom)}px`;this.stage.style.backgroundPosition=`${v.x}px ${v.y}px`;this.zoomLabel.setText(`${Math.round(v.zoom*100)}%`);
     const branches=branchState(b);const visible=visibleNodes(b.nodes.filter(n=>!branches.hidden.has(n.id)).map(sectionDisplayNode),viewportRect(v,this.stage.clientWidth,this.stage.clientHeight));for(const id of new Set([this.inlineId,this.inlineTarget])){const editing=b.nodes.find(n=>n.id===id);if(editing&&!visible.some(n=>n.id===editing.id))visible.push(editing);}for(const node of b.nodes){if(this.positions.get(node.id)?.querySelector('.ts-card-title-input')&&!visible.some(n=>n.id===node.id))visible.push(node);}const live=new Set(visible.map(n=>n.id));let childCandidates:ReturnType<typeof childConnectionCandidates>|undefined;
     for(const [id,el] of this.positions){if(!live.has(id)){el.remove();this.positions.delete(id);this.nodeScopes.get(id)?.unload();this.nodeScopes.delete(id);this.nodeKeys.delete(id);}}
-    if (!b.nodes.length) {
-      const empty = this.world.createDiv('ts-empty'); setIcon(empty.createDiv('ts-empty-icon'), 'network');
-      empty.createEl('h2', { text: '给想法一个生长的空间' }); empty.createEl('p', { text: '从一张卡片开始，也可以建立子白板，逐层展开你的研究主题。' });
-      button(empty, '写下第一个想法', 'plus', () => this.newCard(), 'ts-primary'); button(empty, '建立子主题', 'panels-top-left', () => this.newChildBoard());
-    }
     // File metadata is shared only inside this synchronous render. Even a missing
     // cache is read once; the next content refresh always starts from current data.
     const fileMetadata=new Map<TFile,{cache:CachedMetadata|null;tags:string[]|null}>();
@@ -2236,7 +2306,7 @@ class BoardView extends FileView {
         const textBody=el.createDiv({cls:'ts-text-body'});textBody.style.fontFamily=textFontFamily(n.fontFamily);textBody.style.fontSize=`${n.collapsed?Math.min(n.fontSize||16,24):n.fontSize||16}px`;textBody.style.textAlign=n.textAlign || 'left';
         if(n.collapsed){textBody.setText(presentation.body.split(/\r?\n/).find(line=>line.trim())?.trim()||'空文本');}
         else{
-          renderTextPreview(textBody,presentation.sources.length?presentation.body.trimEnd():presentation.body,scope,()=>{if(textBody.isConnected)this.queueTextFit(n);},(alive,run)=>this.previewQueue.add(alive,run));
+          renderTextPreview(textBody,presentation.sources.length?presentation.body.trimEnd():presentation.body,scope,()=>{if(textBody.isConnected)this.queueTextFit(n);},(alive,run)=>this.previewQueue.add(alive,run),{app:this.app,sourcePath:this.session.file.path});
           if(presentation.sources.length){textBody.appendText('\u2060');this.addSourceBadge(textBody,this.session.file,presentation.sources,scope);}
           this.queueTextFit(n);
         }
@@ -2482,17 +2552,22 @@ class BoardView extends FileView {
     owner.change(b=>{for(const n of b.nodes){const size=changes.get(n.id);if(size)Object.assign(n,size);}},clone(owner.board),false,false);
   }
 
-  saveView(name:string){const owner=this.requireOwner();const viewport=clone(owner.board.viewport);owner.change(b=>{b.version=3;b.savedViews||=[];if(b.savedViews.length>=50)throw Error('最多保存 50 个视角，请先移除旧视角');b.savedViews.push({id:uid(),name:name.trim().slice(0,100)||'视角',viewport});});}
-  restoreView(id:string){const owner=this.requireOwner(),view=owner.board.savedViews?.find(v=>v.id===id);if(!view)return;owner.board.viewport=clone(view.viewport);this.transform();owner.persist();}
+  saveView(name:string){const owner=this.requireOwner();owner.change(b=>addSavedView(b,uid(),name));}
+  restoreView(id:string){const owner=this.requireOwner(),view=owner.board.savedViews?.find(v=>v.id===id);if(!view)return;this.clearCanvasGesture();this.rememberViewport();owner.board.viewport=clone(view.viewport);this.transform();owner.persist();}
+  private headerWorkspaceMenu(anchor:HTMLElement){const owner=this.requireOwner(),menu=new Menu().setUseNativeMenu(false);const add=(title:string,icon:string,run:()=>unknown)=>menu.addItem(i=>i.setTitle(title).setIcon(icon).onClick(()=>act(()=>{this.requireOwner(owner);return run();})));
+    add('整理白板','layout-dashboard',()=>this.openLayoutPlanner());add('移入已有分组','folder-input',()=>this.openGroupOrganizer());add('分组预览','list-tree',()=>this.sectionNavigator());
+    menu.addSeparator();add('白板写作模式','notebook-pen',()=>this.plugin.openWriting(this));add('打开阅读桌','book-open',()=>this.openReadingDesk());add('打开笔记摘录','notebook-pen',()=>this.openMaterials());add('打开知识空间','network',()=>this.plugin.openSpaceHub());add('日历与日记','calendar-days',()=>this.plugin.ensureJournal(true));
+    menu.addSeparator();add(owner.board.mode==='mindmap'?'切换为自由白板':'切换为思维导图','git-fork',()=>this.toggleMindmap());add('导出 Canvas','download',()=>this.exportCanvas());add('快照与导出','history',()=>this.workspaceMenu());
+    const box=anchor.getBoundingClientRect();menu.showAtPosition({x:box.right,y:box.bottom+6});
+  }
   workspaceMenu(){const owner=this.session;if(!owner)return;const file=owner.file;
-    const actions=[{title:'保存当前视角…',run:()=>new Prompt(this.app,'保存视角','',name=>{this.requireOwner(owner);this.saveView(name);}).open()},
+    const actions:{title:string;run:()=>unknown}[]=[{title:'保存当前视角…',run:()=>new Prompt(this.app,'保存视角','',name=>{this.requireOwner(owner);this.saveView(name);}).open()},
       {title:'保存布局快照',run:async()=>{await this.plugin.saveLayoutSnapshot(file);new Notice('布局快照已保存');}},
       {title:'恢复布局快照…',run:()=>this.plugin.showSnapshots(file)},
       {title:'复制整张白板',run:async()=>{const copy=await this.plugin.duplicateBoard(file);await this.plugin.openBoard(copy);}},
       {title:'导出 Markdown 大纲',run:()=>this.plugin.exportOutline(file)},
       {title:'导出原生链接索引',run:()=>this.plugin.exportNativeIndex(file)}];
-    for(const view of owner.board.savedViews||[])actions.push({title:`跳转视角 · ${view.name}`,run:()=>{this.requireOwner(owner);this.restoreView(view.id);}});
-    if(owner.board.savedViews?.length)actions.push({title:'管理已保存视角…',run:()=>new ActionPicker(this.app,'选择要移除的视角',(owner.board.savedViews||[]).map(view=>({title:`移除 · ${view.name}`,run:()=>{this.requireOwner(owner);owner.change(b=>b.savedViews=b.savedViews?.filter(v=>v.id!==view.id));}}))).open()});
+    actions.unshift({title:'管理常用视角…',run:()=>this.openSavedViews()});
     new ActionPicker(this.app,'视角与快照',actions).open();
   }
   boardMenu(file:TFile,event:MouseEvent){const menu=new Menu().setUseNativeMenu(false);const add=(label:string,icon:string,run:()=>unknown)=>menu.addItem(i=>i.setTitle(label).setIcon(icon).onClick(()=>act(run)));
@@ -2633,12 +2708,12 @@ class BoardView extends FileView {
       }
     }
 
-    if(nodes.length===1&&nodes[0].kind==='card'){
+    if(nodes.length===1&&(nodes[0].kind==='card'||nodes[0].kind==='text')){
       const node=nodes[0],editor=this.inlineId===node.id?this.inline:undefined;
       if(editor){
         const toggle=button(host,this.inlineAppearance?'Markdown':'外观',this.inlineAppearance?'square-pen':'sliders-horizontal',()=>{if(this.inline!==editor||!toggle.isConnected)return;this.inlineAppearance=!this.inlineAppearance;this.renderSelectionTools();editor.input.focus({preventScroll:true});},'ts-md-mode');
         toggle.onmousedown=e=>e.preventDefault();toggle.setAttribute('aria-pressed',String(this.inlineAppearance));toggle.title=this.inlineAppearance?'返回 Markdown 编辑工具':'调整字体、颜色与边框';
-        if(!this.inlineAppearance){markdownToolbar(host,editor);host.append(toggle);return;}
+        if(!this.inlineAppearance){markdownToolbar(host,editor);return;}
       }else{const edit=button(host,'编辑 Markdown','square-pen',()=>this.startInlineEdit(node.id),'ts-md-mode');edit.disabled=owner.blocked||!!node.locked;}
     }
     const transfer=host.createDiv({cls:'ts-style-transfer',attr:{role:'group','aria-label':'复制与粘贴外观'}});
@@ -2801,7 +2876,7 @@ class BoardView extends FileView {
     if(!node){
       add('在此新建卡片','plus',()=>this.newCard(position));
       add('在此插入笔记或 PDF…','file-input',()=>this.insertExistingNote(position));
-      add('在此添加文本','type',()=>this.newText(position));
+      add('在此添加文本','type',()=>this.newText(position));add('在此添加表格','table-2',()=>this.newTable(position));
       add('在此添加图片','image-plus',()=>this.imageMenu(position));
       add('在此新建分组框','square-plus',()=>this.newSection(position));
       menu.addSeparator();
@@ -2851,6 +2926,7 @@ class BoardView extends FileView {
     add(ids.size>1?'复制所选引用':node.kind==='section'?'复制分组及内容':'复制引用','copy',()=>this.duplicateSelection());
     add(owner.board.nodes.filter(n=>ids.has(n.id)).every(n=>n.locked)?'解锁所选':'锁定所选','lock',()=>owner.change(b=>{const nodes=b.nodes.filter(n=>ids.has(n.id)),unlock=nodes.every(n=>n.locked);nodes.forEach(n=>n.locked=!unlock);}));
     if(ids.size>1)add('建立命名分组框','group',()=>this.newSection(position));
+    add('移入已有分组…','folder-input',()=>this.openGroupOrganizer());
     add(node.kind==='section'&&ids.size===1?'整理分组内容…':'整理布局…','layout-grid',()=>this.openLayoutPlanner());
     menu.addSeparator();
     add(node.kind==='section'&&ids.size===1?'移除分组框（保留内容）':ids.size>1?'移出所选内容（保留文件）':'移出白板（保留文件）','trash-2',()=>this.deleteSelection());
@@ -2867,6 +2943,7 @@ class BoardView extends FileView {
     this.contentEl.dataset.snap=String(enabled);if(!enabled)this.previewGridLanding();
     if(this.snapToggle){this.snapToggle.toggleClass('is-active',enabled);this.snapToggle.setAttribute('aria-pressed',String(enabled));this.snapToggle.title=enabled?'网格吸附已开启 · 拖动松手后对齐':'网格吸附已关闭 · 自由移动';this.snapToggle.querySelector('.ts-snap-state')?.setText(enabled?'开启':'关闭');this.snapToggle.disabled=!this.session||this.session.blocked;}
     if(this.gridSelect)this.gridSelect.value=String(this.plugin.settings.gridStep);
+    const paperSettings=this.canvasControls?.querySelector<HTMLButtonElement>('.ts-paper-settings-entry');if(paperSettings)paperSettings.hidden=this.plugin.settings.canvasBackground!=='paper';
     this.canvasControls?.querySelectorAll<HTMLButtonElement>('[data-background-choice]').forEach(b=>{const active=b.dataset.backgroundChoice===this.plugin.settings.canvasBackground;b.classList.toggle('is-active',active);b.setAttribute('aria-pressed',String(active));});
     const movable=this.session?.board.nodes.filter(n=>this.selected.has(n.id)&&!n.locked).length||0;
     this.canvasSummary?.setText(this.selected.size?`已选 ${this.selected.size} 项${movable!==this.selected.size?' · 含锁定对象':''}`:`${this.session?.board.nodes.length||0} 个对象`);
@@ -3183,13 +3260,19 @@ class BoardView extends FileView {
       const filtered=!!this.query||this.outlineKind!=='all';
       if(filtered)button(controls,'清除大纲筛选','rotate-ccw',()=>this.clearSidebarFilters(),'ts-icon-button ts-sidebar-filter-reset');
       const name=(n:Card)=>{const f=n.file&&this.app.vault.getAbstractFileByPath(n.file);return f instanceof TFile?f.basename:readingTitle(n)||'未命名';};
-      const nodes=outlineNodes(this.session.board.nodes,this.query,this.outlineKind,name);
-      list.createDiv({text:`${nodes.length} 个对象 · 按空间位置排列`,cls:'ts-list-heading'});
-      for(const n of nodes){const row=list.createDiv({cls:'ts-outline-row',attr:{'data-outline-id':n.id}});row.toggleClass('is-selected',this.selected.has(n.id));
-        const target=button(row,name(n),n.kind==='section'?'group':n.kind==='board'?'panels-top-left':n.kind==='text'?'type':n.kind==='image'?'image':'file-text',()=>this.revealNode(n.id),'ts-outline-title');target.title=n.file||n.title||'';
+      const owner=this.session;
+      button(controls,'展开大纲分组','chevrons-down',()=>{this.outlineCollapsed.clear();this.renderSidebar();},'ts-icon-button');
+      button(controls,'收起大纲分组','chevrons-up',()=>{this.outlineCollapsed=new Set(owner.board.nodes.filter(n=>n.kind==='section').map(n=>n.id));this.renderSidebar();},'ts-icon-button');
+      const rows=outlineTree(owner.board,{query:this.query,kind:this.outlineKind,collapsed:this.outlineCollapsed,name}),nodes=rows.map(r=>r.node);
+      list.createDiv({text:`${nodes.length} 个对象 · 按分组层级排列`,cls:'ts-list-heading'});
+      const tree=list.createDiv({cls:'ts-outline-tree',attr:{role:'tree','aria-label':'白板分组大纲'}});
+      for(const entry of rows){const n=entry.node,row=tree.createDiv({cls:'ts-outline-row',attr:{'data-outline-id':n.id,role:'treeitem','aria-level':String(entry.depth+1)}});row.style.setProperty('--outline-depth',String(entry.depth));row.toggleClass('is-selected',this.selected.has(n.id));
+        if(entry.childCount){row.setAttribute('aria-expanded',String(entry.expanded));const disclosure=button(row,`${entry.expanded?'收起':'展开'}大纲 · ${name(n)}`,entry.expanded?'chevron-down':'chevron-right',()=>{if(this.outlineCollapsed.has(n.id))this.outlineCollapsed.delete(n.id);else this.outlineCollapsed.add(n.id);this.renderSidebar();},'ts-icon-button ts-outline-toggle');disclosure.setAttribute('aria-expanded',String(entry.expanded));}else row.createSpan({cls:'ts-outline-toggle-spacer'});
+        const target=button(row,name(n),n.kind==='section'?'folder':n.kind==='board'?'panels-top-left':n.kind==='text'?'type':n.kind==='image'?'image':'file-text',()=>this.revealNode(n.id),'ts-outline-title');target.title=n.file||n.title||'';
+        if(n.kind==='section')row.createSpan({text:String(entry.descendantCount),cls:'ts-outline-children-count',attr:{'aria-label':`${entry.descendantCount} 个组内对象`}});
         if(['card','text','image'].includes(n.kind))button(row,'阅读 '+name(n),'book-open',()=>this.openReadingDesk(new Set([n.id])),'ts-icon-button ts-outline-read');
-        if(n.kind==='card'||n.kind==='pdf'||n.kind==='board'||n.kind==='text'){const label=n.kind==='board'?'子白板':n.kind==='pdf'?'PDF':n.kind==='text'?'文本':'卡片';const fold=button(row,`${n.collapsed?'展开':'折叠'}${label}`,n.collapsed?'chevron-down':'chevron-up',()=>n.kind==='text'?this.foldText(n.id,!n.collapsed):this.mutate(b=>foldCards(b,new Set([n.id]),!n.collapsed)),'ts-icon-button');fold.disabled=this.session.blocked||!!n.locked;fold.setAttribute('aria-expanded',String(!n.collapsed));}
-        else row.createSpan({text:n.kind==='section'?'分组':n.kind==='image'?'图片':'白板',cls:'ts-outline-kind'});
+        if(n.kind==='card'||n.kind==='pdf'||n.kind==='board'||n.kind==='text'){const label=n.kind==='board'?'子白板':n.kind==='pdf'?'PDF':n.kind==='text'?'文本':'卡片';const fold=button(row,`${n.collapsed?'展开':'折叠'}${label}`,n.collapsed?'chevron-down':'chevron-up',()=>n.kind==='text'?this.foldText(n.id,!n.collapsed):this.mutate(b=>foldCards(b,new Set([n.id]),!n.collapsed)),'ts-icon-button');fold.disabled=owner.blocked||!!n.locked;fold.setAttribute('aria-expanded',String(!n.collapsed));}
+        if(n.kind==='section'){const fold=button(row,n.sectionFolded?'展开白板分组':'折叠白板分组',n.sectionFolded?'unfold-vertical':'fold-vertical',()=>this.setSelectionFold(new Set([n.id]),!n.sectionFolded,true),'ts-icon-button');fold.disabled=owner.blocked||!!n.locked;fold.setAttribute('aria-expanded',String(!n.sectionFolded));}
       }
       if(!nodes.length){const empty=list.createDiv('ts-sidebar-empty ts-sidebar-empty-actions');empty.createSpan({text:'没有匹配的对象。试试其他关键词或类型。'});if(filtered)button(empty,'清除筛选','rotate-ccw',()=>this.clearSidebarFilters());}return;
     }
@@ -3386,7 +3469,9 @@ class ThoughtSpaceSettings extends PluginSettingTab {
       new Setting(containerEl).setName('阅读桌字号').setDesc('仅影响独立阅读桌，保留白板对象字号；重新打开阅读桌生效。').addDropdown(d=>d.addOptions({'14':'14 px','16':'16 px','18':'18 px','20':'20 px'}).setValue(String(this.plugin.settings.readingSize)).onChange(value=>{this.plugin.settings.readingSize=Number(value);act(persist);}));
       new Setting(containerEl).setName('阅读桌行宽').setDesc('标准行宽适合长文，宽版适合表格。重新打开阅读桌生效。').addDropdown(d=>d.addOptions({standard:'标准 · 680 px',wide:'宽版 · 920 px'}).setValue(this.plugin.settings.readingWidth).onChange(value=>{this.plugin.settings.readingWidth=value as 'standard'|'wide';act(persist);}));
       new Setting(containerEl).setName('强调色').setDesc('改变按钮、选中状态与导航的颜色；卡片自己的配色保留。').addDropdown(drop => drop.addOptions({forest:'森林绿',blue:'湖水蓝',amber:'暖琥珀',rose:'玫瑰色'}).setValue(this.plugin.settings.accent).onChange(value => { this.plugin.settings.accent = value as AppearanceSettings['accent'];containerEl.dataset.accent=value;act(persist); }));
-      new Setting(containerEl).setName('画布背景').setDesc('为卡片提供轻量的位置参照，或使用纯净背景。').addDropdown(drop => drop.addOptions({dots:'点阵',grid:'网格',plain:'纯色'}).setValue(this.plugin.settings.canvasBackground).onChange(value => { this.plugin.settings.canvasBackground = value as AppearanceSettings['canvasBackground']; act(persist); }));
+      new Setting(containerEl).setName('画布背景').setDesc('选择位置参照、纯色或细腻纸张纹理。').addDropdown(drop => drop.addOptions({dots:'点阵',grid:'网格',plain:'纯色',paper:'纸张纹理',image:'自定义图片'}).setValue(this.plugin.settings.canvasBackground).onChange(value => { if(value==='image'&&!this.plugin.settings.backgroundImagePath){drop.setValue(this.plugin.settings.canvasBackground);this.plugin.openBackgroundImageSettings();return;}this.plugin.settings.canvasBackground = value as AppearanceSettings['canvasBackground']; act(persist); }));
+      new Setting(containerEl).setName('纸张外观').setDesc('米黄、白色、暖白、牛皮纸、再生纸；可自定义纸色和纹理强度。').addButton(b=>b.setButtonText('自定义纸张').onClick(()=>{this.plugin.openPaperSettings();}));
+      new Setting(containerEl).setName('自定义背景图片').setDesc('选择本地图片，设置填满、完整显示或平铺，以及透明度。图片保存在本库插件目录中。').addButton(b=>b.setButtonText('设置背景图片').onClick(()=>{this.plugin.openBackgroundImageSettings();}));
       new Setting(containerEl).setName('液态玻璃效果').setDesc('半透明磨砂、柔和高光和圆角层次；关闭后使用实色界面。').addToggle(toggle=>toggle.setValue(this.plugin.settings.glassEffects!==false).onChange(value=>{this.plugin.settings.glassEffects=value;act(persist);}));
       new Setting(containerEl).setName('显示小地图').setDesc('显示当前位置和白板全貌；窄窗格会自动收起。').addToggle(toggle => toggle.setValue(this.plugin.settings.showMinimap).onChange(value => { this.plugin.settings.showMinimap = value; act(persist); }));
       new Setting(containerEl).setName('阅读与空间').setHeading().setClass('ts-settings-section');

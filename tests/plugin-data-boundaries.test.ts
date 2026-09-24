@@ -25,6 +25,17 @@ test('invalid folders, enums and non-finite numbers restore safe defaults',()=>{
  const settings=cleanPluginSettings({cardFolder:'../outside',journalFolder:'Journal',readingSize:Infinity,surfaceStyle:'unknown',density:4,accent:{toString:()=> 'blue'},canvasBackground:'custom',zoomSpeed:NaN,detailZoom:Infinity});
  assert.equal(settings.cardFolder,'ThoughtSpace/卡片');assert.equal(settings.journalFolder,'ThoughtSpace/日记');assert.equal(settings.readingSize,16);assert.equal(settings.surfaceStyle,'soft');assert.equal(settings.accent,'forest');assert.equal(settings.zoomSpeed,1);assert.equal(settings.detailZoom,.45);
 });
+test('paper canvas background survives persisted settings without changing grid or reading preferences',()=>{
+ const raw={canvasBackground:'paper',surfaceStyle:'soft',gridStep:48,wheelMode:'pan',readingSize:20,readingWidth:'wide',glassEffects:false};
+ const settings=cleanPluginSettings(raw),restored=cleanPluginSettings(JSON.parse(JSON.stringify(settings)));
+ for(const result of [settings,restored]){assert.equal(result.canvasBackground,'paper');assert.equal(result.gridStep,48);assert.equal(result.surfaceStyle,'soft');assert.equal(result.wheelMode,'pan');assert.equal(result.readingSize,20);assert.equal(result.readingWidth,'wide');assert.equal(result.glassEffects,false);}
+ assert.deepEqual(raw,{canvasBackground:'paper',surfaceStyle:'soft',gridStep:48,wheelMode:'pan',readingSize:20,readingWidth:'wide',glassEffects:false});
+});
+test('all existing background choices remain valid and malformed paper values fall back safely',()=>{
+ for(const canvasBackground of ['dots','grid','plain','paper'])assert.equal(cleanPluginSettings({canvasBackground}).canvasBackground,canvasBackground);
+ for(const canvasBackground of ['Paper','paper ',['paper'],{toString:()=>{throw Error('untrusted coercion');}},null,42])assert.equal(cleanPluginSettings({canvasBackground}).canvasBackground,'dots');
+ assert.equal(cleanPluginSettings({surfaceStyle:'paper'}).canvasBackground,'dots');
+});
 test('bookmark migration queue accepts boolean entries and preserves valid false actions',()=>{
  const settings=cleanPluginSettings({pendingBookmarkChanges:{'a.thoughtspace':true,'b.thoughtspace':false,'c.thoughtspace':'false','d.thoughtspace':{}},favoriteBoards:['a.thoughtspace',null,{},'a.thoughtspace']});
  assert.deepEqual(settings.pendingBookmarkChanges,{'a.thoughtspace':true,'b.thoughtspace':false});assert.deepEqual(settings.favoriteBoards,['a.thoughtspace']);
@@ -59,4 +70,16 @@ test('typed desktop vault identifier retains the existing SHA256 path hash',()=>
  const Host=new Function('FileSystemAdapter','createHash','resolvePath',transformSync(`class Host{${source.slice(a,b)}};return Host`,{loader:'ts'}).code)(FileSystemAdapter,createHash,resolvePath);
  for(const path of ['/Users/example/Documents/研究笔记','/Users/example/../example/Vault']){const host=new Host();host.app={vault:{adapter:new FileSystemAdapter(path)}};assert.equal(host.yingjianVaultId(),createHash('sha256').update(resolvePath(path)).digest('hex').slice(0,20));}
  const host=new Host();host.app={vault:{adapter:{getBasePath:()=> '/unexpected'}}};assert.throws(()=>host.yingjianVaultId(),/桌面版/);
+});
+
+test('plugin settings sanitize layout presets through the persisted settings boundary',()=>{
+ const options={mode:'color',columns:3,gap:40,sort:'title',anchor:'center',createSections:true};
+ const raw={layoutPresets:[null,{id:'valid',name:'  阅读材料  ',options:{...options,viewport:{x:5,y:7,zoom:2},selectedIds:['secret-card'],file:'private.md',focus:true},nodes:['secret-content'],boardPath:'Research.thoughtspace'},{id:'broken',name:'Broken',options:{...options,gap:Infinity}},{id:'duplicate-name',name:'阅读材料',options},{id:'valid',name:'Duplicate id',options}],unrecognizedLayoutDefaults:{viewport:{x:1,y:2,zoom:1}}};
+ const result=cleanPluginSettings(raw);assert.deepEqual(result.layoutPresets,[{id:'valid',name:'阅读材料',options}]);assert.equal(Object.hasOwn(result,'unrecognizedLayoutDefaults'),false);assert.deepEqual(cleanPluginSettings(JSON.parse(JSON.stringify(result))).layoutPresets,result.layoutPresets);
+});
+test('persisted layout presets are bounded, malformed containers are empty and settings cleaning never aliases source objects',()=>{
+ const options={mode:'kind',columns:2,gap:24,sort:'position',anchor:'corner',createSections:true};
+ for(const layoutPresets of [undefined,null,false,'preset',{},[{id:'x',name:'Name',options:{...options,columns:99}}]])assert.deepEqual(cleanPluginSettings({layoutPresets}).layoutPresets,[]);
+ const raw={layoutPresets:Array.from({length:25},(_,i)=>({id:String(i),name:`Preset ${i}`,options:{...options}}))},before=JSON.stringify(raw),first=cleanPluginSettings(raw),second=cleanPluginSettings(raw);assert.equal(first.layoutPresets.length,20);assert.equal(JSON.stringify(raw),before);
+ first.layoutPresets[0].name='Changed locally';first.layoutPresets[0].options.gap=72;first.layoutPresets.pop();assert.equal(raw.layoutPresets[0].name,'Preset 0');assert.equal(raw.layoutPresets[0].options.gap,24);assert.equal(raw.layoutPresets.length,25);assert.equal(second.layoutPresets[0].name,'Preset 0');assert.equal(second.layoutPresets[0].options.gap,24);assert.equal(second.layoutPresets.length,20);
 });

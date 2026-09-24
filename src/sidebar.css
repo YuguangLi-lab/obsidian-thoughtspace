@@ -3,7 +3,7 @@
 .ts-root.ts-dock {
   --ts-nav-surface: var(--background-primary);
   --ts-nav-subtle: color-mix(in srgb, var(--background-secondary) 60%, var(--background-primary));
-  --ts-nav-line: color-mix(in srgb, var(--background-modifier-border) 66%, transparent);
+  --ts-nav-line: color-mix(in srgb, var(--background-modifier-border) 74%, transparent);
   --ts-nav-hover: var(--background-modifier-hover);
   --ts-nav-active: color-mix(in srgb, var(--ts-accent) 9%, var(--background-primary));
   display: flex;
@@ -21,7 +21,7 @@
    leave the board tree room to breathe even in a narrow native sidebar. */
 .ts-root.ts-dock .ts-dock-quick {
   display: grid; flex: none; grid-template-columns: minmax(0, 1fr) 34px 34px;
-  gap: 5px; padding: 10px 12px 6px !important;
+  gap: 6px; padding: 12px 12px 8px !important;
   border: 0 !important; background: transparent;
 }
 .ts-root.ts-dock .ts-dock-quick > .ts-button { height: 34px !important; min-height: 34px; min-width: 0; border-radius: 7px !important; box-shadow: none !important; }
@@ -32,7 +32,7 @@
 .ts-root.ts-dock .ts-dock-quick svg { flex: none; width: 16px; height: 16px; }
 .ts-root.ts-dock .ts-dock-shortcuts {
   display: grid; flex: none; grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 2px 6px; margin: 0 12px; padding: 0 0 6px;
+  gap: 2px 6px; margin: 0 12px; padding: 0 0 10px;
   border: 0; border-radius: 0; background: transparent;
 }
 .ts-root.ts-dock .ts-dock-shortcuts > .ts-button {
@@ -49,8 +49,8 @@
 .ts-root.ts-dock .ts-dock-shortcuts > .ts-button:hover > span:first-child { color: var(--ts-accent); }
 .ts-root.ts-dock .ts-dock-host {
   display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0;
-  margin: 0 !important; padding: 4px 12px 0 !important;
-  border: 0 !important;
+  margin: 0 !important; padding: 8px 12px 0 !important;
+  border: 0 !important; border-top: 1px solid var(--ts-nav-line) !important;
   border-radius: 0 !important; background: transparent !important; box-shadow: none !important;
 }
 .ts-root.ts-dock .ts-sidebar { width: 100% !important; min-width: 0; min-height: 0; padding: 0 !important; overflow: hidden; background: transparent !important; }
@@ -70,7 +70,7 @@
 .ts-root.ts-dock .ts-sidebar > .ts-tabs > .ts-button > span:first-child { display: flex; flex: none; }
 .ts-root.ts-dock .ts-sidebar > .ts-tabs > .ts-button > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ts-root.ts-dock .ts-tabs .ts-button svg { flex: none; width: 14px; height: 14px; }
-.ts-root.ts-dock .ts-sidebar-search { display: flex; position: relative; align-items: center; flex: none; height: 34px; margin: 0 0 10px; border: 1px solid var(--ts-nav-line); border-radius: 7px; background: var(--ts-nav-surface); box-shadow: none; }
+.ts-root.ts-dock .ts-sidebar-search { display: flex; position: relative; align-items: center; flex: none; height: 34px; margin: 0 0 10px; border: 1px solid transparent; border-radius: 7px; background: var(--ts-nav-subtle); box-shadow: none; }
 .ts-root.ts-dock .ts-sidebar-search:focus-within { border-color: var(--ts-accent); background: var(--ts-nav-surface); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ts-accent) 10%, transparent); }
 .ts-root.ts-dock .ts-sidebar-search-icon { display: flex; flex: 0 0 14px; margin-left: 10px; color: var(--text-muted); }
 .ts-root.ts-dock .ts-sidebar-search-icon svg { width: 14px; height: 14px; }
@@ -161,10 +161,36 @@
 .ts-root.ts-dock .ts-task > span { min-width: 0; overflow-wrap: anywhere; }
 .ts-root.ts-dock .ts-task + .ts-task { border-top: 0; }
 .ts-root.ts-dock .ts-task input[type='checkbox'] { flex: none; width: 14px; height: 14px; border-radius: 4px; }
-.ts-root.ts-dock .ts-outline-row { min-width: 0; min-height: 32px; margin: 1px 0; padding: 2px; border-color: transparent; border-radius: 7px; }
-.ts-root.ts-dock .ts-outline-row > .ts-icon-button { flex: 0 0 26px; width: 26px; height: 26px; min-height: 26px; padding: 0 !important; border-radius: 5px !important; }
+.ts-root.ts-dock .ts-outline-row {
+  --ts-nav-outline-indent: min(calc(var(--outline-depth, 0) * 14px), 84px);
+  position: relative; gap: 2px; min-width: 0; min-height: 34px; margin: 1px 0;
+  padding: 1px 2px 1px calc(var(--ts-nav-outline-indent) + 2px); border: 0; border-radius: 7px;
+}
+.ts-root.ts-dock .ts-outline-row[aria-level]:not([aria-level='1'])::before {
+  content: ''; position: absolute; left: max(0px, calc(var(--ts-nav-outline-indent) - 4px)); top: -1px; bottom: -1px;
+  border-left: 1px solid var(--ts-nav-line); pointer-events: none;
+}
+.ts-root.ts-dock .ts-outline-row.is-selected::after { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 2px; border-radius: 2px; background: var(--ts-accent); pointer-events: none; }
+.ts-root.ts-dock .ts-outline-row.is-selected > .ts-outline-title { color: var(--ts-accent) !important; font-weight: 500; }
+.ts-root.ts-dock .ts-outline-row > :is(.ts-outline-toggle, .ts-outline-toggle-spacer) {
+  display: inline-flex; flex: 0 0 20px; align-items: center; justify-content: center; width: 20px; min-width: 20px;
+  height: 28px; min-height: 28px; padding: 0 !important; border: 0; border-radius: 5px !important;
+  background: transparent; color: var(--text-muted); box-shadow: none;
+}
+.ts-root.ts-dock .ts-outline-toggle svg { display: block; width: 13px; height: 13px; }
+.ts-root.ts-dock .ts-outline-toggle:hover:not(:disabled) { color: var(--text-normal) !important; background: var(--ts-nav-hover) !important; }
+.ts-root.ts-dock .ts-outline-toggle[aria-expanded=false] { color: var(--text-normal) !important; }
+.ts-root.ts-dock .ts-outline-toggle:disabled { opacity: .35; }
+.ts-root.ts-dock .ts-outline-children-count {
+  flex: none; min-width: 18px; padding: 1px 4px; border-radius: 4px; color: var(--text-muted);
+  font-size: 10px; line-height: 1.6; font-variant-numeric: tabular-nums; text-align: center;
+}
+.ts-root.ts-dock .ts-outline-row[aria-expanded=false] .ts-outline-children-count { background: var(--ts-nav-subtle); }
+
+.ts-root.ts-dock .ts-outline-row > .ts-icon-button:not(.ts-outline-toggle) { flex: 0 0 26px; width: 26px; height: 26px; min-height: 26px; padding: 0 !important; border-radius: 5px !important; }
 .ts-root.ts-dock .ts-outline-row > .ts-icon-button svg { width: 14px; height: 14px; }
-.ts-root.ts-dock .ts-outline-row:is(:hover, .is-selected) { background: var(--ts-nav-active); }
+.ts-root.ts-dock .ts-outline-row:hover { background: var(--ts-nav-hover); }
+.ts-root.ts-dock .ts-outline-row.is-selected { background: var(--ts-nav-active); }
 .ts-root.ts-dock .ts-outline-kind { flex: none; padding: 2px 5px; border-radius: 4px; background: var(--ts-nav-subtle); color: var(--text-muted); font-size: 11px; }
 /* Empty results stay inside the same gutter as populated rows. */
 .ts-root.ts-dock .ts-sidebar-empty { display: flex; align-items: center; justify-content: center; min-height: 104px; margin: 10px 0; padding: 24px 14px; border: 1px solid var(--ts-nav-line); border-radius: 8px; background: var(--ts-nav-subtle); color: var(--text-muted); font-size: 12px; line-height: 1.8; text-align: center; overflow-wrap: anywhere; }
@@ -182,8 +208,8 @@
 .ts-root.ts-dock .ts-dock-board-link > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 /* Inset rings stay inside the scroll viewport. Search has a wrapper-level ring. */
-.ts-root.ts-dock :is(.ts-button, .ts-library-card, select, input[type='checkbox']):focus-visible { outline: 2px solid var(--ts-accent) !important; outline-offset: -2px !important; }
-.ts-root.ts-dock :is(.ts-button, .ts-tree-row) { transition: background-color 120ms ease, color 120ms ease; }
+.ts-root.ts-dock :is(button, .ts-library-card, select, input[type='checkbox']):focus-visible { outline: 2px solid var(--ts-accent) !important; outline-offset: -2px !important; }
+.ts-root.ts-dock :is(.ts-button, .ts-tree-row, .ts-outline-row) { transition: background-color 120ms ease, color 120ms ease; }
 /* Query the dock itself, not whichever nested pane happens to be nearest. */
 @container ts-sidebar-shell (max-width: 260px) {
   .ts-root.ts-dock .ts-dock-quick { grid-template-columns: minmax(0, 1fr) 32px 32px; padding-inline: 10px !important; }
@@ -194,6 +220,9 @@
   .ts-root.ts-dock .ts-sidebar > .ts-tabs > .ts-button { gap: 3px; padding-inline: 2px !important; }
   .ts-root.ts-dock .ts-board-switch > .ts-button { gap: 5px; }
   .ts-root.ts-dock .ts-tree-row { --ts-nav-tree-indent: min(calc(var(--ts-tree-depth, 0) * 12px), 48px); }
+  .ts-root.ts-dock .ts-outline-row { --ts-nav-outline-indent: min(calc(var(--outline-depth, 0) * 12px), 48px); }
+  .ts-root.ts-dock .ts-outline-kind { max-width: 38px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
+  .ts-root.ts-dock .ts-outline-row > :is(.ts-outline-toggle, .ts-outline-toggle-spacer) { flex-basis: 18px; width: 18px; min-width: 18px; }
   .ts-root.ts-dock :is(.ts-tree-title, .ts-outline-title) { gap: 6px; }
 }
 @container ts-sidebar-shell (min-width: 320px) {

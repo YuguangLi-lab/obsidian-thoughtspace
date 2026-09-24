@@ -52,7 +52,7 @@ function editorConstructor(app:App,parent:HTMLElement){
 export class NativeMarkdownDraft extends EventTarget implements DraftInput {
  readonly host:HTMLElement;private engine!:NativeEditorEngine;private ready=false;private disposed=false;private locked=false;private intendedSelection?:{from:number;to:number;nativeFrom?:number;nativeTo?:number};private stopEvents?:()=>void;
  private valueCache?:{engine:NativeEditorEngine;cm:EditorView;editor:NativeEditorEngine['editor'];read:NativeEditorEngine['editor']['getValue'];doc:EditorView['state']['doc'];value:string};
- constructor(app:App,parent:HTMLElement,value:string,file?:TFile){
+ constructor(app:App,parent:HTMLElement,value:string,file?:TFile,label='编辑 Markdown · 实时预览'){
   super();const Base=editorConstructor(app,parent);this.host=parent.createDiv('ts-inline-native');
   const updated=(update:ViewUpdate)=>this.editorUpdated(update),events:(()=>void)[]=[];
   const listen=(type:string,handler:EventListener,capture=false)=>{this.host.addEventListener(type,handler,capture);events.push(()=>this.host.removeEventListener(type,handler,capture));};
@@ -70,7 +70,7 @@ export class NativeMarkdownDraft extends EventTarget implements DraftInput {
    const cm=this.engine.cm,dispatch=cm.dispatch.bind(cm);
    cm.dispatch=(...specs:(Transaction|readonly Transaction[]|TransactionSpec)[])=>this.dispatchNative(dispatch,...specs);
    this.engine.sourceMode=false;this.engine.load();this.engine.set(value,true);this.engine.show();
-   this.engine.cm.contentDOM.setAttribute('aria-label','编辑卡片 Markdown · 实时预览');
+   this.engine.cm.contentDOM.setAttribute('aria-label',label);
    for(const type of ['compositionstart','compositionend','keyup','mouseup'])listen(type,()=>this.emit(type));
    // Live preview may expand native ranges to include hidden syntax. Retain the
    // toolbar's logical text range until the user types or chooses a new range.
@@ -110,6 +110,7 @@ export class NativeMarkdownDraft extends EventTarget implements DraftInput {
   }
   if(update.docChanged)this.emit('input');
   if(update.selectionSet)this.emit('select');
+  if(update.heightChanged||update.geometryChanged)this.emit('layout');
  }
  private selection(){
   if(this.disposed)return{from:0,to:0};
@@ -129,6 +130,11 @@ export class NativeMarkdownDraft extends EventTarget implements DraftInput {
   return super.dispatchEvent(event);
  }
  get style(){return this.host.style;}get ownerDocument(){return this.host.ownerDocument;}
+ /** A toolbar, search widget or modal inside the host is not the editing body. */
+ ownsKeyTarget(target:EventTarget|null){
+  if(this.disposed||!target||typeof (target as Node).nodeType!=='number')return false;
+  return this.engine.cm.contentDOM.contains(target as Node);
+ }
  get value():string{
   if(this.disposed)return '';
   const engine=this.engine,cm=engine.cm,editor=engine.editor,doc=cm?.state?.doc,read=editor.getValue,cached=this.valueCache;
@@ -160,6 +166,13 @@ export class NativeMarkdownDraft extends EventTarget implements DraftInput {
   this.edit({changes:{from,to,insert:text},selection:{anchor:start,head:end},scrollIntoView:true,userEvent:'input'},start,end);
  }
  history(redo:boolean){if(!this.disposed&&!this.locked){this.intendedSelection=undefined;this.engine.editor[redo?'redo':'undo']();}}
+ /** Intrinsic CM document height excludes the current viewport's min-height. */
+ intrinsicHeight():number|undefined{
+  if(this.disposed)return;const cm=this.engine.cm,content=cm.contentHeight;if(!Number.isFinite(content)||content<0)return;
+  const scale=Number.isFinite(cm.scaleY)&&cm.scaleY>0?cm.scaleY:1;
+  const style=this.host.ownerDocument.defaultView!.getComputedStyle(this.host),padding=(parseFloat(style.paddingTop)||0)+(parseFloat(style.paddingBottom)||0);
+  return content/scale+padding;
+ }
  resize(){if(!this.disposed)this.engine.cm.requestMeasure();}
  dispose(){if(this.disposed)return;this.disposed=true;this.ready=false;
   this.valueCache=undefined;

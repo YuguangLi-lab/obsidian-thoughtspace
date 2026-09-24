@@ -60,7 +60,7 @@
 }
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-commandbar:has(.ts-markdown-tools) {scrollbar-width:thin;scrollbar-color:var(--background-modifier-border) transparent;}
 
-/* Native live preview is mounted only for the card being edited. */
+/* One native live-preview editor is mounted for the active card or text frame. */
 .ts-root .ts-inline-native {position:absolute;box-sizing:border-box;min-width:0;min-height:0;overflow:hidden;pointer-events:auto;cursor:text;user-select:text;--file-line-width:100%;--file-margins:0;--metadata-display-editing:none;}
 .ts-root .ts-inline-native .markdown-source-view.mod-cm6 {height:100%;padding:0;background:transparent;font:inherit;color:inherit;}
 .ts-root .ts-inline-native .cm-editor {height:100%;background:transparent;}
@@ -69,6 +69,10 @@
 .ts-root .ts-inline-native .cm-contentContainer {min-width:0;}
 .ts-root .ts-inline-native .cm-content {min-height:100%;padding:0!important;font:inherit;color:inherit;caret-color:var(--text-normal);}
 .ts-root .ts-inline-native .cm-line {padding-inline:0;}
+.ts-root .ts-inline-native .cm-table-widget {max-width:100%;overflow-x:auto;scrollbar-width:thin;}
+.ts-root .ts-inline-native .cm-table-widget table {font-family:inherit;font-size:inherit;}
+.ts-root .ts-inline-native :is(.cm-embed-block,.math-block) {max-width:100%;}
+.ts-root .ts-inline-native .math-block {overflow-x:auto;overflow-y:hidden;}
 .ts-root .ts-inline-native .metadata-container {display:none;}
 .ts-root .ts-inline-native .cm-gutters {display:none;}
 
@@ -245,3 +249,6 @@
 .ts-root .ts-node.ts-card.is-folded > .ts-card-actions {top:50%;transform:translateY(-50%);right:7px;}
 .ts-root .ts-node.ts-card > .ts-card-actions .ts-icon-button:disabled {opacity:.3;cursor:default;}
 .ts-root .ts-node.ts-card > .ts-card-actions .ts-icon-button:focus-visible {outline:2px solid var(--ts-accent);outline-offset:1px;}
+
+/* The first live heading starts at the same paper inset as its rendered counterpart. */
+.ts-root .ts-text .ts-inline-native .cm-content > .HyperMD-header:first-child {padding-block-start:0;}

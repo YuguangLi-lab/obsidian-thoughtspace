@@ -23,3 +23,12 @@ test('multiple native selections are preserved instead of formatting only the ma
 test('additional selections created during focus also block formatting',()=>{const {e,input,state}=fixture();state.onFocus=()=>Object.assign(input,{selectionCount:2});e.format('bold');assert.equal(state.changes,0);assert.equal(input.value,'前重点后');});
 test('returning to a single range resumes normal formatting',()=>{const {e,input,state}=fixture();Object.assign(input,{selectionCount:2});e.format('bold');Object.assign(input,{selectionCount:1});e.format('bold');assert.equal(state.changes,1);assert.equal(input.value,'前**重点**后');assert.equal(e.snapshot().disabledReason,undefined);});
 test('native history remains available with multiple selections',()=>{const {e,input,state}=fixture();Object.assign(input,{selectionCount:3});e.history();e.history(true);assert.equal(state.undos,2);});
+test('only an editable linked Markdown card advertises selection-to-note actions',()=>{
+ const {e}=fixture(),createLinkedNote=async()=>{};
+ Object.assign(e.options,{nodeKind:'text',contextFile:{path:'Boards/example.thoughtspace',extension:'thoughtspace'},createLinkedNote});
+ assert.equal(e.canLinkNote,false);assert.throws(()=>e.linkNote(),/Markdown 笔记/);
+ Object.assign(e.options,{nodeKind:'card',file:{path:'Cards/example.md',extension:'md'}});assert.equal(e.canLinkNote,true);
+ e.options.nodeKind='text';assert.equal(e.canLinkNote,false,'even an accidentally supplied file must not turn a text draft into a note');
+ e.options.nodeKind='card';e.options.file.extension='thoughtspace';assert.equal(e.canLinkNote,false);
+ e.options.file.extension='md';e.disposed=true;assert.equal(e.canLinkNote,false);
+});

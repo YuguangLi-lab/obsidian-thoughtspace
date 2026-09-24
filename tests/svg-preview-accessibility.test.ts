@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import {cardFillHex, emptyBoard, type Board} from '../src/model';
-import {layoutBounds, layoutModes} from '../src/layout-planner';
+import {layoutBounds, layoutModes,planLayout} from '../src/layout-planner';
 import {previewConnection} from '../src/layout-preview-geometry';
 import {branchState, mindmapRoot} from '../src/mindmap';
 import {topicRows} from '../src/mindmap-editor';
@@ -109,4 +109,10 @@ test('mindmap previews retain original/new names without becoming native tooltip
     for (const node of svg.all().filter(element => element.tag === 'rect')) assert.doesNotThrow(() => dispatchNativeTooltip(node));
   }
   assert.equal(new Set(ids).size, ids.length);
+});
+
+
+test('classified layout previews render the same named frame bounds that will be applied',()=>{
+ const View=compileDraw('src/layout-planner-view.ts',{document,layoutBounds,layoutModes,previewConnection,readingTitle:(node:Board['nodes'][number])=>node.text||node.id}),data=board(),plan=planLayout(data,new Set(data.nodes.map(n=>n.id)),{mode:'color',columns:2,gap:8,sort:'position',anchor:'corner',createSections:true}),view=new View();
+ Object.assign(view,{before:false,options:{mode:'color'},previews:new Map(),host:{board:()=>data},plan,mountPreview(){}});view.draw();const frames=(view.svg as SvgElement).all().filter(el=>el.getAttribute('class')==='ts-layout-frame');assert.equal(frames.length,plan.newSections!.length);for(const[i,frame]of frames.entries()){assert.equal(Number(frame.getAttribute('x')),plan.newSections![i].x);assert.equal(Number(frame.getAttribute('y')),plan.newSections![i].y);assert.equal(Number(frame.getAttribute('width')),plan.newSections![i].width);assert.equal(Number(frame.getAttribute('height')),plan.newSections![i].height);}const labels=(view.svg as SvgElement).all().filter(el=>el.tag==='text').map(el=>el.textContent);assert.ok(plan.newSections!.every(g=>labels.includes(g.title)));view.before=true;view.draw();assert.equal((view.svg as SvgElement).all().filter(el=>el.getAttribute('class')==='ts-layout-frame').length,0);
 });

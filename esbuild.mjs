@@ -48,6 +48,12 @@ const boardPolishSection=`/* BEGIN board-polish generated */\n${boardPolish}\n/*
 const boardPolishMarker=/\/\* BEGIN board-polish generated \*\/[\s\S]*?\/\* END board-polish generated \*\//;
 await writeFile('styles.css',boardPolishMarker.test(boardPolishCurrent)?boardPolishCurrent.replace(boardPolishMarker,()=>boardPolishSection):boardPolishCurrent+'\n'+boardPolishSection+'\n');
 
+for(const name of ['saved-views','group-organizer','paper-settings','background-image','text-markdown','interaction-chrome']){
+ const content=await readFile(`src/${name}.css`,'utf8'),current=await readFile('styles.css','utf8');
+ const start=`/* BEGIN ${name} generated */`,end=`/* END ${name} generated */`,from=current.indexOf(start),to=current.indexOf(end,from),section=`${start}\n${content}\n${end}`;
+ await writeFile('styles.css',from>=0&&to>=from?current.slice(0,from)+section+current.slice(to+end.length):current+'\n'+section+'\n');
+}
+
 // Keep legacy shared selectors out of the separately installed calendar plugin.
 const {isolateBoardStyles}=await import('./scripts/isolate-board-styles.mjs');
 await writeFile('styles.css',isolateBoardStyles(await readFile('styles.css','utf8')));

@@ -78,13 +78,13 @@
 }
 
 /* 0.54.1 — A slim canvas rail; typography and border controls keep their top position. */
-.ts-root .ts-board-rail {position:absolute;left:14px;top:calc(50% - 40px);transform:translateY(-50%);z-index:55;width:42px;max-height:calc(100% - 104px);border:1px solid var(--ts-work-line);border-radius:14px;background:var(--ts-work-raised);box-shadow:var(--ts-work-shadow);overflow-y:auto;scrollbar-width:none;overscroll-behavior:contain;}
+.ts-root .ts-board-rail {position:absolute;transform:translateY(-50%);z-index:55;border:1px solid;overflow-y:auto;scrollbar-width:none;overscroll-behavior:contain;}
 .ts-root .ts-rail-tools {display:flex;flex-direction:column;gap:2px;padding:4px;}
 .ts-root .ts-board-rail .ts-button {display:flex!important;align-items:center;justify-content:center;flex:0 0 32px;margin:0!important;padding:7px!important;border:0!important;background:transparent!important;box-shadow:none!important;}
 .ts-root .ts-board-rail .ts-button > span:last-child {display:none!important;}
 .ts-root .ts-board-rail .ts-button:is(.is-active,[aria-expanded=true]) {background:var(--ts-soft)!important;color:var(--ts-accent)!important;}
 .ts-root .ts-board-rail .ts-button:focus-visible,.ts-root .ts-rail-popover .ts-button:focus-visible {outline:2px solid var(--ts-accent);outline-offset:-2px;}
-.ts-root .ts-rail-popover {position:absolute;left:66px;top:calc(50% - 40px);transform:translateY(-50%);z-index:56;width:232px;max-width:calc(100% - 80px);max-height:calc(100% - 100px);padding:7px;border:1px solid var(--ts-work-line);border-radius:14px;background:var(--ts-work-raised);box-shadow:var(--ts-work-shadow);overflow:auto;overscroll-behavior:contain;}
+.ts-root .ts-rail-popover {position:absolute;transform:translateY(-50%);z-index:56;border:1px solid;overflow:auto;overscroll-behavior:contain;}
 .ts-root .ts-rail-popover[hidden] {display:none!important;}
 .ts-root .ts-rail-popover .ts-rail-actions,.ts-root .ts-rail-popover .ts-tool-cluster {display:flex!important;flex-direction:column;align-items:stretch;gap:2px;margin:0;padding:0;border:0;overflow:visible;}
 .ts-root .ts-rail-popover .ts-tool-cluster::before {content:attr(aria-label);}
@@ -94,7 +94,6 @@
 .ts-root .ts-rail-popover .ts-button svg {width:16px;height:16px;}
 .ts-root .ts-rail-popover .ts-button:hover {background:var(--ts-work-hover);}
 .ts-root .ts-commandbar > .ts-selection-tools {border-left:0!important;padding-left:2px!important;margin-left:0!important;}
-@container(max-width:510px){.ts-root .ts-board-rail{left:8px;}.ts-root .ts-rail-popover{left:58px;max-width:calc(100% - 68px);}}
 
 /* Collapse the format surface only when neither object nor mind-map controls exist. */
 .ts-root .ts-commandbar:not(:has(> .ts-selection-tools.is-visible)) {display:none!important;}

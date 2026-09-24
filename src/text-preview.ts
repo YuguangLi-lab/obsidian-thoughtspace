@@ -1,24 +1,48 @@
-import {type Component,loadMathJax,renderMath,finishRenderMath} from 'obsidian';
-import {textMathParts} from './text-math';
-import {yingjianTextParts} from './yingjian';
-let loading:Promise<void>|undefined;
-const mathReady=()=>loading??=(loadMathJax().catch(error=>{loading=undefined;throw error;}));
-/** Render formulas with Obsidian's own MathJax while preserving literal whiteboard text and source badges. */
-export function renderTextPreview(body:HTMLElement,text:string,scope:Component,onReady?:()=>void,enqueue?:(alive:()=>boolean,run:()=>Promise<void>)=>void):void{
- const parts=textMathParts(text),formulas:{element:HTMLElement;source:string;display:boolean}[]=[];
- const appendText=(value:string)=>{for(const part of yingjianTextParts(value)){
-  if(!part.link){body.appendText(part.text);continue;}
-  const a=body.createEl('a',{cls:'ts-video-timestamp',text:part.text,href:part.link,attr:{title:'在影笺回看 '+part.text}});
-  a.onpointerdown=event=>event.stopPropagation();a.onclick=event=>{event.preventDefault();event.stopPropagation();if(part.link)body.ownerDocument.defaultView?.open(part.link,'_blank','noopener,noreferrer');};
- }};
- for(const part of parts){if(part.kind==='text'){appendText(part.text);continue;}const element=body.createSpan({cls:part.display?'ts-text-math is-display':'ts-text-math',text:part.text});formulas.push({element,source:part.source,display:part.display});}
- body.dataset.mathStatus=formulas.length?'pending':'none';if(!formulas.length)return;
- let disposed=false;scope.register(()=>{disposed=true;});
- const alive=()=>!disposed&&body.isConnected;
- const run=async()=>{if(!alive())return;try{
-  await mathReady();if(disposed||!body.isConnected)return;
-  const rendered=formulas.map(formula=>renderMath(formula.source,formula.display));
-  await finishRenderMath();if(disposed||!body.isConnected)return;for(let index=0;index<formulas.length;index++)formulas[index].element.replaceChildren(rendered[index]);body.dataset.mathStatus='ready';onReady?.();
- }catch{if(disposed||!body.isConnected)return;body.dataset.mathStatus='error';onReady?.();}};
+import {type App,Component,MarkdownRenderer,finishRenderMath} from 'obsidian';
+import {releaseEditorResource} from './editor-cleanup';
+import {parseYingjianLink} from './yingjian';
+
+export interface TextPreviewContext {app:App;sourcePath:string;}
+const generations=new WeakMap<HTMLElement,{stop:()=>void}>();
+/** Use the same Markdown renderer as native notes; commit only this preview's owned content. */
+export function renderTextPreview(body:HTMLElement,text:string,scope:Component,onReady:(()=>void)|undefined,enqueue:((alive:()=>boolean,run:()=>Promise<void>)=>void)|undefined,context:TextPreviewContext):void{
+ generations.get(body)?.stop();
+ const doc=body.ownerDocument,win=doc.win as Window&{createDiv:typeof createDiv};let disposed=false,close!:()=>void,renderScope:Component|undefined;
+ const cancelled=new Promise<void>(resolve=>{close=resolve;});
+ const release=()=>{const child=renderScope;renderScope=undefined;if(child)releaseEditorResource('text preview renderer',()=>scope.removeChild(child));};
+ const generation={stop:()=>{if(disposed)return;disposed=true;close();release();}};generations.set(body,generation);scope.register(generation.stop);
+ const output=win.createDiv();output.className='ts-text-markdown markdown-rendered';output.textContent=text;
+ const previous=body.querySelector<HTMLElement>(':scope > .ts-text-markdown');
+ if(previous){const badge=previous.querySelector<HTMLElement>('.ts-source-trigger');if(badge)body.appendChild(badge);previous.replaceWith(output);}else body.appendChild(output);
+ body.classList.add('markdown-rendered');body.dataset.markdownStatus='pending';body.dataset.mathStatus='pending';body.setAttribute('aria-busy','true');
+ const alive=()=>!disposed&&body.isConnected&&generations.get(body)===generation;
+ const notify=()=>{if(alive())onReady?.();};
+ const run=async()=>{if(!alive())return;const rendered=win.createDiv();rendered.className=output.className;let deadline:number|undefined,complete=false;
+  try{
+   const child=renderScope=new Component();scope.addChild(child);
+   // A stuck third-party postprocessor must not retain the shared preview queue slot.
+   const budget=new Promise<never>((_,reject)=>{deadline=win.setTimeout(()=>reject(new Error('Text preview timed out')),5000);});
+   await Promise.race([MarkdownRenderer.render(context.app,text,rendered,context.sourcePath,child),cancelled,budget]);if(!alive())return;
+   if(rendered.querySelector('.math')||rendered.querySelector('mjx-container'))await Promise.race([finishRenderMath(),cancelled,budget]);if(!alive())return;
+   // Markdown previews are read-only. Editing is handled by the board's native editor.
+   rendered.querySelectorAll<HTMLInputElement>('input').forEach(input=>{input.disabled=true;});
+   for(const link of Array.from(rendered.querySelectorAll<HTMLAnchorElement>('a[href]'))){
+    const href=link.getAttribute('href')||'';if(!parseYingjianLink(href))continue;
+    link.classList.add('ts-video-timestamp');link.title='在影笺回看 '+(link.textContent||'此片段');
+    const pointer=(event:PointerEvent)=>event.stopPropagation(),click=(event:MouseEvent)=>{event.preventDefault();event.stopPropagation();if(alive())doc.defaultView?.open(href,'_blank','noopener,noreferrer');};
+    link.addEventListener('pointerdown',pointer);link.addEventListener('click',click);child.register(()=>{link.removeEventListener('pointerdown',pointer);link.removeEventListener('click',click);});
+   }
+   output.replaceChildren(...Array.from(rendered.childNodes));
+   // Root appends its source control immediately after starting render. Keep the actual
+   // control (and its listeners), moving it after the final paragraph instead of cloning it.
+   const source=body.querySelector<HTMLElement>(':scope > .ts-source-trigger'),last=output.lastElementChild;
+   if(source&&last?.matches('p')){const spacer=source.previousSibling;if(spacer?.nodeType===3&&spacer.textContent==='\u2060')last.appendChild(spacer);last.appendChild(source);}
+   body.dataset.markdownStatus='ready';body.dataset.mathStatus='ready';body.setAttribute('aria-busy','false');
+   for(const image of Array.from(output.querySelectorAll<HTMLImageElement>('img'))){if(image.complete)continue;image.addEventListener('load',notify,{once:true});image.addEventListener('error',notify,{once:true});child.register(()=>{image.removeEventListener('load',notify);image.removeEventListener('error',notify);});}
+   const fonts=doc.fonts;if(fonts&&fonts.status==='loading')void fonts.ready.then(notify,()=>{});
+   complete=true;notify();
+  }catch{if(!alive())return;body.dataset.markdownStatus='error';body.dataset.mathStatus='error';body.setAttribute('aria-busy','false');notify();}
+  finally{if(deadline!==undefined)win.clearTimeout(deadline);if(!complete)release();}
+ };
  if(enqueue)enqueue(alive,run);else void run();
 }

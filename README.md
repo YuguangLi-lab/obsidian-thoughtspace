@@ -6,6 +6,26 @@ A visual research and writing workspace for Obsidian. Arrange linked Markdown no
 
 **Desktop only · Obsidian 1.13.7 or newer.**
 
+## Markdown text and tables
+
+Double-click a text frame to edit Markdown with Obsidian's native live preview. Headings, lists, callouts, code, links, `$inline math$`, `$$display math$$` and tables render inside the frame. Automatic sizing measures the rendered content; manually narrowed tables can scroll horizontally.
+
+Use **Table** in the side toolbar, **Add table here** in the empty-canvas context menu, or the table button in the editing toolbar. New tables select the first heading and keep the current camera position. Text stays in the board file; linked note cards continue saving to their original Markdown files. Task checkboxes in text previews are read-only; edit the text to update them.
+
+While editing Markdown tables, lists, math or code in a mind map, Enter and Tab edit the content. Continuous topic creation remains available for plain single-line topics.
+
+## 1.0: Organize and reuse
+
+- **Paper background**: choose the paper icon in the bottom canvas controls or select Paper in settings. Static texture adapts to light and dark themes without changing snapping.
+
+- **Arrange → Create group frames** organizes objects by type, color, reading state or connected component, with a preview before applying. Save reusable layout presets across boards.
+- **Move into an existing group** moves a selection together, previews any enlarged boundary and preserves connections and relative positions. Undo restores the previous layout.
+- **Hierarchical outline** follows actual group containment. Collapsing navigation leaves the canvas unchanged; searches retain parent paths.
+- **Saved views** supports search, position diagrams, renaming, updating, reordering and navigation. It saves camera positions rather than content snapshots.
+- **Workspace menu** groups arrangement, group previews, writing, reading, knowledge space and optional calendar entries; existing shortcuts remain available.
+
+Choose cream, white, ivory, kraft or recycled paper in Appearance settings, or customize the paper color and texture strength. You can also import a local PNG, JPEG, WebP or GIF background and adjust cover, contain, tile and opacity. Images are copied into the plugin directory in the current vault; no network upload is used.
+
 ## Features
 
 - **Whiteboards:** pan, zoom, connect cards, name groups, nest boards, arrange layouts, and search content.
