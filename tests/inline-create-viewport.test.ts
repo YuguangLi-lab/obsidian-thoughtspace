@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
+import {branchState,unfoldAncestors} from '../src/mindmap';
+import {foldCards} from '../src/board-tools';
 
 const source=readFileSync('src/main.ts','utf8');
 function take(start:string,end:string){
@@ -12,6 +14,7 @@ function take(start:string,end:string){
 const methods=take('  private requireOwner(','  private canCreateBlankText(')
  +take('  private addFile(','  toggleMindmap(')
  +take('  async newText(','  editText(')
+ +take('  private endInline(','  private finishInlineForNavigation(')
  +take('  private async startInlineEdit(','  promptTextToNote(')
  +take('  revealNode(','  async copyDeepLink(');
 
@@ -25,11 +28,12 @@ function fixture(zoom=1){
   input=Object.assign(new EventTarget(),{focus:(options?:unknown)=>calls.focus.push(options)});
   el={contains:()=>false};saving=false;
   constructor(_el:unknown,readonly options:any){calls.editors.push(this);}
+  dispose(){this.options.dispose?.();}
  }
  const deps={TFile,InlineNodeEditor,InlineCardFit:class {schedule(){}dispose(){}},uid:()=>`new-${++seq}`,fitTextNode:()=>{},
   readCurrentNativeNote:(_app:unknown,file:TFile)=>read(file),
-  branchState:()=>({hidden:new Set()}),
-  foldCards:(b:any,ids:Set<string>,folded:boolean)=>{for(const n of b.nodes)if(ids.has(n.id))n.collapsed=folded;},
+  branchState,unfoldAncestors,foldCards,
+  writeNativeNoteDraft:async(_app:unknown,file:TFile,original:string,value:string,validate:()=>unknown)=>{validate();assert.equal(file.content,original);file.content=value;},
   Notice:class {},isPdfFile:()=>false,
  };
  const View=new Function(...Object.keys(deps),transformSync(`class View{${methods}};return View`,{loader:'ts'}).code)(...Object.values(deps));
@@ -48,11 +52,11 @@ function fixture(zoom=1){
   point:()=>({x:250,y:180}),clearCanvasGesture:()=>calls.clear++,updateSelection:()=>calls.selection++,
   rememberViewport:()=>calls.remember++,transform:()=>calls.transform++,renderSelectionTools(){},
   nodeAppearanceKey:()=>'',nodeMeasureKey:()=>'',
-  renderBoard(){calls.render++;for(const n of board.nodes)view.positions.set(n.id,{querySelector:()=>({})});},
+  renderBoard(){calls.render++;view.positions.clear();const hidden=branchState(board as any).hidden;for(const n of board.nodes)if(!hidden.has(n.id)||n.id===view.inlineId||n.id===view.inlineTarget)view.positions.set(n.id,{querySelector:()=>({})});},
   mutate:(apply:(b:any)=>void)=>apply(board),
  });
  const node=(kind='text',patch:any={})=>{const n={id:`node-${board.nodes.length}`,kind,text:'Draft',x:450,y:290,width:100,height:60,...(kind==='card'?{file:addFile().path}:{}),...patch};board.nodes.push(n);return n;};
- return{view,owner,board,calls,node,setRead:(next:typeof read)=>{read=next;}};
+ return{view,owner,board,calls,node,files,setRead:(next:typeof read)=>{read=next;}};
 }
 
 for(const zoom of [.15,.5,1,2.5])for(const kind of ['text','card'])test(`new ${kind} editing preserves the camera at zoom ${zoom}`,async()=>{
@@ -118,4 +122,24 @@ test('locked and exiting editors cannot change the camera or activate another ed
   if(condition==='locked')await assert.rejects(pending,/锁定/);else await pending;
   assert.deepEqual(f.board.viewport,before);assert.equal(f.calls.editors.length,0);assert.equal(f.calls.active,0);
  }
+});
+
+for(const kind of ['text','card'])for(const parentBranch of [false,true])test(`new ${kind} in a folded group remains visible after save${parentBranch?' with a folded group parent':''}`,async()=>{
+ const f=fixture(.4),before={...f.board.viewport};
+ const group=f.node('section',{id:'group',x:0,y:0,width:1000,height:800,sectionFolded:true});
+ const unrelated=f.node('section',{id:'unrelated',x:1500,y:0,width:700,height:500,sectionFolded:true});
+ const parent=parentBranch?f.node('section',{id:'parent',x:-1500,y:0,width:600,height:500,branchFolded:true}):undefined;
+ if(parent)(f.board.edges as any[]).push({id:'group-branch',kind:'branch',from:parent.id,to:group.id});
+ await (kind==='text'?f.view.newText({x:500,y:400}):f.view.newCard({x:500,y:400}));
+ const created=f.board.nodes.at(-1),editor=f.view.inline;
+ assert.equal(created.kind,kind);assert.equal(f.view.inlineId,created.id);
+ assert.equal(branchState(f.board as any).hidden.has(created.id),false);
+ assert.equal(!!group.sectionFolded,false);assert.equal(unrelated.sectionFolded,true);
+ if(parent)assert.equal(!!parent.branchFolded,false);
+ await editor.options.save('Saved content stays visible');
+ assert.equal(f.view.inline,undefined);assert.equal(f.view.inlineId,undefined);assert.equal(f.view.inlineTarget,undefined);
+ assert.equal(branchState(f.board as any).hidden.has(created.id),false);assert.ok(f.view.positions.has(created.id));
+ assert.equal(kind==='text'?created.text:f.files.get(created.file)!.content,'Saved content stays visible');
+ assert.deepEqual(f.board.viewport,before);assert.equal(f.calls.remember,0);assert.equal(f.calls.transform,0);
+ assert.equal(unrelated.sectionFolded,true);
 });

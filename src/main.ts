@@ -1932,6 +1932,8 @@ class BoardView extends FileView {
     if(node.collapsed)owner.change(b=>foldCards(b,new Set([id]),false));
     if(preserveViewport){
       // Creation owns selection and focus, but must not pan or zoom the canvas.
+      // Keep a new object visible after its temporary editing pin is released.
+      if(branchState(owner.board).hidden.has(id))owner.change(b=>unfoldAncestors(b,id));
       this.clearCanvasGesture();this.app.workspace.setActiveLeaf(this.leaf,{focus:true});
       this.mode='select';this.connectFrom=undefined;this.connectSide=undefined;this.stage.removeClass('ts-connecting');this.connectButton?.removeClass('is-active');this.updateSelection();
     }else{if(owner.board.viewport.zoom<.75)owner.board.viewport.zoom=.9;this.revealNode(id);}
