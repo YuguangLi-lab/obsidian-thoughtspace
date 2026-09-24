@@ -135,3 +135,24 @@ test('setup rejects cycles without mutating live board',()=>{
  const{v,board}=fixture();board.edges.push({id:'back',from:'last',to:'portal',label:''});const before=clone(board);
  assert.throws(()=>v.foldBranches(new Set(['last']),true,'collapse',true));assert.deepEqual(board,before);
 });
+
+test('actual group fold hides linked group material in one undo transaction',()=>{
+ const f=fixture(),{v,board,history}=f;
+ board.nodes=[node('parent','section'),{...node('child','section'),x:600},{...node('material'),x:620,y:30,width:100,height:60}];
+ board.edges=[{id:'groups',from:'parent',to:'child',label:'分组关系',direction:'forward'}];v.selected=new Set(['parent','child']);v.selectedEdge='groups';const before=clone(board);
+ v.foldBranches(new Set(['parent']),true,'collapse',true);
+ assert.deepEqual(hidden(board),['child','material']);assert.deepEqual([...v.selected],['parent']);assert.equal(v.selectedEdge,undefined);
+ assert.deepEqual(board.nodes.map(({branchFolded,...n})=>n),before.nodes);assert.deepEqual(parseBoard(JSON.stringify(board)),board);
+ assert.deepEqual(history.undo(board),before);
+});
+test('actual group folding refuses to hide an editor inside a linked child frame',()=>{
+ const f=fixture(),{v,board}=f;
+ board.nodes=[node('parent','section'),{...node('child','section'),x:600},{...node('material'),x:620,y:30,width:100,height:60}];
+ board.edges=[{id:'groups',from:'parent',to:'child',label:'分组关系',direction:'forward'}];v.selected=new Set(['parent']);v.inlineTarget='material';const before=clone(board);
+ v.foldBranches(new Set(['parent']),true,'collapse',true);
+ assert.deepEqual(board,before);assert.deepEqual(f.stats(),{renders:0,cancels:0});assert.deepEqual(f.notices,['请先完成子节点编辑，再折叠分支']);
+});
+test('actual fold refuses a locked root and preserves selection, geometry and children',()=>{
+ const {v,board,notices,stats}=fixture();board.nodes[0].locked=true;const before=clone(board),selected=[...v.selected];
+ v.foldBranches(new Set(['portal']),true,'collapse');assert.deepEqual(board,before);assert.deepEqual([...v.selected],selected);assert.deepEqual(stats(),{renders:0,cancels:0});assert.deepEqual(notices,['请先解锁分支根节点，再修改折叠状态']);
+});

@@ -4083,4 +4083,27 @@
 }
 @media (prefers-contrast: more) { .ts-ui-modal.ts-board-search:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { --ts-search-line: var(--text-muted); } }
 
+
+/* Text disclosure stays outside the measured body; folded content remains a quiet single line. */
+.ts-root .ts-text > .ts-text-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  position: absolute; top: -18px; right: 10px; z-index: 8; padding: 2px;
+  border: 1px solid var(--ts-board-line,var(--background-modifier-border)); border-radius: 7px;
+  background: var(--background-primary); box-shadow: 0 2px 7px #00000010;
+  opacity: 0; pointer-events: none;
+}
+.ts-root .ts-text:is(:hover,:focus-within,.is-selected,.is-folded) > .ts-text-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { opacity: 1; pointer-events: auto; }
+.ts-root .ts-text.is-folded > .ts-text-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { top: 50%; right: 8px; transform: translateY(-50%); }
+@media (hover: none) { .ts-root .ts-text > .ts-text-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { opacity: 1; pointer-events: auto; } }
+.ts-root .ts-text.is-folded > .ts-text-body:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { display: block; flex: 1; min-width: 0; padding-right: 42px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; align-content: center; }
+.ts-text-math:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { display: inline-block; max-width: 100%; overflow-x: auto; overflow-y: hidden; white-space: normal; vertical-align: baseline; margin: 0; }
+.ts-text-math.is-display:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { display: block; overflow-x: auto; overflow-y: hidden; margin: 4px 0; }
+.ts-text-math > mjx-container:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { max-width: 100%; }
+.ts-text-math > mjx-container[display="true"]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { margin: 0; }
+/* The frame itself remains click-through; only explicit connection handles receive input. */
+.ts-root .ts-section > .ts-connect-port:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { pointer-events: auto; }
+.ts-root .ts-text.is-inline-editing > .ts-text-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { display: none; }
+
+/* Measurements may begin only once this plugin stylesheet has joined the cascade. */
+.ts-root:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { --ts-board-layout-ready: 1; }
+
 /* END board-polish generated */

@@ -22,7 +22,7 @@ const methods=take('  private pointerDown(', '  private key(')
 const sessionMethods=take('  change(fn:', '  persist() {');
 class Element {
   style:Record<string,string>={};dataset:Record<string,string>={};classes=new Set<string>();
-  classList={toggle:(name:string,on:boolean)=>this.toggleClass(name,on)};
+  classList={contains:(name:string)=>this.classes.has(name),toggle:(name:string,on:boolean)=>this.toggleClass(name,on)};
   constructor(readonly selectors:Record<string,Element>={}){}
   closest(selector:string){return this.selectors[selector]||null;}
   getAttribute(name:string){return name==='data-id'?this.dataset.id:null;}

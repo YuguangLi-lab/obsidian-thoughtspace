@@ -15,6 +15,21 @@ function fixture(fail=''){
  return{e,releases,warnings,cleanup};
 }
 const resources=['frame','timer','toolbar','navigation','observer','native','measurement','outline','surface'];
+const dialogs=['searchDialog','linkDialog'] as const;
+for(const failed of [[],['searchDialog'],['linkDialog'],['searchDialog','linkDialog']])test(`content save completes and releases every resource when ${failed.join(' and ')||'neither dialog'} close fails`,async()=>{
+ const {e,releases,warnings}=fixture();let saved='',writes=0;
+ for(const name of dialogs)e[name]={close:()=>{releases.push(name);if(failed.includes(name))throw Error('modal close failure: '+name);}};
+ e.options.save=async(value:string)=>{saved=value;writes++;e.dispose();};
+ assert.equal(await e.commit(),true);e.dispose();
+ assert.equal(saved,'正文');assert.equal(writes,1);assert.deepEqual(releases,[...dialogs,...resources]);assert.equal(warnings.length,failed.length);
+ assert.equal(e.searchDialog,undefined);assert.equal(e.linkDialog,undefined);assert.equal(e.native,undefined);assert.equal(e.toolbarDispose,undefined);assert.equal(e.saving,false);
+});
+for(const reentrant of dialogs)test(`${reentrant} closure detaches both dialogs before reentrant disposal`,()=>{
+ const {e,releases,warnings}=fixture(),detached:boolean[]=[];
+ for(const name of dialogs)e[name]={close:()=>{releases.push(name);detached.push(e.searchDialog===undefined&&e.linkDialog===undefined);if(name===reentrant)e.dispose();}};
+ assert.doesNotThrow(()=>e.dispose());e.dispose();
+ assert.deepEqual(detached,[true,true]);assert.deepEqual(releases,[...dialogs,...resources]);assert.equal(warnings.length,0);
+});
 test('successful content save remains successful when toolbar cleanup fails',async()=>{
  const {e,releases,warnings}=fixture('toolbar');let saved='';e.options.save=async(value:string)=>{saved=value;e.dispose();};
  assert.equal(await e.commit(),true);assert.equal(saved,'正文');assert.deepEqual(releases,resources);assert.equal(warnings.length,1);assert.equal(e.saving,false);

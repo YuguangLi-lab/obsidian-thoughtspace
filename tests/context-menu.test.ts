@@ -32,3 +32,14 @@ test('ordinary outgoing arrow exposes one-click child setup on the parent menu',
  assert.ok(action);assert.equal(action.disabled,false);action.run();
  assert.deepEqual([...calls[0][0]],['0']);assert.deepEqual(calls[0].slice(1),[true,'collapse',true]);
 });
+
+
+test('text menu folds only the text body and restores it through the same action',()=>{
+ const {view,event}=fixture('text');const values:boolean[]=[];view.foldSelection=(folded:boolean)=>values.push(folded);
+ view.contextMenu(event);const fold=NativeMenu.shown.at(-1)!.items.find(i=>i.title==='折叠文本');assert.ok(fold);fold.run();
+ view.session.board.nodes[0].collapsed=true;view.contextMenu(event);const expand=NativeMenu.shown.at(-1)!.items.find(i=>i.title==='展开文本');assert.ok(expand);expand.run();assert.deepEqual(values,[true,false]);
+});
+test('locked text exposes disabled fold and group exposes connection entry',()=>{
+ const {view,event}=fixture('text');view.session.board.nodes[0].locked=true;view.contextMenu(event);assert.equal(NativeMenu.shown.at(-1)!.items.find(i=>i.title==='折叠文本')?.disabled,true);
+ const group=fixture('section');group.view.contextMenu(group.event);const connect=NativeMenu.shown.at(-1)!.items.find(i=>i.title==='从此处开始连线');assert.ok(connect);assert.equal(connect.disabled,false);connect.run();assert.equal(group.view.connectFrom,'0');assert.equal(group.view.mode,'connect');
+});

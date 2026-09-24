@@ -10,6 +10,7 @@ export interface EditorSearchHost {
 export class EditorSearchModal extends Modal {
  private lines:number[]=[];private composing=false;private pendingReset=false;
  private expected='';private selectedRange?:SearchRange;private matches:SearchRange[]=[];private active=0;private closed=false;private busy=false;private timer?:number;
+ private matchSnapshot?:{text:string;query:string;caseSensitive:boolean;wholeWord:boolean;from?:number;to?:number};
  private query!:HTMLInputElement;private replacement!:HTMLInputElement;private sensitive!:HTMLInputElement;private whole!:HTMLInputElement;private scoped!:HTMLInputElement;
  private status!:HTMLElement;private preview!:HTMLElement;private error!:HTMLElement;private actions:HTMLButtonElement[]=[];
  constructor(app:App,private host:EditorSearchHost,private done:()=>void){super(app);const state=host.read();if(state.disabledReason)throw Error(state.disabledReason);if(state.text.length>2000000)throw Error('当前内容超过 2,000,000 字符，请使用 Obsidian 原生查找');this.expected=state.text;if(state.end>state.start)this.selectedRange={from:state.start,to:state.end};}
@@ -42,10 +43,18 @@ export class EditorSearchModal extends Modal {
  }
  private schedule(reset:boolean){if(this.closed)return;this.contentEl.win.clearTimeout(this.timer);this.timer=undefined;this.pendingReset ||= reset;this.actions.forEach(b=>b.disabled=true);if(this.composing)return;this.timer=this.contentEl.win.setTimeout(()=>this.settle(),120);}
  private settle(){this.contentEl.win.clearTimeout(this.timer);this.timer=undefined;if(this.closed||this.composing)return;const reset=this.pendingReset;this.pendingReset=false;if(reset)this.active=0;this.render(reset);}
- private validate(){const current=this.host.read();if(this.closed||this.composing||current.disabledReason)throw Error(current.disabledReason||(this.composing?'请先完成输入法组字':'查找窗口已关闭'));if(current.text!==this.expected)throw Error('编辑内容已变化，请刷新后检查预览再替换');}
- private render(recalculate=true){if(this.closed)return;this.error.empty();this.preview.empty();
-  try{this.validate();if(recalculate){this.matches=editorMatches(this.expected,this.query.value,{caseSensitive:this.sensitive.checked,wholeWord:this.whole.checked,range:this.scoped.checked?this.selectedRange:undefined});this.lines=editorMatchLines(this.expected,this.matches);}}
-  catch(e){this.matches=[];this.lines=[];this.error.setText(e instanceof Error?e.message:String(e));}
+ private validate(){if(this.closed||this.composing)throw Error(this.composing?'请先完成输入法组字':'查找窗口已关闭');const current=this.host.read();if(current.disabledReason)throw Error(current.disabledReason);if(current.text!==this.expected)throw Error('编辑内容已变化，请刷新后检查预览再替换');}
+ /** Reuse only the exact search snapshot; validation against the live editor still runs before every action. */
+ private currentMatches(){
+  const range=this.scoped.checked?this.selectedRange:undefined,next={text:this.expected,query:this.query.value,caseSensitive:this.sensitive.checked,wholeWord:this.whole.checked,from:range?.from,to:range?.to},old=this.matchSnapshot;
+  if(old&&old.text===next.text&&old.query===next.query&&old.caseSensitive===next.caseSensitive&&old.wholeWord===next.wholeWord&&old.from===next.from&&old.to===next.to)return this.matches;
+  const matches=editorMatches(next.text,next.query,{caseSensitive:next.caseSensitive,wholeWord:next.wholeWord,range});
+  this.lines=editorMatchLines(next.text,matches);this.matches=matches;this.matchSnapshot=next;return matches;
+ }
+ private render(recalculate=true,nextFrom?:number){if(this.closed)return;this.error.empty();this.preview.empty();
+  try{this.validate();if(recalculate)this.currentMatches();}
+  catch(e){this.matches=[];this.lines=[];this.matchSnapshot=undefined;this.error.setText(e instanceof Error?e.message:String(e));}
+  if(nextFrom!==undefined)this.active=Math.max(0,this.matches.findIndex(m=>m.from>=nextFrom));
   this.active=Math.max(0,Math.min(this.active,this.matches.length-1));this.status.setText(this.matches.length?`${this.active+1} / ${this.matches.length} 处`:(this.query.value?'没有匹配':'输入文字开始查找'));this.actions.forEach(b=>b.disabled=!this.matches.length||this.busy);
   const m=this.matches[this.active];if(!m)return;
   const line=this.lines[this.active];this.preview.createEl('small',{text:`第 ${line} 行 · ${this.scoped.checked?'所选范围':'整篇内容'}`});
@@ -56,12 +65,12 @@ export class EditorSearchModal extends Modal {
  private step(delta:number){if(!this.matches.length)return;this.active=(this.active+delta+this.matches.length)%this.matches.length;this.render(false);}
  private refresh(){if(this.composing)return;this.contentEl.win.clearTimeout(this.timer);this.timer=undefined;this.pendingReset=false;const s=this.host.read();if(s.disabledReason)throw Error(s.disabledReason);if(s.text.length>2000000)throw Error('当前内容超过 2,000,000 字符，请使用 Obsidian 原生查找');if(s.text!==this.expected){this.selectedRange=undefined;this.scoped.checked=false;this.scoped.disabled=true;}this.expected=s.text;this.active=0;this.render();}
  private replace(all:boolean){
-  this.validate();const current=editorMatches(this.expected,this.query.value,{caseSensitive:this.sensitive.checked,wholeWord:this.whole.checked,range:this.scoped.checked?this.selectedRange:undefined});
+  this.validate();const current=this.currentMatches();
   const chosen=all?current:current.slice(this.active,this.active+1),plan=editorReplacement(this.expected,chosen,this.replacement.value);if(!plan)return;
   const result=this.expected.slice(0,plan.from)+plan.text+this.expected.slice(plan.to);if(result===this.expected){this.step(1);return;}
-  this.busy=true;try{this.host.apply(this.expected,plan);this.expected=result;if(this.selectedRange){if(this.scoped.checked)this.selectedRange.to+=plan.delta;else{this.selectedRange=undefined;this.scoped.checked=false;this.scoped.disabled=true;}}
-   this.active=0;this.render();if(!all&&this.matches.length){const next=this.matches.findIndex(m=>m.from>=plan.from+this.replacement.value.length);this.active=Math.max(0,next);this.render(false);}this.status.setText(`已替换 ${plan.count} 处 · 剩余 ${this.matches.length} 处`);this.query.focus({preventScroll:true});
+  this.busy=true;try{this.host.apply(this.expected,plan);if(this.closed)return;this.expected=result;if(this.selectedRange){if(this.scoped.checked)this.selectedRange.to+=plan.delta;else{this.selectedRange=undefined;this.scoped.checked=false;this.scoped.disabled=true;}}
+   this.active=0;this.render(true,all?undefined:plan.from+this.replacement.value.length);this.status.setText(`已替换 ${plan.count} 处 · 剩余 ${this.matches.length} 处`);this.query.focus({preventScroll:true});
   }finally{this.busy=false;this.actions.forEach(b=>b.disabled=!this.matches.length);}
  }
- onClose(){this.closed=true;this.contentEl.win.clearTimeout(this.timer);this.expected='';this.matches=[];this.lines=[];this.pendingReset=false;this.selectedRange=undefined;this.actions=[];this.contentEl.empty();this.done();}
+ onClose(){this.closed=true;this.contentEl.win.clearTimeout(this.timer);this.expected='';this.matches=[];this.lines=[];this.matchSnapshot=undefined;this.pendingReset=false;this.selectedRange=undefined;this.actions=[];this.contentEl.empty();this.done();}
 }

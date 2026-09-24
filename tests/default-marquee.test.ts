@@ -25,7 +25,7 @@ const methods=take('  private finishMarqueeFromDocument(', '  private foldSelect
 class Element {
   style:Record<string,string>={};dataset:Record<string,string>={};removed=false;
   classes=new Set<string>();
-  classList={toggle:(name:string,on:boolean)=>this.toggleClass(name,on)};
+  classList={contains:(name:string)=>this.classes.has(name),toggle:(name:string,on:boolean)=>this.toggleClass(name,on)};
   constructor(readonly selectors:Record<string,Element>={}){}
   closest(selector:string){return this.selectors[selector]||null;}
   getAttribute(name:string){return name==='data-id'?this.dataset.id:name==='data-edge'?this.dataset.edge:null;}
@@ -427,4 +427,51 @@ test('node dragging uses screen-pixel threshold before applying zoom-scaled geom
  assert.equal(f.view.gesture.draft.get('a').x,20);assert.equal(f.capture.size,0);assert.equal(f.calls.writes,0);
  f.view.pointerMove(f.event(14,0,{target,buttons:1}));f.flush();assert.equal(f.view.gesture.draft.get('a').x,48);assert.equal(f.board.nodes[0].x,20);
  f.view.pointerUp(f.event(14,0,{target}));assert.equal(f.board.nodes[0].x,48);assert.equal(f.calls.writes,1);assert.equal(f.capture.size,0);
+});
+
+test('release coalesces pending motion into one final geometry update for every blank drag action',()=>{
+ for(const [button,action] of [[0,'pan'],[0,'select'],[1,'pan'],[2,'pan'],[2,'select']] as const){
+  const f=fixture();f.view.selectionTool=false;f.view.plugin.settings[button===0?'leftDrag':button===1?'middleDrag':'rightDrag']=action;
+  f.view.pointerDown(f.event(0,0,{button}));
+  const apply=f.view.applyPointerMove.bind(f.view),points:number[][]=[];f.view.applyPointerMove=(e:any,force:boolean)=>{points.push([e.clientX,e.clientY]);apply(e,force);};
+  for(let i=0;i<120;i++)f.view.pointerMove(f.event(110+i/1000,100,{button,buttons:button===0?1:button===1?4:2}));
+  f.view.pointerUp(f.event(240,100,{button,buttons:0}));
+  assert.deepEqual(points,[[240,100]],`${button}/${action} must skip the superseded pointer-move`);
+  assert.deepEqual(ids(f.view),action==='select'?['a','b']:['old']);
+  assert.deepEqual(f.board.viewport,action==='pan'?{x:240,y:100,zoom:1}:{x:0,y:0,zoom:1});
+  assert.equal(f.frames.size,0);assert.equal(f.capture.size,0);
+ }
+});
+
+test('a foreign release or cancellation leaves the owner pointer frame untouched',()=>{
+ for(const cancelled of [false,true])for(const action of ['pan','select']){
+  const f=fixture();f.view.selectionTool=false;f.view.plugin.settings.leftDrag=action;
+  f.view.pointerDown(f.event());f.view.pointerMove(f.event(110,100,{buttons:1}));
+  const queued=f.view.pendingPointer,before={...f.calls};f.view.pointerUp(f.event(800,500,{pointerId:2}),cancelled);
+  assert.equal(f.frames.size,1);assert.equal(f.view.pendingPointer,queued);assert.deepEqual(f.calls,before);
+  f.flush();f.view.pointerUp(f.event(240,100));assert.deepEqual(ids(f.view),action==='select'?['a','b']:['old']);
+ }
+});
+
+test('returning near the press before release remains a drag when queued motion already crossed the threshold',()=>{
+ for(const [button,action] of [[0,'pan'],[2,'pan'],[2,'select']] as const){
+  const f=fixture();f.view.selectionTool=false;f.view.plugin.settings[button===0?'leftDrag':'rightDrag']=action;
+  f.view.pointerDown(f.event(0,0,{button}));f.view.pointerMove(f.event(110,100,{button,buttons:button===0?1:2}));
+  f.view.pointerUp(f.event(1,1,{button,buttons:0}));
+  assert.deepEqual(ids(f.view),action==='pan'?['old']:[],'a completed drag must not become a click');
+  assert.deepEqual(f.board.viewport,action==='pan'?{x:1,y:1,zoom:1}:{x:0,y:0,zoom:1});
+  assert.equal(f.calls.menus,0);assert.equal(f.frames.size,0);
+ }
+});
+
+test('a release commits only final card geometry and skips a queued intermediate resize or move',()=>{
+ for(const resize of [false,true]){
+  const f=fixture();f.view.selectionTool=false;const card=new Element();card.dataset.id='a';
+  const target=new Element({'[data-id]':card,...(resize?{'.ts-resize':card}:{})});let paints=0;
+  f.view.positionNode=()=>paints++;f.view.renderEdges=()=>{};
+  f.view.pointerDown(f.event(0,0,{target}));f.view.pointerMove(f.event(20,15,{target,buttons:1}));
+  f.view.pointerUp(f.event(40,30,{target,buttons:0}));
+  assert.equal(paints,1);assert.equal(f.calls.writes,1);assert.equal(f.frames.size,0);
+  assert.equal(f.board.nodes[0].x,resize?20:60);assert.equal(f.board.nodes[0].y,resize?20:50);
+ }
 });

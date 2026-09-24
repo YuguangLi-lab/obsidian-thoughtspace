@@ -51,8 +51,8 @@ class TFile{
  constructor(readonly path:string){this.basename=path.split('/').pop()!.replace(/\.md$/,'');}
 }
 const source=readFileSync('src/board-search-view.ts','utf8').replace(/^import .*;\n/gm,'');
-let searches=0;const clipboard:string[]=[];
-const BoardSearchModal=new Function('Modal','TFile','Notice','setIcon','getAllTags','themeSurface','colors','colorNames','boardSearchIndex','searchBoard','searchKinds','searchExcerpt','searchDirectory','navigator',transformSync(source.replace(/^export /gm,'')+'\nreturn BoardSearchModal;',{loader:'ts'}).code)(Modal,TFile,class{},()=>{},()=>[],()=>{},colors,colorNames,boardSearchIndex,(...args:Parameters<typeof searchBoard>)=>{searches++;return searchBoard(...args);},searchKinds,searchExcerpt,searchDirectory,{clipboard:{writeText:async(text:string)=>{clipboard.push(text);}}});
+let searches=0,excerpts=0;const clipboard:string[]=[];
+const BoardSearchModal=new Function('Modal','TFile','Notice','setIcon','getAllTags','themeSurface','colors','colorNames','boardSearchIndex','searchBoard','searchKinds','searchExcerpt','searchDirectory','navigator',transformSync(source.replace(/^export /gm,'')+'\nreturn BoardSearchModal;',{loader:'ts'}).code)(Modal,TFile,class{},()=>{},()=>[],()=>{},colors,colorNames,boardSearchIndex,(...args:Parameters<typeof searchBoard>)=>{searches++;return searchBoard(...args);},searchKinds,(...args:Parameters<typeof searchExcerpt>)=>{excerpts++;return searchExcerpt(...args);},searchDirectory,{clipboard:{writeText:async(text:string)=>{clipboard.push(text);}}});
 const node=(id:string,kind:Card['kind']='text'):Card=>({id,kind,title:id,text:`正文 ${id}`,x:1000,y:0,width:100,height:80,color:'green',...(kind==='card'?{file:`notes/${id}.md`}:{})});
 function fixture(nodes:Card[]=[node('alpha'),node('beta','card'),node('gamma')],read?:(file:TFile)=>Promise<string>){
  const board:Board={...emptyBoard(),nodes};const located:string[]=[],opened:string[]=[],reads:string[]=[],files=new Map(nodes.filter(n=>n.file).map(n=>[n.file!,new TFile(n.file!)]));
@@ -200,4 +200,30 @@ test('full text completion returns focus to search if the focused result was rem
  const task=deferred<string>(),{modal,input,list,clock,board}=fixture([node('alpha','card'),node('beta')],()=>task.promise);
  fullText(modal);await tick();list.querySelectorAll('.ts-board-search-pick')[0].focus();board.nodes=board.nodes.filter(n=>n.id!=='alpha');task.resolve('完整正文');await drain(clock);
  assert.equal(modal.document.activeElement,input);assert.equal(current(list),'beta');assert.equal(list.querySelectorAll('.ts-board-search-pick').length,1);
+});
+
+
+test('body indexing preserves the focused row action instead of dropping keyboard focus',async()=>{
+ for(const action of ['复制内容定位链接','在右侧打开原笔记']){
+  const task=deferred<string>(),{modal,list,clock,opened}=fixture([node('note','card')],()=>task.promise);
+  fullText(modal);await tick();const original=list.querySelectorAll('button').find(b=>b.getAttribute('aria-label')===action)!;original.focus();
+  task.resolve('完整正文');await drain(clock);const updated=list.querySelectorAll('button').find(b=>b.getAttribute('aria-label')===action)!;
+  assert.notEqual(original,updated);assert.equal(modal.document.activeElement,updated,action);assert.equal(current(list),'note');
+  if(action==='在右侧打开原笔记'){updated.click();await tick();assert.deepEqual(opened,['note']);}
+ }
+});
+test('removing the focused row action returns focus to the surviving result or search',async()=>{
+ const {modal,list,board,input}=fixture([node('note','card')]);
+ const refresh=modal.contentEl.querySelectorAll('button').find((b:Element)=>b.getAttribute('aria-label')==='刷新搜索索引');
+ list.querySelectorAll('button').find(b=>b.getAttribute('aria-label')==='在右侧打开原笔记')!.focus();board.nodes[0].kind='text';refresh.click();await tick();
+ assert.equal(modal.document.activeElement,list.querySelector('.ts-board-search-pick'));
+ list.querySelectorAll('button').find(b=>b.getAttribute('aria-label')==='复制内容定位链接')!.focus();board.nodes=[];refresh.click();await tick();assert.equal(modal.document.activeElement,input);
+});
+test('pagination reuses displayed excerpts but a changed query and refreshed body produce current snippets',async()=>{
+ const before=excerpts,{modal,list,input,clock,board}=fixture(Array.from({length:85},(_,i)=>({...node(`n${i}`),text:'prefix '.repeat(100)+'firstNeedle '+'middle '.repeat(100)+'secondNeedle'})));
+ assert.equal(excerpts-before,40);list.querySelector('.ts-board-search-more')!.click();assert.equal(excerpts-before,80);list.querySelector('.ts-board-search-more')!.click();assert.equal(excerpts-before,85);
+ input.value='secondNeedle';input.oninput?.();clock.flush();assert.equal(list.querySelectorAll('.ts-board-search-row').length,40);
+ for(const excerpt of list.querySelectorAll('.ts-board-search-excerpt'))assert.match(excerpt.textContent,/secondNeedle/);
+ const refresh=modal.contentEl.querySelectorAll('button').find((b:Element)=>b.getAttribute('aria-label')==='刷新搜索索引');board.nodes[0].text='secondNeedle changed body';refresh.click();await tick();assert.equal(list.querySelector('.ts-board-search-excerpt')!.textContent,'secondNeedle changed body');
+ modal.close();
 });

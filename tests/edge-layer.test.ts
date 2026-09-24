@@ -2,10 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {EdgeLayer} from '../src/edge-layer';
 import type {Board, Card} from '../src/model';
+import {connectionPath} from '../src/connections';
 
 /** A small SVG DOM harness: exercise the renderer itself and count DOM writes. */
 class SvgDocument {
  writes=0;
+ queries=0;
+ textWrites=0;
  createElementNS(_namespace:string,tag:string){this.writes++;return new SvgElement(this,tag);}
 }
 class SvgElement {
@@ -13,7 +16,9 @@ class SvgElement {
  parent?:SvgElement;
  attributes=new Map<string,string>();
  dataset:Record<string,string>={};
- textContent='';
+ private content='';
+ get textContent(){return this.content;}
+ set textContent(value:string){this.ownerDocument.textWrites++;this.content=value;}
  ondblclick?: (event:{stopPropagation:()=>void})=>void;
  style={values:new Map<string,string>(),setProperty:(key:string,value:string)=>{this.ownerDocument.writes++;this.style.values.set(key,value);}};
  classList={
@@ -36,6 +41,7 @@ class SvgElement {
   return null;
  }
  querySelector(selector:string):SvgElement|null{
+  this.ownerDocument.queries++;
   for(const child of this.children){
    if(selector.startsWith('.')?child.classList.contains(selector.slice(1)):child.tag===selector)return child;
    const nested=child.querySelector(selector);if(nested)return nested;
@@ -155,4 +161,76 @@ test('deleted or offscreen selected edges release their SVG rows and reappear se
  f.board.viewport.x=-10000;f.render(undefined,batch);assert.equal(old.parent,undefined);assert.equal(f.root.children.filter(child=>child.dataset.edge).length,0);
  f.board.viewport.x=0;f.render(undefined,batch);assert.notEqual(f.group('ab'),old);assert.ok(f.path('ab').classList.contains('is-selected'));assert.equal(f.group('ab').querySelector('.ts-edge-handles'),null);
  f.board.edges=[];f.render(undefined,batch);assert.equal(f.root.children.filter(child=>child.dataset.edge).length,0);
+});
+
+
+test('dragging labeled edges reuses caption metrics and DOM while moving labels and handles',t=>{
+ const f=fixture(),source='证据 👩‍🔬 — café / e\u0301';f.board.edges[0].label=source;
+ const originalFrom=Array.from,measured:string[]=[];
+ t.mock.method(Array,'from',function(...args:Parameters<typeof Array.from>){
+  if(typeof args[0]==='string')measured.push(args[0]);
+  return Reflect.apply(originalFrom,Array,args);
+ });
+ f.render('ab');
+ const group=f.group('ab'),caption=group.querySelector('.ts-edge-caption'),bg=caption?.querySelector('rect'),text=caption?.querySelector('text'),title=caption?.querySelector('title');
+ const handles=group.querySelector('.ts-edge-handles');assert.ok(caption&&bg&&text&&title&&handles);
+ const initialWidth=bg.getAttribute('width'),initialPath=f.path('ab').getAttribute('d');
+ const queries=f.doc.queries,textWrites=f.doc.textWrites,measurements=measured.length;
+ for(let frame=1;frame<=120;frame++){
+  f.board.nodes[1].x=300+frame;f.board.nodes[1].y=frame/2;f.render('ab');
+ }
+ const work={measurements:measured.length-measurements,queries:f.doc.queries-queries,textWrites:f.doc.textWrites-textWrites};
+ t.diagnostic(`120 labeled drag frames: ${JSON.stringify(work)}`);
+ assert.deepEqual(work,{measurements:0,queries:0,textWrites:0},'position-only updates must not remeasure or rewrite unchanged caption text');
+ assert.equal(group.querySelector('.ts-edge-caption'),caption);assert.equal(bg.getAttribute('width'),initialWidth);
+ assert.equal(text.textContent,source);assert.equal(title.textContent,source);assert.notEqual(f.path('ab').getAttribute('d'),initialPath);
+ const route=connectionPath(f.board.nodes[0],f.board.nodes[1],f.board.edges[0]);
+ assert.equal(text.getAttribute('x'),String(route.label.x));assert.equal(text.getAttribute('y'),String(route.label.y+4));
+ assert.equal(bg.getAttribute('x'),String(route.label.x-Number(initialWidth)/2));assert.equal(bg.getAttribute('y'),String(route.label.y-13));
+ assert.deepEqual(handles.children.map(h=>[h.getAttribute('cx'),h.getAttribute('cy')]),[[String(route.from.x),String(route.from.y)],[String(route.to.x),String(route.to.y)]]);
+ assert.deepEqual(measured,[source]);
+});
+
+test('caption content invalidates at identical geometry and follows immutable undo/redo data',()=>{
+ const f=fixture(),initial=structuredClone(f.board.edges);f.render();
+ const group=f.group('ab'),caption=group.querySelector('.ts-edge-caption');assert.ok(caption);
+ const initialWidth=caption.querySelector('rect')?.getAttribute('width');assert.equal(initialWidth,'42');
+ f.board.edges=f.board.edges.map(e=>e.id==='ab'?{...e,label:'关系 / relation 👩‍🔬'}:e);f.render();
+ const changed=structuredClone(f.board.edges),changedWidth=caption.querySelector('rect')?.getAttribute('width');
+ assert.notEqual(changedWidth,initialWidth);assert.equal(caption.querySelector('title')?.textContent,'关系 / relation 👩‍🔬');
+ f.board.edges=structuredClone(initial);f.render();
+ assert.equal(group.querySelector('.ts-edge-caption'),caption);assert.equal(caption.querySelector('rect')?.getAttribute('width'),initialWidth);assert.equal(caption.querySelector('text')?.textContent,'证据');
+ f.board.edges=structuredClone(changed);f.render();assert.equal(caption.querySelector('rect')?.getAttribute('width'),changedWidth);assert.equal(caption.querySelector('text')?.textContent,'关系 / relation 👩‍🔬');
+ const writes=f.doc.writes,textWrites=f.doc.textWrites;f.render();assert.equal(f.doc.writes,writes);assert.equal(f.doc.textWrites,textWrites);
+});
+
+test('truncated captions retain full Unicode tooltip and invalidate an edited hidden suffix',()=>{
+ const f=fixture(),prefix='证据'.repeat(40),first=prefix+' first 👩‍🔬',second=prefix+' second 🧠';
+ f.board.edges[0].label=first;f.render();const caption=f.group('ab').querySelector('.ts-edge-caption');assert.ok(caption);
+ const text=caption.querySelector('text'),title=caption.querySelector('title'),bg=caption.querySelector('rect');assert.ok(text&&title&&bg);
+ assert.equal(text.textContent,prefix.slice(0,79)+'…');assert.equal(title.textContent,first);assert.equal(bg.getAttribute('width'),'900');
+ f.board.edges[0].label=second;f.render();assert.equal(title.textContent,second);assert.equal(text.textContent,prefix.slice(0,79)+'…');assert.equal(bg.getAttribute('width'),'900');
+ f.board.edges[0].label='';f.render();assert.equal(f.group('ab').querySelector('.ts-edge-caption'),null);assert.equal(caption.parent,undefined);
+ f.board.edges[0].label='A🧠中e\u0301';f.render();const recreated=f.group('ab').querySelector('.ts-edge-caption');assert.ok(recreated);assert.notEqual(recreated,caption);
+ assert.equal(recreated.querySelector('text')?.textContent,'A🧠中e\u0301');assert.equal(recreated.querySelector('title')?.textContent,'A🧠中e\u0301');assert.equal(recreated.querySelector('rect')?.getAttribute('width'),'61.5');
+});
+
+test('caption metric reuse preserves connection style, selection and zoom-dependent handles',t=>{
+ const f=fixture();f.render('ab');const group=f.group('ab'),caption=group.querySelector('.ts-edge-caption');assert.ok(caption);
+ const originalFrom=Array.from,measured:string[]=[];
+ t.mock.method(Array,'from',function(...args:Parameters<typeof Array.from>){if(typeof args[0]==='string')measured.push(args[0]);return Reflect.apply(originalFrom,Array,args);});
+ const edge=f.board.edges[0];edge.color='teal';edge.dashed=false;edge.direction='none';edge.style='straight';f.board.viewport.zoom=.5;f.render('ab');
+ const route=connectionPath(f.board.nodes[0],f.board.nodes[1],edge),path=f.path('ab'),handles=group.querySelector('.ts-edge-handles');assert.ok(handles);
+ assert.equal(path.getAttribute('d'),route.path);assert.equal(path.getAttribute('marker-start'),null);assert.equal(path.getAttribute('marker-end'),null);assert.equal(path.getAttribute('stroke-dasharray'),null);
+ assert.ok(group.classList.contains('ts-color-teal'));assert.equal(caption.querySelector('text')?.getAttribute('x'),String(route.label.x));assert.deepEqual(handles.children.map(h=>h.getAttribute('r')),['12','12']);
+ f.render(undefined,new Set(['ab']));assert.equal(group.querySelector('.ts-edge-handles'),null);assert.ok(path.classList.contains('is-selected'));assert.equal(group.querySelector('.ts-edge-caption'),caption);assert.deepEqual(measured,[]);
+});
+
+test('offscreen eviction, deletion and explicit clear rebuild caption content without stale metrics',()=>{
+ const f=fixture();f.render();const old=f.group('ab').querySelector('.ts-edge-caption');assert.ok(old);
+ f.board.viewport.x=-10000;f.render();assert.equal(f.root.children.filter(child=>child.dataset.edge).length,0);
+ f.board.edges[0].label='AB';f.board.viewport.x=0;f.render();const returned=f.group('ab').querySelector('.ts-edge-caption');assert.ok(returned);assert.notEqual(returned,old);assert.equal(returned.querySelector('rect')?.getAttribute('width'),'31');
+ f.layer.clear();f.board.edges[0].label='新证据';f.render();const cleared=f.group('ab').querySelector('.ts-edge-caption');assert.ok(cleared);assert.notEqual(cleared,returned);assert.equal(cleared.querySelector('title')?.textContent,'新证据');assert.equal(cleared.querySelector('rect')?.getAttribute('width'),'54');
+ const edges=structuredClone(f.board.edges);f.board.edges=[];f.render();assert.equal(f.root.children.filter(child=>child.dataset.edge).length,0);
+ f.board.edges=edges;f.board.edges[0].label='x';f.render();assert.equal(f.group('ab').querySelector('rect')?.getAttribute('width'),'24.5');assert.equal(f.group('ab').querySelector('text')?.textContent,'x');
 });

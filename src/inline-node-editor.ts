@@ -41,7 +41,7 @@ export class InlineNodeEditor {
    if(this.disposed)return;
    const count=this.input.selectionCount??1,selected=count===1&&this.input.selectionStart<this.input.selectionEnd;
    if(selected!==this.textSelected){this.textSelected=selected;this.el.classList.toggle('has-text-selection',selected);}
-   if(count!==this.selectionCount){this.selectionCount=count;this.updateState();}
+   if(count!==this.selectionCount){this.selectionCount=count;this.updateState(false);}
   });
   this.input.addEventListener('compositionstart',()=>{if(this.disposed)return;this.composing=true;this.updateState();});this.input.addEventListener('compositionend',()=>{if(this.disposed)return;this.composing=false;this.updateState();this.scheduleLayout();this.checkFocus();});
   this.el.addEventListener('keydown',e=>{
@@ -75,7 +75,7 @@ export class InlineNodeEditor {
   try{measure();this.layoutFailures.delete(part);}catch(error){if(!this.layoutFailures.has(part))console.warn('ThoughtSpace inline '+part+' measurement failed',error);this.layoutFailures.add(part);}
   const hidden=this.layoutFailures.size===0;if(this.layoutHint.hidden!==hidden)this.layoutHint.hidden=hidden;
  }
- private updateState(){
+ private updateState(notifySelection=true){
   if(this.disposed)return;
   const saving=!!this.pending,busy=saving||this.composing,state=saving?(this.backingUp?'recovering':'saving'):this.composing?'composing':this.el.hasClass('has-error')?'error':(this.input.selectionCount??1)>1?'multiselect':'editing';
   const label=saving?(this.backingUp?'备份中':'保存中'):this.composing?'输入中':state==='error'?'未保存':state==='multiselect'?`${this.input.selectionCount} 个选区`:this.dirty?'未保存':'编辑中';
@@ -90,8 +90,9 @@ export class InlineNodeEditor {
    const retry=!!this.saveError;if(retry!==this.retryIcon){this.retryIcon=retry;setIcon(this.actions[0],retry?'rotate-ccw':'check');}
    const copyLabel=this.saveError?'复制保留的草稿':'复制编辑草稿';this.actions[2].title=copyLabel;this.actions[2].setAttribute('aria-label',copyLabel);
   }
-  // Text and selection changes still reach the formatting toolbar even when status is unchanged.
-  this.input.dispatchEvent(new Event('select'));
+  // Content and status changes notify the toolbar. An existing selection event
+  // already reaches subscribers after this handler; do not rebroadcast it.
+  if(notifySelection)this.input.dispatchEvent(new Event('select'));
  }
  snapshot(){return{text:this.input.value,start:this.input.selectionStart,end:this.input.selectionEnd,busy:this.composing||!!this.pending,disabledReason:this.pending?(this.backingUp?'正在备份草稿':'正在保存'):this.composing?'输入法组字中':(this.input.selectionCount??1)>1?'多光标编辑中，请保留一个选区后设置格式':undefined};}
  replaceToolbar(dispose?:()=>void){
@@ -147,7 +148,11 @@ export class InlineNodeEditor {
   for(const key of ['fontFamily','fontSize','fontWeight','lineHeight','letterSpacing','textAlign','paddingTop','paddingRight','paddingBottom','paddingLeft'] as const)if(this.input.style[key]!==(key==='fontFamily'?(this.body.style.fontFamily||'var(--font-text)'):style[key])){this.input.style[key]=key==='fontFamily'?(this.body.style.fontFamily||'var(--font-text)'):style[key];changed=true;}
   if(remeasure){this.appearanceChanged=true;this.scheduleLayout();}if(changed||remeasure)this.measureLayout('geometry',()=>this.native?.resize());
  }
- syncGeometry(){if(this.disposed)return;const b=this.body,left=b.offsetLeft,top=b.offsetTop,width=b.offsetWidth,height=b.offsetHeight,key=[left,top,width,height].join(':');if(key===this.geometry)return;this.geometry=key;this.measureLayout('geometry',()=>{Object.assign(this.input.style,{left:`${left}px`,top:`${top}px`,width:`${width}px`,height:`${height}px`});this.native?.resize();});}
+ syncGeometry(){if(this.disposed)return;const b=this.body,left=b.offsetLeft,top=b.offsetTop,width=b.offsetWidth,height=b.offsetHeight,key=[left,top,width,height].join(':');if(key===this.geometry)return;this.geometry=key;this.measureLayout('geometry',()=>{
+  // Auto sizing often changes only height; retain the other live editor styles.
+  for(const [property,value] of [['left',left],['top',top],['width',width],['height',height]] as const){const cssValue=`${value}px`;if(this.input.style[property]!==cssValue)this.input.style[property]=cssValue;}
+  this.native?.resize();
+ });}
  get saving(){return !!this.pending;}
  get value(){return this.input.value;}
  get dirty(){return this.input.value!==this.options.value;}
@@ -182,9 +187,12 @@ export class InlineNodeEditor {
  }
  cancel(){if(this.disposed||this.pending||this.composing)return;this.options.cancel();}
  dispose(){
-  if(this.disposed)return;this.disposed=true;this.searchDialog?.close();this.searchDialog=undefined;this.linkDialog?.close();this.linkDialog=undefined;
+  if(this.disposed)return;this.disposed=true;
+  const search=this.searchDialog,link=this.linkDialog;this.searchDialog=undefined;this.linkDialog=undefined;
   const frame=this.layoutFrame,timer=this.focusTimer,native=this.native,navigation=this.actionNavigationDispose,measurement=this.options.dispose;
   this.layoutFrame=undefined;this.focusTimer=undefined;this.native=undefined;this.actionNavigationDispose=undefined;this.options.dispose=undefined;
+  releaseEditorResource('draft search dialog',()=>search?.close());
+  releaseEditorResource('draft link dialog',()=>link?.close());
   releaseEditorResource('layout frame',()=>{if(frame!==undefined)this.win.cancelAnimationFrame(frame);});
   releaseEditorResource('focus timer',()=>{if(timer!==undefined)this.win.clearTimeout(timer);});
   this.replaceToolbar();releaseEditorResource('editor keyboard navigation',navigation);

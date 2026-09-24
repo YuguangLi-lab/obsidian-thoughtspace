@@ -1,7 +1,7 @@
 import {Board,Color,clone,emptyBoard} from './model';
 import {branchState,layoutMindmap,MindmapLayout,mindmapRoot} from './mindmap';
 export interface MindmapOptions {layout:MindmapLayout;density:'compact'|'standard'|'relaxed';depth:'keep'|'all'|'1'|'2'|'3';rainbow:boolean;}
-export const mindmapLayouts:Record<MindmapLayout,string>={bilateral:'双向导图',right:'向右逻辑图',left:'向左逻辑图',down:'向下组织图'};
+export const mindmapLayouts:Record<MindmapLayout,string>={bilateral:'双向导图',right:'向右逻辑图',left:'向左逻辑图',down:'向下组织图',up:'向上组织图'};
 export function mindmapSignature(b:Board){const {viewport,...content}=b;return JSON.stringify(content);}
 export function mindmapPlan(board:Board,id:string,options:MindmapOptions){
  if(!Object.hasOwn(mindmapLayouts,options.layout)||!['compact','standard','relaxed'].includes(options.density)||!['keep','all','1','2','3'].includes(options.depth))throw Error('导图选项无效');

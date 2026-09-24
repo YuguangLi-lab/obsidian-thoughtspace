@@ -73,8 +73,10 @@ class NoteToolbar extends Component implements MarkdownToolbarEditor {
   };
   this.app.workspace.setActiveLeaf(this.view.leaf,{focus:true});
   if(!unchanged())return changed();
-  if(!this.editor.hasFocus())this.editor.focus();
-  if(!unchanged())return changed();
+  if(!this.editor.hasFocus()){
+   this.editor.focus();
+   if(!unchanged())return changed();
+  }
   this.showNotice(false);return true;
  }
  snapshot(){if(!this.valid())return{text:'',start:0,end:0,busy:true,disabledReason:'编辑器已关闭或切换'};const text=this.editor.getValue(),range=this.selection(text);return{text,start:range.from,end:range.to,busy:this.composing,disabledReason:this.composing?'输入法组字中':this.editor.listSelections().length>1?'多光标编辑中，请保留一个选区后设置格式':undefined};}

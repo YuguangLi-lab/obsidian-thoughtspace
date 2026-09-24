@@ -9,7 +9,7 @@ export function marqueeSelection(nodes:readonly Card[],r:Rect):Set<string> {
   return new Set(nodes.filter(n=>n.kind==='section' ? n.x>=r.x&&n.y>=r.y&&n.x+n.width<=r.x+r.width&&n.y+n.height<=r.y+r.height : n.x<r.x+r.width&&n.x+n.width>r.x&&n.y<r.y+r.height&&n.y+n.height>r.y).map(n=>n.id));
 }
 export function foldCards(board:Board,ids:ReadonlySet<string>,fold:boolean){
-  for(const n of board.nodes)if((n.kind==='card'||n.kind==='pdf'||n.kind==='board')&&!n.locked&&ids.has(n.id)){
+  for(const n of board.nodes)if((n.kind==='card'||n.kind==='pdf'||n.kind==='board'||n.kind==='text')&&!n.locked&&ids.has(n.id)){
     if(fold&&!n.collapsed){n.expandedHeight=n.height;n.height=72;n.collapsed=true;}
     else if(!fold&&n.collapsed){n.height=n.expandedHeight!;delete n.expandedHeight;delete n.collapsed;}
   }
@@ -22,9 +22,10 @@ export function alignSelection(board:Board,ids:ReadonlySet<string>,action:Alignm
   const pinned=new Set<string>();for(const n of board.nodes)if(n.locked){let id=parents.get(n.id);while(id!==undefined&&!pinned.has(id)){pinned.add(id);id=parents.get(id);}}
 
   const sections=selected.filter(n=>n.kind==='section');
-  const units=selected.filter(n=>!(n.branchFolded&&pinned.has(n.id))&&!sectionMovementPinned(n,board.nodes)).filter(n=>!sections.some(s=>s.id!==n.id&&contained(s,n)));
+  const candidates=selected.filter(n=>!(n.branchFolded&&pinned.has(n.id))&&!sectionMovementPinned(n,board.nodes)).filter(n=>!sections.some(s=>s.id!==n.id&&contained(s,n))),memberships=selectionMemberships(board,candidates);
+  const units=candidates.filter(n=>!(n.branchFolded||n.sectionFolded)||!memberships.get(n.id)!.some(member=>member.locked));
   if(units.length<(action.startsWith('distribute')?3:2))throw new Error(action.startsWith('distribute')?'请至少选择三个独立对象':'请至少选择两个独立对象');
-  const memberships=selectionMemberships(board,units);for(const[id,members]of memberships)memberships.set(id,members.filter(n=>!n.locked));
+  for(const[id,members]of memberships)memberships.set(id,members.filter(n=>!n.locked));
   const seen=new Set<string>();
   for(const unit of units)for(const member of [unit,...memberships.get(unit.id)!]){if(seen.has(member.id))throw new Error('选中的分组含有重叠成员，请分别调整');seen.add(member.id);}
   const left=Math.min(...units.map(n=>n.x)),right=Math.max(...units.map(n=>n.x+n.width)),top=Math.min(...units.map(n=>n.y)),bottom=Math.max(...units.map(n=>n.y+n.height));

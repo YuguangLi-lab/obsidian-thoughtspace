@@ -20,7 +20,8 @@ function fixture(){
   {id:'nested',kind:'section',title:'Nested',x:250,y:70,width:200,height:200,color:'green',sectionFolded:true},
   text('nested-child',280,120),
   {id:'card',kind:'card',file:'outside.md',x:650,y:30,width:300,height:200,color:'rose'},
-  text('root',1050,30),text('child',1270,130),text('grand',1490,230),text('other',1710,30)
+  text('root',1050,30),text('child',1270,130),text('grand',1490,230),text('other',1710,30),
+  {id:'image',kind:'image',file:'image.png',x:1910,y:30,width:160,height:120,color:'blue'}
  ],edges:[
   {id:'root-child',from:'root',to:'child',label:'Child',kind:'branch'},
   {id:'child-grand',from:'child',to:'grand',label:'Grandchild',kind:'branch'},
@@ -110,7 +111,7 @@ test('locked groups and cards retain exact state while unlocked selected objects
 });
 
 test('empty, absent, unsupported and already-matching selections add no history or redraw',()=>{
- for(const [ids,folded,sectionsOnly] of [[[],true,false],[['missing'],true,false],[['other'],true,false],[['card'],true,true],[['group'],false,true]] as [string[],boolean,boolean][]){
+ for(const [ids,folded,sectionsOnly] of [[[],true,false],[['missing'],true,false],[['image'],true,false],[['card'],true,true],[['group'],false,true]] as [string[],boolean,boolean][]){
   const f=fixture(),before=clone(f.board);f.v.setSelectionFold(new Set(ids),folded,sectionsOnly);
   assert.deepEqual(f.board,before);assert.deepEqual(f.calls,{writes:0,clears:0,renders:0});assert.deepEqual(f.notices,[]);assert.equal(f.history.undo(f.board),undefined);
  }

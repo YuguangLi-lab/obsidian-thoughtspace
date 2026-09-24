@@ -6,8 +6,8 @@ import {planMarkdownEdit,insertedPosition} from '../src/markdown-edit';
 function fixture(){
  const imports:Record<string,unknown>={obsidian:{Component:class{}},'./markdown-edit':{planMarkdownEdit,insertedPosition},'./markdown-toolbar':{},'@codemirror/state':{Transaction:{userEvent:{}}}};
  const module={exports:{} as any};new Function('require','module','exports',transformSync(readFileSync('src/note-markdown-toolbar.ts','utf8')+'\nexport {NoteToolbar};',{loader:'ts',format:'cjs'}).code)((n:string)=>imports[n],module,module.exports);
- const b=Object.create(module.exports.NoteToolbar.prototype),state={text:'前重点后',from:1,to:3,transactions:0,focus:0,undo:0,redo:0,selections:1,activate:()=>{},onFocus:()=>{}},file={};
- const editor={hasFocus:()=>false,getValue:()=>state.text,getCursor:(side:string)=>({line:0,ch:side==='from'?state.from:state.to}),posToOffset:(p:any)=>p.ch,offsetToPos:(offset:number)=>({line:0,ch:offset}),listSelections:()=>Array.from({length:state.selections},()=>({})),focus:()=>{state.focus++;state.onFocus();},transaction:(tx:any)=>{state.transactions++;const c=tx.changes[0];state.text=state.text.slice(0,c.from.ch)+c.text+state.text.slice(c.to.ch);state.from=tx.selection.from.ch;state.to=tx.selection.to.ch;},undo:()=>state.undo++,redo:()=>state.redo++};
+ const b=Object.create(module.exports.NoteToolbar.prototype),state={text:'前重点后',from:1,to:3,transactions:0,focus:0,reads:0,undo:0,redo:0,selections:1,activate:()=>{},onFocus:()=>{}},file={};
+ const editor={hasFocus:()=>false,getValue:()=>{state.reads++;return state.text;},getCursor:(side:string)=>({line:0,ch:side==='from'?state.from:state.to}),posToOffset:(p:any)=>p.ch,offsetToPos:(offset:number)=>({line:0,ch:offset}),listSelections:()=>Array.from({length:state.selections},()=>({})),focus:()=>{state.focus++;state.onFocus();},transaction:(tx:any)=>{state.transactions++;const c=tx.changes[0];state.text=state.text.slice(0,c.from.ch)+c.text+state.text.slice(c.to.ch);state.from=tx.selection.from.ch;state.to=tx.selection.to.ch;},undo:()=>state.undo++,redo:()=>state.redo++};
  Object.assign(b,{file,editor,app:{workspace:{setActiveLeaf:()=>state.activate()}},view:{file,editor,getMode:()=>'source',leaf:{}},notice:{textContent:'',setText(text:string){this.textContent=text;}},sync:()=>{},notify:()=>{}});
  return{b,state,editor};
 }
@@ -41,7 +41,24 @@ test('disposal during activation stops the command before touching a stale edito
 });
 
 test('an already focused editor does not receive a redundant focus request',()=>{
- const {b,state,editor}=fixture();editor.hasFocus=()=>true;b.format('bold');assert.equal(state.focus,0);assert.equal(state.text,'前**重点**后');
+ const {b,state,editor}=fixture();editor.hasFocus=()=>true;b.format('bold');assert.equal(state.focus,0);assert.equal(state.text,'前**重点**后');assert.equal(state.reads,2);
+});
+test('sequential formatting in a focused note keeps one activation check per command',()=>{
+ const {b,state,editor}=fixture();editor.hasFocus=()=>true;b.format('bold');b.format('italic');
+ assert.equal(state.text,'前***重点***后');assert.equal(state.transactions,2);assert.equal(state.focus,0);assert.equal(state.reads,4);
+});
+test('an already focused editor still rejects content or selection changes during activation',()=>{
+ for(const change of ['text','selection']){
+  const {b,state,editor}=fixture();editor.hasFocus=()=>true;
+  state.activate=()=>{if(change==='text')state.text='新内容后';else{state.from=0;state.to=1;}};
+  b.format('bold');assert.equal(state.transactions,0,change);assert.equal(state.focus,0,change);assert.equal(state.reads,2,change);assert.equal(b.notice.textContent,'请确认后重试',change);
+ }
+});
+test('an actual focus request rechecks both text and selection before formatting',()=>{
+ for(const change of ['text','selection']){
+  const {b,state}=fixture();state.onFocus=()=>{if(change==='text')state.text='新内容后';else{state.from=0;state.to=1;}};
+  b.format('bold');assert.equal(state.transactions,0,change);assert.equal(state.focus,1,change);assert.equal(state.reads,3,change);assert.equal(b.notice.textContent,'请确认后重试',change);
+ }
 });
 
 test('programmatic selection changes invalidate a previous formatting range',()=>{

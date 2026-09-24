@@ -6,7 +6,7 @@ import {validateBranches} from './mindmap';
 export function branchOutline(board:Board,rootId:string){
  validateBranches(board);const nodes=new Map(board.nodes.map(n=>[n.id,n])),root=nodes.get(rootId);if(!root||root.kind==='section')throw Error('请选择一个导图主题');
  const children=new Map<string,Card[]>();for(const e of board.edges)if(e.kind==='branch'){const list=children.get(e.from)||[];list.push(nodes.get(e.to)!);children.set(e.from,list);}
- if(!board.mindmapLayout)for(const list of children.values())list.sort((a,b)=>board.mindmapDirection==='down'?a.x-b.x||a.y-b.y:a.y-b.y||a.x-b.x);
+ if(!board.mindmapLayout)for(const list of children.values())list.sort((a,b)=>board.mindmapDirection==='down'||board.mindmapDirection==='up'?a.x-b.x||a.y-b.y:a.y-b.y||a.x-b.x);
  const rows:{node:Card;depth:number}[]=[],stack=[{node:root,depth:0}];while(stack.length){const row=stack.pop()!;rows.push(row);if(rows.length>2000||row.depth>100)throw Error('分支过大，请选择较小的子分支（最多 2,000 个主题、100 层）');for(const node of [...(children.get(row.node.id)||[])].reverse())stack.push({node,depth:row.depth+1});}return rows;
 }
 export function branchMarkdown(board:Board,rootId:string){

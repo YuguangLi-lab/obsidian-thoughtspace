@@ -7,7 +7,7 @@ import {yingjianNotePath} from './yingjian';
 export interface Card { videoCapture?:{id:string;note:string}; sectionFolded?:boolean }
 import { connectionSides, Side } from './connections';
 import { branchState, validateBranches } from './mindmap';
-import {sectionContains,sectionMovementPinned} from './sections';
+import {sectionMemberQuery,sectionMovementPinned} from './sections';
 /** 笔记卡片保留 Markdown 引用；独立文本与布局保存在白板内，图片保留附件引用。 */
 export type Color = 'sand' | 'blue' | 'green' | 'rose' | 'purple' | 'orange' | 'red' | 'teal' | 'cyan' | 'lime' | 'slate' | 'brown';
 export const colors: Color[] = ['sand', 'blue', 'green', 'rose', 'purple', 'orange', 'red', 'teal', 'cyan', 'lime', 'slate', 'brown'];
@@ -15,9 +15,9 @@ export const colorNames:Record<Color,string>={sand:'米黄',blue:'蓝色',green:
 export type CardFill = Color | 'none' | `#${string}`;
 export const validCardFill=(value:unknown):value is CardFill=>typeof value==='string'&&(value==='none'||colors.includes(value as Color)||/^#[0-9a-fA-F]{6}$/.test(value));
 export const cardFillHex:Record<Color,string>={sand:'#e8d8a8',blue:'#bbd5e7',green:'#bedbca',rose:'#eac6cc',purple:'#d6cbe8',orange:'#edc49a',red:'#e7b1ae',teal:'#a9d4c9',cyan:'#a9d8e4',lime:'#cad9a3',slate:'#bdc8d2',brown:'#d2bca9'};
-export interface Card { mindmapRules?:{layout:'right'|'left'|'down'|'bilateral';density:'compact'|'standard'|'relaxed';automatic:boolean};textMaxWidth?:number; imageUrl?:string; transparent?:boolean; fillColor?:CardFill; branchFolded?:boolean; review?:'later'|'reading'|'done'; id: string; kind: 'card' | 'section' | 'board' | 'text' | 'image' | 'pdf'; pdfPage?:number; x: number; y: number; width: number; height: number; color: Color; file?: string; title?: string; collapsed?: boolean; expandedHeight?: number; text?: string; topic?: boolean; textColor?: Color | 'default'; fontSize?: number; fontFamily?: 'default' | 'serif' | 'mono'; textAlign?: 'left' | 'center' | 'right'; autoSize?: boolean; autoFit?:boolean; preferredWidth?:number; locked?:boolean; customBorder?:boolean; borderStyle?:'solid'|'dashed'|'dotted'; borderWidth?:number }
+export interface Card { mindmapRules?:{layout:'right'|'left'|'down'|'up'|'bilateral';density:'compact'|'standard'|'relaxed';automatic:boolean};textMaxWidth?:number; imageUrl?:string; transparent?:boolean; fillColor?:CardFill; branchFolded?:boolean; review?:'later'|'reading'|'done'; id: string; kind: 'card' | 'section' | 'board' | 'text' | 'image' | 'pdf'; pdfPage?:number; x: number; y: number; width: number; height: number; color: Color; file?: string; title?: string; collapsed?: boolean; expandedHeight?: number; text?: string; topic?: boolean; textColor?: Color | 'default'; fontSize?: number; fontFamily?: 'default' | 'serif' | 'mono'; textAlign?: 'left' | 'center' | 'right'; autoSize?: boolean; autoFit?:boolean; preferredWidth?:number; locked?:boolean; customBorder?:boolean; borderStyle?:'solid'|'dashed'|'dotted'; borderWidth?:number }
 export interface Edge { id: string; from: string; to: string; label: string; style?: 'curve'|'straight'|'elbow'; direction?: 'forward'|'both'|'none'; dashed?: boolean; color?: Color; fromSide?: Side; toSide?: Side; kind?: 'branch' }
-export interface Board { defaultEdgeStyle?:Edge['style']; mindmapLayout?:'right'|'left'|'down'|'bilateral'; mindmapDensity?:'compact'|'standard'|'relaxed'; writing?:WritingState; selectionSets?:{id:string;name:string;ids:string[]}[]; spaceId?:string; snapToGrid?:boolean; savedViews?:{id:string;name:string;viewport:{x:number;y:number;zoom:number}}[]; version: 1 | 2 | 3; mode?: 'free'|'mindmap'; mindmapDirection?: 'right'|'down'; nodes: Card[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }
+export interface Board { defaultEdgeStyle?:Edge['style']; mindmapLayout?:'right'|'left'|'down'|'up'|'bilateral'; mindmapDensity?:'compact'|'standard'|'relaxed'; writing?:WritingState; selectionSets?:{id:string;name:string;ids:string[]}[]; spaceId?:string; snapToGrid?:boolean; savedViews?:{id:string;name:string;viewport:{x:number;y:number;zoom:number}}[]; version: 1 | 2 | 3; mode?: 'free'|'mindmap'; mindmapDirection?: 'right'|'down'|'up'; nodes: Card[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }
 export const emptyBoard = (): Board => ({ version: 1, nodes: [], edges: [], viewport: { x: 60, y: 60, zoom: 1 } });
 export const uid = () => crypto.randomUUID();
 // Internal snapshots deliberately use JSON semantics, including omitted undefined fields.
@@ -37,7 +37,7 @@ function assertBoardData(b:unknown):asserts b is Board {
       (n.kind === 'section' && typeof n.title !== 'string')) throw new Error('白板节点数据不完整');
     if(['file','title','text'].some(key=>n[key]!==undefined&&typeof n[key]!=='string'))throw new Error('白板节点数据不完整');
     if ((n.collapsed !== undefined && typeof n.collapsed !== 'boolean') ||
-      (n.collapsed && (!isOneOf(n.kind,['card','pdf','board']) || n.height !== 72 || !isFiniteNumber(n.expandedHeight) || n.expandedHeight < 60)) ||
+      (n.collapsed && (!isOneOf(n.kind,['card','pdf','board','text']) || n.height !== 72 || !isFiniteNumber(n.expandedHeight) || n.expandedHeight < 60)) ||
       (!n.collapsed && n.expandedHeight !== undefined)) throw new Error('卡片折叠数据不完整');
     if ((n.kind === 'text' && typeof n.text !== 'string') || (n.topic !== undefined && (b.version !== 3 || typeof n.topic !== 'boolean'))) throw new Error('文本或主题数据不完整');
     if ((n.textColor !== undefined && !isOneOf(n.textColor,['default',...colors])) ||
@@ -45,7 +45,7 @@ function assertBoardData(b:unknown):asserts b is Board {
       (n.fontFamily !== undefined && !isOneOf(n.fontFamily,['default','serif','mono'])) ||
       (n.textAlign !== undefined && !isOneOf(n.textAlign,['left','center','right'])) ||
       (n.autoSize !== undefined && typeof n.autoSize !== 'boolean')) throw new Error('文本样式数据不完整');
-    if(n.mindmapRules!==undefined&&(!isRecord(n.mindmapRules)||!isOneOf(n.mindmapRules.layout,['right','left','down','bilateral'])||!isOneOf(n.mindmapRules.density,['compact','standard','relaxed'])||typeof n.mindmapRules.automatic!=='boolean'||n.kind==='section'))throw Error('导图自动布局规则无效');
+    if(n.mindmapRules!==undefined&&(!isRecord(n.mindmapRules)||!isOneOf(n.mindmapRules.layout,['right','left','down','up','bilateral'])||!isOneOf(n.mindmapRules.density,['compact','standard','relaxed'])||typeof n.mindmapRules.automatic!=='boolean'||n.kind==='section'))throw Error('导图自动布局规则无效');
     if(n.textMaxWidth!==undefined&&(n.kind!=='text'||!isFiniteNumber(n.textMaxWidth)||n.textMaxWidth<160||n.textMaxWidth>720))throw Error('主题换行宽度无效');
     if(n.pdfPage!==undefined&&(n.kind!=='pdf'||!isFiniteNumber(n.pdfPage)||!Number.isSafeInteger(n.pdfPage)||n.pdfPage<1))throw Error('PDF 页码无效');
     if(n.imageUrl!==undefined&&(n.kind!=='image'||!remoteImageUrl(n.imageUrl)))throw Error('图床图片地址无效');
@@ -55,7 +55,7 @@ function assertBoardData(b:unknown):asserts b is Board {
     if(n.preferredWidth!==undefined&&(n.kind!=='card'||!isFiniteNumber(n.preferredWidth)||n.preferredWidth<220||n.preferredWidth>520))throw Error('卡片默认宽度无效');
     if(n.customBorder!==undefined&&typeof n.customBorder!=='boolean')throw Error('边框颜色设置无效');
     if((n.locked!==undefined&&typeof n.locked!=='boolean')||(n.autoFit!==undefined&&(n.kind!=='card'||typeof n.autoFit!=='boolean'))||(n.borderWidth!==undefined&&!isOneOf(n.borderWidth,[0,1,2,3,4]))||(n.borderStyle!==undefined&&!isOneOf(n.borderStyle,['solid','dashed','dotted'])))throw Error('对象样式或锁定状态不完整');
-    if(n.branchFolded!==undefined&&(b.version!==3||typeof n.branchFolded!=='boolean'||n.kind==='section'))throw Error('导图折叠状态无效');
+    if(n.branchFolded!==undefined&&(b.version!==3||typeof n.branchFolded!=='boolean'))throw Error('导图折叠状态无效');
     if(n.sectionFolded!==undefined&&(b.version!==3||typeof n.sectionFolded!=='boolean'||n.kind!=='section'))throw Error('分组折叠状态无效');
     if(n.review!==undefined&&(!isOneOf(n.review,['later','reading','done'])||!isOneOf(n.kind,['card','text','image'])))throw Error('阅读状态无效');
     ids.add(n.id);
@@ -68,8 +68,8 @@ function assertBoardData(b:unknown):asserts b is Board {
     edgeIds.add(e.id);
   }
   if (!isRecord(b.viewport) || ![b.viewport.x,b.viewport.y].every(isFiniteNumber) || !isFiniteNumber(b.viewport.zoom) || b.viewport.zoom < .15 || b.viewport.zoom > 2.5) throw new Error('白板视口数据不完整');
-  if((b.mode !== undefined && (b.version !== 3 || !isOneOf(b.mode,['free','mindmap']))) || (b.mindmapDirection !== undefined && (b.version !== 3 || !isOneOf(b.mindmapDirection,['right','down'])))) throw new Error('导图设置不完整');
-  if((b.mindmapLayout!==undefined&&(b.version!==3||!isOneOf(b.mindmapLayout,['right','left','down','bilateral'])))||(b.mindmapDensity!==undefined&&(b.version!==3||!isOneOf(b.mindmapDensity,['compact','standard','relaxed']))))throw Error('思维导图布局设置无效');
+  if((b.mode !== undefined && (b.version !== 3 || !isOneOf(b.mode,['free','mindmap']))) || (b.mindmapDirection !== undefined && (b.version !== 3 || !isOneOf(b.mindmapDirection,['right','down','up'])))) throw new Error('导图设置不完整');
+  if((b.mindmapLayout!==undefined&&(b.version!==3||!isOneOf(b.mindmapLayout,['right','left','down','up','bilateral'])))||(b.mindmapDensity!==undefined&&(b.version!==3||!isOneOf(b.mindmapDensity,['compact','standard','relaxed']))))throw Error('思维导图布局设置无效');
   if(b.spaceId!==undefined&&(typeof b.spaceId!=='string'||!/^[a-zA-Z0-9-]{1,80}$/.test(b.spaceId)))throw Error('空间标识无效');
   if(b.snapToGrid!==undefined&&typeof b.snapToGrid!=='boolean')throw Error('吸附设置无效');
   if(b.savedViews!==undefined){if(!isUnknownArray(b.savedViews)||b.savedViews.length>50)throw Error('保存视角无效');const seen=new Set();for(const v of b.savedViews){if(!isRecord(v)||typeof v.id!=='string'||seen.has(v.id)||typeof v.name!=='string'||!v.name.trim()||v.name.length>100||!isRecord(v.viewport)||![v.viewport.x,v.viewport.y].every(isFiniteNumber)||!isFiniteNumber(v.viewport.zoom)||v.viewport.zoom<.15||v.viewport.zoom>2.5)throw Error('保存视角无效');seen.add(v.id);}}
@@ -153,15 +153,16 @@ export function wouldCycle(graph: ReadonlyMap<string, readonly string[]>, parent
 }
 /** One-operation index only: boards are mutable and must never reuse this after edits or undo. */
 function selectionExpansion(board:Board){
-  const nodes=new Map(board.nodes.map(n=>[n.id,n]));let children:Map<string,string[]>|undefined;
+  const nodes=new Map(board.nodes.map(n=>[n.id,n]));let children:Map<string,string[]>|undefined,members:ReturnType<typeof sectionMemberQuery>|undefined;
   const expand=(selected:ReadonlySet<string>)=>{
     const ids=new Set([...selected].filter(id=>nodes.has(id)));
-    // Open frames keep their existing membership rule. A folded frame also carries
-    // nested frames so their hidden boundaries do not detach from their contents.
-    const sections=board.nodes.filter(n=>n.kind==='section'&&ids.has(n.id));
-    for(const section of sections)for(const n of board.nodes)if(section.sectionFolded?sectionContains(section,n):contained(section,n))ids.add(n.id);
-    const pending=[...ids].filter(id=>nodes.get(id)?.branchFolded),seen=new Set<string>();
-    if(pending.length){children??=branchState(board).children;while(pending.length){const id=pending.pop()!;if(seen.has(id))continue;seen.add(id);for(const child of children.get(id)||[]){ids.add(child);pending.push(child);}}}
+    const pending=[...ids].map(id=>({id,branch:!!nodes.get(id)?.branchFolded})),seen=new Map<string,boolean>();
+    while(pending.length){const entry=pending.pop()!,node=nodes.get(entry.id);if(!node)continue;const branch=entry.branch||!!node.branchFolded,previous=seen.get(node.id);if(previous===true||previous===false&&!branch)continue;seen.set(node.id,branch);ids.add(node.id);
+      // A linked hidden group is an indivisible unit: retain nested frame bounds
+      // and all material. Ordinary open frames keep their established behavior.
+      if(node.kind==='section'){const frames=!!node.sectionFolded||branch;members??=sectionMemberQuery(board.nodes);for(const member of members(node))if(frames||member.kind!=='section')pending.push({id:member.id,branch:frames&&member.kind==='section'});}
+      if(branch){children??=branchState(board).children;for(const id of children.get(node.id)||[])pending.push({id,branch:true});}
+    }
     return ids;
   };
   return{nodes,expand};
@@ -175,8 +176,10 @@ export function selectionMemberships(board:Board,roots:readonly Card[]){
 }
 /** Expand only unlocked movement roots; locked frames must not drag their contents. */
 export function movableSelection(board:Board,selected:ReadonlySet<string>):Set<string>{
-  const roots=new Set(board.nodes.filter(n=>selected.has(n.id)&&!n.locked&&!sectionMovementPinned(n,board.nodes)).map(n=>n.id));
-  const expanded=expandedSelection(board,roots);
+  const hidden=board.nodes.some(n=>n.branchFolded||n.sectionFolded)?branchState(board).hidden:undefined;
+  const roots=board.nodes.filter(n=>selected.has(n.id)&&!n.locked&&!hidden?.has(n.id)&&!sectionMovementPinned(n,board.nodes)),{nodes,expand}=selectionExpansion(board),allowed=new Set<string>(),loose=new Set<string>();
+  for(const root of roots){if(!root.branchFolded&&!root.sectionFolded){loose.add(root.id);continue;}const unit=expand(new Set([root.id]));if([...unit].some(id=>nodes.get(id)?.locked))continue;for(const id of unit)allowed.add(id);}
+  for(const id of expand(loose))allowed.add(id);const expanded=allowed;
   return new Set(board.nodes.filter(n=>expanded.has(n.id)&&!n.locked).map(n=>n.id));
 }
 /** 先生成完整子白板，再由调用层落盘；跨边界关系改接到入口，内部关系原样保留。 */

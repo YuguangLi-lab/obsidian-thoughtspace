@@ -12,3 +12,31 @@ test('free board and explicit connection mode retain click-to-connect behavior',
 test('switching board before releasing a mindmap plus does not create in another board',async()=>{const {v,tasks}=releaseView(true);v.session={board:presetMindmap('reading')};v.finishLinkDrag({pointerId:1,clientX:10,clientY:20});await Promise.all(tasks);assert.equal(v.created,undefined);});
 
 test('a new central topic starts named, selected and with automatic layout enabled',async()=>{const v=view();await v.newText({x:0,y:0},true);const n=v.session.board.nodes.at(-1);assert.equal(n.text,'中心主题');assert(n.mindmapRules.automatic);assert.deepEqual(v.focus,{id:n.id,selectAll:true});});
+
+function queuedReleaseView(topicClick=true){
+ const f=releaseView(topicClick),source=readFileSync('src/main.ts','utf8'),start=source.indexOf('  private pointerMove('),end=source.indexOf('  private updateSelection(',start);
+ const methods=new Function(transformSync('class View{'+source.slice(start,end)+'};return View.prototype',{loader:'ts'}).code)();
+ for(const name of ['pointerMove','flushPointer','applyPointerMove','pointerUp'])f.v[name]=methods[name];
+ const frames=new Map<number,()=>void>(),previews:number[][]=[];
+ const ownerWindow={requestAnimationFrame:(fn:()=>void)=>{frames.set(1,fn);return 1;},cancelAnimationFrame:(id:number)=>frames.delete(id)};
+ f.v.stage.ownerDocument={defaultView:ownerWindow};f.v.stage.getBoundingClientRect=()=>({left:0,top:0,right:800,bottom:600});
+ f.v.plugin={settings:{dragThreshold:4}};f.v.point=(x:number,y:number)=>({x,y});
+ f.v.previewConnection=(x:number,y:number)=>{previews.push([x,y]);f.v.linkTarget={id:'target',side:'left'};};
+ f.v.createConnection=(from:string,to:string)=>{f.v.connected={from,to};};
+ return {...f,frames,previews,event:(x:number,y:number,pointerId=1)=>({pointerId,clientX:x,clientY:y,buttons:0})};
+}
+
+test('connection release uses only final hit testing even with a queued preview',async()=>{
+ const f=queuedReleaseView();f.v.pointerMove(f.event(100,100));f.v.pointerUp(f.event(300,200));await Promise.all(f.tasks);
+ assert.deepEqual(f.previews,[[300,200]]);assert.deepEqual(f.v.connected,{from:'parent',to:'target'});assert.equal(f.frames.size,0);assert.equal(f.v.created,undefined);
+});
+test('queued out-and-back mindmap drag connects instead of accidentally adding a child',async()=>{
+ const f=queuedReleaseView();f.v.pointerMove(f.event(100,100));f.v.pointerUp(f.event(10,20));await Promise.all(f.tasks);
+ assert.deepEqual(f.previews,[[10,20]]);assert.deepEqual(f.v.connected,{from:'parent',to:'target'});assert.equal(f.v.created,undefined);
+});
+test('foreign pointer release cannot consume connection motion, and cancel never previews or creates',async()=>{
+ const f=queuedReleaseView();f.v.pointerMove(f.event(100,100));const queued=f.v.pendingPointer;
+ f.v.pointerUp(f.event(300,200,2));assert.equal(f.v.pendingPointer,queued);assert.equal(f.frames.size,1);assert.deepEqual(f.previews,[]);
+ f.v.pointerUp(f.event(300,200),true);await Promise.all(f.tasks);
+ assert.deepEqual(f.previews,[]);assert.equal(f.v.created,undefined);assert.equal(f.v.connected,undefined);assert.equal(f.frames.size,0);
+});

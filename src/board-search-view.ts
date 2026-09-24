@@ -6,7 +6,7 @@ export interface BoardSearchHost{title:string;board:()=>Board;locate:(id:string)
 export class BoardSearchModal extends Modal{
  private entries:BoardSearchEntry[]=[];private results:BoardSearchEntry[]=[];
  private input!:HTMLInputElement;private kind!:HTMLSelectElement;private group!:HTMLSelectElement;private color!:HTMLSelectElement;private list!:HTMLElement;private status!:HTMLElement;private indexStatus!:HTMLElement;private clearButton!:HTMLButtonElement;private copyButton!:HTMLButtonElement;
- private rows:{row:HTMLElement;pick:HTMLButtonElement}[]=[];private bodies=new Map<string,string>();private generation=0;private closed=false;private active=0;private limit=40;private timer?:number;private full=false;private busy=false;
+ private rows:{row:HTMLElement;pick:HTMLButtonElement;controls:HTMLButtonElement[]}[]=[];private excerptCache=new Map<BoardSearchEntry,string>();private excerptQuery='';private bodies=new Map<string,string>();private generation=0;private closed=false;private active=0;private limit=40;private timer?:number;private full=false;private busy=false;
  // Refreshes invalidate immediately, but their file reads share one serial queue.
  private indexTask:Promise<void>=Promise.resolve();
  constructor(app:App,private host:BoardSearchHost){super(app);}
@@ -65,7 +65,7 @@ export class BoardSearchModal extends Modal{
   if(stale())return;this.rebuild();this.reset(true);this.indexStatus.setText(`已索引 ${read} 篇正文${skipped?` · ${skipped} 篇未读取（失效或超限）`:''} · 单篇 2 MB / 总计 20 MB 上限；修改原文后可刷新`);
  }
  private reset(preserve=false){
-  if(this.closed)return;this.cancelQuery();const current=preserve?this.results[this.active]?.id:undefined;
+  if(this.closed)return;this.cancelQuery();this.excerptCache.clear();const current=preserve?this.results[this.active]?.id:undefined;
   this.results=searchBoard(this.entries,{query:this.input.value,kind:this.kind.value,group:this.group.value,color:this.color.value});this.active=current?Math.max(0,this.results.findIndex(e=>e.id===current)):0;this.limit=Math.max(40,Math.ceil((this.active+1)/40)*40);this.status.setText(`${this.results.length} / ${this.entries.length} 项`);this.render();
  }
  private async activate(entry:BoardSearchEntry,side=false){
@@ -73,17 +73,22 @@ export class BoardSearchModal extends Modal{
   try{if(side)await this.host.open(entry.id);else await this.host.locate(entry.id);if(!this.closed)this.close();}finally{this.busy=false;if(!this.closed)this.updateBusy();}
  }
  private updateBusy(){this.list.setAttribute('aria-busy',String(this.busy));for(const button of Array.from(this.list.querySelectorAll('button')))button.disabled=this.busy;this.copyButton.disabled=this.busy||!this.results.length;}
- private render(restoreFocus=true){if(this.closed)return;const focusedId=restoreFocus?this.rows.find(({pick})=>pick===this.contentEl.ownerDocument.activeElement)?.row.getAttribute('data-search-node'):undefined,entries=this.results;this.clearButton.disabled=!(this.input.value||this.kind.value||this.group.value||this.color.value);this.copyButton.disabled=this.busy||!entries.length;this.list.empty();this.rows=[];
+ private render(restoreFocus=true){if(this.closed)return;
+  const focused=restoreFocus?this.rows.find(({controls})=>controls.includes(this.contentEl.ownerDocument.activeElement as HTMLButtonElement)):undefined,focusedId=focused?.row.getAttribute('data-search-node'),focusedControl=focused?.controls.indexOf(this.contentEl.ownerDocument.activeElement as HTMLButtonElement)??0,entries=this.results;
+  // Cache only the short displayed snippets, not another copy of every note body.
+  // Pagination keeps the query/index; filtering and refresh invalidate the cache.
+  if(this.excerptQuery!==this.input.value){this.excerptQuery=this.input.value;this.excerptCache.clear();}
+  this.clearButton.disabled=!(this.input.value||this.kind.value||this.group.value||this.color.value);this.copyButton.disabled=this.busy||!entries.length;this.list.empty();this.rows=[];
   if(!entries.length){const empty=this.list.createDiv('ts-board-search-empty');empty.createSpan({text:'没有匹配内容，试试更短的关键词或清除筛选。'});const actions=empty.createDiv('ts-board-search-empty-actions'),clear=this.button(actions,'清除关键词与筛选','filter-x',()=>this.clearFilters());clear.addClass('ts-board-search-empty-clear','ts-board-search-filter-reset');clear.appendText(' 清除筛选');this.updateBusy();if(focusedId)this.input.focus();return;}
   for(const [i,e]of entries.slice(0,this.limit).entries()){
-   const row=this.list.createDiv({cls:'ts-board-search-row',attr:{'data-search-node':e.id}});const pick=row.createEl('button',{cls:'ts-board-search-pick',attr:{'aria-label':`定位 ${e.title}`}});this.rows.push({row,pick});this.markCurrent(i,i===this.active);
+   const row=this.list.createDiv({cls:'ts-board-search-row',attr:{'data-search-node':e.id}});const pick=row.createEl('button',{cls:'ts-board-search-pick',attr:{'aria-label':`定位 ${e.title}`}});const controls=[pick];this.rows.push({row,pick,controls});this.markCurrent(i,i===this.active);
    row.onpointerenter=()=>this.setActive(i,false,false);pick.onfocus=()=>this.setActive(i,false,false);pick.onkeydown=event=>this.keydown(event,true,i);pick.onclick=()=>this.run(()=>{this.setActive(i,false,false);return this.activate(e);});
    const head=pick.createDiv('ts-board-search-heading');setIcon(head.createSpan(),{card:'file-text',text:'type',image:'image',pdf:'file-text',section:'group',board:'panels-top-left'}[e.kind]);head.createEl('strong',{text:e.title,attr:{title:e.title}});head.createEl('small',{text:searchKinds[e.kind]});const location=pick.createDiv({cls:'ts-board-search-location',text:e.groups.map(g=>g.title).join(' / ')||'未分组'});if(e.hidden)location.appendText(' · 折叠分支内');
-   const excerpt=searchExcerpt(e,this.input.value);if(excerpt)pick.createDiv({cls:'ts-board-search-excerpt',text:excerpt});if(e.path)pick.createDiv({cls:'ts-board-search-path',text:e.path,attr:{title:e.path}});const actions=row.createDiv('ts-board-search-row-actions');const link=this.button(actions,'复制内容定位链接','link',()=>navigator.clipboard.writeText(this.host.link(e.id)).then(()=>new Notice('已复制定位链接')));link.onfocus=()=>this.setActive(i,false,false);
-   if(e.kind==='card'){const open=this.button(actions,'在右侧打开原笔记','panel-right',()=>this.activate(e,true));open.onfocus=()=>this.setActive(i,false,false);}
+   let excerpt=this.excerptCache.get(e);if(excerpt===undefined){excerpt=searchExcerpt(e,this.input.value);this.excerptCache.set(e,excerpt);}if(excerpt)pick.createDiv({cls:'ts-board-search-excerpt',text:excerpt});if(e.path)pick.createDiv({cls:'ts-board-search-path',text:e.path,attr:{title:e.path}});const actions=row.createDiv('ts-board-search-row-actions');const link=this.button(actions,'复制内容定位链接','link',()=>navigator.clipboard.writeText(this.host.link(e.id)).then(()=>new Notice('已复制定位链接')));controls.push(link);link.onfocus=()=>this.setActive(i,false,false);
+   if(e.kind==='card'){const open=this.button(actions,'在右侧打开原笔记','panel-right',()=>this.activate(e,true));controls.push(open);open.onfocus=()=>this.setActive(i,false,false);}
   }
   if(entries.length>this.limit){const more=this.button(this.list,'显示更多结果','chevron-down',()=>{const next=this.limit;this.limit+=40;this.render();this.setActive(next,true);});more.addClass('ts-board-search-more');more.appendText(` 再显示 40 项 · 剩余 ${entries.length-this.limit}`);}
-  this.updateBusy();if(focusedId){const previous=this.rows.find(({row})=>row.getAttribute('data-search-node')===focusedId);if(previous)previous.pick.focus();else this.input.focus();}
+  this.updateBusy();if(focusedId){const previous=this.rows.find(({row})=>row.getAttribute('data-search-node')===focusedId);if(previous)(previous.controls[focusedControl]||previous.pick).focus();else this.input.focus();}
  }
- onClose(){this.closed=true;this.generation++;this.cancelQuery();this.entries=[];this.results=[];this.rows=[];this.bodies.clear();this.contentEl.empty();}
+ onClose(){this.closed=true;this.generation++;this.cancelQuery();this.entries=[];this.results=[];this.rows=[];this.excerptCache.clear();this.bodies.clear();this.contentEl.empty();}
 }

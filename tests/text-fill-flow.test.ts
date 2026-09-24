@@ -8,6 +8,7 @@ import {sectionDisplayNode} from '../src/sections';
 import {selectionEdges} from '../src/selection-edges';
 import {selectionFormatKey} from '../src/selection-format';
 import {inkLabels,textFontFamily} from '../src/text-tools';
+import {syncNodeGeometry} from '../src/node-render-key';
 
 const source=readFileSync('src/main.ts','utf8');
 function take(start:string,end:string){
@@ -25,6 +26,7 @@ const sessionMethods=take('  change(fn:','  persist() {');
 type Options={cls?:string;attr?:Record<string,string>;text?:string;type?:string;value?:string};
 class Element {
   children:Element[]=[];classes=new Set<string>();attributes:Record<string,string>={};
+  classList={contains:(name:string)=>this.classes.has(name)};dataset:Record<string,string>={};
   value='';disabled=false;isConnected=true;title='';ariaLabel='';
   onchange?:()=>unknown;onclick?:()=>unknown;
   properties=new Map<string,string>();
@@ -49,7 +51,7 @@ class Element {
   disconnect(){this.isConnected=false;this.children.forEach(el=>el.disconnect());}
   empty(){this.children.forEach(el=>el.disconnect());this.children=[];}
 }
-const deps={...model,reflowAutomaticMindmaps,validateBranches,sectionDisplayNode,selectionEdges,selectionFormatKey,inkLabels,textFontFamily,
+const deps={...model,reflowAutomaticMindmaps,validateBranches,sectionDisplayNode,selectionEdges,selectionFormatKey,inkLabels,textFontFamily,syncNodeGeometry,
   preserveToolbarFocus:()=>()=>{},setIcon:()=>{},Notice:class {},act:(fn:()=>unknown)=>fn(),
   button:(parent:Element,label:string,_icon:string,callback:()=>unknown)=>{
     const button=parent.createEl('button',{attr:{'aria-label':label}});button.onclick=callback;return button;

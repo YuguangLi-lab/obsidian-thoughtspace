@@ -45,7 +45,7 @@ export function parseOutline(raw:string):OutlineTopic[]{
  }
  return topics;
 }
-export function outlineBoard(topics:OutlineTopic[],title:string,point:{x:number;y:number},direction:'right'|'down',id:()=>string):Board{
+export function outlineBoard(topics:OutlineTopic[],title:string,point:{x:number;y:number},direction:'right'|'down'|'up',id:()=>string):Board{
  if(!topics.length||topics.length>200)throw Error('需要 1–200 个标题或列表项');
  const b:Board={version:3,mode:'mindmap',mindmapDirection:direction,nodes:[],edges:[],viewport:{x:0,y:0,zoom:1}};
  const roots=topics.filter(t=>t.parent===null).length;let root:Card|undefined;
@@ -53,7 +53,8 @@ export function outlineBoard(topics:OutlineTopic[],title:string,point:{x:number;
  if(roots>1){root=make(title.trim()||'材料大纲',0);b.nodes.push(root);}
  const nodes:Card[]=[];
  topics.forEach((t,i)=>{if(t.parent!==null&&(!Number.isInteger(t.parent)||t.parent<0||t.parent>=i))throw Error('大纲层级无效');const n=make(t.title,t.depth+(root?1:0));nodes.push(n);b.nodes.push(n);const parent=t.parent===null?root:nodes[t.parent];if(parent)b.edges.push({id:id(),from:parent.id,to:n.id,label:'',kind:'branch',style:'curve',direction:'none',color:n.color});});
- layoutMindmap(b,b.nodes[0].id,direction);return b;
+ // A tree imported beside another one retains its own direction when continued.
+ b.nodes[0].mindmapRules={layout:direction,density:'standard',automatic:false};layoutMindmap(b,b.nodes[0].id,direction);return b;
 }
 
 /** Exact native-editor offsets; never expand a sentence selection to its whole paragraph. */

@@ -51,6 +51,7 @@ function editorConstructor(app:App,parent:HTMLElement){
 /** A native CM6 live-preview instance owning an unsaved draft, never a file view. */
 export class NativeMarkdownDraft extends EventTarget implements DraftInput {
  readonly host:HTMLElement;private engine!:NativeEditorEngine;private ready=false;private disposed=false;private locked=false;private intendedSelection?:{from:number;to:number;nativeFrom?:number;nativeTo?:number};private stopEvents?:()=>void;
+ private valueCache?:{engine:NativeEditorEngine;cm:EditorView;editor:NativeEditorEngine['editor'];read:NativeEditorEngine['editor']['getValue'];doc:EditorView['state']['doc'];value:string};
  constructor(app:App,parent:HTMLElement,value:string,file?:TFile){
   super();const Base=editorConstructor(app,parent);this.host=parent.createDiv('ts-inline-native');
   const updated=(update:ViewUpdate)=>this.editorUpdated(update),events:(()=>void)[]=[];
@@ -128,7 +129,17 @@ export class NativeMarkdownDraft extends EventTarget implements DraftInput {
   return super.dispatchEvent(event);
  }
  get style(){return this.host.style;}get ownerDocument(){return this.host.ownerDocument;}
- get value():string{return this.disposed?'':this.engine.editor.getValue();}
+ get value():string{
+  if(this.disposed)return '';
+  const engine=this.engine,cm=engine.cm,editor=engine.editor,doc=cm?.state?.doc,read=editor.getValue,cached=this.valueCache;
+  // Native getValue flattens CM's immutable document. Status, sizing and toolbar
+  // consumers can share that string until the document or native adapter changes.
+  if(doc&&cached?.engine===engine&&cached.cm===cm&&cached.editor===editor&&cached.read===read&&cached.doc===doc)return cached.value;
+  const value=read.call(editor);
+  if(doc&&!this.disposed&&this.engine===engine&&engine.cm===cm&&cm.state.doc===doc&&engine.editor===editor&&editor.getValue===read)this.valueCache={engine,cm,editor,read,doc,value};
+  else this.valueCache=undefined;
+  return value;
+ }
  set value(value:string){if(!this.disposed)this.setRangeText(value,0,this.value.length);}
  get selectionCount():number{return this.disposed?1:this.engine.cm.state.selection.ranges.length;}
  get selectionStart():number{return this.selection().from;}
@@ -151,6 +162,7 @@ export class NativeMarkdownDraft extends EventTarget implements DraftInput {
  history(redo:boolean){if(!this.disposed&&!this.locked){this.intendedSelection=undefined;this.engine.editor[redo?'redo':'undo']();}}
  resize(){if(!this.disposed)this.engine.cm.requestMeasure();}
  dispose(){if(this.disposed)return;this.disposed=true;this.ready=false;
+  this.valueCache=undefined;
   const events=this.stopEvents;this.stopEvents=undefined;this.intendedSelection=undefined;
   releaseEditorResource('native draft events',events);
   releaseEditorResource('native editor subscriptions',()=>this.engine?.unload());

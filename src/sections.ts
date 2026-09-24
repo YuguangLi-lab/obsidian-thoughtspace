@@ -15,6 +15,12 @@ export function sectionContains(section:Card,node:Card):boolean{
  if(section.kind!=='section'||section.id===node.id||node.x<section.x||node.y<section.y||node.x+node.width>section.x+section.width||node.y+node.height>section.y+section.height)return false;
  return node.kind!=='section'||node.x>section.x||node.y>section.y||node.x+node.width<section.x+section.width||node.y+node.height<section.y+section.height;
 }
+/** Build only for operations that traverse groups; ordinary card gestures need no index. */
+export function sectionMemberQuery(nodes:readonly Card[]){
+ let candidates=nodes,axis:'x'|'y'='x';
+ if(nodes.filter(n=>n.kind==='section').length>8){let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;for(const n of nodes){minX=Math.min(minX,n.x);maxX=Math.max(maxX,n.x);minY=Math.min(minY,n.y);maxY=Math.max(maxY,n.y);}axis=maxY-minY>maxX-minX?'y':'x';candidates=[...nodes].sort((a,b)=>a[axis]-b[axis]);}
+ return(section:Card)=>{const members:Card[]=[];let start=0;if(candidates!==nodes){let end=candidates.length;while(start<end){const middle=(start+end)>>>1;if(candidates[middle][axis]<section[axis])start=middle+1;else end=middle;}}const limit=section[axis]+(axis==='x'?section.width:section.height);for(let i=start;i<candidates.length;i++){const node=candidates[i];if(candidates!==nodes&&node[axis]>limit)break;if(sectionContains(section,node))members.push(node);}return members;};
+}
 /** A locked hidden member pins its folded frame as one movement unit. */
 export function sectionMovementPinned(section:Card,nodes:readonly Card[]):boolean{return section.kind==='section'&&!!section.sectionFolded&&nodes.some(node=>node.locked&&sectionContains(section,node));}
 /** Only the frame flag changes; nested frame/card folds and all geometry survive. */

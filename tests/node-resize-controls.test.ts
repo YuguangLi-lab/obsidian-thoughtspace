@@ -21,7 +21,7 @@ class El{
 }
 function controls(kind:Card['kind'],detail:boolean,extra:Partial<Card>={}){
  const n:Card={id:'node',kind,width:280,height:100,x:0,y:0,color:'green',...extra},el=new El();
- const view={addPorts:()=>{},foldBranches:()=>{}};
+ const view={session:{blocked:false},addPorts:()=>{},foldBranches:()=>{}};
  const button=(parent:El,_label:string,_icon:string,_run:()=>void,cls:string)=>parent.createDiv(cls);
  render.call(view,n,el,detail,{children:new Map([['node',['child']]])},button,class{},()=> 'Note');
  return el;
