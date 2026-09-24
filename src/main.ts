@@ -1240,7 +1240,7 @@ class BoardView extends FileView {
   private updateObjectFilter(){if(!this.session)return;const active=Object.values(this.objectFilter).some(Boolean);this.filterMatches=active?filterObjects(this.session.board.nodes,this.objectFilter):undefined;this.filterBadge?.toggleClass('is-visible',active);if(this.filterBadge){this.filterBadge.empty();if(active){this.filterBadge.createSpan({text:`匹配 ${this.filterMatches!.size} / ${this.session.board.nodes.length}`});button(this.filterBadge,'选择匹配','check-check',()=>{this.selected=new Set(this.filterMatches);this.contextOpen=false;this.updateSelection();});button(this.filterBadge,'清除对象筛选','x',()=>{this.objectFilter={kind:'',color:'',query:''};this.renderBoard();});}}for(const[id,el]of this.positions)el.toggleClass('is-filtered-out',!!this.filterMatches&&!this.filterMatches.has(id));}
   pasteTexts(text:string,split=true){const owner=this.requireOwner(),position=this.point(),lines=split?textBatch(text):[text];if(!text.trim())return;if(text.length>100000)throw Error('一次最多粘贴 100,000 个字符');const nodes=lines.map((text,i)=>{const n:Card={id:uid(),kind:'text',text,x:position.x,y:position.y,width:240,height:60,color:'sand',fontSize:this.plugin.settings.defaultTextSize};fitTextNode(n,this.contentEl);return n;});let y=position.y;for(const n of nodes){n.y=y;y+=n.height+24;}owner.change(b=>{b.version=3;b.nodes.push(...nodes);});this.selected=new Set(nodes.map(n=>n.id));this.updateSelection();}
   private textBatchPrompt(){const owner=this.session;new TextModal(this.app,'逐行创建文本框','',text=>{this.requireOwner(owner);this.pasteTexts(text);}).open();}
-  private async linkedText(){const owner=this.requireOwner();if(this.inline&&!await this.inline.commit())return;this.requireOwner(owner);const parent=owner.board.nodes.find(n=>this.selected.has(n.id)&&n.kind!=='section');if(!parent)return;const id=uid();owner.change(b=>{b.version=3;const n:Card={id,kind:'text',text:'',x:parent.x+parent.width+90,y:parent.y,width:80,height:60,color:parent.color,fontSize:this.plugin.settings.defaultTextSize};fitTextNode(n,this.contentEl);b.nodes.push(n);b.edges.push({id:uid(),from:parent.id,to:id,label:'',style:this.plugin.settings.defaultEdgeStyle,direction:this.plugin.settings.defaultEdgeDirection});});await this.startInlineEdit(id);}
+  private async linkedText(){const owner=this.requireOwner();if(this.inline&&!await this.inline.commit())return;this.requireOwner(owner);const parent=owner.board.nodes.find(n=>this.selected.has(n.id)&&n.kind!=='section');if(!parent)return;const id=uid();owner.change(b=>{b.version=3;const n:Card={id,kind:'text',text:'',x:parent.x+parent.width+90,y:parent.y,width:80,height:60,color:parent.color,fontSize:this.plugin.settings.defaultTextSize};fitTextNode(n,this.contentEl);b.nodes.push(n);b.edges.push({id:uid(),from:parent.id,to:id,label:'',style:this.plugin.settings.defaultEdgeStyle,direction:this.plugin.settings.defaultEdgeDirection});});await this.startInlineEdit(id,false,true);}
   private checkBoard(){const owner=this.session;if(!owner)return;const issues=boardIssues(owner.board,path=>this.app.vault.getAbstractFileByPath(path) instanceof TFile),m=new Modal(this.app);themeSurface(m.modalEl);m.modalEl.addClass('ts-board-check-modal');m.titleEl.setText('白板检查');for(const [key,label]of [['missing','缺失引用'],['isolated','未连接对象'],['locked','已锁定对象']] as const){m.contentEl.createEl('h3',{text:`${label} · ${issues[key].length}`});for(const n of issues[key].slice(0,100))button(m.contentEl,n.title||n.file?.split('/').pop()||n.text?.slice(0,55)||n.id,'locate-fixed',()=>{if(this.session===owner){m.close();this.revealNode(n.id);}});if(issues[key].length>100)m.contentEl.createDiv({text:'显示前 100 项，请结合对象筛选继续定位。'});}m.open();}
   materialSource(){const n=this.session?.board.nodes.find(n=>this.selected.has(n.id)&&n.kind==='card'),f=n?.file?this.app.vault.getAbstractFileByPath(n.file):undefined;return f instanceof TFile?f:undefined;}
   openMaterials(){this.plugin.currentBoard=this;return this.plugin.openExcerptNote(this.materialSource());}
@@ -1866,7 +1866,7 @@ class BoardView extends FileView {
     const owner=this.requireOwner();if(this.inline&&!await this.inline.commit())return;
     const file=await this.plugin.createUnique(this.plugin.settings.cardFolder,'未命名笔记','md','');
     if(this.session!==owner||this.closed||owner.blocked){new Notice(`笔记已创建：${file.path}；原白板已切换，未添加引用`);return;}
-    this.addFile(file,position);const id=[...this.selected][0];await this.startInlineEdit(id);
+    this.addFile(file,position);const id=[...this.selected][0];await this.startInlineEdit(id,false,true);
   }
   toggleMindmap(){this.mutate(b=>{b.version=3;b.mode=b.mode==='mindmap'?'free':'mindmap';});}
   get hasInlineEditor(){return !!this.inline;}
@@ -1890,7 +1890,7 @@ class BoardView extends FileView {
     try{await this.newText(this.point(e.clientX,e.clientY));}finally{this.blankTextCreating=false;}
   }
   async newText(position=this.point(),topic=false){const owner=this.requireOwner();if(this.inline&&!await this.inline.commit())return;this.requireOwner(owner);
-    const id=uid();owner.change(b=>{b.version=3;if(topic)b.mode='mindmap';const node:Card={id,kind:'text',text:topic?'中心主题':'',topic,...(topic?{mindmapRules:{layout:b.mindmapLayout||'right',density:b.mindmapDensity||'standard',automatic:true} as NonNullable<Card['mindmapRules']>}:{}),x:position.x-40,y:position.y-30,width:80,height:60,color:topic?'green':'sand',fontSize:this.plugin.settings.defaultTextSize,autoSize:true};fitTextNode(node,this.contentEl);b.nodes.push(node);});this.selected=new Set([id]);this.selectedEdge=undefined;this.contextOpen=false;this.updateSelection();await this.startInlineEdit(id,topic);
+    const id=uid();owner.change(b=>{b.version=3;if(topic)b.mode='mindmap';const node:Card={id,kind:'text',text:topic?'中心主题':'',topic,...(topic?{mindmapRules:{layout:b.mindmapLayout||'right',density:b.mindmapDensity||'standard',automatic:true} as NonNullable<Card['mindmapRules']>}:{}),x:position.x-40,y:position.y-30,width:80,height:60,color:topic?'green':'sand',fontSize:this.plugin.settings.defaultTextSize,autoSize:true};fitTextNode(node,this.contentEl);b.nodes.push(node);});this.selected=new Set([id]);this.selectedEdge=undefined;this.contextOpen=false;this.updateSelection();await this.startInlineEdit(id,topic,true);
   }
   editText(id:string){act(()=>this.startInlineEdit(id));}
   async prepareNoteOpen(file:TFile){if(this.inline&&this.session?.board.nodes.find(n=>n.id===this.inlineId)?.file===file.path&&!await this.inline.commit())throw Error('白板编辑草稿与原文冲突，草稿已保留。请先处理后再打开原生编辑器。');}
@@ -1914,10 +1914,10 @@ class BoardView extends FileView {
     const release=()=>{if(this.inlineExit===exiting)this.inlineExit=undefined;};
     void exiting.then(release,release);return exiting;
   }
-  private async startInlineEdit(id:string,selectAll=false){
+  private async startInlineEdit(id:string,selectAll=false,preserveViewport=false){
     if(this.inlineExit)return;
     const request=++this.inlineStart,owner=this.requireOwner();
-    if(this.inlineId===id&&this.inline&&!this.inline.saving){this.inline.input.focus();return;}
+    if(this.inlineId===id&&this.inline&&!this.inline.saving){this.inline.input.focus({preventScroll:true});return;}
     const previous=this.inline;if(previous&&!await previous.commit())return;
     if(request!==this.inlineStart)return;this.requireOwner(owner);let node=owner.board.nodes.find(n=>n.id===id);
     if(!node||!['text','card'].includes(node.kind))return;if(node.locked)throw Error('对象已锁定，请先解锁再编辑');
@@ -1929,7 +1929,13 @@ class BoardView extends FileView {
     if(file instanceof TFile&&(latest.file!==file.path||this.app.vault.getAbstractFileByPath(file.path)!==file))throw Error('关联笔记已改变，请重新打开卡片编辑');
     node=latest;
     this.inlineTarget=id;this.selected=new Set([id]);this.selectedEdge=undefined;this.contextOpen=false;
-    if(node.collapsed)owner.change(b=>foldCards(b,new Set([id]),false));if(owner.board.viewport.zoom<.75)owner.board.viewport.zoom=.9;this.revealNode(id);this.renderBoard();const el=this.positions.get(id);if(!el){this.inlineTarget=undefined;return;}
+    if(node.collapsed)owner.change(b=>foldCards(b,new Set([id]),false));
+    if(preserveViewport){
+      // Creation owns selection and focus, but must not pan or zoom the canvas.
+      this.clearCanvasGesture();this.app.workspace.setActiveLeaf(this.leaf,{focus:true});
+      this.mode='select';this.connectFrom=undefined;this.connectSide=undefined;this.stage.removeClass('ts-connecting');this.connectButton?.removeClass('is-active');this.updateSelection();
+    }else{if(owner.board.viewport.zoom<.75)owner.board.viewport.zoom=.9;this.revealNode(id);}
+    this.renderBoard();const el=this.positions.get(id);if(!el){this.inlineTarget=undefined;return;}
     this.pendingFits.delete(id);this.inlineStyleKey=this.nodeAppearanceKey(node);this.inlineMeasureKey=this.nodeMeasureKey(node);let editor:InlineNodeEditor;let draftSize:{width:number;height:number}|undefined;let lastDraftValue=original;
     const cardFit=node.kind==='card'&&node.autoFit?new InlineCardFit(this.app,el.querySelector<HTMLElement>('.ts-card-preview')!,file!.path,node.preferredWidth,size=>{draftSize=size;if(this.session===owner)this.applyInlineSize(id,size);editor?.syncGeometry();}):undefined;
     const end=()=>{if(this.inline===editor){const doc=this.contentEl.ownerDocument,restore=editor.el.contains(doc.activeElement)||doc.activeElement===doc.body;this.endInline();if(restore)this.stage.focus();}};
@@ -1988,7 +1994,7 @@ class BoardView extends FileView {
       const selected=owner.board.nodes.find(n=>n.id===selectedId);if(!selected||selected.kind==='section'){new Notice('请先选中一个主题；也可以点击“中心主题”开始');return;}
       const parents=validateBranches(owner.board);if(sibling&&!parents.has(selected.id))sibling=false;
       const result=editTopic(owner.board,selected.id,sibling?'sibling':'child',[sibling?'同级主题':'子主题'],uid,{prepareNode:node=>{node.autoSize=true;node.textMaxWidth=280;node.fontSize=this.plugin.settings.defaultTextSize;fitTextNode(node,this.contentEl);},deferAutomaticLayout:true}),node=result.board.nodes.find(n=>n.id===result.selected)!;
-      owner.change(()=>{owner.board=result.board;});this.selected=new Set([node.id]);this.selectedEdge=undefined;this.contextOpen=false;await this.startInlineEdit(node.id,true);
+      owner.change(()=>{owner.board=result.board;});this.selected=new Set([node.id]);this.selectedEdge=undefined;this.contextOpen=false;await this.startInlineEdit(node.id,true,true);
     }finally{this.topicAdding=false;}
   }
   layoutTopics(direction:'right'|'down'|'up'){const owner=this.session;if(!owner)return;const n=owner.board.nodes.find(n=>this.selected.has(n.id)&&n.kind!=='section')||owner.board.nodes.find(n=>n.topic);if(!n){new Notice('请先选择一个主题，或新建中心主题');return;}owner.change(b=>layoutMindmap(b,n.id,direction));this.fit();}
@@ -2146,7 +2152,7 @@ class BoardView extends FileView {
     this.world.querySelectorAll('.ts-empty').forEach(el=>el.remove());
     if(!viewportOnly){this.updateObjectFilter();this.renderSaveStatus(); this.fileTitle?.setText(this.file?.basename || '研究工作台'); this.renderNavigation();}
     const v=b.viewport;this.world.style.transform=`translate(${v.x}px, ${v.y}px) scale(${v.zoom})`;this.stage.style.backgroundSize=`${visibleGridSize(this.plugin.settings.gridStep,v.zoom)}px ${visibleGridSize(this.plugin.settings.gridStep,v.zoom)}px`;this.stage.style.backgroundPosition=`${v.x}px ${v.y}px`;this.zoomLabel.setText(`${Math.round(v.zoom*100)}%`);
-    const branches=branchState(b);const visible=visibleNodes(b.nodes.filter(n=>!branches.hidden.has(n.id)).map(sectionDisplayNode),viewportRect(v,this.stage.clientWidth,this.stage.clientHeight));const editing=b.nodes.find(n=>n.id===this.inlineId);if(editing&&!visible.some(n=>n.id===editing.id))visible.push(editing);for(const node of b.nodes){if(this.positions.get(node.id)?.querySelector('.ts-card-title-input')&&!visible.some(n=>n.id===node.id))visible.push(node);}const live=new Set(visible.map(n=>n.id));let childCandidates:ReturnType<typeof childConnectionCandidates>|undefined;
+    const branches=branchState(b);const visible=visibleNodes(b.nodes.filter(n=>!branches.hidden.has(n.id)).map(sectionDisplayNode),viewportRect(v,this.stage.clientWidth,this.stage.clientHeight));for(const id of new Set([this.inlineId,this.inlineTarget])){const editing=b.nodes.find(n=>n.id===id);if(editing&&!visible.some(n=>n.id===editing.id))visible.push(editing);}for(const node of b.nodes){if(this.positions.get(node.id)?.querySelector('.ts-card-title-input')&&!visible.some(n=>n.id===node.id))visible.push(node);}const live=new Set(visible.map(n=>n.id));let childCandidates:ReturnType<typeof childConnectionCandidates>|undefined;
     for(const [id,el] of this.positions){if(!live.has(id)){el.remove();this.positions.delete(id);this.nodeScopes.get(id)?.unload();this.nodeScopes.delete(id);this.nodeKeys.delete(id);}}
     if (!b.nodes.length) {
       const empty = this.world.createDiv('ts-empty'); setIcon(empty.createDiv('ts-empty-icon'), 'network');
@@ -2380,7 +2386,7 @@ class BoardView extends FileView {
     if(target){if(drag.edge){const next=clone(owner.board);if(reconnectEdge(next,drag.edge.id,drag.edge.end,target.id,target.side,drag.edge.expected)){owner.change(b=>{b.edges=next.edges;});this.selectedEdge=drag.edge.id;this.selected.clear();}}else this.createConnection(from,target.id,side,target.side);this.updateSelection();}
     else if(drag.moved&&!drag.edge&&inside){
       if(drag.topicClick&&owner.board.mode==='mindmap'){act(()=>this.addTopic(false,from));return;}
-      act(async()=>{if(this.inline&&!await this.inline.commit())return;this.requireOwner(owner);if(!owner.board.nodes.some(n=>n.id===from))throw Error('起点已不存在');const node:Card={id:uid(),kind:'text',text:'',x:point.x,y:point.y,width:80,height:60,color:'sand',fontSize:this.plugin.settings.defaultTextSize,autoSize:true};fitTextNode(node,this.contentEl);owner.change(b=>{b.version=3;b.nodes.push(node);b.edges.push({id:uid(),from,to:node.id,label:'',fromSide:side,style:this.plugin.settings.defaultEdgeStyle,direction:this.plugin.settings.defaultEdgeDirection});});this.selected=new Set([node.id]);this.updateSelection();await this.startInlineEdit(node.id);});
+      act(async()=>{if(this.inline&&!await this.inline.commit())return;this.requireOwner(owner);if(!owner.board.nodes.some(n=>n.id===from))throw Error('起点已不存在');const node:Card={id:uid(),kind:'text',text:'',x:point.x,y:point.y,width:80,height:60,color:'sand',fontSize:this.plugin.settings.defaultTextSize,autoSize:true};fitTextNode(node,this.contentEl);owner.change(b=>{b.version=3;b.nodes.push(node);b.edges.push({id:uid(),from,to:node.id,label:'',fromSide:side,style:this.plugin.settings.defaultEdgeStyle,direction:this.plugin.settings.defaultEdgeDirection});});this.selected=new Set([node.id]);this.updateSelection();await this.startInlineEdit(node.id,false,true);});
     }
   }
   private createConnection(from:string,to:string,fromSide?:Side,toSide?:Side){
