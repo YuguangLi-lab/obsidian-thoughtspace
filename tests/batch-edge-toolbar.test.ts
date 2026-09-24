@@ -5,11 +5,14 @@ import {transformSync} from 'esbuild';
 import {clone, colorNames, emptyBoard, History, type Board} from '../src/model';
 import {patchSelectionEdges, selectionEdges} from '../src/selection-edges';
 
+const controlsModule={exports:{} as any};
+new Function('require','module','exports',transformSync(readFileSync('src/edge-format-controls.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>name==='obsidian'?{setIcon:()=>{}}:name==='./model'?{colorNames}:{},controlsModule,controlsModule.exports);
+const renderEdgeFormatControls=controlsModule.exports.renderEdgeFormatControls;
 const source = readFileSync('src/main.ts', 'utf8');
 const start = source.indexOf('  private buildBatchEdgeTools(');
 assert.ok(start > 0, 'test must exercise the real batch toolbar implementation');
 const method = source.slice(start, source.indexOf('  private renderSelectionTools()', start));
-const createView = new Function('act', 'colorNames', 'selectionEdges', 'patchSelectionEdges',
+const createView = new Function('act', 'colorNames', 'selectionEdges', 'patchSelectionEdges', 'renderEdgeFormatControls',
   transformSync(`class View {${method}}\nreturn View;`, {loader: 'ts'}).code);
 
 class Element {
@@ -32,6 +35,7 @@ class Element {
     this.children.push(child);
     return child;
   }
+  createDiv(options: any): Element { return this.createEl('div', options); }
   createSpan(options: any): Element { return this.createEl('span', options); }
   empty(): void { for (const child of this.children) child.attached = false; this.children = []; }
   all(): Element[] { return [this, ...this.children.flatMap(child => child.all())]; }
@@ -39,7 +43,7 @@ class Element {
 
 function fixture(options: {blocked?: boolean; empty?: boolean} = {}) {
   const errors: unknown[] = [];
-  const View = createView((run: () => unknown) => { try { return run(); } catch (error) { errors.push(error); } }, colorNames, selectionEdges, patchSelectionEdges);
+  const View = createView((run: () => unknown) => { try { return run(); } catch (error) { errors.push(error); } }, colorNames, selectionEdges, patchSelectionEdges, renderEdgeFormatControls);
   const view = new View(), board = emptyBoard();
   board.version = 3;
   board.nodes = ['a', 'b', 'c', 'd'].map((id, i) => ({id, kind: 'card', file: `${id}.md`, x: i * 240, y: 0, width: 220, height: 160, color: 'green'}));

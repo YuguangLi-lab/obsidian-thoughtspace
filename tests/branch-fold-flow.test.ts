@@ -66,8 +66,8 @@ test('branch fold and unfold can be undone without deleting note paths or child 
  const{v,board,history}=fixture(),before=clone(board);await v.foldBranches(new Set(['portal']),true,'collapse');
  const undo=history.undo(board)!;assert.deepEqual(undo,before);const redo=history.redo(undo)!;assert.deepEqual(hidden(redo),['child','grand','last']);assert.deepEqual(redo.edges,before.edges);
 });
-test('conversion rejects a section endpoint without mutating the board',()=>{
- const{board}=fixture();board.nodes.push(node('frame','section'));board.edges.push({id:'frame-child',from:'frame',to:'ordinary',label:''});const before=clone(board);assert.throws(()=>makeChildConnection(board,'frame-child'),/内容节点/);assert.deepEqual(board,before);
+test('conversion accepts a section parent without changing board material',()=>{
+ const{board}=fixture();board.nodes.push(node('frame','section'));board.edges.push({id:'frame-child',from:'frame',to:'ordinary',label:''});const before=clone(board);makeChildConnection(board,'frame-child');assert.equal(validateBranches(board).get('ordinary'),'frame');assert.deepEqual(board.nodes,before.nodes);assert.deepEqual(parseBoard(JSON.stringify(board)),board);
 });
 
 for(const kind of ['inline text','title input','save conflict'] as const)test(`fold refuses to hide an active ${kind}, preserving its draft and current selection`,()=>{

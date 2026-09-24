@@ -146,3 +146,43 @@ test('large deep folded trees stay iterative and do not modify hidden descendant
   assert.equal(patchSelectionEdges(board, new Set(board.edges.map(edge => edge.id)), {style: 'elbow'}), 1);
   assert.equal(board.edges[1].style, undefined);
 });
+
+test('1200 unfolded nodes skip branch indexing and recheck a newly folded tree immediately', () => {
+  const board = fixture();
+  board.nodes = Array.from({length: 1200}, (_, i) => ({...board.nodes[0], id: String(i)}));
+  board.edges = board.nodes.slice(1).map((node, i) => ({id: `e${i}`, from: String(i), to: node.id, kind: 'branch', label: ''}));
+  const all = new Set(board.nodes.map(node => node.id)), edgeIds = new Set(board.edges.map(edge => edge.id));
+  let branchReads = 0;
+  for (const edge of board.edges) Object.defineProperty(edge, 'kind', {get() { branchReads++; return 'branch'; }, enumerable: true});
+  assert.equal(selectionEdges(board, all).length, 1199);
+  assert.equal(patchSelectionEdges(board, edgeIds, {color: 'blue'}), 1199);
+  assert.equal(branchReads, 0, 'unfolded queries and edits need no branch adjacency index');
+  board.nodes[1].branchFolded = true;
+  assert.deepEqual(selectionEdges(board, all).map(edge => edge.id), ['e0']);
+  assert.equal(patchSelectionEdges(board, edgeIds, {color: 'rose'}), 1);
+  assert.ok(branchReads > 0, 'folded visibility must use the current branch structure');
+  assert.equal(board.edges[1].color, 'blue');
+});
+
+test('group folds and subsequent geometry changes recheck live endpoint visibility', () => {
+  const board = fixture();
+  const group: Card = {id: 'group', kind: 'section', x: -20, y: -20, width: 500, height: 210, color: 'blue', sectionFolded: true};
+  board.nodes.push(group);
+  const all = new Set(board.nodes.map(node => node.id)), edgeIds = new Set(board.edges.map(edge => edge.id));
+  assert.deepEqual(selectionEdges(board, all).map(edge => edge.id), ['cd']);
+  assert.equal(patchSelectionEdges(board, edgeIds, {color: 'blue'}), 1);
+  assert.equal(board.edges[0].color, undefined);
+  group.x = 2000;
+  assert.equal(selectionEdges(board, all).length, 4);
+  assert.equal(patchSelectionEdges(board, edgeIds, {color: 'rose'}), 4);
+});
+
+test('folded malformed branch cycles remain bounded and cannot expose hidden endpoints', () => {
+  const board = fixture();
+  board.edges.push({id: 'ba', from: 'b', to: 'a', kind: 'branch', label: ''});
+  board.nodes[0].branchFolded = true;
+  const all = new Set(board.nodes.map(node => node.id));
+  assert.deepEqual(selectionEdges(board, all).map(edge => edge.id), ['cd']);
+  assert.equal(patchSelectionEdges(board, new Set(board.edges.map(edge => edge.id)), {dashed: true}), 1);
+  assert.equal(board.edges[0].dashed, undefined);
+});

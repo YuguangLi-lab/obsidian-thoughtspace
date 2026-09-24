@@ -24,9 +24,11 @@ import {setBoardEdgeStyle,inheritNewEdgeStyle} from './model';
 import {BoardSearchSync,SEARCH_FOLDER,searchBoardPath,searchIndexTarget} from './native-search';
 import {PdfDocumentPool} from './pdf-document-pool';
 import {discloseBranches,makeChildConnection,makeChildConnections,childConnectionCandidates,type BranchDisclosure} from './branch-disclosure';
+import {renderBranchControls} from './branch-controls';
 import {pdfCard,pdfSubpath,pdfPage,renderPdfThumbnail,isPdfFile,pdfDropReference,pdfPageKey} from './pdf-card';
 import {selectionFormatKey} from './selection-format';
-import {selectionEdges,patchSelectionEdges,type SelectionEdgeScope,type SelectionEdgePatch} from './selection-edges';
+import {selectionEdges,patchSelectionEdges,type SelectionEdgeScope} from './selection-edges';
+import {renderEdgeFormatControls} from './edge-format-controls';
 import {cardDisplayTitle,setCardTitle} from './card-title-model';
 import {bindCardTitle} from './card-title-edit';
 import {noteRenamePath} from './note-rename';
@@ -1224,7 +1226,7 @@ class MaterialsView extends ItemView {
 
 class BoardView extends FileView {
   session?: Session; private unsubscribe?: () => void;
-  private snapToggle?:HTMLButtonElement;private gridSelect?:HTMLSelectElement;private canvasControls?:HTMLElement;private canvasSummary?:HTMLElement;private snapTarget?:HTMLElement;private snapReadout?:HTMLElement;
+  private snapToggle?:HTMLButtonElement;private gridSelect?:HTMLSelectElement;private canvasControls?:HTMLElement;private canvasSummary?:HTMLElement;private focusSelectedButton?:HTMLButtonElement;private snapTarget?:HTMLElement;private snapReadout?:HTMLElement;
   private stage!: HTMLElement; private world!: HTMLElement; private svg!: SVGSVGElement;
   sidebar!: HTMLElement; closed=false; private dockContext?:HTMLElement; private list!: HTMLElement; private status!: HTMLElement; private inspector!: HTMLElement; private zoomLabel!: HTMLElement;
   private nodeScopes=new Map<string,Component>(); private nodeKeys=new Map<string,string>(); private previewQueue=new RenderQueue(); private pdfPreviewQueue=new RenderQueue(2); private renderFrame=0; private viewportOnlyRender=true; private mapKey=''; private mapViewport?:()=>void; private connectSide?:Side; private selected = new Set<string>(); private selectedEdge?: string;
@@ -1355,6 +1357,15 @@ class BoardView extends FileView {
         if(link){let sourceNode=b.nodes.find(n=>n.kind==='card'&&n.file===source.path);if(!sourceNode){sourceNode={id:uid(),kind:'card',transparent:true,file:source.path,x:point.x-width-96,y:point.y,width,height:270,color:'slate'};b.nodes.push(sourceNode);}unfoldAncestors(b,sourceNode.id);for(const n of nodes)b.edges.push({id:uid(),from:sourceNode.id,to:n.id,label:'摘录',style:'curve',direction:'forward',color:'slate'});}
       });if(options.focus!==false)this.revealNode(nodes[0].id);else{if(!options.position)this.revealNode(nodes[0].id,false);this.selected=new Set(nodes.map(n=>n.id));this.updateSelection();this.renderBoard();}await owner!.flush();if(options.focus!==false)new Notice(`已创建 ${created.length} 篇摘录笔记；撤销白板操作时笔记文件仍会保留`);return {ids:nodes.map(n=>n.id),files:created.map(f=>f.path),boardPath:owner!.file.path,groupId};
     }catch(e){throw Error(`${e instanceof Error?e.message:String(e)}${created.length?`。已创建的 ${created.length} 篇笔记保留在 ${created[0].parent?.path}，可从资料库引用到白板。`:''}`);}
+  }
+  private branchDisclosureMenu(id:string,anchor:HTMLElement){
+    const owner=this.requireOwner(),node=owner.board.nodes.find(n=>n.id===id);if(!node||!anchor.isConnected)return;
+    this.objectMenu?.hide();const menu=new Menu();this.objectMenu=menu;
+    const ids=new Set([id]),disabled=owner.blocked||!!node.locked;
+    const add=(label:string,icon:string,mode:BranchDisclosure,convert=false)=>menu.addItem(item=>item.setTitle(label).setIcon(icon).setDisabled(disabled).onClick(()=>act(()=>{this.requireOwner(owner);this.foldBranches(ids,mode==='collapse',mode,convert);})));
+    add('折叠连线子节点','list-collapse','collapse');add('展开下一层','list-tree','level');add('展开全部子节点','unfold-vertical','all');
+    const pending=childConnectionCandidates(owner.board,ids).get(id)?.length||0;if(pending){menu.addSeparator();add(`将其他 ${pending} 条连线设为子节点并折叠`,'git-branch','collapse',true);}
+    menu.onHide(()=>{if(this.objectMenu===menu)this.objectMenu=undefined;});const rect=anchor.getBoundingClientRect();menu.showAtPosition({x:rect.left,y:rect.bottom+4},anchor.ownerDocument);
   }
   selectBranch(){const owner=this.requireOwner(),ids=new Set(this.selected);branchDescendants(owner.board,ids).forEach(id=>ids.add(id));this.foldBranches(ids,false);this.selected=ids;this.updateSelection();}
   foldBranches(ids:ReadonlySet<string>,fold:boolean,disclosure?:BranchDisclosure,connectChildren=false){const owner=this.requireOwner();
@@ -1693,7 +1704,7 @@ class BoardView extends FileView {
     for(const [value,label,icon] of [['dots','点阵背景','circle-dot'],['grid','网格背景','grid'],['plain','纯色背景','square'],['paper','纸张纹理','file-text']] as const){const b=button(backgrounds,label,icon,async()=>{if(value==='paper'&&this.plugin.settings.canvasBackground==='paper'){this.plugin.openPaperSettings();return;}this.plugin.settings.canvasBackground=value;await this.plugin.savePreferences();});b.dataset.backgroundChoice=value;}
     button(backgrounds,'纸张外观','palette',()=>this.plugin.openPaperSettings(),'ts-paper-settings-entry');
     this.canvasSummary=footer.createDiv({cls:'ts-canvas-summary',attr:{role:'status','aria-live':'polite'}});
-    const zoom=footer.createDiv('ts-zoom');button(zoom,'−','minus',()=>this.zoom(.85));this.zoomLabel=zoom.createSpan({attr:{role:'button',tabindex:'0','aria-label':'缩放比例与视图定位',title:'缩放比例 · 聚焦所选 · 适应全部'}});this.zoomLabel.onclick=()=>this.zoomPresets();this.zoomLabel.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();this.zoomPresets();}};button(zoom,'+','plus',()=>this.zoom(1.18));button(zoom,'适应','scan',()=>this.fit());
+    const zoom=footer.createDiv('ts-zoom');this.focusSelectedButton=button(zoom,'聚焦所选','focus',()=>this.focusSelection(),'ts-focus-selected ts-icon-button');this.focusSelectedButton.hidden=true;this.focusSelectedButton.onmousedown=e=>e.preventDefault();button(zoom,'−','minus',()=>this.zoom(.85));this.zoomLabel=zoom.createSpan({attr:{role:'button',tabindex:'0','aria-label':'缩放比例与视图定位',title:'缩放比例 · 聚焦所选 · 适应全部'}});this.zoomLabel.onclick=()=>this.zoomPresets();this.zoomLabel.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();this.zoomPresets();}};button(zoom,'+','plus',()=>this.zoom(1.18));button(zoom,'适应','scan',()=>this.fit());
     this.snapTarget=this.stage.createDiv({cls:'ts-snap-target',attr:{'aria-hidden':'true'}});this.snapReadout=this.stage.createDiv({cls:'ts-snap-readout',attr:{'aria-hidden':'true'}});
     this.flowHint=this.stage.createDiv({cls:'ts-flow-hint',attr:{role:'status','aria-live':'polite'}});
     this.backToContent=button(this.stage,'返回内容','scan',()=>this.fit(),'ts-back-content');
@@ -1958,7 +1969,7 @@ class BoardView extends FileView {
   async newTable(position=this.point()){
     const owner=this.requireOwner();if(this.inline&&!await this.inline.commit())return;this.requireOwner(owner);
     const template=markdownEdit('',0,0,'table'),id=uid();
-    owner.change(b=>{b.version=3;b.nodes.push({id,kind:'text',text:template.text,x:position.x-40,y:position.y-30,width:520,height:180,textMaxWidth:720,color:'sand',fontSize:this.plugin.settings.defaultTextSize,autoSize:true});});
+    owner.change(b=>{b.version=3;b.nodes.push({id,kind:'text',text:template.text,transparent:true,x:position.x-40,y:position.y-30,width:520,height:180,textMaxWidth:720,color:'sand',fontSize:this.plugin.settings.defaultTextSize,autoSize:true});});
     this.selected=new Set([id]);this.selectedEdge=undefined;this.contextOpen=false;this.updateSelection();await this.startInlineEdit(id,false,true);
     if(this.session===owner&&this.inlineId===id)this.inline?.input.setSelectionRange(template.start,template.end);
   }
@@ -2259,11 +2270,8 @@ class BoardView extends FileView {
       old?.remove();this.nodeScopes.get(n.id)?.unload();const scope=new Component();scope.load();this.nodeScopes.set(n.id,scope);this.nodeKeys.set(n.id,key);
       const el = this.world.createDiv({ cls: `ts-node ts-${n.kind} ts-color-${n.color}`, attr: { 'data-id': n.id } });
       el.toggleClass('is-filtered-out',!!this.filterMatches&&!this.filterMatches.has(n.id));el.toggleClass('is-locked',!!n.locked);el.toggleClass('is-unrelated',!!this.relatedFocus&&!this.relatedFocus.has(n.id));el.toggleClass('ts-topic',!!n.topic);this.positions.set(n.id, el); this.positionNode(n, el); el.toggleClass('is-selected', this.selected.has(n.id));
-      const childCount=branches.children.get(n.id)?.length||0;if(childCount){const fold=button(el,n.branchFolded?`展开下一层 · ${childCount} 个子节点`:'折叠分支',n.branchFolded?'plus':'minus',()=>this.foldBranches(new Set([n.id]),!n.branchFolded,n.branchFolded?'level':'collapse'),'ts-branch-toggle');fold.disabled=!!this.session.blocked||!!n.locked;fold.setAttribute('aria-expanded',String(!n.branchFolded));fold.onpointerdown=e=>e.stopPropagation();fold.ondblclick=e=>e.stopPropagation();if(n.branchFolded)fold.createSpan({text:String(childCount),cls:'ts-branch-count'});el.classList.toggle('has-folded-branches',!!n.branchFolded);}
-      else if(childCandidates.has(n.id)){
-        const fold=button(el,'设为子节点并折叠 · 可撤销','git-branch',()=>this.foldBranches(new Set([n.id]),true,'collapse',true),'ts-branch-toggle ts-branch-setup');
-        fold.disabled=!!this.session.blocked||!!n.locked;fold.onpointerdown=e=>e.stopPropagation();fold.ondblclick=e=>e.stopPropagation();
-      }
+      const childCount=branches.children.get(n.id)?.length||0,branchOptions={count:childCount,candidates:childCandidates.get(n.id)?.length||0,folded:!!n.branchFolded,disabled:!!this.session.blocked||!!n.locked,group:n.kind==='section',onToggle:()=>act(()=>this.foldBranches(new Set([n.id]),childCount?!n.branchFolded:true,childCount&&n.branchFolded?'level':'collapse',!childCount)),onMenu:(anchor:HTMLElement)=>this.branchDisclosureMenu(n.id,anchor)};
+      if(n.kind!=='section')renderBranchControls(el,branchOptions);el.classList.toggle('has-folded-branches',!!childCount&&!!n.branchFolded);
       if(n.review&&n.review!=='later')el.createDiv({cls:'ts-review-badge',text:reviewLabels[n.review],attr:{'aria-label':`阅读状态：${reviewLabels[n.review]}`}});
       // Resize is an interaction affordance, independent of expensive preview detail.
       if (!n.collapsed&&!n.sectionFolded&&!n.locked) el.createDiv({ cls: 'ts-resize', attr: { 'aria-label': '拖动调整大小' } });
@@ -2271,7 +2279,8 @@ class BoardView extends FileView {
       const header = el.createDiv('ts-node-header'); el.toggleClass('is-folded', !!n.collapsed);
       if (n.kind === 'section') {
         el.toggleClass('is-section-folded',!!n.sectionFolded);setIcon(header.createSpan(),n.sectionFolded?'folder':'folder-open');header.createSpan({text:n.title,cls:'ts-section-title'});
-        const fold=button(header,n.sectionFolded?'展开分组':'折叠分组',n.sectionFolded?'chevron-down':'chevron-up',()=>this.setSelectionFold(new Set([n.id]),!n.sectionFolded,true),'ts-icon-button ts-section-fold');
+        const fold=button(header,n.sectionFolded?'展开分组':'折叠分组',n.sectionFolded?'chevron-down':'chevron-up',()=>this.setSelectionFold(new Set([n.id]),!n.sectionFolded,true),'ts-section-fold ts-section-content-fold');
+        fold.lastElementChild?.setText('内容');fold.title=n.sectionFolded?'展开框内内容 · 连线子节点单独控制':'折叠框内内容 · 连线子节点单独控制';renderBranchControls(header,branchOptions);
         fold.disabled=this.session.blocked||!!n.locked;fold.setAttribute('aria-expanded',String(!n.sectionFolded));fold.onpointerdown=e=>e.stopPropagation();fold.ondblclick=e=>e.stopPropagation();
         header.title='双击重命名 · 拖动标题移动框内内容';header.ondblclick=e=>{if((e.target as Element).closest('button'))return;e.stopPropagation();this.renameSection(n.id);};
       } else if (n.kind === 'board') {
@@ -2582,28 +2591,38 @@ class BoardView extends FileView {
     add('导出 Markdown 大纲','file-down',()=>this.plugin.exportOutline(file));add('导出原生链接索引','network',()=>this.plugin.exportNativeIndex(file));
     if(this.file!==file)add('引用到当前白板','plus',()=>this.addBoard(file));menu.showAtMouseEvent(event);
   }
+  private buildSingleEdgeTools(host:HTMLElement,owner:Session,edge:Board['edges'][number]){
+    const current=()=>!this.closed&&this.session===owner&&!owner.blocked&&this.selectedEdge===edge.id&&owner.board.edges.some(e=>e.id===edge.id);
+    const editable=()=>current()&&selectionEdges(owner.board,new Set([edge.from,edge.to]),'internal').some(e=>e.id===edge.id);
+    const canEdit=editable(),isCurrent=current();
+    renderEdgeFormatControls(host,[edge],!canEdit,patch=>act(()=>{
+      if(!editable())return;
+      owner.change(b=>patchSelectionEdges(b,new Set([edge.id]),patch));
+    }));
+    const actions=host.createDiv({cls:'ts-edge-format-actions',attr:{role:'group','aria-label':'连线操作'}});
+    const action=(label:string,icon:string,run:()=>unknown,editing=false)=>{
+      const control=button(actions,label,icon,()=>{if(control.isConnected&&current()&&(!editing||editable()))return run();},'ts-icon-button');
+      control.disabled=!isCurrent||(editing&&!canEdit);return control;
+    };
+    action('关系说明','text-cursor-input',()=>this.labelEdge(edge.id),true);
+    action('跳转起点','arrow-left',()=>this.revealNode(edge.from));action('跳转终点','arrow-right',()=>this.revealNode(edge.to));
+    const all=action('当前路径应用到全部连线','git-commit-horizontal',()=>this.unifyEdgeStyle(owner.board.edges.find(e=>e.id===edge.id)?.style||'curve'),true);
+    all.addClass('ts-edge-apply-all');all.title='将当前路径应用到整张白板的连线 · 可撤销';
+  }
   private buildBatchEdgeTools(host:HTMLElement,owner:Session,nodeIds:ReadonlySet<string>,edges:Board['edges']){
-    const scope=host.createEl('label',{cls:'ts-format-field'});scope.createSpan({text:'范围'});
+    const scope=host.createEl('label',{cls:'ts-format-field ts-edge-scope',attr:{'data-format':'范围'}});scope.createSpan({text:'范围'});
     const scopeInput=scope.createEl('select',{attr:{'aria-label':'批量连线范围',title:'自动跳过锁定或隐藏节点的连线'}});
     scopeInput.createEl('option',{value:'internal',text:'选中对象之间'});scopeInput.createEl('option',{value:'connected',text:'所有相连'});scopeInput.value=this.batchEdgeScope;
     scopeInput.onchange=()=>{if(!scopeInput.isConnected||this.session!==owner||this.batchFormatTarget!=='edges'||this.selected.size!==nodeIds.size||[...nodeIds].some(id=>!this.selected.has(id))||!['internal','connected'].includes(scopeInput.value))return;this.batchEdgeScope=scopeInput.value as SelectionEdgeScope;this.renderSelectionTools();this.renderEdges();};
     const edgeIds=new Set(edges.map(e=>e.id)),scopeAtBuild=this.batchEdgeScope;
-    const select=(label:string,options:Record<string,string>,values:string[],patch:(value:string)=>SelectionEdgePatch)=>{
-      const field=host.createEl('label',{cls:'ts-format-field',attr:{'data-format':label}});field.createSpan({text:label});
-      const input=field.createEl('select',{attr:{'aria-label':label}}),same=values.every(v=>v===values[0]);
-      if(!same)input.createEl('option',{value:'',text:'混合'}).disabled=true;
-      for(const[value,text]of Object.entries(options))input.createEl('option',{value,text});input.value=same?values[0]:'';input.disabled=owner.blocked||!edges.length;
-      input.onchange=()=>act(()=>{
-        if(!input.isConnected||input.disabled)return;this.requireOwner(owner);
-        if(this.batchFormatTarget!=='edges'||this.batchEdgeScope!==scopeAtBuild||this.selected.size!==nodeIds.size||[...nodeIds].some(id=>!this.selected.has(id)))return;
-        const change=patch(input.value);owner.change(b=>{const current=new Set(selectionEdges(b,nodeIds,scopeAtBuild).map(e=>e.id));patchSelectionEdges(b,new Set([...edgeIds].filter(id=>current.has(id))),change);});
-      });
-    };
     if(!edges.length){host.createSpan({cls:'ts-batch-format-empty',text:'此范围没有可修改的连线'});return;}
-    select('连线路径',{curve:'曲线',straight:'直线',elbow:'圆角折线'},edges.map(e=>e.style||'curve'),value=>({style:value as Board['edges'][number]['style']}));
-    select('连线方向',{forward:'单向',both:'双向',none:'无箭头'},edges.map(e=>e.direction||'forward'),value=>({direction:value as Board['edges'][number]['direction']}));
-    select('连线线型',{solid:'实线',dashed:'虚线'},edges.map(e=>e.dashed?'dashed':'solid'),value=>({dashed:value==='dashed'}));
-    select('连线颜色',{default:'默认',...colorNames},edges.map(e=>e.color||'default'),value=>({color:value==='default'?undefined:value as Board['edges'][number]['color']}));
+    renderEdgeFormatControls(host,edges,owner.blocked,patch=>act(()=>{
+      this.requireOwner(owner);
+      if(this.batchFormatTarget!=='edges'||this.batchEdgeScope!==scopeAtBuild||this.selected.size!==nodeIds.size||[...nodeIds].some(id=>!this.selected.has(id)))return;
+      const current=new Set(selectionEdges(owner.board,nodeIds,scopeAtBuild).map(e=>e.id));
+      const eligible=new Set([...edgeIds].filter(id=>current.has(id)));if(!eligible.size)return;
+      owner.change(b=>patchSelectionEdges(b,eligible,patch));
+    }));
   }
   refreshStyleControls(){this.renderSelectionTools();}
   inputCommandTarget():BoardInputCommandTarget|undefined{
@@ -2683,16 +2702,7 @@ class BoardView extends FileView {
   private buildSelectionTools(batchEdges?:Board['edges']){
     const host=this.selectionTools,owner=this.session;if(!host)return;const editorBefore=this.inline,restoreFocus=preserveToolbarFocus(host);
     try{this.inline?.replaceToolbar();host.empty();
-    if(owner&&this.selectedEdge){const edge=owner.board.edges.find(e=>e.id===this.selectedEdge);if(edge){host.addClass('is-visible');
-      const select=(label:string,options:Record<string,string>,value:string,apply:(edge:Board['edges'][number],value:string)=>void)=>{const wrap=host.createEl('label',{cls:'ts-format-field',attr:{'data-format':label}});wrap.createSpan({text:label});const input=wrap.createEl('select',{attr:{'aria-label':label}});for(const[v,text]of Object.entries(options))input.createEl('option',{value:v,text});input.value=value;input.disabled=owner.blocked;input.onchange=()=>{this.requireOwner(owner);owner.change(b=>{b.version=3;const current=b.edges.find(e=>e.id===edge.id);if(current)apply(current,input.value);});};};
-      select('连线路径',{curve:'曲线',straight:'直线',elbow:'圆角折线'},edge.style||'curve',(e,v)=>e.style=v as typeof e.style);
-      select('连线方向',{forward:'单向',both:'双向',none:'无箭头'},edge.direction||'forward',(e,v)=>e.direction=v as typeof e.direction);
-      select('连线线型',{solid:'实线',dashed:'虚线'},edge.dashed?'dashed':'solid',(e,v)=>e.dashed=v==='dashed');
-      select('连线颜色',{default:'默认',...colorNames},edge.color||'default',(e,v)=>{if(v==='default')delete e.color;else e.color=v as typeof e.color;});
-      button(host,'当前路径应用到全部连线','git-commit-horizontal',()=>this.unifyEdgeStyle(edge.style||'curve'),'ts-icon-button');
-      button(host,'关系说明','text-cursor-input',()=>this.labelEdge(edge.id),'ts-icon-button');
-      button(host,'跳转起点','arrow-left',()=>this.revealNode(edge.from),'ts-icon-button');button(host,'跳转终点','arrow-right',()=>this.revealNode(edge.to),'ts-icon-button');return;
-    }}
+    if(owner&&this.selectedEdge){const edge=owner.board.edges.find(e=>e.id===this.selectedEdge);if(edge){host.addClass('is-visible');this.buildSingleEdgeTools(host,owner,edge);return;}}
     const nodes=owner?.board.nodes.filter(n=>this.selected.has(n.id)) || [];host.toggleClass('is-visible',nodes.length>0);if(!owner||!nodes.length)return;
     const ids=new Set(nodes.map(n=>n.id)),texts=nodes.filter(n=>n.kind==='text'||n.kind==='card');
     if(nodes.length>1){
@@ -2721,8 +2731,10 @@ class BoardView extends FileView {
     const paste=button(transfer,'粘贴对象样式','paintbrush',()=>this.pasteObjectStyle(ids,owner),'ts-icon-button');
     copy.disabled=owner.blocked||nodes.length!==1;paste.disabled=owner.blocked||!this.plugin.copiedNodeStyle||nodes.every(n=>n.locked);
     for(const control of [copy,paste])control.onmousedown=e=>e.preventDefault();
+    let fieldHost=host;
+    const fieldGroup=(label:string)=>fieldHost=host.createDiv({cls:'ts-appearance-group',attr:{role:'group','aria-label':label}});
     const select=(label:string,options:Record<string,string>,values:string[],apply:(b:Board,value:string)=>void)=>{
-      const wrap=host.createEl('label',{cls:'ts-format-field',attr:{'data-format':label}});
+      const wrap=fieldHost.createEl('label',{cls:'ts-format-field',attr:{'data-format':label}});
       const icon=({'卡片样式':'layers','卡片颜色':'paint-bucket','字体':'type','字号':'a-large-small','文字颜色':'baseline','文字对齐':'align-left','边框线型':'square-dashed','边框粗细':'equal','边框颜色':'pencil-line'} as Record<string,string>)[label];
       if(icon)setIcon(wrap.createSpan({cls:'ts-format-label-icon',attr:{'aria-hidden':'true'}}),icon);
       wrap.createSpan({cls:'ts-format-label',text:({'卡片样式':'卡片','卡片颜色':'底色','文字颜色':'字色','文字对齐':'对齐','边框线型':'边框','边框粗细':'线宽','边框颜色':'线色'} as Record<string,string>)[label]||label});
@@ -2732,19 +2744,19 @@ class BoardView extends FileView {
       input.onchange=()=>act(()=>{if(!input.isConnected||input.disabled||this.inline?.snapshot().busy)return;this.requireOwner(owner);const value=input.value;owner.change(b=>{b.version=3;apply(b,value);});});
     };
     const cards=nodes.filter(n=>(n.kind==='card'||n.kind==='text'));
-    if(cards.length){const values=cards.map(n=>n.fillColor||'none'),custom=values.find(c=>c.startsWith('#'));
+    if(cards.length){fieldGroup('卡片外观');const values=cards.map(n=>n.fillColor||'none'),custom=values.find(c=>c.startsWith('#'));
       select('卡片样式',{solid:'默认',transparent:'透明'},cards.map(n=>n.transparent?'transparent':'solid'),(b,value)=>b.nodes.filter(n=>ids.has(n.id)&&(n.kind==='card'||n.kind==='text')&&!n.locked).forEach(n=>{if(value==='transparent')n.transparent=true;else delete n.transparent;}));
       select('卡片颜色',{none:'默认底色',...colorNames,...(custom?{[custom]:'自定义 '+custom}:{})},values,(b,value)=>b.nodes.filter(n=>ids.has(n.id)&&(n.kind==='card'||n.kind==='text')&&!n.locked).forEach(n=>{delete n.transparent;n.fillColor=value as Card['fillColor'];}));
-      const wrap=host.createEl('label',{cls:'ts-format-field ts-fill-custom'});wrap.createSpan({text:'自定'});const color=wrap.createEl('input',{type:'color',attr:{'aria-label':'自定义卡片颜色',title:'选择任意卡片背景色'}});color.value=custom||cardFillHex[(values[0]==='none'?'sand':values[0]) as Card['color']]||'#e8d8a8';color.disabled=owner.blocked||cards.some(n=>n.locked);color.onchange=()=>act(()=>{if(!color.isConnected||color.disabled||this.inline?.snapshot().busy)return;this.requireOwner(owner);const value=color.value;owner.change(b=>{b.version=3;for(const n of b.nodes)if(ids.has(n.id)&&(n.kind==='card'||n.kind==='text')&&!n.locked){delete n.transparent;n.fillColor=value as Card['fillColor'];}});});
+      const wrap=fieldHost.createEl('label',{cls:'ts-format-field ts-fill-custom',attr:{title:'自定义卡片颜色'}});wrap.createSpan({text:'自定'});const color=wrap.createEl('input',{type:'color',attr:{'aria-label':'自定义卡片颜色',title:'选择任意卡片背景色'}});color.value=custom||cardFillHex[(values[0]==='none'?'sand':values[0]) as Card['color']]||'#e8d8a8';color.disabled=owner.blocked||cards.some(n=>n.locked);color.onchange=()=>act(()=>{if(!color.isConnected||color.disabled||this.inline?.snapshot().busy)return;this.requireOwner(owner);const value=color.value;owner.change(b=>{b.version=3;for(const n of b.nodes)if(ids.has(n.id)&&(n.kind==='card'||n.kind==='text')&&!n.locked){delete n.transparent;n.fillColor=value as Card['fillColor'];}});});
     }
     const patchText=(patch:Partial<Card>)=>(b:Board)=>b.nodes.filter(n=>ids.has(n.id)&&(n.kind==='text'||n.kind==='card')).forEach(n=>{Object.assign(n,patch);if(n.kind==='text')fitTextNode(n,this.contentEl);});
     if(texts.length){
-      select('字体',{default:'正文字体',serif:'衬线字体',mono:'等宽字体'},texts.map(n=>n.fontFamily||'default'),(b,value)=>patchText({fontFamily:value as Card['fontFamily']})(b));
+      fieldGroup('文字外观');select('字体',{default:'正文字体',serif:'衬线字体',mono:'等宽字体'},texts.map(n=>n.fontFamily||'default'),(b,value)=>patchText({fontFamily:value as Card['fontFamily']})(b));
       select('字号',Object.fromEntries([...new Set([12,14,16,18,20,24,32,48,...texts.map(n=>n.fontSize||(n.kind==='card'?14:16))])].sort((a,b)=>a-b).map(size=>[String(size),`${size} px`])),texts.map(n=>String(n.fontSize||(n.kind==='card'?14:16))),(b,value)=>patchText({fontSize:Number(value)})(b));
       select('文字颜色',inkLabels,texts.map(n=>n.textColor||'default'),(b,value)=>patchText({textColor:value as Card['textColor']})(b));
       select('文字对齐',{left:'左对齐',center:'居中',right:'右对齐'},texts.map(n=>n.textAlign||'left'),(b,value)=>patchText({textAlign:value as Card['textAlign']})(b));
     }
-    select('边框线型',{solid:'实线',dashed:'虚线',dotted:'点线'},nodes.map(n=>n.borderStyle||'solid'),(b,value)=>b.nodes.filter(n=>ids.has(n.id)).forEach(n=>n.borderStyle=value as Card['borderStyle']));
+    fieldGroup('边框外观');select('边框线型',{solid:'实线',dashed:'虚线',dotted:'点线'},nodes.map(n=>n.borderStyle||'solid'),(b,value)=>b.nodes.filter(n=>ids.has(n.id)).forEach(n=>n.borderStyle=value as Card['borderStyle']));
     select('边框粗细',{'0':'无边框','1':'细 · 1','2':'标准 · 2','3':'粗 · 3','4':'加粗 · 4'},nodes.map(n=>String(n.borderWidth??1)),(b,value)=>b.nodes.filter(n=>ids.has(n.id)).forEach(n=>{n.borderWidth=Number(value);if(n.kind==='text')fitTextNode(n,this.contentEl);}));
     select('边框颜色',{default:'默认样式',...colorNames},nodes.map(n=>n.customBorder?n.color:'default'),(b,value)=>{if(value!=='default'&&!['sand','blue','green','rose','purple'].includes(value))b.version=3;b.nodes.filter(n=>ids.has(n.id)&&!n.locked).forEach(n=>{if(value==='default')delete n.customBorder;else{n.color=value as Card['color'];n.customBorder=true;}});});
     if(this.inline){
@@ -2946,7 +2958,9 @@ class BoardView extends FileView {
     const paperSettings=this.canvasControls?.querySelector<HTMLButtonElement>('.ts-paper-settings-entry');if(paperSettings)paperSettings.hidden=this.plugin.settings.canvasBackground!=='paper';
     this.canvasControls?.querySelectorAll<HTMLButtonElement>('[data-background-choice]').forEach(b=>{const active=b.dataset.backgroundChoice===this.plugin.settings.canvasBackground;b.classList.toggle('is-active',active);b.setAttribute('aria-pressed',String(active));});
     const movable=this.session?.board.nodes.filter(n=>this.selected.has(n.id)&&!n.locked).length||0;
-    this.canvasSummary?.setText(this.selected.size?`已选 ${this.selected.size} 项${movable!==this.selected.size?' · 含锁定对象':''}`:`${this.session?.board.nodes.length||0} 个对象`);
+    const summary=this.selected.size?`已选 ${this.selected.size} 项${movable!==this.selected.size?' · 含锁定对象':''}`:`${this.session?.board.nodes.length||0} 个对象`;
+    if(this.canvasSummary&&this.canvasSummary.textContent!==summary)this.canvasSummary.setText(summary);
+    if(this.focusSelectedButton){this.focusSelectedButton.hidden=!this.selected.size;this.focusSelectedButton.disabled=!this.session||this.session.blocked;this.focusSelectedButton.title=`聚焦所选 ${this.selected.size} 项 · Shift+F`;}
     this.contentEl.classList.toggle('ts-has-selection',this.selected.size>0);
   }
   private drawAlignmentGuides(guides:Guide[]){

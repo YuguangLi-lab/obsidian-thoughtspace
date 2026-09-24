@@ -1,0 +1,35 @@
+/* Permanent controls remain reachable across the gap beyond the connection port. */
+.ts-root .ts-branch-controls {
+ position:absolute; left:calc(100% + 18px); top:50%; transform:translateY(-50%);
+ z-index:9; display:inline-flex; align-items:center; gap:0; width:max-content;
+ border:1px solid var(--ts-board-line,var(--background-modifier-border)); border-radius:7px;
+ background:var(--background-primary); box-shadow:0 2px 6px #00000010;
+ pointer-events:auto;
+}
+.ts-root .ts-branch-controls.ts-branch-controls-group {
+ position:static; inset:auto; transform:none; flex:none;
+}
+.ts-root .ts-branch-controls > :is(.ts-branch-toggle,.ts-branch-menu) {
+ position:static; inset:auto; transform:none; display:inline-flex; align-items:center; justify-content:center;
+ width:auto; min-width:28px; height:28px; min-height:28px; margin:0; padding:0 7px; gap:4px;
+ border:0; border-radius:6px; background:transparent; box-shadow:none;
+ color:var(--text-muted); font:12px/1 var(--font-interface); white-space:nowrap;
+ opacity:1; pointer-events:auto; cursor:pointer; touch-action:manipulation;
+}
+.ts-root .ts-branch-controls > .ts-branch-menu {
+ width:28px; padding:0; border-left:1px solid var(--ts-board-line,var(--background-modifier-border)); border-radius:0 6px 6px 0;
+}
+.ts-root .ts-branch-controls > .ts-branch-toggle > :is(.ts-branch-label,.ts-branch-count) { display:inline; }
+.ts-root .ts-branch-controls .ts-branch-icon { display:inline-flex; align-items:center; }
+.ts-root .ts-branch-controls .ts-branch-icon svg { width:13px; height:13px; }
+.ts-root .ts-branch-controls .ts-branch-count { font-size:11px; line-height:1; font-variant-numeric:tabular-nums; }
+.ts-root .ts-branch-controls > .ts-branch-setup { color:var(--text-muted); }
+.ts-root .ts-branch-controls > button:hover:not(:disabled) { color:var(--text-normal); background:var(--background-modifier-hover); }
+.ts-root .ts-branch-controls > button:focus-visible { outline:2px solid var(--interactive-accent); outline-offset:2px; }
+.ts-root .ts-branch-controls > button:disabled { opacity:.4; cursor:not-allowed; }
+
+/* Content and connected-child actions share the header without hiding their labels. */
+.ts-root .ts-section > .ts-node-header .ts-section-content-fold {
+ width:auto; min-width:28px; height:28px; padding:0 7px; gap:4px; font:12px/1 var(--font-interface);
+}
+.ts-root .ts-section > .ts-node-header .ts-section-content-fold > span:last-child { display:inline; }

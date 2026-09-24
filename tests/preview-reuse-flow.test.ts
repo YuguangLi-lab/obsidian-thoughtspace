@@ -22,6 +22,9 @@ function take(start:string,end:string){const a=source.indexOf(start),b=source.in
 const methods=take('  private renderBoard(', '  private pdfTotals=')
  +take('  private renderPdfCard(', '  private addPorts(')
  +take('  private positionNode(', '  private applyInlineSize(');
+const branchModule={exports:{} as typeof import('../src/branch-controls')};
+new Function('require','module','exports',transformSync(readFileSync('src/branch-controls.ts','utf8'),{loader:'ts',format:'cjs'}).code)(
+ (name:string)=>{assert.equal(name,'obsidian');return{setIcon:()=>{}};},branchModule,branchModule.exports);
 const keys={...renderKeys};
 if(process.env.PREVIEW_KEY_SOURCE){
  const old=readFileSync(process.env.PREVIEW_KEY_SOURCE,'utf8').replace(/^import[^\n]+\n/gm,'').replace(/export /g,'');
@@ -41,6 +44,7 @@ class Dom {
  get isConnected():boolean{return this.root||!!this.parent?.isConnected;}
  get childElementCount(){return this.children.length;}
  get childNodes(){return this.children;}
+ get lastElementChild():Dom|null{return this.children.at(-1)||null;}
  get nextSibling():Dom|null{return this.parent?.children[this.parent.children.indexOf(this)+1]||null;}
  get nextElementSibling():Dom|null{return this.nextSibling;}
  toggleClass(name:string,on:boolean){if(on)this.classes.add(name);else this.classes.delete(name);}
@@ -84,9 +88,9 @@ function fixture(kind:model.Card['kind']='card',patch:Partial<model.Card>={}){
  const calls={metadata:0,tags:0,childCandidates:0,read:0,markdown:0,pdf:0,textFit:0,cardFit:0,mediaFits:[] as {node:model.Card;size:{width:number;height:number}}[]};
  const world=new Dom();world.root=true;const svg=world.createEl('svg'),previewQueue=new Queue(),pdfPreviewQueue=new Queue();
  const session={board,blocked:false,file:new File('board.thoughtspace')};
- const deps={...model,...keys,branchState,childConnectionCandidates:(board:model.Board,roots?:ReadonlySet<string>)=>{calls.childCandidates++;return childConnectionCandidates(board,roots);},sectionDisplayNode,visibleNodes,viewportRect,markdownPreview,visibleGridSize,textFontFamily,cardDisplayTitle,mediaDimensions,
+ const deps={...model,...keys,renderBranchControls:branchModule.exports.renderBranchControls,branchState,childConnectionCandidates:(board:model.Board,roots?:ReadonlySet<string>)=>{calls.childCandidates++;return childConnectionCandidates(board,roots);},sectionDisplayNode,visibleNodes,viewportRect,markdownPreview,visibleGridSize,textFontFamily,cardDisplayTitle,mediaDimensions,
   TFile:File,Component:Scope,Element:Dom,getAllTags:(cache:{tags?:string[]})=>{calls.tags++;return cache.tags||null;},setIcon:()=>{},
-  button:(host:Dom,label:string,_icon:string,fn:()=>void,cls='')=>{const el=host.createEl('button',{cls,attr:{'aria-label':label}});el.onclick=fn;return el;},
+  button:(host:Dom,label:string,_icon:string,fn:()=>void,cls='')=>{const el=host.createEl('button',{cls,attr:{'aria-label':label}});el.createSpan();el.createSpan({text:label});el.onclick=fn;return el;},
   bindCardTitle:()=>()=>{},readProperties:(fm:Record<string,unknown>)=>({status:fm.thoughtspace_status}),statuses:{done:'完成'},isOverdue:()=>false,localDay:()=>'',
   textExcerptPresentation:(body:string)=>({body,sources:[]}),excerptPresentation:(body:string)=>({body,sources:[]}),renderTextPreview:(body:Dom,text:string)=>{body.appendText(text);body.dataset.mathStatus='none';},remoteImageUrl:()=>undefined,
   pdfSubpath:(page:number)=>`#page=${page}`,loadPdfJs:()=>{},

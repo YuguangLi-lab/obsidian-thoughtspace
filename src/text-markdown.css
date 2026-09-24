@@ -47,7 +47,7 @@
 /* Keep native table content readable, and scroll within a manually narrowed frame. */
 .ts-root .ts-text-markdown table { display: block; width: max-content; max-width: 100%; border-collapse: collapse; font: inherit; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
 .ts-root .ts-text-markdown :is(th,td) { min-width: 5em; padding: .4em .65em; border: 1px solid var(--table-border-color,var(--background-modifier-border)); vertical-align: top; }
-.ts-root .ts-text-markdown th { background: var(--table-header-background,var(--background-secondary)); font-weight: var(--table-header-weight,600); }
+.ts-root .ts-text-markdown th { font-weight: var(--table-header-weight,600); }
 .ts-root .ts-text-markdown .math-block { max-width: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
 .ts-root .ts-text-markdown .math-block > mjx-container[display="true"] { margin-block: .35em; }
 .ts-root .ts-text-markdown mjx-container { white-space: normal; }
@@ -78,13 +78,34 @@
 /* A renderer failure leaves readable Markdown source, never a collapsed run of words. */
 .ts-root .ts-text-body:is([data-markdown-status="pending"],[data-markdown-status="error"]) > .ts-text-markdown { white-space: pre-wrap; }
 
-/* Board tables read like a note: spacing and a quiet header, without a surrounding grid. */
+/* Board tables sit on the board or the user's chosen card fill. Native theme
+   header/striped-row backgrounds must not add an opaque sheet inside the card. */
+.ts-root :is(.ts-text-markdown,.ts-card-preview,.ts-inline-native) {
+  --table-background: transparent;
+  --table-header-background: transparent;
+  --table-header-background-hover: transparent;
+  --table-row-background-hover: transparent;
+  --table-row-alt-background: transparent;
+  --table-row-alt-background-hover: transparent;
+  --table-column-alt-background: transparent;
+  --table-column-alt-background-hover: transparent;
+}
+/* Existing text tables without a deliberately selected fill get the same
+   transparent default as newly created tables, without changing stored data. */
+.ts-root .ts-node.ts-text:not(.has-card-fill):has(.ts-text-markdown table) {
+  background: transparent!important;
+  backdrop-filter: none!important;
+}
+/* Preserve the borderless table presentation in preview and live editing. */
 .ts-root :is(.ts-text-markdown,.ts-card-preview,.ts-inline-native) :is(table,thead,tbody,tfoot,tr,th,td) {
   border: 0!important;
   box-shadow: none!important;
 }
-.ts-root .ts-inline-native :is(.cm-table-widget,.table-wrapper,.table-cell-wrapper) {
+.ts-root :is(.ts-text-markdown,.ts-card-preview,.ts-inline-native) :is(.cm-table-widget,.table-wrapper,.table-cell-wrapper) {
   border: 0!important;
   box-shadow: none!important;
 }
-.ts-root :is(.ts-text-markdown,.ts-card-preview,.ts-inline-native) th { background: var(--table-header-background,var(--background-secondary)); }
+/* Keep the native editor's explicit cell-selection highlight available. */
+.ts-root :is(.ts-text-markdown,.ts-card-preview,.ts-inline-native) :is(table,thead,tbody,tfoot,tr,th,td,.cm-table-widget,.table-wrapper,.table-cell-wrapper):not(.is-selected):not([aria-selected="true"]) {
+  background: transparent!important;
+}

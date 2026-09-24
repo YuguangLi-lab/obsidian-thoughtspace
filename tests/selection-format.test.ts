@@ -21,3 +21,44 @@ test('batch formatting refreshes on connection styles or scope changes, not geom
  assert.notEqual(selectionFormatKey(b,ids,undefined,false,{...batch,target:'nodes'}),key);
  b.edges[0].color='red';assert.notEqual(selectionFormatKey(b,ids,undefined,false,batch),key);
 });
+
+test('single-edge format key refreshes on endpoint lock, unlock, deletion and restoration',()=>{
+ const b=emptyBoard();b.nodes=[{...card},{...card,id:'b'}];b.edges=[{id:'e',from:'c',to:'b',label:''}];
+ const key=()=>selectionFormatKey(b,new Set(),'e'),editable=key();
+ for(const node of b.nodes){node.locked=true;assert.notEqual(key(),editable);delete node.locked;assert.equal(key(),editable);}
+ const endpoint=b.nodes.pop()!;assert.notEqual(key(),editable);b.nodes.push(endpoint);assert.equal(key(),editable);
+ b.nodes[0].x=400;b.nodes[0].width=600;b.nodes[0].title='new title';b.nodes[0].text='new content';b.viewport.x=80;
+ assert.equal(key(),editable,'geometry and content do not affect an unfolded endpoint');
+ b.nodes.push({...card,id:'unrelated',locked:true});assert.equal(key(),editable);
+});
+
+test('single-edge format key resolves current folded branch visibility and structural changes',()=>{
+ const b=emptyBoard();b.nodes=[{...card},{...card,id:'b'},{...card,id:'parent'},{...card,id:'other'}];
+ b.edges=[{id:'e',from:'c',to:'b',label:''},{id:'branch',from:'parent',to:'c',kind:'branch',label:''}];
+ const key=()=>selectionFormatKey(b,new Set(),'e'),editable=key();
+ b.nodes[2].branchFolded=true;const hidden=key();assert.notEqual(hidden,editable);
+ b.edges[1].to='other';assert.equal(key(),editable,'the same fold flag must not preserve stale descendants');
+ b.edges[1].to='c';assert.equal(key(),hidden);
+ delete b.nodes[2].branchFolded;assert.equal(key(),editable);
+});
+
+test('single-edge format key changes for folded frame membership, not unrelated geometry',()=>{
+ const b=emptyBoard();b.nodes=[{...card},{...card,id:'b',x:500},{id:'frame',kind:'section',x:-20,y:-20,width:350,height:250,color:'blue',sectionFolded:true}];
+ b.edges=[{id:'e',from:'c',to:'b',label:''}];
+ const key=()=>selectionFormatKey(b,new Set(),'e'),hidden=key();
+ b.nodes[0].x=10;assert.equal(key(),hidden,'movement within the same hidden group preserves the toolbar');
+ b.nodes[2].x=1000;const visible=key();assert.notEqual(visible,hidden);
+ b.nodes[2].x=2000;assert.equal(key(),visible);
+ b.nodes[2].x=-20;assert.equal(key(),hidden);
+ delete b.nodes[2].sectionFolded;assert.equal(key(),visible);
+});
+
+test('single-edge eligibility avoids unrelated branch indexing without applicable folds',()=>{
+ const b=emptyBoard();b.nodes=[{...card},{...card,id:'b'},{...card,id:'other'}];let branchReads=0;
+ b.edges=[{id:'e',from:'c',to:'b',label:''},{id:'branch',from:'other',to:'c',get kind(){branchReads++;return 'branch' as const;},label:''}];
+ const key=()=>selectionFormatKey(b,new Set(),'e');
+ key();assert.equal(branchReads,0,'unfolded endpoint checks need no branch adjacency map');
+ b.nodes[0].locked=true;b.nodes[2].branchFolded=true;
+ key();assert.equal(branchReads,0,'a locked endpoint is already ineligible without branch traversal');
+ delete b.nodes[0].locked;key();assert.ok(branchReads>0,'unlocked folded visibility must be resolved afresh');
+});

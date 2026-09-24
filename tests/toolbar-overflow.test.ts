@@ -9,7 +9,7 @@ class Events{
  dispatch(type:string){for(const run of this.listeners.get(type)||[])run();}
  listenerCount(){let count=0;for(const listeners of this.listeners.values())count+=listeners.size;return count;}
 }
-function fixture(options:{width?:number;content?:number;left?:number;reduced?:boolean;hidden?:boolean;padding?:number}={}){
+function fixture(options:{width?:number;content?:number;left?:number;reduced?:boolean;hidden?:boolean;padding?:number;rtl?:boolean}={}){
  let width=options.width??300,content=options.content??900,left=options.left??0,hidden=options.hidden??false,reduced=options.reduced??false;
  let nextFrame=0,requests=0,measurements=0,writes=0;
  const frames=new Map<number,()=>void>(),calls:ScrollToOptions[]=[],observers:Observer[]=[];
@@ -29,7 +29,7 @@ function fixture(options:{width?:number;content?:number;left?:number;reduced?:bo
  const view=Object.assign(new Events(),{
   requestAnimationFrame:(run:()=>void)=>{requests++;frames.set(++nextFrame,run);return nextFrame;},
   cancelAnimationFrame:(id:number)=>{frames.delete(id);},
-  getComputedStyle:()=>({paddingLeft:String(options.padding??0),paddingRight:String(options.padding??0)}),
+  getComputedStyle:()=>({paddingLeft:String(options.padding??0),paddingRight:String(options.padding??0),direction:options.rtl?'rtl':'ltr'}),
   matchMedia:(query:string)=>{assert.equal(query,'(prefers-reduced-motion: reduce)');return{matches:reduced};},
   ResizeObserver:Observer,MutationObserver:Observer,
  });
@@ -90,6 +90,23 @@ test('clicks move three quarters of the actual viewport and clamp to each bounda
  f.scroll(620);f.flush();f.next.dispatch('click');assert.deepEqual(f.calls.at(-1),{left:660,behavior:'smooth'});f.flush();assert.equal(f.next.disabled,true);
  f.scroll(30);f.flush();f.previous.dispatch('click');assert.deepEqual(f.calls.at(-1),{left:0,behavior:'smooth'});f.flush();assert.equal(f.previous.disabled,true);
  assert.equal(f.doc.activeElement,f.editor);assert.equal(f.scroller.listeners.has('wheel'),false);assert.equal(f.scroller.listeners.has('keydown'),false);f.dispose();
+});
+test('RTL overflow arrows follow logical tool order through the negative scroll range',()=>{
+ const f=fixture({rtl:true});visibility(f,true);assert.equal(f.previous.disabled,true);assert.equal(f.next.disabled,false);
+ f.next.dispatch('click');assert.deepEqual(f.calls.at(-1),{left:-180,behavior:'smooth'});f.flush();
+ assert.equal(f.previous.disabled,false);assert.equal(f.next.disabled,false);
+ f.scroll(-620);f.flush();f.next.dispatch('click');assert.deepEqual(f.calls.at(-1),{left:-660,behavior:'smooth'});f.flush();
+ assert.equal(f.previous.disabled,false);assert.equal(f.next.disabled,true);
+ f.previous.dispatch('click');assert.deepEqual(f.calls.at(-1),{left:-480,behavior:'smooth'});f.flush();assert.equal(f.next.disabled,false);
+ f.scroll(-30);f.flush();f.previous.dispatch('click');assert.deepEqual(f.calls.at(-1),{left:0,behavior:'smooth'});f.flush();
+ assert.equal(f.previous.disabled,true);assert.equal(f.next.disabled,false);assert.equal(f.doc.activeElement,f.editor);f.dispose();
+});
+test('RTL boundary state tolerates scroll overshoot and content changes without resetting its position',()=>{
+ const f=fixture({rtl:true,left:-400});assert.equal(f.previous.disabled,false);assert.equal(f.next.disabled,false);
+ f.replace(640);f.flush();assert.equal(f.next.disabled,true);assert.equal(f.state().left,-400);
+ f.replace(1100);f.flush();assert.equal(f.next.disabled,false);assert.equal(f.state().left,-400);
+ f.scroll(-1000);f.flush();assert.equal(f.previous.disabled,false);assert.equal(f.next.disabled,true);
+ f.scroll(20);f.flush();assert.equal(f.previous.disabled,true);assert.equal(f.next.disabled,false);f.dispose();
 });
 test('reduced motion preference is respected including changes while the toolbar is open',()=>{
  const f=fixture({reduced:true});f.next.dispatch('click');assert.equal(f.calls.at(-1)?.behavior,'auto');

@@ -23,14 +23,13 @@ export function makeChildConnection(board:Board,edgeId:string){
 
 function isChildRelation(edge:Edge){return edge.kind!=='branch'&&(!edge.direction||edge.direction==='forward')&&edge.from!==edge.to;}
 function childNodes(board:Board){return new Map<string,Card>(board.nodes.map(node=>[node.id,node]));}
-function compatibleChildren(from:Card|undefined,to:Card|undefined){return !!from&&!!to&&(from.kind==='section')===(to.kind==='section');}
 /** Transaction-local index; scope it to visible/selected roots instead of retaining stale candidates. */
 export function childConnectionCandidates(board:Board,roots?:ReadonlySet<string>):Map<string,string[]> {
  const result=new Map<string,string[]>();if(roots&&!roots.size)return result;
  let nodes:Map<string,Card>|undefined;
  for(const edge of board.edges){
   if((roots&&!roots.has(edge.from))||!isChildRelation(edge))continue;
-  nodes??=childNodes(board);if(!compatibleChildren(nodes.get(edge.from),nodes.get(edge.to)))continue;
+  nodes??=childNodes(board);if(!nodes.has(edge.from)||!nodes.has(edge.to))continue;
   const ids=result.get(edge.from);if(ids)ids.push(edge.id);else result.set(edge.from,[edge.id]);
  }
  return result;
@@ -41,7 +40,7 @@ export function makeChildConnections(board:Board,roots:ReadonlySet<string>){
  let nodes:Map<string,Card>|undefined,edges:Edge[]|undefined;
  for(let i=0;i<board.edges.length;i++){
   const edge=board.edges[i];if(!roots.has(edge.from)||!isChildRelation(edge))continue;
-  nodes??=childNodes(board);const from=nodes.get(edge.from),to=nodes.get(edge.to);if(!from||!to||!compatibleChildren(from,to))continue;
+  nodes??=childNodes(board);const from=nodes.get(edge.from),to=nodes.get(edge.to);if(!from||!to)continue;
   if(from.locked||to.locked)throw Error('请先解锁连线两端');
   edges??=board.edges.slice();edges[i]={...edge,kind:'branch',direction:'forward'};
  }

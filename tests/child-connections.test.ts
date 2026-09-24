@@ -14,14 +14,14 @@ function unchangedAfterFailure(b:Board,roots:string[],message:RegExp){
  b.edges.forEach((e,i)=>assert.equal(e,edgeObjects[i]));
 }
 
-test('candidate discovery ignores missing, self, section, branch, bidirectional, and undirected links',()=>{
+test('candidate discovery includes mixed group links and ignores missing, self, branch, bidirectional, and undirected links',()=>{
  const b=board([node('root'),node('child'),node('frame','section')],[
   edge('legacy','root','child'),edge('forward','root','child',{direction:'forward'}),
   edge('branch','root','child',{kind:'branch'}),edge('both','root','child',{direction:'both'}),edge('none','root','child',{direction:'none'}),
   edge('missing-parent','absent','child'),edge('missing-child','root','absent'),edge('self','root','root'),
   edge('section-parent','frame','child'),edge('section-child','root','frame'),
  ]),before=clone(b);
- assert.deepEqual([...childConnectionCandidates(b)],[['root',['legacy','forward']]]);
+ assert.deepEqual([...childConnectionCandidates(b)],[['root',['legacy','forward','section-child']],['frame',['section-parent']]]);
  assert.deepEqual(b,before);
 });
 
@@ -38,7 +38,7 @@ test('candidate discovery reflects edits, deletions, and undo without a stale bo
  assert.equal(childConnectionCandidates(b).has('root'),true);
  b.edges[0].direction='both';assert.equal(childConnectionCandidates(b).size,0);
  b.edges=original.edges;assert.equal(childConnectionCandidates(b).has('root'),true);
- b.nodes[1].kind='section';assert.equal(childConnectionCandidates(b).size,0);
+ b.nodes[1].kind='section';assert.equal(childConnectionCandidates(b).has('root'),true);
  b.nodes=[node('root')];assert.equal(childConnectionCandidates(b).size,0);
  b.nodes=original.nodes;assert.equal(childConnectionCandidates(b).has('root'),true);
 });
@@ -64,9 +64,9 @@ test('empty, missing, and relation-free selections are exact no-ops including bo
 });
 
 test('invalid ordinary endpoints remain untouched when a valid sibling is converted',()=>{
- const b=board([node('root'),node('child'),node('frame','section')],[
+ const b=board([node('root'),node('child')],[
   edge('valid','root','child'),edge('self','root','root'),edge('missing','root','absent'),
-  edge('section-child','root','frame'),edge('section-parent','frame','child'),edge('missing-parent','absent','child'),
+  edge('missing-parent','absent','child'),
  ]),edges=b.edges;
  makeChildConnections(b,new Set(['root','frame','absent']));
  assert.equal(b.edges[0].kind,'branch');for(let i=1;i<edges.length;i++)assert.equal(b.edges[i],edges[i]);

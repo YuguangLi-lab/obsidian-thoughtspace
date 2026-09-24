@@ -1,0 +1,70 @@
+/* Connection appearance shares the compact inspector rhythm with card styling. */
+.ts-root .ts-floating-formatbar .ts-edge-format-group {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  padding-inline: 3px;
+}
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-edge-format-group .ts-format-field {
+  --ts-format-value-width: 78px;
+  margin: 0;
+  gap: 2px;
+  padding-inline: 5px 0;
+  border: 0;
+  border-radius: 5px;
+}
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-edge-format-group .ts-format-label { display: none; }
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-edge-format-group .ts-format-field[data-format="连线路径"] { --ts-format-value-width: 94px; }
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-edge-format-group select { padding-inline: 4px 18px !important; font-weight: 400; }
+.ts-root .ts-floating-formatbar .ts-edge-format-group .ts-format-field:focus-within { background: var(--ts-board-hover); }
+.ts-root .ts-floating-formatbar .ts-edge-format-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  padding-inline-start: 6px;
+  border-inline-start: 1px solid var(--ts-board-line);
+}
+.ts-root .ts-floating-formatbar .ts-edge-format-actions .ts-edge-apply-all { margin-inline-start: 5px; }
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-edge-scope {
+  --ts-format-value-width: 124px;
+  gap: 3px;
+  margin: 0;
+  padding-inline: 6px 0;
+  border: 0;
+  border-inline-end: 1px solid var(--ts-board-line);
+  border-radius: 0;
+}
+.ts-root .ts-floating-formatbar .ts-batch-format-switch { margin-inline: 0 3px; border-radius: 6px; }
+.ts-root[data-toolbar-density=comfortable] .ts-floating-formatbar .ts-edge-format-group { gap: 4px; padding-inline: 5px; }
+.ts-root[data-toolbar-density=comfortable] .ts-floating-formatbar .ts-commandbar .ts-edge-format-group .ts-format-label { display: inline; }
+
+/* Three recent actions stay inside the existing scrollable tools list. */
+.ts-root .ts-rail-popover .ts-rail-recent {
+  flex: 0 0 auto;
+  min-width: 0;
+  padding: 0 0 6px;
+  margin-bottom: 3px;
+  border-bottom: 1px solid var(--ts-board-line);
+}
+.ts-root .ts-rail-popover .ts-rail-recent-title {
+  padding: 7px 8px 4px;
+  color: var(--text-muted);
+  font-size: 10px;
+  line-height: 1.5;
+  font-weight: 600;
+}
+.ts-root .ts-rail-popover .ts-rail-recent-actions { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ts-root .ts-rail-popover .ts-rail-recent-button {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  justify-content: flex-start;
+  gap: 9px;
+  padding-inline: 8px !important;
+  text-align: start;
+}
+.ts-root .ts-rail-popover .ts-rail-recent-button > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ts-root .ts-rail-popover .ts-rail-recent-button svg { width: 14px; height: 14px; color: var(--text-muted); }
+.ts-root .ts-rail-popover .ts-rail-recent[hidden] { display: none !important; }

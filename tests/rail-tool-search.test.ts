@@ -50,10 +50,12 @@ function fixture(options:{hiddenGroup?:boolean;integration?:boolean}={}){
  if(options.integration){
   const source=readFileSync('src/main.ts','utf8'),start=source.indexOf('    for(const area of [rail,panel]){'),end=source.indexOf('    const footer=',start);assert.ok(start>=0&&end>start);
   new Function('rail','panel','HTMLButtonElement','closeTools',transformSync(source.slice(start,end),{loader:'ts'}).code)(rail,panel,Button,()=>closed++);
+  const clickStart=source.indexOf("    panel.addEventListener('click',"),clickEnd=source.indexOf("    panel.addEventListener('focusout',",clickStart);assert.ok(clickStart>=0&&clickEnd>clickStart);
+  new Function('panel','toolbar','closeTools',transformSync(source.slice(clickStart,clickEnd),{loader:'ts'}).code)(panel,tools,()=>closed++);
  }
  const search=(value:string)=>{input.value=value;input.dispatch('input');};
  const key=(target:Element,key:string,extra:Record<string,unknown>={})=>target.dispatch('keydown',{key,...extra});
- return{doc,panel,tools,organize,mindmap,workspace,overview,move,topic,pdf,read,hidden,input,clear,status,empty,binding,search,key,closed:()=>closed,visible:()=>tools.querySelectorAll('button').filter(element=>element.getClientRects().length>0)};
+ return{doc,panel,tools,organize,mindmap,workspace,overview,move,topic,pdf,read,hidden,input,clear,status,empty,binding,search,key,closed:()=>closed,install:()=>module.exports.installRailToolSearch(panel,tools),recent:()=>tools.querySelectorAll('.ts-rail-recent-button'),recentGroup:()=>tools.querySelectorAll('.ts-rail-recent')[0],visible:()=>tools.querySelectorAll('button').filter(element=>element.getClientRects().length>0)};
 }
 
 test('search normalizes full-width text and combines tokens across tool title and group name',()=>{
@@ -95,5 +97,42 @@ test('hidden original clusters never count as matches or leave a false nonempty 
 test('disposing removes search surfaces and listeners and restores original hidden states',()=>{
  const f=fixture({hiddenGroup:true});f.search('pdf');f.binding.dispose();f.binding.dispose();assert.equal(f.panel.children.length,1);assert.equal(f.organize.hidden,false);assert.equal(f.mindmap.hidden,true);assert.equal(f.hidden.hidden,true);assert.equal(f.topic.hidden,false);
  f.input.value='分组';f.input.dispatch('input');f.key(f.input,'Enter');f.clear.click();f.binding.open();assert.equal(f.input.value,'分组');assert.equal(f.pdf.hidden,false);assert.equal(f.overview.clicks,0);
- for(const element of [f.input,f.clear,f.panel])for(const listeners of element.listeners.values())assert.equal(listeners.length,0);
+ for(const element of [f.input,f.clear,f.panel,f.tools])for(const listeners of element.listeners.values())assert.equal(listeners.length,0);
+});
+
+test('recent actions keep three distinct latest tools without moving the original buttons',()=>{
+ const f=fixture(),originals=f.tools.querySelectorAll('button');assert.equal(f.recentGroup().hidden,true);
+ f.overview.click();f.move.click();f.topic.click();f.pdf.createSpan().click();
+ assert.deepEqual(f.recent().map(button=>button.getAttribute('aria-label')),['插入 PDF 卡片','子主题 · Tab','移入已有分组']);
+ f.topic.click();assert.deepEqual(f.recent().map(button=>button.getAttribute('aria-label')),['子主题 · Tab','插入 PDF 卡片','移入已有分组']);
+ assert.deepEqual(f.tools.querySelectorAll('button').filter(button=>!button.matches('.ts-rail-recent-button')),originals);f.binding.dispose();
+});
+test('search hides recent shortcuts and counts each original result only once',()=>{
+ const f=fixture();f.pdf.click();f.read.click();assert.equal(f.recent().length,2);
+ f.search('pdf');assert.equal(f.recentGroup().hidden,true);assert.deepEqual(f.visible(),[f.pdf,f.read]);assert.match(f.status.textContent,/^2 项工具/);
+ f.search('not found');assert.equal(f.empty.hidden,false);f.clear.click();assert.equal(f.recentGroup().hidden,false);assert.equal(f.recent().length,2);assert.equal(f.empty.hidden,true);f.binding.dispose();
+});
+test('recent shortcuts execute the current original handler once and follow the existing panel close flow',()=>{
+ const f=fixture({integration:true});let actions=0;f.pdf.addEventListener('click',()=>actions++);f.pdf.click();assert.equal(f.closed(),1);
+ f.recent()[0].children[1].click();assert.equal(actions,2);assert.equal(f.pdf.clicks,2);assert.equal(f.closed(),2);assert.equal(f.recent().length,1);
+ f.key(f.input,'Enter');assert.equal(actions,3);assert.equal(f.closed(),3);f.key(f.input,'Enter',{repeat:true});assert.equal(actions,3);f.binding.dispose();
+});
+test('recent buttons join the existing keyboard order and Up from the first returns to search',()=>{
+ const f=fixture({integration:true});f.pdf.click();f.topic.click();const recent=f.recent();
+ f.key(f.input,'ArrowDown');assert.equal(f.doc.activeElement,recent[0]);f.key(recent[0],'ArrowDown');assert.equal(f.doc.activeElement,recent[1]);
+ f.key(recent[1],'ArrowDown');assert.equal(f.doc.activeElement,f.overview);f.key(f.overview,'ArrowUp');assert.equal(f.doc.activeElement,recent[1]);
+ f.key(recent[0],'ArrowUp');assert.equal(f.doc.activeElement,f.input);f.key(f.input,'ArrowUp');assert.equal(f.doc.activeElement,f.read);f.binding.dispose();
+});
+test('recent shortcuts refresh labels and toggle state from originals when reopening',()=>{
+ const f=fixture();f.pdf.click();f.pdf.className='ts-button is-active';f.pdf.setAttribute('aria-label','当前 PDF');f.pdf.setAttribute('title','当前工具提示');f.pdf.setAttribute('aria-pressed','true');f.binding.open();
+ const recent=f.recent()[0];assert.equal(recent.getAttribute('aria-label'),'当前 PDF');assert.equal(recent.title,'当前工具提示');assert.equal(recent.getAttribute('aria-pressed'),'true');assert.ok(recent.matches('.is-active'));f.binding.dispose();
+});
+test('hidden, disabled and removed originals cannot remain executable recent actions',()=>{
+ const f=fixture();f.pdf.click();f.topic.click();f.move.click();const stale=f.recent()[0];f.move.disabled=true;stale.click();assert.equal(f.move.clicks,1);assert.equal(f.recent().length,2);
+ f.pdf.hidden=true;f.mindmap.hidden=true;f.binding.open();assert.equal(f.pdf.hidden,true);assert.equal(f.mindmap.hidden,true);assert.equal(f.recentGroup().hidden,true);
+ f.move.disabled=false;f.move.remove();f.binding.open();stale.click();assert.equal(f.move.clicks,1);assert.equal(f.recent().length,0);f.binding.dispose();assert.equal(f.pdf.hidden,true);assert.equal(f.mindmap.hidden,true);
+});
+test('installing twice shares one binding and disposing clears only its panel-local recent history',()=>{
+ const f=fixture();f.pdf.click();const again=f.install();assert.equal(again,f.binding);assert.equal(f.panel.querySelectorAll('.ts-rail-search').length,1);assert.equal(f.tools.querySelectorAll('.ts-rail-recent').length,1);assert.equal(f.tools.listeners.get('click')?.length,1);
+ f.binding.dispose();const next=f.install();assert.notEqual(next,f.binding);assert.equal(f.recentGroup().hidden,true);assert.equal(f.recent().length,0);next.dispose();
 });

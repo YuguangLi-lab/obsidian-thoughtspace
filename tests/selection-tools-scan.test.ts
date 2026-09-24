@@ -6,6 +6,9 @@ import {clone, colorNames, emptyBoard, type Board} from '../src/model';
 import {selectionEdges, patchSelectionEdges} from '../src/selection-edges';
 import {selectionFormatKey} from '../src/selection-format';
 
+const controlsModule={exports:{} as any};
+new Function('require','module','exports',transformSync(readFileSync('src/edge-format-controls.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>name==='obsidian'?{setIcon:()=>{}}:name==='./model'?{colorNames}:{},controlsModule,controlsModule.exports);
+const renderEdgeFormatControls=controlsModule.exports.renderEdgeFormatControls;
 const source = readFileSync('src/main.ts', 'utf8');
 function take(start: string, end: string): string {
   const from = source.indexOf(start), to = source.indexOf(end, from);
@@ -47,7 +50,7 @@ class Element {
 function fixture(size = 4) {
   const scans: {nodes: number; edges: number}[] = [];
   const deps = {
-    colorNames, selectionFormatKey, patchSelectionEdges,
+    colorNames, selectionFormatKey, patchSelectionEdges, renderEdgeFormatControls,
     selectionEdges: (...args: Parameters<typeof selectionEdges>) => {
       scans.push({nodes: args[0].nodes.length, edges: args[0].edges.length});
       return selectionEdges(...args);

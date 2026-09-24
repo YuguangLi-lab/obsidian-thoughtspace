@@ -6,8 +6,16 @@ export type SelectionEdgePatch = Partial<Pick<Edge, 'style' | 'direction' | 'das
 
 /** Keep this index transaction-local: selection menus can outlive edits and undo. */
 function editableEndpoints(board: Board): Set<string> {
-  const {hidden} = branchState(board);
-  return new Set(board.nodes.filter(node => !node.locked && !hidden.has(node.id)).map(node => node.id));
+  const editable = new Set<string>();
+  let hasFolds = false;
+  for (const node of board.nodes) {
+    if (!node.locked) editable.add(node.id);
+    if (node.branchFolded || node.sectionFolded) hasFolds = true;
+  }
+  // Toolbar refreshes also run during drags. Unfolded boards need no branch
+  // adjacency maps; any fold still resolves fresh geometry and descendants.
+  if (hasFolds) for (const id of branchState(board).hidden) editable.delete(id);
+  return editable;
 }
 
 /** O(nodes + edges); internal links are the safe default for a marquee selection. */

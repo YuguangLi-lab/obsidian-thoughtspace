@@ -1,0 +1,97 @@
+/* Keep capture, navigation and results on one quiet, native sidebar surface. */
+.ts-root.ts-dock { --ts-nav-gutter: 12px; }
+.ts-root.ts-dock .ts-dock-quick {
+  padding: 12px var(--ts-nav-gutter) 6px !important;
+  gap: 6px;
+}
+.ts-root.ts-dock .ts-dock-quick > .ts-primary { border: 1px solid transparent !important; }
+.ts-root.ts-dock .ts-dock-quick > .ts-primary:hover { border-color: var(--ts-nav-line) !important; }
+.ts-root.ts-dock .ts-dock-shortcuts {
+  margin-inline: var(--ts-nav-gutter);
+  gap: 2px 6px;
+  padding-bottom: 10px;
+}
+.ts-root.ts-dock .ts-dock-shortcuts > .ts-button { padding-inline: 7px !important; }
+.ts-root.ts-dock .ts-dock-host { padding: 8px var(--ts-nav-gutter) 0 !important; }
+.ts-root.ts-dock .ts-sidebar > .ts-tabs { margin-bottom: 10px !important; }
+.ts-root.ts-dock .ts-sidebar > .ts-tabs > .ts-button { height: 32px; min-height: 32px; }
+.ts-root.ts-dock .ts-sidebar > .ts-tabs > .ts-button { border-color: transparent !important; box-shadow: none !important; }
+.ts-root.ts-dock .ts-sidebar > .ts-tabs > .ts-button.is-active::after { left: 10px; right: 10px; }
+
+/* A visible field boundary helps search remain distinct from navigation. */
+.ts-root.ts-dock .ts-sidebar-search {
+  height: 34px;
+  margin-bottom: 10px;
+  border-color: var(--ts-nav-line);
+  border-radius: 7px;
+  background: var(--ts-nav-surface);
+}
+.ts-root.ts-dock .ts-sidebar-search > .ts-search { height: 32px !important; }
+.ts-root.ts-dock .ts-sidebar-search > .ts-search::placeholder { color: var(--text-muted); }
+.ts-root.ts-dock .ts-sidebar-search:focus-within {
+  border-color: var(--ts-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ts-accent) 10%, transparent);
+}
+.ts-root.ts-dock .ts-sidebar-search:focus-within .ts-sidebar-search-icon { color: var(--ts-accent); }
+.ts-root.ts-dock .ts-sidebar-search > .ts-search:focus {
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+.ts-root.ts-dock .ts-search-clear { margin-right: 3px; }
+
+/* Scope and list tools form a single compact header above the tree. */
+.ts-root.ts-dock .ts-board-browser-head { padding-bottom: 6px; }
+.ts-root.ts-dock .ts-board-switch { padding: 3px !important; gap: 3px; }
+.ts-root.ts-dock .ts-board-switch > .ts-button { height: 29px; min-height: 29px; }
+.ts-root.ts-dock .ts-board-switch > .ts-button.is-active {
+  color: var(--ts-accent) !important;
+  box-shadow: none !important;
+}
+.ts-root.ts-dock .ts-board-list-controls { gap: 3px; margin-top: 5px !important; }
+.ts-root.ts-dock .ts-board-list-controls > select { padding-left: 7px !important; }
+.ts-root.ts-dock .ts-board-list-controls > select:hover { background-color: var(--ts-nav-subtle) !important; }
+.ts-root.ts-dock .ts-board-list-controls > .ts-icon-button { flex-basis: 28px; }
+
+/* Larger disclosures are easier to hit; restrained indentation protects titles. */
+.ts-root.ts-dock .ts-tree-row {
+  --ts-nav-tree-indent: min(calc(var(--ts-tree-depth, 0) * 14px), 70px);
+  padding-right: 2px;
+}
+.ts-root.ts-dock :is(.ts-tree-row, .ts-favorite-row) { height: 33px; min-height: 33px !important; }
+.ts-root.ts-dock :is(.ts-tree-toggle, .ts-tree-spacer) {
+  flex: 0 0 22px;
+  width: 22px;
+  min-width: 22px;
+  height: 30px;
+  border-radius: 5px !important;
+}
+.ts-root.ts-dock .ts-tree-toggle svg { width: 14px; height: 14px; }
+.ts-root.ts-dock .ts-tree-title { height: 31px; min-height: 31px !important; gap: 7px; padding-inline: 3px !important; }
+.ts-root.ts-dock .ts-tree-row[aria-level]:not([aria-level='1'])::before { left: calc(var(--ts-nav-tree-indent) - 4px); }
+.ts-root.ts-dock .ts-tree-row.is-current::after { display: none; }
+.ts-root.ts-dock .ts-tree-row:not(.is-current):focus-within { background: var(--ts-nav-hover) !important; }
+.ts-root.ts-dock .ts-tree-count { min-width: 16px; margin-right: 2px; padding-inline: 3px; }
+.ts-root.ts-dock .ts-tree-add { flex-basis: 26px; width: 26px; height: 28px; margin-right: 1px; }
+.ts-root.ts-dock .ts-tree-warning { flex: none; margin-right: 4px; font-size: 10px; line-height: 1.5; }
+.ts-root.ts-dock .ts-tree-help { margin: 9px 6px 0; line-height: 1.7; }
+.ts-root.ts-dock .ts-favorites > .ts-list-heading { margin: 3px 7px 5px; }
+.ts-root.ts-dock .ts-favorite-row > .ts-tree-title { padding-left: 7px !important; }
+.ts-root.ts-dock .ts-favorite-row > .ts-icon-button { flex-basis: 26px; width: 26px; height: 28px; }
+.ts-root.ts-dock .ts-favorite-hint { margin-top: 5px; padding: 12px; background: transparent; }
+
+@container ts-sidebar-shell (max-width: 260px) {
+  .ts-root.ts-dock .ts-dock-quick { padding-inline: 10px !important; }
+  .ts-root.ts-dock .ts-dock-shortcuts { margin-inline: 10px; gap: 2px 4px; }
+  .ts-root.ts-dock .ts-dock-shortcuts > .ts-button { gap: 5px; padding-inline: 5px !important; }
+  .ts-root.ts-dock .ts-dock-host { padding-inline: 10px !important; }
+  .ts-root.ts-dock .ts-sidebar > .ts-tabs > .ts-button { gap: 3px; padding-inline: 1px !important; }
+  .ts-root.ts-dock .ts-board-switch > .ts-button { gap: 4px; padding-inline: 2px !important; }
+  .ts-root.ts-dock .ts-tree-row { --ts-nav-tree-indent: min(calc(var(--ts-tree-depth, 0) * 11px), 44px); }
+  .ts-root.ts-dock .ts-tree-title { gap: 5px; padding-inline: 2px !important; }
+}
+@container ts-sidebar-shell (min-width: 320px) {
+  .ts-root.ts-dock .ts-dock-quick { padding-inline: 14px !important; }
+  .ts-root.ts-dock .ts-dock-shortcuts { margin-inline: 14px; }
+  .ts-root.ts-dock .ts-dock-host { padding-inline: 14px !important; }
+}

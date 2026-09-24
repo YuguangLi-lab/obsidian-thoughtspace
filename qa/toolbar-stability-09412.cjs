@@ -1,11 +1,25 @@
-const fs=require('node:fs'),{transformSync}=require('esbuild'),assert=require('node:assert/strict');
-const source=fs.readFileSync('src/main.ts','utf8'),start=source.indexOf('  private renderSelectionTools(){'),end=source.indexOf('  private renderInspector()',start),code=source.slice(start,end);
-let created=0,emptied=0;
-class El{constructor(){this.children=[];this.isConnected=true;this.classList={add(){},toggle(){}};}createEl(tag,options){created++;const el=new El();Object.assign(el,options);this.children.push(el);return el;}createSpan(o){return this.createEl('span',o)}empty(){emptied++;this.children=[]}addClass(){}toggleClass(){}setAttribute(){}querySelectorAll(){return []}append(el){this.children.push(el)}}
-const helper={exports:{}};new Function('module','exports',transformSync(fs.readFileSync('src/selection-format.ts','utf8'),{loader:'ts',format:'cjs'}).code)(helper,helper.exports);
-const View=new Function('selectionFormatKey','preserveToolbarFocus','colorNames','button','act','markdownToolbar',transformSync('class View{'+code+'}\nreturn View',{loader:'ts'}).code)(helper.exports.selectionFormatKey,()=>()=>{},{sand:'米黄',red:'红色'},(parent,label)=>parent.createEl('button',{text:label}),(fn)=>fn(),(host,editor)=>{host.createEl('button',{text:'粗体'});editor.replaceToolbar(()=>{});});
-const v=new View();v.selectionTools=new El();v.selected=new Set();v.selectedEdge='e';v.session={blocked:false,board:{version:3,nodes:[],edges:[{id:'e',from:'a',to:'b',label:'支持',color:'sand'}],viewport:{x:0,y:0,zoom:1}}};
-v.renderSelectionTools();const initialCreated=created;for(let i=0;i<200;i++){v.session.board.viewport.x=i;v.renderSelectionTools()}
-console.log(JSON.stringify({initialCreated,created,emptied,frames:200}));assert.equal(emptied,1,'pan frames must not rebuild unchanged toolbar');v.session.board.edges[0].color='red';v.renderSelectionTools();assert.equal(emptied,2);v.session.blocked=true;v.renderSelectionTools();assert.equal(emptied,3);v.session={...v.session};v.renderSelectionTools();assert.equal(emptied,4);console.log('PASS unchanged controls retained; color/blocked/owner changes invalidate');
-
-v.selectedEdge=undefined;v.selected=new Set(['n']);v.session.board.nodes=[{id:'n',kind:'card',file:'n.md'}];v.inlineId='n';let disposed=0;const makeEditor=()=>({input:{focus(){}},replaceToolbar(fn){if(this.cleanup){disposed++;this.cleanup()}this.cleanup=fn}});v.inline=makeEditor();v.renderSelectionTools();const baseline=emptied;for(let i=0;i<200;i++)v.renderSelectionTools();console.log(JSON.stringify({inlineRebuilds:emptied-baseline,disposed}));assert.equal(emptied,baseline,'same editor toolbar must survive refreshes');v.inline=makeEditor();v.renderSelectionTools();assert.equal(emptied,baseline+1,'new editor must have new listeners');console.log('PASS active editor toolbar reused and editor identity invalidates');
+const assert=require('node:assert/strict');
+const{createHarness,verifyEdgeStability}=require('./toolbar-stability-09411.cjs');
+const f=createHarness();verifyEdgeStability(f);
+const{view,board,host,counts,El}=f;
+view.selectedEdge=undefined;view.selected=new Set(['n']);board.nodes=[{id:'n',kind:'card',file:'n.md'}];view.inlineId='n';
+let disposed=0;
+const makeEditor=()=>{
+ const input=new El('textarea');input.value='A note';input.selectionStart=0;input.selectionEnd=0;
+ return{input,format(){},history(){},replaceToolbar(dispose){if(this.cleanup){disposed++;this.cleanup();}this.cleanup=dispose;}};
+};
+view.inline=makeEditor();view.renderSelectionTools();
+const baseline=counts.emptied,editor=view.inline,bold=host.querySelectorAll('button').find(button=>button.dataset.command==='bold');
+assert.ok(bold,'the real Markdown toolbar must render its formatting controls');
+assert.equal(editor.input.listeners.get('input').size,1,'one real toolbar subscription is installed');
+for(let i=0;i<200;i++)view.renderSelectionTools();
+console.log(JSON.stringify({inlineRebuilds:counts.emptied-baseline,disposed}));
+assert.equal(counts.emptied,baseline,'same editor toolbar must survive refreshes');
+assert.equal(editor.input.listeners.get('input').size,1,'stable refreshes must not duplicate subscriptions');
+assert.equal(disposed,0,'stable refreshes must not detach the active editor toolbar');
+view.inline=makeEditor();view.renderSelectionTools();
+assert.equal(counts.emptied,baseline+1,'new editor must have new listeners');assert.equal(bold.isConnected,false);
+assert.equal(view.inline.input.listeners.get('input').size,1);
+editor.replaceToolbar();view.inline.replaceToolbar();
+assert.equal(editor.input.listeners.get('input').size,0);assert.equal(view.inline.input.listeners.get('input').size,0);
+console.log('PASS active editor toolbar reused and editor identity invalidates');
