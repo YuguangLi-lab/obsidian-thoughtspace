@@ -7,16 +7,49 @@ function fixture(kind:'card'|'text'='card'){
  const measure=(id:string)=>{measured++;return measurements.get(id)!;};
  const View=new Function('nodeFitChanges','clone','fitTextNode','measureNoteCard',transformSync('class View{'+code+'}\nreturn View',{loader:'ts'}).code)(nodeFitChanges,structuredClone,(n:Card)=>Object.assign(n,measure(n.id)),(preview:{fitId:string})=>measure(preview.fitId));
  const node:Card={id:'a',kind,file:'n.md',color:'sand',autoFit:true,x:0,y:0,width:300,height:150};
- const v=new View();v.pendingFits=new Map();v.nodeKeys=new Map([['a','current']]);let scheduled=0,saves=0;
+ const v=new View();v.pendingFits=new Map();v.deferredCardFits=new Set();v.nodeKeys=new Map([['a','current']]);let scheduled=0,saves=0;
  v.nodeFitQueue={schedule(){scheduled++}};v.session={board:{nodes:[node],viewport:{x:0,y:0,zoom:1}},change(fn:any){saves++;fn(this.board)}};
- const preview={isConnected:true,fitId:node.id,dataset:{mathStatus:'none'}};v.positions=new Map([[node.id,{querySelector:()=>preview}]]);
- v.renderBoard=()=>{};v.flushPointer=()=>{};v.previewGridLanding=()=>{};v.drawAlignmentGuides=()=>{};v.stage={hasPointerCapture:()=>false};
+ const preview={isConnected:true,offsetWidth:300,fitId:node.id,dataset:{mathStatus:'none'},getAttribute:(_name:string):string|null=>null};v.positions=new Map([[node.id,{querySelector:()=>preview}]]);
+ v.renderBoard=()=>{};v.scheduleRender=()=>{};v.flushPointer=()=>{};v.previewGridLanding=()=>{};v.drawAlignmentGuides=()=>{};v.stage={clientWidth:1000,clientHeight:700,hasPointerCapture:()=>false};
  return{v,node,preview,measurements,counts:()=>({scheduled,saves,measured})};
 }
 test('preview finishing during a pan applies its measured size after release',()=>{
  const {v,node,counts}=fixture();v.gesture={id:1,pan:true,x:NaN,y:NaN};v.queueNodeFit(node,{width:300,height:420});
  assert.equal(v.pendingFits.size,1,'pan must not discard completed measurements');assert.equal(node.height,150);
  v.pointerUp({pointerId:1});assert.ok(counts().scheduled>0);v.flushNodeFits();assert.equal(node.height,420);assert.equal(counts().saves,1);
+});
+
+test('a hidden connected card defers measuring until the actual stage resize callback reveals it',()=>{
+ const {v,node,preview,measurements,counts}=fixture();preview.offsetWidth=0;measurements.set('a',{width:2,height:150});
+ v.queueCardFit(node,preview);v.flushNodeFits();
+ assert.equal(counts().measured,0);assert.equal(counts().saves,0);assert.deepEqual([...v.deferredCardFits],['a']);
+ const source=readFileSync('src/main.ts','utf8'),start=source.indexOf('    const resizeObserver=new ResizeObserver('),end=source.indexOf('\n',start);
+ let notify!:()=>void;v.register=()=>{};
+ new Function('ResizeObserver',source.slice(start,end)).call(v,class{constructor(callback:()=>void){notify=callback;}observe(){}disconnect(){}});
+ v.stage.clientWidth=0;notify();assert.equal(counts().measured,0,'hidden resize must not probe');
+ preview.offsetWidth=300;v.stage.clientWidth=1000;measurements.set('a',{width:360,height:420});notify();v.flushNodeFits();
+ assert.equal(counts().measured,1);assert.equal(counts().saves,1);assert.equal(v.deferredCardFits.size,0);assert.deepEqual([node.width,node.height],[360,420]);
+ notify();assert.equal(counts().measured,1,'ordinary resizes do not repeat a completed fit');
+});
+
+test('deferred card fitting uses current eligibility after deletion, locking or entering an editor',()=>{
+ for(const protection of ['deleted','unmounted','locked','fixed','inlineId','inlineTarget','closed','blocked'] as const){
+  const {v,node,preview,measurements,counts}=fixture();preview.offsetWidth=0;v.queueCardFit(node,preview);preview.offsetWidth=300;measurements.set('a',{width:350,height:430});
+  if(protection==='deleted')v.session.board.nodes=[];else if(protection==='unmounted')v.positions.clear();else if(protection==='locked')node.locked=true;else if(protection==='fixed')node.autoFit=false;else if(protection==='closed')v.closed=true;else if(protection==='blocked')v.session.blocked=true;else v[protection]=node.id;
+  v.retryDeferredCardFits();v.flushNodeFits();assert.equal(counts().saves,0,protection);assert.equal(counts().measured,0,protection);
+ }
+});
+
+test('positive measurements below board minimums never schedule invalid writes',()=>{
+ const {v,node,counts}=fixture();for(const size of [{width:2,height:150},{width:79.9,height:150},{width:300,height:59.9}])v.queueNodeFit(node,size);
+ assert.equal(counts().scheduled,0);v.flushNodeFits();assert.equal(counts().saves,0);
+});
+
+test('reactivation does not measure a replacement preview before native rendering completes',()=>{
+ const {v,node,preview,measurements,counts}=fixture();preview.offsetWidth=0;v.queueCardFit(node,preview);
+ preview.offsetWidth=300;preview.getAttribute=()=> 'true';measurements.set('a',{width:350,height:430});v.retryDeferredCardFits();
+ assert.equal(counts().measured,0);assert.equal(counts().scheduled,0);
+ preview.getAttribute=()=> 'false';v.queueCardFit(node,preview);v.flushNodeFits();assert.equal(node.height,430);assert.equal(counts().saves,1);
 });
 test('a scheduled fit is retained if a gesture starts before its frame',()=>{
  const {v,node}=fixture();v.queueNodeFit(node,{width:300,height:350});v.gesture={id:1,pan:true,x:NaN,y:NaN};v.flushNodeFits();assert.equal(v.pendingFits.size,1);assert.equal(node.height,150);

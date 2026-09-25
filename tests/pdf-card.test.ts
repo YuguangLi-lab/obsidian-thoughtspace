@@ -11,7 +11,7 @@ function fixture(options:{load?:()=>Promise<any>;render?:()=>Promise<void>;failR
  let dispose=()=>{},destroyed=0,cancelled=0,appended=0,connected=true;const canvas={width:0,height:0,setAttribute(){},getContext(){return {}},remove(){}};
  const page={getViewport:({scale}:any)=>({width:(options.size?.width??600)*scale,height:(options.size?.height??800)*scale}),render:()=>({promise:options.render?.()??Promise.resolve(),cancel(){cancelled++}})};
  const task={promise:options.failRead?Promise.reject(Error('PDF 损坏')):Promise.resolve({numPages:3,getPage:async()=>page}),destroy:async()=>{destroyed++}};
- const host={ownerDocument:{createElement:()=>canvas},replaceChildren(){appended++}} as unknown as HTMLElement;
+ const host={ownerDocument:{defaultView:{setTimeout,clearTimeout},createElement:()=>canvas},replaceChildren(){appended++}} as unknown as HTMLElement;
  return{run:(page=1)=>renderPdfThumbnail({host,src:'app://test.pdf',page,load:options.load??(async()=>({getDocument:()=>task})),register:fn=>dispose=fn,alive:()=>connected}),dispose:()=>{connected=false;dispose()},stats:()=>({destroyed,cancelled,appended,width:canvas.width,height:canvas.height})};
 }
 test('successful PDF thumbnails release the document and bound canvas memory',async()=>{const f=fixture({size:{width:4000,height:12000}});assert.deepEqual(await f.run(),{page:1,total:3});assert.deepEqual(f.stats(),{destroyed:1,cancelled:0,appended:1,width:300,height:900});f.dispose();assert.equal(f.stats().destroyed,1);assert.equal(f.stats().width,0)});

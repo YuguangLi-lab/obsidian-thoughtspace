@@ -16,6 +16,8 @@ class NoteToolbar extends Component implements MarkdownToolbarEditor {
  private notice:HTMLElement;private cleanup?:()=>void;private composing=false;private disposed=false;
  private frame?:number;
  private range?:{text:string;from:number;to:number;nativeFrom:number;nativeTo:number};
+ private snapshotView?:EditorView;
+ private snapshotCache?:{view:EditorView;editor:Editor;read:Editor['getValue'];doc:EditorView['state']['doc'];value:string};
  constructor(private app:App,readonly view:MarkdownView,readonly file:TFile,readonly editor:Editor,private make:CreateLinkedNote){
   super();this.host=view.contentEl.createDiv({cls:'ts-note-markdown-toolbar',attr:{role:'toolbar','aria-label':'笔记 Markdown 工具栏'}});
   view.contentEl.prepend(this.host);this.notice=this.host.createSpan({cls:'ts-note-edit-notice',attr:{role:'status','aria-live':'polite','aria-atomic':'true',title:'内容或选区已变化，本次操作未执行。请确认后重试。'}});const readValue=()=>this.valid()?editor.getValue():'',readSelection=()=>this.valid()?this.selection():{from:0,to:0};
@@ -50,7 +52,9 @@ class NoteToolbar extends Component implements MarkdownToolbarEditor {
  }
  /** Observe native transactions without replacing Editor methods or dispatch. */
  editorUpdated(update:ViewUpdate){
-  if(!this.valid()||(!update.docChanged&&!update.selectionSet))return;
+  if(!this.valid())return;
+  this.snapshotView=update.view;if(update.docChanged)this.snapshotCache=undefined;
+  if(!update.docChanged&&!update.selectionSet)return;
   const main=update.state.selection.main;
   const explicit=update.transactions.some(t=>!!t.selection&&(t.scrollIntoView||!!t.annotation(Transaction.userEvent)));
   if(update.docChanged||update.state.selection.ranges.length!==1||explicit)this.range=undefined;
@@ -81,7 +85,17 @@ class NoteToolbar extends Component implements MarkdownToolbarEditor {
   }
   this.showNotice(false);return true;
  }
- snapshot(){if(!this.valid())return{text:'',start:0,end:0,busy:true,disabledReason:'编辑器已关闭或切换'};const text=this.editor.getValue(),range=this.selection(text);return{text,start:range.from,end:range.to,busy:this.composing,disabledReason:this.composing?'输入法组字中':this.editor.listSelections().length>1?'多光标编辑中，请保留一个选区后设置格式':undefined};}
+ /** Display snapshots share CM's immutable text; command/conflict checks still read the Editor directly. */
+ private snapshotText(){
+  // eslint-disable-next-line @typescript-eslint/unbound-method -- Keep getter identity; read.call(editor) below supplies its receiver.
+  const editor=this.editor,read=editor.getValue,view=this.snapshotView,doc=view?.state.doc,cached=this.snapshotCache;
+  if(doc&&cached?.view===view&&cached.editor===editor&&cached.read===read&&cached.doc===doc)return cached.value;
+  const value=read.call(editor);
+  if(doc&&this.valid()&&this.snapshotView===view&&view.state.doc===doc&&editor.getValue===read)this.snapshotCache={view,editor,read,doc,value};
+  else this.snapshotCache=undefined;
+  return value;
+ }
+ snapshot(){if(!this.valid())return{text:'',start:0,end:0,busy:true,disabledReason:'编辑器已关闭或切换'};const text=this.snapshotText(),range=this.selection(text);return{text,start:range.from,end:range.to,busy:this.composing,disabledReason:this.composing?'输入法组字中':this.editor.listSelections().length>1?'多光标编辑中，请保留一个选区后设置格式':undefined};}
  private notify(){if(this.disposed||!this.host.isConnected||this.host.hidden||this.frame!==undefined)return;this.frame=this.host.ownerDocument.defaultView!.requestAnimationFrame(()=>{this.frame=undefined;if(!this.disposed&&this.host.isConnected&&!this.host.hidden)this.input.dispatchEvent(new Event('select'));});}
  sync(){if(this.disposed)return;const visible=this.valid();if(this.host.hidden===visible)this.host.hidden=!visible;const content=this.view.contentEl;if(content.classList.contains('ts-note-with-toolbar')!==visible)content.toggleClass('ts-note-with-toolbar',visible);if(visible)this.notify();}
  replaceToolbar(dispose?:()=>void){
@@ -114,7 +128,10 @@ class NoteToolbar extends Component implements MarkdownToolbarEditor {
   }},this.make,()=>{this.linkDialog=undefined;});this.linkDialog=modal;modal.open();}
  history(redo=false){if(!this.valid()||this.composing||!this.focusUnchanged(this.editor.getValue()))return;this.range=undefined;if(redo)this.editor.redo();else this.editor.undo();this.notify();}
  onunload(){
-  if(this.disposed)return;this.disposed=true;this.searchDialog?.close();this.searchDialog=undefined;this.linkDialog?.close();this.linkDialog=undefined;const frame=this.frame;this.frame=undefined;this.range=undefined;
+  if(this.disposed)return;this.disposed=true;this.snapshotCache=undefined;this.snapshotView=undefined;
+  const search=this.searchDialog,link=this.linkDialog,frame=this.frame;this.searchDialog=undefined;this.linkDialog=undefined;this.frame=undefined;this.range=undefined;
+  releaseEditorResource('note search dialog',()=>search?.close());
+  releaseEditorResource('note link dialog',()=>link?.close());
   releaseEditorResource('note toolbar frame',()=>{if(frame!==undefined)this.host.ownerDocument.defaultView?.cancelAnimationFrame(frame);});
   this.replaceToolbar();releaseEditorResource('note toolbar surface',()=>this.host.remove());
   releaseEditorResource('note toolbar layout',()=>this.view.contentEl.removeClass('ts-note-with-toolbar'));

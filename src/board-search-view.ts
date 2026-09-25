@@ -48,7 +48,7 @@ export class BoardSearchModal extends Modal{
  }
  private markCurrent(index:number,current:boolean){const row=this.rows[index];if(!row)return;row.row.toggleClass('is-active',current);if(current)row.pick.setAttribute('aria-current','true');else row.pick.removeAttribute('aria-current');}
  private metadata(n:Card){const f=n.file?this.app.vault.getAbstractFileByPath(n.file):null;if(!(f instanceof TFile))return{};const cache=this.app.metadataCache.getFileCache(f);return {title:f.basename,tags:getAllTags(cache||{})||[],headings:cache?.headings?.map(h=>h.heading),body:this.bodies.get(f.path)};}
- private rebuild(){this.entries=boardSearchIndex(this.host.board(),n=>this.metadata(n));}
+ private rebuild(){const metadata=new Map<string,ReturnType<BoardSearchModal['metadata']>>();this.entries=boardSearchIndex(this.host.board(),n=>{if(!n.file)return{};let cached=metadata.get(n.file);if(!cached){cached=this.metadata(n);metadata.set(n.file,cached);}return cached;});}
  private refresh(){
   if(this.closed)return Promise.resolve();const generation=++this.generation;this.bodies.clear();this.rebuild();const previous=this.group.value;this.group.empty();this.group.createEl('option',{value:'',text:'全部分组'});this.group.createEl('option',{value:':none',text:'未分组'});for(const e of this.entries.filter(e=>e.kind==='section'))this.group.createEl('option',{value:e.id,text:e.title});this.group.value=Array.from(this.group.options).some(o=>o.value===previous)?previous:'';this.reset(true);
   this.indexStatus.setText(this.full?'正在索引笔记正文…':'搜索标题、文本、标签与笔记标题层级；勾选后读取正文。');if(!this.full)return Promise.resolve();

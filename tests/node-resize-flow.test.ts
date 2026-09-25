@@ -18,6 +18,7 @@ function take(start:string,end:string){
   return source.slice(a,b);
 }
 const methods=take('  private pointerDown(', '  private key(')
+  +take('  private displayBoard()', '  private renderEdges(')
   +take('  private pointerCaptureLost(', '  private foldSelection(');
 const sessionMethods=take('  change(fn:', '  persist() {');
 class Element {

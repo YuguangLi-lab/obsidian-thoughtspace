@@ -18,6 +18,7 @@ function take(start:string,end:string){
   return source.slice(a,b);
 }
 const methods=take('  private finishMarqueeFromDocument(', '  private foldSelection(')
+  +take('  private displayBoard()', '  private renderEdges(')
   +take('  private clearCanvasGesture(', '  private syncCanvasControls(')
   +take('  private contextMenu(', '  /** Compact native context menu;')
   +take('  private pointerDown(', '  private matches(');

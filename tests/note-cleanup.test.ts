@@ -35,3 +35,21 @@ test('note detached after scheduling does not deliver its obsolete update',()=>{
 test('reattached note resumes one batched notification without stale work',()=>{
  const {b,frames,delivered}=notificationFixture();b.notify();b.host.isConnected=false;frames[0]();b.host.isConnected=true;for(let n=0;n<40;n++)b.notify();assert.equal(frames.length,2);frames[1]();assert.equal(delivered(),1);
 });
+
+test('search or link dialog teardown failure cannot strand the other dialog, listeners, frame or note text',()=>{
+ for(const fault of ['search','link']){
+  const {b,calls,warnings}=fixture();
+  b.searchDialog={close(){calls.push('search');if(fault==='search')throw Error('host search cleanup');}};
+  b.linkDialog={close(){calls.push('link');if(fault==='link')throw Error('host link cleanup');}};
+  assert.doesNotThrow(()=>b.onunload());b.onunload();
+  assert.deepEqual(calls,['search','link','frame','toolbar','surface','layout'],fault);assert.equal(warnings.length,1);
+  for(const key of ['searchDialog','linkDialog','cleanup','frame','range'])assert.equal(b[key],undefined,key);
+ }
+});
+
+test('dialog callbacks see detached references and reentrant shutdown closes each resource once',()=>{
+ const {b,calls}=fixture();
+ const close=(name:string)=>{calls.push(name);assert.equal(b.searchDialog,undefined);assert.equal(b.linkDialog,undefined);b.onunload();};
+ b.searchDialog={close:()=>close('search')};b.linkDialog={close:()=>close('link')};
+ b.onunload();b.onunload();assert.deepEqual(calls,['search','link','frame','toolbar','surface','layout']);
+});

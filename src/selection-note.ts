@@ -4,7 +4,10 @@ export interface NoteSelection{text:string;start:number;end:number;disabledReaso
 export function selectionNoteTitle(s:NoteSelection){
  if(s.disabledReason)throw Error(s.disabledReason);if(!Number.isInteger(s.start)||!Number.isInteger(s.end)||s.start<0||s.end>s.text.length||s.start>=s.end)throw Error('请先选择一个概念或短语');
  const selected=s.text.slice(s.start,s.end);if(!selected.trim()||selected.length>120||/[\r\n[\]|\\]/.test(selected))throw Error('请选择单行短语（最多 120 字，不含双链标记）');
- const index=s.text.slice(0,s.start).split('\n').length-1,row=[...markdownRows(s.text)][index],offset=s.text.lastIndexOf('\n',s.start-1)+1,from=s.start-offset,to=s.end-offset;
+ // Keep the full source for frontmatter lookahead, but only parse to the selection.
+ const index=s.text.slice(0,s.start).split('\n').length-1,rows=markdownRows(s.text);let row=rows.next().value!;
+ for(let line=0;line<index;line++)row=rows.next().value!;
+ const offset=s.text.lastIndexOf('\n',s.start-1)+1,from=s.start-offset,to=s.end-offset;
  // A top-level fenced example can itself contain quote markers. Keep that fence
  // independent from blockquote context so literal example text stays literal.
  let fence='';for(const line of s.text.split('\n').slice(0,index+1)){const marker=/^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);if(!marker)continue;if(!fence){if(!(marker[1][0]==='`'&&marker[2].includes('`')))fence=marker[1];}else if(marker[1][0]===fence[0]&&marker[1].length>=fence.length&&!marker[2].trim())fence='';}

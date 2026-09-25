@@ -19,3 +19,21 @@ test('multi-tree batch layout matches separate explicit layouts including collap
  const expected=clone(b);layoutMindmap(expected,b.nodes[0].id);layoutMindmap(expected,b.nodes[a.nodes.length].id);
  reflowAutomaticMindmaps(b,old);assert.deepEqual(b,expected);
 });
+test('automatic reflow detection skips folded frame geometry and repeated edge scans on position-only edits',()=>{
+ const board=presetMindmap('project');
+ for(let i=0;i<12;i++){
+  const x=10000+i*1200;
+  board.nodes.push({id:`frame-${i}`,kind:'section',title:'Folded material',x,y:0,width:1000,height:500,color:'blue',sectionFolded:true});
+  board.nodes.push({id:`material-${i}`,kind:'text',text:'**Markdown**\n- [ ] untouched',x:x+40,y:100,width:200,height:80,color:'green'});
+ }
+ const before=clone(board);board.nodes[1].x+=25;const expected=clone(board);
+ let positionReads=0,edgeKindReads=0;
+ for(const snapshot of [board,before]){
+  snapshot.nodes=snapshot.nodes.map(node=>new Proxy(node,{get(target,key,receiver){if(key==='x'||key==='y')positionReads++;return Reflect.get(target,key,receiver);}}));
+  snapshot.edges=snapshot.edges.map(edge=>new Proxy(edge,{get(target,key,receiver){if(key==='kind')edgeKindReads++;return Reflect.get(target,key,receiver);}}));
+ }
+ reflowAutomaticMindmaps(board,before);
+ assert.equal(positionReads,0,'a positional edit needs no visibility or containment geometry during automatic reflow detection');
+ assert.equal(edgeKindReads,board.edges.length+before.edges.length,'parent links and sibling order share one edge pass per board');
+ assert.deepEqual(board,expected,'folds, material, Markdown and the explicit movement remain unchanged');
+});

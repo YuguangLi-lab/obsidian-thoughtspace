@@ -1,12 +1,28 @@
 import {branchState} from './mindmap';
-import {sectionMovementPinned} from './sections';
+import {sectionDisplayNode,sectionMovementPinned} from './sections';
 import { Board, Card, contained, selectionMemberships, movableSelection } from './model';
 export interface Rect { x:number; y:number; width:number; height:number; }
 export function selectionRect(a:{x:number;y:number},b:{x:number;y:number}):Rect { return {x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(b.x-a.x),height:Math.abs(b.y-a.y)}; }
 /** 卡片相交即可选中；分组框必须被完整框住，避免意外选中覆盖整个场景的分组。 */
 export function marqueeSelection(nodes:readonly Card[],r:Rect):Set<string> {
-  if(!r.width||!r.height)return new Set();
-  return new Set(nodes.filter(n=>n.kind==='section' ? n.x>=r.x&&n.y>=r.y&&n.x+n.width<=r.x+r.width&&n.y+n.height<=r.y+r.height : n.x<r.x+r.width&&n.x+n.width>r.x&&n.y<r.y+r.height&&n.y+n.height>r.y).map(n=>n.id));
+  const hits=new Set<string>();if(!r.width||!r.height)return hits;
+  for(const n of nodes)if(n.kind==='section' ? n.x>=r.x&&n.y>=r.y&&n.x+n.width<=r.x+r.width&&n.y+n.height<=r.y+r.height : n.x<r.x+r.width&&n.x+n.width>r.x&&n.y<r.y+r.height&&n.y+n.height>r.y)hits.add(n.id);
+  return hits;
+}
+/** Collect geometry and fold flags once. Only actual selection candidates need
+ * current fold visibility; no board projection or cross-frame cache is retained. */
+export function visibleMarqueeSelection(board:Board,r:Rect):Set<string>{
+  const hits=new Set<string>();if(!r.width||!r.height)return hits;
+  let folded=false,overlap=false;
+  for(const node of board.nodes){
+    const sectionFolded=node.sectionFolded;folded||=!!(node.branchFolded||sectionFolded);
+    const n=sectionFolded?sectionDisplayNode(node):node,intersects=n.x<r.x+r.width&&n.x+n.width>r.x&&n.y<r.y+r.height&&n.y+n.height>r.y;overlap||=intersects;
+    if(n.kind==='section'?n.x>=r.x&&n.y>=r.y&&n.x+n.width<=r.x+r.width&&n.y+n.height<=r.y+r.height:intersects)hits.add(n.id);
+  }
+  if(!hits.size||!folded)return hits;
+  // Retain the broad-phase result for degenerate or extreme floating-point bounds.
+  if(!overlap){hits.clear();return hits;}
+  const {hidden}=branchState(board);for(const id of hits)if(hidden.has(id))hits.delete(id);return hits;
 }
 export function foldCards(board:Board,ids:ReadonlySet<string>,fold:boolean){
   for(const n of board.nodes)if((n.kind==='card'||n.kind==='pdf'||n.kind==='board'||n.kind==='text')&&!n.locked&&ids.has(n.id)){

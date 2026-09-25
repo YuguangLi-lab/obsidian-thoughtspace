@@ -17,6 +17,6 @@ export function selectionFormatKey(board:Board|undefined,selected:ReadonlySet<st
  const edge=edgeId?board?.edges.find(e=>e.id===edgeId):undefined;
  if(edge&&board)return JSON.stringify([blocked,'edge',edge,edgeEditable(board,edge)]);
  if(!selected.size)return JSON.stringify([blocked,'nodes',[]]);
- const nodes=board?.nodes.filter(n=>selected.has(n.id)).map(n=>[n.id,n.kind,n.file,n.locked,n.fontFamily,n.fontSize,n.textColor,n.textAlign,n.color,n.fillColor,n.transparent,n.customBorder,n.borderStyle,n.borderWidth])||[];
+ const nodes=board?.nodes.filter(n=>selected.has(n.id)).map(n=>[n.id,n.kind,n.file,n.locked,n.fontFamily,n.fontSize,n.textColor,n.textAlign,n.color,n.fillColor,n.transparent,n.customBorder,n.borderStyle,n.borderWidth,n.sectionDivider,n.kind==='section'&&!n.borderStyle?Boolean(n.sectionFolded):undefined])||[];
  return JSON.stringify(batch?[blocked,'nodes',nodes,batch.target,batch.scope,batch.edges.map(e=>[e.id,e.style,e.direction,e.dashed,e.color])]:[blocked,'nodes',nodes]);
 }

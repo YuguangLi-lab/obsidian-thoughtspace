@@ -31,7 +31,7 @@ test('paste keeps mixed object references, content, geometry, branches, edges an
  const extraFields={...richStyle,id:'overwrite',file:'overwrite.md',text:'overwrite',title:'overwrite',kind:'text',x:999,y:999,width:999,height:999,locked:true,branchFolded:false,topic:false};
  applyNodeStyle(board,new Set(board.nodes.map(n=>n.id)),extraFields);
  const shared={color:'purple',textColor:'default',fontFamily:'serif',fontSize:28,textAlign:'right',customBorder:true,borderStyle:'dotted',borderWidth:0};
- for(let i=0;i<board.nodes.length;i++)assert.deepEqual(board.nodes[i],{...before.nodes[i],...shared,...(['card','text'].includes(before.nodes[i].kind)?{transparent:false,fillColor:'#Aa00fF'}:{})});
+ for(let i=0;i<board.nodes.length;i++)assert.deepEqual(board.nodes[i],{...before.nodes[i],...shared,...(['card','text','section'].includes(before.nodes[i].kind)?{transparent:false,fillColor:'#Aa00fF'}:{})});
  assert.deepEqual(board.edges,before.edges);
  assert.deepEqual(board.viewport,before.viewport);
  assert.deepEqual(parseBoard(JSON.stringify(board)),board);
@@ -46,8 +46,8 @@ test('paste skips locked and unselected nodes of every supported object kind',()
  for(let i=0;i<board.nodes.length;i++){
   if(board.nodes[i].id.startsWith('editable-')){
    assert.equal(board.nodes[i].color,'purple');
-   assert.equal(board.nodes[i].fillColor,['card','text'].includes(board.nodes[i].kind)?richStyle.fillColor:undefined);
-   assert.equal(board.nodes[i].transparent,['card','text'].includes(board.nodes[i].kind)?richStyle.transparent:undefined);
+   assert.equal(board.nodes[i].fillColor,['card','text','section'].includes(board.nodes[i].kind)?richStyle.fillColor:undefined);
+   assert.equal(board.nodes[i].transparent,['card','text','section'].includes(board.nodes[i].kind)?richStyle.transparent:undefined);
   }
   else assert.deepEqual(board.nodes[i],before.nodes[i]);
  }

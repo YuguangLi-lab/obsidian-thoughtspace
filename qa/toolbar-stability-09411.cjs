@@ -15,7 +15,7 @@ const obsidian={setIcon(element,icon){element.dataset.icon=icon;},Notice:class{c
 const helper={exports:{}};new Function('require','module','exports',helperCode)(name=>name==='obsidian'?obsidian:require(name),helper,helper.exports);
 const ui=new Function('setIcon','Notice',transformSync(take('const report =','class Prompt')+'\nreturn {button,act};',{loader:'ts'}).code)(obsidian.setIcon,obsidian.Notice);
 const methods=take('  private buildSingleEdgeTools(','  refreshStyleControls()')+take('  private renderSelectionTools(){','  private renderInspector()');
-const dependencies={...helper.exports,...ui};
+const dependencies={...helper.exports,...ui,setIcon:obsidian.setIcon};
 const View=new Function(...Object.keys(dependencies),transformSync(`class View{${methods}}\nreturn View;`,{loader:'ts'}).code)(...Object.values(dependencies));
 
 function createHarness(){

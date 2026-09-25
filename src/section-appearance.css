@@ -1,0 +1,77 @@
+/* Group appearance is opt-in: older frames keep their existing tint and heading. */
+.ts-root .ts-node.ts-section.has-card-fill:not(.is-transparent) {
+  background: color-mix(in srgb, var(--ts-card-fill) 36%, transparent);
+  backdrop-filter: none;
+}
+.theme-dark .ts-root .ts-node.ts-section.has-card-fill:not(.is-transparent) {
+  background: color-mix(in srgb, var(--ts-card-fill) 22%, transparent);
+}
+.ts-root .ts-node.ts-section.is-transparent {
+  background: transparent !important;
+  backdrop-filter: none !important;
+}
+.ts-root .ts-node.ts-section:is(.has-card-fill, .is-transparent) > .ts-node-header {
+  background: transparent !important;
+  box-shadow: none;
+}
+
+/* A divider uses the whole expanded frame, not the legacy floating title chip.
+   The pseudo-element never intercepts dragging, resize handles or connection ports. */
+.ts-root .ts-node.ts-section:is([data-section-divider="solid"], [data-section-divider="dashed"], [data-section-divider="dotted"]):not(.is-section-folded) > .ts-node-header {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+  padding: 12px !important;
+  gap: 6px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  box-shadow: none;
+}
+.ts-root .ts-node.ts-section:is([data-section-divider="solid"], [data-section-divider="dashed"], [data-section-divider="dotted"]):not(.is-section-folded) > .ts-node-header::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 0;
+  border-top-width: max(1px, var(--ts-section-divider-width, 1px));
+  border-top-style: var(--ts-section-divider-style);
+  border-top-color: color-mix(in srgb, var(--ts-tone) 58%, var(--background-modifier-border));
+  pointer-events: none;
+}
+.ts-root .ts-node.ts-section[data-section-divider="solid"] { --ts-section-divider-style: solid; }
+.ts-root .ts-node.ts-section[data-section-divider="dashed"] { --ts-section-divider-style: dashed; }
+.ts-root .ts-node.ts-section[data-section-divider="dotted"] { --ts-section-divider-style: dotted; }
+.theme-dark .ts-root .ts-node.ts-section:is([data-section-divider="solid"], [data-section-divider="dashed"], [data-section-divider="dotted"]):not(.is-section-folded) > .ts-node-header::after {
+  border-top-color: color-mix(in srgb, var(--ts-tint) 58%, var(--background-modifier-border));
+}
+
+/* Title truncation must surrender space before any of the disclosure controls.
+   No overflow rule is applied to the frame, so handles and ports stay reachable. */
+.ts-root .ts-node.ts-section:is(.has-card-fill, .is-transparent, [data-section-divider="solid"], [data-section-divider="dashed"], [data-section-divider="dotted"]) > .ts-node-header > .ts-section-title {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ts-root .ts-node.ts-section:is(.has-card-fill, .is-transparent, [data-section-divider="solid"], [data-section-divider="dashed"], [data-section-divider="dotted"]) > .ts-node-header > :is(span:first-child, .ts-section-content-fold, .ts-branch-controls-group) {
+  flex-shrink: 0;
+}
+
+/* Reuse the inspector's compact icon fields and comfortable-mode labels. */
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field[data-format="分组样式"] {
+  --ts-format-value-width: 70px;
+}
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field[data-format="分组背景"] {
+  --ts-format-value-width: 96px;
+}
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field[data-format="标题分割线"] {
+  --ts-format-value-width: 76px;
+}
+.ts-root[data-toolbar-density="comfortable"] .ts-floating-formatbar .ts-appearance-group .ts-fill-custom:has(input[aria-label="自定义分组背景"]) > span {
+  display: inline;
+}

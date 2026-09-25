@@ -12,11 +12,11 @@ export function noteFragments(text:string,cache?:{headings?:{heading:string;posi
  for(const b of Object.values(cache?.blocks||{})){if(!valid(b.position)||!b.id||!/^[\w-]+$/.test(b.id)||!new RegExp('(?:^|\\s)\\^'+b.id+'\\s*$').test(text.slice(b.position.start.offset,b.position.end.offset)))continue;out.push({subpath:'#^'+b.id,title:'^'+b.id,kind:'block',preview:preview(b.position.start.offset,b.position.end.offset)});}
  return out;
 }
-export function fragmentMatches(fragment:NoteFragment,query:string){return query.trim().toLocaleLowerCase().split(/\s+/).every(w=>(fragment.title+' '+fragment.preview).toLocaleLowerCase().includes(w));}
+export function fragmentMatches(fragment:NoteFragment,query:string){const words=query.trim().toLocaleLowerCase().split(/\s+/),text=(fragment.title+' '+fragment.preview).toLocaleLowerCase();return words.every(w=>text.includes(w));}
 /** Search never silently keeps an anchor that is hidden from the current list. */
 export function fragmentSearchSelection(parts:NoteFragment[],query:string,current:string){
- const matches=parts.filter(p=>fragmentMatches(p,query));
  if(!query.trim())return {subpath:current,empty:false};
+ const matches=parts.filter(p=>fragmentMatches(p,query));
  return {subpath:matches.some(p=>p.subpath===current)?current:(matches[0]?.subpath||''),empty:matches.length===0};
 }
 export function steppedIndex(index:number,length:number,delta:number){return length?((index+delta)%length+length)%length:-1;}

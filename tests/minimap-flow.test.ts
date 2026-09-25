@@ -92,3 +92,32 @@ test('empty and hidden miniatures release the active viewport callback and rebui
  f.view.plugin.settings.showMinimap=true;f.render();assert.notEqual(f.svg(),first);assert.ok(f.view.mapViewport);f.board.nodes=[];f.render();assert.equal(f.host.classes.has('is-empty'),true);assert.equal(f.frame(),undefined);assert.equal(f.view.mapViewport,undefined);
  f.board.nodes=[card('again')];f.render();assert.equal(f.host.classes.has('is-empty'),false);assert.ok(f.frame());f.writes.length=0;f.camera();assert.equal(f.writes.length,0);
 });
+
+test('miniature rebuild handles geometry and stacking in one collection pass without map arrays',()=>{
+ const nodes=Array.from({length:1200},(_,i)=>card(String(i),{kind:i%7===0?'section':'text',file:undefined,text:'Topic',x:i%40*340,y:Math.floor(i/40)*220}));
+ let maps=0;Object.defineProperty(nodes,'map',{value:function<T>(fn:(node:Card,index:number,array:Card[])=>T){maps++;return Array.prototype.map.call(this,fn);}});
+ const f=fixture();f.view.mapPreview(new Element([]),{...f.board,nodes},true);
+ assert.equal(maps,0,'bounds, index and stable section order share a single traversal');
+});
+
+test('same geometry kind changes invalidate miniature section stacking and fill semantics',()=>{
+ const f=fixture([card('front',{kind:'text',file:undefined,text:'front'}),card('back',{kind:'image',file:'img.png',transparent:true})]);
+ const svg=f.svg();f.board.nodes[1].kind='section';f.render();
+ assert.notEqual(f.svg(),svg,'kind changes must not reuse the old miniature');
+ const nodes=f.host.descendants('ts-map-node');assert.ok(nodes[0].classes.has('ts-map-section'));assert.ok(nodes[0].classes.has('is-transparent'));
+ f.board.nodes[1].kind='image';f.render();assert.ok(f.host.descendants('ts-map-node').every(el=>!el.classes.has('ts-map-section')));
+ assert.ok(!f.host.descendants('ts-map-node')[1].classes.has('is-transparent'));
+});
+
+test('miniature short titles never split the full Markdown body and retain displayed truncation',()=>{
+ const f=fixture(),raw='Long topic title\n'+'paragraph\n'.repeat(40000),original=String.prototype.split;let max=0;
+ const host=new Element([]);
+ String.prototype.split=function(this:string,separator:unknown,limit?:number){if(separator==='\n')max=Math.max(max,this.length);return Reflect.apply(original,this,[separator,limit]) as string[];};
+ try{f.view.mapPreview(host,{...f.board,nodes:[card('large',{kind:'text',file:undefined,text:raw})]});}finally{String.prototype.split=original;}
+ assert.ok(max<=10,`preview split ${max} characters to show at most 9`);
+ assert.equal(host.descendants('ts-map-title')[0].textContent,'Long top…');
+ for(const text of ['','\nnext','short\nbody','title\r\nbody','123456789','1234567890','🙂🙂🙂🙂🙂more']){
+  const host=new Element([]);f.view.mapPreview(host,{...f.board,nodes:[card('title',{kind:'text',file:undefined,text})]});const title=text.split('\n')[0];
+  assert.equal(host.descendants('ts-map-title')[0].textContent,title.length>9?title.slice(0,8)+'…':title);
+ }
+});

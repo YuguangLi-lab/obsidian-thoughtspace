@@ -37,7 +37,9 @@ export function editTopic(source:Board,id:string,action:TopicAction,values:reado
   if(action==='sibling'&&parent===undefined)throw Error('中心主题没有同级主题');
   const labels=(values.length?values:['新主题']).map(v=>v.trim()).filter(Boolean);
   if(!labels.length||labels.length>100||labels.some(v=>v.length>10000))throw Error('每次添加 1–100 个主题，每个最多 10,000 字符');
-  let after=id;for(const text of labels){const node=add(text);b.edges.push(connect(action==='child'?id:parent!,node.id));if(action==='sibling'){moveAfter(node.id,after);after=node.id;}selected=node.id;}
+  const added:ReturnType<typeof connect>[]=[];for(const text of labels){const node=add(text),edge=connect(action==='child'?id:parent!,node.id);if(action==='sibling')added.push(edge);else b.edges.push(edge);selected=node.id;}
+  // Preserve canonical sibling order with one insertion, including interleaved relations.
+  if(action==='sibling')b.edges.splice(b.edges.indexOf(incoming!)+1,0,...added);
   if(action==='child')delete n.branchFolded;
  }else if(action==='parent'){
   const node=add(values[0]?.trim()||'父主题');if(incoming)incoming.to=node.id;else {root=node.id;if(n.mindmapRules){node.mindmapRules={...n.mindmapRules};delete n.mindmapRules;}}

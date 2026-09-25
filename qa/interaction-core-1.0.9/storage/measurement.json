@@ -1,0 +1,29 @@
+{
+  "scenario": "5000 viewport persist calls while the first write is pending; three linked status views",
+  "method": "Production Session and BoardView.renderSaveStatus methods; controlled vault.process and counted status-element setters, without a browser or real vault.",
+  "before": {
+    "statusCallbacks": 15009,
+    "attributeWrites": 45027,
+    "classUpdates": 15009,
+    "textWrites": 6,
+    "writes": 2,
+    "boardCallbacks": 0,
+    "finalDiskX": 4999,
+    "baselineMatchesDisk": true,
+    "status": "已保存",
+    "blocked": false
+  },
+  "after": {
+    "statusCallbacks": 9,
+    "attributeWrites": 27,
+    "classUpdates": 9,
+    "textWrites": 6,
+    "writes": 2,
+    "boardCallbacks": 0,
+    "finalDiskX": 4999,
+    "baselineMatchesDisk": true,
+    "status": "已保存",
+    "blocked": false
+  },
+  "statusCallbackReductionPercent": 99.94003597841295
+}

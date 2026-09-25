@@ -28,8 +28,8 @@ test('text backgrounds round-trip presets, six-digit hex and transparency withou
 test('background validation still rejects unsupported object kinds and unsafe style values',()=>{
   const b=emptyBoard();b.version=3;
   const n:Card={id:'object',kind:'text',text:'text',x:0,y:0,width:300,height:200,color:'blue'};
-  for(const kind of ['section','board','image','pdf'] as const){
-    b.nodes=[{...n,kind,...(kind==='section'?{title:'Section'}:{file:`object.${kind==='board'?'thoughtspace':kind==='image'?'png':'pdf'}`})}];
+  for(const kind of ['board','image','pdf'] as const){
+    b.nodes=[{...n,kind,file:`object.${kind==='board'?'thoughtspace':kind==='image'?'png':'pdf'}`}];
     assert.doesNotThrow(()=>parseBoard(JSON.stringify(b)));
     b.nodes[0].fillColor='#aabbcc';
     assert.throws(()=>parseBoard(JSON.stringify(b)),/背景颜色无效/);

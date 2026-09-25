@@ -5,14 +5,16 @@ import {transformSync} from 'esbuild';
 import {releaseEditorResource} from '../src/editor-cleanup';
 
 // Exercise async renderer ownership with a controlled host; no Obsidian runtime in Node.
-function fixture(size={width:300,height:180}){
- const jobs:{resolve:()=>void;scope:any}[]=[],holders:any[]=[],applied:any[]=[];
- const probe=()=>({value:'',querySelectorAll:()=>[]});
- const preview={isConnected:true,cloneNode:probe,parentElement:{createDiv:()=>{const holder={removed:false,appendChild:()=>{},remove(){this.removed=true;}};holders.push(holder);return holder;}}};
- class Scope{loaded=false;load(){this.loaded=true;}unload(){this.loaded=false;}}
- const imports:Record<string,unknown>={'./editor-cleanup':{releaseEditorResource},obsidian:{Component:Scope,MarkdownRenderer:{render:(_:unknown,value:string,node:any,_path:string,scope:Scope)=>{node.value=value;return new Promise<void>(resolve=>jobs.push({resolve,scope}));}}},'./excerpt-sources':{excerptPresentation:(body:string)=>({body})},'./rendering':{markdownPreview:(body:string)=>body},'./workspace-tools':{measureNoteCard:()=>size}};
- const module={exports:{} as any};new Function('require','module','exports','window',transformSync(readFileSync('src/inline-card-fit.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>imports[name],module,module.exports,{setTimeout,clearTimeout});
- const fit=new module.exports.InlineCardFit({},preview,'note.md',undefined,(size:any)=>applied.push(size));return{fit,jobs,holders,applied};
+function fixture(size={width:300,height:180},options:{math?:boolean;setupFailure?:'load'|'holder'|'clone'}={}){
+ const jobs:{resolve:()=>void;reject:(error:Error)=>void;scope:Scope;value:string}[]=[],mathJobs:{resolve:()=>void;reject:(error:Error)=>void}[]=[],holders:any[]=[],applied:any[]=[],scopes:Scope[]=[];
+ const timers=new Map<number,{run:()=>void;delay:number}>();let timerId=0,measurements=0,globalTimers=0;
+ const win={setTimeout:(run:()=>void,delay:number)=>{const id=timerId++;timers.set(id,{run,delay});return id;},clearTimeout:(id:number)=>timers.delete(id)};
+ const probe=()=>{if(options.setupFailure==='clone')throw Error('clone failed');return{value:'',querySelectorAll:()=>[],querySelector:()=>options.math?{}:null};};
+ const preview={isConnected:true,ownerDocument:{defaultView:win},cloneNode:probe,parentElement:{createDiv:()=>{if(options.setupFailure==='holder')throw Error('holder failed');const holder={removed:false,appendChild:()=>{},remove(){this.removed=true;}};holders.push(holder);return holder;}}};
+ class Scope{loaded=false;unloads=0;constructor(){scopes.push(this);}load(){this.loaded=true;if(options.setupFailure==='load')throw Error('load failed');}unload(){this.loaded=false;this.unloads++;}}
+ const imports:Record<string,unknown>={'./editor-cleanup':{releaseEditorResource},obsidian:{Component:Scope,MarkdownRenderer:{render:(_:unknown,value:string,node:any,_path:string,scope:Scope)=>{node.value=value;return new Promise<void>((resolve,reject)=>jobs.push({resolve,reject,scope,value}));}},finishRenderMath:()=>new Promise<void>((resolve,reject)=>mathJobs.push({resolve,reject}))},'./excerpt-sources':{excerptPresentation:(body:string)=>({body})},'./rendering':{markdownPreview:(body:string)=>body},'./workspace-tools':{measureNoteCard:()=>{measurements++;return size;}}};
+ const module={exports:{} as any};new Function('require','module','exports','window',transformSync(readFileSync('src/inline-card-fit.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>imports[name],module,module.exports,{...win,setTimeout:(run:()=>void,delay:number)=>{globalTimers++;return win.setTimeout(run,delay);}});
+ const fit=new module.exports.InlineCardFit({},preview,'note.md',undefined,(size:any)=>applied.push(size));return{fit,jobs,mathJobs,holders,applied,scopes,timers,preview,get measurements(){return measurements;},get globalTimers(){return globalTimers;}};
 }
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 
@@ -42,3 +44,36 @@ test('failed measurement scope cleanup still removes its holder and cancels futu
 });
 
 test('invalid dimensions never leave the async draft measurement boundary',async()=>{for(const size of [{width:300,height:NaN},{width:Infinity,height:180},{width:0,height:180}]){const {fit,jobs,applied}=fixture(size);fit.schedule('draft');const pending=fit.flush();jobs[0].resolve();await pending;assert.equal(applied.length,0);fit.dispose();}});
+
+test('card measurement uses the owner window and cancels timer zero when drafts coalesce',async()=>{
+ const f=fixture();f.fit.schedule('one');f.fit.schedule('two');assert.equal(f.timers.size,1);assert.equal(f.globalTimers,0);
+ const pending=f.fit.flush();assert.deepEqual([...f.timers.values()].map(t=>t.delay),[1000]);assert.equal(f.jobs[0].value,'two');f.jobs[0].resolve();await pending;assert.equal(f.timers.size,0);f.fit.dispose();
+});
+test('closing a card settles pending fit without waiting for an unresponsive renderer',async()=>{
+ const f=fixture();f.fit.schedule('draft');let settled=false;const pending=f.fit.flush().then(()=>{settled=true;});f.fit.dispose();await tick();const settledBeforeRenderer=settled;
+ f.jobs[0].resolve();await pending;assert.equal(settledBeforeRenderer,true);assert.equal(f.applied.length,0);assert.equal(f.scopes[0].unloads,1);assert.equal(f.timers.size,0);
+});
+test('a superseded card draft releases the queue and ignores its late deadline and result',async()=>{
+ const f=fixture();f.fit.schedule('old');const pending=f.fit.flush();
+ const deadline=[...f.timers.values()].find(timer=>timer.delay===1000);if(!deadline){f.fit.dispose();f.jobs[0].resolve();await pending;assert.fail('card measurement must have a deadline');}
+ f.fit.schedule('latest');const concurrent=f.fit.flush();
+ deadline.run();await tick();assert.equal(f.jobs.length,2);assert.equal(f.holders[0].removed,true);assert.equal(f.jobs[1].value,'latest');f.jobs[1].resolve();await Promise.all([pending,concurrent]);
+ assert.equal(f.applied.length,1);f.jobs[0].resolve();await tick();assert.equal(f.applied.length,1);assert.ok(f.scopes.every(scope=>scope.unloads===1));assert.equal(f.timers.size,0);f.fit.dispose();
+});
+test('card formula sizing waits for native typesetting and shares the renderer deadline',async()=>{
+ const f=fixture(undefined,{math:true});f.fit.schedule('$$x^2$$');const pending=f.fit.flush();const deadline=[...f.timers.keys()];f.jobs[0].resolve();await tick();
+ assert.equal(f.mathJobs.length,1);assert.equal(f.measurements,0);assert.deepEqual([...f.timers.keys()],deadline);f.mathJobs[0].resolve();await pending;assert.equal(f.applied.length,1);assert.equal(f.timers.size,0);f.fit.dispose();
+});
+test('closing or timing out during card typesetting never applies partial formula dimensions',async()=>{
+ for(const mode of ['close','timeout']){const f=fixture(undefined,{math:true});f.fit.schedule('$x$');const pending=f.fit.flush();f.jobs[0].resolve();await tick();
+  assert.equal(f.mathJobs.length,1);if(mode==='close')f.fit.dispose();else [...f.timers.values()].find(t=>t.delay===1000)!.run();await pending;assert.equal(f.measurements,0);assert.equal(f.holders[0].removed,true);
+  f.mathJobs[0].resolve();await tick();assert.equal(f.applied.length,0);assert.equal(f.timers.size,0);f.fit.dispose();}
+});
+test('card measurement setup failures release partially acquired resources and allow a later draft',async()=>{
+ for(const setupFailure of ['load','holder','clone'] as const){const f=fixture(undefined,{setupFailure});f.fit.schedule('draft');await assert.doesNotReject(f.fit.flush());assert.ok(f.scopes.every(scope=>!scope.loaded&&scope.unloads===1));assert.ok(f.holders.every(holder=>holder.removed));assert.equal(f.applied.length,0);f.fit.dispose();}
+ const f=fixture();f.fit.schedule('bad');let pending=f.fit.flush();f.jobs[0].reject(Error('renderer failed'));await pending;f.fit.schedule('good');pending=f.fit.flush();f.jobs[1].resolve();await pending;assert.equal(f.applied.length,1);assert.ok(f.holders.every(holder=>holder.removed));f.fit.dispose();
+});
+test('detached cards skip measurement and reparented cards reject a stale frame',async()=>{
+ const detached=fixture();detached.preview.isConnected=false;detached.fit.schedule('draft');const pending=detached.fit.flush();if(detached.jobs[0])detached.jobs[0].resolve();await pending;assert.equal(detached.jobs.length,0);assert.equal(detached.scopes.length,0);detached.fit.dispose();
+ const f=fixture();f.fit.schedule('draft');const measuring=f.fit.flush();f.preview.parentElement={createDiv:()=>{throw Error('unexpected');}};f.jobs[0].resolve();await measuring;assert.equal(f.applied.length,0);assert.equal(f.holders[0].removed,true);f.fit.dispose();
+});

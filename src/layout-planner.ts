@@ -9,9 +9,9 @@ export const sectionLayoutModes=new Set<LayoutOptions['mode']>(['kind','color','
 export interface LayoutPlan{newSections?:LayoutSection[];sectionContext?:string;movement?:string;originals:Card[];items:Card[];signature:string;ids:string[];skipped:number;lanes:{label:string;x:number;y?:number;width:number;ids:string[]}[];connections?:string;bounds:{x:number;y:number;width:number;height:number};section?:{original:Card;next:Card;members:string}}
 /** Only topology within the movable selection affects clustering; direction and duplicate edges do not. */
 function connectionPairs(board:Board,ids:ReadonlySet<string>){return [...new Set(board.edges.filter(e=>e.from!==e.to&&ids.has(e.from)&&ids.has(e.to)).map(e=>JSON.stringify([e.from,e.to].sort())))].sort();}
-function connectedGroups(board:Board,nodes:Card[]){
+function connectedGroups(nodes:Card[],pairs:readonly string[]){
  const links=new Map(nodes.map(n=>[n.id,new Set<string>()]));
- for(const pair of connectionPairs(board,new Set(links.keys()))){const[a,b]=JSON.parse(pair) as string[];links.get(a)!.add(b);links.get(b)!.add(a);}
+ for(const pair of pairs){const[a,b]=JSON.parse(pair) as string[];links.get(a)!.add(b);links.get(b)!.add(a);}
  const visited=new Set<string>(),byId=new Map(nodes.map(n=>[n.id,n])),rank=new Map(nodes.map((n,i)=>[n.id,i])),groups:Card[][]=[],isolated:Card[]=[];
  for(const n of nodes){if(visited.has(n.id))continue;visited.add(n.id);if(!links.get(n.id)!.size){isolated.push(n);continue;}
   const queue=[n.id],group:Card[]=[];for(let i=0;i<queue.length;i++){const id=queue[i];group.push(byId.get(id)!);for(const next of links.get(id)!)if(!visited.has(next)){visited.add(next);queue.push(next);}}
@@ -20,7 +20,7 @@ function connectedGroups(board:Board,nodes:Card[]){
  return [...groups.map((items,i)=>({items,label:`关联组 ${i+1} · ${items.length} 项`})),...(isolated.length?[{items:isolated,label:`未连接 · ${isolated.length} 项`}]:[])];
 }
 export const layoutSignature=(nodes:Card[])=>JSON.stringify(nodes.map(n=>[n.id,n.kind,n.x,n.y,n.width,n.height,n.locked,n.color,n.review,readingTitle(n)]));
-const movementSignature=(board:Board,ids:ReadonlySet<string>)=>JSON.stringify(foldedMoveUnits(board,ids).map(unit=>[unit.root.id,unit.members.map(n=>[n.id,n.x,n.y,n.width,n.height,!!n.locked,!!n.branchFolded])]));
+const movementSignature=(units:ReturnType<typeof foldedMoveUnits>)=>JSON.stringify(units.map(unit=>[unit.root.id,unit.members.map(n=>[n.id,n.x,n.y,n.width,n.height,!!n.locked,!!n.branchFolded])]));
 export function layoutBounds(nodes:Card[]){const x=Math.min(...nodes.map(n=>n.x)),y=Math.min(...nodes.map(n=>n.y));return {x,y,width:Math.max(...nodes.map(n=>n.x+n.width))-x,height:Math.max(...nodes.map(n=>n.y+n.height))-y};}
 export function planLayout(board:Board,ids:ReadonlySet<string>,options:LayoutOptions):LayoutPlan{
  if(!Object.hasOwn(layoutModes,options.mode)||(['grid','masonry','connections'].includes(options.mode)&&(!Number.isInteger(options.columns)||options.columns<1||options.columns>12))||(!options.mode.startsWith('align')&&(!Number.isFinite(options.gap)||options.gap<8||options.gap>240))||!['position','title'].includes(options.sort)||!['corner','center'].includes(options.anchor))throw Error('请设置 1–12 列和 8–240 的间距');
@@ -29,15 +29,18 @@ export function planLayout(board:Board,ids:ReadonlySet<string>,options:LayoutOpt
  const createSections=!!options.createSections&&sectionLayoutModes.has(options.mode);
  if(createSections&&units.some(unit=>unit.members.some(n=>board.nodes.some(frame=>frame.kind==='section'&&sectionContains(frame,n)))))throw Error('自动分组仅适用于散卡，请先将内容移出原分组，或关闭生成分组框');
  if(source.length<2||source.length>1000)throw Error('请选择 2–1000 个未锁定的内容对象');
- const nodes=source.map(n=>({...n})).sort(options.sort==='title'?(a,b)=>readingTitle(a).localeCompare(readingTitle(b))||a.id.localeCompare(b.id):(a,b)=>a.y-b.y||a.x-b.x||a.id.localeCompare(b.id));
- const original=layoutBounds(source),lanes:LayoutPlan['lanes']=[],gap=options.gap;
+ // Keep sorting titles local to these draft objects; the source signature stays fresh.
+ const nodes=source.map(n=>({...n})),titles=options.sort==='title'?new Map(nodes.map(n=>[n,readingTitle(n)])):undefined;
+ nodes.sort(titles?(a,b)=>titles.get(a)!.localeCompare(titles.get(b)!)||a.id.localeCompare(b.id):(a,b)=>a.y-b.y||a.x-b.x||a.id.localeCompare(b.id));
+ const original=layoutBounds(source),lanes:LayoutPlan['lanes']=[],gap=options.gap;let connections:string[]|undefined;
  if(options.mode.startsWith('align')){
   for(const n of nodes){if(options.mode==='alignLeft')n.x=original.x;else if(options.mode==='alignCenter')n.x=original.x+(original.width-n.width)/2;else if(options.mode==='alignRight')n.x=original.x+original.width-n.width;else if(options.mode==='alignTop')n.y=original.y;else if(options.mode==='alignMiddle')n.y=original.y+(original.height-n.height)/2;else n.y=original.y+original.height-n.height;}
  }else if(options.mode==='distributeX'||options.mode==='distributeY'){
   const horizontal=options.mode==='distributeX';nodes.sort((a,b)=>horizontal?a.x-b.x||a.y-b.y||a.id.localeCompare(b.id):a.y-b.y||a.x-b.x||a.id.localeCompare(b.id));let cursor=horizontal?original.x:original.y;
   for(const n of nodes){if(horizontal){n.x=cursor;cursor+=n.width+gap;}else{n.y=cursor;cursor+=n.height+gap;}}
  }else if(options.mode==='connections'){
-  const groups=connectedGroups(board,nodes),blocks=groups.map(group=>{const cols=Math.min(options.columns,group.items.length),width=Math.max(...group.items.map(n=>n.width));let y=0;
+  // Clustering and the stale-preview signature share this call's canonical pairs.
+  const groups=connectedGroups(nodes,connections=connectionPairs(board,new Set(nodes.map(n=>n.id)))),blocks=groups.map(group=>{const cols=Math.min(options.columns,group.items.length),width=Math.max(...group.items.map(n=>n.width));let y=0;
    for(let i=0;i<group.items.length;i+=cols){const row=group.items.slice(i,i+cols);row.forEach((n,j)=>{n.x=j*(width+gap);n.y=y;});y+=Math.max(...row.map(n=>n.height))+gap;}
    return {...group,bounds:layoutBounds(group.items)};
   });
@@ -56,7 +59,7 @@ export function planLayout(board:Board,ids:ReadonlySet<string>,options:LayoutOpt
  const packed=layoutBounds(nodes),keepCenter=options.anchor==='center'&&!options.mode.startsWith('align'),dx=keepCenter?(original.width-packed.width)/2:0,dy=keepCenter?(original.height-packed.height)/2:0;
  for(const n of nodes){n.x+=dx;n.y+=dy;}for(const lane of lanes){lane.x+=dx;if(lane.y!==undefined)lane.y+=dy;}
  const newSections=createSections?planNewSections(board,nodes,lanes,units,options):undefined;
- return {...(newSections?{newSections,sectionContext:sectionContext(board)}:{}),originals:source.map(n=>({...n})),items:nodes,signature:layoutSignature(source),movement:movementSignature(board,new Set(source.map(n=>n.id))),ids:source.map(n=>n.id),skipped:selected.length-source.length,lanes,bounds:layoutBounds(newSections?[...nodes,...newSections.map((s,i)=>({...s,id:`preview-section-${i}`,kind:'section' as const}))]:nodes),...(options.mode==='connections'?{connections:JSON.stringify(connectionPairs(board,new Set(source.map(n=>n.id))))}:{})};
+ return {...(newSections?{newSections,sectionContext:sectionContext(board)}:{}),originals:source.map(n=>({...n})),items:nodes,signature:layoutSignature(source),movement:movementSignature(units),ids:source.map(n=>n.id),skipped:selected.length-source.length,lanes,bounds:layoutBounds(newSections?[...nodes,...newSections.map((s,i)=>({...s,id:`preview-section-${i}`,kind:'section' as const}))]:nodes),...(options.mode==='connections'?{connections:JSON.stringify(connections)}:{})};
 }
 /** Outside geometry is part of a grouping proposal because containment is spatial. */
 const sectionContext=(board:Board)=>JSON.stringify(board.nodes.map(n=>[n.id,n.kind,n.x,n.y,n.width,n.height,!!n.locked,!!n.branchFolded,!!n.sectionFolded]));
@@ -87,12 +90,12 @@ function validateNewSections(board:Board,plan:LayoutPlan,units:ReturnType<typeof
 }
 /** Validate the whole proposal before any write, including asynchronous auto-fit or newly locked objects. */
 export function applyLayout(board:Board,plan:LayoutPlan){
- const ids=new Set(plan.ids);if(plan.movement!==undefined&&movementSignature(board,ids)!==plan.movement)throw Error('折叠分支或锁定状态已变化，请重新预览');const current=board.nodes.filter(n=>ids.has(n.id));if(layoutSignature(current)!==plan.signature)throw Error('对象已变化，请重新生成布局预览');
+ const ids=new Set(plan.ids);let units:ReturnType<typeof foldedMoveUnits>|undefined;if(plan.movement!==undefined&&movementSignature(units=foldedMoveUnits(board,ids))!==plan.movement)throw Error('折叠分支或锁定状态已变化，请重新预览');const current=board.nodes.filter(n=>ids.has(n.id));if(layoutSignature(current)!==plan.signature)throw Error('对象已变化，请重新生成布局预览');
  if(plan.connections!==undefined&&JSON.stringify(connectionPairs(board,ids))!==plan.connections)throw Error('连线关系已变化，请重新生成布局预览');
  if(plan.section&&(![plan.section.next.x,plan.section.next.y,plan.section.next.width,plan.section.next.height].every(Number.isFinite)||plan.section.next.width<=0||plan.section.next.height<=0))throw Error('分组布局无效，请重新预览');
  if(plan.section){const section=board.nodes.find(n=>n.id===plan.section!.original.id);if(!section||layoutSignature([section])!==layoutSignature([plan.section.original])||sectionMembersSignature(board,section)!==plan.section.members)throw Error('分组或框内内容已变化，请重新预览');}
  const positions=new Map(plan.items.map(n=>[n.id,n]));if(positions.size!==ids.size||[...ids].some(id=>!positions.has(id))||plan.items.some(n=>!Number.isFinite(n.x)||!Number.isFinite(n.y)))throw Error('布局预览无效，请重新生成');
- const units=foldedMoveUnits(board,ids);if(units.length!==ids.size)throw Error('折叠分支或锁定状态已变化，请重新预览');validateNewSections(board,plan,units);for(const unit of units){const next=positions.get(unit.root.id)!;moveFoldedUnit(unit,next.x,next.y);}
+ units??=foldedMoveUnits(board,ids);if(units.length!==ids.size)throw Error('折叠分支或锁定状态已变化，请重新预览');validateNewSections(board,plan,units);for(const unit of units){const next=positions.get(unit.root.id)!;moveFoldedUnit(unit,next.x,next.y);}
  if(plan.newSections){board.version=3;board.nodes.push(...plan.newSections.map(frame=>({id:uid(),kind:'section' as const,title:frame.title,color:frame.color,x:frame.x,y:frame.y,width:frame.width,height:frame.height})));}
  if(plan.section){const n=board.nodes.find(n=>n.id===plan.section!.original.id)!;const next=plan.section.next;Object.assign(n,{x:next.x,y:next.y,width:next.width,height:next.height});}
 }
@@ -122,8 +125,9 @@ export function resolveLayoutScope(board:Board,scope:LayoutScope,selection:Reado
  const sections=board.nodes.filter(n=>n.kind==='section');
  if(scope.startsWith('section:')){const id=scope.slice(8);const frame=sections.find(n=>n.id===id);if(!frame)throw Error('分组已删除，请选择其他范围');return{ids:new Set([id]),sectionId:id,label:frame.title||'未命名分组'};}
  if(scope==='selection'){const chosen=board.nodes.filter(n=>selection.has(n.id));return{ids:new Set(chosen.map(n=>n.id)),sectionId:chosen.length===1&&chosen[0].kind==='section'?chosen[0].id:undefined,label:'当前选择'};}
- const hidden=branchState(board).hidden;const loose=board.nodes.filter(n=>!hidden.has(n.id)&&n.kind!=='section'&&!sections.some(frame=>inside(frame,n)));
- const items=scope==='visible'?loose.filter(n=>viewport&&n.x<viewport.x+viewport.width&&n.x+n.width>viewport.x&&n.y<viewport.y+viewport.height&&n.y+n.height>viewport.y):loose;
+ // Offscreen objects cannot enter the visible scope, so skip their frame membership scans.
+ const hidden=branchState(board).hidden,candidates=scope==='visible'?board.nodes.filter(n=>!hidden.has(n.id)&&n.kind!=='section'&&viewport&&n.x<viewport.x+viewport.width&&n.x+n.width>viewport.x&&n.y<viewport.y+viewport.height&&n.y+n.height>viewport.y):board.nodes;
+ const items=candidates.filter(n=>!hidden.has(n.id)&&n.kind!=='section'&&!sections.some(frame=>inside(frame,n)));
  return{ids:new Set(items.map(n=>n.id)),sectionId:undefined,label:scope==='visible'?'当前视野中的散卡':'白板全部散卡'};
 }
 export function layoutChanges(plan:LayoutPlan){const old=new Map(plan.originals.map(n=>[n.id,n]));return plan.items.filter(n=>{const before=old.get(n.id)!;return Math.abs(n.x-before.x)>.001||Math.abs(n.y-before.y)>.001;}).length;}

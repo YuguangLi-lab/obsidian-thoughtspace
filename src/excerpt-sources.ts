@@ -1,6 +1,9 @@
 export interface ExcerptSource {link:string;location:string;line?:number;page?:number;citation:string}
 /** Only recognized excerpt citation lines leave the card preview. The Markdown file is never changed. */
 export function excerptPresentation(raw:string,onSource?:(line:number,source:ExcerptSource)=>void){
+ // Every recognized citation contains this marker. Ordinary Markdown still
+ // receives the same newline normalization, without allocating a line array.
+ if(!raw.includes('来源：'))return{body:raw.replace(/\r\n/g,'\n'),sources:[] as ExcerptSource[]};
  const sources:ExcerptSource[]=[],out:string[]=[];let fence='',frontmatter=false;
  const lines=raw.split(/\r?\n/);
  for(let i=0;i<lines.length;i++){
@@ -19,6 +22,7 @@ export function excerptPresentation(raw:string,onSource?:(line:number,source:Exc
  * or separator must not swallow its provenance. Markdown note parsing stays unchanged.
  */
 export function textExcerptPresentation(raw:string,onSource?:(line:number,source:ExcerptSource,literalTail?:boolean)=>void){
+ if(!raw.includes('来源：'))return{body:raw.replace(/\r\n/g,'\n'),sources:[] as ExcerptSource[]};
  const lines=raw.split(/\r?\n/),tail:{index:number;source:ExcerptSource}[]=[];
  let end=lines.length;
  while(end>0){

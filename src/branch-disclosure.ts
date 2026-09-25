@@ -1,9 +1,9 @@
 import type {Board,Card,Edge} from './model';
-import {branchState,validateBranches} from './mindmap';
+import {branchTopology,validateBranches} from './mindmap';
 export type BranchDisclosure='collapse'|'level'|'all';
 /** Reveal one frontier per action. Existing hidden descendants are not expanded en masse. */
 export function discloseBranches(board:Board,roots:ReadonlySet<string>,mode:BranchDisclosure){
- const {children}=branchState(board),byId=new Map(board.nodes.map(n=>[n.id,n]));
+ const {children}=branchTopology(board),byId=new Map(board.nodes.map(n=>[n.id,n]));
  const queue=[...roots].filter(id=>children.has(id)&&byId.has(id)),seen=new Set<string>();
  if(mode==='collapse'){for(const id of queue)byId.get(id)!.branchFolded=true;}
  else if(mode==='all'){for(let i=0;i<queue.length;i++){const id=queue[i];if(seen.has(id))continue;seen.add(id);delete byId.get(id)!.branchFolded;queue.push(...(children.get(id)||[]));}}

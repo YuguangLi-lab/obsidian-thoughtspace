@@ -1,4 +1,4 @@
-import {Board,Card,assertBoardGeometry,expandedSelection} from './model';
+import {Board,Card,assertBoardGeometry,selectionExpansion} from './model';
 import {branchState,foldedMoveUnits,validateBranches} from './mindmap';
 import {SectionRect,sectionContains,sectionMemberQuery} from './sections';
 
@@ -51,8 +51,9 @@ function movementIds(board:Board,selection:ReadonlySet<string>):Set<string>{
  if([...selection].some(id=>!ids.has(id)))throw Error('所选内容已隐藏，请先展开分组或选择整个折叠分支');
  // Overlapping open frames can contain only part of somebody else's hidden unit.
  // Moving that frame must not split the folded branch through geometry alone.
+ let expand:ReturnType<typeof selectionExpansion>['expand']|undefined;
  if([...ids].some(id=>hidden.has(id)))for(const root of board.nodes)if(!ids.has(root.id)&&(root.branchFolded||root.sectionFolded)){
-  const unit=expandedSelection(board,new Set([root.id]));if([...ids].some(id=>unit.has(id)))throw Error('分组与其他折叠分支重叠，请先展开该分支后再移动');
+  expand??=selectionExpansion(board).expand;const unit=expand(new Set([root.id]));if([...ids].some(id=>unit.has(id)))throw Error('分组与其他折叠分支重叠，请先展开该分支后再移动');
  }
  return ids;
 }

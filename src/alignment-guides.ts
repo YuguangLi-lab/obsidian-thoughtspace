@@ -18,7 +18,7 @@ export function alignmentIndex(nodes:readonly Card[],moving:ReadonlySet<string>,
 function nearest(anchors:Anchor[],points:number[],threshold:number){
  let best:{anchor:Anchor;distance:number}|undefined;
  for(const point of points){let lo=0,hi=anchors.length;while(lo<hi){const mid=(lo+hi)>>>1;if(anchors[mid].value<point)lo=mid+1;else hi=mid;}
-  for(const i of [lo-1,lo]){const anchor=anchors[i];if(!anchor)continue;const distance=anchor.value-point;if(Math.abs(distance)<=threshold&&(!best||Math.abs(distance)<Math.abs(best.distance)))best={anchor,distance};}
+  for(const i of [lo-1,lo]){const anchor=anchors[i];if(!anchor)continue;const distance=anchor.value-point;if(Math.abs(distance)<=threshold&&(!best||Math.abs(distance)<Math.abs(best.distance))){best={anchor,distance};if(distance===0)return best;}}
  }return best;
 }
 /** The threshold stays six screen pixels at every zoom. One shared delta preserves a multi-selection. */

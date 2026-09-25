@@ -5,14 +5,17 @@ import {transformSync} from 'esbuild';
 import * as model from '../src/model';
 import * as renderKeys from '../src/node-render-key';
 import {branchState} from '../src/mindmap';
+import {branchRenderSnapshot} from '../src/branch-render';
 import {childConnectionCandidates} from '../src/branch-disclosure';
 import {sectionDisplayNode} from '../src/sections';
-import {visibleNodes,viewportRect,markdownPreview} from '../src/rendering';
+import {visibleNodes,viewportRect,markdownPreview,RenderQueue} from '../src/rendering';
 import {visibleGridSize} from '../src/canvas-controls';
 import {textFontFamily} from '../src/text-tools';
 import {cardDisplayTitle} from '../src/card-title-model';
 import {mediaDimensions} from '../src/media-geometry';
 import {foldCards} from '../src/board-tools';
+import {releaseEditorResource} from '../src/editor-cleanup';
+import {excerptPresentation} from '../src/excerpt-sources';
 
 // Exercise the production BoardView render path. Only the vault, Obsidian DOM,
 // renderer boundaries and queue clock are substituted; cached nodes and their
@@ -39,9 +42,11 @@ class Dom {
  readonly style=Object.assign({left:'',top:'',width:'',height:'',borderStyle:'',borderWidth:'',fontFamily:'',fontSize:'',textAlign:'',transform:'',backgroundSize:'',backgroundPosition:''},{
   getPropertyValue:(key:string)=>this.css.get(key)||'',setProperty:(key:string,value:string)=>this.css.set(key,value),removeProperty:(key:string)=>this.css.delete(key)});
  readonly css=new Map<string,string>();
+ readonly ownerDocument={win:{setTimeout:()=>0,clearTimeout:()=>{},createDiv:()=>new Dom()}};
  readonly classList={contains:(name:string)=>this.classes.has(name),add:(...names:string[])=>names.forEach(n=>this.classes.add(n)),remove:(...names:string[])=>names.forEach(n=>this.classes.delete(n)),toggle:(name:string,on?:boolean)=>{const active=on??!this.classes.has(name);this.toggleClass(name,active);return active;}};
  constructor(readonly tag='div',options:Options={}){const o=typeof options==='string'?{cls:options}:options;for(const cls of (o.cls||'').split(' ').filter(Boolean))this.classes.add(cls);this.textContent=o.text||'';for(const[k,v]of Object.entries(o.attr||{}))this.setAttribute(k,v);}
  get isConnected():boolean{return this.root||!!this.parent?.isConnected;}
+ get className(){return [...this.classes].join(' ');}set className(value:string){this.classes=new Set(value.split(/\s+/).filter(Boolean));}
  get childElementCount(){return this.children.length;}
  get childNodes(){return this.children;}
  get lastElementChild():Dom|null{return this.children.at(-1)||null;}
@@ -60,6 +65,7 @@ class Dom {
  createSpan(options:Options={}){return this.createEl('span',options);}
  remove(){if(this.parent)this.parent.children.splice(this.parent.children.indexOf(this),1);this.parent=undefined;}
  empty(){for(const c of [...this.children])c.remove();this.textContent='';}
+ replaceChildren(...children:Dom[]){this.empty();for(const child of children){child.remove();child.parent=this;this.children.push(child);}}
  insertBefore(child:Dom,before:Dom|null){child.remove();const index=before?this.children.indexOf(before):-1;this.children.splice(index<0?this.children.length:index,0,child);child.parent=this;}
  matches(selector:string){return selector.split(',').some(s=>s.startsWith('.')?s.slice(1).split('.').every(c=>this.classes.has(c)):s===this.tag);}
  querySelectorAll(selector:string):Dom[]{return this.children.flatMap(c=>[...(c.matches(selector)?[c]:[]),...c.querySelectorAll(selector)]);}
@@ -72,7 +78,9 @@ class File {
  constructor(readonly path:string){this.basename=path.replace(/\.[^.]+$/,'');}
 }
 class Scope {
- unloaded=0;disposals:(()=>void)[]=[];load(){}
+ unloaded=0;disposals:(()=>void)[]=[];children:Scope[]=[];load(){}
+ addChild(child:Scope){this.children.push(child);child.load();}
+ removeChild(child:Scope){this.children=this.children.filter(item=>item!==child);child.unload();}
  register(fn:()=>void){this.disposals.push(fn);}
  unload(){this.unloaded++;for(const fn of this.disposals.splice(0))fn();}
 }
@@ -88,7 +96,7 @@ function fixture(kind:model.Card['kind']='card',patch:Partial<model.Card>={}){
  const calls={metadata:0,tags:0,childCandidates:0,read:0,markdown:0,pdf:0,textFit:0,cardFit:0,mediaFits:[] as {node:model.Card;size:{width:number;height:number}}[]};
  const world=new Dom();world.root=true;const svg=world.createEl('svg'),previewQueue=new Queue(),pdfPreviewQueue=new Queue();
  const session={board,blocked:false,file:new File('board.thoughtspace')};
- const deps={...model,...keys,renderBranchControls:branchModule.exports.renderBranchControls,branchState,childConnectionCandidates:(board:model.Board,roots?:ReadonlySet<string>)=>{calls.childCandidates++;return childConnectionCandidates(board,roots);},sectionDisplayNode,visibleNodes,viewportRect,markdownPreview,visibleGridSize,textFontFamily,cardDisplayTitle,mediaDimensions,
+ const deps={...model,...keys,renderBranchControls:branchModule.exports.renderBranchControls,branchState,branchRenderSnapshot,childConnectionCandidates:(board:model.Board,roots?:ReadonlySet<string>)=>{calls.childCandidates++;return childConnectionCandidates(board,roots);},sectionDisplayNode,visibleNodes,viewportRect,markdownPreview,visibleGridSize,textFontFamily,cardDisplayTitle,mediaDimensions,
   TFile:File,Component:Scope,Element:Dom,getAllTags:(cache:{tags?:string[]})=>{calls.tags++;return cache.tags||null;},setIcon:()=>{},
   button:(host:Dom,label:string,_icon:string,fn:()=>void,cls='')=>{const el=host.createEl('button',{cls,attr:{'aria-label':label}});el.createSpan();el.createSpan({text:label});el.onclick=fn;return el;},
   bindCardTitle:()=>()=>{},readProperties:(fm:Record<string,unknown>)=>({status:fm.thoughtspace_status}),statuses:{done:'完成'},isOverdue:()=>false,localDay:()=>'',
@@ -97,7 +105,11 @@ function fixture(kind:model.Card['kind']='card',patch:Partial<model.Card>={}){
   MarkdownRenderer:{async render(_app:unknown,body:string,host:Dom){calls.markdown++;host.createDiv({cls:'rendered-content',text:body});}},
   renderPdfThumbnail:async(options:{host:Dom;onSize:(size:{width:number;height:number})=>void;alive:()=>boolean})=>{calls.pdf++;if(!options.alive())return;options.host.createEl('canvas');options.onSize({width:640,height:320});return{total:12};}
  };
- const View=new Function(...Object.keys(deps),transformSync(`class View{${methods}};return View`,{loader:'ts'}).code)(...Object.values(deps));
+ const cardPreviewModule={exports:{} as typeof import('../src/card-preview')};
+ const previewImports:Record<string,unknown>={obsidian:{Component:Scope,MarkdownRenderer:deps.MarkdownRenderer},'./editor-cleanup':{releaseEditorResource},'./excerpt-sources':{excerptPresentation},'./rendering':{markdownPreview}};
+ new Function('require','module','exports',transformSync(readFileSync('src/card-preview.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>previewImports[name],cardPreviewModule,cardPreviewModule.exports);
+ const allDeps={...deps,...cardPreviewModule.exports};
+ const View=new Function(...Object.keys(allDeps),transformSync(`class View{${methods}};return View`,{loader:'ts'}).code)(...Object.values(allDeps));
  const view=new View();Object.assign(view,{session,world,svg,stage:new Dom(),contentEl:new Dom(),zoomLabel:new Dom(),selected:new Set(),positions:new Map(),nodeScopes:new Map(),nodeKeys:new Map(),pdfTotals:new Map(),previewQueue,pdfPreviewQueue,
   plugin:{settings:{gridStep:24,previewLimit:20,detailZoom:.4}},
   app:{vault:{getAbstractFileByPath:(path:string)=>files.get(path),getResourcePath:(file:File)=>file.path,async cachedRead(){calls.read++;return 'Rendered **note**';}},metadataCache:{getFileCache:()=>{calls.metadata++;return metadata;}}},
@@ -297,4 +309,12 @@ test('folded text shows a single-line summary and keeps formula source for expan
  const f=fixture('text',{text:'标题\n$$x^2$$\n全文',collapsed:true,height:72,expandedHeight:180});
  assert.equal(f.element().querySelector('.ts-text-body')?.textContent,'标题');assert.equal(f.calls.textFit,0);assert.equal(f.element().querySelectorAll('button').some(b=>b.getAttribute('aria-label')==='展开文本'),true);assert.equal(f.element().querySelector('.ts-resize'),null);
  assert.equal(f.board.nodes[0].text,'标题\n$$x^2$$\n全文');f.replace({collapsed:undefined,height:180,expandedHeight:undefined});assert.equal(f.element().querySelector('.ts-text-body')?.textContent,'标题\n$$x^2$$\n全文');assert.equal(f.calls.textFit,1);assert.ok(f.element().querySelector('.ts-resize'));
+});
+
+test('production card jobs release shared queue slots when their nodes are removed during file reads',async()=>{
+ const queue=new RenderQueue(),cards=Array.from({length:4},()=>fixture('card')),resolves:((value:string)=>void)[]=[];
+ for(const f of cards){f.view.app.vault.cachedRead=()=>new Promise<string>(resolve=>resolves.push(resolve));const job=f.previewQueue.jobs.shift()!;queue.add(job.alive,job.run);}
+ assert.equal(queue.active,4);for(const f of cards){f.element().remove();f.scope().unload();}queue.clear();let next=0;queue.add(()=>true,async()=>{next++;});await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(next,1);assert.equal(queue.active,0);assert.equal(queue.pending,0);for(const resolve of resolves)resolve('late Markdown');await new Promise(resolve=>setImmediate(resolve));
+ assert.ok(cards.every(f=>f.calls.markdown===0));assert.ok(cards.every(f=>f.calls.cardFit===0));
 });

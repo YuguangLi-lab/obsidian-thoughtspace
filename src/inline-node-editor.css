@@ -21,8 +21,8 @@
 
 /* Share paragraph insets and blank-line rhythm with the inline source editor. */
 .ts-root .ts-card-preview p {margin-top:1.8em;margin-bottom:1.8em;}
-.ts-root .ts-card-preview > :first-child {margin-top:0;}
-.ts-root .ts-card-preview > :last-child {margin-bottom:0;}
+.ts-root :is(.ts-card-preview,.ts-card-preview-content) > :first-child {margin-top:0;}
+.ts-root :is(.ts-card-preview,.ts-card-preview-content) > :last-child {margin-bottom:0;}
 
 /* Editing Toolbar-inspired single row: clear groups, restrained chrome, compact icons. */
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-markdown-tools {display:flex;align-items:center;flex:0 0 auto;white-space:nowrap;}

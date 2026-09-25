@@ -19,19 +19,24 @@ export function* markdownRows(text:string){
    if(!indented)fence=marker![1];yield {source,line,visible:'',code:true,topLevel:false,commentBefore,fenceOpening:!indented,openBlock:!!fence};continue;
   }
   const topLevel=!prefix&&!lists.length&&indent<4;
-  // Code spans protect literal comment delimiters; comments otherwise mask rather than delete.
-  const ranges=inlineCodeRanges(raw),chars=raw.split('');let range=0;
-  for(let i=0;i<raw.length;){
-   if(comment){const end=raw.indexOf(comment,i),to=end<0?raw.length:end+comment.length;for(let j=i;j<to;j++)chars[j]=' ';i=to;if(end>=0)comment='';continue;}
-   while(range<ranges.length&&ranges[range].to<=i)range++;
-   if(range<ranges.length&&ranges[range].from===i){i=ranges[range].to;continue;}
-   if(raw.startsWith('<!--',i)||raw.startsWith('%%',i)){
-    const token=raw.startsWith('<!--',i)?'<!--':'%%';let slash=i;while(slash>0&&raw[slash-1]==='\\')slash--;
-    if((i-slash)%2){i++;continue;}
-    comment=token==='<!--'?'-->':'%%';for(let j=i;j<i+token.length;j++)chars[j]=' ';i+=token.length;continue;
-   }i++;
+  // Ordinary lines need no masking. Active comments and possible delimiters
+  // still use code-span protection and preserve original UTF-16 offsets.
+  let visible=raw;
+  if(comment||raw.includes('<!--')||raw.includes('%%')){
+   const ranges=inlineCodeRanges(raw),chars=raw.split('');let range=0;
+   for(let i=0;i<raw.length;){
+    if(comment){const end=raw.indexOf(comment,i),to=end<0?raw.length:end+comment.length;for(let j=i;j<to;j++)chars[j]=' ';i=to;if(end>=0)comment='';continue;}
+    while(range<ranges.length&&ranges[range].to<=i)range++;
+    if(range<ranges.length&&ranges[range].from===i){i=ranges[range].to;continue;}
+    if(raw.startsWith('<!--',i)||raw.startsWith('%%',i)){
+     const token=raw.startsWith('<!--',i)?'<!--':'%%';let slash=i;while(slash>0&&raw[slash-1]==='\\')slash--;
+     if((i-slash)%2){i++;continue;}
+     comment=token==='<!--'?'-->':'%%';for(let j=i;j<i+token.length;j++)chars[j]=' ';i+=token.length;continue;
+    }i++;
+   }
+   visible=chars.join('');
   }
-  const visible=chars.join(''),item=/^([-*+]|\d+[.)])([ \t]+)(.*)$/.exec(visible.slice(prefix.length+indentText.length));
+  const item=/^([-*+]|\d+[.)])([ \t]+)(.*)$/.exec(visible.slice(prefix.length+indentText.length));
   if(item){const pad=markdownColumns(item[2],indent+item[1].length)-indent-item[1].length;lists.push(indent+item[1].length+(pad>4?1:pad));}
   yield {source,line,visible,code:false,topLevel,commentBefore,openBlock:!!comment};
  }

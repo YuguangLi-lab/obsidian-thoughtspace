@@ -47,7 +47,7 @@ function fixture(tab:Tab){
  const Plugin=new Function('isWorkspaceFile','boardLinks','EXT',transformSync(`class Plugin{${take('  async boardGraph()', '  /** 所有由本插件创建')}};return Plugin`,{loader:'ts'}).code)(isWorkspaceFile,boardLinks,'thoughtspace');
  const plugin=new Plugin(),view=new View(),board:Board={...emptyBoard(),nodes:[{id:'note',kind:'card',file:note.path,color:'sand',x:0,y:0,width:300,height:180}]};
  const vault={getFiles:()=>files,getMarkdownFiles:()=>files.filter(f=>f.extension==='md'),getAbstractFileByPath:(path:string)=>files.find(f=>f.path===path),cachedRead:async()=>{calls.readNote++;return '- [ ] Current task';},on:(event:string,fn:(file:File)=>void)=>on('vault',event,fn)};
- plugin.app={vault};plugin.settings={favoriteBoards:[],cardFolder:'Notes'};plugin.readBoard=async()=>{calls.readBoard++;return emptyBoard();};
+ plugin.sessions=new Map();plugin.app={vault};plugin.settings={favoriteBoards:[],cardFolder:'Notes'};plugin.readBoard=async()=>{calls.readBoard++;return emptyBoard();};
  Object.assign(view,{sidebarRun:0,renderFrame:0,viewportOnlyRender:true,tab,boardScope:'spaces',boardSort:'title',query:'',tag:'',outlineKind:'all',libraryScope:'vault',librarySort:'updated',taskScope:'board',taskFilter:'all',selected:new Set(),collapsedBoards:new Set(),outlineCollapsed:new Set(),file:files[0],session:{board},plugin,
   app:{vault,metadataCache:{on:(event:string,fn:(file:File)=>void)=>on('metadata',event,fn),getFileCache:()=>({})}},registerEvent(){},matches:()=>true,
   renderBoard(){calls.canvas++;},renderSaveStatus(){calls.status++;},populateSidebar(){calls.build++;lastList=new Element();return view.buildSidebar(lastList,view.sidebarRun);}});

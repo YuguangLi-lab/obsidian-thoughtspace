@@ -9,6 +9,7 @@ class SvgDocument {
  writes=0;
  queries=0;
  textWrites=0;
+ classToggles=0;
  createElementNS(_namespace:string,tag:string){this.writes++;return new SvgElement(this,tag);}
 }
 class SvgElement {
@@ -24,6 +25,7 @@ class SvgElement {
  classList={
   contains:(name:string)=>(this.getAttribute('class')||'').split(/\s+/).includes(name),
   toggle:(name:string,force:boolean)=>{
+   this.ownerDocument.classToggles++;
    const names=new Set((this.getAttribute('class')||'').split(/\s+/).filter(Boolean));
    if(force)names.add(name);else names.delete(name);
    this.setAttribute('class',[...names].join(' '));
@@ -233,4 +235,68 @@ test('offscreen eviction, deletion and explicit clear rebuild caption content wi
  f.layer.clear();f.board.edges[0].label='新证据';f.render();const cleared=f.group('ab').querySelector('.ts-edge-caption');assert.ok(cleared);assert.notEqual(cleared,returned);assert.equal(cleared.querySelector('title')?.textContent,'新证据');assert.equal(cleared.querySelector('rect')?.getAttribute('width'),'54');
  const edges=structuredClone(f.board.edges);f.board.edges=[];f.render();assert.equal(f.root.children.filter(child=>child.dataset.edge).length,0);
  f.board.edges=edges;f.board.edges[0].label='x';f.render();assert.equal(f.group('ab').querySelector('rect')?.getAttribute('width'),'24.5');assert.equal(f.group('ab').querySelector('text')?.textContent,'x');
+});
+
+test('moving geometry retains current selection and focus without repeating class toggles',t=>{
+ const f=fixture(),focus=new Set(['a','b']),batch=new Set(['ab','ac']);f.render('ab',batch,focus);
+ const groups=[f.group('ab'),f.group('ac')],paths=[f.path('ab'),f.path('ac')],toggles=f.doc.classToggles;
+ for(let frame=1;frame<=120;frame++){
+  f.board.nodes[0].x=frame;f.board.nodes[0].y=frame/2;f.render('ab',batch,focus);
+  assert.equal(paths[0].getAttribute('d'),connectionPath(f.board.nodes[0],f.board.nodes[1],f.board.edges[0]).path);
+  assert.equal(paths[1].getAttribute('d'),connectionPath(f.board.nodes[0],f.board.nodes[2],f.board.edges[1]).path);
+ }
+ t.diagnostic(`120 moving frames / 2 edges: ${f.doc.classToggles-toggles} class toggles`);assert.equal(f.doc.classToggles,toggles);
+ assert.deepEqual([f.group('ab'),f.group('ac')],groups);assert.ok(paths.every(path=>path.classList.contains('is-selected')));assert.ok(groups[1].classList.contains('is-unrelated'));assert.ok(!groups[0].classList.contains('is-unrelated'));
+ focus.add('c');batch.delete('ac');f.render('ab',batch,focus);assert.equal(f.doc.classToggles,toggles+2);assert.ok(!groups[1].classList.contains('is-unrelated'));assert.ok(!paths[1].classList.contains('is-selected'));
+});
+
+test('initial focus and selection survive color-theme changes that rewrite an edge group class',()=>{
+ const f=fixture(),focus=new Set(['a']),batch=new Set(['ab']);f.render('ab',batch,focus);
+ const group=f.group('ab'),path=f.path('ab');assert.ok(group.classList.contains('is-unrelated'));assert.ok(path.classList.contains('is-selected'));
+ for(const color of ['teal',undefined,'rose'] as const){
+  f.board.edges[0]={...f.board.edges[0],color};f.render('ab',batch,focus);
+  assert.equal(f.group('ab'),group);assert.ok(group.classList.contains('is-unrelated'));assert.ok(path.classList.contains('is-selected'));assert.equal(path.style.values.get('--ts-edge-ink'),color?'var(--ts-tone)':'var(--text-muted)');if(color)assert.ok(group.classList.contains('ts-color-'+color));
+  const toggles=f.doc.classToggles;f.board.nodes[0].x+=1;f.render('ab',batch,focus);assert.equal(f.doc.classToggles,toggles);
+ }
+ focus.add('b');batch.clear();f.render(undefined,batch,focus);assert.ok(!group.classList.contains('is-unrelated'));assert.ok(!path.classList.contains('is-selected'));
+ f.layer.clear();f.render('ab',new Set(['ab']),new Set(['a']));assert.notEqual(f.group('ab'),group);assert.ok(f.group('ab').classList.contains('is-unrelated'));assert.ok(f.path('ab').classList.contains('is-selected'));
+});
+
+test('120 camera frames compare live edge values without rebuilding geometry and style strings',t=>{
+ const f=fixture();f.render('ab');const paths=[f.path('ab'),f.path('ac')],writes=f.doc.writes,original=Array.prototype.join;let geometry=0,style=0;
+ Array.prototype.join=function(this:unknown[],separator?:string){if(separator==='|'){if(this.length===11)geometry++;if(this.length===3)style++;}return original.call(this,separator);};
+ try{for(let frame=0;frame<120;frame++){f.board.viewport.x=frame/100;f.render('ab');}}finally{Array.prototype.join=original;}
+ t.diagnostic(`120 camera frames / 2 edges: ${JSON.stringify({geometry,style})}`);assert.deepEqual({geometry,style},{geometry:0,style:0});assert.equal(f.doc.writes,writes);assert.deepEqual([f.path('ab'),f.path('ac')],paths);
+});
+
+test('frame-local endpoint indexing avoids temporary pair arrays and reads fresh replacements',t=>{
+ const f=fixture();f.board.nodes.push(...Array.from({length:1197},(_,i):Card=>({id:'far'+i,kind:'text',x:10000+i*200,y:10000,width:100,height:80,color:'sand'})));let pairs=0;
+ f.board.nodes=new Proxy(f.board.nodes,{get(target,key,receiver){
+  if(key==='map')return(...args:unknown[])=>{const result=Reflect.apply(Array.prototype.map,target,args) as unknown[];if(Array.isArray(result[0])&&result[0][1]===target[0])pairs+=result.length;return result;};
+  return Reflect.get(target,key,receiver);
+ }});
+ for(let frame=0;frame<120;frame++)f.render();t.diagnostic(`120 frames / 1200 nodes: ${pairs} temporary index entry arrays`);assert.equal(pairs,0);
+ f.board.nodes=f.board.nodes.map(n=>n.id==='b'?{...n,x:490,width:180}:n).reverse();f.render('ab');
+ assert.equal(f.path('ab').getAttribute('d'),connectionPath(f.board.nodes.find(n=>n.id==='a')!,f.board.nodes.find(n=>n.id==='b')!,f.board.edges[0]).path);
+ const prior=f.group('ab');f.board.nodes=f.board.nodes.filter(n=>n.id!=='b');f.render();assert.equal(prior.parent,undefined);
+ f.board.nodes.push({id:'b',kind:'text',x:250,y:150,width:110,height:90,color:'blue'});f.render('ab');assert.notEqual(f.group('ab'),prior);
+ assert.equal(f.path('ab').getAttribute('d'),connectionPath(f.board.nodes.find(n=>n.id==='a')!,f.board.nodes.find(n=>n.id==='b')!,f.board.edges[0]).path);
+});
+
+test('edge value snapshots invalidate for each endpoint field, side and path style',()=>{
+ const f=fixture();f.board.edges[0].fromSide='bottom';f.board.edges[0].toSide='bottom';f.render('ab');
+ const verify=()=>{const route=connectionPath(f.board.nodes[0],f.board.nodes[1],f.board.edges[0]);assert.equal(f.path('ab').getAttribute('d'),route.path);const label=f.group('ab').querySelector('text')!;assert.equal(label.getAttribute('x'),String(route.label.x));assert.equal(label.getAttribute('y'),String(route.label.y+4));const handles=f.group('ab').querySelector('.ts-edge-handles')!;assert.deepEqual(handles.children.map(h=>[h.getAttribute('cx'),h.getAttribute('cy')]),[[String(route.from.x),String(route.from.y)],[String(route.to.x),String(route.to.y)]]);};
+ for(const index of [0,1])for(const key of ['x','y','width','height'] as const){f.board.nodes[index][key]+=17.125;f.render('ab');verify();}
+ for(const side of ['left','right','top','bottom',undefined] as const)for(const style of ['straight','elbow','curve',undefined] as const){
+  f.board.edges[0]={...f.board.edges[0],fromSide:side,toSide:side,style};f.board.nodes=f.board.nodes.map(n=>({...n}));f.render('ab');verify();
+ }
+});
+
+test('zero coordinates, empty captions and absent or false styles preserve default paths and handles',()=>{
+ const f=fixture(),edge=f.board.edges[0];Object.assign(edge,{label:'',style:undefined,fromSide:undefined,toSide:undefined,color:undefined,direction:undefined,dashed:undefined});
+ Object.assign(f.board.nodes[0],{x:0,y:0});Object.assign(f.board.nodes[1],{x:0,y:200});f.render('ab');
+ const path=f.path('ab');assert.equal(path.getAttribute('d'),connectionPath(f.board.nodes[0],f.board.nodes[1],edge).path);assert.equal(f.group('ab').querySelector('.ts-edge-caption'),null);assert.equal(path.style.values.get('--ts-edge-ink'),'var(--text-muted)');assert.equal(path.getAttribute('stroke-dasharray'),null);
+ const writes=f.doc.writes;f.board.nodes[0].x=-0;f.board.nodes[0].y=-0;f.render('ab');assert.equal(f.doc.writes,writes,'signed zero retains the existing route and DOM');
+ for(const dashed of [true,false,undefined]){edge.dashed=dashed;edge.direction='none';f.board.viewport.zoom=.5;f.render('ab');assert.equal(path.getAttribute('stroke-dasharray'),dashed?'7 5':null);assert.equal(path.getAttribute('marker-start'),null);assert.equal(path.getAttribute('marker-end'),null);assert.equal(path.getAttribute('d'),connectionPath(f.board.nodes[0],f.board.nodes[1],edge).path);assert.deepEqual(f.group('ab').querySelector('.ts-edge-handles')!.children.map(h=>h.getAttribute('r')),['12','12']);}
+ edge.direction=undefined;edge.color='rose';f.render('ab');assert.match(path.getAttribute('marker-end')||'',/test-rose/);assert.ok(f.group('ab').classList.contains('ts-color-rose'));
 });

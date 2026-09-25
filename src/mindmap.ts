@@ -82,11 +82,16 @@ export function previewMindmapSize(board:Board,id:string,width:number,height:num
  return display;
 }
 
+/** Transaction-local links preserve edge order without resolving fold geometry. */
+export function branchTopology(b:Board){
+ const children=new Map<string,string[]>(),parents=new Map<string,string>();
+ for(const e of b.edges)if(e.kind==='branch'){const list=children.get(e.from)||[];list.push(e.to);children.set(e.from,list);parents.set(e.to,e.from);}
+ return{children,parents};
+}
 /** Branch traversal is O(nodes + edges); folded frame membership uses logical
  * geometry only when a frame is folded. No descendant copies are persisted. */
 export function branchState(b:Board){
- const children=new Map<string,string[]>(),parents=new Map<string,string>();
- for(const e of b.edges)if(e.kind==='branch'){const list=children.get(e.from)||[];list.push(e.to);children.set(e.from,list);parents.set(e.to,e.from);}
+ const {children,parents}=branchTopology(b);
  const hidden=new Set<string>(),pending:string[]=[];let hasSectionFolds=false;
  for(const node of b.nodes){if(node.branchFolded)pending.push(...(children.get(node.id)||[]));if(node.sectionFolded)hasSectionFolds=true;}
  if(!pending.length&&!hasSectionFolds)return{children,parents,hidden};
@@ -111,7 +116,7 @@ function branchDescendantIndex(b:Board,children:ReadonlyMap<string,readonly stri
  return ids;
  };
 }
-export function visibleBranchBoard(b:Board):Board{if(!b.nodes.some(n=>n.branchFolded||n.sectionFolded))return b;const {hidden}=branchState(b);return hidden.size||b.nodes.some(n=>n.sectionFolded)?{...b,nodes:b.nodes.filter(n=>!hidden.has(n.id)).map(sectionDisplayNode),edges:b.edges.filter(e=>!hidden.has(e.from)&&!hidden.has(e.to))}:b;}
+export function visibleBranchBoard(b:Board,getState?:()=>ReturnType<typeof branchState>):Board{if(!b.nodes.some(n=>n.branchFolded||n.sectionFolded))return b;const {hidden}=getState?getState():branchState(b);return hidden.size||b.nodes.some(n=>n.sectionFolded)?{...b,nodes:b.nodes.filter(n=>!hidden.has(n.id)).map(sectionDisplayNode),edges:b.edges.filter(e=>!hidden.has(e.from)&&!hidden.has(e.to))}:b;}
 export function unfoldAncestors(b:Board,id:string){
  const {parents}=branchState(b),nodes=new Map(b.nodes.map(n=>[n.id,n])),groups=b.nodes.filter(n=>n.kind==='section'),pending=[{id,frames:true}],seen=new Map<string,boolean>();
  while(pending.length){const current=pending.pop()!,previous=seen.get(current.id);if(previous===true||previous===false&&!current.frames)continue;seen.set(current.id,current.frames);const node=nodes.get(current.id);if(!node)continue;
@@ -132,13 +137,13 @@ export function moveFoldedUnit(unit:{root:Card;members:Card[]},x:number,y:number
 /** Reflow changed automatic trees once per transaction; positional drags remain untouched. */
 export function reflowAutomaticMindmaps(board:Board,before:Board){
  if(!board.nodes.some(n=>n.mindmapRules?.automatic))return;
- const nodes=new Map(board.nodes.map(n=>[n.id,n])),oldNodes=new Map(before.nodes.map(n=>[n.id,n])),{parents}=branchState(board),oldParents=branchState(before).parents,roots=new Map<string,string>(),affected=new Set<string>();
+ const nodes=new Map(board.nodes.map(n=>[n.id,n])),oldNodes=new Map(before.nodes.map(n=>[n.id,n])),current=branchTopology(board),previous=branchTopology(before),{parents}=current,oldParents=previous.parents,roots=new Map<string,string>(),affected=new Set<string>();
  const rootOf=(id:string)=>{const path:string[]=[];let at=id;while(parents.has(at)&&!roots.has(at)){path.push(at);at=parents.get(at)!;}const root=roots.get(at)||at;for(const p of path)roots.set(p,root);roots.set(id,root);return root;};
  const mark=(id:string|undefined)=>{if(id&&nodes.has(id))affected.add(rootOf(id));};
  for(const n of board.nodes){const old=oldNodes.get(n.id);if(!old||n.width!==old.width||n.height!==old.height||n.branchFolded!==old.branchFolded||JSON.stringify(n.mindmapRules)!==JSON.stringify(old.mindmapRules))mark(n.id);if(parents.get(n.id)!==oldParents.get(n.id)){mark(n.id);mark(oldParents.get(n.id));}}
  for(const old of before.nodes)if(!nodes.has(old.id))mark(oldParents.get(old.id));
  // Explicit sibling-order changes are also structural changes.
- const order=(b:Board)=>{const map=new Map<string,string[]>();for(const e of b.edges)if(e.kind==='branch'){const list=map.get(e.from)||[];list.push(e.to);map.set(e.from,list);}return map;},oldOrder=order(before),newOrder=order(board);for(const parent of new Set([...oldOrder.keys(),...newOrder.keys()]))if(JSON.stringify(oldOrder.get(parent))!==JSON.stringify(newOrder.get(parent)))mark(parent);
+ const oldOrder=previous.children,newOrder=current.children;for(const parent of new Set([...oldOrder.keys(),...newOrder.keys()]))if(JSON.stringify(oldOrder.get(parent))!==JSON.stringify(newOrder.get(parent)))mark(parent);
  const locked=new Set(board.nodes.filter(n=>n.locked).map(n=>rootOf(n.id)));
  // Mixed trees keep their saved geometry: a topic-only reflow would move a
  // child frame while leaving its spatially contained material behind.

@@ -227,3 +227,10 @@ test('pagination reuses displayed excerpts but a changed query and refreshed bod
  const refresh=modal.contentEl.querySelectorAll('button').find((b:Element)=>b.getAttribute('aria-label')==='刷新搜索索引');board.nodes[0].text='secondNeedle changed body';refresh.click();await tick();assert.equal(list.querySelector('.ts-board-search-excerpt')!.textContent,'secondNeedle changed body');
  modal.close();
 });
+test('one search rebuild resolves repeated file metadata once but the next rebuild reads current metadata',()=>{
+ const {modal,board,files}=fixture(Array.from({length:200},(_,i)=>({...node('n'+i,'card'),file:'notes/shared.md'})));let lookups=0,caches=0,heading='FirstHeading';
+ const lookup=modal.app.vault.getAbstractFileByPath;modal.app.vault.getAbstractFileByPath=(path:string)=>{lookups++;return lookup(path);};modal.app.metadataCache.getFileCache=()=>{caches++;return{headings:[{heading}]};};
+ modal.refresh();assert.equal(lookups,1);assert.equal(caches,1);assert.equal(searchBoard(modal.entries,{query:'firstheading',kind:'',group:'',color:''}).length,200);
+ heading='SecondHeading';board.nodes[0].title='LocalAlias';modal.refresh();assert.equal(lookups,2);assert.equal(caches,2);assert.equal(searchBoard(modal.entries,{query:'firstheading',kind:'',group:'',color:''}).length,0);assert.equal(searchBoard(modal.entries,{query:'localalias secondheading',kind:'',group:'',color:''}).length,1);
+ files.delete('notes/shared.md');modal.refresh();assert.equal(lookups,3);assert.equal(caches,2);assert.equal(searchBoard(modal.entries,{query:'secondheading',kind:'',group:'',color:''}).length,0);modal.close();
+});

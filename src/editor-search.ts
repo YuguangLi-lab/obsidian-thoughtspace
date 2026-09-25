@@ -11,8 +11,11 @@ export function editorMatches(text:string,query:string,options:EditorSearchOptio
  const escaped=query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),re=new RegExp(escaped,options.caseSensitive?'gu':'giu');
  re.lastIndex=from;let m:RegExpExecArray|null;
  while((m=re.exec(text))){const end=m.index+m[0].length;if(end>to)break;
-  const before=Array.from(text.slice(Math.max(0,m.index-2),m.index)).at(-1),after=Array.from(text.slice(end,end+2))[0];
-  if(!options.wholeWord||(!word(before)&&!word(after)))matches.push({from:m.index,to:end});
+  if(options.wholeWord){
+   const before=Array.from(text.slice(Math.max(0,m.index-2),m.index)).at(-1),after=Array.from(text.slice(end,end+2))[0];
+   if(word(before)||word(after))continue;
+  }
+  matches.push({from:m.index,to:end});
   if(matches.length>10000)throw Error('匹配超过 10,000 处，请缩小范围或使用更长的查找文字');
  }
  return matches;

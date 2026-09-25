@@ -6,5 +6,9 @@ export function dragTargets(nodes:readonly Card[],ids:ReadonlySet<string>,resize
 }
 /** Resolve live objects, including replacements or reordering during an update. */
 export function* activeDragTargets(nodes:readonly Card[],targets:readonly DragTarget[]){
- for(const target of targets){const n=nodes[target.index]?.id===target.id?nodes[target.index]:nodes.find(n=>n.id===target.id);if(n&&!n.locked)yield n;}
+ for(const target of targets){
+  // Refresh the hint after a reorder, but validate it and read the live object every time.
+  if(nodes[target.index]?.id!==target.id)target.index=nodes.findIndex(n=>n.id===target.id);
+  const n=nodes[target.index];if(n&&!n.locked)yield n;
+ }
 }

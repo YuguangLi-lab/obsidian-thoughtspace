@@ -4,9 +4,9 @@ import type {WritingState} from './writing';
 import {markdownRows} from './markdown-context';
 import {yingjianNotePath} from './yingjian';
 /** Capture provenance survives independent text/image editing and safe note renames. */
-export interface Card { videoCapture?:{id:string;note:string}; sectionFolded?:boolean }
+export interface Card { videoCapture?:{id:string;note:string}; sectionFolded?:boolean; sectionDivider?:'none'|'solid'|'dashed'|'dotted' }
 import { connectionSides, Side } from './connections';
-import { branchState, validateBranches } from './mindmap';
+import { branchState, branchTopology, validateBranches } from './mindmap';
 import {sectionMemberQuery,sectionMovementPinned} from './sections';
 /** 笔记卡片保留 Markdown 引用；独立文本与布局保存在白板内，图片保留附件引用。 */
 export type Color = 'sand' | 'blue' | 'green' | 'rose' | 'purple' | 'orange' | 'red' | 'teal' | 'cyan' | 'lime' | 'slate' | 'brown';
@@ -50,8 +50,9 @@ function assertBoardData(b:unknown):asserts b is Board {
     if(n.pdfPage!==undefined&&(n.kind!=='pdf'||!isFiniteNumber(n.pdfPage)||!Number.isSafeInteger(n.pdfPage)||n.pdfPage<1))throw Error('PDF 页码无效');
     if(n.imageUrl!==undefined&&(n.kind!=='image'||!remoteImageUrl(n.imageUrl)))throw Error('图床图片地址无效');
     if(n.videoCapture!==undefined&&(!isOneOf(n.kind,['text','image'])||!isRecord(n.videoCapture)||typeof n.videoCapture.id!=='string'||!/^[a-f0-9-]{36}$/.test(n.videoCapture.id)||!yingjianNotePath(n.videoCapture.note)))throw Error('视频记录来源无效');
-    if(n.transparent!==undefined&&(!isOneOf(n.kind,['card','text'])||typeof n.transparent!=='boolean'))throw Error('对象透明样式无效');
-    if(n.fillColor!==undefined&&(!isOneOf(n.kind,['card','text'])||!validCardFill(n.fillColor)))throw Error('对象背景颜色无效');
+    if(n.transparent!==undefined&&(!isOneOf(n.kind,['card','text','section'])||typeof n.transparent!=='boolean'))throw Error('对象透明样式无效');
+    if(n.fillColor!==undefined&&(!isOneOf(n.kind,['card','text','section'])||!validCardFill(n.fillColor)))throw Error('对象背景颜色无效');
+    if(n.sectionDivider!==undefined&&(n.kind!=='section'||!isOneOf(n.sectionDivider,['none','solid','dashed','dotted'])))throw Error('分组标题分隔线样式无效');
     if(n.preferredWidth!==undefined&&(n.kind!=='card'||!isFiniteNumber(n.preferredWidth)||n.preferredWidth<220||n.preferredWidth>520))throw Error('卡片默认宽度无效');
     if(n.customBorder!==undefined&&typeof n.customBorder!=='boolean')throw Error('边框颜色设置无效');
     if((n.locked!==undefined&&typeof n.locked!=='boolean')||(n.autoFit!==undefined&&(n.kind!=='card'||typeof n.autoFit!=='boolean'))||(n.borderWidth!==undefined&&!isOneOf(n.borderWidth,[0,1,2,3,4]))||(n.borderStyle!==undefined&&!isOneOf(n.borderStyle,['solid','dashed','dotted'])))throw Error('对象样式或锁定状态不完整');
@@ -117,9 +118,12 @@ export class History {
 }
 
 export function canvasExport(b: Board) {
+  // Index only as far as requested endpoints; retain find's first-match semantics.
+  const nodes=new Map<string,Card>();let next=0;
+  const nodeById=(id:string)=>{while(!nodes.has(id)&&next<b.nodes.length){const node=b.nodes[next++],key=node.id;if(!nodes.has(key))nodes.set(key,node);}return nodes.get(id)!;};
   const palette: Record<Color, string> = { sand: '3', blue: '5', green: '4', rose: '1', purple: '6', orange:'#edab6d',red:'#df8580',teal:'#87c8bb',cyan:'#8fcbdc',lime:'#b9cd82',slate:'#aab4c2',brown:'#c2a18c' };
   return { nodes: b.nodes.map(n => ({ id:n.id, type:n.kind==='section'?'group':n.kind==='text'?'text':'file', x:n.x,y:n.y,width:n.width,height:n.height,color:palette[n.color], ...(n.kind==='section'?{label:n.title}:n.kind==='text'?{text:n.text}:{file:n.file,...(n.kind==='pdf'?{subpath:`#page=${n.pdfPage||1}`}:{})}) })),
-    edges:b.edges.map(e=>({id:e.id,fromNode:e.from,toNode:e.to,...connectionSides(b.nodes.find(n=>n.id===e.from)!,b.nodes.find(n=>n.id===e.to)!,e),fromEnd:e.direction==='both'?'arrow':'none',toEnd:e.direction==='none'?'none':'arrow',label:e.label,...(e.color?{color:palette[e.color]}:{})})) };
+    edges:b.edges.map(e=>({id:e.id,fromNode:e.from,toNode:e.to,...connectionSides(nodeById(e.from),nodeById(e.to),e),fromEnd:e.direction==='both'?'arrow':'none',toEnd:e.direction==='none'?'none':'arrow',label:e.label,...(e.color?{color:palette[e.color]}:{})})) };
 }
 export interface Task { line: number; text: string; checked: boolean; source: string; checkboxOffset?:number }
 export function extractTasks(content: string): Task[] {
@@ -144,7 +148,7 @@ export function toggleTask(content: string, task: Task): string {
 }
 export function safeName(name: string): string { return name.replace(/[\\/:*?"<>|[\]#^]/g, '-').replace(/^\.+/, '').trim().slice(0, 100) || '未命名'; }
 
-export function boardLinks(board: Board): string[] { return [...new Set(board.nodes.filter(n => n.kind === 'board').map(n => n.file!))]; }
+export function boardLinks(board: Board): string[] { const links=new Set<string>();for(const node of board.nodes)if(node.kind==='board')links.add(node.file!);return [...links]; }
 /** 多父级引用合法，但不能把祖先放进后代；检查只访问可达子图。 */
 export function wouldCycle(graph: ReadonlyMap<string, readonly string[]>, parent: string, child: string): boolean {
   const pending = [child], visited = new Set<string>();
@@ -152,7 +156,7 @@ export function wouldCycle(graph: ReadonlyMap<string, readonly string[]>, parent
   return false;
 }
 /** One-operation index only: boards are mutable and must never reuse this after edits or undo. */
-function selectionExpansion(board:Board){
+export function selectionExpansion(board:Board){
   const nodes=new Map(board.nodes.map(n=>[n.id,n]));let children:Map<string,string[]>|undefined,members:ReturnType<typeof sectionMemberQuery>|undefined;
   const expand=(selected:ReadonlySet<string>)=>{
     const ids=new Set([...selected].filter(id=>nodes.has(id)));
@@ -161,7 +165,7 @@ function selectionExpansion(board:Board){
       // A linked hidden group is an indivisible unit: retain nested frame bounds
       // and all material. Ordinary open frames keep their established behavior.
       if(node.kind==='section'){const frames=!!node.sectionFolded||branch;members??=sectionMemberQuery(board.nodes);for(const member of members(node))if(frames||member.kind!=='section')pending.push({id:member.id,branch:frames&&member.kind==='section'});}
-      if(branch){children??=branchState(board).children;for(const id of children.get(node.id)||[])pending.push({id,branch:true});}
+      if(branch){children??=branchTopology(board).children;for(const id of children.get(node.id)||[])pending.push({id,branch:true});}
     }
     return ids;
   };
