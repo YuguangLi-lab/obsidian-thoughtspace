@@ -46,7 +46,7 @@ test('ordinary literal search skips Unicode word-boundary allocations for every 
 
 test('whole-word search keeps neighboring Unicode checks outside a selected range',()=>{
  const text='😀alpha 猫alpha alpha\u0301 alpha.',options={wholeWord:true,caseSensitive:false,range:{from:2,to:text.length}},before=JSON.stringify(options);
- const f=countBoundaries(()=>editorMatches(text,'alpha',options));assert.equal(f.calls(),8);assert.deepEqual(f.result,[{from:2,to:7},{from:22,to:27}]);assert.equal(JSON.stringify(options),before);
+ const f=countBoundaries(()=>editorMatches(text,'alpha',options));assert.equal(f.calls(),0);assert.deepEqual(f.result,[{from:2,to:7},{from:22,to:27}]);assert.equal(JSON.stringify(options),before);
  assert.deepEqual(editorMatches('xalpha y','alpha',{wholeWord:true,caseSensitive:true,range:{from:1,to:6}}),[]);
 });
 

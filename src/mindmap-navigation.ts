@@ -23,7 +23,7 @@ export function mindmapNavigation(board:Board,id:string,direction:TopicDirection
  for(let i=0;i<pending.length;i++){
   const current=pending[i];if(seen.has(current)||hidden.has(current))continue;seen.add(current);
   const node=nodes.get(current);if(!node)continue;
-  if(!node.branchFolded)pending.push(...children.get(current)||[]);
+  if(!node.branchFolded)for(const child of children.get(current)||[])pending.push(child);
   if(current===id||node.kind==='section'||eligible&&!eligible(node))continue;
   const dx=node.x+node.width/2-origin.x-origin.width/2,dy=node.y+node.height/2-origin.y-origin.height/2;
   const along=(horizontal?dx:dy)*sign,cross=Math.abs(horizontal?dy:dx);if(along<=.5)continue;

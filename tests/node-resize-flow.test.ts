@@ -39,8 +39,7 @@ function fixture(nodes:model.Card[]=[card()],zoom=.54,edges:model.Edge[]=[]){
     Notice:class {constructor(message:string){notices.push(message);}},
     requestAnimationFrame:(fn:()=>void)=>{frames.set(++frameId,fn);return frameId;},
     cancelAnimationFrame:(id:number)=>frames.delete(id),
-    // Text uses host-measured height after a manual width change; the real browser
-    // measurement itself is outside this pointer/commit regression.
+    // Manual resize must not call content measurement or override user height.
     fitTextNode:(node:model.Card)=>{calls.textMeasure++;node.height=86;}};
   const compile=(body:string)=>new Function(...Object.keys(deps),transformSync(body,{loader:'ts'}).code)(...Object.values(deps));
   const View=compile(`class View{${methods}};return View`),Session=compile(`class Session{${sessionMethods}};return Session`);
@@ -125,11 +124,11 @@ for(const kind of ['image','pdf'] as const)test(`${kind} resizing maintains aspe
   close(f.current().width,320);close(f.current().height,160);assert.equal(f.calls.persist,2);
 });
 
-test('text resizing commits manual width and host-measured height rather than card auto-fit',()=>{
+test('text resizing preserves both manual dimensions without remeasuring the content',()=>{
   const f=fixture([card('text',{kind:'text',file:'',text:'A wrapped paragraph',autoFit:undefined,autoSize:true})]);
   f.view.pointerDown(f.event());f.view.pointerMove(f.event(100,300));f.flush();
-  assert.equal(f.current().autoSize,true);assert.equal(f.calls.textMeasure,1);
-  f.view.pointerUp(f.event(100,300));assert.deepEqual(dimensions(f.current()),{width:400,height:86});assert.equal(f.current().autoSize,false);
+  assert.equal(f.current().autoSize,true);assert.equal(f.calls.textMeasure,0);
+  f.view.pointerUp(f.event(100,300));assert.deepEqual(dimensions(f.current()),{width:400,height:400});assert.equal(f.current().autoSize,false);assert.equal(f.current().textAutoHeight,false);
   assert.equal(f.current().text,'A wrapped paragraph');assert.equal(f.calls.persist,1);
 });
 
@@ -174,4 +173,47 @@ test('sub-threshold clicks and unrelated pointer releases do not commit a resize
   const f=fixture();f.view.pointerDown(f.event());f.view.pointerMove(f.event(100,50,{pointerId:2}));f.flush();
   f.view.pointerUp(f.event(100,50,{pointerId:2}));assert.ok(f.view.gesture);assert.equal(f.calls.persist,0);
   f.view.pointerUp(f.event(1,1));assert.equal(f.view.gesture,undefined);assert.deepEqual(dimensions(f.current()),{width:300,height:100});assert.equal(f.calls.persist,0);
+});
+
+
+test('manual resize switches off automatic text height and undo restores the preference',()=>{
+ const f=fixture([card('text',{kind:'text',file:'',text:'long content',autoFit:undefined,autoSize:false,textAutoHeight:true})]);
+ const before=model.clone(f.session.board);f.view.pointerDown(f.event());f.view.pointerUp(f.event(40,70));
+ close(f.current().width,340);close(f.current().height,170);assert.equal(f.current().textAutoHeight,false);assert.equal(f.calls.textMeasure,0);
+ const after=model.clone(f.session.board);f.session.undo();assert.deepEqual(f.session.board,before);f.session.undo(true);assert.deepEqual(f.session.board,after);
+});
+
+for(const zoom of [.54,1,2])test(`single-line text shrinks to its compact height at zoom ${zoom} and survives history and reload`,()=>{
+ const f=fixture([card('text',{kind:'text',file:undefined,text:'123345466',width:206.41015625,height:100,autoFit:undefined,autoSize:false,textAutoHeight:false})],zoom);
+ f.session.board.version=3;
+ const before=model.clone(f.session.board),expectedViewport={...f.session.board.viewport};
+ f.view.pointerDown(f.event());f.view.pointerMove(f.event(0,-80));f.flush();
+ assert.equal(f.positions.get('text')!.style.height,'40px','preview follows the upward drag instead of stopping at 100px');
+ assert.equal(f.current().height,100,'preview stays local until release');
+ f.view.pointerUp(f.event(0,-80));
+ assert.deepEqual(dimensions(f.current()),{width:206.41015625,height:40});
+ assert.equal(f.current().text,'123345466');assert.equal(f.current().textAutoHeight,false);
+ assert.deepEqual(f.session.board.viewport,expectedViewport);assert.equal(f.calls.persist,1);assert.equal(f.calls.textMeasure,0);
+ const after=model.clone(f.session.board);assert.deepEqual(model.parseBoard(JSON.stringify(after)).nodes,after.nodes);
+ f.session.undo();assert.deepEqual(f.session.board,before);f.session.undo(true);assert.deepEqual(f.session.board,after);
+});
+
+for(const topic of [false,true])test(`width-only resize of compact text (topic=${topic}) keeps its short height`,()=>{
+ const f=fixture([card('text',{kind:'text',file:undefined,text:'一行文字',width:240,height:40,topic,autoFit:undefined,autoSize:false,textAutoHeight:false})],1);
+ f.view.pointerDown(f.event());f.view.pointerUp(f.event(-80,0));
+ assert.deepEqual(dimensions(f.current()),{width:160,height:40});
+ f.view.pointerDown(f.event());f.view.pointerUp(f.event(-1000,-1000));
+ assert.deepEqual(dimensions(f.current()),{width:80,height:40});assert.equal(f.calls.textMeasure,0);
+ assert.doesNotThrow(()=>model.assertBoardGeometry(f.session.board));
+});
+
+test('Shift resizing compact text preserves its aspect ratio without the note-card minimum height',()=>{
+ const f=fixture([card('text',{kind:'text',file:undefined,text:'one line',width:240,height:80,autoFit:undefined,autoSize:false,textAutoHeight:false})],1);
+ f.view.pointerDown(f.event());f.view.pointerUp(f.event(-120,-40,{shiftKey:true}));
+ assert.deepEqual(dimensions(f.current()),{width:120,height:40});assert.equal(f.current().width/f.current().height,3);
+});
+test('changing automatic text height in another view cancels an in-flight resize',()=>{
+ const f=fixture([card('text',{kind:'text',file:'',autoSize:false,textAutoHeight:false})]);
+ f.view.pointerDown(f.event());f.view.pointerMove(f.event(40,70));f.flush();f.current().textAutoHeight=true;
+ const before=model.clone(f.session.board);f.view.pointerUp(f.event(40,70));assert.deepEqual(f.session.board,before);assert.equal(f.calls.persist,0);assert.equal(f.notices.length,1);
 });

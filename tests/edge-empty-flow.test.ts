@@ -21,6 +21,8 @@ class SvgElement {
  hasAttribute(key:string){return this.attributes.has(key);}
  removeAttribute(key:string){this.ownerDocument.writes++;this.attributes.delete(key);}
  appendChild(child:SvgElement){this.ownerDocument.writes++;child.parent=this;this.children.push(child);return child;}
+ get nextSibling():SvgElement|null{return this.parent?.children[this.parent.children.indexOf(this)+1]||null;}
+ insertBefore(child:SvgElement,next:SvgElement|null){this.ownerDocument.writes++;if(child===next)return child;if(child.parent)child.parent.children=child.parent.children.filter(item=>item!==child);const at=next?this.children.indexOf(next):this.children.length;assert.ok(at>=0);this.children.splice(at,0,child);child.parent=this;return child;}
  remove(){this.ownerDocument.writes++;if(this.parent)this.parent.children=this.parent.children.filter(child=>child!==this);this.parent=undefined;}
 }
 function fixture(count=3){

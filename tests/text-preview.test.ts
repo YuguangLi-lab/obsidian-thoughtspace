@@ -10,6 +10,7 @@ function fixture(){
  const children:Scope[]=[],doc=new TextDocument(),body=doc.createElement('div'),registered:(()=>void)[]=[],scope={register:(fn:()=>void)=>registered.push(fn),addChild:(child:Scope)=>{children.push(child);child.load();},removeChild:(child:Scope)=>{child.unload();children.splice(children.indexOf(child),1);}},app={},calls:{text:string;element:TextElement;path:string;app:unknown;scope:unknown;resolve:()=>void;reject:()=>void}[]=[],finishes:(()=>void)[]=[];let ready=0;
  const createElement=doc.createElement.bind(doc);doc.createElement=tag=>{const element=createElement(tag);Object.defineProperty(element,'isConnected',{get:()=>!!element.parentElement?.isConnected});return element;};
  const imports:Record<string,unknown>={'./editor-cleanup':{releaseEditorResource},'./yingjian':{parseYingjianLink},obsidian:{Component:Scope,MarkdownRenderer:{render:(app:unknown,text:string,element:TextElement,path:string,scope:unknown)=>new Promise<void>((resolve,reject)=>calls.push({app,text,element,path,scope,resolve,reject:()=>reject(Error('renderer failed'))}))},finishRenderMath:()=>new Promise<void>(r=>finishes.push(r))}};
+ const scopeModule={exports:{}};new Function('require','module','exports',transformSync(readFileSync('src/preview-render-scope.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>imports[name],scopeModule,scopeModule.exports);imports['./preview-render-scope']=scopeModule.exports;
  const module={exports:{} as any};new Function('require','module','exports',transformSync(readFileSync('src/text-preview.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>imports[name],module,module.exports);
  const render=(text:string,enqueue?:(alive:()=>boolean,run:()=>Promise<void>)=>void)=>module.exports.renderTextPreview(body,text,scope,()=>ready++,enqueue,{app,sourcePath:'Board/Research.thoughtspace'});
  const paragraph=(job=0)=>{const p=doc.createElement('p');p.textContent='Rendered';if(calls[job].text.includes('$')){const math=doc.createElement('span');math.className='math';p.appendChild(math);}calls[job].element.appendChild(p);return p;};
@@ -79,4 +80,12 @@ test('replacing a preview rescues its source control before native root cleanup 
  (job.scope as {register:(run:()=>void)=>void}).register(()=>job.element.replaceChildren());await complete(f);assert.equal(badge.parentElement,p);
  f.render('new');assert.equal(badge.parentElement,f.body);assert.equal(spacer.parentElement,f.body);badge.dispatch('click');assert.equal(clicks,1);
  const current=f.paragraph(1);await complete(f,1);assert.equal(badge.parentElement,current);assert.equal(spacer.parentElement,current);assert.equal(f.body.querySelectorAll('.ts-source-trigger').length,1);assert.equal(f.children.length,1);
+});
+
+for(const reason of ['unload','replace','timeout'] as const)test(`text ${reason} cleans up late native callbacks after releasing its queue slot`,async()=>{
+ const f=fixture(),jobs:{alive:()=>boolean;run:()=>Promise<void>}[]=[];let timeout=()=>{};f.doc.win.setTimeout=callback=>{timeout=callback;return 1;};
+ f.render('old',(alive,run)=>jobs.push({alive,run}));const pending=jobs[0].run(),old=f.calls[0],child=old.scope as {loaded:boolean;register:(fn:()=>void)=>void};
+ if(reason==='unload')f.registered[0]();else if(reason==='replace')f.render('new',()=>{});else timeout();await pending;
+ let cleaned=0;child.register(()=>cleaned++);assert.equal(cleaned,1);assert.equal(child.loaded,false);assert.equal(old.element.isConnected,false);
+ old.resolve();await tick();assert.equal(cleaned,1);assert.equal(f.body.dataset.markdownStatus,reason==='timeout'?'error':'pending');
 });

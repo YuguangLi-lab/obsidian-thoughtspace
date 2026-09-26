@@ -16,18 +16,25 @@ export function isManagedSearchIndex(text:string){const match=/^<!-- thoughtspac
 export function searchIndexTarget(path:string,text:string,vault:string,line?:number){
  const file=searchBoardPath(path);if(!file||!isManagedSearchIndex(text))return;
  let target:{file:string;node?:string},fence='';
- const lines=text.split('\n'),opening=/^\[打开白板\]\((obsidian:\/\/thoughtspace\?[^\s]+)\)$/.exec(lines[3]||'');
+ // Verify the full generated document above, but visit only rows up to the
+ // requested hit without allocating an array for every remaining content row.
+ let header=0;for(let row=0;row<3;row++){const next=text.indexOf('\n',header);if(next<0)return;header=next+1;}
+ const headerEnd=text.indexOf('\n',header),opening=/^\[打开白板\]\((obsidian:\/\/thoughtspace\?[^\s]+)\)$/.exec(text.slice(header,headerEnd<0?text.length:headerEnd));
  if(!opening)return;
  try{target=parseBoardLink(Object.fromEntries(new URL(opening[1]).searchParams),vault);if(target.file!==file||target.node)return;}catch{return;}
- const limit=typeof line==='number'&&Number.isInteger(line)&&line>=0&&line<lines.length?line:0;
- for(let i=0;i<=limit&&i<lines.length;i++){
-  const value=lines[i];
+ const boardTarget=target,limit=typeof line==='number'&&Number.isInteger(line)&&line>=0?line:0;let start=0,invalid=false;
+ for(let row=0;row<=limit;row++){
+  const end=text.indexOf('\n',start),value=text.slice(start,end<0?text.length:end);start=end+1;
+  // Legacy out-of-range navigation falls back to the opening board link,
+  // even when a malformed later link precedes the nonexistent requested row.
+  if(end<0&&row<limit)return boardTarget;
+  if(invalid)continue;
   if(fence){if(value===fence)fence='';continue;}
   const code=/^(`{3,})text$/.exec(value);if(code){fence=code[1];continue;}
   const link=/^\[(?:打开白板|定位 对象|定位 分组|定位连线起点)\]\((obsidian:\/\/thoughtspace\?[^\s]+)\)$/.exec(value);if(!link)continue;
-  try{const parsed=parseBoardLink(Object.fromEntries(new URL(link[1]).searchParams),vault);if(parsed.file!==file)return;target=parsed;}catch{return;}
+  try{const parsed=parseBoardLink(Object.fromEntries(new URL(link[1]).searchParams),vault);if(parsed.file!==file)invalid=true;else target=parsed;}catch{invalid=true;}
  }
- return target;
+ return invalid?undefined:target;
 }
 /** Code fences retain exact searchable characters without executing embeds or tasks. */
 const plain=(text:string)=>{let longest=0;for(const match of text.matchAll(/`+/g))longest=Math.max(longest,match[0].length);const fence='`'.repeat(Math.max(3,longest+1));return `${fence}text\n${text}\n${fence}`;};

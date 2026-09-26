@@ -1,7 +1,7 @@
 import {sizeTemplateTopic} from './mindmap-sizing';
 import {Board,Card,Color,Edge,clone,parseBoard,uid} from './model';
 import {branchState,layoutMindmap,mindmapRoot} from './mindmap';
-import {topicRows,topicLabel,TopicResult} from './mindmap-editor';
+import {topicRows,topicTreeIndex,topicLabel,TopicResult} from './mindmap-editor';
 import {markdownRows,markdownColumns} from './markdown-context';
 import {editorMatches,editorReplacement} from './editor-search';
 import {connectionPath} from './connections';
@@ -27,9 +27,9 @@ export function parseTopicOutline(source:string,format:'markdown'|'indent'='mark
  for(const item of result){item.text=item.text.trim();if(item.text.length>10000)throw Error('单个主题超过 10,000 字符，请按标题拆分');}
  if(!result.length)throw Error('没有可导入的主题');return result;
 }
-function editableTree(b:Board,id:string){const root=mindmapRoot(b,id),rows=topicRows(b,root);if(rows.some(r=>r.node.locked))throw Error('主题树中有锁定对象，请先解锁');return root;}
+function editableTree(b:Board,id:string){const index=topicTreeIndex(b),root=index.rootOf(id),rows=index.rows(root);if(rows.some(r=>r.node.locked))throw Error('主题树中有锁定对象，请先解锁');return{root,index};}
 export function appendTopicOutline(source:Board,parentId:string,items:readonly ImportedTopic[],makeId:()=>string=uid):TopicResult{
- const b=clone(source),root=editableTree(b,parentId),parent=b.nodes.find(n=>n.id===parentId);if(!parent||parent.kind==='section')throw Error('请选择一个内容主题');
+ const b=clone(source),{root}=editableTree(b,parentId),parent=b.nodes.find(n=>n.id===parentId);if(!parent||parent.kind==='section')throw Error('请选择一个内容主题');
  if(!items.length||items.length>1000)throw Error('一次导入 1–1,000 个主题');
  const ids=new Set([...b.nodes,...b.edges].map(n=>n.id)),fresh=()=>{const id=makeId();if(!id||ids.has(id))throw Error('新主题标识冲突');ids.add(id);return id;},stack:string[]=[];let selected=parentId,previous=-1,automatic:boolean|undefined;
  for(const item of items){if(!Number.isInteger(item.depth)||item.depth<0||item.depth>64||item.depth>previous+1||!item.text.trim()||item.text.length>10000)throw Error('大纲层级或文字无效');previous=item.depth;stack.length=item.depth;
@@ -52,11 +52,19 @@ export function applyTopicReplacements(source:Board,root:string,changes:readonly
 }
 export const topicThemes:Record<string,{name:string;colors:Color[]}>={classic:{name:'经典分支',colors:['blue','green','orange','purple','rose','teal']},ocean:{name:'海湾',colors:['blue','cyan','teal','slate']},forest:{name:'林间',colors:['green','teal','lime','brown']},sunset:{name:'日落',colors:['orange','rose','red','purple']},quiet:{name:'石墨',colors:['slate']}};
 export function themeTopicTree(source:Board,id:string,preset:string|undefined,line:NonNullable<Edge['style']>|undefined):TopicResult{
- const palette=preset&&Object.hasOwn(topicThemes,preset)?topicThemes[preset].colors:undefined;if((preset&&!palette)||(line&&!['curve','elbow','straight'].includes(line)))throw Error('主题样式无效');const b=clone(source),root=editableTree(b,id),{children}=branchState(b),nodes=new Map(b.nodes.map(n=>[n.id,n])),colors=new Map<string,Color>();
+ const palette=preset&&Object.hasOwn(topicThemes,preset)?topicThemes[preset].colors:undefined;if((preset&&!palette)||(line&&!['curve','elbow','straight'].includes(line)))throw Error('主题样式无效');const b=clone(source),{root,index}=editableTree(b,id),{children,nodes}=index,colors=new Map<string,Color>();
  for(const [i,child]of (children.get(root)||[]).entries()){const list=[child];for(let at=0;at<list.length;at++){colors.set(list[at],palette?palette[i%palette.length]:nodes.get(list[at])!.color);for(const next of children.get(list[at])||[])list.push(next);}}
  if(palette)for(const [id,color]of colors)nodes.get(id)!.color=color;for(const e of b.edges)if(e.kind==='branch'&&colors.has(e.to)){if(palette)e.color=colors.get(e.to);if(line)e.style=line;}return{board:b,root,selected:id};
 }
 const xml=(s:string)=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]!));
+/** Only materialize the visible label prefix; iterate Unicode code points like the original export. */
+function svgLabelLines(value:string,rows:number,columns:number){
+ const result:string[]=[];let start=0;
+ while(result.length<rows&&start<=value.length){const end=value.indexOf('\n',start),line=value.slice(start,end<0?value.length:end),chars=line[Symbol.iterator]();let text='';
+  for(let i=0;i<columns;i++){const next=chars.next();if(next.done)break;text+=next.value;}
+  result.push(text);if(end<0)break;start=end+1;
+ }return result;
+}
 /** Standalone SVG contains only escaped text and local geometry, no external resources/scripts. */
 export function topicSvg(board:Board,id:string,includeFolded=false){
  const hidden=includeFolded?new Set<string>():branchState(board).hidden,nodes=topicRows(board,id).map(r=>r.node).filter(n=>!hidden.has(n.id));if(!nodes.length||nodes.length>5000)throw Error('SVG 导出范围为 1–5,000 个主题');
@@ -65,6 +73,6 @@ export function topicSvg(board:Board,id:string,includeFolded=false){
  parts.push('<defs><marker id="topic-relation-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#657580"/></marker></defs>');
  // A label uses the same route geometry as its path.
  for(const e of board.edges){const a=byId.get(e.from),b=byId.get(e.to);if(!a||!b)continue;const route=connectionPath(a,b,e);parts.push(`<path d="${route.path}" fill="none" stroke="${cardFillHex[e.color||b.color]}" stroke-width="2"${e.dashed?' stroke-dasharray="6 4"':''}${e.kind!=='branch'&&e.direction!=='none'?' marker-end="url(#topic-relation-arrow)"':''}${e.kind!=='branch'&&e.direction==='both'?' marker-start="url(#topic-relation-arrow)"':''}/>`);if(e.kind!=='branch'&&e.label){const p=route.label;parts.push(`<text x="${p.x}" y="${p.y-8}" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#26323a">${xml(e.label.slice(0,80))}</text>`);}}
- for(const n of nodes){parts.push(`<rect x="${n.x}" y="${n.y}" width="${n.width}" height="${n.height}" rx="10" fill="#fff" stroke="${cardFillHex[n.color]}" stroke-width="2"/>`);const lines=topicLabel(n).split('\n').slice(0,Math.max(1,Math.floor((n.height-24)/22)));for(const [i,line]of lines.entries())parts.push(`<text x="${n.x+12}" y="${n.y+27+i*22}" fill="#26323a" font-family="sans-serif" font-size="14">${xml([...line].slice(0,Math.max(4,Math.floor((n.width-24)/14))).join(''))}</text>`);}
+ for(const n of nodes){parts.push(`<rect x="${n.x}" y="${n.y}" width="${n.width}" height="${n.height}" rx="10" fill="#fff" stroke="${cardFillHex[n.color]}" stroke-width="2"/>`);const lines=svgLabelLines(topicLabel(n),Math.max(1,Math.floor((n.height-24)/22)),Math.max(4,Math.floor((n.width-24)/14)));for(const [i,line]of lines.entries())parts.push(`<text x="${n.x+12}" y="${n.y+27+i*22}" fill="#26323a" font-family="sans-serif" font-size="14">${xml(line)}</text>`);}
  parts.push('</svg>');return parts.join('');
 }

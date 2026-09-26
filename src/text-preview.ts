@@ -1,5 +1,6 @@
-import {type App,Component,MarkdownRenderer,finishRenderMath} from 'obsidian';
+import {type App,type Component,MarkdownRenderer,finishRenderMath} from 'obsidian';
 import {releaseEditorResource} from './editor-cleanup';
+import {PreviewRenderScope} from './preview-render-scope';
 import {parseYingjianLink} from './yingjian';
 
 export interface TextPreviewContext {app:App;sourcePath:string;}
@@ -25,7 +26,7 @@ export function renderTextPreview(body:HTMLElement,text:string,scope:Component,o
    // Native processors can wait for an attached target. Retain that exact root on
    // success; on cancellation/failure detach it and restore this generation's source.
    const native=rendered=win.createDiv();native.className=output.className;output.replaceWith(native);
-   const child=renderScope=new Component();scope.addChild(child);
+   const child=renderScope=new PreviewRenderScope();scope.addChild(child);
    // A stuck third-party postprocessor must not retain the shared preview queue slot.
    const budget=new Promise<never>((_,reject)=>{deadline=win.setTimeout(()=>reject(new Error('Text preview timed out')),5000);});
    await Promise.race([MarkdownRenderer.render(context.app,text,native,context.sourcePath,child),cancelled,budget]);if(!alive())return;

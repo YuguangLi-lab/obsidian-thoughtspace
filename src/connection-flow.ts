@@ -31,8 +31,15 @@ export function connectionTarget(nodes:readonly Card[],point:Point,exclude:strin
  return target?{id:target.id,side:nearestSide(target,point)}:undefined;
 }
 export function duplicateConnection(board:Board,edge:Pick<Edge,'from'|'to'|'fromSide'|'toSide'>,ignore?:string){
- const a=board.nodes.find(n=>n.id===edge.from),b=board.nodes.find(n=>n.id===edge.to);if(!a||!b)return false;
- const from=sectionDisplayNode(a),to=sectionDisplayNode(b),sides=connectionSides(from,to,edge);return board.edges.some(e=>e.id!==ignore&&e.from===edge.from&&e.to===edge.to&&JSON.stringify(connectionSides(from,to,e))===JSON.stringify(sides));
+ // Most new endpoint pairs have no matching edge. Resolve live displayed nodes
+ // only for the first candidate, then reuse its effective ports within this check.
+ let from:Card|undefined,to:Card|undefined,sides:ReturnType<typeof connectionSides>|undefined;
+ for(const candidate of board.edges){
+  if(candidate.id===ignore||candidate.from!==edge.from||candidate.to!==edge.to)continue;
+  if(!sides){const a=board.nodes.find(n=>n.id===edge.from),b=board.nodes.find(n=>n.id===edge.to);if(!a||!b)return false;from=sectionDisplayNode(a);to=sectionDisplayNode(b);sides=connectionSides(from,to,edge);}
+  const ports=connectionSides(from!,to!,candidate);if(ports.fromSide===sides.fromSide&&ports.toSide===sides.toSide)return true;
+ }
+ return false;
 }
 export function reconnectEdge(board:Board,id:string,end:'from'|'to',target:string,side:Side,expected:string){
  const edge=board.edges.find(e=>e.id===id);if(!edge||JSON.stringify(edge)!==expected||!board.nodes.some(n=>n.id===target))return false;

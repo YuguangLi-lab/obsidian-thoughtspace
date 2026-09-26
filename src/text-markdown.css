@@ -109,3 +109,25 @@
 .ts-root :is(.ts-text-markdown,.ts-card-preview,.ts-inline-native) :is(table,thead,tbody,tfoot,tr,th,td,.cm-table-widget,.table-wrapper,.table-cell-wrapper):not(.is-selected):not([aria-selected="true"]) {
   background: transparent!important;
 }
+
+/* Fixed text remains readable without resizing the board object. The shared wheel
+   router consumes local scroll while Ctrl/Meta still controls canvas zoom. */
+.ts-root .ts-text:not(.is-folded) > .ts-text-body {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+/* Preview and native editing share the same compact vertical inset. This stays
+   in board coordinates and needs no layout measurement during pointer movement. */
+.ts-root .ts-node.ts-text:not(.is-folded) > .ts-text-body,
+.ts-root .ts-node.ts-text .ts-inline-editor > :is(.ts-inline-input,.ts-inline-native) {
+  padding-top: var(--ts-text-block-padding,14px)!important;
+  padding-bottom: var(--ts-text-block-padding,14px)!important;
+}
+.ts-root .ts-text > .ts-text-actions { display: flex; align-items: center; gap: 2px; }
+.ts-root .ts-text > .ts-text-actions .ts-text-auto-height.is-active {
+  color: var(--text-accent);
+  background: var(--background-modifier-hover);
+}
+.ts-root .ts-text.is-folded > .ts-text-body { padding-right: 78px; }

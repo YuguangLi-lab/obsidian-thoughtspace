@@ -113,32 +113,3 @@
 .ts-writing .ts-writing-transition strong { font-size: var(--font-ui-medium); overflow-wrap: anywhere; }
 .ts-writing .ts-writing-transition > div > span { color: var(--text-muted); font-size: var(--font-ui-small); line-height: 1.6; }
 /* Reading: keep search visible, disclose less frequent controls without removing them. */
-.ts-ui-modal.ts-reading-desk .ts-reading-tools {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding: 0 0 12px;
-}
-.ts-ui-modal.ts-reading-desk .ts-reading-tools > input { flex: 1 1 220px; min-width: 0; }
-.ts-ui-modal.ts-reading-desk .ts-reading-filter-panel { min-width: 0; margin: 0; border: 0; padding: 0; }
-.ts-ui-modal.ts-reading-desk .ts-reading-filter-panel > summary {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-height: 30px;
-  padding: 4px 8px;
-  border-radius: 7px;
-  cursor: pointer;
-  list-style: none;
-  font-size: var(--font-ui-small);
-  color: var(--text-muted);
-}
-.ts-ui-modal.ts-reading-desk .ts-reading-filter-panel > summary::-webkit-details-marker { display: none; }
-.ts-ui-modal.ts-reading-desk .ts-reading-filter-panel > summary svg { width: 15px; height: 15px; display: block; }
-.ts-ui-modal.ts-reading-desk .ts-reading-filter-panel > summary:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
-.ts-ui-modal.ts-reading-desk .ts-reading-filter-panel > summary:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
-.ts-ui-modal.ts-reading-desk .ts-reading-filter-panel[open] { flex-basis: 100%; }
-.ts-ui-modal.ts-reading-desk .ts-reading-filter-panel[open] > summary { color: var(--ts-accent); width: fit-content; }
-.ts-ui-modal.ts-reading-desk .ts-reading-filter-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(130px,1fr)); gap: 8px; padding-top: 10px; }
-.ts-ui-modal.ts-reading-desk .ts-reading-filter-grid select { width: 100%; min-width: 0; max-width: 100%; height: 32px; }

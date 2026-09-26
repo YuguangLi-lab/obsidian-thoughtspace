@@ -18,18 +18,19 @@ function fixture(queue?:RenderQueue){
  }
  const doc=new TextDocument(),createElement=doc.createElement.bind(doc);let preview:TextElement;
  doc.createElement=tag=>{const element=createElement(tag);Object.defineProperty(element,'isConnected',{get:()=>element===preview||!!element.parentElement?.isConnected});return element;};
- preview=doc.createElement('div');const scope=new Scope(),timers=new Map<number,()=>void>();let timerId=0,readCount=0,ready=0,errors=0;
+ const mathJobs:{resolve:()=>void;reject:(reason:unknown)=>void}[]=[];preview=doc.createElement('div');const scope=new Scope(),timers=new Map<number,()=>void>();let timerId=0,readCount=0,ready=0,errors=0;
  doc.defaultView.setTimeout=(fn,ms)=>{assert.equal(ms,5000);timers.set(++timerId,fn);return timerId;};doc.defaultView.clearTimeout=id=>{timers.delete(id);};
  preview.className='ts-card-preview markdown-rendered ts-preview-pending';
  Object.assign(preview.classList,{remove:(name:string)=>{preview.className=preview.className.split(/\s+/).filter(value=>value!==name).join(' ');}});
  preview.setAttribute('aria-busy','true');
  const reads:{resolve:(value:string)=>void;reject:()=>void}[]=[],renders:{element:TextElement;text:string;path:string;scope:Scope;resolve:()=>void;reject:()=>void}[]=[],sources:ReturnType<typeof excerptPresentation>['sources'][]=[];
  const app={vault:{cachedRead:()=>{readCount++;return new Promise<string>((resolve,reject)=>reads.push({resolve,reject:()=>reject(Error('read failed'))}));}}};
- const imports:Record<string,unknown>={obsidian:{Component:Scope,MarkdownRenderer:{render:(_app:unknown,text:string,element:TextElement,path:string,scope:Scope)=>{assert.equal(element.isConnected,true,'native postprocessors must receive an attached target');return new Promise<void>((resolve,reject)=>renders.push({element,text,path,scope,resolve,reject:()=>reject(Error('render failed'))}));}}},'./editor-cleanup':{releaseEditorResource},'./excerpt-sources':{excerptPresentation},'./rendering':{markdownPreview}};
+ const imports:Record<string,unknown>={obsidian:{Component:Scope,finishRenderMath:()=>new Promise<void>((resolve,reject)=>mathJobs.push({resolve,reject})),MarkdownRenderer:{render:(_app:unknown,text:string,element:TextElement,path:string,scope:Scope)=>{assert.equal(element.isConnected,true,'native postprocessors must receive an attached target');return new Promise<void>((resolve,reject)=>renders.push({element,text,path,scope,resolve,reject:()=>reject(Error('render failed'))}));}}},'./editor-cleanup':{releaseEditorResource},'./excerpt-sources':{excerptPresentation},'./rendering':{markdownPreview}};
+ const scopeModule={exports:{}};new Function('require','module','exports',transformSync(readFileSync('src/preview-render-scope.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>imports[name],scopeModule,scopeModule.exports);imports['./preview-render-scope']=scopeModule.exports;
  const module={exports:{} as any};new Function('require','module','exports',transformSync(readFileSync('src/card-preview.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>imports[name],module,module.exports);
  const jobs:{alive:()=>boolean;run:()=>Promise<void>}[]=[];
  const render=()=>module.exports.renderCardPreview({app,file:{path:'Notes/current.md'},preview,scope,enqueue:(alive:()=>boolean,run:()=>Promise<void>)=>queue?queue.add(alive,run):jobs.push({alive,run}),sources:(value:typeof sources[number])=>sources.push(value),ready:()=>{assert.equal(preview.classList.contains('ts-preview-pending'),false,'loading decoration must be gone before auto-fit measures');ready++;},error:()=>{errors++;preview.textContent='retry';}});
- render();return{doc,preview,scope,timers,reads,renders,sources,jobs,render,readCount:()=>readCount,ready:()=>ready,errors:()=>errors};
+ render();return{doc,preview,scope,Scope,timers,mathJobs,reads,renders,sources,jobs,render,readCount:()=>readCount,ready:()=>ready,errors:()=>errors};
 }
 
 test('card preview keeps source context, read-only inputs, tag cleanup and renderer scope through completion',async()=>{
@@ -39,6 +40,16 @@ test('card preview keeps source context, read-only inputs, tag cleanup and rende
  const input=f.doc.createElement('input'),blank=f.doc.createElement('p'),body=f.doc.createElement('div');body.textContent='rendered';job.element.appendChild(input);job.element.appendChild(blank);job.element.appendChild(body);job.resolve();await pending;
  assert.equal(input.disabled,true);assert.equal(blank.parentElement,undefined);assert.equal(f.preview.textContent,'rendered');assert.equal(f.ready(),1);assert.equal(f.errors(),0);assert.equal(f.timers.size,0);assert.equal(f.preview.getAttribute('aria-busy'),'false');assert.equal(job.scope.loaded,true);
  f.scope.unload();assert.equal(job.scope.loaded,false);assert.equal(f.scope.children.length,0);
+});
+
+for(const tag of ['span','mjx-container'])test(`card ${tag} math finishes before ready and automatic sizing`,async()=>{
+ const f=fixture(),pending=f.jobs[0].run();f.reads[0].resolve('$x$');await tick();const math=f.doc.createElement(tag);if(tag==='span')math.className='math';f.renders[0].element.appendChild(math);f.renders[0].resolve();await tick();
+ assert.equal(f.mathJobs.length,1);assert.equal(f.ready(),0);assert.equal(f.preview.getAttribute('aria-busy'),'true');f.mathJobs[0].resolve();await pending;assert.equal(f.ready(),1);assert.equal(f.errors(),0);assert.equal(f.timers.size,0);f.scope.unload();
+});
+for(const reason of ['close','timeout'])test(`card math ${reason} releases its queue slot and rejects late readiness`,async()=>{
+ const queue=new RenderQueue(1),f=fixture(queue);f.reads[0].resolve('$x$');await tick();const math=f.doc.createElement('span');math.className='math';f.renders[0].element.appendChild(math);f.renders[0].resolve();await tick();
+ assert.equal(f.mathJobs.length,1);let next=0;queue.add(()=>true,async()=>{next++;});assert.equal(next,0);
+ if(reason==='close')f.scope.unload();else [...f.timers.values()][0]();await tick();assert.equal(next,1);assert.equal(f.ready(),0);assert.equal(f.errors(),reason==='timeout'?1:0);assert.equal(f.timers.size,0);f.mathJobs[0].resolve();await tick();assert.equal(f.ready(),0);f.scope.unload();
 });
 
 test('unloading four cards during file reads releases every shared slot for a fresh preview',async()=>{
@@ -85,4 +96,15 @@ test('replacing a completed card detaches its owned wrapper without losing desce
  assert.equal(f.preview.querySelectorAll('img')[0],image);assert.equal(old.element.isConnected,true);f.render();assert.equal(old.element.isConnected,false);assert.equal(old.scope.loaded,false);assert.equal(f.preview.children.length,0);
  const next=f.jobs[1].run();f.reads[1].resolve('second');await tick();const current=f.renders[1];current.element.appendChild(f.doc.createTextNode('new'));current.resolve();await next;
  old.element.appendChild(f.doc.createTextNode('late old'));assert.equal(f.preview.textContent,'new');assert.equal(f.preview.children.length,1);assert.equal(current.element.isConnected,true);
+});
+
+for(const reason of ['unload','replace','timeout'] as const)test(`card ${reason} releases late native registrations without waiting on the renderer`,async()=>{
+ const f=fixture(),pending=f.jobs[0].run();f.reads[0].resolve('old');await tick();const old=f.renders[0];let callbacks=0,childLoads=0,childUnloads=0;
+ if(reason==='unload')f.scope.unload();else if(reason==='replace')f.render();else [...f.timers.values()][0]();
+ await pending;assert.equal(old.scope.loaded,false);assert.equal(old.element.isConnected,false);
+ old.scope.register(()=>callbacks++);
+ class LateChild extends f.Scope{load(){super.load();childLoads++;this.register(()=>callbacks++);}unload(){childUnloads++;super.unload();}}
+ const child=new LateChild();old.scope.addChild(child);
+ assert.deepEqual({callbacks,childLoads,childUnloads},{callbacks:2,childLoads:1,childUnloads:1});assert.equal(child.loaded,false);assert.equal(old.scope.children.length,0);
+ old.reject();await tick();assert.equal(callbacks,2);assert.equal(f.ready(),0);assert.equal(f.timers.size,0);
 });

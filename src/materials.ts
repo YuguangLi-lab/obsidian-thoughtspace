@@ -61,24 +61,51 @@ export function outlineBoard(topics:OutlineTopic[],title:string,point:{x:number;
 export function selectionFragment(raw:string,from:number,to:number):Fragment{
  if(!Number.isInteger(from)||!Number.isInteger(to)||from<0||to>raw.length||to<=from)throw Error('请选择一段文字');
  const body=raw.slice(from,to);if(!body.trim())throw Error('选区没有正文');if(body.length>100000)throw Error('一次最多摘录 100,000 字符，请分段拖入');
- const start=raw.slice(0,from).split('\n').length,end=raw.slice(0,to-(body.endsWith('\n')?1:0)).split('\n').length;
- return{id:`selection:${from}:${to}`,kind:'paragraph',title:plain(body.split('\n').find(s=>s.trim())||'摘录').slice(0,96)||'摘录',heading:'',body,start,end,selection:{from,to}};
+ let start=1,end=1;const last=to-(body.endsWith('\n')?1:0);
+ for(let at=raw.indexOf('\n');at>=0&&at<last;at=raw.indexOf('\n',at+1)){if(at<from)start++;end++;}
+ let title='摘录';for(let at=0;at<body.length;){const next=body.indexOf('\n',at),line=body.slice(at,next<0?body.length:next);if(line.trim()){title=line;break;}if(next<0)break;at=next+1;}
+ return{id:`selection:${from}:${to}`,kind:'paragraph',title:plain(title).slice(0,96)||'摘录',heading:'',body,start,end,selection:{from,to}};
 }
 export interface MaterialReference {original:string;replacement:string;start:{line:number;col:number};end:{line:number;col:number}}
-/** Rebase only source-indexed links whose exact original text still matches; code and prose remain untouched. */
-export function rebaseFragment(raw:string,f:Fragment,references:MaterialReference[]){
- if(f.selection){
-  const {from,to}=f.selection;if(selectionFragment(raw,from,to).body!==f.body)throw Error('文字选区已变化，请重新选择');
-  const lines=raw.split('\n'),offsets:number[]=[];let total=0;for(const line of lines){offsets.push(total);total+=line.length+1;}
-  const edits=references.map(r=>({...r,a:offsets[r.start.line]+r.start.col,b:offsets[r.end.line]+r.end.col})).filter(r=>r.a>=from&&r.b<=to).sort((a,b)=>b.a-a.a);
-  let body=f.body;for(const r of edits){if(raw.slice(r.a,r.b)!==r.original)throw Error('原文链接索引已变化，请稍后重新拖入');body=body.slice(0,r.a-from)+r.replacement+body.slice(r.b-from);}return body;
+type ReferenceEdit={a:number;b:number;replacement:string};
+/** Assemble disjoint source ranges once; preserve legacy ordering for overlapping metadata. */
+function applyReferenceEdits(body:string,edits:ReferenceEdit[]){
+ let cursor=body.length;const parts:string[]=[];
+ for(const edit of edits){
+  if(!Number.isInteger(edit.a)||!Number.isInteger(edit.b)||edit.a<0||edit.b<edit.a||edit.b>cursor){let result=body;for(const item of edits)result=result.slice(0,item.a)+item.replacement+result.slice(item.b);return result;}
+  parts.push(body.slice(edit.b,cursor),edit.replacement);cursor=edit.a;
  }
- const lines=raw.replace(/\r\n?/g,'\n').split('\n').slice(f.start-1,f.end),region=lines.join('\n'),offset=(line:number,col:number)=>lines.slice(0,line-(f.start-1)).reduce((n,s)=>n+s.length+1,0)+col;
- let body=region;const edits=references.filter(r=>r.start.line>=f.start-1&&r.end.line<f.end).sort((a,b)=>b.start.line-a.start.line||b.start.col-a.start.col);
- // Use separate numeric offsets; cached positions are inclusive/exclusive respectively.
- for(const r of edits){const start=offset(r.start.line,r.start.col),end=offset(r.end.line,r.end.col);if(region.slice(start,end)!==r.original)throw Error('原文链接索引已变化，请刷新材料后再试');body=body.slice(0,start)+r.replacement+body.slice(end);}
- if(region!==f.body)throw Error('材料片段已变化，请刷新后再试');return body;
+ if(!edits.length)return body;parts.push(body.slice(0,cursor));return parts.reverse().join('');
 }
+const sliceIndex=(value:number,length:number)=>{const n=Math.trunc(value)||0;return n<0?Math.max(length+n,0):Math.min(n,length);};
+/** Source and link preparation lives only for one import, never in a vault-wide cache. */
+export function createFragmentRebaser(raw:string,references:MaterialReference[]){
+ let normalizedLines:string[]|undefined,selectionEdits:(MaterialReference&{a:number;b:number})[]|undefined;
+ let sorted:MaterialReference[]|undefined,indexable:boolean|undefined;
+ const inLines=(start:number,end:number)=>{
+  indexable??=references.every(r=>Number.isInteger(r.start.line)&&r.start.line>=0&&Number.isInteger(r.end.line)&&r.end.line>=r.start.line);
+  if(!indexable||!Number.isInteger(start)||!Number.isInteger(end))return references.filter(r=>r.start.line>=start&&r.end.line<end);
+  sorted??=[...references].sort((a,b)=>a.start.line-b.start.line);
+  let low=0,high=sorted.length;while(low<high){const mid=(low+high)>>>1;if(sorted[mid].start.line<start)low=mid+1;else high=mid;}
+  const result:MaterialReference[]=[];for(let i=low;i<sorted.length&&sorted[i].start.line<end;i++)if(sorted[i].end.line<end)result.push(sorted[i]);return result;
+ };
+ return(f:Fragment)=>{
+  if(f.selection){
+   const {from,to}=f.selection;if(selectionFragment(raw,from,to).body!==f.body)throw Error('文字选区已变化，请重新选择');
+   if(!selectionEdits){const offsets=[0];for(let at=raw.indexOf('\n');at>=0;at=raw.indexOf('\n',at+1))offsets.push(at+1);selectionEdits=references.map(r=>({...r,a:offsets[r.start.line]+r.start.col,b:offsets[r.end.line]+r.end.col}));}
+   const edits=selectionEdits.filter(r=>r.a>=from&&r.b<=to).sort((a,b)=>b.a-a.a),relative:ReferenceEdit[]=[];
+   for(const r of edits){if(raw.slice(r.a,r.b)!==r.original)throw Error('原文链接索引已变化，请稍后重新拖入');relative.push({a:r.a-from,b:r.b-from,replacement:r.replacement});}
+   return applyReferenceEdits(f.body,relative);
+  }
+  normalizedLines??=raw.replace(/\r\n?/g,'\n').split('\n');const lines=normalizedLines.slice(f.start-1,f.end),region=lines.join('\n'),offsets=[0];for(const line of lines)offsets.push(offsets.at(-1)!+line.length+1);
+  const offset=(line:number,col:number)=>offsets[sliceIndex(line-(f.start-1),lines.length)]+col;
+  const edits=inLines(f.start-1,f.end).sort((a,b)=>b.start.line-a.start.line||b.start.col-a.start.col),relative:ReferenceEdit[]=[];
+  for(const r of edits){const a=offset(r.start.line,r.start.col),b=offset(r.end.line,r.end.col);if(region.slice(a,b)!==r.original)throw Error('原文链接索引已变化，请刷新材料后再试');relative.push({a,b,replacement:r.replacement});}
+  if(region!==f.body)throw Error('材料片段已变化，请刷新后再试');return applyReferenceEdits(region,relative);
+ };
+}
+/** Rebase only source-indexed links whose exact original text still matches; code and prose remain untouched. */
+export function rebaseFragment(raw:string,f:Fragment,references:MaterialReference[]){return createFragmentRebaser(raw,references)(f);}
 
 export interface MaterialImportOptions {asText?:boolean;position?:MaterialPoint;mergeTitle?:string;title?:string;groupId?:string;focus?:boolean;insight?:string}
 export interface MaterialImportResult {ids:string[];files:string[];boardPath:string;groupId?:string}

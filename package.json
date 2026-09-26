@@ -1,6 +1,6 @@
 {
   "name": "obsidian-thoughtspace",
-  "version": "1.0.16",
+  "version": "1.0.36",
   "private": true,
   "scripts": {
     "build": "tsc --noEmit && node esbuild.mjs",

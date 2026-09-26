@@ -5,18 +5,23 @@ import {transformSync} from 'esbuild';
 import {releaseEditorResource} from '../src/editor-cleanup';
 
 // Exercise async renderer ownership with a controlled host; no Obsidian runtime in Node.
-function fixture(size={width:300,height:180},options:{math?:boolean;setupFailure?:'load'|'holder'|'clone'}={}){
+function fixture(size={width:300,height:180},options:{math?:boolean|'container';setupFailure?:'load'|'holder'|'clone'}={}){
  const jobs:{resolve:()=>void;reject:(error:Error)=>void;scope:Scope;value:string}[]=[],mathJobs:{resolve:()=>void;reject:(error:Error)=>void}[]=[],holders:any[]=[],applied:any[]=[],scopes:Scope[]=[];
  const timers=new Map<number,{run:()=>void;delay:number}>();let timerId=0,measurements=0,globalTimers=0;
  const win={setTimeout:(run:()=>void,delay:number)=>{const id=timerId++;timers.set(id,{run,delay});return id;},clearTimeout:(id:number)=>timers.delete(id)};
- const probe=()=>{if(options.setupFailure==='clone')throw Error('clone failed');return{value:'',querySelectorAll:()=>[],querySelector:()=>options.math?{}:null};};
+ const probe=()=>{if(options.setupFailure==='clone')throw Error('clone failed');return{value:'',querySelectorAll:()=>[],querySelector:(selector:string)=>(options.math==='container'?selector==='mjx-container':options.math&&selector==='.math')?{}:null};};
  const preview={isConnected:true,ownerDocument:{defaultView:win},cloneNode:probe,parentElement:{createDiv:()=>{if(options.setupFailure==='holder')throw Error('holder failed');const holder={removed:false,appendChild:()=>{},remove(){this.removed=true;}};holders.push(holder);return holder;}}};
- class Scope{loaded=false;unloads=0;constructor(){scopes.push(this);}load(){this.loaded=true;if(options.setupFailure==='load')throw Error('load failed');}unload(){this.loaded=false;this.unloads++;}}
+ class Scope{loaded=false;unloads=0;cleanups:(()=>void)[]=[];children:Scope[]=[];constructor(){scopes.push(this);}register(fn:()=>void){this.cleanups.push(fn);}addChild(child:Scope){this.children.push(child);if(this.loaded)child.load();return child;}load(){this.loaded=true;if(options.setupFailure==='load')throw Error('load failed');}unload(){this.loaded=false;this.unloads++;for(const child of this.children.splice(0))child.unload();for(const fn of this.cleanups.splice(0))fn();}}
  const imports:Record<string,unknown>={'./editor-cleanup':{releaseEditorResource},obsidian:{Component:Scope,MarkdownRenderer:{render:(_:unknown,value:string,node:any,_path:string,scope:Scope)=>{node.value=value;return new Promise<void>((resolve,reject)=>jobs.push({resolve,reject,scope,value}));}},finishRenderMath:()=>new Promise<void>((resolve,reject)=>mathJobs.push({resolve,reject}))},'./excerpt-sources':{excerptPresentation:(body:string)=>({body})},'./rendering':{markdownPreview:(body:string)=>body},'./workspace-tools':{measureNoteCard:()=>{measurements++;return size;}}};
+ const scopeModule={exports:{}};new Function('require','module','exports',transformSync(readFileSync('src/preview-render-scope.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>imports[name],scopeModule,scopeModule.exports);imports['./preview-render-scope']=scopeModule.exports;
  const module={exports:{} as any};new Function('require','module','exports','window',transformSync(readFileSync('src/inline-card-fit.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>imports[name],module,module.exports,{...win,setTimeout:(run:()=>void,delay:number)=>{globalTimers++;return win.setTimeout(run,delay);}});
  const fit=new module.exports.InlineCardFit({},preview,'note.md',undefined,(size:any)=>applied.push(size));return{fit,jobs,mathJobs,holders,applied,scopes,timers,preview,get measurements(){return measurements;},get globalTimers(){return globalTimers;}};
 }
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
+
+test('card measurements await direct MathJax containers before reading geometry',async()=>{
+ const f=fixture(undefined,{math:'container'});f.fit.schedule('$x$');const pending=f.fit.flush();f.jobs[0].resolve();await tick();assert.equal(f.mathJobs.length,1);assert.equal(f.measurements,0);f.mathJobs[0].resolve();await pending;assert.equal(f.measurements,1);assert.equal(f.applied.length,1);f.fit.dispose();
+});
 
 test('stale renderer completion cannot resize the latest draft',async()=>{
  const {fit,jobs,holders,applied}=fixture();fit.schedule('older');const pending=fit.flush();fit.schedule('latest');jobs[0].resolve();await tick();assert.equal(applied.length,0);assert.equal(jobs.length,2);jobs[1].resolve();await pending;assert.deepEqual(applied,[{width:300,height:180}]);assert.ok(holders.every(h=>h.removed));fit.dispose();

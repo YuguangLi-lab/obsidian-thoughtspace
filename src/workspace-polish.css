@@ -38,30 +38,6 @@
 /* 0.61 — A shared inset navigation and reading surface, scoped to plugin UI.
    Primer ActionList leading/trailing visuals and shadcn Sidebar composition. */
 /* Reading and material workspaces: quiet navigation beside an open document. */
-.ts-ui-modal.ts-reading-desk {background:var(--background-primary);}
-.ts-ui-modal.ts-reading-desk .ts-reading-heading {padding-bottom:4px;}
-.ts-ui-modal.ts-reading-desk .ts-reading-heading h2 {font-size:21px;font-weight:600;letter-spacing:-.02em;}
-.ts-ui-modal.ts-reading-desk .ts-reading-tools {border:0;border-bottom:1px solid var(--ts-work-line);border-radius:0;background:transparent;box-shadow:none;}
-.ts-ui-modal.ts-reading-desk .ts-reading-tools :is(input,select) {height:32px;border:1px solid var(--ts-work-line);border-radius:7px;background-color:var(--background-primary);box-shadow:none;font-size:12px;}
-.ts-ui-modal.ts-reading-desk .ts-reading-layout {gap:20px;}
-.ts-ui-modal.ts-reading-desk .ts-reading-aside {padding:0 12px 0 0;border:0;border-right:1px solid var(--ts-work-line);border-radius:0;background:transparent;}
-.ts-ui-modal.ts-reading-desk .ts-reading-aside-tabs {padding:3px;border:0;border-radius:8px;background:var(--background-secondary);}
-.ts-ui-modal.ts-reading-desk .ts-reading-aside-tabs button {height:28px;padding:4px;border-radius:5px;font-size:12px;}
-.ts-ui-modal.ts-reading-desk .ts-reading-aside-tabs button[aria-pressed=true] {background:var(--background-primary);color:var(--text-normal);box-shadow:0 1px 3px #00000009;}
-.ts-ui-modal.ts-reading-desk .ts-reading-item {margin:4px 0;padding:12px 8px;border:1px solid transparent;border-radius:7px;background:transparent;box-shadow:none;font-size:12px;}
-.ts-ui-modal.ts-reading-desk .ts-reading-item[aria-pressed=true] {background:var(--ts-work-wash);border-color:transparent;box-shadow:inset 2px 0 var(--ts-accent);}
-.ts-ui-modal.ts-reading-desk .ts-reading-item:hover {background:var(--background-modifier-hover);}
-.ts-ui-modal.ts-reading-desk .ts-reading-item small {font-size:11px;color:var(--text-muted);}
-.ts-ui-modal.ts-reading-desk .ts-reading-count {padding:8px 4px;font-size:11px;}
-.ts-ui-modal.ts-reading-desk .ts-reading-page {padding:12px clamp(12px,2vw,24px) 24px;border:0;border-radius:0;background:transparent;box-shadow:none;}
-.ts-ui-modal.ts-reading-desk .ts-reading-page-head h2 {font-size:26px;font-weight:600;line-height:1.4;}
-.ts-ui-modal.ts-reading-desk .ts-reading-eyebrow {font-size:11px;letter-spacing:.04em;color:var(--text-muted);}
-.ts-ui-modal.ts-reading-desk .ts-reading-source {font-size:11px;color:var(--text-muted);}
-.ts-ui-modal.ts-reading-desk .ts-reading-actions {gap:6px;}
-.ts-ui-modal.ts-reading-desk .ts-reading-actions button {height:30px;border:1px solid var(--ts-work-line);border-radius:6px;background:transparent;font-size:12px;box-shadow:none;}
-.ts-ui-modal.ts-reading-desk .ts-reading-actions button[aria-pressed=true] {background:var(--ts-work-wash);border-color:var(--ts-work-ring);color:var(--ts-accent);}
-.ts-ui-modal.ts-reading-desk .ts-reading-footer {padding-top:8px;border:0;}
-.ts-ui-modal.ts-reading-desk .ts-reading-footer button {height:30px;border-radius:7px;font-size:12px;}
 :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-tabs {gap:4px;padding:3px;border:0;border-radius:8px;background:var(--background-secondary);}
 :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-tabs button {flex:1;min-height:30px;padding:6px;font-size:12px;border-radius:6px;}
 :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-tabs button[aria-selected=true] {background:var(--background-primary);color:var(--text-normal);box-shadow:0 1px 3px #00000009;}
@@ -70,12 +46,6 @@
 :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-library {padding:12px 8px;background:var(--background-primary);border-right-color:var(--ts-work-line);}
 :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-detail {background:var(--background-primary);}
 :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-fragment {border-color:var(--ts-work-line);border-radius:8px;background:transparent;box-shadow:none;}
-@container(max-width:520px) {
- .ts-ui-modal.ts-reading-desk .ts-reading-page {padding:12px 8px;}
- .ts-ui-modal.ts-reading-desk .ts-reading-page-head h2 {font-size:21px;}
- .ts-ui-modal.ts-reading-desk .ts-reading-layout {gap:12px;}
- .ts-ui-modal.ts-reading-desk .ts-reading-aside {padding-right:8px;}
-}
 
 /* 0.54.1 — A slim canvas rail; typography and border controls keep their top position. */
 .ts-root .ts-board-rail {position:absolute;transform:translateY(-50%);z-index:55;border:1px solid;overflow-y:auto;scrollbar-width:none;overscroll-behavior:contain;}
@@ -86,10 +56,10 @@
 .ts-root .ts-board-rail .ts-button:focus-visible,.ts-root .ts-rail-popover .ts-button:focus-visible {outline:2px solid var(--ts-accent);outline-offset:-2px;}
 .ts-root .ts-rail-popover {position:absolute;transform:translateY(-50%);z-index:56;border:1px solid;overflow:auto;overscroll-behavior:contain;}
 .ts-root .ts-rail-popover[hidden] {display:none!important;}
-.ts-root .ts-rail-popover .ts-rail-actions,.ts-root .ts-rail-popover .ts-tool-cluster {display:flex!important;flex-direction:column;align-items:stretch;gap:2px;margin:0;padding:0;border:0;overflow:visible;}
+.ts-root .ts-rail-popover .ts-rail-actions,.ts-root .ts-rail-popover .ts-tool-cluster {display:flex;flex-direction:column;align-items:stretch;gap:2px;margin:0;padding:0;border:0;overflow:visible;}
 .ts-root .ts-rail-popover .ts-tool-cluster::before {content:attr(aria-label);}
 .ts-root .ts-rail-popover .ts-tool-cluster + .ts-tool-cluster {border-top:1px solid var(--ts-work-line);}
-.ts-root .ts-rail-popover .ts-rail-actions .ts-button {display:flex!important;align-items:center;justify-content:flex-start;width:100%;padding:6px 9px!important;border:0;background:transparent;box-shadow:none;font-size:12px;color:var(--text-normal);}
+.ts-root .ts-rail-popover .ts-rail-actions .ts-button {display:flex;align-items:center;justify-content:flex-start;width:100%;padding:6px 9px!important;border:0;background:transparent;box-shadow:none;font-size:12px;color:var(--text-normal);}
 .ts-root .ts-rail-popover .ts-rail-actions .ts-button > span:last-child {display:inline!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .ts-root .ts-rail-popover .ts-button svg {width:16px;height:16px;}
 .ts-root .ts-rail-popover .ts-button:hover {background:var(--ts-work-hover);}

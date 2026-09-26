@@ -5,7 +5,8 @@ export type TextInk = 'default' | Color;
 export const textInks: TextInk[] = ['default', ...colors];
 export const inkLabels: Record<TextInk, string> = {...colorNames,default:'跟随主题',sand:'琥珀',blue:'海蓝',green:'森林',rose:'莓红',purple:'紫罗兰'};
 export const textFontFamily=(family:Card['fontFamily'],fallback='var(--font-text)',monospace='var(--font-monospace)')=>family==='serif'?'Georgia, "Songti SC", serif':family==='mono'?monospace:fallback;
-/** Measure unscaled Markdown in the same CSS context, including late math/images and source badges. */
+/** Explicit one-shot fit, also used at creation before automatic fitting is enabled.
+ * Measure unscaled Markdown in the same CSS context, including late math/images and source badges. */
 export function fitTextNode(node: Card, host: HTMLElement, renderedBody?:HTMLElement): void {
  if(node.kind!=='text'||node.collapsed)return;
  // A pending render must not overwrite an already rendered size with raw Markdown metrics.
@@ -18,7 +19,7 @@ export function fitTextNode(node: Card, host: HTMLElement, renderedBody?:HTMLEle
  const frame=win.createDiv();frame.className='ts-text ts-text-fit-probe'+(node.topic?' ts-topic':'');
  const rendered=renderedBody?.dataset.markdownStatus==='ready'||renderedBody?.dataset.mathStatus==='ready';
  const probe=rendered?renderedBody.cloneNode(true) as HTMLElement:win.createDiv();if(!rendered)probe.className='ts-text-body';
- const manual=node.autoSize===false,fontSize=node.fontSize||16;
+ const manual=node.textAutoHeight===true||node.autoSize===false,fontSize=node.fontSize||16;
  Object.assign(frame.style,{position:'relative',display:'block',boxSizing:'border-box',width:manual?`${node.width}px`:'max-content',maxWidth:manual?'none':`${node.textMaxWidth||520}px`,minWidth:manual?'0':'80px',minHeight:'60px',height:'auto',border:`${node.borderWidth??1}px solid transparent`,transform:'none',overflow:'visible'});
  Object.assign(probe.style,{position:'static',display:'block',boxSizing:'border-box',width:'auto',maxWidth:'none',height:'auto',minHeight:'0',minWidth:'0',flex:'none',overflow:'visible',fontFamily:textFontFamily(node.fontFamily,hostStyle.getPropertyValue('--font-text')||hostStyle.fontFamily,hostStyle.getPropertyValue('--font-monospace')||'monospace'),fontSize:`${fontSize}px`,fontWeight:node.topic?'500':'400',lineHeight:'1.7',letterSpacing:'normal',whiteSpace:rendered?'normal':'pre-wrap',overflowWrap:'anywhere',padding:'14px 16px'});
  const presentation=textExcerptPresentation(node.text||''),text=presentation.sources.length?presentation.body.trimEnd():presentation.body;

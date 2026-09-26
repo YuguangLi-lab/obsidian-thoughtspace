@@ -30,10 +30,24 @@ Choose cream, white, ivory, kraft or recycled paper in Appearance settings, or c
 
 - **Whiteboards:** pan, zoom, connect cards, name groups, nest boards, arrange layouts, and search content.
 - **Markdown cards:** insert existing notes, edit in place, use independent card titles, and resize or fold previews.
+- **Drag existing notes:** drag from Obsidian’s file explorer, search results, or internal links onto the board. Multi-select notes are arranged together and can be undone as one batch; source files stay in place.
+- **Native file workflow:** generated excerpt source links and the last writing draft follow note, PDF, and folder renames. Ambiguous sources are left untouched; Markdown prose and code examples are preserved.
 - **Mind maps:** start with presets, add linked topics, navigate with the keyboard, and collapse or expand branches one level at a time.
 - **Reading:** display PDF pages, capture excerpts with source links, and organize evidence alongside your notes.
 - **Writing:** arrange cards and groups into an outline and export a Markdown draft while keeping references nearby.
 - **Obsidian integration:** use vault files, native tags, properties, bookmarks, search, and the Markdown editing toolbar. The calendar and journal integration requires the separate optional calendar plugin.
+
+## Editing and canvas controls
+
+Select a card or text frame to switch directly between **Edit, Text, Fill, and Border** in the floating top toolbar. Switching modes preserves the current draft and selection; narrow panes use labelled icon controls. Preview and fold actions sit above objects, resizing has a separate lower-corner handle, and connected children keep their own disclosure controls.
+
+The side **Insert** panel separates source materials from board structure. **More tools** combines category navigation, search, and recent commands.
+
+## Reading workspace
+
+Open **Workspace → Reading desk** from the board header. Search and filter material in the navigation pane, switch between content, headings and connections, and read in the main document pane. Review status, original-note access and pagination remain visible while the article scrolls. `Alt + Left / Right` switches material; status changes preserve the article and scroll position.
+
+When linking selected text to a note, choose a heading or block and preview the reference before inserting a native link or embed. Reference actions stay at the bottom of the preview.
 
 ## Install and update
 

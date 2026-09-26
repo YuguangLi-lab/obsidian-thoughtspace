@@ -11,8 +11,10 @@ export function edgeBounds(a:Card,b:Card):Rect {const x=Math.min(a.x,b.x)-240,y=
 export function markdownPreview(raw:string,limit=16000):string {
  const text=raw.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/,'');if(text.length<=limit)return text;
  let prefix=text.slice(0,limit);if(/[\uD800-\uDBFF]$/.test(prefix))prefix=prefix.slice(0,-1);
- const lines=prefix.split('\n');let fence='';for(const l of lines){const m=l.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);if(m){if(!fence){if(m[1][0]!=='`'||!m[2].includes('`'))fence=m[1];}else if(m[1][0]===fence[0]&&m[1].length>=fence.length&&!m[2].trim())fence='';}}
- return lines.join('\n')+(fence?'\n'+fence:'')+'\n\n… 双击打开完整笔记';
+ // Ordinary prose needs no line array or per-line fence parser. If a delimiter
+ // occurs anywhere, retain the complete original fence rules (including info).
+ let fence='';if(prefix.includes('```')||prefix.includes('~~~'))for(const l of prefix.split('\n')){const m=l.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);if(m){if(!fence){if(m[1][0]!=='`'||!m[2].includes('`'))fence=m[1];}else if(m[1][0]===fence[0]&&m[1].length>=fence.length&&!m[2].trim())fence='';}}
+ return prefix+(fence?'\n'+fence:'')+'\n\n… 双击打开完整笔记';
 }
 /** At most four renderers in flight, dropping detached jobs before file I/O. */
 export class RenderQueue {

@@ -1,35 +1,49 @@
-/* Permanent controls remain reachable across the gap beyond the connection port. */
+/* A permanent split control: the count owns disclosure, the chevron owns its
+   native menu. Keep it beyond the 30 px connection target and resize corner. */
 .ts-root .ts-branch-controls {
- position:absolute; left:calc(100% + 18px); top:50%; transform:translateY(-50%);
+ position:absolute; left:calc(100% + 24px); top:50%; transform:translateY(-50%);
  z-index:9; display:inline-flex; align-items:center; gap:0; width:max-content;
- border:1px solid var(--ts-board-line,var(--background-modifier-border)); border-radius:7px;
- background:var(--background-primary); box-shadow:0 2px 6px #00000010;
- pointer-events:auto;
+ padding:2px; border:1px solid var(--ts-object-line,var(--background-modifier-border)); border-radius:8px;
+ background:var(--background-primary); box-shadow:0 1px 2px #00000008,0 3px 10px #00000008;
+ opacity:1; pointer-events:auto;
+}
+.ts-root .ts-branch-controls:not(.ts-branch-controls-group)::before {
+ content:''; position:absolute; left:-9px; top:50%; width:8px; height:1px;
+ background:var(--ts-object-line,var(--background-modifier-border)); pointer-events:none;
 }
 .ts-root .ts-branch-controls.ts-branch-controls-group {
- position:static; inset:auto; transform:none; flex:none;
+ position:static; inset:auto; transform:none; flex:none; box-shadow:none;
 }
 .ts-root .ts-branch-controls > :is(.ts-branch-toggle,.ts-branch-menu) {
  position:static; inset:auto; transform:none; display:inline-flex; align-items:center; justify-content:center;
- width:auto; min-width:28px; height:28px; min-height:28px; margin:0; padding:0 7px; gap:4px;
- border:0; border-radius:6px; background:transparent; box-shadow:none;
+ width:auto; min-width:28px; height:26px; min-height:26px; margin:0; padding:0 7px; gap:5px;
+ border:0; border-radius:5px; background:transparent; box-shadow:none;
  color:var(--text-muted); font:12px/1 var(--font-interface); white-space:nowrap;
  opacity:1; pointer-events:auto; cursor:pointer; touch-action:manipulation;
 }
 .ts-root .ts-branch-controls > .ts-branch-menu {
- width:28px; padding:0; border-left:1px solid var(--ts-board-line,var(--background-modifier-border)); border-radius:0 6px 6px 0;
+ width:26px; min-width:26px; padding:0; margin-left:2px;
+ border-left:1px solid var(--ts-object-line,var(--background-modifier-border)); border-radius:0 5px 5px 0;
 }
 .ts-root .ts-branch-controls > .ts-branch-toggle > :is(.ts-branch-label,.ts-branch-count) { display:inline; }
 .ts-root .ts-branch-controls .ts-branch-icon { display:inline-flex; align-items:center; }
 .ts-root .ts-branch-controls .ts-branch-icon svg { width:13px; height:13px; }
-.ts-root .ts-branch-controls .ts-branch-count { font-size:11px; line-height:1; font-variant-numeric:tabular-nums; }
+.ts-root .ts-branch-controls .ts-branch-count { min-width:1ch; color:var(--text-normal); font-size:11px; line-height:1; font-variant-numeric:tabular-nums; }
+.ts-root .ts-branch-controls > .ts-branch-toggle[aria-expanded=false] { color:var(--ts-accent); background:var(--ts-object-active,var(--background-modifier-hover)); }
 .ts-root .ts-branch-controls > .ts-branch-setup { color:var(--text-muted); }
 .ts-root .ts-branch-controls > button:hover:not(:disabled) { color:var(--text-normal); background:var(--background-modifier-hover); }
-.ts-root .ts-branch-controls > button:focus-visible { outline:2px solid var(--interactive-accent); outline-offset:2px; }
+.ts-root .ts-branch-controls > button:focus-visible { outline:2px solid var(--interactive-accent); outline-offset:1px; }
 .ts-root .ts-branch-controls > button:disabled { opacity:.4; cursor:not-allowed; }
 
-/* Content and connected-child actions share the header without hiding their labels. */
+/* Content folding and connected-child folding remain separate named actions. */
 .ts-root .ts-section > .ts-node-header .ts-section-content-fold {
- width:auto; min-width:28px; height:28px; padding:0 7px; gap:4px; font:12px/1 var(--font-interface);
+ display:inline-flex; align-items:center; justify-content:center; flex:none;
+ width:auto; min-width:28px; height:30px; min-height:30px; padding:0 8px; gap:5px;
+ border:1px solid var(--ts-object-line,var(--background-modifier-border)); border-radius:7px;
+ background:var(--background-primary); color:var(--text-muted); box-shadow:none;
+ font:12px/1 var(--font-interface);
 }
 .ts-root .ts-section > .ts-node-header .ts-section-content-fold > span:last-child { display:inline; }
+.ts-root .ts-section > .ts-node-header .ts-section-content-fold:is(:hover,:focus-visible) { color:var(--text-normal); background:var(--background-modifier-hover); }
+.ts-root .ts-section > .ts-node-header .ts-section-content-fold:focus-visible { outline:2px solid var(--interactive-accent); outline-offset:1px; }
+.ts-root .ts-section > .ts-node-header .ts-section-content-fold[aria-expanded=false] { color:var(--ts-accent); background:var(--ts-object-active,var(--background-modifier-hover)); }

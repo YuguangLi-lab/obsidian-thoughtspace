@@ -8,7 +8,7 @@ import {releaseEditorResource} from '../src/editor-cleanup';
 const source=readFileSync(process.env.INLINE_STATE_SOURCE||'src/inline-node-editor.ts','utf8');
 const module={exports:{} as any};
 new Function('require','module','exports',transformSync(source,{loader:'ts',format:'cjs'}).code)((name:string)=>name==='./editor-cleanup'?{releaseEditorResource}:name==='obsidian'?{setIcon(){}}:{},module,module.exports);
-const eventsStart=source.indexOf("  this.input.addEventListener('input',"),eventsEnd=source.indexOf("  this.el.addEventListener('keydown',",eventsStart);
+const eventsStart=source.indexOf("  this.input.addEventListener('input',"),eventsEnd=source.indexOf('  const keydown=(e:KeyboardEvent)=>{',eventsStart);
 assert.ok(eventsStart>=0&&eventsEnd>eventsStart);
 const bindEvents=new Function(transformSync(source.slice(eventsStart,eventsEnd),{loader:'ts'}).code);
 

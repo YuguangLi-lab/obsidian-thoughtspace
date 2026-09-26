@@ -22,4 +22,18 @@ test('batch connection appearance modifies internal ordinary edges only',()=>{co
 test('fixed gap uses actual sizes and skips locked nodes',()=>{const b=board();b.nodes[1].width=300;s.stackSelection(b,new Set([...ids,'lock']),'x',40);assert.deepEqual(b.nodes.map(n=>n.x),[0,240,580,0]);assert.equal(b.nodes[3].y,300);assert.throws(()=>s.stackSelection(b,ids,'x',-1));});
 test('radial layout centers preserve mean center and bounded radius',()=>{const b=board(),mean=400;s.radialSelection(b,ids,500);for(const n of b.nodes.slice(0,3))assert.ok(Math.abs(Math.hypot(n.x+n.width/2-mean,n.y+n.height/2-50)-500)<.00001);assert.throws(()=>s.radialSelection(b,ids,NaN));});
 test('geometry disables auto-fit but protects locked collapsed and invalid dimensions',()=>{const b=board();b.nodes[0]={...b.nodes[0],kind:'card',file:'a.md',autoFit:true};s.geometry(b,'a',{x:50,y:60,width:350,height:240});assert.equal(b.nodes[0].autoFit,false);assert.throws(()=>s.geometry(b,'lock',{x:0,y:0,width:300,height:200}));assert.throws(()=>s.geometry(b,'a',{x:0,y:0,width:10,height:200}));});
+test('exact text geometry retains manual dimensions by disabling automatic height',()=>{const b=board();b.nodes[0].textAutoHeight=b.nodes[1].textAutoHeight=true;s.geometry(b,'a',{x:50,y:60,width:350,height:240});assert.deepEqual([b.nodes[0].x,b.nodes[0].y,b.nodes[0].width,b.nodes[0].height],[50,60,350,240]);assert.equal(b.nodes[0].autoSize,false);assert.equal(b.nodes[0].textAutoHeight,false);assert.equal(b.nodes[1].textAutoHeight,true);});
+test('exact text geometry saves a 40-pixel frame and rejects a smaller frame without moving it',()=>{
+ const b=board();b.nodes[0].textAutoHeight=true;
+ const draft=s.studioDraft(b,d=>s.geometry(d,'a',{x:50,y:60,width:80,height:40}))!;
+ assert.deepEqual([draft.nodes[0].x,draft.nodes[0].y,draft.nodes[0].width,draft.nodes[0].height],[50,60,80,40]);
+ assert.equal(draft.nodes[0].textAutoHeight,false);assert.equal(b.nodes[0].height,100);
+ const before=clone(draft);assert.throws(()=>s.geometry(draft,'a',{x:70,y:80,width:80,height:39.9}),/80×40/);assert.deepEqual(draft,before);
+});
+test('exact non-text geometry keeps its 60-pixel minimum',()=>{
+ for(const kind of ['card','image','pdf','board'] as const){const b=board();b.nodes[0].kind=kind;const before=clone(b);
+  assert.throws(()=>s.geometry(b,'a',{x:50,y:60,width:80,height:40}),/80×60/);assert.deepEqual(b,before);
+  s.geometry(b,'a',{x:50,y:60,width:80,height:60});assert.equal(b.nodes[0].height,60);
+ }
+});
 test('overview separates repeated references from unique files',()=>{const b=board();b.nodes=[{...node('a'),kind:'card',file:'a.md'},{...node('b'),kind:'card',file:'a.md'},{...node('i'),kind:'image',file:'i.png'}];const stats=s.studioStats(b);assert.equal(stats.uniqueFiles,2);assert.equal(stats.repeatedReferences,1);assert.equal(stats.notes,2);});

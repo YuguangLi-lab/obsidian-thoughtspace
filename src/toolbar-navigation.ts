@@ -5,6 +5,14 @@ const navigationRows=new WeakSet<HTMLElement>();
 /** Arrow navigation is confined to buttons; selects and application shortcuts keep native behavior. */
 export function toolbarNavigation(row:HTMLElement){
  navigationRows.add(row);
+ const focus=(event:FocusEvent)=>{
+  const target=event.target as HTMLElement|null;
+  if(!target||!row.contains(target)||!target.matches('button,input,select,[tabindex]'))return;
+  // Chromium may leave a partly visible select underneath an overflow arrow.
+  // Reveal keyboard targets locally without moving the canvas or its editor.
+  for(let parent=row.parentElement;parent;parent=parent.parentElement)if(navigationRows.has(parent))return;
+  revealToolbarControl(target,row);
+ };
  const move=(event:KeyboardEvent)=>{
   if(event.defaultPrevented||event.isComposing||event.keyCode===229||event.altKey||event.ctrlKey||event.metaKey||event.shiftKey)return;
   if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
@@ -18,5 +26,6 @@ export function toolbarNavigation(row:HTMLElement){
   event.preventDefault();event.stopPropagation();if(next!==at)buttons[next].focus({preventScroll:true});revealToolbarControl(buttons[next],row);
  };
  row.addEventListener('keydown',move);
- return()=>{navigationRows.delete(row);row.removeEventListener('keydown',move);};
+ row.addEventListener('focusin',focus);
+ return()=>{navigationRows.delete(row);row.removeEventListener('keydown',move);row.removeEventListener('focusin',focus);};
 }

@@ -7,12 +7,19 @@ export function editorMatches(text:string,query:string,options:EditorSearchOptio
  if(query.length>1000)throw Error('查找文字请控制在 1,000 字符以内');
  const {from=0,to=text.length}=options.range||{};
  if(!Number.isInteger(from)||!Number.isInteger(to)||from<0||to<from||to>text.length)throw Error('查找范围已变化，请重新打开');
- const matches:SearchRange[]=[];if(!query)return matches;
+ const matches:SearchRange[]=[];if(!query||from===to)return matches;
  const escaped=query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),re=new RegExp(escaped,options.caseSensitive?'gu':'giu');
+ // Bound literal matching to the requested end, but keep a split surrogate pair
+ // intact so truncation cannot invent a match for an otherwise paired surrogate.
+ const endSplitsPair=to>0&&text.charCodeAt(to-1)>=0xd800&&text.charCodeAt(to-1)<=0xdbff&&text.charCodeAt(to)>=0xdc00&&text.charCodeAt(to)<=0xdfff;
+ const source=to<text.length?text.slice(0,to+(endSplitsPair?1:0)):text;
  re.lastIndex=from;let m:RegExpExecArray|null;
- while((m=re.exec(text))){const end=m.index+m[0].length;if(end>to)break;
+ while((m=re.exec(source))){const end=m.index+m[0].length;if(end>to)break;if(m.index<from)continue;
   if(options.wholeWord){
-   const before=Array.from(text.slice(Math.max(0,m.index-2),m.index)).at(-1),after=Array.from(text.slice(end,end+2))[0];
+   // Read one neighboring code point, preserving isolated surrogates and checks outside the selected range.
+   let prior=m.index-1;const unit=text.charCodeAt(prior),lead=text.charCodeAt(prior-1);
+   if(unit>=0xdc00&&unit<=0xdfff&&lead>=0xd800&&lead<=0xdbff)prior--;
+   const before=text.slice(Math.max(0,prior),m.index),after=text.slice(end,end+((text.codePointAt(end)??0)>0xffff?2:1));
    if(word(before)||word(after))continue;
   }
   matches.push({from:m.index,to:end});
@@ -23,8 +30,7 @@ export function editorMatches(text:string,query:string,options:EditorSearchOptio
 export function editorReplacement(text:string,matches:readonly SearchRange[],replacement:string){
  if(replacement.length>10000)throw Error('替换文字请控制在 10,000 字符以内');
  if(!matches.length)return undefined;
- let previous=-1;for(const m of matches){if(!Number.isInteger(m.from)||!Number.isInteger(m.to)||m.from<0||m.to<=m.from||m.to>text.length||m.from<previous)throw Error('匹配范围无效，请重新查找');previous=m.to;}
- const delta=matches.reduce((n,m)=>n+replacement.length-(m.to-m.from),0);
+ let previous=-1,delta=0;for(const m of matches){const from=m.from,to=m.to;if(!Number.isInteger(from)||!Number.isInteger(to)||from<0||to<=from||to>text.length||from<previous)throw Error('匹配范围无效，请重新查找');previous=to;delta+=replacement.length-(to-from);}
  if(text.length+delta>2000000)throw Error('替换后内容超过 2,000,000 字符，请减少替换范围');
  const from=matches[0].from,to=matches.at(-1)!.to;let cursor=from,result='';
  for(const m of matches){result+=text.slice(cursor,m.from)+replacement;cursor=m.to;}

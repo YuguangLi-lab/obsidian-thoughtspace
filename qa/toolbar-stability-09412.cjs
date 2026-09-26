@@ -6,7 +6,7 @@ view.selectedEdge=undefined;view.selected=new Set(['n']);board.nodes=[{id:'n',ki
 let disposed=0;
 const makeEditor=()=>{
  const input=new El('textarea');input.value='A note';input.selectionStart=0;input.selectionEnd=0;
- return{input,format(){},history(){},replaceToolbar(dispose){if(this.cleanup){disposed++;this.cleanup();}this.cleanup=dispose;}};
+ return{input,snapshot(){return{text:input.value,start:input.selectionStart,end:input.selectionEnd,busy:false};},format(){},history(){},replaceToolbar(dispose){if(this.cleanup){disposed++;this.cleanup();}this.cleanup=dispose;}};
 };
 view.inline=makeEditor();view.renderSelectionTools();
 const baseline=counts.emptied,editor=view.inline,bold=host.querySelectorAll('button').find(button=>button.dataset.command==='bold');

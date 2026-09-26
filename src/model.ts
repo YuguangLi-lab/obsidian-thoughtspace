@@ -15,7 +15,7 @@ export const colorNames:Record<Color,string>={sand:'米黄',blue:'蓝色',green:
 export type CardFill = Color | 'none' | `#${string}`;
 export const validCardFill=(value:unknown):value is CardFill=>typeof value==='string'&&(value==='none'||colors.includes(value as Color)||/^#[0-9a-fA-F]{6}$/.test(value));
 export const cardFillHex:Record<Color,string>={sand:'#e8d8a8',blue:'#bbd5e7',green:'#bedbca',rose:'#eac6cc',purple:'#d6cbe8',orange:'#edc49a',red:'#e7b1ae',teal:'#a9d4c9',cyan:'#a9d8e4',lime:'#cad9a3',slate:'#bdc8d2',brown:'#d2bca9'};
-export interface Card { mindmapRules?:{layout:'right'|'left'|'down'|'up'|'bilateral';density:'compact'|'standard'|'relaxed';automatic:boolean};textMaxWidth?:number; imageUrl?:string; transparent?:boolean; fillColor?:CardFill; branchFolded?:boolean; review?:'later'|'reading'|'done'; id: string; kind: 'card' | 'section' | 'board' | 'text' | 'image' | 'pdf'; pdfPage?:number; x: number; y: number; width: number; height: number; color: Color; file?: string; title?: string; collapsed?: boolean; expandedHeight?: number; text?: string; topic?: boolean; textColor?: Color | 'default'; fontSize?: number; fontFamily?: 'default' | 'serif' | 'mono'; textAlign?: 'left' | 'center' | 'right'; autoSize?: boolean; autoFit?:boolean; preferredWidth?:number; locked?:boolean; customBorder?:boolean; borderStyle?:'solid'|'dashed'|'dotted'; borderWidth?:number }
+export interface Card { mindmapRules?:{layout:'right'|'left'|'down'|'up'|'bilateral';density:'compact'|'standard'|'relaxed';automatic:boolean};textMaxWidth?:number; imageUrl?:string; transparent?:boolean; fillColor?:CardFill; branchFolded?:boolean; review?:'later'|'reading'|'done'; id: string; kind: 'card' | 'section' | 'board' | 'text' | 'image' | 'pdf'; pdfPage?:number; x: number; y: number; width: number; height: number; color: Color; file?: string; title?: string; collapsed?: boolean; expandedHeight?: number; text?: string; topic?: boolean; textColor?: Color | 'default'; fontSize?: number; fontFamily?: 'default' | 'serif' | 'mono'; textAlign?: 'left' | 'center' | 'right'; autoSize?: boolean; textAutoHeight?: boolean; autoFit?:boolean; preferredWidth?:number; locked?:boolean; customBorder?:boolean; borderStyle?:'solid'|'dashed'|'dotted'; borderWidth?:number }
 export interface Edge { id: string; from: string; to: string; label: string; style?: 'curve'|'straight'|'elbow'; direction?: 'forward'|'both'|'none'; dashed?: boolean; color?: Color; fromSide?: Side; toSide?: Side; kind?: 'branch' }
 export interface Board { defaultEdgeStyle?:Edge['style']; mindmapLayout?:'right'|'left'|'down'|'up'|'bilateral'; mindmapDensity?:'compact'|'standard'|'relaxed'; writing?:WritingState; selectionSets?:{id:string;name:string;ids:string[]}[]; spaceId?:string; snapToGrid?:boolean; savedViews?:{id:string;name:string;viewport:{x:number;y:number;zoom:number}}[]; version: 1 | 2 | 3; mode?: 'free'|'mindmap'; mindmapDirection?: 'right'|'down'|'up'; nodes: Card[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }
 export const emptyBoard = (): Board => ({ version: 1, nodes: [], edges: [], viewport: { x: 60, y: 60, zoom: 1 } });
@@ -32,19 +32,20 @@ function assertBoardData(b:unknown):asserts b is Board {
   const ids = new Set<string>();
   for (const n of b.nodes) {
     if (!isRecord(n) || typeof n.id !== 'string' || !n.id.trim() || ids.has(n.id) || !isOneOf(n.kind,b.version === 3 ? ['card','section','board','text','image','pdf'] : b.version === 2 ? ['card','section','board'] : ['card','section']) ||
-      ![n.x,n.y].every(isFiniteNumber) || !isFiniteNumber(n.width) || !isFiniteNumber(n.height) || n.width < 80 || n.height < 60 ||
+      ![n.x,n.y].every(isFiniteNumber) || !isFiniteNumber(n.width) || !isFiniteNumber(n.height) || n.width < 80 || n.height < nodeMinimumHeight(n.kind) ||
       !isOneOf(n.color,colors) || (isOneOf(n.kind,['card','board','image','pdf']) && (typeof n.file !== 'string' || !(n.kind === 'pdf' ? /\.pdf$/i.test(n.file) : n.kind === 'image' ? /\.(png|jpe?g|gif|webp|avif|bmp)$/i.test(n.file) : n.file.endsWith(n.kind === 'board' ? '.thoughtspace' : '.md')) || /(^\/|(^|\/)\.\.?(\/|$)|\\)/.test(n.file))) ||
       (n.kind === 'section' && typeof n.title !== 'string')) throw new Error('白板节点数据不完整');
     if(['file','title','text'].some(key=>n[key]!==undefined&&typeof n[key]!=='string'))throw new Error('白板节点数据不完整');
     if ((n.collapsed !== undefined && typeof n.collapsed !== 'boolean') ||
-      (n.collapsed && (!isOneOf(n.kind,['card','pdf','board','text']) || n.height !== 72 || !isFiniteNumber(n.expandedHeight) || n.expandedHeight < 60)) ||
+      (n.collapsed && (!isOneOf(n.kind,['card','pdf','board','text']) || n.height !== 72 || !isFiniteNumber(n.expandedHeight) || n.expandedHeight < nodeMinimumHeight(n.kind))) ||
       (!n.collapsed && n.expandedHeight !== undefined)) throw new Error('卡片折叠数据不完整');
     if ((n.kind === 'text' && typeof n.text !== 'string') || (n.topic !== undefined && (b.version !== 3 || typeof n.topic !== 'boolean'))) throw new Error('文本或主题数据不完整');
     if ((n.textColor !== undefined && !isOneOf(n.textColor,['default',...colors])) ||
       (n.fontSize !== undefined && (!isFiniteNumber(n.fontSize) || n.fontSize < 12 || n.fontSize > 48)) ||
       (n.fontFamily !== undefined && !isOneOf(n.fontFamily,['default','serif','mono'])) ||
       (n.textAlign !== undefined && !isOneOf(n.textAlign,['left','center','right'])) ||
-      (n.autoSize !== undefined && typeof n.autoSize !== 'boolean')) throw new Error('文本样式数据不完整');
+      (n.autoSize !== undefined && typeof n.autoSize !== 'boolean') ||
+      (n.textAutoHeight !== undefined && (n.kind !== 'text' || typeof n.textAutoHeight !== 'boolean'))) throw new Error('文本样式数据不完整');
     if(n.mindmapRules!==undefined&&(!isRecord(n.mindmapRules)||!isOneOf(n.mindmapRules.layout,['right','left','down','up','bilateral'])||!isOneOf(n.mindmapRules.density,['compact','standard','relaxed'])||typeof n.mindmapRules.automatic!=='boolean'||n.kind==='section'))throw Error('导图自动布局规则无效');
     if(n.textMaxWidth!==undefined&&(n.kind!=='text'||!isFiniteNumber(n.textMaxWidth)||n.textMaxWidth<160||n.textMaxWidth>720))throw Error('主题换行宽度无效');
     if(n.pdfPage!==undefined&&(n.kind!=='pdf'||!isFiniteNumber(n.pdfPage)||!Number.isSafeInteger(n.pdfPage)||n.pdfPage<1))throw Error('PDF 页码无效');
@@ -93,14 +94,21 @@ export function contained(section: Card, node: Card): boolean {
 }
 /** Reject invalid geometry before layout or persistence can spread NaN across a board. */
 export function assertBoardGeometry(board:Board):void {
- for(const n of board.nodes)if(![n.x,n.y,n.width,n.height].every(Number.isFinite)||n.width<80||n.height<60)throw Error('白板尺寸无效，已阻止写入');
- const v=board.viewport;if(!v||![v.x,v.y,v.zoom].every(Number.isFinite)||v.zoom<.15||v.zoom>2.5)throw Error('白板视口无效，已阻止写入');
+ for(const n of board.nodes)if(!Number.isFinite(n.x)||!Number.isFinite(n.y)||!Number.isFinite(n.width)||!Number.isFinite(n.height)||n.width<80||n.height<nodeMinimumHeight(n.kind))throw Error('白板尺寸无效，已阻止写入');
+ const v=board.viewport;if(!v||!Number.isFinite(v.x)||!Number.isFinite(v.y)||!Number.isFinite(v.zoom)||v.zoom<.15||v.zoom>2.5)throw Error('白板视口无效，已阻止写入');
 }
+/** Persist compact text frames without lowering other object kinds' size floor. */
+export function nodeMinimumHeight(kind:Card['kind']):number{return kind==='text'?40:60;}
 export function fitViewport(nodes: Card[], width: number, height: number): Board['viewport'] {
-  nodes=nodes.filter(n=>[n.x,n.y,n.width,n.height].every(Number.isFinite)&&n.width>0&&n.height>0);
-  if (!nodes.length || !Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0) return emptyBoard().viewport;
-  const x = Math.min(...nodes.map(n => n.x)), y = Math.min(...nodes.map(n => n.y));
-  const w = Math.max(...nodes.map(n => n.x + n.width)) - x, h = Math.max(...nodes.map(n => n.y + n.height)) - y;
+  if (!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0) return emptyBoard().viewport;
+  let x=Infinity,y=Infinity,right=-Infinity,bottom=-Infinity;
+  // A single bounded pass avoids temporary coordinate arrays and argument limits.
+  for(const n of nodes){
+    if(!Number.isFinite(n.x)||!Number.isFinite(n.y)||!Number.isFinite(n.width)||!Number.isFinite(n.height)||n.width<=0||n.height<=0)continue;
+    x=Math.min(x,n.x);y=Math.min(y,n.y);right=Math.max(right,n.x+n.width);bottom=Math.max(bottom,n.y+n.height);
+  }
+  if(x===Infinity)return emptyBoard().viewport;
+  const w=right-x,h=bottom-y;
   const zoom = Math.max(.15, Math.min(1.3, (width - 100) / w, (height - 100) / h));
   return { x: (width - w * zoom) / 2 - x * zoom, y: (height - h * zoom) / 2 - y * zoom, zoom };
 }
@@ -108,9 +116,10 @@ export class History {
   // Serialized snapshots avoid retaining entire object graphs. The budget covers both stacks.
   undoStack: string[] = []; redoStack: string[] = [];
   constructor(readonly maxBytes=8*1024*1024,readonly maxEntries=80){}
-  get bytes(){return [...this.undoStack,...this.redoStack].reduce((sum,s)=>sum+s.length*2,0);}
-  private trim(){while(this.undoStack.length+this.redoStack.length>1&&(this.bytes>this.maxBytes||this.undoStack.length+this.redoStack.length>this.maxEntries)){
-    if(this.undoStack.length>1)this.undoStack.shift();else if(this.redoStack.length>1)this.redoStack.shift();else this.undoStack.shift();
+  get bytes(){let total=0;for(const s of this.undoStack)total+=s.length*2;for(const s of this.redoStack)total+=s.length*2;return total;}
+  private trim(){if(this.undoStack.length+this.redoStack.length<=1)return;let bytes=this.bytes;
+   while(this.undoStack.length+this.redoStack.length>1&&(bytes>this.maxBytes||this.undoStack.length+this.redoStack.length>this.maxEntries)){
+    const removed=this.undoStack.length>1?this.undoStack.shift():this.redoStack.length>1?this.redoStack.shift():this.undoStack.shift();bytes-=removed!.length*2;
   }}
   push(before:Board){this.undoStack.push(JSON.stringify(before));this.redoStack=[];this.trim();}
   undo(current:Board){const previous=this.undoStack.pop();if(previous){this.redoStack.push(JSON.stringify(current));this.trim();return JSON.parse(previous) as Board;}}
@@ -174,14 +183,19 @@ export function selectionExpansion(board:Board){
 export function expandedSelection(board: Board, selected: Set<string>): Set<string> {return selectionExpansion(board).expand(selected);}
 /** Loose cards are singleton units; expand only frames/folded roots using one transaction index. */
 export function selectionMemberships(board:Board,roots:readonly Card[]){
-  const {nodes,expand}=selectionExpansion(board),memberships=new Map<string,Card[]>();
-  for(const root of roots){const members:Card[]=[];if(root.kind==='section'||root.branchFolded)for(const id of expand(new Set([root.id]))){const node=nodes.get(id);if(node&&id!==root.id)members.push(node);}memberships.set(root.id,members);}
+  let expansion:ReturnType<typeof selectionExpansion>|undefined;const memberships=new Map<string,Card[]>();
+  for(const root of roots){const members:Card[]=[];if(root.kind==='section'||root.branchFolded){expansion??=selectionExpansion(board);for(const id of expansion.expand(new Set([root.id]))){const node=expansion.nodes.get(id);if(node&&id!==root.id)members.push(node);}}memberships.set(root.id,members);}
   return memberships;
 }
 /** Expand only unlocked movement roots; locked frames must not drag their contents. */
 export function movableSelection(board:Board,selected:ReadonlySet<string>):Set<string>{
+  if(!selected.size)return new Set();
   const hidden=board.nodes.some(n=>n.branchFolded||n.sectionFolded)?branchState(board).hidden:undefined;
-  const roots=board.nodes.filter(n=>selected.has(n.id)&&!n.locked&&!hidden?.has(n.id)&&!sectionMovementPinned(n,board.nodes)),{nodes,expand}=selectionExpansion(board),allowed=new Set<string>(),loose=new Set<string>();
+  const roots=board.nodes.filter(n=>selected.has(n.id)&&!n.locked&&!hidden?.has(n.id)&&!sectionMovementPinned(n,board.nodes));
+  // Ordinary visible cards are already complete movement units in board order.
+  // Build the expansion index only when a selected frame or folded root needs it.
+  if(roots.every(n=>n.kind!=='section'&&!n.branchFolded))return new Set(roots.map(n=>n.id));
+  const {nodes,expand}=selectionExpansion(board),allowed=new Set<string>(),loose=new Set<string>();
   for(const root of roots){if(!root.branchFolded&&!root.sectionFolded){loose.add(root.id);continue;}const unit=expand(new Set([root.id]));if([...unit].some(id=>nodes.get(id)?.locked))continue;for(const id of unit)allowed.add(id);}
   for(const id of expand(loose))allowed.add(id);const expanded=allowed;
   return new Set(board.nodes.filter(n=>expanded.has(n.id)&&!n.locked).map(n=>n.id));
@@ -232,6 +246,8 @@ export function setBoardEdgeStyle(board:Board,style:NonNullable<Edge['style']>){
  board.version=3;board.defaultEdgeStyle=style;for(const edge of board.edges)edge.style=style;
 }
 export function inheritNewEdgeStyle(board:Board,before:Board){
- if(!board.defaultEdgeStyle)return;const previous=new Set(before.edges.map(edge=>edge.id));
- for(const edge of board.edges)if(!previous.has(edge.id))edge.style=board.defaultEdgeStyle;
+ if(!board.defaultEdgeStyle)return;let previous:Set<string>|undefined;
+ // Most note and geometry edits keep edge order. Resolve prior identities only
+ // at the first changed slot; reordered survivors must retain their own style.
+ for(let i=0;i<board.edges.length;i++){const edge=board.edges[i];if(edge.id===before.edges[i]?.id)continue;previous??=new Set(before.edges.map(item=>item.id));if(!previous.has(edge.id))edge.style=board.defaultEdgeStyle;}
 }

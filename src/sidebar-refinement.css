@@ -1,97 +1,448 @@
-/* Keep capture, navigation and results on one quiet, native sidebar surface. */
-.ts-root.ts-dock { --ts-nav-gutter: 12px; }
+/* ThoughtSpace navigator: one launchpad, a destination spine and a quiet index.
+   Compact panes restore a horizontal row; DOM and focus order stay unchanged. */
+.ts-root.ts-dock {
+  --ts-nav-gutter: 12px;
+  --ts-nav-header: color-mix(in srgb, var(--background-primary) 88%, var(--interactive-accent) 12%);
+  --ts-nav-surface: var(--background-secondary);
+  --ts-nav-subtle: var(--background-primary);
+  --ts-nav-line: color-mix(in srgb, var(--background-modifier-border) 78%, transparent);
+  --ts-nav-hover: var(--background-modifier-hover);
+  --ts-nav-accent: var(--interactive-accent);
+  --ts-nav-active: color-mix(in srgb, var(--ts-nav-accent) 9%, var(--ts-nav-surface));
+  --ts-nav-radius: var(--radius-s, 6px);
+  --ts-nav-row-height: 32px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0 !important;
+  font-family: var(--font-interface);
+  font-size: var(--font-ui-small, 13px);
+  line-height: 1.45;
+  background: var(--ts-nav-surface) !important;
+  color: var(--text-normal);
+  /* Native view-content has a definite flex height, including split panes. */
+  container: ts-sidebar-shell / size;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+}
+.ts-root.ts-dock :is(button, input, select) { font-family: var(--font-interface) !important; }
+.ts-root.ts-dock .ts-dock-body { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; scrollbar-width: thin; overscroll-behavior: contain; }
+
+/* A single launchpad puts capture and navigation in one place. Its soft surface
+   ends before the index; the hierarchy does not rely on extra labels or icons. */
+.ts-root.ts-dock .ts-dock-launchpad {
+  flex: none;
+  min-width: 0;
+  margin: 10px var(--ts-nav-gutter) 9px;
+  padding: 7px;
+  border: 1px solid var(--ts-nav-line);
+  border-radius: 11px;
+  background: linear-gradient(135deg, var(--background-primary), var(--ts-nav-header));
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--text-normal) 3%, transparent);
+}
 .ts-root.ts-dock .ts-dock-quick {
-  padding: 12px var(--ts-nav-gutter) 6px !important;
-  gap: 6px;
+  display: grid;
+  flex: none;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px;
+  padding: 0 0 5px !important;
 }
-.ts-root.ts-dock .ts-dock-quick > .ts-primary { border: 1px solid transparent !important; }
-.ts-root.ts-dock .ts-dock-quick > .ts-primary:hover { border-color: var(--ts-nav-line) !important; }
+.ts-root.ts-dock .ts-dock-quick > .ts-button {
+  height: 34px !important;
+  min-height: 34px;
+  min-width: 0;
+  gap: 7px;
+  padding: 0 10px !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+  font-size: var(--font-ui-small, 13px) !important;
+}
+.ts-root.ts-dock .ts-dock-quick > .ts-primary {
+  justify-content: flex-start;
+  border: 1px solid transparent !important;
+  background: var(--interactive-accent) !important;
+  color: var(--text-on-accent) !important;
+  font-weight: var(--font-semibold, 600);
+}
+.ts-root.ts-dock .ts-dock-quick > .ts-primary:hover { background: var(--interactive-accent-hover) !important; color: var(--text-on-accent) !important; }
+.ts-root.ts-dock .ts-dock-quick > .ts-dock-create { flex-direction: row-reverse; border: 1px solid transparent !important; background: color-mix(in srgb, var(--background-primary) 70%, transparent) !important; color: var(--text-normal) !important; }
+.ts-root.ts-dock .ts-dock-quick > .ts-dock-create:hover { background: var(--ts-nav-hover) !important; }
+.ts-root.ts-dock .ts-dock-create svg { width: 12px; height: 12px; }
 .ts-root.ts-dock .ts-dock-shortcuts {
-  margin-inline: var(--ts-nav-gutter);
-  gap: 2px 6px;
-  padding-bottom: 10px;
+  display: grid;
+  flex: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin: 0;
+  padding: 0;
 }
-.ts-root.ts-dock .ts-dock-shortcuts > .ts-button { padding-inline: 7px !important; }
-.ts-root.ts-dock .ts-dock-host { padding: 8px var(--ts-nav-gutter) 0 !important; }
-.ts-root.ts-dock .ts-sidebar > .ts-tabs { margin-bottom: 10px !important; }
-.ts-root.ts-dock .ts-sidebar > .ts-tabs > .ts-button { height: 32px; min-height: 32px; }
-.ts-root.ts-dock .ts-sidebar > .ts-tabs > .ts-button { border-color: transparent !important; box-shadow: none !important; }
-.ts-root.ts-dock .ts-sidebar > .ts-tabs > .ts-button.is-active::after { left: 10px; right: 10px; }
-
-/* A visible field boundary helps search remain distinct from navigation. */
-.ts-root.ts-dock .ts-sidebar-search {
-  height: 34px;
-  margin-bottom: 10px;
-  border-color: var(--ts-nav-line);
-  border-radius: 7px;
-  background: var(--ts-nav-surface);
-}
-.ts-root.ts-dock .ts-sidebar-search > .ts-search { height: 32px !important; }
-.ts-root.ts-dock .ts-sidebar-search > .ts-search::placeholder { color: var(--text-muted); }
-.ts-root.ts-dock .ts-sidebar-search:focus-within {
-  border-color: var(--ts-accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ts-accent) 10%, transparent);
-}
-.ts-root.ts-dock .ts-sidebar-search:focus-within .ts-sidebar-search-icon { color: var(--ts-accent); }
-.ts-root.ts-dock .ts-sidebar-search > .ts-search:focus {
+.ts-root.ts-dock .ts-dock-shortcuts > .ts-button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 0;
+  gap: 7px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 6px !important;
   border: 0 !important;
-  outline: none !important;
+  border-radius: var(--ts-nav-radius) !important;
+  background: transparent !important;
+  color: var(--text-muted) !important;
   box-shadow: none !important;
+  font-size: var(--font-ui-smaller, 12px) !important;
 }
+.ts-root.ts-dock .ts-dock-shortcuts > .ts-button > span:last-child { position: static; width: auto; height: auto; margin: 0; clip-path: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ts-root.ts-dock .ts-dock-shortcuts > .ts-button:hover { color: var(--text-normal) !important; background: var(--ts-nav-hover) !important; }
+.ts-root.ts-dock .ts-dock-shortcuts svg { width: 15px; height: 15px; stroke-width: 1.8; }
+
+/* A destination spine keeps the search and the first result near the top. */
+.ts-root.ts-dock .ts-dock-host { flex: 1; min-height: 0; padding: 7px var(--ts-nav-gutter) 0 !important; border-top: 0 !important; overflow: hidden; }
+.ts-root.ts-dock .ts-sidebar { display: grid; flex: 1; grid-template-columns: 52px minmax(0, 1fr); grid-template-rows: 34px minmax(0, 1fr); min-height: 0; gap: 9px 10px; }
+.ts-root.ts-dock .ts-sidebar > .ts-tabs {
+  display: grid;
+  grid-column: 1;
+  grid-row: 1 / -1;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: 54px;
+  align-content: start;
+  min-height: 0;
+  gap: 6px !important;
+  margin: 0 !important;
+  padding: 0 6px 12px 0 !important;
+  border: 0 !important;
+  border-right: 1px solid color-mix(in srgb, var(--ts-nav-line) 60%, transparent) !important;
+  background: transparent !important;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'] {
+  justify-content: center;
+  flex-direction: column;
+  gap: 5px !important;
+  height: 54px;
+  min-height: 54px !important;
+  padding: 6px 2px !important;
+  border: 0 !important;
+  border-radius: var(--ts-nav-radius) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--text-muted) !important;
+  font-size: var(--font-ui-smaller, 12px) !important;
+  font-weight: 500;
+}
+.ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'].is-active {
+  background: var(--background-primary) !important;
+  color: var(--text-accent) !important;
+  box-shadow: inset 0 0 0 1px var(--ts-nav-line), 0 2px 4px color-mix(in srgb, var(--text-normal) 4%, transparent) !important;
+  font-weight: var(--font-semibold, 600);
+}
+.ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab']::after { display: none !important; }
+.ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab']:hover { background: var(--ts-nav-hover) !important; }
+.ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'] > span:first-child { display: flex; }
+.ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'] svg { width: 18px; height: 18px; stroke-width: 1.6; }
+.ts-root.ts-dock .ts-sidebar-search { grid-column: 2; grid-row: 1; height: 34px; margin: 0; border: 1px solid var(--ts-nav-line); border-radius: var(--ts-nav-radius); background: var(--background-primary); }
+.ts-root.ts-dock .ts-sidebar-search > .ts-search { height: 32px !important; font-size: var(--font-ui-small, 13px); color: var(--text-normal); }
+.ts-root.ts-dock .ts-sidebar-search > .ts-search::placeholder { color: var(--text-muted); opacity: 1; }
+.ts-root.ts-dock .ts-sidebar-search:focus-within { border-color: var(--ts-nav-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ts-nav-accent) 15%, transparent); }
+.ts-root.ts-dock .ts-sidebar-search:focus-within .ts-sidebar-search-icon { color: var(--text-accent); }
+.ts-root.ts-dock .ts-sidebar-search > .ts-search:focus { border: 0 !important; outline: none !important; box-shadow: none !important; }
 .ts-root.ts-dock .ts-search-clear { margin-right: 3px; }
+.ts-root.ts-dock .ts-library { grid-column: 2; grid-row: 2; flex: 1; min-height: 0; padding: 0 0 12px; scrollbar-gutter: stable; scroll-padding-block: 10px; container: ts-sidebar-content / inline-size; }
 
-/* Scope and list tools form a single compact header above the tree. */
-.ts-root.ts-dock .ts-board-browser-head { padding-bottom: 6px; }
-.ts-root.ts-dock .ts-board-switch { padding: 3px !important; gap: 3px; }
-.ts-root.ts-dock .ts-board-switch > .ts-button { height: 29px; min-height: 29px; }
-.ts-root.ts-dock .ts-board-switch > .ts-button.is-active {
-  color: var(--ts-accent) !important;
-  box-shadow: none !important;
-}
-.ts-root.ts-dock .ts-board-list-controls { gap: 3px; margin-top: 5px !important; }
-.ts-root.ts-dock .ts-board-list-controls > select { padding-left: 7px !important; }
-.ts-root.ts-dock .ts-board-list-controls > select:hover { background-color: var(--ts-nav-subtle) !important; }
-.ts-root.ts-dock .ts-board-list-controls > .ts-icon-button { flex-basis: 28px; }
+/* Scope and sorting belong to the list toolbar, beside workspace navigation.
+   It scrolls with the index so small panes retain room for actual results. */
+.ts-root.ts-dock .ts-board-browser-head { position: static; margin-bottom: 10px; padding: 0 0 6px; border-bottom: 1px solid var(--ts-nav-line); background: transparent; }
+.ts-root.ts-dock :is(.ts-board-switch, .ts-task-filters) { gap: 2px; padding: 2px !important; border: 0 !important; border-radius: var(--ts-nav-radius) !important; background: var(--ts-nav-subtle) !important; }
+.ts-root.ts-dock :is(.ts-board-switch, .ts-task-filters) > .ts-button { height: 29px; min-height: 29px; border-radius: 4px !important; font-size: var(--font-ui-smaller, 12px) !important; }
+.ts-root.ts-dock :is(.ts-board-switch, .ts-task-filters) > .ts-button.is-active { background: var(--ts-nav-hover) !important; color: var(--text-normal) !important; box-shadow: none !important; font-weight: var(--font-semibold, 600); }
+/* Scope reads as two destinations instead of a second boxed control strip. */
+.ts-root.ts-dock .ts-board-switch { gap: 3px !important; padding: 0 !important; border-radius: 0 !important; background: transparent !important; }
+.ts-root.ts-dock .ts-board-switch > .ts-button { height: 32px; min-height: 32px; border-radius: 0 !important; }
+.ts-root.ts-dock .ts-board-switch > .ts-button.is-active { background: transparent !important; color: var(--text-accent) !important; box-shadow: inset 0 -2px 0 var(--ts-nav-accent) !important; }
+.ts-root.ts-dock .ts-board-switch > .ts-button:not(.is-active):hover { border-radius: 4px !important; }
 
-/* Larger disclosures are easier to hit; restrained indentation protects titles. */
-.ts-root.ts-dock .ts-tree-row {
-  --ts-nav-tree-indent: min(calc(var(--ts-tree-depth, 0) * 14px), 70px);
-  padding-right: 2px;
+.ts-root.ts-dock .ts-board-list-controls { gap: 2px; height: 28px; margin-top: 5px !important; }
+.ts-root.ts-dock .ts-board-list-controls > select { height: 28px; padding-left: 5px !important; font-size: var(--font-ui-smaller, 12px); }
+.ts-root.ts-dock .ts-board-list-controls > select:hover { background-color: var(--ts-nav-hover) !important; }
+.ts-root.ts-dock .ts-board-list-controls > .ts-icon-button { flex-basis: 27px; width: 27px; }
+.ts-root.ts-dock :is(.ts-library-controls, .ts-outline-controls) { gap: 5px; margin-bottom: 7px; }
+.ts-root.ts-dock .ts-library :is(.ts-tag-select, .ts-library-controls select, .ts-outline-controls select) { height: 31px; border-radius: 4px !important; background-color: var(--background-primary) !important; font-size: var(--font-ui-smaller, 12px) !important; }
+.ts-root.ts-dock .ts-outline-controls > select { flex: 1; width: 0; }
+.ts-root.ts-dock .ts-outline-controls > .ts-icon-button { flex-basis: 27px; width: 27px; }
+.ts-root.ts-dock .ts-list-heading { min-height: 28px; margin: 3px 7px 6px; font-size: var(--font-ui-smaller, 12px) !important; font-weight: 400; line-height: 1.5; }
+.ts-root.ts-dock .ts-list-heading-actions { gap: 1px; }
+
+/* Persistent, fully named tools operate on the board bound to this dock. */
+.ts-root.ts-dock .ts-dock-workspace-tools { display: grid; flex: none; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 8px var(--ts-nav-gutter); border-top: 1px solid var(--ts-nav-line); background: var(--background-primary); }
+.ts-root.ts-dock .ts-dock-workspace-tools > .ts-button { display: flex; justify-content: flex-start; align-items: center; gap: 7px; min-width: 0; height: 34px; min-height: 34px; padding: 0 7px !important; border: 1px solid transparent !important; border-radius: var(--ts-nav-radius) !important; background: transparent !important; color: var(--text-normal) !important; box-shadow: none !important; font-size: var(--font-ui-smaller, 12px) !important; }
+.ts-root.ts-dock .ts-dock-workspace-tools > .ts-button:hover { border-color: transparent !important; background: var(--ts-nav-active) !important; color: var(--text-accent) !important; }
+.ts-root.ts-dock .ts-dock-workspace-tools > .ts-button > span:first-child { display: flex; flex: none; color: var(--text-accent); }
+.ts-root.ts-dock .ts-dock-workspace-tools > .ts-button > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ts-root.ts-dock .ts-dock-workspace-tools svg { width: 15px; height: 15px; }
+
+/* A flat DOM carries depth in custom properties. Cap its visual indentation so
+   nested titles and their actions remain usable without changing tree semantics. */
+.ts-root.ts-dock :is(.ts-tree-row, .ts-favorite-row, .ts-outline-row) {
+  height: var(--ts-nav-row-height);
+  min-height: var(--ts-nav-row-height) !important;
+  gap: 0;
+  margin: 1px 0 !important;
+  padding-right: 3px;
+  border-radius: 4px !important;
+  background: transparent;
 }
-.ts-root.ts-dock :is(.ts-tree-row, .ts-favorite-row) { height: 33px; min-height: 33px !important; }
-.ts-root.ts-dock :is(.ts-tree-toggle, .ts-tree-spacer) {
+.ts-root.ts-dock .ts-tree-row { --ts-nav-tree-indent: min(calc(var(--ts-tree-depth, 0) * 11px), 44px); }
+.ts-root.ts-dock .ts-outline-row { --ts-nav-outline-indent: min(calc(var(--outline-depth, 0) * 11px), 33px); }
+.ts-root.ts-dock .ts-tree-row:not([aria-level='1']) + .ts-tree-row[aria-level='1'] { margin-top: 11px !important; }
+.ts-root.ts-dock .ts-tree-row[aria-level]:not([aria-level='1'])::before { left: calc(var(--ts-nav-tree-indent) - 3px); }
+.ts-root.ts-dock .ts-outline-row[aria-level]:not([aria-level='1'])::before { left: calc(var(--ts-nav-outline-indent) - 2px); }
+.ts-root.ts-dock :is(.ts-tree-row, .ts-outline-row)[aria-level]:not([aria-level='1'])::after {
+  content: '';
+  display: block;
+  position: absolute;
+  top: 50%;
+  bottom: auto;
+  left: calc(var(--ts-nav-tree-indent, var(--ts-nav-outline-indent)) - 3px);
+  width: 6px;
+  height: 0;
+  border-top: 1px solid var(--ts-nav-line);
+  border-radius: 0;
+  background: transparent;
+  pointer-events: none;
+}
+.ts-root.ts-dock .ts-tree-row[aria-level='1'] > .ts-tree-title { font-weight: 400; }
+.ts-root.ts-dock .ts-tree-row[aria-expanded] > .ts-tree-title { font-weight: var(--font-semibold, 600); }
+.ts-root.ts-dock :is(.ts-tree-row.is-current, .ts-outline-row.is-selected) {
+  background: var(--ts-nav-active) !important;
+  box-shadow: inset 2px 0 0 var(--ts-nav-accent) !important;
+}
+.ts-root.ts-dock .ts-board-tree[role='tree'] > .ts-tree-row[aria-current='page'] {
+  border-radius: 6px !important;
+  background: var(--ts-nav-active) !important;
+  box-shadow: inset 2px 0 0 var(--ts-nav-accent) !important;
+}
+.ts-root.ts-dock :is(.ts-tree-row.is-current, .ts-outline-row.is-selected)::after { display: none; }
+.ts-root.ts-dock :is(.ts-tree-row, .ts-favorite-row, .ts-outline-row):not(.is-current):not(.is-selected):is(:hover, :focus-within) { background: var(--ts-nav-hover) !important; }
+.ts-root.ts-dock :is(.ts-tree-title, .ts-outline-title) {
+  height: calc(var(--ts-nav-row-height) - 2px);
+  min-height: calc(var(--ts-nav-row-height) - 2px) !important;
+  gap: 7px;
+  padding-inline: 3px !important;
+  border: 0 !important;
+  border-radius: var(--ts-nav-radius) !important;
+  font-size: var(--font-ui-small, 13px) !important;
+}
+.ts-root.ts-dock :is(.ts-tree-row.is-current > .ts-tree-title, .ts-outline-row.is-selected > .ts-outline-title) { color: var(--text-accent) !important; }
+.ts-root.ts-dock :is(.ts-tree-row.is-current, .ts-outline-row.is-selected) :is(.ts-tree-title, .ts-outline-title) svg { color: var(--text-accent); }
+.ts-root.ts-dock :is(.ts-tree-toggle, .ts-tree-spacer, .ts-outline-row > .ts-outline-toggle, .ts-outline-row > .ts-outline-toggle-spacer) {
   flex: 0 0 22px;
   width: 22px;
   min-width: 22px;
   height: 30px;
-  border-radius: 5px !important;
+  border-radius: 4px !important;
 }
-.ts-root.ts-dock .ts-tree-toggle svg { width: 14px; height: 14px; }
-.ts-root.ts-dock .ts-tree-title { height: 31px; min-height: 31px !important; gap: 7px; padding-inline: 3px !important; }
-.ts-root.ts-dock .ts-tree-row[aria-level]:not([aria-level='1'])::before { left: calc(var(--ts-nav-tree-indent) - 4px); }
-.ts-root.ts-dock .ts-tree-row.is-current::after { display: none; }
-.ts-root.ts-dock .ts-tree-row:not(.is-current):focus-within { background: var(--ts-nav-hover) !important; }
-.ts-root.ts-dock .ts-tree-count { min-width: 16px; margin-right: 2px; padding-inline: 3px; }
-.ts-root.ts-dock .ts-tree-add { flex-basis: 26px; width: 26px; height: 28px; margin-right: 1px; }
+.ts-root.ts-dock :is(.ts-tree-toggle, .ts-outline-toggle) svg { width: 13px; height: 13px; }
+.ts-root.ts-dock :is(.ts-tree-count, .ts-outline-children-count) {
+  min-width: 16px;
+  margin-right: 2px;
+  padding-inline: 3px;
+  font-size: var(--font-ui-smaller, 12px);
+  color: var(--text-muted);
+}
+.ts-root.ts-dock .ts-tree-row.is-current .ts-tree-count { color: var(--text-accent); }
+.ts-root.ts-dock :is(.ts-tree-add, .ts-favorite-row > .ts-icon-button, .ts-outline-row > .ts-icon-button:not(.ts-outline-toggle)) {
+  flex: 0 0 25px;
+  width: 25px;
+  height: 28px;
+  min-height: 28px;
+  margin-right: 0;
+  color: var(--text-muted);
+}
 .ts-root.ts-dock .ts-tree-warning { flex: none; margin-right: 4px; font-size: 10px; line-height: 1.5; }
-.ts-root.ts-dock .ts-tree-help { margin: 9px 6px 0; line-height: 1.7; }
-.ts-root.ts-dock .ts-favorites > .ts-list-heading { margin: 3px 7px 5px; }
-.ts-root.ts-dock .ts-favorite-row > .ts-tree-title { padding-left: 7px !important; }
-.ts-root.ts-dock .ts-favorite-row > .ts-icon-button { flex-basis: 26px; width: 26px; height: 28px; }
-.ts-root.ts-dock .ts-favorite-hint { margin-top: 5px; padding: 12px; background: transparent; }
+.ts-root.ts-dock .ts-tree-help { margin: 12px 7px 0; padding-top: 9px; border-top: 1px solid var(--ts-nav-line); line-height: 1.7; }
+.ts-root.ts-dock .ts-favorite-row > .ts-tree-title { padding-left: 8px !important; }
+.ts-root.ts-dock .ts-favorite-hint { margin: 8px 0 0; padding: 10px 8px; background: transparent; }
 
-@container ts-sidebar-shell (max-width: 260px) {
-  .ts-root.ts-dock .ts-dock-quick { padding-inline: 10px !important; }
-  .ts-root.ts-dock .ts-dock-shortcuts { margin-inline: 10px; gap: 2px 4px; }
-  .ts-root.ts-dock .ts-dock-shortcuts > .ts-button { gap: 5px; padding-inline: 5px !important; }
-  .ts-root.ts-dock .ts-dock-host { padding-inline: 10px !important; }
-  .ts-root.ts-dock .ts-sidebar > .ts-tabs > .ts-button { gap: 3px; padding-inline: 1px !important; }
-  .ts-root.ts-dock .ts-board-switch > .ts-button { gap: 4px; padding-inline: 2px !important; }
-  .ts-root.ts-dock .ts-tree-row { --ts-nav-tree-indent: min(calc(var(--ts-tree-depth, 0) * 11px), 44px); }
-  .ts-root.ts-dock .ts-tree-title { gap: 5px; padding-inline: 2px !important; }
+/* Library results read like a note index: title, authored content, then provenance.
+   Only the excerpt adopts the editor's text font; controls stay interface text. */
+.ts-root.ts-dock .ts-library-card {
+  position: relative;
+  margin: 0;
+  padding: 10px 8px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--ts-nav-line);
+  border-radius: 0;
+  background: transparent;
 }
-@container ts-sidebar-shell (min-width: 320px) {
-  .ts-root.ts-dock .ts-dock-quick { padding-inline: 14px !important; }
-  .ts-root.ts-dock .ts-dock-shortcuts { margin-inline: 14px; }
-  .ts-root.ts-dock .ts-dock-host { padding-inline: 14px !important; }
+.ts-root.ts-dock .ts-library-card:is(:hover, :focus-within) {
+  border-color: var(--ts-nav-line);
+  border-radius: var(--ts-nav-radius) !important;
+  background: var(--ts-nav-hover) !important;
+}
+.ts-root.ts-dock .ts-library[role='tabpanel'] > .ts-library-card {
+  border: 0 !important;
+  border-bottom: 1px solid var(--ts-nav-line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.ts-root.ts-dock .ts-library[role='tabpanel'] > .ts-library-card:is(:hover, :focus-within) {
+  border-radius: 4px !important;
+  background: var(--ts-nav-hover) !important;
+}
+.ts-root.ts-dock .ts-library-card-head { align-items: flex-start; gap: 6px; }
+.ts-root.ts-dock .ts-library-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: var(--font-ui-small, 13px);
+  line-height: 1.5;
+  font-weight: var(--font-semibold, 600);
+  color: var(--text-normal);
+}
+.ts-root.ts-dock .ts-library-note-icon { display: flex; align-items: center; }
+.ts-root.ts-dock .ts-library-note-icon svg { margin-top: 3px; }
+.ts-root.ts-dock :is(.ts-library-excerpt, .ts-library-card-meta, .ts-library-tags) { margin-left: 20px; }
+.ts-root.ts-dock .ts-library-excerpt {
+  margin-top: 5px;
+  font-family: var(--font-text, var(--font-interface));
+  font-size: var(--font-ui-small, 13px);
+  line-height: 1.65;
+  -webkit-line-clamp: 2;
+  color: var(--text-muted);
+}
+.ts-root.ts-dock .ts-library-card-meta { display: flex; align-items: center; gap: 7px; margin-top: 7px; }
+.ts-root.ts-dock .ts-library-card-meta .ts-library-path { flex: 1; font-size: var(--font-ui-smaller, 12px); }
+.ts-root.ts-dock .ts-library-tags { margin-top: 5px; font-size: var(--font-ui-smaller, 12px); color: var(--text-faint); }
+.ts-root.ts-dock .ts-on-board {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--ts-nav-active);
+  color: var(--text-accent);
+  font-size: 10px;
+  font-weight: 500;
+}
+.ts-root.ts-dock :is(.ts-library-preview, .ts-library-open) { height: 26px; min-height: 26px; color: var(--text-muted) !important; }
+
+/* Task groups share file headers with the note index, while task text inherits
+   the user's reading font and wraps independently of the checkbox. */
+.ts-root.ts-dock .ts-task-filters { margin-bottom: 8px !important; }
+.ts-root.ts-dock .ts-task-progress { gap: 6px; padding: 8px 7px 12px; }
+.ts-root.ts-dock :is(.ts-task-progress-label, .ts-task-percent) { font-size: var(--font-ui-smaller, 12px); }
+.ts-root.ts-dock .ts-task-progress progress { height: 3px; accent-color: var(--ts-nav-accent); }
+.ts-root.ts-dock .ts-task-progress progress::-webkit-progress-value { background: var(--ts-nav-accent); }
+.ts-root.ts-dock .ts-task-group { margin: 0; padding: 10px 7px; border-bottom: 1px solid var(--ts-nav-line); }
+.ts-root.ts-dock .ts-task-group > .ts-button { height: 30px; min-height: 30px; padding-inline: 0 !important; font-size: var(--font-ui-small, 13px) !important; }
+.ts-root.ts-dock .ts-task-group > .ts-button svg { color: var(--text-muted); }
+.ts-root.ts-dock .ts-task { align-items: flex-start; gap: 9px; padding: 7px 0; font-size: var(--font-ui-small, 13px); line-height: 1.6; }
+.ts-root.ts-dock .ts-task > span { font-family: var(--font-text, var(--font-interface)); }
+.ts-root.ts-dock .ts-task input[type='checkbox'] { width: 15px; height: 15px; margin-top: 3px; --checkbox-color: var(--ts-nav-accent); }
+.ts-root.ts-dock .ts-task .is-done { color: var(--text-muted); }
+
+/* Empty and unbound states remain useful parts of the navigator. */
+.ts-root.ts-dock .ts-sidebar-empty { min-height: 120px; margin-top: 8px; padding: 22px 14px; background: transparent; border: 0; font-size: var(--font-ui-small, 13px); line-height: 1.7; }
+.ts-root.ts-dock .ts-dock-welcome { flex: 1; min-width: 0; min-height: 0; padding: 6px 0 16px; overflow-y: auto; scrollbar-width: thin; }
+.ts-root.ts-dock .ts-dock-welcome h3 { margin: 5px 7px 8px; font-size: var(--font-ui-medium, 14px); font-weight: var(--font-semibold, 600); }
+.ts-root.ts-dock .ts-dock-welcome p { margin: 0 7px 16px; font-size: var(--font-ui-small, 13px); line-height: 1.7; }
+.ts-root.ts-dock .ts-dock-board-link {
+  height: 34px;
+  min-height: 34px;
+  margin: 2px 0;
+  padding-inline: 8px !important;
+  gap: 8px;
+  border: 0 !important;
+  border-radius: var(--ts-nav-radius) !important;
+  background: transparent !important;
+  color: var(--text-normal) !important;
+  font-size: var(--font-ui-small, 13px) !important;
+  box-shadow: none !important;
+}
+.ts-root.ts-dock .ts-dock-board-link svg { width: 15px; height: 15px; color: var(--text-muted); }
+.ts-root.ts-dock .ts-dock-board-link:hover { background: var(--ts-nav-hover) !important; }
+.ts-root.ts-dock .ts-sidebar-refresh-error { box-shadow: none; font-size: var(--font-ui-smaller, 12px); }
+
+/* Focus does not depend on hover, and inset outlines survive scroll clipping. */
+.ts-root.ts-dock :is(button, .ts-library-card, select, input[type='checkbox']):focus-visible { outline: 2px solid var(--ts-nav-accent) !important; outline-offset: -2px !important; }
+.ts-root.ts-dock .ts-dock-quick > .ts-primary:focus-visible { outline-color: var(--text-on-accent) !important; outline-offset: -4px !important; }
+.ts-root.ts-dock :is(.ts-tree-row, .ts-favorite-row):focus-within :is(.ts-tree-add, .ts-icon-button) { opacity: 1; }
+.ts-root.ts-dock .ts-outline-row:focus-within .ts-outline-read { opacity: 1; }
+
+/* The result pane can be much narrower than its host beside the spine. */
+@container ts-sidebar-content (max-width: 230px) {
+  .ts-root.ts-dock .ts-board-switch > .ts-button { gap: 4px; padding-inline: 2px !important; }
+  .ts-root.ts-dock .ts-tree-row { --ts-nav-tree-indent: min(calc(var(--ts-tree-depth, 0) * 8px), 24px); }
+  .ts-root.ts-dock .ts-outline-row { --ts-nav-outline-indent: min(calc(var(--outline-depth, 0) * 8px), 16px); }
+  .ts-root.ts-dock :is(.ts-tree-title, .ts-outline-title) { gap: 5px; padding-inline: 2px !important; }
+  .ts-root.ts-dock :is(.ts-tree-toggle, .ts-tree-spacer, .ts-outline-row > .ts-outline-toggle, .ts-outline-row > .ts-outline-toggle-spacer) { flex-basis: 18px; width: 18px; min-width: 18px; }
+  .ts-root.ts-dock .ts-outline-controls { flex-wrap: wrap; }
+  .ts-root.ts-dock .ts-outline-controls > select { flex: 1 0 100%; width: 100%; }
+  .ts-root.ts-dock .ts-library-card { padding-inline: 5px; }
+  .ts-root.ts-dock .ts-library-controls { flex-direction: column; }
+  .ts-root.ts-dock .ts-library-controls select { flex: auto; width: 100%; }
+  .ts-root.ts-dock .ts-library-card-head { flex-wrap: wrap; }
+  .ts-root.ts-dock .ts-library-title { flex-basis: calc(100% - 22px); }
+  .ts-root.ts-dock .ts-library-preview { margin-left: auto; }
+}
+/* Below 280px the list receives the full width; all four names remain visible. */
+@container ts-sidebar-shell (max-width: 279px) {
+  .ts-root.ts-dock .ts-dock-launchpad { margin-inline: 8px; padding: 6px; }
+  .ts-root.ts-dock .ts-dock-quick > .ts-button { gap: 5px; padding-inline: 8px !important; }
+  .ts-root.ts-dock .ts-dock-shortcuts { gap: 3px; }
+  .ts-root.ts-dock .ts-dock-shortcuts > .ts-button { gap: 5px; padding-inline: 3px !important; }
+  .ts-root.ts-dock .ts-dock-host { padding-inline: 8px !important; }
+  .ts-root.ts-dock .ts-sidebar { display: flex; flex-direction: column; gap: 0; }
+  .ts-root.ts-dock .ts-sidebar > .ts-tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: 34px; gap: 2px !important; margin-bottom: 9px !important; padding: 0 !important; border: 0 !important; overflow: visible; }
+  .ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'] { flex-direction: row; gap: 3px !important; height: 34px; min-height: 34px !important; padding: 0 2px !important; }
+  .ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'].is-active { box-shadow: inset 0 -2px var(--ts-nav-accent) !important; }
+  .ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'] svg { width: 12px; height: 12px; }
+  .ts-root.ts-dock .ts-sidebar-search { margin-bottom: 9px; }
+  .ts-root.ts-dock .ts-dock-workspace-tools { gap: 4px; padding-inline: 8px; }
+  .ts-root.ts-dock .ts-dock-workspace-tools > .ts-button { gap: 4px; padding-inline: 3px !important; }
+}
+@container ts-sidebar-shell (min-width: 340px) {
+  .ts-root.ts-dock .ts-dock-launchpad { margin-inline: 16px; }
+  .ts-root.ts-dock .ts-dock-host { padding-inline: 16px !important; }
+  .ts-root.ts-dock .ts-dock-workspace-tools { padding-inline: 16px; }
+}
+/* A short pane compresses chrome before resorting to one body scroll owner. */
+@container ts-sidebar-shell (max-height: 480px) {
+  .ts-root.ts-dock .ts-dock-launchpad { margin-block: 6px; padding: 5px; }
+  .ts-root.ts-dock .ts-dock-quick > .ts-button { height: 32px !important; min-height: 32px; }
+  .ts-root.ts-dock .ts-dock-shortcuts { padding-bottom: 0; }
+  .ts-root.ts-dock .ts-dock-shortcuts > .ts-button { height: 28px; min-height: 28px; }
+  .ts-root.ts-dock .ts-dock-host { padding-top: 7px !important; }
+  .ts-root.ts-dock .ts-sidebar { grid-template-rows: 32px minmax(0, 1fr); gap: 8px 10px; }
+  .ts-root.ts-dock .ts-sidebar > .ts-tabs { grid-auto-rows: 40px; gap: 2px !important; }
+  .ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'] { height: 40px; min-height: 40px !important; gap: 2px !important; padding-block: 2px !important; font-size: 11px !important; }
+  .ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'] svg { width: 16px; height: 16px; }
+  .ts-root.ts-dock .ts-sidebar-search { height: 32px; }
+  .ts-root.ts-dock .ts-sidebar-search > .ts-search { height: 30px !important; }
+  .ts-root.ts-dock .ts-dock-workspace-tools { padding-block: 7px; }
+  .ts-root.ts-dock .ts-dock-workspace-tools > .ts-button { height: 32px; min-height: 32px; }
+}
+@container ts-sidebar-shell (max-height: 480px) and (max-width: 279px) {
+  .ts-root.ts-dock .ts-sidebar { gap: 0; }
+  .ts-root.ts-dock .ts-sidebar > .ts-tabs { grid-auto-rows: 30px; gap: 2px !important; margin-bottom: 8px !important; }
+  .ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'] { height: 30px; min-height: 30px !important; padding-block: 0 !important; font-size: 12px !important; }
+  .ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'] svg { width: 12px; height: 12px; }
+  .ts-root.ts-dock .ts-sidebar-search { margin-bottom: 7px; }
+}
+/* One scroll owner prevents results collapsing in a tiny split. Board tools
+   remain outside it, while every destination and result can still be reached. */
+@container ts-sidebar-shell (max-height: 340px) {
+  .ts-root.ts-dock .ts-dock-body { overflow-x: hidden; overflow-y: auto; }
+  .ts-root.ts-dock .ts-dock-host { flex: 0 0 auto; overflow: visible; padding-bottom: 8px !important; }
+  .ts-root.ts-dock .ts-sidebar { flex: 0 0 auto; overflow: visible; grid-template-rows: 32px auto; }
+  .ts-root.ts-dock .ts-sidebar > .ts-tabs { align-self: start; overflow: visible; }
+  .ts-root.ts-dock .ts-library { flex: 0 0 auto; overflow: visible; scrollbar-gutter: auto; }
+}
+@media (hover: none), (pointer: coarse) { .ts-root.ts-dock :is(.ts-tree-add, .ts-favorite-row > .ts-icon-button, .ts-outline-read) { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .ts-root.ts-dock *, .ts-root.ts-dock *::before, .ts-root.ts-dock *::after { animation: none !important; transition: none !important; } }
+@media (prefers-contrast: more) {
+  .ts-root.ts-dock { --ts-nav-line: var(--text-muted); }
+  .ts-root.ts-dock :is(.ts-library-tags, .ts-tree-help) { color: var(--text-muted); }
 }

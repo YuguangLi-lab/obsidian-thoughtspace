@@ -1,5 +1,6 @@
-import {type App,type TFile,Component,MarkdownRenderer} from 'obsidian';
+import {type App,type TFile,type Component,MarkdownRenderer,finishRenderMath} from 'obsidian';
 import {releaseEditorResource} from './editor-cleanup';
+import {PreviewRenderScope} from './preview-render-scope';
 import {excerptPresentation,type ExcerptSource} from './excerpt-sources';
 import {markdownPreview} from './rendering';
 
@@ -30,8 +31,11 @@ export function renderCardPreview({app,file,preview,scope,enqueue,sources,ready,
    // sizing. Keep their own root (including overflow/dir/listeners) after success;
    // cancellation detaches only that generation's output before any late writes.
    const rendered=output=win.createDiv();rendered.className='ts-card-preview-content markdown-rendered';preview.replaceChildren(rendered);
-   const child=renderScope=new Component();scope.addChild(child);
+   const child=renderScope=new PreviewRenderScope();scope.addChild(child);
    await Promise.race([MarkdownRenderer.render(app,markdownPreview(presentation.body),rendered,file.path,child),cancelled,budget]);if(!alive())return;
+   // Native math can complete after Markdown rendering. Size only its finished
+   // output, under the same cancellation signal and total preview deadline.
+   if(rendered.querySelector('.math')||rendered.querySelector('mjx-container'))await Promise.race([finishRenderMath(),cancelled,budget]);if(!alive())return;
    rendered.querySelectorAll('input').forEach(input=>{input.disabled=true;});
    rendered.querySelectorAll('p').forEach(p=>{if(Array.from(p.childNodes).every(node=>node.nodeType===3?!node.textContent?.trim():node.nodeType===1&&(node as Element).matches('a.tag')))p.remove();});
    finishLoading();complete=true;ready();

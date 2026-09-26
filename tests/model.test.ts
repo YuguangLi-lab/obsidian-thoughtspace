@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Card, colors, emptyBoard, parseBoard, removeNodes, canvasExport, History, contained, fitViewport, extractTasks, toggleTask, safeName, clone } from '../src/model';
+import { Card, colors, emptyBoard, parseBoard, assertBoardGeometry, removeNodes, canvasExport, History, contained, fitViewport, extractTasks, toggleTask, safeName, clone } from '../src/model';
 const fixture = () => {
   const b = emptyBoard();
   b.nodes = [{ id: 's', kind: 'section', title: '研究', x: -50, y: -50, width: 800, height: 600, color: 'blue' },
@@ -9,6 +9,32 @@ const fixture = () => {
   b.edges = [{ id: 'e', from: 'a', to: 'b', label: '支持' }]; return b;
 };
 test('Unicode notes and negative coordinates survive round-trip', () => { const b = fixture(); assert.deepEqual(parseBoard(JSON.stringify(b)), b); });
+test('compact text heights round-trip without normalization and pass persistence geometry checks',()=>{
+  const b=emptyBoard();b.version=3;
+  for(const height of [40,40.5,59,60]){
+    b.nodes=[{id:'text',kind:'text',text:'单行文本',x:10,y:20,width:80,height,color:'sand',autoSize:false,textAutoHeight:false}];
+    assert.doesNotThrow(()=>assertBoardGeometry(b));
+    assert.deepEqual(parseBoard(JSON.stringify(b)),b);
+  }
+  for(const height of [39.99,0,-1,NaN,Infinity]){
+    b.nodes[0].height=height;
+    assert.throws(()=>assertBoardGeometry(b),/白板尺寸无效/);
+    assert.throws(()=>parseBoard(JSON.stringify(b)),/白板节点数据不完整/);
+  }
+});
+test('compact text validation preserves the 60px minimum for every other object kind',()=>{
+  const b=emptyBoard();b.version=3;
+  for(const kind of ['card','section','board','image','pdf'] as const){
+    b.nodes=[{id:kind,kind,x:0,y:0,width:80,height:60,color:'sand',...(kind==='section'?{title:'分组'}:{file:`source.${kind==='card'?'md':kind==='board'?'thoughtspace':kind==='image'?'png':'pdf'}`})}];
+    assert.doesNotThrow(()=>assertBoardGeometry(b),kind);
+    assert.deepEqual(parseBoard(JSON.stringify(b)),b,kind);
+    for(const height of [40,59.99]){
+      b.nodes[0].height=height;
+      assert.throws(()=>assertBoardGeometry(b),/白板尺寸无效/,kind);
+      assert.throws(()=>parseBoard(JSON.stringify(b)),/白板节点数据不完整/,kind);
+    }
+  }
+});
 test('text backgrounds round-trip presets, six-digit hex and transparency without changing legacy defaults',()=>{
   const b=emptyBoard();b.version=3;
   b.nodes=[{id:'text',kind:'text',text:'保留文本与默认样式',x:10,y:20,width:240,height:120,color:'blue'}];

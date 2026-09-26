@@ -18,6 +18,12 @@ test('failed or absent Markdown uses readable source sizing',()=>{for(const stat
 test('manual text width is kept exactly while Markdown height and CSS typography are measured',()=>{
  const f=fixture();f.node.autoSize=false;Object.assign(f.doc.computed,{fontSize:'24px',fontWeight:'500',lineHeight:'40.8px',letterSpacing:'0.2px',paddingTop:'28px',paddingRight:'32px',paddingBottom:'28px',paddingLeft:'32px'});f.fit();assert.equal(f.node.width,200);assert.equal(f.node.height,180);const frame=f.doc.elements.find(e=>e.classList.contains('ts-text-fit-context'))!.children[0];assert.equal(frame.style.width,'200px');assert.equal(frame.style.minWidth,'0');assert.equal(frame.children[0].style.fontSize,'24px');assert.equal(frame.children[0].style.paddingRight,'32px');
 });
+test('opted-in height sizing retains the current width even with legacy automatic width enabled',()=>{
+ for(const autoSize of [undefined,true,false]){const f=fixture();f.node.textAutoHeight=true;f.node.autoSize=autoSize;f.fit();assert.equal(f.node.width,200);assert.equal(f.node.height,180);const frame=f.doc.elements.find(e=>e.classList.contains('ts-text-fit-context'))!.children[0];assert.equal(frame.style.width,'200px');assert.equal(frame.style.maxWidth,'none');assert.equal(frame.style.minWidth,'0');}
+});
+test('explicit one-shot creation fit still measures ordinary text without enabling automatic height',()=>{
+ const f=fixture();f.fit();assert.deepEqual([f.node.width,f.node.height],[344,180]);assert.equal(f.node.textAutoHeight,undefined);
+});
 test('automatic text width is capped by its own configured text width, without camera scaling',()=>{
  const f=fixture();f.node.textMaxWidth=420;f.node.topic=true;f.fit();const frame=f.doc.elements.find(e=>e.classList.contains('ts-text-fit-context'))!.children[0];assert.equal(frame.style.maxWidth,'420px');assert.equal(frame.style.transform,'none');assert.equal(frame.style.width,'max-content');assert.equal(frame.classList.contains('ts-topic'),true);
 });

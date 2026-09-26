@@ -11,7 +11,7 @@ class Events{
 }
 function fixture(options:{width?:number;content?:number;left?:number;reduced?:boolean;hidden?:boolean;padding?:number;rtl?:boolean}={}){
  let width=options.width??300,content=options.content??900,left=options.left??0,hidden=options.hidden??false,reduced=options.reduced??false;
- let nextFrame=0,requests=0,measurements=0,writes=0;
+ let nextFrame=0,requests=0,measurements=0,writes=0,positionReads=0;
  const frames=new Map<number,()=>void>(),calls:ScrollToOptions[]=[],observers:Observer[]=[];
  class Observer{
   targets:unknown[]=[];options?:MutationObserverInit;disconnected=false;
@@ -29,30 +29,40 @@ function fixture(options:{width?:number;content?:number;left?:number;reduced?:bo
  const view=Object.assign(new Events(),{
   requestAnimationFrame:(run:()=>void)=>{requests++;frames.set(++nextFrame,run);return nextFrame;},
   cancelAnimationFrame:(id:number)=>{frames.delete(id);},
-  getComputedStyle:()=>({paddingLeft:String(options.padding??0),paddingRight:String(options.padding??0),direction:options.rtl?'rtl':'ltr'}),
+  getComputedStyle:(element:unknown)=>({paddingLeft:String(options.padding??0),paddingRight:String(options.padding??0),direction:options.rtl?'rtl':'ltr',overflowX:element===scroller?'auto':'visible'}),
   matchMedia:(query:string)=>{assert.equal(query,'(prefers-reduced-motion: reduce)');return{matches:reduced};},
   ResizeObserver:Observer,MutationObserver:Observer,
  });
- const doc={defaultView:view,activeElement:editor};
+ const doc={defaultView:view,activeElement:editor as unknown},owned=new Set<unknown>();
  const shell={ownerDocument:doc,get clientWidth(){measurements++;return hidden?0:width;},classList:{toggle:(name:string,enabled:boolean)=>{writes++;if(enabled)classes.add(name);else classes.delete(name);}}};
  const scroller=Object.assign(new Events(),{
-  ownerDocument:doc,
+  ownerDocument:doc,parentElement:null,clientLeft:0,scrollTop:23,
+  contains:(element:unknown)=>element===scroller||owned.has(element),closest:()=>scroller,
+  getBoundingClientRect:()=>{positionReads++;const size=viewportWidth();return{left:100,right:100+size,width:size};},
   scrollTo:(options:ScrollToOptions)=>{calls.push(options);left=Number(options.left);},
  });
+ const viewportWidth=()=>hidden?0:Math.max(0,width-2*(options.padding??0)-(previous.hidden?0:30)-(next.hidden?0:30));
  Object.defineProperties(scroller,{
-  clientWidth:{get:()=>{measurements++;return hidden?0:Math.max(0,width-2*(options.padding??0)-(previous.hidden?0:30)-(next.hidden?0:30));}},
+  clientWidth:{get:()=>{measurements++;return viewportWidth();}},offsetWidth:{get:viewportWidth},
   scrollWidth:{get:()=>{measurements++;return content;}},
   scrollLeft:{get:()=>left,set:(value:number)=>{left=value;}},
  });
  const dispose=installToolbarOverflow(shell as unknown as HTMLElement,scroller as unknown as HTMLElement,previous as unknown as HTMLButtonElement,next as unknown as HTMLButtonElement);
  return{shell,scroller,previous,next,view,doc,editor,classes,frames,calls,observers,dispose,
+  property(position:number,size=60){
+   const field={parentElement:scroller,clientWidth:size,scrollWidth:size},control={tagName:'SELECT',ownerDocument:doc,parentElement:field,
+    getBoundingClientRect:()=>{positionReads++;return{left:100+position-left,right:100+position+size-left,width:size};},
+    focus(){throw Error('resize must preserve focus without refocusing the native control');},scrollIntoView(){throw Error('resize must not scroll the canvas');},
+   };
+   owned.add(field);owned.add(control);return control;
+  },
   resize(value:number){width=value;observers[0].run();},
   replace(value:number){content=value;observers[1].run();},
   hide(value:boolean){hidden=value;observers[0].run();},
   scroll(value:number){left=value;scroller.dispatch('scroll');},
   reduce(value:boolean){reduced=value;},
   flush(){const pending=Array.from(frames.values());frames.clear();for(const run of pending)run();},
-  state:()=>({left,requests,measurements,writes}),
+  state:()=>({left,requests,measurements,writes,positionReads}),
  };
 }
 function visibility(f:ReturnType<typeof fixture>,visible:boolean){
@@ -119,6 +129,42 @@ test('scroll, resize and mutation bursts share one frame in the toolbar owner wi
  f.flush();assert.equal(f.frames.size,0);assert.ok(f.state().measurements>before.measurements);
  assert.deepEqual(f.observers[0].targets,[f.shell,f.scroller]);assert.deepEqual(f.observers[1].targets,[f.scroller]);
  assert.equal(f.observers[1].options?.subtree,true);assert.equal(f.observers[1].options?.characterData,true);f.dispose();
+});
+test('narrowing reveals the focused property within the final arrow viewport without refocusing or vertical scrolling',()=>{
+ const f=fixture({width:900,content:800}),property=f.property(740);f.doc.activeElement=property;visibility(f,false);
+ f.resize(320);f.flush();visibility(f,true);
+ const target=property.getBoundingClientRect(),viewport=f.scroller.getBoundingClientRect();
+ assert.ok(target.left>=viewport.left&&target.right<=viewport.right);assert.equal(f.state().left,540);
+ assert.equal(f.doc.activeElement,property);assert.equal(f.scroller.scrollTop,23);assert.equal(f.calls.length,0);
+ assert.equal(f.previous.disabled,false);assert.equal(f.next.disabled,true,'end arrows reflect the resize-induced scroll in the same refresh');f.dispose();
+});
+test('revealing after overflow arrows appear uses their reduced viewport width',()=>{
+ const f=fixture({width:900,content:800}),property=f.property(740);f.doc.activeElement=property;
+ f.resize(760);f.flush();visibility(f,true);
+ assert.equal(f.state().left,100,'60 px arrow space must be included in the reveal');
+ assert.equal(property.getBoundingClientRect().right,f.scroller.getBoundingClientRect().right);
+ f.resize(900);f.flush();visibility(f,false);assert.equal(f.doc.activeElement,property);assert.equal(f.previous.disabled,true);assert.equal(f.next.disabled,true);f.dispose();
+});
+test('scroll and same-width notifications never snap a deliberately scrolled toolbar back to its focused property',()=>{
+ const f=fixture({width:900,content:1000}),property=f.property(740);f.doc.activeElement=property;
+ f.resize(320);f.flush();assert.equal(f.state().left,540);
+ f.scroll(0);f.flush();const reads=f.state().positionReads;
+ f.resize(320);f.replace(1200);f.view.dispatch('resize');f.flush();
+ assert.equal(f.state().left,0);assert.equal(f.state().positionReads,reads);
+ f.next.dispatch('click');f.flush();assert.equal(f.state().left,195);assert.equal(f.state().positionReads,reads);
+ assert.equal(f.doc.activeElement,property);f.dispose();
+});
+test('resizing does not inspect or move focus belonging to the editor or an outside native control',()=>{
+ for(const outside of ['editor','select']){
+  const f=fixture({width:900,content:1000,left:120}),control=outside==='editor'?f.editor:{getBoundingClientRect(){throw Error('outside control must not be measured');}};
+  f.doc.activeElement=control;const reads=f.state().positionReads;f.resize(320);f.flush();
+  assert.equal(f.doc.activeElement,control);assert.equal(f.state().left,120);assert.equal(f.state().positionReads,reads);assert.equal(f.calls.length,0);f.dispose();
+ }
+});
+test('a hidden toolbar defers focused-property reveal until it has a visible viewport again',()=>{
+ const f=fixture({width:320,content:800}),property=f.property(740);f.doc.activeElement=property;const reads=f.state().positionReads;
+ f.hide(true);f.flush();visibility(f,false);assert.equal(f.state().positionReads,reads);assert.equal(f.state().left,0);
+ f.hide(false);f.flush();visibility(f,true);assert.equal(f.state().left,540);assert.equal(f.doc.activeElement,property);assert.equal(f.next.disabled,true);f.dispose();
 });
 test('disposing cancels queued work and all local observers and listeners, including late callbacks',()=>{
  const f=fixture();f.scroll(80);const stale=Array.from(f.frames.values())[0];f.dispose();f.dispose();const before=f.state();

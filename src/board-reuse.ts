@@ -23,7 +23,16 @@ export function reusePlan(bundle:ReuseBundle,target:Board,options:ReuseOptions,i
  if(edges.some(e=>!e.from||!e.to))throw Error('所选连线包含失效对象');
  if(options.frame.trim())nodes.unshift({id:fresh(),kind:'section',title:options.frame.trim(),x,y,width:Math.max(80,source.width+64),height:Math.max(60,source.height+92),color:'green'});
  if(nodes.some(n=>![n.x,n.y,n.width,n.height].every(Number.isFinite)))throw Error('对象位置超出有效范围');
- return {nodes,edges,reusedNotes:bundle.nodes.filter(n=>n.kind==='card'&&target.nodes.some(t=>t.kind==='card'&&t.file===n.file)).length};
+ // Batch previews resolve target references once. Small selections retain
+ // early-exit lookup, counting each independent source card instance.
+ const notes=bundle.nodes.filter(n=>n.kind==='card');let reusedNotes=0;
+ if(notes.length<=8)reusedNotes=notes.filter(n=>target.nodes.some(t=>t.kind==='card'&&t.file===n.file)).length;
+ else{
+  const counts=new Map<Card['file'],number>();for(const n of notes)counts.set(n.file,(counts.get(n.file)||0)+1);
+  const notePaths=counts.size>8?new Set(target.nodes.filter(t=>t.kind==='card').map(t=>t.file)):undefined;
+  for(const [file,count]of counts)if(notePaths?notePaths.has(file):target.nodes.some(t=>t.kind==='card'&&t.file===file))reusedNotes+=count;
+ }
+ return {nodes,edges,reusedNotes};
 }
 /** Rebase recognized citation lines only. Code/prose containing the same literal stay unchanged. */
 export function rebaseReuseSources(text:string,link:(source:string)=>string){

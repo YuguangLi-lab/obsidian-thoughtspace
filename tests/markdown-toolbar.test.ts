@@ -6,8 +6,8 @@ import {markdownActive,planMarkdownEdit,type MarkdownCommand} from '../src/markd
 import type {MarkdownToolbarState} from '../src/markdown-toolbar';
 
 type Options={cls?:string;attr?:Record<string,string>;text?:string;value?:string;type?:string};
-function fixture(options:{link?:boolean;commit?:boolean;batched?:boolean}={}){
- const frames=new Map<number,()=>void>();let nextFrame=0,dispose:undefined|(()=>void),activeReads=0,navigationDisposals=0,iconWrites=0;
+function fixture(options:{link?:boolean;commit?:boolean;batched?:boolean;outer?:boolean}={}){
+ const frames=new Map<number,()=>void>();let nextFrame=0,dispose:undefined|(()=>void),activeReads=0,navigationDisposals=0,iconWrites=0,outerUpdates=0,outerDisposals=0;
  const doc={defaultView:{requestAnimationFrame:(run:()=>void)=>{frames.set(++nextFrame,run);return nextFrame;},cancelAnimationFrame:(id:number)=>frames.delete(id)}};
  class Element extends EventTarget{
   ownerDocument=doc;parentElement:Element|null=null;children:Element[]=[];classes=new Set<string>();dataset:Record<string,string>={};attrs:Record<string,string>={};
@@ -29,17 +29,18 @@ function fixture(options:{link?:boolean;commit?:boolean;batched?:boolean}={}){
  const input=new EventTarget(),host=new Element(),calls:{format:Array<MarkdownCommand|{color:string;background?:boolean}>;history:boolean[];link:number;find:number;commit:number}={format:[],history:[],link:0,find:0,commit:0};
  let state:MarkdownToolbarState={text:'选中文字',start:0,end:4};
  const imports:Record<string,unknown>={obsidian:{setIcon:(el:Element,icon:string)=>{el.dataset.icon=icon;iconWrites++;},Notice:class{}},'./markdown-edit':{markdownActive:(...args:Parameters<typeof markdownActive>)=>{activeReads++;return markdownActive(...args);}},'./toolbar-navigation':{toolbarNavigation:()=>()=>{navigationDisposals++;}}};
- const module={exports:{} as {markdownToolbar:(host:unknown,editor:unknown)=>void}};
+ const outerUpdate=()=>outerUpdates++;if(options.outer)input.addEventListener('select',outerUpdate);
+ const module={exports:{} as {markdownToolbar:(host:unknown,editor:unknown,disposeOuter?:()=>void)=>void}};
  new Function('require','module','exports',transformSync(readFileSync('src/markdown-toolbar.ts','utf8'),{loader:'ts',format:'cjs'}).code)((key:string)=>imports[key],module,module.exports);
  module.exports.markdownToolbar(host,{updatesBatched:!!options.batched,input,snapshot:()=>({...state}),
   format:(command:MarkdownCommand|{color:string;background?:boolean})=>{calls.format.push(command);state={...state,...planMarkdownEdit(state.text,state.start,state.end,command)};},
   canLinkNote:options.link!==false,linkNote:()=>calls.link++,findText:()=>calls.find++,history:(redo=false)=>calls.history.push(redo),
-  commit:options.commit===false?undefined:()=>{calls.commit++;return Promise.resolve();},replaceToolbar:(callback:()=>void)=>dispose=callback});
+  commit:options.commit===false?undefined:()=>{calls.commit++;return Promise.resolve();},replaceToolbar:(callback:()=>void)=>dispose=callback},options.outer?()=>{outerDisposals++;input.removeEventListener('select',outerUpdate);}:undefined);
  const row=host.children[0],control=(label:string)=>{const result=row.querySelectorAll('button,select,input').find(el=>el.ariaLabel===label);assert.ok(result,`Missing toolbar control ${label}`);return result;};
  const pick=(label:string,value:string)=>{const el=control(label);el.value=value;el.onchange?.();};
  const event=(name='input')=>input.dispatchEvent(new Event(name));
  const paint=()=>{const pending=[...frames.values()];frames.clear();for(const run of pending)run();};
- return{host,row,control,pick,event,paint,calls,frames,dispose:()=>dispose?.(),get state(){return state;},set state(value:MarkdownToolbarState){state=value;},get activeReads(){return activeReads;},get navigationDisposals(){return navigationDisposals;},get iconWrites(){return iconWrites;}};
+ return{host,row,control,pick,event,paint,calls,frames,dispose:()=>dispose?.(),get state(){return state;},set state(value:MarkdownToolbarState){state=value;},get activeReads(){return activeReads;},get navigationDisposals(){return navigationDisposals;},get iconWrites(){return iconWrites;},get outerUpdates(){return outerUpdates;},get outerDisposals(){return outerDisposals;}};
 }
 
 const commands:MarkdownCommand[]=['bold','italic','strike','highlight','code','link','image','wikilink','bullet','ordered','task','quote','paragraph','h1','h2','h3','h4','h5','h6','codeblock','table','rule','callout','underline','sup','sub','indent','outdent','clear','comment','math','mathblock'];
@@ -143,4 +144,13 @@ test('link controls still reflect collapsed selections, composition and recovere
  f.state={...f.state,start:0,end:2,busy:true,disabledReason:'输入法组字中'};f.event('select');assert.equal(link.disabled,true);assert.equal(link.title,'输入法组字中');link.onclick?.();assert.equal(f.calls.link,0);
  f.state={...f.state,busy:false,disabledReason:undefined};f.event('select');assert.equal(link.disabled,false);assert.equal(link.title,'选中文字创建或关联笔记');link.onclick?.();assert.equal(f.calls.link,1);
  f.state={...f.state,disabledReason:'多个选区'};f.event('select');assert.equal(link.disabled,true);assert.equal(link.title,'多个选区');link.onclick?.();assert.equal(f.calls.link,1);
+});
+
+test('disposing the Markdown row releases its enclosing mode listener with pending local updates',()=>{
+ const f=fixture({outer:true});f.event('select');assert.equal(f.outerUpdates,1);assert.equal(f.frames.size,1);
+ f.dispose();const reads=f.activeReads;
+ assert.equal(f.outerDisposals,1);assert.equal(f.navigationDisposals,1);assert.equal(f.frames.size,0);
+ f.state={text:'still-owned draft',start:1,end:4};f.event('select');f.event('input');f.paint();
+ assert.equal(f.outerUpdates,1);assert.equal(f.activeReads,reads);assert.equal(f.frames.size,0);
+ f.control('加粗 · ⌘/Ctrl+B').onclick?.();assert.equal(f.calls.format.length,0);
 });

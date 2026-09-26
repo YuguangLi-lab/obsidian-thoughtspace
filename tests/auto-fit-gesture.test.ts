@@ -1,12 +1,13 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {transformSync} from 'esbuild';import {nodeFitChanges} from '../src/node-fit-batch';
 import type {Card} from '../src/model';
+import {textFitsContent} from '../src/text-sizing';
 function fixture(kind:'card'|'text'='card'){
  const source=readFileSync('src/main.ts','utf8');const take=(a:string,b:string)=>source.slice(source.indexOf(a),source.indexOf(b,source.indexOf(a)));
  const code=take('  private queueTextFit(', '\n  saveView(')+take('  private pointerUp(', '  private updateSelection(');
  const measurements=new Map<string,{width:number;height:number}>();let measured=0;
  const measure=(id:string)=>{measured++;return measurements.get(id)!;};
- const View=new Function('nodeFitChanges','clone','fitTextNode','measureNoteCard',transformSync('class View{'+code+'}\nreturn View',{loader:'ts'}).code)(nodeFitChanges,structuredClone,(n:Card)=>Object.assign(n,measure(n.id)),(preview:{fitId:string})=>measure(preview.fitId));
- const node:Card={id:'a',kind,file:'n.md',color:'sand',autoFit:true,x:0,y:0,width:300,height:150};
+ const View=new Function('nodeFitChanges','clone','fitTextNode','measureNoteCard','textFitsContent',transformSync('class View{'+code+'}\nreturn View',{loader:'ts'}).code)(nodeFitChanges,structuredClone,(n:Card)=>Object.assign(n,measure(n.id)),(preview:{fitId:string})=>measure(preview.fitId),textFitsContent);
+ const node:Card={id:'a',kind,file:'n.md',color:'sand',autoFit:true,...(kind==='text'?{topic:true}:{}),x:0,y:0,width:300,height:150};
  const v=new View();v.pendingFits=new Map();v.deferredCardFits=new Set();v.nodeKeys=new Map([['a','current']]);let scheduled=0,saves=0;
  v.nodeFitQueue={schedule(){scheduled++}};v.session={board:{nodes:[node],viewport:{x:0,y:0,zoom:1}},change(fn:any){saves++;fn(this.board)}};
  const preview={isConnected:true,offsetWidth:300,fitId:node.id,dataset:{mathStatus:'none'},getAttribute:(_name:string):string|null=>null};v.positions=new Map([[node.id,{querySelector:()=>preview}]]);
@@ -131,4 +132,16 @@ for(const kind of ['text','card'] as const)test(`${kind}: cold plugin styles can
  if(kind==='text')v.queueTextFit(node);else v.queueCardFit(node,preview);v.refreshFontMetrics();v.flushNodeFits();
  assert.equal(counts().measured,0);assert.equal(counts().saves,0);assert.deepEqual([node.width,node.height],[300,150]);
  v.previewMetricsReady=true;measurements.set('a',{width:370,height:303});v.refreshFontMetrics();v.flushNodeFits();assert.deepEqual([node.width,node.height],[370,303]);assert.equal(counts().saves,1);
+});
+
+test('ordinary fixed text skips renderer fitting and font refresh even with a legacy autoSize flag',()=>{
+ for(const autoSize of [undefined,false,true])for(const textAutoHeight of [undefined,false]){
+  const {v,node,measurements,counts}=fixture('text');Object.assign(node,{topic:false,autoSize,textAutoHeight});measurements.set('a',{width:360,height:420});
+  v.queueTextFit(node);v.refreshFontMetrics();v.flushNodeFits();assert.deepEqual(counts(),{scheduled:0,saves:0,measured:0});assert.deepEqual([node.width,node.height],[300,150]);
+ }
+});
+test('height-only text fitting preserves its width and rejects pending results after opting out',()=>{
+ const {v,node,measurements,counts}=fixture('text');Object.assign(node,{topic:false,autoSize:false,textAutoHeight:true});measurements.set('a',{width:300,height:420});
+ v.queueTextFit(node);v.flushNodeFits();assert.deepEqual([node.width,node.height],[300,420]);assert.equal(counts().saves,1);
+ measurements.set('a',{width:300,height:560});v.queueTextFit(node);node.textAutoHeight=false;v.flushNodeFits();assert.deepEqual([node.width,node.height],[300,420]);assert.equal(counts().saves,1);
 });

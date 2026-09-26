@@ -45,7 +45,15 @@ export function boardIssues(board:Board,exists:(path:string)=>boolean){const lin
 export function textBatch(text:string){if(text.length>100000)throw Error('一次最多粘贴 100,000 个字符');const lines=text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);if(lines.length>100)throw Error('一次最多创建 100 个文本框');return lines;}
 export function wheelDelta(value:number,mode:number,page:number){return Math.max(-600,Math.min(600,value*(mode===1?16:mode===2?Math.max(100,page):1)));}
 export function constrainedDrag(dx:number,dy:number,lock:boolean){if(!lock)return{dx,dy};return Math.abs(dx)>=Math.abs(dy)?{dx,dy:0}:{dx:0,dy};}
-export function resized(original:Card,dx:number,dy:number,ratio:boolean){const media=original.kind==='image'||original.kind==='pdf',minHeight=media?60:100,minWidth=media||original.kind==='text'?80:180;let width=Math.max(minWidth,original.width+dx),height=Math.max(minHeight,original.height+dy);if(ratio||media){const scale=Math.max(minWidth/original.width,minHeight/original.height,Math.abs(dx/original.width)>=Math.abs(dy/original.height)?width/original.width:height/original.height);width=original.width*scale;height=original.height*scale;}return{width,height};}
+export function resized(original:Card,dx:number,dy:number,ratio:boolean){
+ const media=original.kind==='image'||original.kind==='pdf',compact=media||original.kind==='text';
+ // Text has no note-card header. Match its existing content-fit and saved-geometry
+ // minimum so shrinking (or changing only width) cannot force a short box taller.
+ const minHeight=original.kind==='text'?40:media?60:100,minWidth=compact?80:180;
+ let width=Math.max(minWidth,original.width+dx),height=Math.max(minHeight,original.height+dy);
+ if(ratio||media){const scale=Math.max(minWidth/original.width,minHeight/original.height,Math.abs(dx/original.width)>=Math.abs(dy/original.height)?width/original.width:height/original.height);width=original.width*scale;height=original.height*scale;}
+ return{width,height};
+}
 export class ViewTrail {
  private past:Board['viewport'][]=[];private future:Board['viewport'][]=[];
  remember(v:Board['viewport']){if(JSON.stringify(this.past.at(-1))!==JSON.stringify(v)){this.past.push(clone(v));if(this.past.length>30)this.past.shift();}this.future=[];}

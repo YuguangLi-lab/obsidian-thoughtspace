@@ -1,56 +1,4 @@
-/* A single-line inspector with three understandable groups. Only chrome is
-   styled here; Markdown content, user fonts and board backgrounds stay native. */
-.ts-root .ts-floating-formatbar .ts-appearance-group {
-  display: inline-flex;
-  align-items: center;
-  flex: 0 0 auto;
-  gap: 1px;
-  padding-inline: 5px;
-}
-.ts-root .ts-floating-formatbar .ts-appearance-group + .ts-appearance-group {
-  border-inline-start: 1px solid var(--ts-board-line);
-}
-.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field {
-  --ts-format-value-width: 82px;
-  gap: 2px;
-  margin: 0;
-  padding-inline: 4px 0;
-  border: 0;
-  border-radius: 5px;
-}
-.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-label {
-  display: none;
-}
-.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field[data-format="字体"] {
-  --ts-format-value-width: 94px;
-}
-.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field[data-format="卡片颜色"] {
-  --ts-format-value-width: 96px;
-}
-.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field[data-format="字号"] {
-  --ts-format-value-width: 70px;
-}
-.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field[data-format="卡片样式"] {
-  --ts-format-value-width: 70px;
-}
-.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field select {
-  padding-inline: 4px 18px !important;
-  font-weight: 400;
-}
-.ts-root .ts-floating-formatbar .ts-appearance-group .ts-fill-custom { padding-inline: 4px; }
-.ts-root .ts-floating-formatbar .ts-appearance-group .ts-fill-custom > span { display: none; }
-.ts-root .ts-floating-formatbar .ts-style-transfer {
-  border-inline-end: 0;
-  margin: 0;
-  padding: 0;
-}
-.ts-root .ts-floating-formatbar .ts-appearance-group:focus-within > .ts-format-field:focus-within {
-  background: var(--ts-board-hover);
-}
-.ts-root[data-toolbar-density=comfortable] .ts-floating-formatbar .ts-appearance-group { gap: 3px; padding-inline: 7px; }
-.ts-root[data-toolbar-density=comfortable] .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-label { display: inline; }
-.ts-root .ts-floating-formatbar:dir(rtl) .ts-format-scroll svg { transform: scaleX(-1); }
-
+/* Workspace companion actions; object formatting is owned by context-toolbar.css. */
 /* A nearby target action appears when there is something to focus. */
 .ts-root .ts-footer .ts-zoom .ts-focus-selected {
   width: 28px;
@@ -64,26 +12,6 @@
 .ts-root .ts-footer .ts-zoom .ts-focus-selected:focus-visible { outline-offset: 1px; }
 .ts-root .ts-footer .ts-canvas-summary { font-variant-numeric: tabular-nums; color: var(--text-muted); }
 
-/* Keep creation and formatting distinct without a broad sheet over the board. */
-.ts-root .ts-main > .ts-floating-formatbar {
-  top: 12px;
-  max-width: calc(100% - 32px);
-  padding: 4px;
-  border-color: var(--ts-board-line);
-  box-shadow: var(--ts-board-menu-shadow);
-}
-.ts-root .ts-floating-formatbar .ts-commandbar { padding: 0 !important; }
-.ts-root .ts-floating-formatbar .ts-format-scroll {
-  width: 24px;
-  min-width: 24px;
-  border-radius: 5px !important;
-}
 .ts-root .ts-main > .ts-board-rail { box-shadow: var(--ts-board-menu-shadow); }
 .ts-root .ts-board-rail .ts-button:hover:not(:disabled) { background: var(--ts-board-hover) !important; }
 .ts-root .ts-board-rail .ts-button.is-active:hover { background: var(--ts-board-active) !important; }
-
-@container ts-board-canvas (max-width: 640px) {
-  .ts-root .ts-main > .ts-floating-formatbar { top: 8px; max-width: calc(100% - 16px); }
-  .ts-root .ts-floating-formatbar .ts-appearance-group { padding-inline: 3px; }
-  .ts-root .ts-floating-formatbar .ts-selection-tools > .ts-md-mode { padding-inline: 6px !important; }
-}

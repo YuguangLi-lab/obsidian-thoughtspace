@@ -1,4 +1,5 @@
 import {childConnectionCandidates} from '../src/branch-disclosure';
+import {textFitsContent} from '../src/text-sizing';
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {transformSync} from 'esbuild';
 const source=readFileSync('src/main.ts','utf8');
 const code=source.slice(source.indexOf('  private contextMenu(e:'),source.indexOf('  private clearCanvasGesture()',source.indexOf('  private contextMenu(e:')));
@@ -8,7 +9,7 @@ class NativeMenu {
  addItem(fn:any){const item:any={setTitle(v:any){this.title=v;return this},setIcon(){return this},setDisabled(v:any){this.disabled=v;return this},onClick(v:any){this.run=v;return this}};fn(item);this.items.push(item);return this;}
  addSeparator(){return this;}showAtMouseEvent(e:any){this.event=e;NativeMenu.shown.push(this);return this;}hide(){this.hidden=true;}onHide(){}
 }
-const View=new Function('Menu','TFile','act','branchState','childConnectionCandidates',transformSync('class View{'+code+'}\nreturn View',{loader:'ts'}).code)(NativeMenu,File,(fn:any)=>fn(),()=>({parents:new Map(),children:new Map()}),childConnectionCandidates);
+const View=new Function('Menu','TFile','act','branchState','childConnectionCandidates','textFitsContent',transformSync('class View{'+code+'}\nreturn View',{loader:'ts'}).code)(NativeMenu,File,(fn:any)=>fn(),()=>({parents:new Map(),children:new Map()}),childConnectionCandidates,textFitsContent);
 function fixture(kind='card',count=1){NativeMenu.shown=[];const file=new File();const view=new View();view.session={blocked:false,board:{nodes:Array.from({length:count},(_,i)=>({id:String(i),kind,file:file.path})),edges:[]},change:(fn:any)=>fn(view.session.board)};view.selected=new Set(count>1?view.session.board.nodes.map((n:any)=>n.id):[]);view.app={vault:{getAbstractFileByPath:()=>file}};view.clearCanvasGesture=()=>{};view.finishMarquee=()=>{};view.stage={removeClass(){},focus(){}};view.point=(x:any,y:any)=>({x,y});view.updateSelection=()=>{};view.positions=new Map();view.requireOwner=()=>view.session;const event={clientX:112,clientY:246,preventDefault(){},stopPropagation(){},target:{closest:(s:string)=>s==='[data-id]'?{getAttribute:()=> '0'}:null}};return{view,event};}
 test('right click opens native menu at original mouse event, not fixed inspector',()=>{const{view,event}=fixture();view.contextMenu(event);assert.equal(NativeMenu.shown.length,1);assert.equal(NativeMenu.shown[0].event,event);assert.equal(view.contextOpen,false);});
 test('card menu is compact and separates card title from file rename',()=>{const{view,event}=fixture();view.contextMenu(event);const titles=NativeMenu.shown[0]?.items.map(i=>i.title)||[];assert.ok(titles.includes('修改卡片标题'));assert.ok(titles.includes('编辑卡片'));assert.ok(titles.includes('右侧打开笔记'));assert.ok(!titles.includes('重命名笔记'));assert.ok(titles.length<=12);});
@@ -42,4 +43,10 @@ test('text menu folds only the text body and restores it through the same action
 test('locked text exposes disabled fold and group exposes connection entry',()=>{
  const {view,event}=fixture('text');view.session.board.nodes[0].locked=true;view.contextMenu(event);assert.equal(NativeMenu.shown.at(-1)!.items.find(i=>i.title==='折叠文本')?.disabled,true);
  const group=fixture('section');group.view.contextMenu(group.event);const connect=NativeMenu.shown.at(-1)!.items.find(i=>i.title==='从此处开始连线');assert.ok(connect);assert.equal(connect.disabled,false);connect.run();assert.equal(group.view.connectFrom,'0');assert.equal(group.view.mode,'connect');
+});
+test('text menu exposes the current auto-height setting beside its fold action',()=>{
+ const {view,event}=fixture('text'),calls:unknown[][]=[];view.setTextAutoHeight=(...args:unknown[])=>calls.push(args);
+ view.contextMenu(event);let items=NativeMenu.shown.at(-1)!.items,index=items.findIndex(i=>i.title==='折叠文本');assert.equal(items[index+1].title,'自动适应文本高度');items[index+1].run();assert.deepEqual(calls,[['0']]);
+ view.session.board.nodes[0].textAutoHeight=true;view.contextMenu(event);items=NativeMenu.shown.at(-1)!.items;index=items.findIndex(i=>i.title==='折叠文本');assert.equal(items[index+1].title,'关闭自动适应高度');items[index+1].run();assert.deepEqual(calls,[['0'],['0']]);
+ view.session.board.nodes[0].locked=true;view.contextMenu(event);assert.equal(NativeMenu.shown.at(-1)!.items.find(i=>i.title==='关闭自动适应高度').disabled,true);
 });

@@ -5,7 +5,7 @@ import {transformSync} from 'esbuild';
 import {allowsReadOnlyKey,isSimpleTopicContinuation} from '../src/inline-editor-keys';
 
 const source=readFileSync('src/inline-node-editor.ts','utf8');
-const start=source.indexOf("  this.el.addEventListener('keydown',e=>{");
+const start=source.indexOf('  const keydown=(e:KeyboardEvent)=>{');
 const end=source.indexOf("  this.el.addEventListener('keydown',e=>e.stopPropagation());",start);
 assert.ok(start>=0&&end>start);
 const bind=new Function('options','allowsReadOnlyKey','isSimpleTopicContinuation','Notice',transformSync(source.slice(start,end),{loader:'ts'}).code);

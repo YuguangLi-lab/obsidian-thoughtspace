@@ -1,4 +1,4 @@
-const blocks='.ts-text-markdown table,.ts-text-markdown pre,.ts-text-markdown .math-block';
+const blocks='.ts-text-markdown table,.ts-text-markdown pre,.ts-text-markdown .math-block,.ts-text:not(.is-folded) > .ts-text-body';
 const scrollable=(overflow:string)=>overflow==='auto'||overflow==='scroll'||overflow==='overlay';
 const extent=(full:number,visible:number)=>Number.isFinite(full)&&Number.isFinite(visible)&&visible>0&&full>visible?full-visible:0;
 const finite=(value:number)=>Number.isFinite(value)?value:0;

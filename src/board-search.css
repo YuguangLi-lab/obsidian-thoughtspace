@@ -1,0 +1,164 @@
+/* Search has one query, an explicit scope, and a separate result viewport.
+   Native theme tokens keep the workbench at home in light and dark vaults. */
+.ts-ui-modal.ts-board-search {
+  width: min(960px, calc(100vw - 32px)); max-width: 960px;
+  height: min(780px, calc(100dvh - 48px)); max-height: calc(100dvh - 24px);
+  padding: 0 !important; border-radius: 12px !important;
+  background: var(--background-primary) !important;
+  container: ts-search-panel / inline-size;
+}
+.ts-ui-modal.ts-board-search .modal-title {
+  margin: 0; padding: 20px 52px 16px 24px; gap: 4px;
+  font-size: 18px; line-height: 1.4; letter-spacing: 0;
+}
+.ts-ui-modal.ts-board-search .modal-title .ts-board-search-scope {
+  max-width: 100%; color: var(--text-muted); font-size: 12px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ts-ui-modal.ts-board-search .modal-content {
+  display: flex; flex-direction: column; flex: 1 1 auto;
+  min-width: 0; min-height: 0; margin: 0; padding: 0; overflow: hidden;
+}
+.ts-ui-modal.ts-board-search .ts-board-search-bar {
+  flex: none; margin: 0 24px 18px; padding: 5px 6px;
+  min-height: 44px; border-radius: 8px; background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+}
+.ts-ui-modal.ts-board-search .ts-board-search-bar > input[type=search] { height: 34px; font-size: 14px; }
+.ts-ui-modal.ts-board-search .ts-board-search-bar > button { width: 30px; min-width: 30px; height: 30px; padding: 6px; }
+.ts-ui-modal.ts-board-search .ts-board-search-workbench {
+  display: grid; grid-template-columns: 194px minmax(0, 1fr); flex: 1 1 auto;
+  min-width: 0; min-height: 0; border-top: 1px solid var(--ts-search-line);
+}
+.ts-ui-modal.ts-board-search .ts-board-search-refine {
+  min-width: 0; min-height: 0; padding: 18px 16px;
+  background: var(--background-secondary); border-inline-end: 1px solid var(--ts-search-line);
+  overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
+}
+.ts-ui-modal.ts-board-search :is(.ts-board-search-refine, .ts-board-search-options) > h3 {
+  margin: 0; padding: 0; color: var(--text-normal); font-family: var(--font-interface);
+  font-size: 12px; line-height: 1.5; font-weight: 600; letter-spacing: 0;
+}
+.ts-ui-modal.ts-board-search .ts-board-search-filters { grid-template-columns: minmax(0, 1fr); gap: 14px; margin: 18px 0 0; }
+.ts-ui-modal.ts-board-search .ts-board-search-filter { display: flex; flex-direction: column; min-width: 0; gap: 6px; }
+.ts-ui-modal.ts-board-search .ts-board-search-filter > span { color: var(--text-muted); font-size: 11px; line-height: 1.4; }
+.ts-ui-modal.ts-board-search .modal-content .ts-board-search-filter > select {
+  display: block; width: 100%; min-width: 0; max-width: 100%; height: 34px; min-height: 34px; flex: 0 0 34px;
+  padding-inline: 9px 24px; border: 1px solid var(--ts-search-line); border-radius: 6px;
+  background-color: var(--background-primary); color: var(--text-normal);
+  font-family: var(--font-interface); font-size: 12px; box-shadow: none;
+  appearance: none; text-overflow: ellipsis;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-muted) 50%), linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+  background-position: calc(100% - 12px) center, calc(100% - 8px) center;
+  background-size: 4px 4px; background-repeat: no-repeat;
+}
+.ts-ui-modal.ts-board-search .ts-board-search-fulltext {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  margin-top: 22px; color: var(--text-normal); font-size: 12px; line-height: 1.6;
+}
+.ts-ui-modal.ts-board-search .ts-board-search-fulltext input[type=checkbox] { flex: none; margin: 0; }
+.ts-ui-modal.ts-board-search .ts-board-search-index-status {
+  margin-top: 6px; padding: 0; font-size: 11px; line-height: 1.7; color: var(--text-muted);
+}
+.ts-ui-modal.ts-board-search .ts-board-search-matches {
+  display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 14px 16px 8px;
+}
+.ts-ui-modal.ts-board-search .ts-board-search-options {
+  flex: none; margin: 0 6px 10px; gap: 8px; align-items: center; min-width: 0;
+}
+.ts-ui-modal.ts-board-search .ts-board-search-options > span { font-size: 11px; color: var(--text-muted); }
+.ts-ui-modal.ts-board-search .ts-board-search-results {
+  flex: 1 1 auto; min-width: 0; min-height: 0; padding: 0 3px 4px;
+  border-top: 0; overflow-y: auto; overflow-x: hidden; scroll-padding-block: 4px;
+}
+.ts-ui-modal.ts-board-search .ts-board-search-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start;
+  gap: 10px; margin: 0 0 5px; padding: 12px 10px;
+  border: 1px solid transparent; border-radius: 8px; background: transparent;
+}
+.ts-ui-modal.ts-board-search .ts-board-search-row:hover { background: var(--background-modifier-hover); }
+.ts-ui-modal.ts-board-search .ts-board-search-row.is-active {
+  border-color: color-mix(in srgb, var(--ts-accent) 24%, transparent);
+  background: var(--ts-search-active);
+}
+.ts-ui-modal.ts-board-search .ts-board-search-row > button.ts-board-search-pick {
+  display: block; min-width: 0; padding: 0; margin: 0; height: auto;
+  color: var(--text-normal); background: transparent; box-shadow: none; text-align: start;
+}
+.ts-ui-modal.ts-board-search .ts-board-search-heading { grid-template-columns: 16px minmax(0, 1fr) auto; gap: 8px; }
+.ts-ui-modal.ts-board-search .ts-board-search-heading strong { font-size: 14px; font-weight: 600; line-height: 1.55; overflow-wrap: anywhere; }
+.ts-ui-modal.ts-board-search .ts-board-search-heading small { padding: 1px 5px; margin-top: 2px; font-size: 10px; background: var(--background-secondary); }
+.ts-ui-modal.ts-board-search .ts-board-search-excerpt { margin: 6px 0 0 24px; color: var(--text-normal); font-size: 12px; line-height: 1.75; opacity: .82; }
+.ts-ui-modal.ts-board-search .ts-board-search-meta { margin: 8px 0 0 24px; min-width: 0; }
+.ts-ui-modal.ts-board-search .ts-board-search-location { margin: 0; font-size: 11px; line-height: 1.6; color: var(--text-muted); }
+.ts-ui-modal.ts-board-search .ts-board-search-path { margin: 3px 0 0; font-size: 11px; line-height: 1.6; color: var(--text-muted); overflow-wrap: anywhere; }
+.ts-ui-modal.ts-board-search .ts-board-search-row-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; padding: 0; }
+.ts-ui-modal.ts-board-search .ts-board-search-row-actions > button {
+  display: inline-flex; flex: none; gap: 5px; width: auto; min-width: 30px; height: 30px;
+  padding: 6px; color: var(--text-muted); font-size: 11px;
+}
+.ts-ui-modal.ts-board-search .ts-board-search-action-label { white-space: nowrap; }
+.ts-ui-modal.ts-board-search .ts-board-search-footer {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  flex: none; min-width: 0; gap: 10px 16px; margin: 0; padding: 12px 24px;
+  border-top: 1px solid var(--ts-search-line); background: var(--background-primary);
+}
+.ts-ui-modal.ts-board-search .ts-board-search-shortcuts { display: flex; flex-wrap: wrap; gap: 5px 12px; min-width: 0; }
+.ts-ui-modal.ts-board-search .ts-board-search-shortcuts > span { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; line-height: 1.5; }
+.ts-ui-modal.ts-board-search .ts-board-search-shortcuts kbd {
+  padding: 2px 4px; color: var(--text-muted); border: 1px solid var(--ts-search-line);
+  border-radius: 3px; background: var(--background-secondary); font-family: var(--font-interface);
+  font-size: 10px; line-height: 1.4; box-shadow: none;
+}
+.ts-ui-modal.ts-board-search .ts-board-search-footer > button { flex: none; margin-inline-start: auto; min-height: 32px; padding: 6px 10px; }
+.ts-ui-modal.ts-board-search .ts-board-search-empty {
+  min-height: 180px; margin: 0; padding: 32px 20px; gap: 8px;
+  background: transparent; font-size: 12px; line-height: 1.7;
+}
+.ts-ui-modal.ts-board-search .ts-board-search-empty-icon { display: flex; color: var(--text-faint); margin-bottom: 4px; }
+.ts-ui-modal.ts-board-search .ts-board-search-empty-icon svg { width: 26px; height: 26px; }
+.ts-ui-modal.ts-board-search .ts-board-search-empty > strong { color: var(--text-normal); font-size: 14px; font-weight: 600; }
+.ts-ui-modal.ts-board-search .ts-board-search-empty-actions { margin-top: 6px; }
+.ts-ui-modal.ts-board-search .ts-board-search-more { min-height: 34px; background: transparent; }
+
+@container ts-search-panel (max-width: 660px) {
+  .ts-ui-modal.ts-board-search .modal-title { padding: 18px 44px 12px 18px; }
+  .ts-ui-modal.ts-board-search .ts-board-search-bar { margin: 0 18px 14px; }
+  .ts-ui-modal.ts-board-search .ts-board-search-workbench { display: flex; flex-direction: column; }
+  .ts-ui-modal.ts-board-search .ts-board-search-refine { flex: none; padding: 12px 18px; border-inline-end: 0; border-bottom: 1px solid var(--ts-search-line); }
+  .ts-ui-modal.ts-board-search .ts-board-search-refine > h3 { display: none; }
+  .ts-ui-modal.ts-board-search .ts-board-search-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
+  .ts-ui-modal.ts-board-search .ts-board-search-fulltext { margin-top: 10px; font-size: 11px; }
+  .ts-ui-modal.ts-board-search .ts-board-search-index-status { margin-top: 4px; font-size: 10px; line-height: 1.5; }
+  .ts-ui-modal.ts-board-search .ts-board-search-matches { flex: 1 1 auto; padding: 12px 12px 6px; }
+  .ts-ui-modal.ts-board-search .ts-board-search-footer { padding: 10px 18px; gap: 8px 12px; }
+}
+@container ts-search-panel (max-width: 400px) {
+  .ts-ui-modal.ts-board-search .ts-board-search-bar { margin-inline: 12px; }
+  .ts-ui-modal.ts-board-search .ts-board-search-refine { padding-inline: 12px; }
+  .ts-ui-modal.ts-board-search .ts-board-search-filters { gap: 5px; }
+  .ts-ui-modal.ts-board-search .modal-content .ts-board-search-filter > select { padding-inline: 6px 18px; font-size: 11px; }
+  .ts-ui-modal.ts-board-search .ts-board-search-matches { padding-inline: 6px; }
+  .ts-ui-modal.ts-board-search .ts-board-search-row { gap: 7px; padding: 10px 7px; }
+  .ts-ui-modal.ts-board-search .ts-board-search-row-actions > button { min-width: 28px; width: 28px; height: 28px; padding: 5px; }
+  .ts-ui-modal.ts-board-search .ts-board-search-action-label { display: none; }
+  .ts-ui-modal.ts-board-search .ts-board-search-heading { grid-template-columns: 16px minmax(0, 1fr); gap: 6px; }
+  .ts-ui-modal.ts-board-search .ts-board-search-heading small { grid-column: 2; justify-self: start; margin: 0; }
+  .ts-ui-modal.ts-board-search .ts-board-search-meta,
+  .ts-ui-modal.ts-board-search .ts-board-search-excerpt { margin-inline-start: 22px; }
+  .ts-ui-modal.ts-board-search .ts-board-search-footer { padding-inline: 12px; }
+}
+/* A very short host window scrolls the workbench as well as its results, so
+   filters and footer remain reachable instead of reducing results to zero. */
+@media (max-height: 560px) {
+  .ts-ui-modal.ts-board-search { height: calc(100dvh - 24px); }
+  .ts-ui-modal.ts-board-search .modal-title { padding-block: 12px 8px; }
+  .ts-ui-modal.ts-board-search .modal-content { overflow-y: auto; overscroll-behavior: contain; }
+  .ts-ui-modal.ts-board-search .ts-board-search-workbench { flex: none; min-height: 260px; }
+  .ts-ui-modal.ts-board-search .ts-board-search-matches { min-height: 220px; max-height: 320px; }
+  .ts-ui-modal.ts-board-search .ts-board-search-empty { min-height: 140px; padding-block: 18px; }
+}
+@media (prefers-contrast: more) {
+  .ts-ui-modal.ts-board-search .ts-board-search-row.is-active { border-color: var(--ts-accent); }
+  .ts-ui-modal.ts-board-search .ts-board-search-excerpt { opacity: 1; }
+}

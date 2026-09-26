@@ -1,3 +1,4 @@
+import {textBlockPadding} from '../src/text-sizing';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -9,7 +10,7 @@ import {syncNodeGeometry} from '../src/node-render-key';
 
 const source=readFileSync(process.env.POSITION_SOURCE||'src/main.ts','utf8'),start=source.indexOf('  private positionNode('),end=source.indexOf('  private applyInlineSize(',start);
 assert.ok(start>0&&end>start);
-const deps={cardFillHex,colors,sectionDisplayNode,textFontFamily,syncNodeGeometry};
+const deps={textBlockPadding,cardFillHex,colors,sectionDisplayNode,textFontFamily,syncNodeGeometry};
 const View=new Function(...Object.keys(deps),transformSync(`class View{${source.slice(start,end)}};return View`,{loader:'ts'}).code)(...Object.values(deps));
 const node=(patch:Partial<Card>={}):Card=>({id:'node',kind:'card',file:'note.md',x:20,y:30,width:300,height:180,color:'blue',transparent:true,fillColor:'blue',...patch});
 function surface(){

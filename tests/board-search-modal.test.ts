@@ -9,7 +9,7 @@ type Options={cls?:string;text?:string;attr?:Record<string,string>;type?:string;
 class Element{
  children:Element[]=[];classes=new Set<string>();attributes:Record<string,string>={};disabled=false;value='';checked=false;scrolls=0;classWrites=0;emptyCalls=0;
  private text='';
- onclick?:()=>void;oninput?:()=>void;onchange?:()=>void;onkeydown?:(event:any)=>void;onpointerenter?:()=>void;onfocus?:()=>void;
+ onclick?:()=>void;oninput?:()=>void;onchange?:()=>void;onkeydown?:(event:any)=>void;onpointerenter?:()=>void;onpointermove?:(event:{clientX:number;clientY:number})=>void;onfocus?:()=>void;
  constructor(readonly tagName:string,readonly ownerDocument:{activeElement?:Element},readonly win:Clock,options:Options|string={}){
   const opts=typeof options==='string'?{cls:options}:options;for(const cls of (opts.cls||'').split(/\s+/).filter(Boolean))this.classes.add(cls);
   this.text=opts.text||'';this.attributes={...opts.attr};this.value=opts.value||'';if(opts.type)this.attributes.type=opts.type;
@@ -76,7 +76,7 @@ test('legacy IME 229 never navigates or invokes the current result',async()=>{
 });
 test('row focus and pointer current agree and row arrow navigation preserves focus',()=>{
  const {input,list,modal}=fixture(),rows=list.querySelectorAll('.ts-board-search-row'),picks=list.querySelectorAll('.ts-board-search-pick');
- rows[2].onpointerenter?.();assert.equal(current(list),'gamma');picks[0].focus();assert.equal(current(list),'alpha');
+ rows[2].onpointermove?.({clientX:100,clientY:200});assert.equal(current(list),'gamma');picks[0].focus();assert.equal(current(list),'alpha');
  const event=key(picks[0],'ArrowDown');assert.equal(event.defaultPrevented,true);assert.equal(current(list),'beta');assert.equal(modal.document.activeElement,picks[1]);
  input.focus();assert.equal(current(list),'beta');
 });
@@ -186,13 +186,13 @@ test('arrow movement including pagination does not rewrite the live result count
 });
 
 test('a focused result button remains the keyboard origin after pointer hover moves current',async()=>{
- const {list,located}=fixture(),rows=list.querySelectorAll('.ts-board-search-row'),picks=list.querySelectorAll('.ts-board-search-pick');picks[0].focus();rows[2].onpointerenter?.();assert.equal(current(list),'gamma');key(picks[0],'Enter');await tick();assert.deepEqual(located,['alpha']);
- const second=fixture(),secondRows=second.list.querySelectorAll('.ts-board-search-row'),secondPicks=second.list.querySelectorAll('.ts-board-search-pick');secondPicks[0].focus();secondRows[2].onpointerenter?.();key(secondPicks[0],'ArrowDown');assert.equal(current(second.list),'beta');assert.equal(second.modal.document.activeElement,secondPicks[1]);
+ const {list,located}=fixture(),rows=list.querySelectorAll('.ts-board-search-row'),picks=list.querySelectorAll('.ts-board-search-pick');picks[0].focus();rows[2].onpointermove?.({clientX:100,clientY:200});assert.equal(current(list),'gamma');key(picks[0],'Enter');await tick();assert.deepEqual(located,['alpha']);
+ const second=fixture(),secondRows=second.list.querySelectorAll('.ts-board-search-row'),secondPicks=second.list.querySelectorAll('.ts-board-search-pick');secondPicks[0].focus();secondRows[2].onpointermove?.({clientX:100,clientY:200});key(secondPicks[0],'ArrowDown');assert.equal(current(second.list),'beta');assert.equal(second.modal.document.activeElement,secondPicks[1]);
 });
 
 test('full text completion restores the focused node after pointer hover moves current',async()=>{
  const task=deferred<string>(),{modal,list,clock}=fixture([node('alpha','card'),node('beta'),node('gamma')],()=>task.promise);
- fullText(modal);await tick();const rows=list.querySelectorAll('.ts-board-search-row'),picks=list.querySelectorAll('.ts-board-search-pick');picks[0].focus();rows[2].onpointerenter?.();assert.equal(current(list),'gamma');assert.equal(modal.document.activeElement,picks[0]);
+ fullText(modal);await tick();const rows=list.querySelectorAll('.ts-board-search-row'),picks=list.querySelectorAll('.ts-board-search-pick');picks[0].focus();rows[2].onpointermove?.({clientX:100,clientY:200});assert.equal(current(list),'gamma');assert.equal(modal.document.activeElement,picks[0]);
  task.resolve('完整正文');await drain(clock);const refreshedPicks=list.querySelectorAll('.ts-board-search-pick');assert.equal(modal.document.activeElement.getAttribute('aria-label'),'定位 alpha');assert.equal(modal.document.activeElement,refreshedPicks[0]);assert.equal(current(list),'alpha');
 });
 
@@ -233,4 +233,34 @@ test('one search rebuild resolves repeated file metadata once but the next rebui
  modal.refresh();assert.equal(lookups,1);assert.equal(caches,1);assert.equal(searchBoard(modal.entries,{query:'firstheading',kind:'',group:'',color:''}).length,200);
  heading='SecondHeading';board.nodes[0].title='LocalAlias';modal.refresh();assert.equal(lookups,2);assert.equal(caches,2);assert.equal(searchBoard(modal.entries,{query:'firstheading',kind:'',group:'',color:''}).length,0);assert.equal(searchBoard(modal.entries,{query:'localalias secondheading',kind:'',group:'',color:''}).length,1);
  files.delete('notes/shared.md');modal.refresh();assert.equal(lookups,3);assert.equal(caches,2);assert.equal(searchBoard(modal.entries,{query:'secondheading',kind:'',group:'',color:''}).length,0);modal.close();
+});
+
+test('search workbench labels native filters and keeps the query and results in separate regions',()=>{
+ const {modal,input,list}=fixture(),content=modal.contentEl,workbench=content.querySelector('.ts-board-search-workbench')!,refine=workbench.querySelector('.ts-board-search-refine')!,matches=workbench.querySelector('.ts-board-search-matches')!;
+ assert.ok(content.children.includes(content.querySelector('.ts-board-search-bar')));assert.ok(workbench.children.includes(refine));assert.ok(workbench.children.includes(matches));assert.ok(matches.children.includes(list));
+ assert.equal(refine.getAttribute('aria-label'),'搜索筛选');assert.equal(list.getAttribute('role'),'region');assert.equal(list.getAttribute('aria-label'),'白板搜索结果');
+ const fields=refine.querySelectorAll('.ts-board-search-filter');assert.equal(fields.length,3);
+ for(const [i,label]of ['对象类型','所属分组','对象颜色'].entries()){assert.equal(fields[i].tagName,'LABEL');assert.equal(fields[i].querySelector('span')!.textContent,label);assert.equal(fields[i].querySelector('select')!.getAttribute('aria-label'),label);}
+ assert.equal(refine.querySelector('.ts-board-search-fulltext')!.tagName,'LABEL');assert.equal(refine.querySelectorAll('input').length,1);assert.ok(refine.querySelector('.ts-board-search-index-status'));assert.equal(modal.document.activeElement,input);
+});
+
+test('result context exposes complete plain titles and paths without converting source text into markup',async()=>{
+ const title='<img src=x onerror=alert(1)> 长标题 & 研究计划',path='笔记/很长的来源目录/研究 & 方法 <draft>.md',entry={...node('literal','card'),title,file:path};const {modal,list,opened}=fixture([entry]);
+ const row=list.querySelector('.ts-board-search-row')!,pick=row.querySelector('.ts-board-search-pick')!;
+ assert.equal(row.getAttribute('role'),'group');assert.equal(row.getAttribute('aria-label'),`笔记 · ${title}`);assert.equal(pick.getAttribute('aria-label'),`定位 ${title}`);assert.equal(row.querySelector('strong')!.textContent,title);
+ assert.equal(row.querySelector('.ts-board-search-path')!.textContent,path);assert.equal(row.querySelector('.ts-board-search-path')!.getAttribute('title'),path);assert.equal(row.querySelectorAll('img').length,0);
+ assert.equal(row.querySelector('.ts-board-search-heading')!.querySelector('span')!.getAttribute('aria-hidden'),'true');const open=row.querySelectorAll('button').find(button=>button.getAttribute('aria-label')==='在右侧打开原笔记')!;assert.equal(open.querySelector('.ts-board-search-action-label')!.textContent,'打开');open.click();await tick();assert.deepEqual(opened,['literal']);assert.equal(modal.closeCount,1);
+});
+
+test('empty search has a distinct explanation and an operable reset inside the result viewport',()=>{
+ const {modal,input,list,clock}=fixture();input.value='没有这个内容';input.oninput?.();clock.flush();const empty=list.querySelector('.ts-board-search-empty')!;
+ assert.equal(empty.querySelector('strong')!.textContent,'没有匹配的内容');assert.match(empty.textContent,/清除类型、分组与颜色筛选/);assert.equal(empty.querySelector('.ts-board-search-empty-icon')!.getAttribute('aria-hidden'),'true');empty.querySelector('.ts-board-search-empty-clear')!.click();assert.equal(current(list),'alpha');assert.equal(modal.document.activeElement,input);
+});
+
+test('stationary pointer boundary events cannot replace a keyboard-selected result',()=>{
+ const {input,list}=fixture(),rows=list.querySelectorAll('.ts-board-search-row');key(input,'ArrowDown');assert.equal(current(list),'beta');
+ rows[2].onpointerenter?.();assert.equal(current(list),'beta','scrolling a row under a stationary pointer must not replace keyboard selection');
+ rows[2].onpointermove?.({clientX:100,clientY:200});assert.equal(current(list),'gamma');key(input,'ArrowUp');assert.equal(current(list),'beta');
+ rows[2].onpointermove?.({clientX:100,clientY:200});assert.equal(current(list),'beta','a synthetic stationary move also leaves keyboard selection alone');
+ rows[2].onpointermove?.({clientX:101,clientY:200});assert.equal(current(list),'gamma','real movement retains pointer selection');
 });

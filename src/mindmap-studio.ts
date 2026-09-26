@@ -1,5 +1,5 @@
 import {Board,Color,clone,emptyBoard} from './model';
-import {branchState,layoutMindmap,MindmapLayout,mindmapRoot} from './mindmap';
+import {branchTopology,layoutMindmap,MindmapLayout,mindmapRoot} from './mindmap';
 export interface MindmapOptions {layout:MindmapLayout;density:'compact'|'standard'|'relaxed';depth:'keep'|'all'|'1'|'2'|'3';rainbow:boolean;}
 export const mindmapLayouts:Record<MindmapLayout,string>={bilateral:'双向导图',right:'向右逻辑图',left:'向左逻辑图',down:'向下组织图',up:'向上组织图'};
 export function mindmapSignature(b:Board){const {viewport,...content}=b;return JSON.stringify(content);}
@@ -7,7 +7,7 @@ export function mindmapPlan(board:Board,id:string,options:MindmapOptions){
  if(!Object.hasOwn(mindmapLayouts,options.layout)||!['compact','standard','relaxed'].includes(options.density)||!['keep','all','1','2','3'].includes(options.depth))throw Error('导图选项无效');
  const b=clone(board),rootId=mindmapRoot(b,id),byId=new Map(b.nodes.map(n=>[n.id,n])),root=byId.get(rootId);
  if(!root||root.kind==='section')throw Error('请选择一个主题');
- const {children}=branchState(b),rows=[{id:rootId,depth:0,branch:-1}];
+ const {children}=branchTopology(b),rows=[{id:rootId,depth:0,branch:-1}];
  for(let i=0;i<rows.length;i++){const row=rows[i];for(const [j,id]of (children.get(row.id)||[]).entries())rows.push({id,depth:row.depth+1,branch:row.depth===0?j:row.branch});}
  if(rows.some(r=>byId.get(r.id)!.locked))throw Error('导图中有锁定对象，请先解锁');
  const palette:Color[]=['blue','green','orange','purple','rose','teal'],colorById=new Map<string,Color>();

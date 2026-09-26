@@ -13,7 +13,11 @@ test('board audit reports missing refs isolated and locked independently',()=>{c
 test('text batch trims empty lines and rejects excessive input without silent truncation',()=>{assert.deepEqual(textBatch('one\r\n\n two'),['one','two']);assert.throws(()=>textBatch(Array(102).fill('x').join('\n')));assert.throws(()=>textBatch('x'.repeat(100001)));});
 test('wheel normalization supports pixel line page and clamp',()=>{assert.equal(wheelDelta(2,1,1000),32);assert.equal(wheelDelta(1,2,900),600);assert.equal(wheelDelta(-10,0,900),-10);});
 test('axis drag preserves dominant axis and releases without modifier',()=>{assert.deepEqual(constrainedDrag(15,-30,true),{dx:0,dy:-30});assert.deepEqual(constrainedDrag(15,-30,false),{dx:15,dy:-30});});
-test('aspect resize preserves ratio and minimum sizes',()=>{const r=resized(node('a'),100,5,true);assert.equal(r.width/r.height,2);const min=resized(node('a'),-1000,-1000,true);assert.equal(min.width,200);assert.equal(min.height,100);});
+test('aspect resize preserves ratio and compact text minimum sizes',()=>{const r=resized(node('a'),100,5,true);assert.equal(r.width/r.height,2);const min=resized(node('a'),-1000,-1000,true);assert.equal(min.width,80);assert.equal(min.height,40);});
+for(const kind of ['card','board','section'] as const)test(`${kind} keeps its existing resize minimums`,()=>{
+ const n={...node('a'),kind};assert.deepEqual(resized(n,-1000,-1000,false),{width:180,height:100});
+ assert.deepEqual(resized(n,-1000,-1000,true),{width:200,height:100});
+});
 test('view history back forward and new branch',()=>{const h=new ViewTrail(),a={x:0,y:0,zoom:1},b={x:50,y:40,zoom:.5},c={x:80,y:0,zoom:1};h.remember(a);assert.deepEqual(h.travel(b),a);assert.deepEqual(h.travel(a,true),b);h.remember(b);assert.deepEqual(h.travel(c),b);h.remember(a);assert.equal(h.travel(a,true),undefined);h.clear();assert.equal(h.travel(a),undefined);});
 test('layout actions preserve board serialization compatibility',()=>{const b=emptyBoard();b.version=3;b.nodes=[node('a'),node('b')];applyNodeStyle(b,new Set(['a']),{color:'blue',fontSize:24});stepLayers(b,new Set(['a']),true);assert.deepEqual(parseBoard(JSON.stringify(b)),b);});
 

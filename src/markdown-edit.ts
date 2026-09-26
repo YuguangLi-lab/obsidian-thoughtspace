@@ -1,6 +1,11 @@
 import {inlineCodeRanges} from './markdown-literals';
 import {markdownColumns} from './markdown-context';
 function codeBody(span:string){const n=/^`+/.exec(span)![0].length;let body=span.slice(n,-n).replace(/\r?\n/g,' ');if(body.startsWith(' ')&&body.endsWith(' ')&&/[^ ]/.test(body))body=body.slice(1,-1);return body;}
+/** Keep one maximum, not a delimiter array or an unbounded function argument list. */
+function longestBacktickRun(text:string,minimum=0){const runs=/`+/g;let run:RegExpExecArray|null;while((run=runs.exec(text)))if(run[0].length>minimum)minimum=run[0].length;return minimum;}
+// A complete code body must touch both delimiter runs, possibly through one padding space.
+// This is only a rejection check: candidates still use the full parser and its greedy span rules.
+function possibleCodeBody(text:string,start:number,end:number){return text[start-1]==='`'&&text[end]==='`'||text[start-1]===' '&&text[start-2]==='`'&&text[end]===' '&&text[end+1]==='`';}
 const escapedAt=(s:string,i:number)=>{let j=i;while(j>0&&s[j-1]==='\\')j--;return (i-j)%2===1;};
 function clearProse(text:string){
  text=text.replace(/<(span|mark) style="(?:color|background-color):#[a-f\d]{6}(?:;color:#[a-f\d]{6})?">([\s\S]*?)<\/\1>/gi,'$2').replace(/<(u|sup|sub)>([\s\S]*?)<\/\1>/g,'$2');
@@ -16,9 +21,19 @@ function clearProse(text:string){
 }
 /** Link destinations can contain balanced parentheses; never format their contents. */
 function clearLinkedProse(text:string){
- const pattern=/!?\[[^\]\n]*\]\(|\[\[[^\]\n]*\]\]|https?:\/\/[^\s]+/g;let at=0,result='',m:RegExpExecArray|null;
+ const pattern=/!?\[[^\]\n]*\]\(|\[\[[^\]\n]*\]\]|https?:\/\/[^\s]+/g;let at=0,result='',m:RegExpExecArray|null,unclosed:Set<number>|undefined;
  while((m=pattern.exec(text))){let end=pattern.lastIndex;
-  if(m[0].endsWith('](')){let depth=1;for(;end<text.length&&depth;end++){if(escapedAt(text,end))continue;if(text[end]==='(')depth++;else if(text[end]===')')depth--;}if(depth)continue;}
+  if(m[0].endsWith('](')){
+   if(unclosed?.has(end-1))continue;
+   const openings=[end-1];let slashes=0;
+   for(;end<text.length&&openings.length;end++){
+    const char=text.charCodeAt(end);if(char===92){slashes++;continue;}const escaped=slashes%2===1;slashes=0;if(escaped)continue;
+    if(char===40)openings.push(end);else if(char===41)openings.pop();
+   }
+   // Every opener left on this stack is unmatched. Repeated malformed links
+   // can now be skipped without rescanning the remainder of the selection.
+   if(openings.length){unclosed=new Set(openings);continue;}
+  }
   result+=clearProse(text.slice(at,m.index))+text.slice(m.index,end);at=end;pattern.lastIndex=end;
  }return result+clearProse(text.slice(at));
 }
@@ -69,7 +84,7 @@ export function planMarkdownEdit(text:string,start:number,end:number,command:Mar
  // Properties are data, not body prose. Do not turn YAML fields into Markdown.
  const frontmatter=/^---\r?\n[\s\S]*?\r?\n(?:---|\.\.\.)(?:\r?\n|$)/.exec(text);
  if(frontmatter&&start<frontmatter[0].length)return unchanged;
- const selected=text.slice(start,end),eol=text.includes('\r\n')?'\r\n':'\n';
+ const selected=text.slice(start,end);
  const replace=(a:number,b:number,value:string,from=0,to=value.length):MarkdownEditPlan=>({text:text.slice(0,a)+value+text.slice(b),start:a+from,end:a+to,change:{from:a,to:b,text:value}});
  if(typeof command==='object'){
   if(!/^#[a-f\d]{6}$/i.test(command.color)||!selected)return unchanged;
@@ -88,7 +103,7 @@ export function planMarkdownEdit(text:string,start:number,end:number,command:Mar
   if(text.slice(start-open.length,start)===open&&text.slice(end,end+close.length)===close)return replace(start-open.length,end+close.length,unhtmlText(selected));
   const value=htmlText(selected||'文字');return replace(start,end,open+value+close,open.length,open.length+value.length);
  }
- if(command==='code'){
+ if(command==='code'&&(text[start]==='`'&&text[end-1]==='`'||possibleCodeBody(text,start,end))){
   const range=inlineCodeRanges(text).find(r=>(r.from===start&&r.to===end)||(()=>{
    const n=/^`+/.exec(text.slice(r.from))![0].length,raw=text.slice(r.from+n,r.to-n),pad=raw.startsWith(' ')&&raw.endsWith(' ')&&/[^ ]/.test(raw)?1:0;
    return (start===r.from+n&&end===r.to-n)||(start===r.from+n+pad&&end===r.to-n-pad);
@@ -101,12 +116,13 @@ export function planMarkdownEdit(text:string,start:number,end:number,command:Mar
   // Expand through immediate matching wrappers; do not touch links or list structure.
   const wrappers=[['**','**'],['__','__'],['~~','~~'],['==','=='],['*','*'],['_','_'],['`','`'],['<u>','</u>'],['<sup>','</sup>'],['<sub>','</sub>']];
   for(let pass=0;pass<8;pass++){const pair=wrappers.find(([open,close])=>text.slice(a-open.length,a)===open&&text.slice(b,b+close.length)===close&&!escapedAt(text,a-open.length)&&(!open.includes('_')||(!/[\p{L}\p{N}_]/u.test(text[a-open.length-1]||'')&&!/[\p{L}\p{N}_]/u.test(text[b+close.length]||''))));if(pair){a-=pair[0].length;b+=pair[1].length;continue;}const html=/<(span|mark) style="(?:color|background-color):#[a-f\d]{6}(?:;color:#[a-f\d]{6})?">$/i.exec(text.slice(Math.max(0,a-100),a));if(html&&text.slice(b,b+html[1].length+3)===`</${html[1]}>`){a-=html[0].length;b+=html[1].length+3;continue;}break;}
-  const codeRange=inlineCodeRanges(text).find(r=>{const run=/^`+/.exec(text.slice(r.from))![0].length,raw=text.slice(r.from+run,r.to-run),pad=raw.startsWith(' ')&&raw.endsWith(' ')&&/[^ ]/.test(raw)?1:0;return start===r.from+run+pad&&end===r.to-run-pad;});
+  const codeRange=possibleCodeBody(text,start,end)&&inlineCodeRanges(text).find(r=>{const run=/^`+/.exec(text.slice(r.from))![0].length,raw=text.slice(r.from+run,r.to-run),pad=raw.startsWith(' ')&&raw.endsWith(' ')&&/[^ ]/.test(raw)?1:0;return start===r.from+run+pad&&end===r.to-run-pad;});
   if(codeRange)return replace(codeRange.from,codeRange.to,codeBody(text.slice(codeRange.from,codeRange.to)));
   content=clearInline(content);
   return replace(a,b,content);
  }
  if(command==='indent'||command==='outdent'){
+  const eol=text.includes('\r\n')?'\r\n':'\n';
   const a=start===0?0:text.lastIndexOf('\n',start-1)+1,last=end>start&&text[end-1]==='\n'?end-1:end,next=text.indexOf('\n',last),b=next<0?text.length:text[next-1]==='\r'?next-1:next;
   return replace(a,b,text.slice(a,b).split(/\r?\n/).map(line=>command==='indent'?'    '+line:line.replace(/^(?:\t| {1,4})/,'')).join(eol));
  }
@@ -124,7 +140,7 @@ export function planMarkdownEdit(text:string,start:number,end:number,command:Mar
   if(command!=='code'&&!escapedAt(text,start-mark.length)&&italicOutside&&text.slice(start-mark.length,start)===mark&&text.slice(end,end+mark.length)===mark)return replace(start-mark.length,end+mark.length,selected);
   const leading=command==='code'?'':/^\s*/.exec(selected)![0],trailing=command==='code'||!selected.trim()?'':/\s*$/.exec(selected)![0];
   const content=(command==='code'?selected:selected.trim())||(command==='math'?'x^2':'文字');
-  if(command==='code'){const runs=content.match(/`+/g)||[];mark='`'.repeat(Math.max(0,...runs.map(r=>r.length))+1);}
+  if(command==='code')mark='`'.repeat(longestBacktickRun(content)+1);
   const pad=command==='code'&&(content.startsWith('`')||content.endsWith('`')||(content.startsWith(' ')&&content.endsWith(' ')&&/[^ ]/.test(content)))?' ':'';
   const offset=leading.length+mark.length+pad.length;
   return replace(start,end,leading+mark+pad+content+pad+mark+trailing,offset,offset+content.length);
@@ -135,6 +151,8 @@ export function planMarkdownEdit(text:string,start:number,end:number,command:Mar
   const prefix=(command==='image'?'!':'')+'['+label.replace(/([\\[\]])/g,'\\$1')+'](';
   return replace(start,end,prefix+'https://)',prefix.length,prefix.length+8);
  }
+ // Only block commands need to inspect the document's newline convention.
+ const eol=text.includes('\r\n')?'\r\n':'\n';
  if(['bullet','ordered','task','quote','paragraph','h1','h2','h3','h4','h5','h6'].includes(command)){
   const a=start===0?0:text.lastIndexOf('\n',start-1)+1;
   const last=end>start&&text[end-1]==='\n'?end-1:end;
@@ -152,7 +170,7 @@ export function planMarkdownEdit(text:string,start:number,end:number,command:Mar
   return replace(a,b,value);
  }
  let content:string,selectionFrom=0,selectionTo:number|undefined;
- if(command==='codeblock'){const body=selected||'代码';const fence='`'.repeat(Math.max(2,...(body.match(/`+/g)||[]).map(r=>r.length))+1);content=fence+eol+body+eol+fence;}
+ if(command==='codeblock'){const body=selected||'代码';const fence='`'.repeat(longestBacktickRun(body,2)+1);content=fence+eol+body+eol+fence;}
  else if(command==='callout')content='> [!note] '+(selected?'笔记':'标题')+eol+(selected||'内容').split(/\r?\n/).map(line=>'> '+line).join(eol);
  else if(command==='rule')content='---';
  else if(command==='mathblock'){

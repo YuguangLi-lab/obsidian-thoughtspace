@@ -1,5 +1,5 @@
 import {Board,Card,assertBoardGeometry,selectionExpansion} from './model';
-import {branchState,foldedMoveUnits,validateBranches} from './mindmap';
+import {branchState,validateBranches} from './mindmap';
 import {SectionRect,sectionContains,sectionMemberQuery} from './sections';
 
 export interface OutlineRow {node:Card;depth:number;parentId?:string;childCount:number;descendantCount:number;expanded:boolean;matched:boolean;}
@@ -13,7 +13,12 @@ export const groupNodeName=(node:Card)=>node.title||node.text?.split(/\r?\n/).fi
 export function outlineTree(board:Board,options:OutlineOptions={}):OutlineRow[]{
  const groups=board.nodes.filter(node=>node.kind==='section').sort((a,b)=>a.width*a.height-b.width*b.height||spatialOrder(a,b));
  const children=new Map<string,Card[]>(),parents=new Map<string,string>(),roots:Card[]=[];
- for(const node of board.nodes){const parent=groups.find(group=>sectionContains(group,node));if(parent){parents.set(node.id,parent.id);const list=children.get(parent.id)||[];list.push(node);children.set(parent.id,list);}else roots.push(node);}
+ // Dispersed frames can query nearby members once. Broadly overlapping/nested
+ // frames keep the smallest-first search instead of enumerating all descendants.
+ let useMembers=false;
+ if(groups.length>8){let area=0,left=Infinity,top=Infinity,right=-Infinity,bottom=-Infinity;for(const g of groups){area+=g.width*g.height;left=Math.min(left,g.x);top=Math.min(top,g.y);right=Math.max(right,g.x+g.width);bottom=Math.max(bottom,g.y+g.height);}useMembers=Number.isFinite(area)&&area<=(right-left)*(bottom-top)*2;}
+ if(useMembers){const members=sectionMemberQuery(board.nodes);for(const group of groups)for(const node of members(group))if(!parents.has(node.id))parents.set(node.id,group.id);}
+ for(const node of board.nodes){const parent=useMembers?parents.get(node.id):groups.find(group=>sectionContains(group,node))?.id;if(parent!==undefined){parents.set(node.id,parent);const list=children.get(parent)||[];list.push(node);children.set(parent,list);}else roots.push(node);}
  roots.sort(spatialOrder);for(const list of children.values())list.sort(spatialOrder);
  const query=normalize(options.query||''),tokens=query.split(/\s+/).filter(Boolean),filtering=!!query||!!options.kind&&options.kind!=='all';
  const matches=new Set<string>(),included=new Set<string>(),totals=new Map<string,number>(),order:Card[]=[],pending=[...roots].reverse();
@@ -40,8 +45,8 @@ function bounds(nodes:readonly Card[]):SectionRect {let x=Infinity,y=Infinity,ri
 function movementIds(board:Board,selection:ReadonlySet<string>):Set<string>{
  const nodes=new Map(board.nodes.map(n=>[n.id,n])),{children,hidden}=branchState(board),members=sectionMemberQuery(board.nodes),ids=new Set<string>(),seen=new Map<string,boolean>();
  const pending=[...selection].filter(id=>!hidden.has(id)).map(id=>({id,branch:false}));
- // Reuse the shared folded-content movement semantics for visible content roots.
- for(const unit of foldedMoveUnits(board,selection))for(const node of unit.members)pending.push({id:node.id,branch:false});
+ // This traversal already carries every folded descendant and contained frame.
+ // Keep one visibility pass instead of independently expanding the same roots.
  while(pending.length){const entry=pending.pop()!,node=nodes.get(entry.id);if(!node)throw Error('所选对象已删除，请重新选择');
   const branch=entry.branch||!!node.branchFolded,previous=seen.get(node.id);if(previous===true||previous===false&&!branch)continue;seen.set(node.id,branch);ids.add(node.id);
   if(node.locked)throw Error('所选对象或分组内容已锁定，请先解锁');

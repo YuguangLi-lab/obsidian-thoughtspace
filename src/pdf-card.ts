@@ -18,13 +18,16 @@ export function pdfCard(id:string,file:string,x:number,y:number,width=320):Card 
 /** Bounded canvases; an optional short-lived document pool avoids reparsing on each flip. */
 export async function renderPdfThumbnail(options:{host:HTMLElement;src:string;page:number;load:()=>Promise<PdfApi>;register:(dispose:()=>void)=>void;alive:()=>boolean;pool?:PdfDocumentPool;onSize?:(size:{width:number;height:number})=>void}) {
  const {host,src,load,register,alive}=options,requested=pdfPage(options.page);
- let disposed=false,complete=false,timedOut=false,task:PdfLoadingTask|undefined,render:ReturnType<PdfPageProxy['render']>|undefined,canvas:HTMLCanvasElement|undefined;let lease:ReturnType<PdfDocumentPool['acquire']>|undefined;
+ let disposed=false,complete=false,timedOut=false,task:PdfLoadingTask|undefined,render:ReturnType<PdfPageProxy['render']>|undefined,canvas:HTMLCanvasElement|undefined,pageResource:PdfPageProxy|undefined;let lease:ReturnType<PdfDocumentPool['acquire']>|undefined;
  const stopped=Symbol('PDF preview cancelled');let stop!:()=>void;
  const cancelled=new Promise<typeof stopped>(resolve=>{stop=()=>resolve(stopped);});
  const destroy=()=>{const shared=lease;lease=undefined;shared?.release();const worker=task;task=undefined;if(worker){try{void worker.destroy().catch(()=>undefined);}catch{/* A failed worker must not block another thumbnail. */}}};
  const releaseCanvas=()=>{const output=canvas;canvas=undefined;if(output){output.width=0;output.height=0;output.remove();}};
  const cancelRender=()=>{const pending=render;render=undefined;try{pending?.cancel();}catch{/* The render may already have finished. */}};
- register(()=>{if(disposed)return;disposed=true;stop();cancelRender();destroy();releaseCanvas();});
+ // PDF.js defers page cleanup while any same-page render is active. Release
+ // operator/image resources without discarding the reusable pooled document.
+ const releasePage=()=>{const page=pageResource;pageResource=undefined;try{page?.cleanup?.();}catch{/* Optional page cleanup must not strand the canvas or document lease. */}};
+ register(()=>{if(disposed)return;disposed=true;stop();cancelRender();releasePage();destroy();releaseCanvas();});
  const live=()=>!disposed&&alive();
  // A thumbnail is optional: cap its entire pipeline, rather than resetting the
  // budget per phase. Do not wait for a worker's cancellation/destroy acknowledgement.
@@ -39,7 +42,7 @@ export async function renderPdfThumbnail(options:{host:HTMLElement;src:string;pa
   if(!live())return;
   const total=document.numPages;if(!Number.isSafeInteger(total)||total<1)throw Error('PDF 页数无效');
   if(requested>total)throw Error(`PDF 共 ${total} 页，请重新选择页码`);
-  const page=await wait(document.getPage(requested));if(page===stopped||!live())return;
+  const page=await wait(document.getPage(requested).then(loaded=>{pageResource=loaded;if(timedOut||!live())releasePage();return loaded;}));if(page===stopped||!live())return;
   const original=page.getViewport({scale:1});
   if(!Number.isFinite(original.width)||!Number.isFinite(original.height)||original.width<=0||original.height<=0)throw Error('PDF 页面尺寸无效');
   const viewport=page.getViewport({scale:Math.min(600/original.width,900/original.height,2)});
@@ -47,7 +50,7 @@ export async function renderPdfThumbnail(options:{host:HTMLElement;src:string;pa
   const context=canvas.getContext('2d');if(!context)throw Error('无法创建 PDF 缩略图');
   render=page.render({canvasContext:context,viewport});const rendered=await wait(render.promise);if(rendered===stopped||!live())return;render=undefined;
   host.replaceChildren(canvas);options.onSize?.(original);complete=true;return{page:requested,total};
- } catch(error){if(live())throw error;}finally{if(deadline!==undefined)win.clearTimeout(deadline);stop();if(!complete){cancelRender();releaseCanvas();}if(timedOut)lease?.retire();destroy();}
+ } catch(error){if(live())throw error;}finally{if(deadline!==undefined)win.clearTimeout(deadline);stop();if(!complete){cancelRender();releaseCanvas();}releasePage();if(timedOut)lease?.retire();destroy();}
 }
 
 /** PDF shortcuts only consume paging keys; arrows remain available for node navigation. */

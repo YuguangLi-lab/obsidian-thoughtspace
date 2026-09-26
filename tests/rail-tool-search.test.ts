@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
+import {installToolPalettes} from '../src/tool-palette';
 
 type Listener={run:(event:any)=>void;capture:boolean};
 class Element{
@@ -23,6 +24,7 @@ class Element{
  setText(text:string){this.textContent=text;}
  getClientRects(){for(let element:Element|null=this;element;element=element.parentElement)if(element.hidden)return[];return[{}];}
  get offsetWidth(){return this.getClientRects().length?28:0;}
+ getBoundingClientRect(){return{left:0,top:0,right:0,bottom:0,width:0,height:0};}
  get scrollTop(){return this.top;}set scrollTop(value:number){this.top=Math.max(0,Math.min(this.scrollHeight-this.clientHeight,value));}
  focus(options?:unknown){this.focuses.push(options);this.ownerDocument.activeElement=this;}
  scrollIntoView(options:unknown){this.scrolls.push(options);}
@@ -39,7 +41,7 @@ class Element{
 class Button extends Element{constructor(doc:{activeElement:Element|null}){super(doc,'BUTTON');}}
 
 function fixture(options:{hiddenGroup?:boolean;integration?:boolean}={}){
- const doc={activeElement:null as Element|null},panel=new Element(doc),tools=panel.createDiv('ts-rail-actions'),rail=new Element(doc);let closed=0;
+ const doc={activeElement:null as Element|null,defaultView:null,getElementById(){return null;},addEventListener(){},removeEventListener(){}},main=new Element(doc),panel=main.createDiv(),tools=panel.createDiv('ts-rail-actions'),rail=main.createDiv();let closed=0;let palettes:ReturnType<typeof installToolPalettes>|undefined;
  const group=(label:string)=>tools.createDiv({cls:'ts-tool-cluster',attr:{'aria-label':label}});
  const organize=group('组织内容'),mindmap=group('思维导图工具'),workspace=group('白板与历史');
  const button=(parent:Element,label:string,title=label)=>parent.createEl('button',{attr:{'aria-label':label,title}});
@@ -48,14 +50,15 @@ function fixture(options:{hiddenGroup?:boolean;integration?:boolean}={}){
  const module={exports:{} as any};new Function('require','module','exports',transformSync(readFileSync('src/rail-tool-search.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>name==='obsidian'?{setIcon:()=>{}}:{},module,module.exports);
  const binding=module.exports.installRailToolSearch(panel,tools),header=panel.children.find(child=>child.className==='ts-rail-search')!,field=header.children[0],input=field.children.find(child=>child.tagName==='INPUT')!,clear=field.children.find(child=>child.tagName==='BUTTON')!,status=header.children[1],empty=panel.children.find(child=>child.className==='ts-rail-empty')!;
  if(options.integration){
-  const source=readFileSync('src/main.ts','utf8'),start=source.indexOf('    for(const area of [rail,panel]){'),end=source.indexOf('    const footer=',start);assert.ok(start>=0&&end>start);
-  new Function('rail','panel','HTMLButtonElement','closeTools',transformSync(source.slice(start,end),{loader:'ts'}).code)(rail,panel,Button,()=>closed++);
-  const clickStart=source.indexOf("    panel.addEventListener('click',"),clickEnd=source.indexOf("    panel.addEventListener('focusout',",clickStart);assert.ok(clickStart>=0&&clickEnd>clickStart);
-  new Function('panel','toolbar','closeTools',transformSync(source.slice(clickStart,clickEnd),{loader:'ts'}).code)(panel,tools,()=>closed++);
+  const trigger=rail.createEl('button');let hidden=panel.hidden;
+  Object.defineProperty(panel,'hidden',{get:()=>hidden,set:(value:boolean)=>{if(value&&!hidden)closed++;hidden=value;}});
+  palettes=installToolPalettes(main as unknown as HTMLElement,rail as unknown as HTMLElement,[{panel:panel as unknown as HTMLElement,trigger:trigger as unknown as HTMLElement,actions:tools as unknown as HTMLElement,onOpen:binding.open}]);
+  closed=0;palettes.open(panel as unknown as HTMLElement);
+  const dispose=binding.dispose;binding.dispose=()=>{palettes?.dispose();dispose();};
  }
  const search=(value:string)=>{input.value=value;input.dispatch('input');};
  const key=(target:Element,key:string,extra:Record<string,unknown>={})=>target.dispatch('keydown',{key,...extra});
- return{doc,panel,tools,organize,mindmap,workspace,overview,move,topic,pdf,read,hidden,input,clear,status,empty,binding,search,key,closed:()=>closed,install:()=>module.exports.installRailToolSearch(panel,tools),recent:()=>tools.querySelectorAll('.ts-rail-recent-button'),recentGroup:()=>tools.querySelectorAll('.ts-rail-recent')[0],visible:()=>tools.querySelectorAll('button').filter(element=>element.getClientRects().length>0)};
+ return{doc,panel,tools,open:()=>palettes?.open(panel as unknown as HTMLElement),organize,mindmap,workspace,overview,move,topic,pdf,read,hidden,input,clear,status,empty,binding,search,key,closed:()=>closed,install:()=>module.exports.installRailToolSearch(panel,tools),recent:()=>tools.querySelectorAll('.ts-rail-recent-button'),recentGroup:()=>tools.querySelectorAll('.ts-rail-recent')[0],visible:()=>tools.querySelectorAll('button').filter(element=>element.getClientRects().length>0)};
 }
 
 test('search normalizes full-width text and combines tokens across tool title and group name',()=>{
@@ -66,7 +69,7 @@ test('search normalizes full-width text and combines tokens across tool title an
 test('clear, nonempty Escape and reopening restore all eligible actions and keep search focus',()=>{
  const f=fixture({integration:true});f.search('pdf');f.tools.scrollTop=90;f.clear.click();assert.equal(f.input.value,'');assert.equal(f.doc.activeElement,f.input);assert.equal(f.tools.scrollTop,0);assert.equal(f.clear.hidden,true);assert.equal(f.hidden.hidden,true);
  f.search('missing');assert.equal(f.empty.hidden,false);const first=f.key(f.input,'Escape');assert.equal(first.defaultPrevented,true);assert.equal(f.closed(),0);assert.equal(f.input.value,'');assert.equal(f.empty.hidden,true);
- f.key(f.input,'Escape');assert.equal(f.closed(),1);f.search('pdf');f.binding.open();assert.equal(f.input.value,'');assert.equal(f.doc.activeElement,f.input);assert.equal(f.visible().length,5);f.binding.dispose();
+ f.key(f.input,'Escape');assert.equal(f.closed(),1);f.open();f.search('pdf');f.binding.open();assert.equal(f.input.value,'');assert.equal(f.doc.activeElement,f.input);assert.equal(f.visible().length,5);f.binding.dispose();
 });
 test('Enter executes only the first enabled matching action and ignores repeated keys',()=>{
  const f=fixture();f.pdf.disabled=true;f.search('pdf');f.key(f.input,'Enter');assert.equal(f.pdf.clicks,0);assert.equal(f.read.clicks,1);assert.equal(f.hidden.clicks,0);
@@ -114,11 +117,11 @@ test('search hides recent shortcuts and counts each original result only once',(
 });
 test('recent shortcuts execute the current original handler once and follow the existing panel close flow',()=>{
  const f=fixture({integration:true});let actions=0;f.pdf.addEventListener('click',()=>actions++);f.pdf.click();assert.equal(f.closed(),1);
- f.recent()[0].children[1].click();assert.equal(actions,2);assert.equal(f.pdf.clicks,2);assert.equal(f.closed(),2);assert.equal(f.recent().length,1);
- f.key(f.input,'Enter');assert.equal(actions,3);assert.equal(f.closed(),3);f.key(f.input,'Enter',{repeat:true});assert.equal(actions,3);f.binding.dispose();
+ f.open();f.recent()[0].children[1].click();assert.equal(actions,2);assert.equal(f.pdf.clicks,2);assert.equal(f.closed(),2);assert.equal(f.recent().length,1);
+ f.open();f.key(f.input,'Enter');assert.equal(actions,3);assert.equal(f.closed(),3);f.key(f.input,'Enter',{repeat:true});assert.equal(actions,3);f.binding.dispose();
 });
 test('recent buttons join the existing keyboard order and Up from the first returns to search',()=>{
- const f=fixture({integration:true});f.pdf.click();f.topic.click();const recent=f.recent();
+ const f=fixture({integration:true});f.pdf.click();f.open();f.topic.click();f.open();const recent=f.recent();
  f.key(f.input,'ArrowDown');assert.equal(f.doc.activeElement,recent[0]);f.key(recent[0],'ArrowDown');assert.equal(f.doc.activeElement,recent[1]);
  f.key(recent[1],'ArrowDown');assert.equal(f.doc.activeElement,f.overview);f.key(f.overview,'ArrowUp');assert.equal(f.doc.activeElement,recent[1]);
  f.key(recent[0],'ArrowUp');assert.equal(f.doc.activeElement,f.input);f.key(f.input,'ArrowUp');assert.equal(f.doc.activeElement,f.read);f.binding.dispose();

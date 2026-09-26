@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import {releaseEditorResource} from '../src/editor-cleanup';
+import {textFitsContent} from '../src/text-sizing';
+import {nodeMinimumHeight} from '../src/model';
 
 /** Track cancellation lifetime at the real async boundary; no GC timing or heap threshold. */
 function fixture(kind:'card'|'text',math:boolean){
@@ -18,15 +20,20 @@ function fixture(kind:'card'|'text',math:boolean){
  const content=()=>({querySelector:()=>math?{}:null});
  const preview={isConnected:true,ownerDocument:{defaultView:win},cloneNode:()=>({dataset:{},createDiv:content,querySelector:content().querySelector,querySelectorAll:()=>[]}),parentElement:{createDiv:()=>{holders++;return{appendChild(){},remove(){holders--;}};}}};
  class Scope{load(){loaded++;}unload(){loaded--;}}
- const node={id:'draft',kind:'text',text:'old',x:0,y:0,width:120,height:80,color:'green',autoSize:true};
+ const node={id:'draft',kind:'text',text:'old',x:0,y:0,width:120,height:80,color:'green',autoSize:true,textAutoHeight:true};
  const imports:Record<string,unknown>={
+  './model':{nodeMinimumHeight},
   './editor-cleanup':{releaseEditorResource},
+  './text-sizing':{textFitsContent},
   './excerpt-sources':{excerptPresentation:(body:string)=>({body}),textExcerptPresentation:(body:string)=>({body})},
   './rendering':{markdownPreview:(body:string)=>body},
   './workspace-tools':{measureNoteCard:()=>({width:300,height:180})},
-  './text-tools':{fitTextNode:(draft:typeof node)=>Object.assign(draft,{width:300,height:180})},
+  './text-tools':{fitTextNode:(draft:typeof node)=>Object.assign(draft,{width:draft.width,height:180})},
   obsidian:{Component:Scope,MarkdownRenderer:{render:()=>{renders++;return Promise.resolve();}},finishRenderMath:()=>{typesets++;return Promise.resolve();}}
  };
+ const scopeModule={exports:{}};
+ new Function('require','module','exports',transformSync(readFileSync('src/preview-render-scope.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>imports[name],scopeModule,scopeModule.exports);
+ imports['./preview-render-scope']=scopeModule.exports;
  const module={exports:{} as Record<string,new(...args:unknown[])=>{schedule(value:string):void;flush():Promise<void>;dispose():void}>};
  new Function('require','module','exports','window','Promise',transformSync(readFileSync(`src/inline-${kind}-fit.ts`,'utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>imports[name],module,module.exports,win,promiseRuntime);
  const Fit=module.exports[kind==='card'?'InlineCardFit':'InlineTextFit'];

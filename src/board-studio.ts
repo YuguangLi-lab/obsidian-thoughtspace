@@ -3,9 +3,10 @@ import {imageMarkdown,remoteImageUrl} from './image-host';
 import {fileReference} from './journal-links-model';
 import {branchState,foldedMoveUnits,moveFoldedUnit} from './mindmap';
 import {textExcerptPresentation} from './excerpt-sources';
-import {Board,Card,Edge,clone,uid,parseBoard} from './model';
+import {Board,Card,Edge,clone,uid,parseBoard,nodeMinimumHeight} from './model';
 import {Rect,marqueeSelection} from './board-tools';
-export const nodeName=(n:Card)=>n.title||n.file?.split('/').pop()||n.text?.split('\n')[0]||'未命名对象';
+function firstLine(text:string|undefined){if(text===undefined)return;const end=text.indexOf('\n');return end<0?text:text.slice(0,end);}
+export const nodeName=(n:Card)=>n.title||n.file?.split('/').pop()||firstLine(n.text)||'未命名对象';
 export const readingOrder=(nodes:Card[])=>[...nodes].sort((a,b)=>a.y-b.y||a.x-b.x||a.id.localeCompare(b.id));
 export function selectStudio(board:Board,ids:ReadonlySet<string>,mode:'invert'|'type'|'color'|'component'|'viewport',rect?:Rect):Set<string>{
  if(mode==='invert')return new Set(board.nodes.filter(n=>!ids.has(n.id)).map(n=>n.id));
@@ -16,14 +17,23 @@ export function selectStudio(board:Board,ids:ReadonlySet<string>,mode:'invert'|'
  const valid=new Set(board.nodes.map(n=>n.id)),found=new Set([...ids].filter(id=>valid.has(id))),queue=[...found];for(let i=0;i<queue.length;i++)for(const id of adjacent.get(queue[i])||[])if(!found.has(id)){found.add(id);queue.push(id);}return found;
 }
 /** Work on a validated draft; callers can commit exactly one undo entry or skip a no-op. */
-export function studioDraft(board:Board,edit:(draft:Board)=>void){const result=clone(board);edit(result);parseBoard(JSON.stringify(result));return JSON.stringify(result)===JSON.stringify(board)?undefined:result;}
+export function studioDraft(board:Board,edit:(draft:Board)=>void){const result=clone(board);edit(result);const serialized=JSON.stringify(result);parseBoard(serialized);return serialized===JSON.stringify(board)?undefined:result;}
 export function saveSelection(board:Board,ids:ReadonlySet<string>,name:string){name=name.trim();if(!name||name.length>60)throw Error('选区名称需要 1–60 个字符');const members=board.nodes.filter(n=>ids.has(n.id)).map(n=>n.id);if(!members.length)throw Error('请先选择对象');board.selectionSets??=[];if(board.selectionSets.length>=30)throw Error('每张白板最多保存 30 个选区');if(board.selectionSets.some(s=>s.name===name))throw Error('选区名称已存在');board.selectionSets.push({id:uid(),name,ids:members});}
 export function selectionMarkdown(board:Board,ids:ReadonlySet<string>){return readingOrder(board.nodes.filter(n=>ids.has(n.id))).map(n=>n.kind==='text'?n.text:n.kind==='image'&&remoteImageUrl(n.imageUrl)?imageMarkdown(n.imageUrl!):n.file?`${n.kind==='image'?'!':''}${fileReference(n.file)}`:`## ${(n.title||'分组').replace(/[\r\n]+/g,' ')}`).join('\n\n');}
 export function selectionCSV(board:Board,ids:ReadonlySet<string>){const quote=(v:string|number|undefined)=>{let s=String(v??'');if(/^[\s]*[=+@-]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"';};return [['类型','名称','路径','X','Y','宽度','高度','颜色'],...readingOrder(board.nodes.filter(n=>ids.has(n.id))).map(n=>[n.kind,nodeName(n),n.file,n.x,n.y,n.width,n.height,n.color])].map(row=>row.map(quote).join(',')).join('\r\n');}
-export function replacementPreview(board:Board,ids:ReadonlySet<string>,search:string,replacement:string){if(!search)throw Error('请输入查找文字');if(search.length>1000||replacement.length>10000)throw Error('查找或替换文字过长');return board.nodes.filter(n=>n.kind==='text'&&!n.locked&&ids.has(n.id)&&(n.text||'').includes(search)).map(n=>({id:n.id,before:n.text!,after:n.text!.split(search).join(replacement),count:n.text!.split(search).length-1}));}
-export function replaceText(board:Board,preview:ReturnType<typeof replacementPreview>){for(const p of preview){const n=board.nodes.find(n=>n.id===p.id);if(!n||n.locked||n.text!==p.before)throw Error('对象已变化，请重新预览');if(p.after.length>100000)throw Error('替换后的文本超过 100,000 字符');n.text=p.after;}}
+export function replacementPreview(board:Board,ids:ReadonlySet<string>,search:string,replacement:string){if(!search)throw Error('请输入查找文字');if(search.length>1000||replacement.length>10000)throw Error('查找或替换文字过长');return board.nodes.filter(n=>n.kind==='text'&&!n.locked&&ids.has(n.id)&&(n.text||'').includes(search)).map(n=>{const parts=n.text!.split(search);return{id:n.id,before:n.text!,after:parts.join(replacement),count:parts.length-1};});}
+export function replaceText(board:Board,preview:ReturnType<typeof replacementPreview>){
+ // Small selections keep early lookup; a batch stops once its targets are found.
+ // Sequential checks are deliberate: duplicate preview IDs may build on a prior replacement.
+ const byId=preview.length>8?new Map<string,Card>():undefined;
+ if(byId){const wanted=new Set(preview.map(p=>p.id));for(const n of board.nodes){const id=n.id;if(wanted.has(id)&&!byId.has(id))byId.set(id,n);if(byId.size===wanted.size)break;}}
+ for(const p of preview){const n=byId?byId.get(p.id):board.nodes.find(n=>n.id===p.id);if(!n||n.locked||n.text!==p.before)throw Error('对象已变化，请重新预览');if(p.after.length>100000)throw Error('替换后的文本超过 100,000 字符');n.text=p.after;}
+}
 function editable(board:Board,ids:ReadonlySet<string>){return readingOrder(board.nodes.filter(n=>ids.has(n.id)&&!n.locked&&n.kind!=='section'));}
-function texts(board:Board,ids:ReadonlySet<string>){const nodes=editable(board,ids).filter(n=>n.kind==='text');if(nodes.some(n=>n.topic)||board.edges.some(e=>e.kind==='branch'&&nodes.some(n=>n.id===e.from||n.id===e.to)))throw Error('请先将思维导图主题转为普通文本');return nodes;}
+function texts(board:Board,ids:ReadonlySet<string>){
+ const nodes=editable(board,ids).filter(n=>n.kind==='text');let selected:Set<string>|undefined;
+ if(nodes.some(n=>n.topic)||board.edges.some(e=>{if(e.kind!=='branch')return false;selected??=new Set(nodes.map(n=>n.id));return selected.has(e.from)||selected.has(e.to);}))throw Error('请先将思维导图主题转为普通文本');return nodes;
+}
 function withSources(body:string,sources:string[]){return sources.length?body.trimEnd()+'\n\n'+[...new Set(sources)].map(s=>'> '+s).join('\n\n'):body;}
 const remapObjectIds=(ids:string[],oldIds:ReadonlySet<string>,newIds:string[])=>[...new Set(ids.flatMap(id=>oldIds.has(id)?newIds:[id]))];
 function updateSavedSelections(board:Board,oldIds:Set<string>,newIds:string[]){for(const set of board.selectionSets||[])set.ids=remapObjectIds(set.ids,oldIds,newIds);}
@@ -77,13 +87,18 @@ export function radialSelection(board:Board,ids:ReadonlySet<string>,radius:numbe
  units.forEach((unit,i)=>{const a=2*Math.PI*i/nodes.length-Math.PI/2;moveFoldedUnit(unit,cx+radius*Math.cos(a)-unit.root.width/2,cy+radius*Math.sin(a)-unit.root.height/2);});
 }
 export function geometry(board:Board,id:string,rect:Rect){
- if(!Object.values(rect).every(Number.isFinite)||Math.abs(rect.x)>1000000||Math.abs(rect.y)>1000000||rect.width<80||rect.height<60||rect.width>10000||rect.height>10000)throw Error('坐标范围 ±1,000,000；尺寸范围 80×60 至 10,000×10,000');
  const n=board.nodes.find(n=>n.id===id);if(!n||n.locked||n.collapsed||n.kind==='section')throw Error('请选择一个未锁定、未折叠的内容对象');
+ const minHeight=nodeMinimumHeight(n.kind);
+ if(!Object.values(rect).every(Number.isFinite)||Math.abs(rect.x)>1000000||Math.abs(rect.y)>1000000||rect.width<80||rect.height<minHeight||rect.width>10000||rect.height>10000)throw Error(`坐标范围 ±1,000,000；尺寸范围 80×${minHeight} 至 10,000×10,000`);
  // Use the same movement unit as drag/arrange so an exact position edit cannot
  // strand hidden descendants or bypass a lock inside a folded branch.
  const unit=foldedMoveUnits(board,new Set([id]))[0];
  if(!unit)throw Error('对象已被折叠隐藏，或分支内有锁定对象，请展开并检查后调整');
  moveFoldedUnit(unit,rect.x,rect.y);Object.assign(n,{width:rect.width,height:rect.height});
- if(n.kind==='card')n.autoFit=false;if(n.kind==='text')n.autoSize=false;
+ if(n.kind==='card')n.autoFit=false;if(n.kind==='text'){n.autoSize=false;n.textAutoHeight=false;}
 }
-export function studioStats(board:Board){const refs=new Map<string,number>();for(const n of board.nodes)if(n.file)refs.set(n.file,(refs.get(n.file)||0)+1);return {objects:board.nodes.length,edges:board.edges.length,notes:board.nodes.filter(n=>n.kind==='card').length,texts:board.nodes.filter(n=>n.kind==='text').length,images:board.nodes.filter(n=>n.kind==='image').length,groups:board.nodes.filter(n=>n.kind==='section').length,uniqueFiles:refs.size,repeatedReferences:[...refs.values()].reduce((s,n)=>s+Math.max(0,n-1),0)};}
+export function studioStats(board:Board){
+ const refs=new Set<string>();let notes=0,texts=0,images=0,groups=0,repeatedReferences=0;
+ for(const n of board.nodes){switch(n.kind){case'card':notes++;break;case'text':texts++;break;case'image':images++;break;case'section':groups++;break;}if(n.file){if(refs.has(n.file))repeatedReferences++;else refs.add(n.file);}}
+ return{objects:board.nodes.length,edges:board.edges.length,notes,texts,images,groups,uniqueFiles:refs.size,repeatedReferences};
+}

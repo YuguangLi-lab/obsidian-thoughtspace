@@ -484,28 +484,7 @@
   .ts-ui-modal.ts-board-action-modal { --ts-action-line: var(--text-muted); }
 }
 
-/* A selected object is distinguished by an outline, never a new fill or a
-   highlighted title strip. No transform, width or content padding transitions. */
-.ts-root .ts-node:is(.is-selected, .is-inline-editing) { outline-color: var(--ts-accent); outline-offset: 3px; }
-.ts-root .ts-node.is-selected:not(.is-inline-editing) { outline-width: 1.5px; }
-.ts-root .ts-node.ts-text.is-selected { outline-width: 1.5px; outline-offset: 3px; }
-.ts-root .ts-node.ts-card.is-selected { outline-color: var(--ts-accent); outline-offset: 3px; }
-.ts-root .ts-node.is-inline-editing { outline-width: 2px; }
-.ts-root .ts-node.is-selected:not(.is-inline-editing) > .ts-connect-port:not(.ts-endpoint-port) {
-  color: var(--ts-accent) !important;
-  background: var(--background-primary) !important;
-  box-shadow: 0 0 0 1px var(--ts-board-line), 0 1px 4px #00000012 !important;
-}
-.ts-root .ts-node > .ts-connect-port:is(:hover, :focus-visible):not(.ts-endpoint-port) {
-  color: var(--background-primary) !important;
-  background: var(--ts-accent) !important;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ts-accent) 18%, transparent) !important;
-}
-.ts-root .ts-node > .ts-connect-port:disabled { opacity: .4; cursor: default; }
-.ts-root .ts-node.ts-card > .ts-card-actions { border-color: var(--ts-board-line); border-radius: 7px; box-shadow: 0 2px 7px #00000010; }
-.ts-root .ts-node.ts-card > .ts-card-actions .ts-icon-button { display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
-.ts-root .ts-node.ts-card > .ts-card-actions .ts-icon-button svg { width: 14px; height: 14px; }
-.ts-root .ts-node.ts-card > .ts-card-actions .ts-icon-button:hover:not(:disabled) { color: var(--text-normal); background: var(--ts-board-hover); }
+/* Object selection, connection handles and local actions share object-chrome.css. */
 
 /* Summary cards must retain readable contrast when the board zooms out.
    Light theme tints cannot be reused behind the dark theme's light text. */
@@ -650,9 +629,6 @@
 /* Keep disclosure outside both the resize corner and the right connection port. */
 .ts-root .ts-node > .ts-branch-toggle {
   left: calc(100% + 18px); right: auto; top: 50%; transform: translateY(-50%);
-}
-.ts-root .ts-node > .ts-resize {
-  z-index: 10; width: 22px; height: 22px; pointer-events: auto; touch-action: none;
 }
 .ts-root .ts-branch-toggle:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 3px; }
 
@@ -886,17 +862,8 @@
 @media (prefers-contrast: more) { .ts-ui-modal.ts-board-search { --ts-search-line: var(--text-muted); } }
 
 
-/* Text disclosure stays outside the measured body; folded content remains a quiet single line. */
-.ts-root .ts-text > .ts-text-actions {
-  position: absolute; top: -18px; right: 10px; z-index: 8; padding: 2px;
-  border: 1px solid var(--ts-board-line,var(--background-modifier-border)); border-radius: 7px;
-  background: var(--background-primary); box-shadow: 0 2px 7px #00000010;
-  opacity: 0; pointer-events: none;
-}
-.ts-root .ts-text:is(:hover,:focus-within,.is-selected,.is-folded) > .ts-text-actions { opacity: 1; pointer-events: auto; }
-.ts-root .ts-text.is-folded > .ts-text-actions { top: 50%; right: 8px; transform: translateY(-50%); }
-@media (hover: none) { .ts-root .ts-text > .ts-text-actions { opacity: 1; pointer-events: auto; } }
-.ts-root .ts-text.is-folded > .ts-text-body { display: block; flex: 1; min-width: 0; padding-right: 42px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; align-content: center; }
+/* Text controls are outside the measured body in every state. */
+.ts-root .ts-text.is-folded > .ts-text-body { display: block; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; align-content: center; }
 .ts-text-math { display: inline-block; max-width: 100%; overflow-x: auto; overflow-y: hidden; white-space: normal; vertical-align: baseline; margin: 0; }
 .ts-text-math.is-display { display: block; overflow-x: auto; overflow-y: hidden; margin: 4px 0; }
 .ts-text-math > mjx-container { max-width: 100%; }

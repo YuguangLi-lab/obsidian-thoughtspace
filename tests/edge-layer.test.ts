@@ -37,6 +37,8 @@ class SvgElement {
  hasAttribute(key:string){return this.attributes.has(key);}
  removeAttribute(key:string){this.ownerDocument.writes++;this.attributes.delete(key);}
  appendChild(child:SvgElement){this.ownerDocument.writes++;child.parent=this;this.children.push(child);return child;}
+ get nextSibling():SvgElement|null{if(!this.parent)return null;return this.parent.children[this.parent.children.indexOf(this)+1]||null;}
+ insertBefore(child:SvgElement,next:SvgElement|null){this.ownerDocument.writes++;if(child===next)return child;if(child.parent)child.parent.children=child.parent.children.filter(item=>item!==child);const at=next?this.children.indexOf(next):this.children.length;assert.ok(at>=0);this.children.splice(at,0,child);child.parent=this;return child;}
  remove(){this.ownerDocument.writes++;if(this.parent)this.parent.children=this.parent.children.filter(child=>child!==this);this.parent=undefined;}
  closest(selector:string):SvgElement|null{
   for(let el:SvgElement|undefined=this;el;el=el.parent){if(selector==='[aria-label]'&&el.hasAttribute('aria-label'))return el;}
@@ -64,6 +66,17 @@ function fixture(){
 }
 
 function descendants(root:SvgElement):SvgElement[]{return root.children.flatMap(child=>[child,...descendants(child)]);}
+test('returning culled edges recover their paint and hit-test order',()=>{
+ const f=fixture();f.render();const retained=f.group('ac'),old=f.group('ab');
+ const source=f.board.nodes[0];f.board.nodes.push({...source,id:'distant',x:5000});f.board.edges[0].from='distant';f.board.edges[0].to='distant';f.render();assert.equal(old.parent,undefined);
+ f.board.edges[0].from='a';f.board.edges[0].to='b';f.render();assert.deepEqual(f.root.children.filter(child=>child.dataset.edge).map(child=>child.dataset.edge),['ab','ac']);assert.equal(f.group('ac'),retained);
+ const writes=f.doc.writes;for(let i=0;i<120;i++)f.render();assert.equal(f.doc.writes,writes,'stable edge order must not write SVG every frame');
+});
+test('in-place edge reordering updates SVG order without recreating routes or handles',()=>{
+ const f=fixture();f.render('ab');const first=f.group('ab'),second=f.group('ac'),route=f.path('ab'),handles=first.querySelector('.ts-edge-handles');
+ const preview=new SvgElement(f.doc,'path');preview.setAttribute('class','ts-connection-preview');f.root.appendChild(preview);
+ f.board.edges.reverse();f.render('ab');assert.deepEqual(f.root.children.filter(child=>child.dataset.edge).map(child=>child.dataset.edge),['ac','ab']);assert.equal(f.group('ab'),first);assert.equal(f.group('ac'),second);assert.equal(f.path('ab'),route);assert.equal(first.querySelector('.ts-edge-handles'),handles);assert.equal(f.root.children.at(-1),preview);
+});
 function namedHandles(f:ReturnType<typeof fixture>,edge:string){
  const group=f.group(edge).querySelector('.ts-edge-handles');assert.ok(group);
  assert.equal(group.children.length,2);
@@ -299,4 +312,22 @@ test('zero coordinates, empty captions and absent or false styles preserve defau
  const writes=f.doc.writes;f.board.nodes[0].x=-0;f.board.nodes[0].y=-0;f.render('ab');assert.equal(f.doc.writes,writes,'signed zero retains the existing route and DOM');
  for(const dashed of [true,false,undefined]){edge.dashed=dashed;edge.direction='none';f.board.viewport.zoom=.5;f.render('ab');assert.equal(path.getAttribute('stroke-dasharray'),dashed?'7 5':null);assert.equal(path.getAttribute('marker-start'),null);assert.equal(path.getAttribute('marker-end'),null);assert.equal(path.getAttribute('d'),connectionPath(f.board.nodes[0],f.board.nodes[1],edge).path);assert.deepEqual(f.group('ab').querySelector('.ts-edge-handles')!.children.map(h=>h.getAttribute('r')),['12','12']);}
  edge.direction=undefined;edge.color='rose';f.render('ab');assert.match(path.getAttribute('marker-end')||'',/test-rose/);assert.ok(f.group('ab').classList.contains('ts-color-rose'));
+});
+
+test('moving edges do not recheck unchanged marker definitions',t=>{
+ const f=fixture();f.render('ab');const has=Set.prototype.has;let markerLookups=0;
+ Set.prototype.has=function(value:unknown){if(typeof value==='string'&&/^test-(blue|rose)$/.test(value))markerLookups++;return has.call(this,value);};
+ try{for(let frame=0;frame<120;frame++){f.board.nodes[0].x=frame/8;f.render('ab');}}
+ finally{Set.prototype.has=has;}
+ t.diagnostic(`120 moving frames / 2 styled edges: ${markerLookups} repeated marker lookups`);assert.equal(markerLookups,0);
+ const defs=f.root.children.find(child=>child.tag==='defs')!;assert.equal(defs.children.length,2);
+ f.board.edges[0].color='teal';f.render('ab');assert.equal(defs.children.length,3);assert.match(f.path('ab').getAttribute('marker-end')||'',/test-teal/);
+ f.layer.clear();f.render('ab');assert.notEqual(f.root.children[0],defs);assert.equal(f.root.children[0].children.length,2);
+});
+
+test('truncated edge captions keep a surrogate pair intact and preserve the complete tooltip',()=>{
+ const f=fixture(),value='a'.repeat(78)+'😀 evidence';f.board.edges[0].label=value;f.render();
+ const caption=f.group('ab').querySelector('.ts-edge-caption')!;assert.equal(caption.querySelector('text')!.textContent,'a'.repeat(78)+'…');assert.equal(caption.querySelector('title')!.textContent,value);
+ f.board.edges[0].label='a'.repeat(77)+'😀 evidence';f.render();assert.equal(caption.querySelector('text')!.textContent,'a'.repeat(77)+'😀…');
+ f.board.edges[0].label='a'.repeat(78)+'\ud83d evidence';f.render();assert.equal(caption.querySelector('text')!.textContent,'a'.repeat(78)+'\ud83d…','already unpaired source characters are not silently rewritten');
 });

@@ -23,13 +23,15 @@ export interface DatabaseRow { path: string; title: string; tags: string[]; mtim
 export interface DatabaseFilter { query: string; tag: string; status: string; priority: string; overdue: boolean; sort: 'updated'|'title'|'due'|'priority'; today: string; }
 export function filterRows<T extends DatabaseRow>(rows: readonly T[], f: DatabaseFilter): T[] {
   const ranks: Record<string,number> = { high: 0, medium: 1, low: 2 };
-  return rows.filter(r => (!f.query || [r.title,r.path,...r.tags].join(' ').toLocaleLowerCase().includes(f.query.toLocaleLowerCase())) && (!f.tag || r.tags.includes(f.tag)) && (!f.status || r.props.status === f.status) && (!f.priority || r.props.priority === f.priority) && (!f.overdue || isOverdue(r.props, f.today)))
+  const query=f.query.toLocaleLowerCase(),dates=f.overdue||f.sort==='due'?new Map<string,boolean>():undefined;
+  const validDate=(value:string)=>{let valid=dates!.get(value);if(valid===undefined){valid=dateValid(value);dates!.set(value,valid);}return valid;};
+  return rows.filter(r => (!f.query || [r.title,r.path,...r.tags].join(' ').toLocaleLowerCase().includes(query)) && (!f.tag || r.tags.includes(f.tag)) && (!f.status || r.props.status === f.status) && (!f.priority || r.props.priority === f.priority) && (!f.overdue || r.props.status!=='done'&&validDate(r.props.due)&&r.props.due<f.today))
     .sort((a,b) => {
       let result = 0;
       if (f.sort === 'title') result = a.title.localeCompare(b.title);
       if (f.sort === 'updated') result = b.mtime - a.mtime;
       if (f.sort === 'priority') result = (ranks[a.props.priority] ?? 3) - (ranks[b.props.priority] ?? 3);
-      if (f.sort === 'due') result = (dateValid(a.props.due) ? a.props.due : '9999-99-99').localeCompare(dateValid(b.props.due) ? b.props.due : '9999-99-99');
+      if (f.sort === 'due') result = (validDate(a.props.due) ? a.props.due : '9999-99-99').localeCompare(validDate(b.props.due) ? b.props.due : '9999-99-99');
       return result || a.path.localeCompare(b.path);
     });
 }

@@ -15,6 +15,15 @@ export function replaceSidebarContents(host:HTMLElement,draft:HTMLElement,preser
  const label=focused?.getAttribute('aria-label'),row=focused?.closest<HTMLElement>('[data-board-path],[data-outline-id],[data-note-path]');
  const rowPath=row?.dataset.boardPath,rowId=row?.dataset.outlineId,notePath=row?.dataset.notePath;
  host.replaceChildren(...Array.from(draft.childNodes));
- if(label){const candidates=Array.from(host.querySelectorAll<HTMLElement>('[aria-label]')).filter(el=>el.getAttribute('aria-label')===label&&(!rowPath||el.closest<HTMLElement>('[data-board-path]')?.dataset.boardPath===rowPath)&&(!rowId||el.closest<HTMLElement>('[data-outline-id]')?.dataset.outlineId===rowId)&&(!notePath||el.closest<HTMLElement>('[data-note-path]')?.dataset.notePath===notePath));if(candidates.length===1)candidates[0].focus({preventScroll:true});}
+ if(label){
+  let candidate:HTMLElement|undefined;const controls=host.querySelectorAll<HTMLElement>('[aria-label]');
+  // A second match is already ambiguous. Do not build/filter a whole-library
+  // array, and never focus one of several identical controls by accident.
+  for(let i=0;i<controls.length;i++){const el=controls[i];
+   if(el.getAttribute('aria-label')!==label||rowPath&&el.closest<HTMLElement>('[data-board-path]')?.dataset.boardPath!==rowPath||rowId&&el.closest<HTMLElement>('[data-outline-id]')?.dataset.outlineId!==rowId||notePath&&el.closest<HTMLElement>('[data-note-path]')?.dataset.notePath!==notePath)continue;
+   if(candidate){candidate=undefined;break;}candidate=el;
+  }
+  candidate?.focus({preventScroll:true});
+ }
  host.scrollTop=top;
 }

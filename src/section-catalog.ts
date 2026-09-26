@@ -1,9 +1,19 @@
 import {Board,Card,contained} from './model';
+import {sectionMemberQuery} from './sections';
 export interface SectionEntry{section:Card;members:Card[];notes:number;texts:number;images:number;boards:number;search:string;}
 export type SectionSort='position'|'name'|'size';
 /** A temporary, metadata-only index. No vault reads or duplicated note bodies. */
 export function sectionCatalog(board:Board):SectionEntry[]{
- return board.nodes.filter(n=>n.kind==='section').map(section=>{const members=board.nodes.filter(n=>contained(section,n));return {section,members,notes:members.filter(n=>n.kind==='card').length,texts:members.filter(n=>n.kind==='text').length,images:members.filter(n=>n.kind==='image').length,boards:members.filter(n=>n.kind==='board').length,search:[section.title||'未命名分组',...members.map(n=>`${n.title||''} ${n.file||''} ${n.text||''}`)].join('\n').toLocaleLowerCase()};});
+ const sections=board.nodes.filter(n=>n.kind==='section'),query=sections.length>8?sectionMemberQuery(board.nodes):undefined;
+ const order=query?new Map(board.nodes.map((n,i)=>[n,i])):undefined;
+ return sections.map(section=>{
+  // Spatial queries are local to this refresh; the catalog and its thumbnail
+  // still follow original board order, not the index's coordinate order.
+  const members=query?query(section).filter(n=>n.kind!=='section').sort((a,b)=>order!.get(a)!-order!.get(b)!):board.nodes.filter(n=>contained(section,n));
+  let notes=0,texts=0,images=0,boards=0;const content=[section.title||'未命名分组'];
+  for(const n of members){if(n.kind==='card')notes++;else if(n.kind==='text')texts++;else if(n.kind==='image')images++;else if(n.kind==='board')boards++;content.push(`${n.title||''} ${n.file||''} ${n.text||''}`);}
+  return{section,members,notes,texts,images,boards,search:content.join('\n').toLocaleLowerCase()};
+ });
 }
 export function selectSections(entries:readonly SectionEntry[],query='',sort:SectionSort='position',empty=false){
  const words=query.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);

@@ -39,12 +39,21 @@ export function summarizeBoard(path:string,title:string,mtime:number,board:Board
   return {path,title,mtime,objects:geometry.length,edges:board.edges.length,notes:[...files],children:[...children],missing:[...missing],tags:[...tags].sort(),preview:geometry.slice(0,80).map(n=>({x:dx+(n.x-left)*scale,y:dy+(n.y-top)*scale,width:Math.max(2,n.width*scale),height:Math.max(2,n.height*scale),color:n.color}))};
 }
 export function hubIndex(boards:HubBoard[],notes:HubNote[],errors:HubIndex['errors']=[]):HubIndex {const usage=new Map<string,HubBoard[]>();for(const board of boards)for(const path of board.notes){const list=usage.get(path)||[];list.push(board);usage.set(path,list);}return {boards,notes,usage,errors};}
-const tagMatches=(tags:string[],q:string)=>tags.some(t=>{const a=t.replace(/^#/,'').toLocaleLowerCase(),b=q.replace(/^#/,'').toLocaleLowerCase();return a===b||a.startsWith(b+'/');});
-export function hubMatches(item:{title:string;path:string;tags:string[]},query:string,tag:string){return (!tag||tagMatches(item.tags,tag))&&query.trim().split(/\s+/).filter(Boolean).every(token=>token.startsWith('#')?tagMatches(item.tags,token):`${item.title} ${item.path}`.toLocaleLowerCase().includes(token.toLocaleLowerCase()));}
+const tagMatches=(tags:string[],query:string)=>tags.some(t=>{const value=t.replace(/^#/,'').toLocaleLowerCase();return value===query||value.startsWith(query+'/');});
+/** Prepare once per result refresh; no normalized content survives an edit. */
+function hubMatcher(query:string,tag:string){
+ const wantedTag=tag.replace(/^#/,'').toLocaleLowerCase(),tokens=query.trim().split(/\s+/).filter(Boolean).map(token=>({tag:token.startsWith('#'),value:(token.startsWith('#')?token.slice(1):token).toLocaleLowerCase()}));
+ return (item:{title:string;path:string;tags:string[]})=>{
+  if(tag&&!tagMatches(item.tags,wantedTag))return false;
+  let text:string|undefined;
+  return tokens.every(token=>token.tag?tagMatches(item.tags,token.value):(text??=`${item.title} ${item.path}`.toLocaleLowerCase()).includes(token.value));
+ };
+}
+export function hubMatches(item:{title:string;path:string;tags:string[]},query:string,tag:string){return hubMatcher(query,tag)(item);}
 export function hubResults(index:HubIndex,filter:HubFilter,prefs:HubPreferences,favorites:ReadonlySet<string>):(HubBoard|HubNote)[] {
   const boardMode=['boards','favorites','recent'].includes(filter.scope),recent=new Map(prefs.recent.map(x=>[x.path,x.at]));
   const result:(HubBoard|HubNote)[]=boardMode?index.boards.filter(b=>(filter.scope!=='favorites'||favorites.has(b.path))&&(filter.scope!=='recent'||recent.has(b.path))):index.notes.filter(n=>(filter.includeJournals||!n.journal)&&(filter.scope!=='inbox'||(index.errors.length===0&&!index.usage.has(n.path)))&&(filter.scope!=='shared'||(index.usage.get(n.path)?.length||0)>1));
-  return result.filter(r=>hubMatches(r,filter.query,filter.tag)).sort((a,b)=>{const delta=filter.scope==='recent'?(recent.get(b.path)||0)-(recent.get(a.path)||0):filter.sort==='updated'?b.mtime-a.mtime:filter.sort==='size'?('objects'in b?b.objects:index.usage.get(b.path)?.length||0)-('objects'in a?a.objects:index.usage.get(a.path)?.length||0):0;return delta||a.title.localeCompare(b.title,'zh-CN')||a.path.localeCompare(b.path);});
+  return result.filter(hubMatcher(filter.query,filter.tag)).sort((a,b)=>{const delta=filter.scope==='recent'?(recent.get(b.path)||0)-(recent.get(a.path)||0):filter.sort==='updated'?b.mtime-a.mtime:filter.sort==='size'?('objects'in b?b.objects:index.usage.get(b.path)?.length||0)-('objects'in a?a.objects:index.usage.get(a.path)?.length||0):0;return delta||a.title.localeCompare(b.title,'zh-CN')||a.path.localeCompare(b.path);});
 }
 /** A single draft, one undo. Sources are only referenced; repeated paths are skipped. */
 export function addHubNotes(board:Board,paths:readonly string[],position:{x:number;y:number},width:number,makeId:()=>string):string[] {
@@ -52,6 +61,7 @@ export function addHubNotes(board:Board,paths:readonly string[],position:{x:numb
   if(!Number.isFinite(position.x)||!Number.isFinite(position.y)||!Number.isFinite(width)||width<220||width>520)throw Error('放置参数无效');
   if(unique.some(p=>!p.endsWith('.md')||/(^\/|(^|\/)\.\.?(\/|$)|\\)/.test(p)))throw Error('笔记路径无效');
   const existing=new Set(board.nodes.filter(n=>n.kind==='card').map(n=>n.file)),fresh=unique.filter(p=>!existing.has(p));const ids:string[]=[];const nodes:Card[]=fresh.map((file,i)=>{const id=makeId();ids.push(id);return {id,kind:'card',transparent:true,file,x:position.x+i%3*(width+32),y:position.y+Math.floor(i/3)*252,width,height:220,preferredWidth:width,autoFit:true,color:'blue'};});
-  if(new Set(ids).size!==ids.length||ids.some(id=>board.nodes.some(n=>n.id===id)))throw Error('对象标识冲突');
+  const generated=new Set(ids);
+  if(generated.size!==ids.length||generated.size>0&&board.nodes.some(n=>generated.has(n.id)))throw Error('对象标识冲突');
   if(nodes.length){board.version=3;board.nodes.push(...nodes);}return ids;
 }

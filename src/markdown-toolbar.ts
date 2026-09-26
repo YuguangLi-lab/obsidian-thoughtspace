@@ -18,7 +18,7 @@ export interface MarkdownToolbarEditor {
 }
 
 /** Editing Toolbar-inspired groups, using native controls and the existing draft. */
-export function markdownToolbar(host:HTMLElement,editor:MarkdownToolbarEditor){
+export function markdownToolbar(host:HTMLElement,editor:MarkdownToolbarEditor,disposeOuter?:()=>void){
  let disposed=false,frame:number|undefined;
  const win=host.ownerDocument.defaultView!;
  const row=host.createDiv({cls:'ts-markdown-tools',attr:{role:'group','aria-label':'Markdown 编辑'}}),toggles=new Map<MarkdownCommand,HTMLButtonElement>();
@@ -123,6 +123,6 @@ export function markdownToolbar(host:HTMLElement,editor:MarkdownToolbarEditor){
  // state once per frame; explicit actions still update synchronously above.
  const schedule=()=>{if(disposed)return;if(editor.updatesBatched){update();return;}if(frame!==undefined)return;frame=win.requestAnimationFrame(()=>{frame=undefined;update();});};
  for(const event of ['input','select','keyup','mouseup'])editor.input.addEventListener(event,schedule);
- editor.replaceToolbar(()=>{disposed=true;if(frame!==undefined){win.cancelAnimationFrame(frame);frame=undefined;}disposeNavigation();for(const event of ['input','select','keyup','mouseup'])editor.input.removeEventListener(event,schedule);});
+ editor.replaceToolbar(()=>{disposed=true;if(frame!==undefined){win.cancelAnimationFrame(frame);frame=undefined;}disposeNavigation();for(const event of ['input','select','keyup','mouseup'])editor.input.removeEventListener(event,schedule);disposeOuter?.();});
  update();
 }

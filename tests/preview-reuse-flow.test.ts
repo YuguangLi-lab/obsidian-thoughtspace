@@ -4,13 +4,14 @@ import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import * as model from '../src/model';
 import * as renderKeys from '../src/node-render-key';
-import {branchState} from '../src/mindmap';
+import {branchState,reflowAutomaticMindmaps,validateBranches} from '../src/mindmap';
 import {branchRenderSnapshot} from '../src/branch-render';
 import {childConnectionCandidates} from '../src/branch-disclosure';
 import {sectionDisplayNode} from '../src/sections';
 import {visibleNodes,viewportRect,markdownPreview,RenderQueue} from '../src/rendering';
 import {visibleGridSize} from '../src/canvas-controls';
 import {textFontFamily} from '../src/text-tools';
+import {textFitsContent,textBlockPadding} from '../src/text-sizing';
 import {cardDisplayTitle} from '../src/card-title-model';
 import {mediaDimensions} from '../src/media-geometry';
 import {foldCards} from '../src/board-tools';
@@ -24,7 +25,11 @@ const source=readFileSync(process.env.PREVIEW_SOURCE||'src/main.ts','utf8');
 function take(start:string,end:string){const a=source.indexOf(start),b=source.indexOf(end,a);assert.ok(a>=0&&b>a,start);return source.slice(a,b);}
 const methods=take('  private renderBoard(', '  private pdfTotals=')
  +take('  private renderPdfCard(', '  private addPorts(')
- +take('  private positionNode(', '  private applyInlineSize(');
+ +take('  private positionNode(', '  private applyInlineSize(')
+ +take('  async setTextAutoHeight(', '  fitCards(')
+ +take('  private requireOwner(', '  private canCreateBlankText(');
+const sessionDeps={...model,reflowAutomaticMindmaps,validateBranches,Notice:class{}};
+const Session=new Function(...Object.keys(sessionDeps),transformSync(`class Session{${take('  change(fn:', '  persist() {')}};return Session`,{loader:'ts'}).code)(...Object.values(sessionDeps));
 const branchModule={exports:{} as typeof import('../src/branch-controls')};
 new Function('require','module','exports',transformSync(readFileSync('src/branch-controls.ts','utf8'),{loader:'ts',format:'cjs'}).code)(
  (name:string)=>{assert.equal(name,'obsidian');return{setIcon:()=>{}};},branchModule,branchModule.exports);
@@ -96,17 +101,18 @@ function fixture(kind:model.Card['kind']='card',patch:Partial<model.Card>={}){
  const calls={metadata:0,tags:0,childCandidates:0,read:0,markdown:0,pdf:0,textFit:0,cardFit:0,mediaFits:[] as {node:model.Card;size:{width:number;height:number}}[]};
  const world=new Dom();world.root=true;const svg=world.createEl('svg'),previewQueue=new Queue(),pdfPreviewQueue=new Queue();
  const session={board,blocked:false,file:new File('board.thoughtspace')};
- const deps={...model,...keys,renderBranchControls:branchModule.exports.renderBranchControls,branchState,branchRenderSnapshot,childConnectionCandidates:(board:model.Board,roots?:ReadonlySet<string>)=>{calls.childCandidates++;return childConnectionCandidates(board,roots);},sectionDisplayNode,visibleNodes,viewportRect,markdownPreview,visibleGridSize,textFontFamily,cardDisplayTitle,mediaDimensions,
+ const deps={textBlockPadding,...model,...keys,renderBranchControls:branchModule.exports.renderBranchControls,branchState,branchRenderSnapshot,childConnectionCandidates:(board:model.Board,roots?:ReadonlySet<string>)=>{calls.childCandidates++;return childConnectionCandidates(board,roots);},sectionDisplayNode,visibleNodes,viewportRect,markdownPreview,visibleGridSize,textFontFamily,textFitsContent,cardDisplayTitle,mediaDimensions,
   TFile:File,Component:Scope,Element:Dom,getAllTags:(cache:{tags?:string[]})=>{calls.tags++;return cache.tags||null;},setIcon:()=>{},
   button:(host:Dom,label:string,_icon:string,fn:()=>void,cls='')=>{const el=host.createEl('button',{cls,attr:{'aria-label':label}});el.createSpan();el.createSpan({text:label});el.onclick=fn;return el;},
   bindCardTitle:()=>()=>{},readProperties:(fm:Record<string,unknown>)=>({status:fm.thoughtspace_status}),statuses:{done:'完成'},isOverdue:()=>false,localDay:()=>'',
-  textExcerptPresentation:(body:string)=>({body,sources:[]}),excerptPresentation:(body:string)=>({body,sources:[]}),renderTextPreview:(body:Dom,text:string)=>{body.appendText(text);body.dataset.mathStatus='none';},remoteImageUrl:()=>undefined,
+  textExcerptPresentation:(body:string)=>({body,sources:[]}),excerptPresentation:(body:string)=>({body,sources:[]}),renderTextPreview:(body:Dom,text:string)=>{body.appendText(text);body.dataset.mathStatus='none';},fitTextNode:(node:model.Card)=>{node.height=420;},remoteImageUrl:()=>undefined,
   pdfSubpath:(page:number)=>`#page=${page}`,loadPdfJs:()=>{},
   MarkdownRenderer:{async render(_app:unknown,body:string,host:Dom){calls.markdown++;host.createDiv({cls:'rendered-content',text:body});}},
   renderPdfThumbnail:async(options:{host:Dom;onSize:(size:{width:number;height:number})=>void;alive:()=>boolean})=>{calls.pdf++;if(!options.alive())return;options.host.createEl('canvas');options.onSize({width:640,height:320});return{total:12};}
  };
  const cardPreviewModule={exports:{} as typeof import('../src/card-preview')};
  const previewImports:Record<string,unknown>={obsidian:{Component:Scope,MarkdownRenderer:deps.MarkdownRenderer},'./editor-cleanup':{releaseEditorResource},'./excerpt-sources':{excerptPresentation},'./rendering':{markdownPreview}};
+ const scopeModule={exports:{}};new Function('require','module','exports',transformSync(readFileSync('src/preview-render-scope.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>previewImports[name],scopeModule,scopeModule.exports);previewImports['./preview-render-scope']=scopeModule.exports;
  new Function('require','module','exports',transformSync(readFileSync('src/card-preview.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>previewImports[name],cardPreviewModule,cardPreviewModule.exports);
  const allDeps={...deps,...cardPreviewModule.exports};
  const View=new Function(...Object.keys(allDeps),transformSync(`class View{${methods}};return View`,{loader:'ts'}).code)(...Object.values(allDeps));
@@ -309,6 +315,33 @@ test('folded text shows a single-line summary and keeps formula source for expan
  const f=fixture('text',{text:'标题\n$$x^2$$\n全文',collapsed:true,height:72,expandedHeight:180});
  assert.equal(f.element().querySelector('.ts-text-body')?.textContent,'标题');assert.equal(f.calls.textFit,0);assert.equal(f.element().querySelectorAll('button').some(b=>b.getAttribute('aria-label')==='展开文本'),true);assert.equal(f.element().querySelector('.ts-resize'),null);
  assert.equal(f.board.nodes[0].text,'标题\n$$x^2$$\n全文');f.replace({collapsed:undefined,height:180,expandedHeight:undefined});assert.equal(f.element().querySelector('.ts-text-body')?.textContent,'标题\n$$x^2$$\n全文');assert.equal(f.calls.textFit,1);assert.ok(f.element().querySelector('.ts-resize'));
+});
+
+test('text auto-height button sits beside fold, defaults off and reflects explicit state changes',()=>{
+ const f=fixture('text'),calls:unknown[][]=[];f.view.setTextAutoHeight=(...args:unknown[])=>calls.push(args);
+ const buttons=()=>f.element().querySelector('.ts-text-actions')!.children;
+ const [fold,sizing]=buttons();assert.equal(fold.getAttribute('aria-label'),'折叠文本');assert.equal(fold.nextElementSibling,sizing);assert.equal(sizing.classes.has('ts-text-auto-height'),true);assert.equal(sizing.getAttribute('aria-pressed'),'false');assert.equal(sizing.classes.has('is-active'),false);
+ sizing.onclick?.();assert.deepEqual(calls,[['node']]);
+ const old=f.element(),oldScope=f.scope();f.replace({textAutoHeight:true});assert.notEqual(f.element(),old);assert.equal(oldScope.unloaded,1);let active=buttons()[1];assert.equal(active.getAttribute('aria-pressed'),'true');assert.equal(active.classes.has('is-active'),true);active.onclick?.();assert.deepEqual(calls,[['node'],['node']]);
+ f.replace({collapsed:true,height:72,expandedHeight:180});active=buttons()[1];assert.equal(buttons()[0].getAttribute('aria-label'),'展开文本');assert.equal(active.getAttribute('aria-pressed'),'true');assert.equal(f.board.nodes[0].textAutoHeight,true);
+ f.replace({textAutoHeight:false});assert.equal(buttons()[1].getAttribute('aria-pressed'),'false');assert.equal(buttons()[1].classes.has('is-active'),false);
+});
+test('text sizing button preserves topic defaults and respects locked or blocked boards',()=>{
+ const topic=fixture('text',{topic:true});assert.equal(topic.element().querySelector('.ts-text-auto-height')!.getAttribute('aria-pressed'),'true');topic.replace({textAutoHeight:false});assert.equal(topic.element().querySelector('.ts-text-auto-height')!.getAttribute('aria-pressed'),'false');
+ for(const blocked of [false,true]){const f=fixture('text',{locked:!blocked});if(blocked){f.session.blocked=true;f.render();}const actions=f.element().querySelector('.ts-text-actions')!.children;assert.equal(actions.length,2);assert.ok(actions.every(button=>button.disabled));}
+});
+
+test('the same mounted height button performs two real transactions before repaint and remains undoable',async()=>{
+ const f=fixture('text',{textAutoHeight:false}),owner=f.session as typeof f.session&{history:model.History;undo:(redo?:boolean)=>void};let writes=0,paints=0;
+ Object.setPrototypeOf(owner,Session.prototype);Object.assign(owner,{history:new model.History(),persist(){writes++;},emit(){paints++;}});
+ f.view.pendingFits=new Map();const before=model.clone(f.board),button=f.element().querySelector('.ts-text-auto-height')!;
+ const first=button.onclick?.();assert.equal(f.board.nodes[0].textAutoHeight,true);assert.equal(f.element().querySelector('.ts-text-auto-height'),button,'the original callback is still mounted before paint');
+ const second=button.onclick?.();await Promise.all([first,second]);assert.equal(f.board.nodes[0].textAutoHeight,false);assert.equal(owner.history.undoStack.length,2);assert.equal(writes,2);assert.equal(paints,2);
+ assert.deepEqual([f.board.nodes[0].width,f.board.nodes[0].height],[before.nodes[0].width,before.nodes[0].height]);f.render();
+ assert.equal(f.element().querySelector('.ts-text-auto-height')!.getAttribute('aria-pressed'),'false');
+ owner.undo();assert.equal(owner.board.nodes[0].textAutoHeight,true);f.view.displayBoard=()=>owner.board;f.render();
+ const enabled=f.element().querySelector('.ts-text-auto-height')!;assert.equal(enabled.getAttribute('aria-pressed'),'true');assert.match(enabled.getAttribute('aria-label')!,/关闭自动适应高度/);
+ await enabled.onclick?.();f.render();const disabled=f.element().querySelector('.ts-text-auto-height')!;assert.equal(owner.board.nodes[0].textAutoHeight,false);assert.equal(disabled.getAttribute('aria-pressed'),'false');assert.match(disabled.getAttribute('aria-label')!,/保持宽度/);
 });
 
 test('production card jobs release shared queue slots when their nodes are removed during file reads',async()=>{

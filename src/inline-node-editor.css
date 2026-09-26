@@ -1,5 +1,5 @@
-/* The editor occupies the existing node; its compact action bar floats above it. */
-.ts-root .ts-node.is-inline-editing {overflow:visible!important;z-index:45!important;outline:2px solid var(--ts-accent);}
+/* The editor occupies the existing node; canvas actions live in screen space. */
+.ts-root .ts-node.is-inline-editing {overflow:visible!important;z-index:45!important;}
 .ts-root .ts-node.is-inline-editing > :is(.ts-text-body,.ts-card-preview) {visibility:hidden;}
 .ts-root .ts-node.is-inline-editing > :is(.ts-resize,.ts-connect-port) {display:none;}
 .ts-root .ts-inline-editor {position:absolute;inset:0;pointer-events:none;border-radius:inherit;background:transparent;color:inherit;}
@@ -243,12 +243,92 @@
 .ts-root .ts-card-meta .ts-tag {font-variant-numeric:tabular-nums;}
 .ts-root .ts-card-meta .ts-tag:focus-visible {outline:2px solid var(--ts-accent);outline-offset:2px;border-radius:5px;}
 
-/* Folded notes reserve a quiet trailing action area without a colored title strip. */
-.ts-root .ts-node.ts-card.is-folded > .ts-node-header {padding-right:72px!important;min-width:0;}
+/* Folded notes keep their complete title width; actions live above the object. */
+.ts-root .ts-node.ts-card.is-folded > .ts-node-header {padding-right:14px!important;min-width:0;}
 .ts-root .ts-node.ts-card.is-folded .ts-card-note-title {line-height:1.4;-webkit-line-clamp:2;}
-.ts-root .ts-node.ts-card.is-folded > .ts-card-actions {top:50%;transform:translateY(-50%);right:7px;}
+
+/* Editing actions belong to the canvas chrome, not the scaled document. The
+   footer owns its measured reserve; small panes retain a scrollable action row. */
+.ts-root .ts-main > .ts-inline-chrome {
+ position:absolute;
+ inset:auto 16px min(var(--ts-footer-reserve,64px),max(8px,calc(100% - 64px))) 64px;
+ top:min(116px,max(8px,calc(100% - var(--ts-footer-reserve,64px) - 56px)));
+ z-index:57;
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ justify-content:flex-end;
+ gap:8px;
+ min-width:0;
+ min-height:0;
+ margin:0;
+ border:0;
+ border-radius:0;
+ background:transparent;
+ color:var(--text-normal);
+ overflow:hidden;
+ pointer-events:none;
+}
+.ts-root .ts-inline-chrome > .ts-inline-editor-bar {
+ position:relative;
+ inset:auto;
+ display:flex;
+ flex:0 0 auto;
+ flex-wrap:nowrap;
+ justify-content:center;
+ gap:5px;
+ min-width:0;
+ min-height:0;
+ width:max-content;
+ max-width:min(520px,100%);
+ max-height:100%;
+ margin:0;
+ padding:6px 8px;
+ overflow:auto;
+ overscroll-behavior:contain;
+ scrollbar-width:thin;
+ border:1px solid var(--background-modifier-border);
+ border-radius:10px;
+ background:var(--background-primary);
+ box-shadow:0 3px 16px #00000016;
+ white-space:normal;
+ font-family:var(--font-interface);
+ pointer-events:auto;
+}
+.ts-root .ts-inline-chrome .ts-inline-editor-bar button {
+ flex:0 0 32px;
+ width:32px;
+ min-width:32px;
+ height:32px;
+ min-height:32px;
+ padding:7px;
+}
+.ts-root .ts-inline-chrome .ts-inline-editor-label {flex:0 1 auto;min-width:0;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ts-root .ts-inline-chrome .ts-inline-editor-badge {margin-inline-end:2px;}
+.ts-root .ts-inline-chrome > .ts-inline-editor-status {
+ position:static;
+ order:-1;
+ flex:0 1 auto;
+ min-width:0;
+ min-height:0;
+ width:max-content;
+ max-width:min(520px,100%);
+ max-height:128px;
+ margin:0;
+ overflow:auto;
+ overscroll-behavior:contain;
+ background:var(--background-primary);
+ pointer-events:auto;
+}
+.ts-root .ts-main:has(> .ts-inline-chrome) > .ts-minimap {visibility:hidden;pointer-events:none;}
 .ts-root .ts-node.ts-card > .ts-card-actions .ts-icon-button:disabled {opacity:.3;cursor:default;}
 .ts-root .ts-node.ts-card > .ts-card-actions .ts-icon-button:focus-visible {outline:2px solid var(--ts-accent);outline-offset:1px;}
 
 /* The first live heading starts at the same paper inset as its rendered counterpart. */
 .ts-root .ts-text .ts-inline-native .cm-content > .HyperMD-header:first-child {padding-block-start:0;}
+
+/* Keep every edit action on one row when the view dock uses two rows.
+   Optional state labels yield space before save/cancel/search actions do. */
+@container ts-board-canvas (max-width:460px) {
+ .ts-root .ts-inline-chrome .ts-inline-editor-bar :is(.ts-inline-editor-badge,.ts-inline-layout-hint,.ts-inline-command-hint) {display:none;}
+}

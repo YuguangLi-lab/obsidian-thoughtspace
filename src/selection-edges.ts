@@ -21,11 +21,13 @@ function editableEndpoints(board: Board): Set<string> {
 /** O(nodes + edges); internal links are the safe default for a marquee selection. */
 export function selectionEdges(board: Board, selectedNodeIds: ReadonlySet<string>, scope: SelectionEdgeScope = 'internal'): Edge[] {
   if (!selectedNodeIds.size) return [];
-  const editable = editableEndpoints(board);
+  let editable: Set<string> | undefined;
   return board.edges.filter(edge => {
-    if (edge.from === edge.to || !editable.has(edge.from) || !editable.has(edge.to)) return false;
+    if (edge.from === edge.to) return false;
     const from = selectedNodeIds.has(edge.from), to = selectedNodeIds.has(edge.to);
-    return scope === 'connected' ? from || to : from && to;
+    if (!(scope === 'connected' ? from || to : from && to)) return false;
+    editable ??= editableEndpoints(board);
+    return editable.has(edge.from) && editable.has(edge.to);
   });
 }
 
@@ -44,10 +46,12 @@ export function patchSelectionEdges(board: Board, edgeIds: ReadonlySet<string>, 
   validatePatch(patch);
   const keys = (['style', 'direction', 'dashed', 'color'] as const).filter(key => Object.hasOwn(patch, key));
   if (!edgeIds.size || !keys.length) return 0;
-  const editable = editableEndpoints(board);
+  let editable: Set<string> | undefined;
   let changed = 0;
   for (const edge of board.edges) {
-    if (!edgeIds.has(edge.id) || edge.from === edge.to || !editable.has(edge.from) || !editable.has(edge.to)) continue;
+    if (!edgeIds.has(edge.id) || edge.from === edge.to) continue;
+    editable ??= editableEndpoints(board);
+    if (!editable.has(edge.from) || !editable.has(edge.to)) continue;
     let touched = false;
     for (const key of keys) {
       if (patch[key] === undefined) {

@@ -10,6 +10,8 @@ class SvgElement{
  constructor(readonly ownerDocument:SvgDocument,readonly tag:string){}
  setAttribute(name:string,value:string){this.attributes.set(name,value);}getAttribute(name:string){return this.attributes.get(name)??null;}hasAttribute(name:string){return this.attributes.has(name);}removeAttribute(name:string){this.attributes.delete(name);}
  appendChild(child:SvgElement){child.parent=this;this.children.push(child);return child;}remove(){if(this.parent)this.parent.children=this.parent.children.filter(child=>child!==this);this.parent=undefined;}
+ get nextSibling():SvgElement|null{return this.parent?.children[this.parent.children.indexOf(this)+1]||null;}
+ insertBefore(child:SvgElement,next:SvgElement|null){if(child===next)return child;if(child.parent)child.parent.children=child.parent.children.filter(item=>item!==child);const at=next?this.children.indexOf(next):this.children.length;assert.ok(at>=0);this.children.splice(at,0,child);child.parent=this;return child;}
 }
 class SvgDocument{createElementNS(_namespace:string,tag:string){return new SvgElement(this,tag);}}
 const node=(id:string,x=0,y=0):Card=>({id,kind:'text',text:id,x,y,width:100,height:80,color:'sand'});

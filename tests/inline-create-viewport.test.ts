@@ -1,3 +1,4 @@
+import {textFitsContent} from '../src/text-sizing';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -17,7 +18,8 @@ const methods=take('  private requireOwner(','  private canCreateBlankText(')
  +take('  async newText(','  editText(')
  +take('  private endInline(','  private finishInlineForNavigation(')
  +take('  private async startInlineEdit(','  promptTextToNote(')
- +take('  revealNode(','  async copyDeepLink(');
+ +take('  revealNode(','  async copyDeepLink(')
+ +take('  private nodeMeasureKey(', '  private syncInlineAppearance(');
 
 // Execute the actual creation, editing and reveal paths. Only Obsidian's host,
 // rendered element and editor are substitutes; camera updates stay real.
@@ -28,11 +30,12 @@ function fixture(zoom=1){
  class InlineNodeEditor {
   input=Object.assign(new EventTarget(),{focus:(options?:unknown)=>calls.focus.push(options),setSelectionRange:(from:number,to:number)=>calls.ranges.push([from,to])});
   el={contains:()=>false};saving=false;
+  ownsFocus(){return this.el.contains();}
   constructor(_el:unknown,readonly options:any){calls.editors.push(this);}
   dispose(){this.options.dispose?.();}
   syncGeometry(){}
  }
- const deps={TFile,InlineNodeEditor,InlineCardFit:class {schedule(){}dispose(){}},InlineTextFit:class {constructor(_app:unknown,_body:unknown,_path:unknown,_node:unknown,apply:(size:{width:number;height:number})=>void){calls.fits.push(apply);}schedule(){}async flush(){}dispose(){}},markdownEdit,uid:()=>`new-${++seq}`,fitTextNode:()=>{},
+ const deps={textFitsContent,TFile,InlineNodeEditor,InlineCardFit:class {schedule(){}dispose(){}},InlineTextFit:class {constructor(_app:unknown,_body:unknown,_path:unknown,_node:unknown,apply:(size:{width:number;height:number})=>void){calls.fits.push(apply);}schedule(){}async flush(){}dispose(){}},markdownEdit,uid:()=>`new-${++seq}`,fitTextNode:()=>{},
   readCurrentNativeNote:(_app:unknown,file:TFile)=>read(file),
   branchState,unfoldAncestors,foldCards,
   writeNativeNoteDraft:async(_app:unknown,file:TFile,original:string,value:string,validate:()=>unknown)=>{calls.nativeWrites++;validate();assert.equal(file.content,original);file.content=value;},
@@ -53,7 +56,6 @@ function fixture(zoom=1){
    createUnique:async()=>{calls.createdFiles++;return addFile(`Cards/new-${files.size}.md`);}},
   point:()=>({x:250,y:180}),clearCanvasGesture:()=>calls.clear++,updateSelection:()=>calls.selection++,
   rememberViewport:()=>calls.remember++,transform:()=>calls.transform++,renderSelectionTools(){},
-  nodeAppearanceKey:()=>'',nodeMeasureKey:()=>'',
   applyInlineSize:(_id:string,size:{width:number;height:number})=>calls.sizes.push(size),
   renderBoard(){calls.render++;view.positions.clear();const hidden=branchState(board as any).hidden;for(const n of board.nodes)if(!hidden.has(n.id)||n.id===view.inlineId||n.id===view.inlineTarget)view.positions.set(n.id,{querySelector:()=>({})});},
   mutate:(apply:(b:any)=>void)=>apply(board),
@@ -90,7 +92,7 @@ test('edited Markdown text and tables persist only to their owning board node',a
 });
 
 test('native text editing can expand for source syntax without persisting its temporary height',async()=>{
- const f=fixture(),n=f.node();await f.view.startInlineEdit(n.id,false,true);const editor=f.calls.editors[0];
+ const f=fixture(),n=f.node('text',{width:280,textAutoHeight:true});await f.view.startInlineEdit(n.id,false,true);const editor=f.calls.editors[0];
  f.calls.fits[0]({width:280,height:190});editor.options.temporaryHeight(360);
  assert.deepEqual(f.calls.sizes.at(-1),{width:280,height:360});assert.equal(n.height,60);
  await editor.options.save('## Saved Markdown');assert.equal(n.width,280);assert.equal(n.height,190);
@@ -195,4 +197,16 @@ for(const kind of ['text','card'])for(const parentBranch of [false,true])test(`n
  assert.equal(kind==='text'?created.text:f.files.get(created.file)!.content,'Saved content stays visible');
  assert.deepEqual(f.board.viewport,before);assert.equal(f.calls.remember,0);assert.equal(f.calls.transform,0);
  assert.equal(unrelated.sectionFolded,true);
+});
+
+test('ordinary text saves content without persisting temporary editor expansion',async()=>{
+ const f=fixture(),n=f.node();await f.view.startInlineEdit(n.id,false,true);const e=f.calls.editors[0];
+ e.options.temporaryHeight(500);assert.equal(f.calls.sizes.at(-1)?.height,500);
+ await e.options.save('Long Markdown '.repeat(100));assert.equal(n.height,60);assert.equal(n.width,100);assert.equal(n.text,'Long Markdown '.repeat(100));
+});
+for(const change of ['off','width','font','alignment'] as const)test(`cached draft size cannot overwrite a shared ${change} edit`,async()=>{
+ const f=fixture(),n=f.node('text',{width:280,textAutoHeight:true});await f.view.startInlineEdit(n.id,false,true);const e=f.calls.editors[0];
+ f.calls.fits[0]({width:280,height:700});
+ if(change==='off')n.textAutoHeight=false;else if(change==='width')n.width=460;else if(change==='font')n.fontSize=32;else n.textAlign='right';
+ await e.options.save('Updated text');assert.equal(n.height,60);assert.equal(n.width,change==='width'?460:280);assert.equal(n.text,'Updated text');
 });

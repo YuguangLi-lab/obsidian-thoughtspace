@@ -1,25 +1,34 @@
 import type {Board,Card,Edge} from './model';
-import {branchState} from './mindmap';
+import {branchTopology} from './mindmap';
 export type RelationDirection='upstream'|'downstream'|'connected';
-/** Rebuild a small adjacency index per action: no persistent graph copy or content cache. */
-function adjacency(board:Board,direction:RelationDirection){
- const nodes=new Set(board.nodes.filter(n=>n.kind!=='section').map(n=>n.id)),links=new Map<string,{node:string;edge:string}[]>();
- const add=(from:string,to:string,edge:string)=>{const list=links.get(from)||[];list.push({node:to,edge});links.set(from,list);};
+function contentIds(board:Board){const nodes=new Set<string>();for(const node of board.nodes)if(node.kind!=='section')nodes.add(node.id);return nodes;}
+/** Rebuild only the adjacency data consumed by this action; never retain mutable graph state. */
+function adjacency<T>(board:Board,nodes:ReadonlySet<string>,direction:RelationDirection,link:(node:string,edge:Edge)=>T){
+ const links=new Map<string,T[]>();
+ const add=(from:string,to:string,edge:Edge)=>{const list=links.get(from)||[];list.push(link(to,edge));links.set(from,list);};
  for(const e of board.edges){if(!nodes.has(e.from)||!nodes.has(e.to))continue;
-  if(direction==='connected'||e.kind!=='branch'&&(e.direction==='both'||e.direction==='none')){add(e.from,e.to,e.id);add(e.to,e.from,e.id);}
-  else if(direction==='upstream')add(e.to,e.from,e.id);else add(e.from,e.to,e.id);
+  if(direction==='connected'||e.kind!=='branch'&&(e.direction==='both'||e.direction==='none')){add(e.from,e.to,e);add(e.to,e.from,e);}
+  else if(direction==='upstream')add(e.to,e.from,e);else add(e.from,e.to,e);
  }
- return{nodes,links};
+ return links;
 }
 export function relationSelection(board:Board,seeds:ReadonlySet<string>,direction:RelationDirection,maxDepth=Infinity){
  if(maxDepth!==Infinity&&(!Number.isInteger(maxDepth)||maxDepth<0))throw Error('关系层数必须为非负整数');
- const {nodes,links}=adjacency(board,direction),found=new Set([...seeds].filter(id=>nodes.has(id))),queue=[...found],depth=new Map(queue.map(id=>[id,0]));
- for(let i=0;i<queue.length;i++){if(depth.get(queue[i])!>=maxDepth)continue;for(const next of links.get(queue[i])||[])if(!found.has(next.node)){found.add(next.node);depth.set(next.node,depth.get(queue[i])!+1);queue.push(next.node);}}
+ const found=new Set<string>();if(!seeds.size)return found;
+ const nodes=contentIds(board);for(const id of seeds)if(nodes.has(id))found.add(id);
+ if(!found.size||maxDepth===0)return found;
+ const links=adjacency(board,nodes,direction,node=>node),queue=[...found];let level=0;
+ for(let i=0;i<queue.length&&level<maxDepth;level++){
+  const frontier=queue.length;
+  for(;i<frontier;i++)for(const next of links.get(queue[i])||[])if(!found.has(next)){found.add(next);queue.push(next);}
+ }
  return found;
 }
 /** Fewest connections between two objects, ignoring arrow direction; ties follow edge order. */
 export function shortestRelationPath(board:Board,from:string,to:string){
- const {nodes,links}=adjacency(board,'connected');if(!nodes.has(from)||!nodes.has(to))return;
+ const nodes=contentIds(board);if(!nodes.has(from)||!nodes.has(to))return;
+ if(from===to)return{nodes:[from],edges:[] as string[]};
+ const links=adjacency(board,nodes,'connected',(node,edge)=>({node,edge:edge.id}));
  const previous=new Map<string,{node:string;edge:string}>(),seen=new Set([from]),queue=[from];
  for(let i=0;i<queue.length&&!seen.has(to);i++)for(const next of links.get(queue[i])||[])if(!seen.has(next.node)){seen.add(next.node);previous.set(next.node,{node:queue[i],edge:next.edge});queue.push(next.node);if(next.node===to)break;}
  if(!seen.has(to))return;const path=[to],edges:string[]=[];let current=to;
@@ -28,7 +37,7 @@ export function shortestRelationPath(board:Board,from:string,to:string){
 }
 /** Walk shared ancestor chains once, even when revealing thousands of descendants. */
 export function unfoldRelationAncestors(board:Board,ids:ReadonlySet<string>){
- const {parents}=branchState(board),ancestors=new Set<string>();
+ const {parents}=branchTopology(board),ancestors=new Set<string>();
  for(const id of ids){let p=parents.get(id);while(p&&!ancestors.has(p)){ancestors.add(p);p=parents.get(p);}}
  let changed=0;for(const n of board.nodes)if(ancestors.has(n.id)&&n.branchFolded){delete n.branchFolded;changed++;}return changed;
 }

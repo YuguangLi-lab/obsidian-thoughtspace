@@ -1,14 +1,22 @@
 import {sizeTemplateTopic} from './mindmap-sizing';
 import {reparentBranch} from './mindmap-flow';
 import {Board,Card,clone,parseBoard,uid} from './model';
-import {branchState,layoutMindmap,mindmapRoot,validateBranches} from './mindmap';
+import {branchTopology,layoutMindmap,mindmapRoot,validateBranches} from './mindmap';
 export const topicLabel=(n:Card)=>(n.kind==='text'?n.text:n.title||n.file?.split('/').pop()?.replace(/\.md$/i,''))||'未命名主题';
-/** Edge order is the canonical sibling order, independent of the current layout. */
+/** A validated forest for one command, before that command changes its hierarchy or geometry. */
+export function topicTreeIndex(board:Board){
+ const parents=validateBranches(board),{children}=branchTopology(board),nodes=new Map(board.nodes.map(n=>[n.id,n]));
+ const rootOf=(start:string)=>{let id=start;while(parents.has(id))id=parents.get(id)!;return id;};
+ // Edge order is the canonical sibling order, independent of the current layout.
+ const rows=(root:string)=>{
+  if(!nodes.has(root))throw Error('主题已不存在');
+  const result:{node:Card;depth:number;parent?:string}[]=[],stack=[{id:root,depth:0}];
+  while(stack.length){const {id,depth}=stack.pop()!,node=nodes.get(id)!;result.push({node,depth,parent:parents.get(id)});const kids=children.get(id)||[];for(let i=kids.length-1;i>=0;i--)stack.push({id:kids[i],depth:depth+1});}return result;
+ };
+ return {parents,children,nodes,rootOf,rows};
+}
 export function topicRows(board:Board,root:string){
- const parents=validateBranches(board),{children}=branchState(board),nodes=new Map(board.nodes.map(n=>[n.id,n]));
- if(!nodes.has(root))throw Error('主题已不存在');
- const rows:{node:Card;depth:number;parent?:string}[]=[],stack=[{id:root,depth:0}];
- while(stack.length){const {id,depth}=stack.pop()!,node=nodes.get(id)!;rows.push({node,depth,parent:parents.get(id)});const kids=children.get(id)||[];for(let i=kids.length-1;i>=0;i--)stack.push({id:kids[i],depth:depth+1});}return rows;
+ return topicTreeIndex(board).rows(root);
 }
 export type TopicAction='child'|'sibling'|'parent'|'up'|'down'|'indent'|'outdent'|'duplicate'|'fold'|'promote'|'reparent';
 export interface TopicResult {board:Board;selected:string;root:string;}
@@ -20,7 +28,7 @@ export interface TopicEditOptions {
 }
 /** A command produces a validated draft. Source data is never partially modified on failure. */
 export function editTopic(source:Board,id:string,action:TopicAction,values:readonly string[]=[],makeId:()=>string=uid,options:TopicEditOptions={}):TopicResult{
- const b=clone(source),parents=validateBranches(b),{children}=branchState(b),byId=new Map(b.nodes.map(n=>[n.id,n])),n=byId.get(id);
+ const b=clone(source),parents=validateBranches(b),{children}=branchTopology(b),byId=new Map(b.nodes.map(n=>[n.id,n])),n=byId.get(id);
  if(!n||n.kind==='section')throw Error('请选择一个内容主题');
  // Reuse the command's validated forest instead of rebuilding it for each lookup.
  const rootOf=(start:string)=>{let at=start;while(parents.has(at))at=parents.get(at)!;return at;};

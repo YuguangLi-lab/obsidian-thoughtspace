@@ -8,17 +8,20 @@ import {readingTitle} from '../src/reading-desk';
 const node=(id:string,x=0,y=0,extra:Partial<Card>={}):Card=>({id,kind:'text',text:`# Topic ${id}\nbody\nnext`,x,y,width:140,height:80,color:'green',...extra});
 const board=(nodes:Card[]):Board=>({...emptyBoard(),version:3,nodes});
 const options:LayoutOptions={mode:'grid',columns:4,gap:32,sort:'title',anchor:'corner'};
-function countTitleSplits(run:()=>void){const original=String.prototype.split;let calls=0;
- String.prototype.split=function(this:string,separator:unknown,limit?:number){if(separator==='\n'&&this.startsWith('# Topic '))calls++;return Reflect.apply(original,this,[separator,limit]) as string[];};
- try{run();}finally{String.prototype.split=original;}return calls;
+function countTitleReads(run:()=>void){const split=String.prototype.split,indexOf=String.prototype.indexOf;let calls=0;
+ // Count both the old full-row split and the bounded first-line lookup.
+ // A comparator extracting the same title repeatedly must still fail this budget.
+ String.prototype.split=function(this:string,separator:unknown,limit?:number){if(separator==='\n'&&this.startsWith('# Topic '))calls++;return Reflect.apply(split,this,[separator,limit]) as string[];};
+ String.prototype.indexOf=function(this:string,search:string,position?:number){if(search==='\n'&&this.startsWith('# Topic '))calls++;return Reflect.apply(indexOf,this,[search,position]);};
+ try{run();}finally{String.prototype.split=split;String.prototype.indexOf=indexOf;}return calls;
 }
 
 test('title layout resolves each cloned title once while the source signature remains independent',()=>{
  const b=board(Array.from({length:100},(_,i)=>node(`n${i}`,i*180,0,{text:`# Topic ${String(i*37%100).padStart(3,'0')}\n`+'body\n'.repeat(100)}))),ids=new Set(b.nodes.map(n=>n.id)),saved=JSON.stringify(b);
  const expected=[...b.nodes].sort((a,b)=>readingTitle(a).localeCompare(readingTitle(b))||a.id.localeCompare(b.id)).map(n=>n.id);
- const reads=countTitleSplits(()=>assert.deepEqual(planLayout(b,ids,options).items.map(n=>n.id),expected));
+ const reads=countTitleReads(()=>assert.deepEqual(planLayout(b,ids,options).items.map(n=>n.id),expected));
  assert.equal(reads,200,'100 sorting titles plus 100 independently computed source signature titles');
- assert.equal(countTitleSplits(()=>planLayout(b,ids,{...options,sort:'position'})),100,'position sorting performs no extra title work');assert.equal(JSON.stringify(b),saved);
+ assert.equal(countTitleReads(()=>planLayout(b,ids,{...options,sort:'position'})),100,'position sorting performs no extra title work');assert.equal(JSON.stringify(b),saved);
 });
 
 test('title reuse is by object and ends before a new proposal or stale application',()=>{
@@ -31,9 +34,9 @@ test('title reuse is by object and ends before a new proposal or stale applicati
 
 test('invalid options and too few movable nodes reject before title extraction',()=>{
  const b=board([node('a'),node('b',300)]),ids=new Set(['a','b']);
- assert.equal(countTitleSplits(()=>assert.throws(()=>planLayout(b,ids,{...options,columns:0}),/设置/)),0);
- assert.equal(countTitleSplits(()=>assert.throws(()=>planLayout(b,new Set(['a']),options),/请选择/)),0);
- b.nodes[1].locked=true;assert.equal(countTitleSplits(()=>assert.throws(()=>planLayout(b,ids,options),/请选择/)),0);
+ assert.equal(countTitleReads(()=>assert.throws(()=>planLayout(b,ids,{...options,columns:0}),/设置/)),0);
+ assert.equal(countTitleReads(()=>assert.throws(()=>planLayout(b,new Set(['a']),options),/请选择/)),0);
+ b.nodes[1].locked=true;assert.equal(countTitleReads(()=>assert.throws(()=>planLayout(b,ids,options),/请选择/)),0);
 });
 
 test('visible scope tests group membership only for viewport candidates',()=>{

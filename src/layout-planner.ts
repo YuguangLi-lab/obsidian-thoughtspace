@@ -1,6 +1,6 @@
 import {branchState,foldedMoveUnits,moveFoldedUnit} from './mindmap';
 import {Board,Card,colorNames,colors,uid} from './model';
-import {sectionBounds,sectionContains} from './sections';
+import {sectionBounds,sectionContains,sectionMemberQuery} from './sections';
 import {readingTitle,reviewLabels} from './reading-desk';
 export const layoutModes={grid:'整齐网格',row:'横向排列',column:'纵向排列',masonry:'紧凑瀑布流',kind:'按类型分栏',color:'按颜色分栏',review:'按阅读状态分栏',connections:'按连线聚类',distributeX:'横向等距',distributeY:'纵向等距',alignLeft:'左对齐',alignCenter:'水平居中',alignRight:'右对齐',alignTop:'顶端对齐',alignMiddle:'垂直居中',alignBottom:'底端对齐'} as const;
 export interface LayoutOptions{mode:keyof typeof layoutModes;columns:number;gap:number;sort:'position'|'title';anchor:'corner'|'center';createSections?:boolean}
@@ -27,7 +27,7 @@ export function planLayout(board:Board,ids:ReadonlySet<string>,options:LayoutOpt
  if(options.createSections!==undefined&&typeof options.createSections!=='boolean')throw Error('自动分组设置无效');
  const selected=board.nodes.filter(n=>ids.has(n.id)),units=foldedMoveUnits(board,ids),source=units.map(unit=>unit.root);
  const createSections=!!options.createSections&&sectionLayoutModes.has(options.mode);
- if(createSections&&units.some(unit=>unit.members.some(n=>board.nodes.some(frame=>frame.kind==='section'&&sectionContains(frame,n)))))throw Error('自动分组仅适用于散卡，请先将内容移出原分组，或关闭生成分组框');
+ if(createSections){const frames=board.nodes.filter(n=>n.kind==='section');if(frames.length&&units.some(unit=>unit.members.some(n=>frames.some(frame=>sectionContains(frame,n)))))throw Error('自动分组仅适用于散卡，请先将内容移出原分组，或关闭生成分组框');}
  if(source.length<2||source.length>1000)throw Error('请选择 2–1000 个未锁定的内容对象');
  // Keep sorting titles local to these draft objects; the source signature stays fresh.
  const nodes=source.map(n=>({...n})),titles=options.sort==='title'?new Map(nodes.map(n=>[n,readingTitle(n)])):undefined;
@@ -127,7 +127,27 @@ export function resolveLayoutScope(board:Board,scope:LayoutScope,selection:Reado
  if(scope==='selection'){const chosen=board.nodes.filter(n=>selection.has(n.id));return{ids:new Set(chosen.map(n=>n.id)),sectionId:chosen.length===1&&chosen[0].kind==='section'?chosen[0].id:undefined,label:'当前选择'};}
  // Offscreen objects cannot enter the visible scope, so skip their frame membership scans.
  const hidden=branchState(board).hidden,candidates=scope==='visible'?board.nodes.filter(n=>!hidden.has(n.id)&&n.kind!=='section'&&viewport&&n.x<viewport.x+viewport.width&&n.x+n.width>viewport.x&&n.y<viewport.y+viewport.height&&n.y+n.height>viewport.y):board.nodes;
- const items=candidates.filter(n=>!hidden.has(n.id)&&n.kind!=='section'&&!sections.some(frame=>inside(frame,n)));
+ const content=candidates.filter(n=>!hidden.has(n.id)&&n.kind!=='section');
+ // Broad scopes with many frames query nearby members once. Small visible
+ // scopes keep their cheap direct test, and the final filter keeps board order.
+ let framed:Set<string>|undefined;
+ if(sections.length>8&&content.length>32){
+  // Heavily overlapping frames favor the original first-match early exit.
+  let area=0,left=Infinity,top=Infinity,right=-Infinity,bottom=-Infinity;for(const frame of sections){area+=frame.width*frame.height;left=Math.min(left,frame.x);top=Math.min(top,frame.y);right=Math.max(right,frame.x+frame.width);bottom=Math.max(bottom,frame.y+frame.height);}
+  if(Number.isFinite(area)&&area<=(right-left)*(bottom-top)*2){
+   framed=new Set();const members=sectionMemberQuery([...sections,...content]),remaining=new Map(content.map(n=>[n.id,n]));let preferRemaining=false;
+   for(const frame of sections){
+    if(!remaining.size)break;
+    // A distant frame may make otherwise overlapping groups look dispersed.
+    // Switch only after observing substantial repeated coverage, not just
+    // after processing half of an otherwise sparse board.
+    const candidates=remaining.size<=32||preferRemaining?remaining.values():members(frame);let repeated=0;
+    for(const n of candidates){if(framed.has(n.id)){repeated++;continue;}if(remaining.has(n.id)&&inside(frame,n)){framed.add(n.id);remaining.delete(n.id);}}
+    if(repeated>32&&repeated>remaining.size*2)preferRemaining=true;
+   }
+  }
+ }
+ const items=content.filter(n=>framed?!framed.has(n.id):!sections.some(frame=>inside(frame,n)));
  return{ids:new Set(items.map(n=>n.id)),sectionId:undefined,label:scope==='visible'?'当前视野中的散卡':'白板全部散卡'};
 }
 export function layoutChanges(plan:LayoutPlan){const old=new Map(plan.originals.map(n=>[n.id,n]));return plan.items.filter(n=>{const before=old.get(n.id)!;return Math.abs(n.x-before.x)>.001||Math.abs(n.y-before.y)>.001;}).length;}

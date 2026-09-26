@@ -1,7 +1,9 @@
+import {revealToolbarControl} from './toolbar-scroll';
+
 /** Keep the format toolbar's scroll affordances local to its Obsidian window. */
 export function installToolbarOverflow(shell:HTMLElement,scroller:HTMLElement,previous:HTMLButtonElement,next:HTMLButtonElement):()=>void{
  const view=scroller.ownerDocument.defaultView;
- let disposed=false,frame:number|undefined;
+ let disposed=false,frame:number|undefined,lastWidth:number|undefined;
  // Chromium starts RTL scrollers at zero and uses negative offsets toward later tools.
  const scrollDirection=()=>view?.getComputedStyle(scroller).direction==='rtl'?-1:1;
  const setControl=(control:HTMLButtonElement,hidden:boolean)=>{
@@ -17,6 +19,14 @@ export function installToolbarOverflow(shell:HTMLElement,scroller:HTMLElement,pr
   const overflowing=available>0&&scroller.clientWidth>0&&scroller.scrollWidth>available+1;
   shell.classList.toggle('ts-toolbar-overflowing',overflowing);
   setControl(previous,!overflowing);setControl(next,!overflowing);
+  const width=scroller.clientWidth;
+  if(width!==lastWidth){
+   lastWidth=width;
+   // Keep the focused property visible when an Obsidian split gets narrower.
+   // Do this only on width changes, never undo a user's deliberate scrolling.
+   const active=scroller.ownerDocument.activeElement;
+   if(width>0&&active&&scroller.contains(active))revealToolbarControl(active as HTMLElement,scroller);
+  }
   const maximum=overflowing?Math.max(0,scroller.scrollWidth-scroller.clientWidth):0,left=scroller.scrollLeft*scrollDirection();
   const atStart=!overflowing||left<=1,atEnd=!overflowing||left>=maximum-1;
   if(previous.disabled!==atStart)previous.disabled=atStart;if(next.disabled!==atEnd)next.disabled=atEnd;
