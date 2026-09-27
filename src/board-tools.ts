@@ -1,6 +1,6 @@
 import {branchState} from './mindmap';
-import {sectionDisplayNode,sectionMovementPinned} from './sections';
-import { Board, Card, contained, selectionMemberships, movableSelection } from './model';
+import {sectionDisplayNode,sectionMovementPinned,sectionContains} from './sections';
+import { Board, Card, selectionMemberships, movableSelection, overlappingFoldRoots } from './model';
 export interface Rect { x:number; y:number; width:number; height:number; }
 export function selectionRect(a:{x:number;y:number},b:{x:number;y:number}):Rect { return {x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(b.x-a.x),height:Math.abs(b.y-a.y)}; }
 /** 卡片相交即可选中；分组框必须被完整框住，避免意外选中覆盖整个场景的分组。 */
@@ -38,10 +38,10 @@ export function alignSelection(board:Board,ids:ReadonlySet<string>,action:Alignm
   const pinned=new Set<string>();for(const n of board.nodes)if(n.locked){let id=parents.get(n.id);while(id!==undefined&&!pinned.has(id)){pinned.add(id);id=parents.get(id);}}
 
   const sections=selected.filter(n=>n.kind==='section');
-  const candidates=selected.filter(n=>!(n.branchFolded&&pinned.has(n.id))&&!sectionMovementPinned(n,board.nodes)).filter(n=>!sections.some(s=>s.id!==n.id&&contained(s,n))),memberships=selectionMemberships(board,candidates);
-  const units=candidates.filter(n=>!(n.branchFolded||n.sectionFolded)||!memberships.get(n.id)!.some(member=>member.locked));
+  const candidates=selected.filter(n=>!(n.branchFolded&&pinned.has(n.id))&&!sectionMovementPinned(n,board.nodes)).filter(n=>!sections.some(s=>s.id!==n.id&&sectionContains(s,n))),memberships=selectionMemberships(board,candidates);
+  const overlapping=overlappingFoldRoots(board,hidden,memberships),units=candidates.filter(n=>!overlapping.has(n.id)&&(!(n.branchFolded||n.sectionFolded)||!memberships.get(n.id)!.some(member=>member.locked)));
   if(units.length<(action.startsWith('distribute')?3:2))throw new Error(action.startsWith('distribute')?'请至少选择三个独立对象':'请至少选择两个独立对象');
-  for(const[id,members]of memberships)memberships.set(id,members.filter(n=>!n.locked));
+  for(const root of units){const members=memberships.get(root.id)!;if(root.kind==='section'&&!root.branchFolded&&!root.sectionFolded){const movable=movableSelection(board,new Set([root.id]));memberships.set(root.id,members.filter(n=>movable.has(n.id)));}else memberships.set(root.id,members.filter(n=>!n.locked));}
   const seen=new Set<string>();
   for(const unit of units)for(const member of [unit,...memberships.get(unit.id)!]){if(seen.has(member.id))throw new Error('选中的分组含有重叠成员，请分别调整');seen.add(member.id);}
   const left=Math.min(...units.map(n=>n.x)),right=Math.max(...units.map(n=>n.x+n.width)),top=Math.min(...units.map(n=>n.y)),bottom=Math.max(...units.map(n=>n.y+n.height));

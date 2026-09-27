@@ -2,11 +2,13 @@ import type {MaterialPoint} from './evidence';
 import {textExcerptPresentation} from './excerpt-sources';
 import {Board, Card, colors} from './model';
 import {layoutMindmap} from './mindmap';
+import {markdownRows} from './markdown-context';
 export type FragmentKind='paragraph'|'quote'|'task'|'code';
 export interface Fragment {id:string;kind:FragmentKind;title:string;heading:string;body:string;start:number;end:number;selection?:{from:number;to:number}}
 export const fragmentLabels:Record<FragmentKind,string>={paragraph:'段落',quote:'引用',task:'待办',code:'代码'};
 export interface OutlineTopic {title:string;parent:number|null;depth:number}
 const plain=(s:string)=>s.replace(/!?\[([^\]]+)\]\([^)]*\)/g,'$1').replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g,(_match:string,a:string,b:string|undefined)=>b||a).replace(/[*`~]/g,'').trim();
+const fenceMarker=(line:string)=>{const marker=/^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);return marker&&!(marker[1][0]==='`'&&marker[2].includes('`'))?marker:undefined;};
 /** Line numbers remain tied to the source. Fenced blocks and frontmatter never become fake headings. */
 function sourceLines(raw:string){
  if(raw.length>500000)throw Error('材料超过 500,000 字符，请先选取一个章节');
@@ -14,15 +16,18 @@ function sourceLines(raw:string){
  if(lines[0]?.trim()==='---'){const end=lines.findIndex((s,i)=>i>0&&/^(---|\.\.\.)\s*$/.test(s));if(end<0)throw Error('笔记属性区未闭合，请先修复 Markdown');start=end+1;}
  return{lines,start};
 }
+// Keep source coordinates, but prevent skipped properties from opening Markdown
+// fences/comments or a body-leading separator from becoming another properties block.
+const sourceRows=(lines:string[],start:number)=>markdownRows(lines.map((line,i)=>i<start?'':line).join('\n'));
 export function extractFragments(raw:string):{fragments:Fragment[];truncated:boolean}{
- const {lines,start}=sourceLines(raw),fragments:Fragment[]=[];let heading='',block:string[]=[],begin=start,fence='';
- const flush=(end:number)=>{const body=block.join('\n');if(body.trim()&&fragments.length<200){const kind:FragmentKind=/^(?: {0,3}(?:`{3,}|~{3,})| {4}|\t)/.test(body)?'code':/^\s*>/.test(body)?'quote':/^\s*(?:[-*+]|\d+[.)])\s+\[[ xX]\]/.test(body)?'task':'paragraph';fragments.push({id:`${begin+1}:${end}`,kind,title:plain(body.replace(/^\s*(>|[-*+]\s+\[[ xX]\])\s*/,'').split('\n')[0].replace(/^\[![^\]]+\][+-]?\s*/,'')).slice(0,96)||heading||'材料片段',heading,body,start:begin+1,end});}else if(body.trim())truncated=true;block=[];};
+ const {lines,start}=sourceLines(raw),contexts=[...sourceRows(lines,start)],fragments:Fragment[]=[];let heading='',block:string[]=[],begin=start,fence='';
+ const flush=(end:number)=>{const body=block.join('\n');if(body.trim()&&fragments.length<200){const kind:FragmentKind=(fenceMarker(body.split('\n',1)[0])||/^(?: {4}|\t)/.test(body))?'code':/^\s*>/.test(body)?'quote':/^\s*(?:[-*+]|\d+[.)])\s+\[[ xX]\]/.test(body)?'task':'paragraph';fragments.push({id:`${begin+1}:${end}`,kind,title:plain(body.replace(/^\s*(>|[-*+]\s+\[[ xX]\])\s*/,'').split('\n')[0].replace(/^\[![^\]]+\][+-]?\s*/,'')).slice(0,96)||heading||'材料片段',heading,body,start:begin+1,end});}else if(body.trim())truncated=true;block=[];};
  let truncated=false;
  for(let i=start;i<lines.length;i++){
-  const line=lines[i],marker=line.match(/^\s{0,3}(`{3,}|~{3,})(.*)$/);
+  const line=lines[i],context=contexts[i],marker=!context.commentBefore?fenceMarker(line):undefined;
   if(fence){block.push(line);if(marker&&marker[1][0]===fence[0]&&marker[1].length>=fence.length&&!marker[2].trim()){fence='';flush(i+1);}continue;}
   if(marker){flush(i);begin=i;block=[line];fence=marker[1];continue;}
-  const h=line.match(/^ {0,3}#{1,6}[ \t]+(.*)$/);
+  const h=!context.code&&context.visible.match(/^ {0,3}#{1,6}[ \t]+(.*)$/);
   if(h){flush(i);heading=plain(h[1].replace(/^[#]+[ \t]*$|[ \t]+#+[ \t]*$/,''));continue;}
   if(!line.trim()){flush(i);continue;}
   if(fragments.length>=200&&!block.length){truncated=true;break;}
@@ -31,11 +36,13 @@ export function extractFragments(raw:string):{fragments:Fragment[];truncated:boo
  flush(lines.length);return{fragments,truncated};
 }
 export function parseOutline(raw:string):OutlineTopic[]{
- const {lines,start}=sourceLines(raw),topics:OutlineTopic[]=[],headings:{level:number;index:number}[]=[],lists:{indent:number;index:number}[]=[];let fence='';
- for(let i=start;i<lines.length;i++){
-  const line=lines[i],marker=line.match(/^\s{0,3}(`{3,}|~{3,})(.*)$/);
-  if(marker){if(!fence)fence=marker[1];else if(marker[1][0]===fence[0]&&marker[1].length>=fence.length&&!marker[2].trim())fence='';continue;}if(fence)continue;
+ const {lines,start}=sourceLines(raw),topics:OutlineTopic[]=[],headings:{level:number;index:number}[]=[],lists:{indent:number;index:number}[]=[];
+ for(const row of sourceRows(lines,start)){
+  if(row.line<start||row.code)continue;const line=row.visible;
+  // Breaks are block separators even when their first character resembles a list marker.
+  if(/^ {0,3}(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3,})$/.test(line)){lists.length=0;continue;}
   const h=line.match(/^ {0,3}(#{1,6})[ \t]+(.*)$/),list=line.match(/^(\s*)(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?(.+)$/);
+  if(list&&!lists.length&&list[1].replace(/\t/g,'    ').length>=4)continue;
   if(!h&&!list){if(line.trim())lists.length=0;continue;}
   if(topics.length>=200)throw Error('大纲最多支持 200 个主题，请分章节导入');
   let parent:number|null,title:string;

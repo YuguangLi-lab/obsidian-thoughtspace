@@ -20,6 +20,7 @@ export function parseTopicOutline(source:string,format:'markdown'|'indent'='mark
   if(row.commentBefore||row.visible.trim()!==raw.trim()){append(raw);continue;}
   const heading=row.topLevel?/^ {0,3}(#{1,6})\s+(.+)$/.exec(raw):null;
   if(heading){while(headings.length&&headings.at(-1)!.level>=heading[1].length)headings.pop();const depth=headings.length;push(depth,heading[2].replace(/\s+#+\s*$/,'').trim());headings.push({level:heading[1].length,depth});lists.length=0;continue;}
+  if(/^ {0,3}(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3,})$/.test(raw)){append(raw);continue;}
   const item=/^([\t ]*)(?:[-+*]|\d+[.)])\s+(.+)$/.exec(raw);
   if(item){const indent=markdownColumns(item[1]);while(lists.length&&lists.at(-1)!.indent>=indent)lists.pop();const depth=(headings.at(-1)?.depth??-1)+1+lists.length;push(depth,item[2]);lists.push({indent,depth});continue;}
   append(raw);

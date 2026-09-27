@@ -7,7 +7,7 @@ import {yingjianNotePath} from './yingjian';
 export interface Card { videoCapture?:{id:string;note:string}; sectionFolded?:boolean; sectionDivider?:'none'|'solid'|'dashed'|'dotted' }
 import { connectionSides, Side } from './connections';
 import { branchState, branchTopology, validateBranches } from './mindmap';
-import {sectionMemberQuery,sectionMovementPinned} from './sections';
+import {sectionMemberQuery,sectionMovementPinned,sectionContains} from './sections';
 /** 笔记卡片保留 Markdown 引用；独立文本与布局保存在白板内，图片保留附件引用。 */
 export type Color = 'sand' | 'blue' | 'green' | 'rose' | 'purple' | 'orange' | 'red' | 'teal' | 'cyan' | 'lime' | 'slate' | 'brown';
 export const colors: Color[] = ['sand', 'blue', 'green', 'rose', 'purple', 'orange', 'red', 'teal', 'cyan', 'lime', 'slate', 'brown'];
@@ -165,15 +165,15 @@ export function wouldCycle(graph: ReadonlyMap<string, readonly string[]>, parent
   return false;
 }
 /** One-operation index only: boards are mutable and must never reuse this after edits or undo. */
-export function selectionExpansion(board:Board){
+export function selectionExpansion(board:Board,includeOpenFrames=false){
   const nodes=new Map(board.nodes.map(n=>[n.id,n]));let children:Map<string,string[]>|undefined,members:ReturnType<typeof sectionMemberQuery>|undefined;
   const expand=(selected:ReadonlySet<string>)=>{
     const ids=new Set([...selected].filter(id=>nodes.has(id)));
     const pending=[...ids].map(id=>({id,branch:!!nodes.get(id)?.branchFolded})),seen=new Map<string,boolean>();
     while(pending.length){const entry=pending.pop()!,node=nodes.get(entry.id);if(!node)continue;const branch=entry.branch||!!node.branchFolded,previous=seen.get(node.id);if(previous===true||previous===false&&!branch)continue;seen.set(node.id,branch);ids.add(node.id);
       // A linked hidden group is an indivisible unit: retain nested frame bounds
-      // and all material. Ordinary open frames keep their established behavior.
-      if(node.kind==='section'){const frames=!!node.sectionFolded||branch;members??=sectionMemberQuery(board.nodes);for(const member of members(node))if(frames||member.kind!=='section')pending.push({id:member.id,branch:frames&&member.kind==='section'});}
+      // and all material. Movement also carries open nested frame geometry.
+      if(node.kind==='section'){const frames=!!node.sectionFolded||branch;members??=sectionMemberQuery(board.nodes);for(const member of members(node))if(frames||includeOpenFrames||member.kind!=='section')pending.push({id:member.id,branch:frames&&member.kind==='section'});}
       if(branch){children??=branchTopology(board).children;for(const id of children.get(node.id)||[])pending.push({id,branch:true});}
     }
     return ids;
@@ -184,8 +184,18 @@ export function expandedSelection(board: Board, selected: Set<string>): Set<stri
 /** Loose cards are singleton units; expand only frames/folded roots using one transaction index. */
 export function selectionMemberships(board:Board,roots:readonly Card[]){
   let expansion:ReturnType<typeof selectionExpansion>|undefined;const memberships=new Map<string,Card[]>();
-  for(const root of roots){const members:Card[]=[];if(root.kind==='section'||root.branchFolded){expansion??=selectionExpansion(board);for(const id of expansion.expand(new Set([root.id]))){const node=expansion.nodes.get(id);if(node&&id!==root.id)members.push(node);}}memberships.set(root.id,members);}
+  for(const root of roots){const members:Card[]=[];if(root.kind==='section'||root.branchFolded){expansion??=selectionExpansion(board,true);for(const id of expansion.expand(new Set([root.id]))){const node=expansion.nodes.get(id);if(node&&id!==root.id)members.push(node);}}memberships.set(root.id,members);}
   return memberships;
+}
+/** Independent layout targets cannot assign different deltas to shared fold material.
+ * Reuse this operation's memberships and expand each outside owner at most once. */
+export function overlappingFoldRoots(board:Board,hidden:ReadonlySet<string>,memberships:ReadonlyMap<string,Card[]>):Set<string>{
+  const pinned=new Set<string>();if(!hidden.size)return pinned;
+  const roots=board.nodes.filter(n=>(n.branchFolded||n.sectionFolded)&&!hidden.has(n.id));if(roots.length<2||!roots.some(n=>memberships.has(n.id)))return pinned;
+  const owners=new Map<string,string>();let expansion:ReturnType<typeof selectionExpansion>|undefined;
+  for(const root of roots){const known=memberships.get(root.id),ids=known?[root.id,...known.map(n=>n.id)]:(expansion??=selectionExpansion(board)).expand(new Set([root.id]));
+    for(const id of ids){const owner=owners.get(id);if(owner&&owner!==root.id){pinned.add(owner);pinned.add(root.id);}else owners.set(id,root.id);}
+  }return pinned;
 }
 /** Expand only unlocked movement roots; locked frames must not drag their contents. */
 export function movableSelection(board:Board,selected:ReadonlySet<string>):Set<string>{
@@ -195,16 +205,30 @@ export function movableSelection(board:Board,selected:ReadonlySet<string>):Set<s
   // Ordinary visible cards are already complete movement units in board order.
   // Build the expansion index only when a selected frame or folded root needs it.
   if(roots.every(n=>n.kind!=='section'&&!n.branchFolded))return new Set(roots.map(n=>n.id));
-  const {nodes,expand}=selectionExpansion(board),allowed=new Set<string>(),loose=new Set<string>();
-  for(const root of roots){if(!root.branchFolded&&!root.sectionFolded){loose.add(root.id);continue;}const unit=expand(new Set([root.id]));if([...unit].some(id=>nodes.get(id)?.locked))continue;for(const id of unit)allowed.add(id);}
-  for(const id of expand(loose))allowed.add(id);const expanded=allowed;
+  const {nodes,expand}=selectionExpansion(board,true),allowed=new Set<string>(),loose=new Set<string>(),folds=new Map<string,Set<string>>();
+  const allowFold=(id:string)=>{if(folds.has(id))return;const unit=expand(new Set([id]));if([...unit].some(member=>nodes.get(member)?.locked))return;folds.set(id,unit);for(const member of unit)allowed.add(member);};
+  for(const root of roots){if(!root.branchFolded&&!root.sectionFolded){loose.add(root.id);continue;}allowFold(root.id);}
+  // Open frames may move around locked material, but every visible folded member
+  // is still an atomic unit. Hidden members of an unrelated fold must stay put.
+  for(const id of expand(loose)){const root=nodes.get(id)!;if(root.locked||hidden?.has(id))continue;
+    if(root.branchFolded||root.sectionFolded)allowFold(id);
+    else allowed.add(id);
+  }
+  // Two folds can share material through geometric containment and branch edges.
+  // A stationary owner pins every intersecting candidate unit, transitively.
+  if(folds.size&&[...allowed].some(id=>hidden?.has(id))){
+    const owners=new Map<string,string[]>();for(const [id,unit]of folds)for(const member of unit){const list=owners.get(member)||[];list.push(id);owners.set(member,list);}
+    const pending=board.nodes.filter(n=>(n.branchFolded||n.sectionFolded)&&!hidden?.has(n.id)&&!folds.has(n.id)).map(n=>expand(new Set([n.id]))),pinned=new Set<string>();
+    for(let i=0;i<pending.length;i++)for(const member of pending[i])for(const id of owners.get(member)||[])if(!pinned.has(id)){pinned.add(id);const unit=folds.get(id)!;for(const child of unit)allowed.delete(child);pending.push(unit);}
+  }const expanded=allowed;
   return new Set(board.nodes.filter(n=>expanded.has(n.id)&&!n.locked).map(n=>n.id));
 }
 /** 先生成完整子白板，再由调用层落盘；跨边界关系改接到入口，内部关系原样保留。 */
 export function extractSubboard(original: Board, selected: Set<string>, path: string, title: string, portalId: string = uid()) {
   const ids = expandedSelection(original, selected), members = original.nodes.filter(n => ids.has(n.id));
   if (!members.length) throw new Error('请先选择卡片或分组');
-  const parent = clone(original), child = emptyBoard(); child.version = original.version === 3 ? 3 : 2; parent.version = child.version; if(original.mode){child.mode=original.mode;child.mindmapDirection=original.mindmapDirection;}
+  const parent = clone(original), child = emptyBoard(); child.version = original.version === 3 ? 3 : 2; parent.version = child.version;
+  for(const key of ['mode','mindmapLayout','mindmapDirection','mindmapDensity','defaultEdgeStyle','snapToGrid'] as const)if(original[key]!==undefined)Object.assign(child,{[key]:original[key]});
   const x = Math.min(...members.map(n => n.x)), y = Math.min(...members.map(n => n.y));
   child.nodes = clone(members).map(n => ({ ...n, x: n.x - x + 50, y: n.y - y + 50 }));
   child.edges = clone(original.edges.filter(e => ids.has(e.from) && ids.has(e.to)));
@@ -218,14 +242,15 @@ export function extractSubboard(original: Board, selected: Set<string>, path: st
 /** 按阅读顺序排布；整个分组作为一个单元移动，内部相对位置不变。 */
 export function tidyBoard(board: Board, selected: Set<string> = new Set()) {
   const sections = board.nodes.filter(n => n.kind === 'section'),hidden=branchState(board).hidden;
-  const candidates = board.nodes.filter(n=>!hidden.has(n.id)).filter(n => selected.size ? selected.has(n.id) : n.kind === 'section' || !sections.some(s => contained(s, n)))
-    .filter(n => !sections.some(s => s.id !== n.id && (!selected.size || selected.has(s.id)) && contained(s, n)))
+  const candidates = board.nodes.filter(n=>!hidden.has(n.id)).filter(n => selected.size ? selected.has(n.id) : n.kind === 'section' || !sections.some(s => sectionContains(s, n)))
+    .filter(n => !sections.some(s => s.id !== n.id && (!selected.size || selected.has(s.id)) && sectionContains(s, n)))
     .sort((a, b) => a.y - b.y || a.x - b.x);
-  const membership=selectionMemberships(board,candidates);
+  const membership=selectionMemberships(board,candidates),overlapping=overlappingFoldRoots(board,hidden,membership);
   // A locked member pins its complete frame/folded subtree; restoring just that
   // member after moving the unit would split the group or stretch hidden branches.
-  const units=candidates.filter(n=>!n.locked&&!membership.get(n.id)!.some(member=>member.locked));
+  const units=candidates.filter(n=>!n.locked&&!overlapping.has(n.id)&&!membership.get(n.id)!.some(member=>member.locked));
   if (!units.length) return;
+  for(const unit of units)if(unit.kind==='section'&&!unit.branchFolded&&!unit.sectionFolded){const movable=movableSelection(board,new Set([unit.id]));membership.set(unit.id,membership.get(unit.id)!.filter(n=>movable.has(n.id)));}
   const cols = Math.ceil(Math.sqrt(units.length)), left = Math.min(...units.map(n => n.x)), top = Math.min(...units.map(n => n.y));
   let y = top;
   const moved = new Set<string>();

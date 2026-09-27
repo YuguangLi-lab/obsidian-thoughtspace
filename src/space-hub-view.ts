@@ -64,12 +64,51 @@ export class SpaceHubModal extends Modal {
     }catch(e){if(run===this.generation&&this.active)this.error(e);}finally{if(run===this.generation&&this.active){this.busy=false;this.refreshButton.disabled=false;this.renderFooter();}}
   }
   private renderMetrics(){if(!this.metrics)return;this.metrics.empty();for(const[number,label]of [[this.index.boards.length,'白板'],[this.index.notes.length,'笔记'],[this.index.errors.length?'—':this.index.notes.filter(n=>!n.journal&&!this.index.usage.has(n.path)).length,'待整理'],[this.index.notes.filter(n=>(this.index.usage.get(n.path)?.length||0)>1).length,'跨白板笔记']]){const cell=this.metrics.createDiv();cell.createEl('strong',{text:String(number)});cell.createSpan({text:String(label)});}}
-  private renderNav(){this.nav.empty();this.nav.createDiv({cls:'ts-hub-nav-label',text:'知识空间'});for(const scope of scopes){const b=this.action(this.nav,scope.label,scope.icon,()=>{this.filter.scope=scope.id;this.page=0;this.focused=undefined;this.closeDetail(false);this.renderNav();this.renderResults();this.renderDetail();});b.toggleClass('is-active',this.filter.scope===scope.id);b.setAttribute('aria-pressed',String(this.filter.scope===scope.id));if(this.loaded)b.createSpan({cls:'ts-hub-nav-count',text:String(hubResults(this.index,{...defaultHubFilter,scope:scope.id},this.host.preferences(),new Set(this.host.favorites())).length)});}
-    const saved=this.nav.createDiv('ts-hub-saved');saved.createEl('h3',{text:'常用筛选'});for(const s of this.host.preferences().saved){const row=saved.createDiv('ts-hub-saved-row');this.action(row,s.name,'bookmark',()=>{this.filter=cleanHubFilter(s.filter);this.page=0;this.search.value=this.filter.query;if(this.filter.tag&&!Array.from(this.tag.options).some(o=>o.value===this.filter.tag))this.tag.createEl('option',{value:this.filter.tag,text:this.filter.tag+'（暂无笔记）'});this.tag.value=this.filter.tag;this.sort.value=this.filter.sort;this.journals.checked=this.filter.includeJournals;this.closeDetail(false);this.renderNav();this.renderResults();});this.action(row,'管理 '+s.name,'ellipsis',()=>this.saveFilterPanel(s.id));}
-    this.action(saved,'保存当前筛选','bookmark-plus',()=>this.saveFilterPanel());
-    const tail=this.nav.createDiv('ts-hub-nav-tail');this.metrics=tail.createDiv('ts-hub-metrics');this.renderMetrics();this.action(tail,'日历与日记','calendar-days',()=>{this.close();return this.host.calendar();});
+  private renderNav(){
+    const savedOpen=this.nav.querySelector<HTMLDetailsElement>('.ts-hub-saved-disclosure')?.open??false;
+    const insightsOpen=this.nav.querySelector<HTMLDetailsElement>('.ts-hub-insights')?.open??false;
+    const navKey=(element:Element|null|undefined)=>element&&this.nav.contains(element)?element.getAttribute('data-hub-nav-key'):null;
+    const focusedKey=navKey(this.nav.ownerDocument.activeElement),returnKey=navKey(this.detailReturnFocus);
+    const controls=new Map<string,HTMLElement>();
+    const remember=<T extends HTMLElement>(key:string,element:T)=>{element.setAttribute('data-hub-nav-key',key);controls.set(key,element);return element;};
+    this.nav.empty();
+    const categories=this.nav.createDiv({cls:'ts-hub-scopes',attr:{role:'group','aria-label':'浏览范围'}});
+    for(const scope of scopes){
+      const b=remember('scope:'+scope.id,this.action(categories,scope.label,scope.icon,()=>{this.filter.scope=scope.id;this.page=0;this.focused=undefined;this.closeDetail(false);this.renderNav();this.renderResults();this.renderDetail();}));
+      b.toggleClass('is-active',this.filter.scope===scope.id);b.setAttribute('aria-pressed',String(this.filter.scope===scope.id));
+      if(this.loaded)b.createSpan({cls:'ts-hub-nav-count',text:String(hubResults(this.index,{...defaultHubFilter,scope:scope.id},this.host.preferences(),new Set(this.host.favorites())).length)});
+    }
+    const savedDisclosure=this.nav.createEl('details',{cls:'ts-hub-saved-disclosure'});savedDisclosure.open=savedOpen;
+    const savedSummary=remember('saved-summary',savedDisclosure.createEl('summary'));setIcon(savedSummary.createSpan({attr:{'aria-hidden':'true'}}),'bookmark');savedSummary.createSpan({text:'常用筛选'});
+    const saved=savedDisclosure.createDiv('ts-hub-saved');
+    for(const s of this.host.preferences().saved){
+      const row=saved.createDiv('ts-hub-saved-row');
+      remember('saved:'+s.id,this.action(row,s.name,'bookmark',()=>{this.filter=cleanHubFilter(s.filter);this.page=0;this.search.value=this.filter.query;if(this.filter.tag&&!Array.from(this.tag.options).some(o=>o.value===this.filter.tag))this.tag.createEl('option',{value:this.filter.tag,text:this.filter.tag+'（暂无笔记）'});this.tag.value=this.filter.tag;this.sort.value=this.filter.sort;this.journals.checked=this.filter.includeJournals;this.closeDetail(false);this.renderNav();this.renderResults();}));
+      remember('manage:'+s.id,this.action(row,'管理 '+s.name,'ellipsis',()=>this.saveFilterPanel(s.id)));
+    }
+    remember('save-current',this.action(saved,'保存当前筛选','bookmark-plus',()=>this.saveFilterPanel()));
+    const tail=this.nav.createDiv('ts-hub-nav-tail'),insights=tail.createEl('details',{cls:'ts-hub-insights'});insights.open=insightsOpen;
+    remember('insights-summary',insights.createEl('summary',{text:'空间统计'}));this.metrics=insights.createDiv('ts-hub-metrics');this.renderMetrics();
+    remember('calendar',this.action(tail,'日历与日记','calendar-days',()=>{this.close();return this.host.calendar();},'ts-hub-icon'));
+    // Resolve by identity, including the deferred return from a detail panel.
+    const replacement=(key:string)=>{
+      const control=controls.get(key);
+      if(control&&!savedDisclosure.open&&saved.contains(control))return savedSummary;
+      return control||controls.get('scope:'+this.filter.scope);
+    };
+    if(returnKey)this.detailReturnFocus=replacement(returnKey);
+    if(focusedKey)replacement(focusedKey)?.focus({preventScroll:true});
   }
-  private saveFilterPanel(id?:string){this.showDetail();this.detail.empty();this.detailHeader('常用筛选');const old=this.host.preferences().saved.find(s=>s.id===id);this.detail.createEl('h3',{text:old?'管理筛选':'保存当前筛选'});const input=this.detail.createEl('input',{type:'text',value:old?.name||'',attr:{'aria-label':'筛选名称',placeholder:'例如：研究材料',maxlength:'50'}});this.detail.createEl('p',{text:old?'修改名称保留原筛选条件；删除不会改动笔记。':'保存当前分类、搜索、标签、排序和日记开关。'});this.action(this.detail,old?'保存名称':'保存筛选','check',async()=>{await this.host.save(saveHubFilter(this.host.preferences(),input.value,old?.filter||this.filter,old?.id||crypto.randomUUID()));if(this.active){this.renderNav();this.renderDetail();}},'is-primary');if(old)this.action(this.detail,'删除筛选','trash-2',async()=>{await this.host.save({...this.host.preferences(),saved:this.host.preferences().saved.filter(s=>s.id!==id)});if(this.active){this.renderNav();this.renderDetail();}});input.focus();}
+  private saveFilterPanel(id?:string){this.showDetail();this.detail.empty();this.detailHeader('常用筛选');const old=this.host.preferences().saved.find(s=>s.id===id);this.detail.createEl('h3',{text:old?'管理筛选':'保存当前筛选'});const input=this.detail.createEl('input',{type:'text',value:old?.name||'',attr:{'aria-label':'筛选名称',placeholder:'例如：研究材料',maxlength:'50'}});this.detail.createEl('p',{text:old?'修改名称保留原筛选条件；删除不会改动笔记。':'保存当前分类、搜索、标签、排序和日记开关。'});
+    const saved=()=>{
+      if(!this.active)return;
+      const restoreFocus=input.isConnected&&this.detail.contains(this.modalEl.ownerDocument.activeElement);
+      this.renderNav();
+      if(input.isConnected){this.renderDetail();if(restoreFocus)this.closeDetail();}
+    };
+    this.action(this.detail,old?'保存名称':'保存筛选','check',async()=>{await this.host.save(saveHubFilter(this.host.preferences(),input.value,old?.filter||this.filter,old?.id||crypto.randomUUID()));saved();},'is-primary');
+    if(old)this.action(this.detail,'删除筛选','trash-2',async()=>{await this.host.save({...this.host.preferences(),saved:this.host.preferences().saved.filter(s=>s.id!==id)});saved();});input.focus();
+  }
   private renderResults(){
     this.results=hubResults(this.index,this.filter,this.host.preferences(),new Set(this.host.favorites()));this.page=Math.min(this.page,Math.max(0,Math.ceil(this.results.length/48)-1));this.main.empty();const noteMode=['notes','inbox','shared'].includes(this.filter.scope);this.main.dataset.view=noteMode?'list':this.host.preferences().view;this.scopeTitle.setText(scopes.find(s=>s.id===this.filter.scope)?.label||'知识空间');this.scopeCount.setText(`${this.results.length} 项`);for(const [view,b]of this.viewButtons){b.disabled=noteMode;b.setAttribute('aria-pressed',String(this.main.dataset.view===view));}this.modalEl.toggleClass('has-query',!!this.filter.query||!!this.filter.tag);
     if(!this.results.length){const empty=this.main.createDiv('ts-hub-empty');setIcon(empty.createDiv(),'search');empty.createEl('h3',{text:!this.loaded?'正在准备空间':this.filter.scope==='inbox'&&this.index.errors.length?'暂时无法判定收件箱':'这里还没有匹配内容'});empty.createEl('p',{text:this.filter.scope==='recent'?'从总览打开白板后，会出现在这里。':'可以调整搜索与标签，或收集一条新笔记。'});this.action(empty,'清除搜索条件','rotate-ccw',()=>{this.filter={...defaultHubFilter,scope:this.filter.scope};this.search.value='';this.tag.value='';this.sort.value='updated';this.journals.checked=false;this.renderResults();});}
@@ -78,7 +117,7 @@ export class SpaceHubModal extends Modal {
       if(board&&this.main.dataset.view==='gallery'){const visual=this.action(row,'查看 '+item.title,'',()=>this.focus(item.path),'ts-hub-thumbnail');visual.tabIndex=-1;const svg=visual.createSvg('svg',{attr:{viewBox:'0 0 300 140','aria-hidden':'true'}});for(const n of item.preview)svg.createSvg('rect',{attr:{x:String(n.x),y:String(n.y),width:String(n.width),height:String(n.height),rx:'3',fill:palette[n.color],opacity:'.82'}});if(!item.preview.length)visual.createSpan({text:'空白画布'});}
       const info=row.createDiv('ts-hub-result-info');if(!board){const select=info.createEl('input',{type:'checkbox',attr:{'aria-label':'选择 '+item.title}});select.checked=this.selected.has(item.path);select.onchange=()=>{if(select.checked&&this.selected.size>=100){select.checked=false;this.error('一次最多选择 100 篇笔记');return;}if(select.checked)this.selected.add(item.path);else this.selected.delete(item.path);this.renderFooter();};}
       const title=this.action(info,item.title,board?'panels-top-left':'file-text',()=>this.focus(item.path),'ts-hub-result-title');title.setAttribute('aria-pressed',String(this.focused===item.path));info.createDiv({cls:'ts-hub-result-meta',text:board?`${item.objects} 个对象 · ${item.notes.length} 篇笔记 · ${item.edges} 条连线`:`${this.index.usage.get(item.path)?.length||0} 张已索引白板 · ${new Date(item.mtime).toLocaleDateString('zh-CN')}`});info.createDiv({cls:'ts-hub-result-path',text:item.path});
-      this.action(row,board?'打开白板':'右侧打开笔记','arrow-up-right',()=>this.openItem(item.path,board),'ts-hub-open-direct ts-hub-icon');
+      this.action(info,board?'打开白板':'右侧打开笔记','arrow-up-right',()=>this.openItem(item.path,board),'ts-hub-open-direct ts-hub-icon');
       if(item.tags.length){const tags=info.createDiv('ts-hub-tags');for(const tag of item.tags.slice(0,3))this.action(tags,tag,'',()=>{this.filter.tag=tag;this.tag.value=tag;this.page=0;this.renderResults();});}
     }
     this.renderFooter();

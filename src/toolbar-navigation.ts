@@ -22,7 +22,8 @@ export function toolbarNavigation(row:HTMLElement){
   for(let parent=row.parentElement;parent;parent=parent.parentElement)if(navigationRows.has(parent))return;
   const buttons=Array.from(row.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')).filter(b=>b.getClientRects().length>0),at=buttons.indexOf(target as HTMLButtonElement);
   if(at<0||!buttons.length)return;
-  const next=event.key==='Home'?0:event.key==='End'?buttons.length-1:(at+(event.key==='ArrowLeft'?-1:1)+buttons.length)%buttons.length;
+  const direction=row.ownerDocument.defaultView?.getComputedStyle(row).direction==='rtl'?-1:1;
+  const next=event.key==='Home'?0:event.key==='End'?buttons.length-1:(at+(event.key==='ArrowLeft'?-1:1)*direction+buttons.length)%buttons.length;
   event.preventDefault();event.stopPropagation();if(next!==at)buttons[next].focus({preventScroll:true});revealToolbarControl(buttons[next],row);
  };
  row.addEventListener('keydown',move);

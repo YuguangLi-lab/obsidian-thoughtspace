@@ -102,8 +102,10 @@ export function installToolPalettes(main:HTMLElement,rail:HTMLElement,entries:To
    const button=(event.target as Element|null)?.closest<HTMLButtonElement>('button');
    if(active===entry&&button&&entry.actions.contains(button)&&!button.disabled&&button.getAttribute('aria-disabled')!=='true')close();
   };
-  entry.trigger.addEventListener('click',trigger);entry.panel.addEventListener('keydown',keydown);entry.panel.addEventListener('focusout',focusout);entry.panel.addEventListener('click',activate);
-  cleanup.push(()=>{entry.trigger.removeEventListener('click',trigger);entry.panel.removeEventListener('keydown',keydown);entry.panel.removeEventListener('focusout',focusout);entry.panel.removeEventListener('click',activate);});
+  // Restore canvas controls before a synchronous action measures their geometry
+  // (for example, mind-map layout calls fit immediately). Keep the action's focus.
+  entry.trigger.addEventListener('click',trigger);entry.panel.addEventListener('keydown',keydown);entry.panel.addEventListener('focusout',focusout);entry.panel.addEventListener('click',activate,true);
+  cleanup.push(()=>{entry.trigger.removeEventListener('click',trigger);entry.panel.removeEventListener('keydown',keydown);entry.panel.removeEventListener('focusout',focusout);entry.panel.removeEventListener('click',activate,true);});
  }
  doc.addEventListener('pointerdown',outside,true);cleanup.push(()=>doc.removeEventListener('pointerdown',outside,true));
  return{open,toggle,close,dispose:()=>{if(disposed)return;disposed=true;close();for(const remove of cleanup)remove();}};

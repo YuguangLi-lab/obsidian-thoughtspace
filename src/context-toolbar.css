@@ -1,117 +1,180 @@
-/* The editing strip is one continuous row: object, mode, properties, transfer.
-   Modes remain the same focusable buttons when a narrow split hides labels. */
+/* One editing ribbon on a wide canvas, two compact rows in a split pane.
+   Identity, mode and values stay in their existing keyboard order. Document
+   fonts, card geometry and the editor save/cancel strip are untouched. */
 .ts-root .ts-main > .ts-floating-formatbar {
-  top: 16px; max-width: calc(100% - 36px); padding: 6px;
-  border: 1px solid var(--ts-board-line); border-radius: 10px;
-  background: var(--background-primary); box-shadow: 0 4px 16px #0000000c, 0 1px 3px #00000008;
+  --ts-format-line: color-mix(in srgb,var(--background-modifier-border) 82%,transparent);
+  --ts-format-wash: color-mix(in srgb,var(--background-secondary) 68%,var(--background-primary));
+  --ts-format-active: color-mix(in srgb,var(--ts-accent) 8%,var(--background-primary));
+  top:14px; width:max-content; max-width:min(1120px,calc(100% - 32px));
+  display:flex; flex-direction:row; align-items:center; padding:0; pointer-events:auto;
+  border:1px solid var(--ts-format-line); border-radius:10px; background:var(--background-primary);
+  backdrop-filter:none !important;
+  box-shadow:0 2px 4px color-mix(in srgb,var(--text-normal) 4%,transparent),0 8px 24px color-mix(in srgb,var(--text-normal) 7%,transparent);
 }
-.ts-root .ts-main > .ts-floating-formatbar > .ts-commandbar {
-  padding: 0 !important; border-radius: 6px !important; scroll-padding-inline: 6px;
+.ts-root[data-glass][data-surface] .ts-main > .ts-floating-formatbar { background:var(--background-primary) !important; backdrop-filter:none !important; }
+.ts-root .ts-floating-formatbar > .ts-format-heading {
+  display:flex; flex:0 0 auto; align-items:center; justify-content:flex-start; gap:10px;
+  min-width:0; max-width:100%; margin-block:4px; padding:2px 8px 2px 10px;
+  border:0; border-inline-end:1px solid var(--ts-format-line); border-radius:0; background:transparent;
+  overflow-x:auto; overflow-y:hidden; overscroll-behavior-x:contain;
+  scrollbar-width:thin; scroll-padding-inline:8px;
+}
+.ts-root .ts-floating-formatbar > .ts-format-heading:empty { display:none; }
+.ts-root .ts-floating-formatbar > .ts-format-row {
+  display:flex; flex:1 1 auto; align-items:center; gap:2px; min-width:0; max-width:100%; padding:4px 5px;
+}
+.ts-root .ts-floating-formatbar .ts-format-row > .ts-commandbar {
+  flex:1 1 auto; min-width:0; min-height:0; margin:0 !important; padding:0 !important; gap:0 !important;
+  border:0 !important; border-radius:7px !important; background:transparent !important; box-shadow:none !important;
+  overflow-x:auto; overflow-y:hidden; overscroll-behavior-x:contain; scroll-padding-inline:8px;
+  scrollbar-width:thin; scrollbar-color:var(--background-modifier-border) transparent;
 }
 .ts-root .ts-floating-formatbar .ts-commandbar > .ts-selection-tools {
-  display: flex; align-items: center; flex-wrap: nowrap; width: max-content;
-  gap: 0 !important; min-height: var(--ts-board-format-control);
+  display:flex; align-items:center; flex-wrap:nowrap; width:max-content;
+  gap:0 !important; min-height:var(--ts-board-format-control);
 }
 .ts-root .ts-floating-formatbar .ts-format-context {
-  display: inline-flex; flex: none; align-items: center; justify-content: center;
-  width: 30px; min-height: var(--ts-board-format-control); padding: 0;
-  color: var(--text-faint); font-family: var(--font-interface);
+  display:inline-flex; flex:none; align-items:center; gap:5px; width:auto; min-height:30px; padding:0;
+  color:var(--text-normal); font:600 11px/1.4 var(--font-interface); white-space:nowrap;
 }
-.ts-root .ts-floating-formatbar .ts-format-context > span { display: inline-flex; }
-.ts-root .ts-floating-formatbar .ts-format-context > span:last-child { display: none; }
-.ts-root .ts-floating-formatbar .ts-format-context svg { width: 15px; height: 15px; }
+.ts-root .ts-floating-formatbar .ts-format-context > span { display:inline-flex; align-items:center; }
+.ts-root .ts-floating-formatbar .ts-format-context > span:first-child {
+  justify-content:center; width:20px; height:24px;
+  color:var(--ts-accent); background:transparent;
+}
+.ts-root .ts-floating-formatbar .ts-format-context svg { width:14px; height:14px; stroke-width:1.7; }
+.ts-root .ts-floating-formatbar .ts-format-context .ts-format-context-count {
+  padding-inline:5px; min-width:20px; justify-content:center; font-size:10px; color:var(--text-muted);
+  border:0; border-radius:4px; background:var(--ts-format-wash); font-variant-numeric:tabular-nums;
+}
 .ts-root .ts-floating-formatbar .ts-format-mode {
-  display: inline-flex; flex: none; align-items: center; gap: 2px;
-  padding: 0 7px 0 0; margin-inline-end: 7px;
-  border-inline-end: 1px solid var(--ts-board-line);
+  display:inline-flex; flex:none; align-items:center; gap:2px; padding:0; margin:0;
+  border:0; border-radius:0; background:transparent;
 }
-.ts-root .ts-floating-formatbar .ts-commandbar .ts-format-mode-button {
-  position: relative; display: inline-flex; align-items: center; justify-content: center;
-  flex: none; gap: 5px; width: auto; min-width: 32px;
-  height: var(--ts-board-format-control); min-height: var(--ts-board-format-control);
-  margin: 0; padding: 0 9px !important; border: 0 !important; border-radius: 6px !important;
-  background: transparent !important; color: var(--text-muted); box-shadow: none !important;
-  font: 500 12px/1.2 var(--font-interface); white-space: nowrap;
+.ts-root .ts-floating-formatbar .ts-format-heading .ts-format-mode-button {
+  position:relative; display:inline-flex; flex:none; align-items:center; justify-content:center; gap:6px;
+  width:auto; min-width:30px; height:30px; min-height:30px; margin:0; padding:0 7px !important;
+  border:0 !important; border-radius:6px !important; background:transparent !important;
+  color:var(--text-muted); box-shadow:none !important; font:500 11px/1.3 var(--font-interface); white-space:nowrap;
 }
-.ts-root .ts-floating-formatbar .ts-format-mode-button > span { display: inline-flex; align-items: center; }
-.ts-root .ts-floating-formatbar .ts-format-mode-button svg { width: 15px; height: 15px; stroke-width: 1.7; }
-.ts-root .ts-floating-formatbar .ts-commandbar .ts-format-mode-button:hover:not(:disabled) {
-  background: var(--background-modifier-hover) !important; color: var(--text-normal);
+.ts-root .ts-floating-formatbar .ts-format-mode-button > span { display:inline-flex; align-items:center; }
+.ts-root .ts-floating-formatbar .ts-format-mode-button svg { width:14px; height:14px; stroke-width:1.7; }
+.ts-root .ts-floating-formatbar .ts-format-heading .ts-format-mode-button:hover:not(:disabled) {
+  color:var(--text-normal); background:var(--background-modifier-hover) !important;
 }
-.ts-root .ts-floating-formatbar .ts-commandbar .ts-format-mode-button.is-active {
-  background: var(--ts-board-active) !important; color: var(--ts-accent); font-weight: 650;
+.ts-root .ts-floating-formatbar .ts-format-heading .ts-format-mode-button.is-active {
+  color:var(--ts-accent); background:var(--ts-format-active) !important; font-weight:600;
+  box-shadow:none !important;
 }
-.ts-root .ts-floating-formatbar .ts-format-mode-button.is-active::after {
-  content: ''; position: absolute; inset-inline: 10px; bottom: 0;
-  height: 2px; border-radius: 2px; background: var(--ts-accent);
+.ts-root .ts-floating-formatbar .ts-format-mode-button:disabled { opacity:.38; }
+
+/* Icons describe each property while native selects retain their complete
+   options, labels, hover help and keyboard behavior. No custom picker layer. */
+.ts-root .ts-floating-formatbar :is(.ts-appearance-group,.ts-edge-format-group) {
+  display:inline-flex; flex:none; align-items:center; gap:2px; padding:0 2px;
 }
-.ts-root .ts-floating-formatbar .ts-format-mode-button:disabled { opacity: .36; }
-.ts-root .ts-floating-formatbar .ts-appearance-group {
-  display: inline-flex; flex: none; align-items: center; gap: 3px; padding: 0 2px;
-}
-.ts-root .ts-floating-formatbar .ts-appearance-group[data-appearance-panel] {
-  min-height: var(--ts-board-format-control); border: 0;
-}
-.ts-root .ts-floating-formatbar .ts-appearance-group[data-appearance-panel][hidden] { display: none !important; }
+.ts-root .ts-floating-formatbar .ts-appearance-group[data-appearance-panel] { min-height:var(--ts-board-format-control); border:0; }
+.ts-root .ts-floating-formatbar .ts-appearance-group[data-appearance-panel][hidden] { display:none !important; }
 .ts-root .ts-floating-formatbar .ts-appearance-group[data-appearance-panel]:not([hidden]) ~ .ts-appearance-group[data-appearance-panel]:not([hidden]) {
-  margin-inline-start: 4px; padding-inline-start: 8px; border-inline-start: 1px solid var(--ts-board-line);
+  margin-inline-start:5px; padding-inline-start:8px; border-inline-start:1px solid var(--ts-format-line);
 }
-.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field {
-  --ts-format-value-width: 88px;
-  display: inline-flex; flex: none; flex-direction: row; align-items: center; gap: 4px;
-  min-height: var(--ts-board-format-control); margin: 0; padding: 0 2px 0 6px;
-  border: 1px solid transparent; border-radius: 5px; background: transparent;
-  color: var(--text-muted); white-space: nowrap;
+.ts-root .ts-floating-formatbar .ts-commandbar :is(.ts-appearance-group,.ts-edge-format-group) .ts-format-field {
+  --ts-format-value-width:78px;
+  display:inline-flex; flex:none; align-items:center; gap:5px; min-height:var(--ts-board-format-control);
+  margin:0; padding:1px 4px; border:1px solid transparent; border-radius:5px;
+  background:transparent; color:var(--text-muted); white-space:nowrap;
 }
-.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field:hover { background: var(--background-secondary); }
-.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field:focus-within {
-  border-color: color-mix(in srgb, var(--ts-accent) 30%, var(--ts-board-line));
-  background: var(--background-primary); color: var(--ts-accent);
+.ts-root .ts-floating-formatbar .ts-commandbar :is(.ts-appearance-group,.ts-edge-format-group) .ts-format-field:hover { background:var(--ts-format-wash); }
+.ts-root .ts-floating-formatbar .ts-commandbar :is(.ts-appearance-group,.ts-edge-format-group) .ts-format-field:focus-within {
+  border-color:color-mix(in srgb,var(--ts-accent) 34%,var(--ts-format-line)); background:var(--ts-format-active);
 }
-.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field > .ts-format-label-icon { display: inline-flex; flex: none; width: 15px; height: 15px; opacity: .8; }
-.ts-root .ts-floating-formatbar .ts-format-label-icon svg { width: 15px; height: 15px; stroke-width: 1.65; }
-.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field > .ts-format-label { display: none; }
-.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field select {
-  width: var(--ts-format-value-width); min-width: 0; max-width: var(--ts-format-value-width);
-  height: calc(var(--ts-board-format-control) - 2px); min-height: calc(var(--ts-board-format-control) - 2px);
-  padding: 0 20px 0 2px !important; border: 0 !important; border-radius: 5px;
-  background-color: transparent !important; box-shadow: none !important; color: var(--text-normal);
-  font: 500 12px/1.4 var(--font-interface); font-variant-numeric: tabular-nums;
+.ts-root .ts-floating-formatbar .ts-commandbar :is(.ts-appearance-group,.ts-edge-format-group) .ts-format-field > .ts-format-label-icon {
+  display:inline-flex; flex:none; width:15px; height:15px; opacity:.72;
 }
-.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field[data-format="字体"] { --ts-format-value-width: 90px; }
-.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field[data-format="字号"] { --ts-format-value-width: 62px; }
-.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field:is([data-format="卡片颜色"],[data-format="分组背景"]) { --ts-format-value-width: 104px; }
-.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field:is([data-format="卡片样式"],[data-format="分组样式"],[data-format="边框线型"]) { --ts-format-value-width: 60px; }
-.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field[data-format="标题分割线"] { --ts-format-value-width: 94px; }
-.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-fill-custom { gap: 5px; padding-inline: 6px 4px; }
-.ts-root .ts-floating-formatbar .ts-fill-custom > span { font: 400 11px/1 var(--font-interface); color: var(--text-muted); }
+.ts-root .ts-floating-formatbar .ts-format-label-icon svg { width:15px; height:15px; stroke-width:1.65; }
+.ts-root .ts-floating-formatbar .ts-commandbar :is(.ts-appearance-group,.ts-edge-format-group) .ts-format-field > .ts-format-label {
+  display:none;
+}
+.ts-root .ts-floating-formatbar .ts-commandbar :is(.ts-appearance-group,.ts-edge-format-group) .ts-format-field select {
+  flex:none; width:var(--ts-format-value-width); min-width:0; max-width:var(--ts-format-value-width);
+  height:calc(var(--ts-board-format-control) - 2px); min-height:calc(var(--ts-board-format-control) - 2px);
+  padding:0 18px 0 0 !important; margin:0; border:0 !important; border-radius:4px !important;
+  background-color:transparent !important; box-shadow:none !important; color:var(--text-normal);
+  font:500 12px/1.4 var(--font-interface); font-variant-numeric:tabular-nums;
+}
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field[data-format="字体"] { --ts-format-value-width:80px; }
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field[data-format="字号"] { --ts-format-value-width:54px; }
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field:is([data-format="卡片颜色"],[data-format="分组背景"]) { --ts-format-value-width:98px; }
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field:is([data-format="卡片样式"],[data-format="分组样式"],[data-format="边框线型"]) { --ts-format-value-width:60px; }
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field[data-format="文字对齐"] { --ts-format-value-width:70px; }
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field[data-format="标题分割线"] { --ts-format-value-width:94px; }
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-edge-format-group .ts-format-field[data-format="连线路径"] { --ts-format-value-width:84px; }
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-fill-custom {
+  display:flex; justify-content:center; align-items:center; padding-inline:5px; min-width:38px;
+}
+.ts-root .ts-floating-formatbar .ts-fill-custom > span { display:none; }
 .ts-root .ts-floating-formatbar .ts-appearance-group .ts-fill-custom input[type=color] {
-  width: 26px; height: 26px; min-height: 26px; padding: 3px; border: 1px solid var(--ts-board-line);
-  border-radius: 7px; background: var(--background-primary); cursor: pointer;
+  width:28px; height:28px; min-height:28px; padding:3px; border:1px solid var(--ts-format-line);
+  border-radius:6px; background:var(--background-primary); cursor:pointer;
 }
-.ts-root .ts-floating-formatbar .ts-fill-custom input[type=color]::-webkit-color-swatch-wrapper { padding: 0; }
-.ts-root .ts-floating-formatbar .ts-fill-custom input[type=color]::-webkit-color-swatch { border: 0; border-radius: 3px; }
-.ts-root .ts-floating-formatbar .ts-style-transfer {
-  display: inline-flex; flex: none; align-items: center; gap: 1px; margin: 0 0 0 5px;
-  padding: 0 0 0 6px; border-inline-start: 1px solid var(--ts-board-line); border-inline-end: 0;
+.ts-root .ts-floating-formatbar .ts-fill-custom input[type=color]::-webkit-color-swatch-wrapper { padding:0; }
+.ts-root .ts-floating-formatbar .ts-fill-custom input[type=color]::-webkit-color-swatch { border:0; border-radius:3px; }
+.ts-root .ts-floating-formatbar :is(.ts-style-transfer,.ts-edge-format-actions) {
+  display:inline-flex; flex:none; align-items:center; gap:2px; margin:0 0 0 5px;
+  padding:0 2px 0 7px; border-inline-start:1px solid var(--ts-format-line); border-inline-end:0;
 }
-.ts-root .ts-floating-formatbar .ts-style-transfer .ts-button { color: var(--text-muted); border-radius: 7px !important; }
-.ts-root .ts-floating-formatbar .ts-style-transfer .ts-button:hover:not(:disabled) { color: var(--text-normal); background: var(--background-secondary) !important; }
-.ts-root .ts-floating-formatbar > .ts-format-scroll { width: 24px; min-width: 24px; border-radius: 7px !important; }
-.ts-root .ts-floating-formatbar:dir(rtl) .ts-format-scroll svg { transform: scaleX(-1); }
-.ts-root .ts-floating-formatbar .ts-selection-tools:has(.ts-batch-format-switch) > .ts-format-context { display: none; }
-.ts-root .ts-floating-formatbar .ts-batch-format-switch { margin-inline: 0 8px; }
+.ts-root .ts-floating-formatbar :is(.ts-style-transfer,.ts-edge-format-actions) .ts-button { color:var(--text-muted); border-radius:6px !important; }
+.ts-root .ts-floating-formatbar :is(.ts-style-transfer,.ts-edge-format-actions) .ts-button:hover:not(:disabled) { color:var(--text-normal); background:var(--ts-format-wash) !important; }
+.ts-root .ts-floating-formatbar .ts-format-row > .ts-format-scroll {
+  flex:0 0 28px; width:28px; min-width:28px; height:var(--ts-board-format-control);
+  margin:0; padding:0 !important; pointer-events:auto; border:1px solid var(--ts-format-line) !important;
+  border-radius:6px !important; background:var(--background-primary) !important;
+}
+.ts-root .ts-floating-formatbar .ts-format-scroll svg { width:15px; height:15px; }
+.ts-root .ts-floating-formatbar .ts-format-scroll[hidden] { display:none !important; }
+.ts-root .ts-floating-formatbar:dir(rtl) .ts-format-scroll svg { transform:scaleX(-1); }
+.ts-root .ts-floating-formatbar .ts-format-heading:has(.ts-batch-format-switch) > .ts-format-context { display:none; }
+.ts-root .ts-floating-formatbar .ts-batch-format-switch { margin:0; padding:0; gap:2px; border:0; border-radius:5px; background:var(--ts-format-wash); }
+.ts-root .ts-floating-formatbar .ts-batch-format-switch .ts-button { height:28px; min-height:28px; padding-inline:9px !important; font-size:11px; border:0 !important; border-radius:4px !important; background:transparent !important; color:var(--text-muted); }
+.ts-root .ts-floating-formatbar .ts-batch-format-switch .ts-button.is-active { background:var(--ts-format-active) !important; color:var(--ts-accent); box-shadow:none !important; }
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-edge-scope { padding-inline:7px; margin-right:5px; border-inline-end:1px solid var(--ts-format-line); }
 .ts-root .ts-main > .ts-object-filter-status,
-.ts-root .ts-main:has(> .ts-floating-formatbar .ts-selection-tools.is-visible) > .ts-object-filter-status { top: calc(var(--ts-format-reserve, 28px) + 4px); }
-@container ts-board-canvas (max-width: 540px) {
-  .ts-root .ts-main > .ts-floating-formatbar { top: 8px; max-width: calc(100% - 16px); }
-  .ts-root .ts-floating-formatbar .ts-format-context { display: none; }
-  .ts-root .ts-floating-formatbar .ts-format-mode-button > .ts-format-mode-label { display: none; }
-  .ts-root .ts-floating-formatbar .ts-commandbar .ts-format-mode-button { width: 32px; padding: 0 !important; }
+.ts-root .ts-main:has(> .ts-floating-formatbar .ts-selection-tools.is-visible) > .ts-object-filter-status { top:calc(var(--ts-format-reserve,28px) + 4px); }
+
+/* Choice lists keep the existing viewport-bound anchor and native actions. */
+.ts-root .ts-main > .ts-inspector { border-radius:11px; background:var(--background-primary); }
+.ts-root .ts-inspector .ts-inspector-heading { gap:8px; padding:7px 5px 9px; margin-bottom:6px; color:var(--text-normal); border-bottom:1px solid var(--background-modifier-border); background:var(--background-primary); font-size:12px; }
+.ts-root .ts-inspector :is(.ts-choice-list,.ts-choice-grid) { gap:4px; }
+.ts-root .ts-inspector .ts-choice { min-height:34px; padding:7px 9px !important; border:1px solid transparent !important; border-radius:7px; color:var(--text-normal); }
+.ts-root .ts-inspector .ts-choice[aria-pressed=true] { color:var(--ts-accent); background:color-mix(in srgb,var(--ts-accent) 9%,var(--background-primary)) !important; border-color:color-mix(in srgb,var(--ts-accent) 24%,transparent) !important; }
+.ts-root .ts-inspector .ts-choice i { width:16px; height:16px; border-radius:4px; box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--text-normal) 12%,transparent); }
+
+/* A split pane keeps modes above the value scroller instead of squeezing
+   either set of controls into an unusable strip. Both rows preserve DOM order. */
+@container ts-board-canvas (max-width:879px) {
+  .ts-root .ts-main > .ts-floating-formatbar { flex-direction:column; align-items:stretch; max-width:min(760px,calc(100% - 24px)); }
+  .ts-root .ts-floating-formatbar > .ts-format-heading { justify-content:space-between; gap:12px; margin:0; padding:3px 7px 3px 10px; border-inline-end:0; border-bottom:1px solid var(--ts-format-line); background:var(--ts-format-wash); border-radius:9px 9px 0 0; }
+  .ts-root .ts-floating-formatbar .ts-format-heading .ts-format-mode-button { padding-inline:8px !important; }
 }
-@media (prefers-contrast: more) {
-  .ts-root .ts-floating-formatbar .ts-commandbar .ts-format-mode-button,
-  .ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field { border: 1px solid var(--background-modifier-border) !important; }
+@container ts-board-canvas (max-width:540px) {
+  .ts-root .ts-main > .ts-floating-formatbar { top:8px; max-width:calc(100% - 16px); }
+  .ts-root .ts-floating-formatbar > .ts-format-heading { gap:8px; padding-inline:7px; }
+  .ts-root .ts-floating-formatbar .ts-format-mode-button > .ts-format-mode-label { display:none; }
+  .ts-root .ts-floating-formatbar .ts-format-heading .ts-format-mode-button { width:30px; padding:0 !important; }
+}
+@container ts-board-canvas (max-width:300px) {
+  .ts-root .ts-floating-formatbar .ts-format-context { display:none; }
+  .ts-root .ts-floating-formatbar > .ts-format-heading { justify-content:flex-start; padding-inline:5px; gap:6px; }
+  .ts-root .ts-floating-formatbar .ts-batch-format-switch .ts-button { padding-inline:6px !important; }
+}
+@container ts-board-canvas (max-height:220px) {
+  .ts-root .ts-main > .ts-floating-formatbar { top:4px; }
+  .ts-root .ts-floating-formatbar > .ts-format-heading { padding-block:1px; margin-block:2px; }
+  .ts-root .ts-floating-formatbar > .ts-format-row { padding-block:2px; }
+}
+@media (prefers-contrast:more) {
+  .ts-root .ts-floating-formatbar .ts-format-heading .ts-format-mode-button,
+  .ts-root .ts-floating-formatbar .ts-commandbar :is(.ts-appearance-group,.ts-edge-format-group) .ts-format-field { border:1px solid var(--background-modifier-border) !important; }
 }
 
 /* Native Markdown commands share the same visual rhythm in a board, note or

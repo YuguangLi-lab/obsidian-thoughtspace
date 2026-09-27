@@ -1,9 +1,10 @@
 import {markdownRows} from './markdown-context';
 import {maskInlineCode} from './markdown-literals';
 import type {Fragment} from './materials';
+import {isRecord} from './value-guards';
 export function videoSource(value:unknown):string|undefined{
  if(typeof value!=='string'||!value||value.length>8192||/[\r\n\0]/.test(value))return;
- if(value.startsWith('/')&&!value.startsWith('//')&&/\.(mp4|mov|m4v|webm|ogv|mkv|ogg|mp3|m4a|wav)$/i.test(value))return value;
+ if((value.startsWith('/')&&!value.startsWith('//')||/^[a-z]:[\\/]/i.test(value))&&/\.(mp4|mov|m4v|webm|ogv|mkv|ogg|mp3|m4a|wav)$/i.test(value))return value;
  try{const u=new URL(value);if(u.protocol==='https:'&&!u.username&&!u.password&&!u.port&&['youtube.com','www.youtube.com','m.youtube.com','youtu.be','www.bilibili.com','bilibili.com','pan.baidu.com'].includes(u.hostname))return value;}catch{/* Invalid source links are rejected by returning undefined. */}
 }
 export function yingjianLink(video:string,time:number,note?:string,vault?:string){
@@ -16,6 +17,18 @@ export function parseYingjianLink(link:string,source?:string){
  const video=videoSource(u.searchParams.get('video')),t=u.searchParams.get('t');if(!video||!t||!/^\d+(?:\.\d+)?$/.test(t)||source&&video!==source)return;const time=Number(t);if(time>100000000)return;return{video,time};}catch{/* Invalid source links are rejected by returning undefined. */}
 }
 export interface VideoMoment {id:string;time:number;label:string;link:string;fragment:Fragment;}
+/** Player notes and individual saved captures share this metadata contract. */
+export function yingjianNoteSource(meta:unknown):string|undefined{
+ if(!isRecord(meta))return;
+ const source=videoSource(meta.source);if(!source)return;
+ const identified=['video-note-id','yingjian-capture-id'].some(key=>typeof meta[key]==='string'&&!!meta[key].trim());
+ const tags=Array.isArray(meta.tags)?meta.tags:typeof meta.tags==='string'?meta.tags.split(/[,，\s]+/):[];
+ return identified||tags.some(tag=>typeof tag==='string'&&tag.replace(/^#/,'')==='影笺')?source:undefined;
+}
+/** Check the parsed property itself, never a substring or code example. */
+export function isYingjianCaptureNote(meta:unknown,id:string):boolean{
+ return /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(id)&&isRecord(meta)&&meta['yingjian-capture-id']===id;
+}
 function videoRows(text:string){const lines=text.split('\n'),safe=[...lines];let fence='';
  // Mask top-level fenced examples before the context parser sees quoted example lines.
  // This keeps quote depth inside a code block from changing the surrounding Markdown state.
@@ -29,11 +42,23 @@ function videoRows(text:string){const lines=text.split('\n'),safe=[...lines];let
 /** Read the player's existing Markdown format; never write to its notes or workspace. */
 export function yingjianMoments(raw:string,source?:string){
  if(raw.length>500000)throw Error('视频笔记超过 500,000 字符，请先在原笔记中选择章节');
- const text=raw.replace(/\r\n?/g,'\n'),lines=text.split('\n'),moments:VideoMoment[]=[];let truncated=false;
- for(const row of videoRows(text)){const line=lines[row.line];if(row.code)continue;const visible=maskInlineCode(row.visible),match=/\[((?:\d{1,3}:)?\d{1,2}:\d{2}(?:\.\d{1,3})?)\]\((yingjian:\/\/open\?[^)\s]+)\)/.exec(visible);if(!match)continue;
+ const text=raw.replace(/\r\n?/g,'\n'),lines=text.split('\n'),rows=[...videoRows(text)],moments:VideoMoment[]=[];let truncated=false,consumed=0;
+ for(const row of rows){const line=lines[row.line];if(row.code||row.line<consumed)continue;const visible=maskInlineCode(row.visible),match=/\[((?:\d{1,3}:)?\d{1,2}:\d{2}(?:\.\d{1,3})?)\]\((yingjian:\/\/open\?[^)\s]+)\)/.exec(visible);if(!match)continue;
   const data=parseYingjianLink(match[2],source);if(!data||!videoSource(data.video)||data.time>100000000)continue;
   if(moments.length>=500){truncated=true;break;}let end=row.line+1;
-  if(/^\s*>/.test(line)){while(end<lines.length&&/^\s*>/.test(lines[end])&&!/\]\(yingjian:/.test(lines[end]))end++;let block=end;while(block<lines.length&&!lines[block].trim())block++;if(/^\^video-t-[\w-]+\s*$/.test(lines[block]||''))end=block+1;}
+  if(/^\s*>/.test(line)){
+   const callout=/^ {0,3}>[ \t]?\[![^\]]+\][+-]?(?:\s|$)/.test(line);
+   while(end<lines.length&&/^\s*>/.test(lines[end])){
+    const next=maskInlineCode(rows[end].visible),newMoment=/\]\(yingjian:/.test(next);
+    if(newMoment&&(!callout||/^ {0,3}>[ \t]?\[![^\]]+\][+-]?(?:\s|$)/.test(next)))break;
+    end++;
+   }
+  }
+  // Plain screenshot records use an image + timestamp followed by the same
+  // standalone block reference as callouts. Keep that backlink when importing.
+  let block=end;while(block<lines.length&&!lines[block].trim())block++;
+  if(rows[block]&&!rows[block].code&&rows[block].topLevel&&/^\^video-t-[\w-]+\s*$/.test(rows[block].visible))end=block+1;
+  consumed=end;
   const body=lines.slice(row.line,end).join('\n'),id=`${row.line+1}:${end}`;
   moments.push({id,time:data.time,label:match[1],link:match[2],fragment:{id,kind:/^\s*>/.test(line)?'quote':'paragraph',title:`${match[1]} · 视频摘录`,heading:'时间轴笔记',body,start:row.line+1,end}});
  }return{moments,truncated};

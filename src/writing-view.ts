@@ -213,7 +213,7 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
  }
  private addVisible(){const ids=this.matching().map(n=>n.id);if(!ids.length)return;this.update(s=>{s.order=[...new Set([...writingOrder(this.ensure().board),...ids])];for(const id of ids)if(s.options?.[id]?.excluded)s.options={...s.options,[id]:{...s.options[id],excluded:false}};});if(this.mode==='write')void this.insertMaterial(ids).catch(e=>new Notice(String(e)));}
  private add(id:string,index:number,include=false){if(!writingItems(this.ensure().board).some(n=>n.id===id))throw Error('材料已移除');this.update(s=>{s.order=moveWriting(writingOrder(this.ensure().board),id,index);if(include&&s.options?.[id]?.excluded)s.options={...s.options,[id]:{...s.options[id],excluded:false}};});if(include&&this.mode==='write')void this.insertMaterial([id]).catch(e=>new Notice(String(e)));}
- private newChapter(){if(this.mode==='write'&&this.manuscriptInput){const input=this.manuscriptInput,start=input.selectionStart;input.setRangeText('\n\n## 新章节\n\n',start,input.selectionEnd,'end');input.setSelectionRange(start+5,start+8);input.focus();return;}const id='writing-'+crypto.randomUUID();if((this.state().chapters?.length||0)>=500)throw Error('最多 500 个自建章节');this.selected=id;this.mode='outline';this.update(s=>{s.chapters??=[];s.chapters.push({id,title:'新章节',body:''});s.order.push(id);});this.render();const input=this.outline.querySelector<HTMLInputElement>('.ts-writing-editor input');input?.focus();input?.select();}
+ private newChapter(){if(this.mode==='write'&&this.manuscriptInput){const input=this.manuscriptInput,start=input.selectionStart;input.setRangeText('\n\n## 新章节\n\n',start,input.selectionEnd,'end');if(!this.manuscriptNative)input.dispatchEvent(new Event('input'));input.setSelectionRange(start+5,start+8);input.focus();return;}const id='writing-'+crypto.randomUUID();if((this.state().chapters?.length||0)>=500)throw Error('最多 500 个自建章节');this.selected=id;this.mode='outline';this.update(s=>{s.chapters??=[];s.chapters.push({id,title:'新章节',body:''});s.order.push(id);});this.render();const input=this.outline.querySelector<HTMLInputElement>('.ts-writing-editor input');input?.focus();input?.select();}
  private option(id:string,patch:Partial<WritingOption>){this.update(s=>{s.options={...s.options,[id]:{...s.options?.[id],...patch}};});}
  private dragRow(el:HTMLElement,id:string,index?:number){
   el.draggable=true;
@@ -277,8 +277,9 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   for(const [value,text] of [[0,'正文'],[2,'二级标题'],[3,'三级标题'],[4,'四级标题']] as const)level.createEl('option',{value:String(value),text});level.value=String(option?.level??(n.kind==='text'&&!n.topic?0:writingParts(this.ensure().board).find(p=>p.node.id===n.id)?.depth??2));level.onchange=()=>this.option(n.id,{level:Number(level.value)});
   const contentLabel=editor.createDiv('ts-writing-md-label');contentLabel.setText(custom?'Markdown 正文':'写作批注 · Markdown');
   const surface=editor.createDiv('ts-writing-entry-markdown');
-  const input=this.markdownInput(surface,custom?chapter!.body:option?.note||'',false);this.entryInputs.push(input);
-  const persist=()=>{const value=input.value;this.queueField(n.id+'body',()=>{if(value.length>(custom?100000:20000))throw Error('章节或批注过长，请拆分后保存；关闭时会另存未保存输入。');return custom?this.update(s=>{const c=s.chapters?.find(c=>c.id===n.id);if(c)c.body=value;}):this.option(n.id,{note:value});});};
+  let baseline=custom?chapter!.body:option?.note||'';
+  const input=this.markdownInput(surface,baseline,false);this.entryInputs.push(input);
+  const persist=()=>{const value=input.value;this.queueField(n.id+'body',()=>{if(value.length>(custom?100000:20000))throw Error('章节或批注过长，请拆分后保存；关闭时会另存未保存输入。');const state=this.state(),current=custom?state.chapters?.find(c=>c.id===n.id)?.body:state.options?.[n.id]?.note||'';if(current!==baseline&&current!==value)throw Error('其他窗口已修改章节或批注，当前输入未覆盖它，请先复制当前输入');if(custom&&!state.chapters?.some(c=>c.id===n.id))throw Error('章节已移除，当前输入仍保留，请先复制');if(custom)this.update(s=>{s.chapters!.find(c=>c.id===n.id)!.body=value;});else this.option(n.id,{note:value});baseline=value;});};
   input.addEventListener('input',persist);surface.addEventListener('focusout',()=>this.flushFields());
   const include=settings.createEl('label',{cls:'ts-writing-include'}),check=include.createEl('input',{type:'checkbox'});check.checked=!option?.excluded;include.createSpan({text:'纳入正文'});check.onchange=()=>this.option(n.id,{excluded:!check.checked});
   editor.createEl('small',{text:custom?'章节保存在白板中，随编排一起保存。':'标题、批注和层级只影响文章，原材料内容不变。'});
@@ -326,7 +327,7 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   }catch(e){if(run===this.revision)reading.createEl('p',{text:'无法读取参考材料：'+String(e)});}
  }
  private queueField(key:string,fn:()=>void){this.pendingFields.set(key,fn);if(this.fieldTimer)this.containerEl.win.clearTimeout(this.fieldTimer);this.fieldTimer=this.containerEl.win.setTimeout(()=>{try{this.flushFields();}catch(e){new Notice(String(e));}},250);}
- private flushFields(){if(this.flushing||!this.pendingFields.size)return;if(this.fieldTimer)this.containerEl.win.clearTimeout(this.fieldTimer);this.fieldTimer=undefined;const pending=[...this.pendingFields.values()];this.flushing=true;try{for(const fn of pending)fn();this.pendingFields.clear();}finally{this.flushing=false;}}
+ private flushFields(){if(this.flushing||!this.pendingFields.size)return;if(this.fieldTimer)this.containerEl.win.clearTimeout(this.fieldTimer);this.fieldTimer=undefined;const pending=[...this.pendingFields];this.flushing=true;try{for(const [key,fn] of pending){fn();if(this.pendingFields.get(key)===fn)this.pendingFields.delete(key);}}finally{this.flushing=false;}}
  private commitFields(){this.flushFields();const active=this.contentEl.ownerDocument.activeElement;if(active instanceof HTMLElement&&this.contentEl.contains(active))active.blur();const title=this.titleInput.value.trim()||this.file!.basename;if(this.state().title!==title)this.update(s=>s.title=title);}
  private disposeEditors(){this.manuscriptRun++;this.manuscriptToolbar?.();this.manuscriptToolbar=undefined;this.entryToolbars.forEach(dispose=>dispose());this.entryToolbars=[];this.manuscriptNative?.dispose();this.manuscriptNative=undefined;this.manuscriptInput=undefined;this.entryEditors.forEach(editor=>editor.dispose());this.entryEditors=[];}
  private markdownInput(parent:HTMLElement,value:string,whole:boolean):DraftInput{
@@ -354,7 +355,7 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   await this.openManuscript();const input=this.manuscriptInput;if(!input)return;const old=input.value,start=input.selectionStart,end=input.selectionEnd;
   const result=await this.compose(ids);const fragment=result.text.split('\n\n').slice(2).join('\n\n').trim();
   if(this.manuscriptInput!==input||input.value!==old)throw Error('正文已变化，请重新插入材料');
-  input.setRangeText('\n\n'+fragment+'\n\n',start,end,'end');input.focus();this.flushFields();
+  input.setRangeText('\n\n'+fragment+'\n\n',start,end,'end');if(!this.manuscriptNative)input.dispatchEvent(new Event('input'));input.focus();this.flushFields();
  }
  private async rebuildManuscript(){
   this.commitFields();const owner=this.ensure(),old=this.state().manuscript,result=await this.compose();
@@ -378,7 +379,7 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
      const raw=reads.get(file)?.raw??await readCurrentNativeNote(this.app,file);reads.set(file,{raw,path:file.path});
      const cache=this.app.metadataCache.getFileCache(file);
      const references=[...(cache?.links||[]),...(cache?.embeds||[])].flatMap(ref=>{const parsed=parseLinktext(ref.link),target=parsed.path?this.app.metadataCache.getFirstLinkpathDest(parsed.path,file.path):file;if(!target)return[];let replacement=this.app.fileManager.generateMarkdownLink(target,destination,parsed.subpath,ref.displayText);if(ref.original.startsWith('!')&&!replacement.startsWith('!'))replacement='!'+replacement;return[{original:ref.original,replacement,start:ref.position.start,end:ref.position.end}];});
-     body=rebaseFragment(raw,{id:'draft',kind:'paragraph',title:'',heading:'',body:raw,start:1,end:raw.split('\n').length},references);
+     body=rebaseFragment(raw,{id:'draft',kind:'paragraph',title:'',heading:'',body:raw.replace(/\r\n?/g,'\n'),start:1,end:raw.split(/\r\n?|\n/).length},references);
     }
    }
    if(note?.trim())body+='\n\n'+note.trim();

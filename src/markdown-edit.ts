@@ -1,5 +1,6 @@
+import {markdownLinkRanges} from './markdown-links';
 import {inlineCodeRanges} from './markdown-literals';
-import {markdownColumns} from './markdown-context';
+import {markdownColumns,markdownRows} from './markdown-context';
 function codeBody(span:string){const n=/^`+/.exec(span)![0].length;let body=span.slice(n,-n).replace(/\r?\n/g,' ');if(body.startsWith(' ')&&body.endsWith(' ')&&/[^ ]/.test(body))body=body.slice(1,-1);return body;}
 /** Keep one maximum, not a delimiter array or an unbounded function argument list. */
 function longestBacktickRun(text:string,minimum=0){const runs=/`+/g;let run:RegExpExecArray|null;while((run=runs.exec(text)))if(run[0].length>minimum)minimum=run[0].length;return minimum;}
@@ -21,23 +22,30 @@ function clearProse(text:string){
 }
 /** Link destinations can contain balanced parentheses; never format their contents. */
 function clearLinkedProse(text:string){
- const pattern=/!?\[[^\]\n]*\]\(|\[\[[^\]\n]*\]\]|https?:\/\/[^\s]+/g;let at=0,result='',m:RegExpExecArray|null,unclosed:Set<number>|undefined;
- while((m=pattern.exec(text))){let end=pattern.lastIndex;
-  if(m[0].endsWith('](')){
-   if(unclosed?.has(end-1))continue;
-   const openings=[end-1];let slashes=0;
-   for(;end<text.length&&openings.length;end++){
-    const char=text.charCodeAt(end);if(char===92){slashes++;continue;}const escaped=slashes%2===1;slashes=0;if(escaped)continue;
-    if(char===40)openings.push(end);else if(char===41)openings.pop();
-   }
-   // Every opener left on this stack is unmatched. Repeated malformed links
-   // can now be skipped without rescanning the remainder of the selection.
-   if(openings.length){unclosed=new Set(openings);continue;}
-  }
-  result+=clearProse(text.slice(at,m.index))+text.slice(m.index,end);at=end;pattern.lastIndex=end;
- }return result+clearProse(text.slice(at));
+ const ranges=[...markdownLinkRanges(text),...Array.from(text.matchAll(/https?:\/\/[^\s]+/g),match=>({from:match.index,to:match.index+match[0].length}))].sort((a,b)=>a.from-b.from||b.to-a.to);
+ let at=0,result='';
+ for(const range of ranges){if(range.from<at)continue;result+=clearProse(text.slice(at,range.from))+text.slice(range.from,range.to);at=range.to;}
+ return result+clearProse(text.slice(at));
 }
 function clearInline(text:string){let at=0,result='';for(const range of inlineCodeRanges(text)){result+=clearLinkedProse(text.slice(at,range.from))+codeBody(text.slice(range.from,range.to));at=range.to;}return result+clearLinkedProse(text.slice(at));}
+/** Block code is structural source, not inline styling. Preserve its exact bytes. */
+function clearSelection(text:string,start:number,end:number){
+ let offset=0,cursor=start,result='',hasCode=false,paragraph=false,quoteDepth=0;
+ for(const row of markdownRows(text)){
+  const next=Math.min(text.length,offset+row.source.length+1);
+  if(offset>=end)break;
+  const prefix=/^(?: {0,3}>[ \t]?)+/.exec(row.source)?.[0]||'',depth=(prefix.match(/>/g)||[]).length;
+  if(depth!==quoteDepth){paragraph=false;quoteDepth=depth;}
+  // Indented code cannot interrupt an open paragraph. markdownRows is a
+  // conservative source guard, so retain this distinction only for formatting.
+  const continuation:boolean=row.fenceOpening===false&&paragraph,code:boolean=row.code&&!continuation;
+  if(code&&next>start){hasCode=true;const from=Math.max(start,offset),to=Math.min(end,next);result+=clearInline(text.slice(cursor,from))+text.slice(from,to);cursor=to;}
+  const content:string=(continuation?row.source:row.visible).slice(prefix.length).replace(/\r$/,'');
+  paragraph=!code&&!!content.trim()&&!row.openBlock&&!/^ {0,3}(?:#{1,6}(?:[ \t]|$)|(?:[-*_][ \t]*){3,}$|(?:=+|-+)[ \t]*$)/.test(content);
+  offset=next;
+ }
+ return {text:result+clearInline(text.slice(cursor,end)),hasCode};
+}
 export type MarkdownCommand = 'bold'|'italic'|'strike'|'highlight'|'code'|'link'|'image'|'wikilink'|'bullet'|'ordered'|'task'|'quote'|'paragraph'|'h1'|'h2'|'h3'|'h4'|'h5'|'h6'|'codeblock'|'table'|'rule'|'callout'|'underline'|'sup'|'sub'|'indent'|'outdent'|'clear'|'comment'|'math'|'mathblock';
 export interface MarkdownEdit {text:string;start:number;end:number;}
 export interface MarkdownEditPlan extends MarkdownEdit {change?:{from:number;to:number;text:string};}
@@ -63,10 +71,10 @@ export function markdownActive(text:string,start:number,end:number):Set<Markdown
  if(/^>/.test(line))active.add('quote');
  for(const [id,open,close]of [['bold','**','**'],['strike','~~','~~'],['highlight','==','=='],['code','`','`'],['underline','<u>','</u>']] as const){if((before.endsWith(open)&&after.startsWith(close)&&!escapedAt(text,start-open.length)&&!escapedAt(text,end))||(selected.startsWith(open)&&selected.endsWith(close)&&selected.length>open.length+close.length&&!escapedAt(text,start)&&!escapedAt(text,end-close.length)))active.add(id);}
  const left=starsBefore(text,start)||starsAfter(text,start,end),right=starsAfter(text,end)||starsBefore(text,end,start);if(left%2&&right%2&&!escapedAt(text,start-left)&&!escapedAt(text,end))active.add('italic');
- for(const [id,mark] of [['bold','__'],['italic','_']] as const){const a=selected.startsWith(mark)&&selected.endsWith(mark)?start:start-mark.length,b=selected.startsWith(mark)&&selected.endsWith(mark)?end:end+mark.length;if(a>=0&&text.slice(a,a+mark.length)===mark&&text.slice(b-mark.length,b)===mark&&!escapedAt(text,a)&&!/[\p{L}\p{N}_]/u.test(text[a-1]||'')&&!/[\p{L}\p{N}_]/u.test(text[b]||''))active.add(id);}
+ for(const [id,mark] of [['bold','__'],['italic','_']] as const){const a=selected.startsWith(mark)&&selected.endsWith(mark)?start:start-mark.length,b=selected.startsWith(mark)&&selected.endsWith(mark)?end:end+mark.length;if(a>=0&&text.slice(a,a+mark.length)===mark&&text.slice(b-mark.length,b)===mark&&!escapedAt(text,a)&&!escapedAt(text,b-mark.length)&&!/[\p{L}\p{N}_]/u.test(text[a-1]||'')&&!/[\p{L}\p{N}_]/u.test(text[b]||''))active.add(id);}
  let a=start,b=end;
  for(let pass=0;pass<8;pass++){
-  const wrapped=([['bold','**','**'],['italic','*','*'],['strike','~~','~~'],['highlight','==','=='],['code','`','`'],['underline','<u>','</u>']] as const).find(([,open,close])=>text.slice(a-open.length,a)===open&&text.slice(b,b+close.length)===close&&!escapedAt(text,a-open.length));
+  const wrapped=([['bold','**','**'],['italic','*','*'],['strike','~~','~~'],['highlight','==','=='],['code','`','`'],['underline','<u>','</u>']] as const).find(([,open,close])=>text.slice(a-open.length,a)===open&&text.slice(b,b+close.length)===close&&!escapedAt(text,a-open.length)&&(open==='`'||!escapedAt(text,b)));
   if(wrapped){active.add(wrapped[0]);a-=wrapped[1].length;b+=wrapped[2].length;continue;}
   const color=/<(span|mark) style="(?:color|background-color):#[a-f\d]{6}(?:;color:#[a-f\d]{6})?">$/i.exec(text.slice(Math.max(0,a-100),a));
   if(color&&text.slice(b,b+color[1].length+3)===`</${color[1]}>`){a-=color[0].length;b+=color[1].length+3;continue;}break;
@@ -82,7 +90,8 @@ export function planMarkdownEdit(text:string,start:number,end:number,command:Mar
  start=Math.max(0,Math.min(text.length,start));end=Math.max(start,Math.min(text.length,end));
  const unchanged={text,start,end};
  // Properties are data, not body prose. Do not turn YAML fields into Markdown.
- const frontmatter=/^---\r?\n[\s\S]*?\r?\n(?:---|\.\.\.)(?:\r?\n|$)/.exec(text);
+ // Try an immediate closing line first so empty properties cannot consume prose.
+ const frontmatter=/^---\r?\n(?:[\s\S]*?\r?\n)??(?:---|\.\.\.)[ \t]*(?:\r?\n|$)/.exec(text);
  if(frontmatter&&start<frontmatter[0].length)return unchanged;
  const selected=text.slice(start,end);
  const replace=(a:number,b:number,value:string,from=0,to=value.length):MarkdownEditPlan=>({text:text.slice(0,a)+value+text.slice(b),start:a+from,end:a+to,change:{from:a,to:b,text:value}});
@@ -112,13 +121,14 @@ export function planMarkdownEdit(text:string,start:number,end:number,command:Mar
  }
  if(command==='clear'){
   if(!selected)return unchanged;
+  const cleared=clearSelection(text,start,end);if(cleared.hasCode)return replace(start,end,cleared.text);
   let a=start,b=end,content=selected;
   // Expand through immediate matching wrappers; do not touch links or list structure.
   const wrappers=[['**','**'],['__','__'],['~~','~~'],['==','=='],['*','*'],['_','_'],['`','`'],['<u>','</u>'],['<sup>','</sup>'],['<sub>','</sub>']];
-  for(let pass=0;pass<8;pass++){const pair=wrappers.find(([open,close])=>text.slice(a-open.length,a)===open&&text.slice(b,b+close.length)===close&&!escapedAt(text,a-open.length)&&(!open.includes('_')||(!/[\p{L}\p{N}_]/u.test(text[a-open.length-1]||'')&&!/[\p{L}\p{N}_]/u.test(text[b+close.length]||''))));if(pair){a-=pair[0].length;b+=pair[1].length;continue;}const html=/<(span|mark) style="(?:color|background-color):#[a-f\d]{6}(?:;color:#[a-f\d]{6})?">$/i.exec(text.slice(Math.max(0,a-100),a));if(html&&text.slice(b,b+html[1].length+3)===`</${html[1]}>`){a-=html[0].length;b+=html[1].length+3;continue;}break;}
+  for(let pass=0;pass<8;pass++){const pair=wrappers.find(([open,close])=>text.slice(a-open.length,a)===open&&text.slice(b,b+close.length)===close&&!escapedAt(text,a-open.length)&&(open==='`'?!/\r?\n[ \t]*\r?\n/.test(text.slice(a,b)):!escapedAt(text,b))&&(!open.includes('_')||(!/[\p{L}\p{N}_]/u.test(text[a-open.length-1]||'')&&!/[\p{L}\p{N}_]/u.test(text[b+close.length]||''))));if(pair){a-=pair[0].length;b+=pair[1].length;continue;}const html=/<(span|mark) style="(?:color|background-color):#[a-f\d]{6}(?:;color:#[a-f\d]{6})?">$/i.exec(text.slice(Math.max(0,a-100),a));if(html&&text.slice(b,b+html[1].length+3)===`</${html[1]}>`){a-=html[0].length;b+=html[1].length+3;continue;}break;}
   const codeRange=possibleCodeBody(text,start,end)&&inlineCodeRanges(text).find(r=>{const run=/^`+/.exec(text.slice(r.from))![0].length,raw=text.slice(r.from+run,r.to-run),pad=raw.startsWith(' ')&&raw.endsWith(' ')&&/[^ ]/.test(raw)?1:0;return start===r.from+run+pad&&end===r.to-run-pad;});
   if(codeRange)return replace(codeRange.from,codeRange.to,codeBody(text.slice(codeRange.from,codeRange.to)));
-  content=clearInline(content);
+  content=cleared.text;
   return replace(a,b,content);
  }
  if(command==='indent'||command==='outdent'){
@@ -136,8 +146,8 @@ export function planMarkdownEdit(text:string,start:number,end:number,command:Mar
   if(['bold','italic','strike','highlight'].includes(command)&&/\n[ \t]*\r?\n/.test(selected))return replace(start,end,selected.split(/(\r?\n[ \t]*\r?\n)/).map((part,i)=>i%2?part:markdownEdit(part,0,part.length,command).text).join(''));
   const italicSelected=command!=='italic'||(starsAfter(text,start,end)%2===1&&starsBefore(text,end,start)%2===1);
   const italicOutside=command!=='italic'||(starsBefore(text,start)%2===1&&starsAfter(text,end)%2===1);
-  if(command!=='code'&&!escapedAt(text,start)&&italicSelected&&selected.startsWith(mark)&&selected.endsWith(mark)&&selected.length>=mark.length*2)return replace(start,end,selected.slice(mark.length,-mark.length));
-  if(command!=='code'&&!escapedAt(text,start-mark.length)&&italicOutside&&text.slice(start-mark.length,start)===mark&&text.slice(end,end+mark.length)===mark)return replace(start-mark.length,end+mark.length,selected);
+  if(command!=='code'&&!escapedAt(text,start)&&!escapedAt(text,end-mark.length)&&italicSelected&&selected.startsWith(mark)&&selected.endsWith(mark)&&selected.length>=mark.length*2)return replace(start,end,selected.slice(mark.length,-mark.length));
+  if(command!=='code'&&!escapedAt(text,start-mark.length)&&!escapedAt(text,end)&&italicOutside&&text.slice(start-mark.length,start)===mark&&text.slice(end,end+mark.length)===mark)return replace(start-mark.length,end+mark.length,selected);
   const leading=command==='code'?'':/^\s*/.exec(selected)![0],trailing=command==='code'||!selected.trim()?'':/\s*$/.exec(selected)![0];
   const content=(command==='code'?selected:selected.trim())||(command==='math'?'x^2':'文字');
   if(command==='code')mark='`'.repeat(longestBacktickRun(content)+1);
@@ -158,13 +168,13 @@ export function planMarkdownEdit(text:string,start:number,end:number,command:Mar
   const last=end>start&&text[end-1]==='\n'?end-1:end;
   const next=text.indexOf('\n',last),b=next<0?text.length:text[next-1]==='\r'?next-1:next;
   const lines=text.slice(a,b).replace(/\r$/,'').split(/\r?\n/);
-  const marker=command==='bullet'?/^[-+*] (?!\[[ xX]\] )/:command==='ordered'?/^\d+[.)] /:command==='task'?/^(?:[-+*]|\d+[.)]) \[[ xX]\] /:command==='quote'?/^> ?/:command.startsWith('h')?new RegExp('^#{'+command.slice(1)+'} '):/^#{1,6} /;
+  const marker=command==='bullet'?/^[-+*] (?!\[[ xX]\] )/:command==='ordered'?/^\d+[.)] (?!\[[ xX]\] )/:command==='task'?/^(?:[-+*]|\d+[.)]) \[[ xX]\] /:command==='quote'?/^> ?/:command.startsWith('h')?new RegExp('^#{'+command.slice(1)+'} '):/^#{1,6} /;
   const remove=command==='paragraph'||lines.some(line=>line.trim())&&lines.filter(line=>line.trim()).every(line=>marker.test(line.trimStart()));
   const numbering:{indent:number;count:number}[]=[];
   const value=lines.map(line=>{const indent=/^[\t ]*/.exec(line)![0],body=line.slice(indent.length);if(lines.length>1&&!body.trim())return line;if(remove)return indent+(command==='task'?body.replace(/^(\d+[.)] )\[[ xX]\] /,'$1').replace(/^[-+*] \[[ xX]\] /,''):body.replace(marker,''));
    const col=markdownColumns(indent);while(numbering.length&&numbering.at(-1)!.indent>col)numbering.pop();if(!numbering.length||numbering.at(-1)!.indent<col)numbering.push({indent:col,count:0});const number=++numbering.at(-1)!.count;
    const prefix=command==='bullet'?'- ':command==='ordered'?`${number}. `:command==='task'?'- [ ] ':command==='quote'?'> ':'#'.repeat(Number(command.slice(1)))+' ';
-   const clean=command==='quote'?body:command.startsWith('h')?body.replace(/^#{1,6} /,''):body.replace(/^(?:[-+*] (?:\[[ xX]\] )?|\d+[.)] )/,'');
+   const clean=command==='quote'?body:command.startsWith('h')?body.replace(/^#{1,6} /,''):body.replace(/^(?:[-+*]|\d+[.)]) (?:\[[ xX]\] )?/,'');
    return indent+prefix+clean;
   }).join(eol);
   return replace(a,b,value);

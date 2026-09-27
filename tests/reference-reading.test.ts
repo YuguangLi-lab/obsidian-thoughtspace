@@ -6,3 +6,6 @@ test('block reading is restricted to original block',()=>{const raw='before\ncla
 test('missing anchors reject rather than reading another section',()=>assert.throws(()=>referenceReading(text,cache,'#Missing')));
 test('whole-note reading omits complete frontmatter',()=>{const r=referenceReading('---\na: b\n---\n# Body',null,'');assert.equal(r.markdown,'# Body');assert.equal(r.line,4);});
 test('long reading is bounded without mutating source',()=>{const raw='x'.repeat(50000);const r=referenceReading(raw,null,'');assert.equal(r.markdown.length,40000);assert.ok(r.truncated);assert.equal(raw.length,50000);});
+
+
+test('whole-note reading preserves the first body section after empty frontmatter',()=>{for(const eol of ['\n','\r\n']){const body=['Essential','','---','','Tail'].join(eol);assert.equal(referenceReading(['---','---',body].join(eol),null,'').markdown,body);}});

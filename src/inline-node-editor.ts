@@ -30,7 +30,7 @@ export class InlineNodeEditor {
   const commandLabel='内容或选区已变化，本次操作未执行。请确认后重试。';
   this.commandHint=bar.createSpan({cls:'ts-inline-command-hint',attr:{title:commandLabel,'aria-label':commandLabel,role:'status','aria-live':'polite',tabindex:'0'}});setIcon(this.commandHint,'mouse-pointer-2');this.commandHint.hidden=true;
   const button=(label:string,icon:string,run:()=>unknown)=>{const b=bar.createEl('button',{attr:{'aria-label':label,title:label}});setIcon(b,icon);b.onmousedown=e=>e.preventDefault();b.onclick=()=>{if(!this.disposed&&!b.disabled)run();};this.actions.push(b);return b;};
-  button('保存并退出编辑 · Ctrl / ⌘ + Enter','check',()=>this.commit());button('取消本次编辑 · Esc','x',()=>this.cancel());button('复制编辑草稿','copy',()=>{void this.el.ownerDocument.defaultView!.navigator.clipboard.writeText(this.input.value).then(()=>{if(!this.disposed)this.feedback('草稿已复制');},()=>{if(!this.disposed)this.feedback('复制失败，请选中文字后复制');});});
+  button('保存并退出编辑 · Ctrl / ⌘ + Enter','check',()=>this.commit());button('取消本次编辑 · Esc','x',()=>this.cancel());button('复制编辑草稿','copy',()=>{void this.copyDraft();});
   if(kind==='text')button('查找与替换','search',()=>{try{this.findText();}catch(e){new Notice(String(e));}});
   this.actionNavigationDispose=toolbarNavigation(bar);
   let fallback=false;
@@ -54,6 +54,9 @@ export class InlineNodeEditor {
    if(this.disposed||e.defaultPrevented||e.isComposing||e.keyCode===229||this.composing)return;
    let handled=true;
    if(this.pending){
+    // The enabled Copy action must retain native keyboard activation while
+    // saving. Enter/Space inside the draft still cannot change its contents.
+    if(e.target===this.actions[2]&&!this.actions[2].disabled&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&(e.key==='Enter'||e.key===' ')){e.stopPropagation();return;}
     // Leave Tab to browser focus traversal, not native Markdown indentation.
     if(e.key==='Tab'&&!options.continueTopic){e.stopPropagation();return;}
     handled=!allowsReadOnlyKey(e);
@@ -80,6 +83,11 @@ export class InlineNodeEditor {
  ownsFocus(element:Node|null){return this.el.contains(element)||!!this.chrome?.contains(element);}
  checkFocus(){if(this.disposed)return;if(this.focusTimer!==undefined)this.win.clearTimeout(this.focusTimer);this.focusTimer=this.win.setTimeout(()=>{this.focusTimer=undefined;const active=this.el.ownerDocument.activeElement;if(!this.disposed&&!this.composing&&!this.saveError&&!this.ownsFocus(active)&&!this.options.focusWithin?.(active)&&!this.linkDialog?.modalEl.isConnected&&!this.searchDialog?.modalEl.isConnected)void this.commit();},0);}
  private feedback(message:string){this.status.setText(this.saveError?this.saveError+'\n'+message:message);}
+ private async copyDraft(){
+  // A missing/throwing host API fails before a Promise rejection handler exists.
+  try{await this.win.navigator.clipboard.writeText(this.input.value);if(!this.disposed)this.feedback('草稿已复制');}
+  catch{if(!this.disposed)this.feedback('复制失败，请选中文字后复制');}
+ }
  private scheduleLayout(){if(this.disposed||this.composing||this.layoutFrame!==undefined)return;this.layoutFrame=this.win.requestAnimationFrame(()=>{this.layoutFrame=undefined;this.flushLayout();});}
  private flushLayout(){if(this.layoutFrame!==undefined){this.win.cancelAnimationFrame(this.layoutFrame);this.layoutFrame=undefined;}if(this.disposed)return;const value=this.input.value;if(value!==this.lastLayoutValue||this.appearanceChanged){const appearance=this.appearanceChanged;this.appearanceChanged=false;this.lastLayoutValue=value;this.measureLayout('size',()=>this.options.resize(value,this.input,appearance));}this.syncGeometry();this.refreshNativeHeight();}
  /** Presentation is optional: a failed measurement must never prevent content persistence. */

@@ -63,7 +63,7 @@ function movementIds(board:Board,selection:ReadonlySet<string>):Set<string>{
  return ids;
 }
 
-function validateDestination(board:Board,moving:Set<string>,target:Card,next:Card,items:Card[]){
+export function validateGroupDestination(board:Board,moving:Set<string>,target:Card,next:Card,items:Card[]){
  const positions=new Map(items.map(n=>[n.id,n])),stationary=board.nodes.filter(n=>!moving.has(n.id)&&n.id!==target.id);
  for(const node of stationary)if(sectionContains(next,node)&&!sectionContains(target,node))throw Error('分组扩容会包含其他对象，请先腾出目标分组下方或右侧空间');
  for(const group of stationary.filter(n=>n.kind==='section')){
@@ -88,7 +88,7 @@ export function planGroupMove(board:Board,selection:ReadonlySet<string>,targetId
   const delta={x:point.x-originalBounds.x,y:point.y-originalBounds.y},items=originals.map(n=>({...n,x:n.x+delta.x,y:n.y+delta.y}));
   const next={...target,width:Math.max(target.width,point.x-target.x+originalBounds.width+30),height:Math.max(target.height,point.y-target.y+originalBounds.height+30)};return{delta,items,next};
  }).sort((a,b)=>a.next.width*a.next.height-b.next.width*b.next.height);
- let failure:unknown;for(const candidate of candidates){try{validateDestination(board,moving,target,candidate.next,candidate.items);return{targetId,selection:[...selection].sort(),ids:originals.map(n=>n.id),originals,items:candidate.items,target:{original:{...target},next:candidate.next},signature:geometrySignature(board),delta:candidate.delta,expanded:candidate.next.width!==target.width||candidate.next.height!==target.height};}catch(e){failure=e;}}
+ let failure:unknown;for(const candidate of candidates){try{validateGroupDestination(board,moving,target,candidate.next,candidate.items);return{targetId,selection:[...selection].sort(),ids:originals.map(n=>n.id),originals,items:candidate.items,target:{original:{...target},next:candidate.next},signature:geometrySignature(board),delta:candidate.delta,expanded:candidate.next.width!==target.width||candidate.next.height!==target.height};}catch(e){failure=e;}}
  throw failure;
 }
 

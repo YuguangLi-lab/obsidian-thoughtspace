@@ -34,11 +34,16 @@ export function writingParts(board:Board,order=board.writing?.order||[]){
  return parts;
 }
 export function writingSignature(board:Board){const w=board.writing;return JSON.stringify({nodes:board.nodes,writing:w&&{title:w.title,order:w.order,chapters:w.chapters,options:w.options,includeSources:w.includeSources}});}
+/** Strip only a closed property block; a body-only material retains its own title. */
+function writingBody(body:string,hasHeading:boolean){
+ body=body.replace(/^---\r?\n(?:[\s\S]*?\r?\n)??(?:---|\.\.\.)[ \t]*(?:\r?\n|$)/,'');
+ return hasHeading?body.replace(/^# [^\n]*(?:\n|$)/,''):body;
+}
 export function writingMarkdown(title:string,parts:{title:string;depth:number;body:string;source?:string}[],boardLink:string){
  if(!title.trim()||!parts.length)throw Error('请填写标题并添加文章内容');
  if(parts.reduce((total,p)=>total+p.body.length,0)>1000000)throw Error('草稿超过 1,000,000 字符，请分章生成');
  const heading=(s:string)=>s.replace(/[\r\n]+/g,' ').replace(/^#+\s*/,'').trim();
- return '# '+heading(title)+'\n\n白板：'+boardLink+'\n\n'+parts.map(p=>(p.depth?'#'.repeat(p.depth)+' '+heading(p.title)+'\n\n':'')+(p.body?p.body.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/,'').replace(/^# [^\n]*\n/,'').trim()+'\n\n':'')+(p.source?'来源：'+p.source+'\n':'')).join('\n')+'\n';
+ return '# '+heading(title)+'\n\n白板：'+boardLink+'\n\n'+parts.map(p=>(p.depth?'#'.repeat(p.depth)+' '+heading(p.title)+'\n\n':'')+(p.body?writingBody(p.body,p.depth>0).trim()+'\n\n':'')+(p.source?'来源：'+p.source+'\n':'')).join('\n')+'\n';
 }
 export const writingName=(node:Card)=>node.title||nodeName(node).replace(/^#+\s*/,'').replace(node.file?/\.(md|png|jpe?g|webp|gif|avif)$/i:/$^/,'').slice(0,120);
 /** Count CJK runs without an expanded manuscript; retain the native non-CJK fast path. */

@@ -1,0 +1,15 @@
+{
+  "version": "1.0.44",
+  "unitTests": 3155,
+  "unitFailures": 0,
+  "layoutReplayCases": 182,
+  "nativeChromeChecks": 107,
+  "nativeSidebarChecks": 40,
+  "nativeStateChecks": 25,
+  "editorSizeZoomCases": 9,
+  "build": "passed",
+  "lintErrors": 0,
+  "lintWarnings": 82,
+  "releaseToolTests": 7,
+  "zipSHA256": "15653ebe6f69475db0d1f32a7a2e6c3737c1407c425eec335f8831a9cb6c34b6"
+}

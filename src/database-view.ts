@@ -38,7 +38,7 @@ export class PropertyStore {
   }
 }
 export function parseRecord(raw: string): Record<string,unknown> {
-  const match = raw.match(/^---\r?\n([\s\S]*?)^---[ \t]*(?:\r?\n|$)/m);
+  const match = raw.match(/^---\r?\n([\s\S]*?)^(?:---|\.\.\.)[ \t]*(?:\r?\n|$)/m);
   if (raw.startsWith('---\n') || raw.startsWith('---\r\n')) {
     if (!match) throw new Error('属性区域没有闭合，请在原文中修复');
     const parsed:unknown = parseYaml(match[1]);
@@ -109,7 +109,7 @@ export class DatabaseModal extends Modal {
       }
       if(!this.active||run!==this.run)return;
       this.rows=rows;const tags=[...new Set(rows.flatMap(r=>r.tags))].sort();this.tags.empty();this.tags.createEl('option',{value:'',text:'所有标签'});for(const tag of tags)this.tags.createEl('option',{value:tag,text:tag});
-      if(!tags.includes(this.filter.tag))this.filter.tag='';this.tags.value=this.filter.tag;
+      if(this.filter.tag&&!tags.includes(this.filter.tag))this.tags.createEl('option',{value:this.filter.tag,text:this.filter.tag+' · 暂无匹配'});this.tags.value=this.filter.tag;
       this.message.setText(skipped?`${skipped} 篇笔记读取失败或属性格式无效，已跳过。请在原文中检查。`:'');this.render();
     }catch(e){if(this.active)this.message.setText(String(e));}
   }
@@ -163,7 +163,22 @@ export class DatabaseModal extends Modal {
     const values:Record<string,string>={'资料范围':this.source,'资料标签':this.filter.tag,'资料状态':this.filter.status,'资料优先级':this.filter.priority,'资料排序':this.filter.sort};for(const [label,value]of Object.entries(values)){const el=this.contentEl.querySelector<HTMLSelectElement>(`select[aria-label="${label}"]`);if(el)el.value=value;}
     this.contentEl.querySelector<HTMLInputElement>('[aria-label="资料搜索"]')!.value=this.filter.query;this.contentEl.querySelector<HTMLInputElement>('.ts-db-overdue-filter input')!.checked=this.filter.overdue;this.renderCustomFilters();this.schedule();
   }
-  private saveView(){const modal=new Modal(this.app);themeSurface(modal.modalEl);modal.titleEl.setText('保存筛选视图');const current=this.host.preferences.views.find(v=>v.id===this.savedSelect.value),input=modal.contentEl.createEl('input',{type:'text',value:current?.name||'',attr:{placeholder:'例如：本周需要阅读的证据','aria-label':'筛选视图名称',maxlength:'80'}});btn(modal.contentEl,'保存','check',()=>{void(async()=>{const name=input.value.trim();if(!name)throw Error('请填写视图名称');if(!current&&this.host.preferences.views.length>=50)throw Error('最多保存 50 个视图');const next=this.currentView(name);if(current){next.id=current.id;this.host.preferences.views[this.host.preferences.views.indexOf(current)]=next;}else this.host.preferences.views.push(next);await this.persist();this.renderSaved();this.savedSelect.value=next.id;modal.close();})().catch(e=>new Notice(String(e)));});modal.open();}
+  private saveView(){
+    const modal=new Modal(this.app);themeSurface(modal.modalEl);modal.titleEl.setText('保存筛选视图');
+    const current=this.host.preferences.views.find(v=>v.id===this.savedSelect.value),expected=current?JSON.stringify(current):undefined;
+    const input=modal.contentEl.createEl('input',{type:'text',value:current?.name||'',attr:{placeholder:'例如：本周需要阅读的证据','aria-label':'筛选视图名称',maxlength:'80'}});let busy=false;
+    const save=btn(modal.contentEl,'保存','check',()=>{if(busy)return;busy=true;save.disabled=true;void(async()=>{
+      const name=input.value.trim();if(!name)throw Error('请填写视图名称');
+      const previous=this.host.preferences.views,index=current?previous.findIndex(view=>view.id===current.id):-1;
+      if(current&&(index<0||JSON.stringify(previous[index])!==expected))throw Error('筛选视图已变化或移除，请关闭此窗口后重新保存');
+      if(!current&&previous.length>=50)throw Error('最多保存 50 个视图');
+      const next=this.currentView(name),views=[...previous];
+      if(current){next.id=current.id;views[index]=next;}else views.push(next);
+      this.host.preferences.views=views;
+      try{await this.persist();}catch(error){if(this.host.preferences.views===views)this.host.preferences.views=previous;throw error;}
+      this.renderSaved();this.savedSelect.value=next.id;modal.close();
+    })().catch(e=>new Notice(String(e))).finally(()=>{busy=false;save.disabled=false;});});modal.open();
+  }
   private async deleteView(){const id=this.savedSelect.value;if(!id)return;this.host.preferences.views=this.host.preferences.views.filter(v=>v.id!==id);await this.persist();this.renderSaved();}
   private addField(){const modal=new Modal(this.app);themeSurface(modal.modalEl);modal.titleEl.setText('自定义原生属性');modal.contentEl.createEl('p',{text:'填写已有 Obsidian 属性名即可复用；新属性直接写入笔记 YAML。移除显示列不会删除笔记属性。'});const input=modal.contentEl.createEl('input',{type:'text',attr:{placeholder:'例如：作者、项目、评分','aria-label':'属性名称',maxlength:'80'}}),listId='ts-props-'+crypto.randomUUID();input.setAttribute('list',listId);const list=modal.contentEl.createEl('datalist',{attr:{id:listId}});for(const key of new Set(this.rows.flatMap(r=>Object.keys(r.fields))))if(validCustomKey(key))list.createEl('option',{value:key});
     const type=this.select(modal.contentEl,'属性类型',{text:'文本',number:'数字',date:'日期',checkbox:'复选框',list:'列表'},'text',()=>{});

@@ -4,7 +4,7 @@ import {Board,Card} from './model';
 import {AppearanceSettings} from './workspace';
 import {ReadingOptions,readingTitle,readingItems,readingProgress,readingDigest,markReading,reviewLabels,ReviewState,readingRelations,readingWindow} from './reading-desk';
 import {themeSurface} from './ui-tokens';
-interface ReadingHost{board:()=>Board;ids:Set<string>;title:string;settings:AppearanceSettings;commit:(edit:(b:Board)=>void)=>void;reveal:(id:string)=>void;open:(file:TFile)=>Promise<unknown>;}
+interface ReadingHost{sourcePath?:()=>string;board:()=>Board;ids:Set<string>;title:string;settings:AppearanceSettings;commit:(edit:(b:Board)=>void)=>void;reveal:(id:string)=>void;open:(file:TFile)=>Promise<unknown>;}
 export class ReadingDesk extends Modal{
  private options:ReadingOptions={query:'',status:'all',sort:'board',onlySelected:false};private activeId?:string;private list!:HTMLElement;private page!:HTMLElement;private reader!:HTMLElement;private commandBar!:HTMLElement;private pageNav!:HTMLElement;private progress!:HTMLElement;private counter!:HTMLElement;private previewScope?:Component;private lifecycle?:Component;private generation=0;private pageKey='';private alive=false;private statusSelect!:HTMLSelectElement;private filterCaption?:HTMLElement;private companion!:HTMLElement;private asideTab:'queue'|'outline'|'relations'='queue';private asideTabs!:HTMLElement;private headings:HTMLElement[]=[];
  constructor(app:App,private host:ReadingHost){super(app);this.options.onlySelected=host.ids.size>0;}
@@ -30,7 +30,7 @@ export class ReadingDesk extends Modal{
  this.lifecycle=new Component();this.lifecycle.load();this.lifecycle.registerDomEvent(this.list,'focusin',e=>{const target=(e.target as HTMLElement).closest('button');if(target&&this.list.contains(target)&&!this.list.hidden)target.scrollIntoView({block:'nearest',inline:'nearest',behavior:'instant'});});this.lifecycle.registerDomEvent(this.modalEl,'keydown',e=>{
   if(e.isComposing||e.keyCode===229||!e.altKey||e.ctrlKey||e.metaKey||e.shiftKey||!['ArrowLeft','ArrowRight'].includes(e.key)||(e.target as HTMLElement).closest('input,textarea,select,[contenteditable=true]'))return;
   e.preventDefault();e.stopPropagation();this.run(()=>this.step(e.key==='ArrowLeft'?-1:1));
- });this.lifecycle.registerEvent(this.app.vault.on('modify',file=>{if(this.alive){try{const n=this.host.board().nodes.find(n=>n.id===this.activeId);if(n?.file===file.path)this.run(()=>this.renderPage(n,true));}catch{/* Board switched: callbacks remain guarded by the host. */}}}));this.renderList();
+ });for(const event of ['modify','create','delete'] as const)this.lifecycle.registerEvent(this.app.vault.on(event as 'modify',file=>{if(this.alive){try{const n=this.host.board().nodes.find(n=>n.id===this.activeId);if(n?.file===file.path)this.run(()=>this.renderPage(n,true));}catch{/* Board switched: callbacks remain guarded by the host. */}}}));this.renderList();
  }
  private renderList(){const focused=this.list.ownerDocument.activeElement,queueFocused=!!focused&&this.list.contains(focused),scrollTop=this.list.scrollTop;const filters=[this.options.status!=='all',this.options.onlySelected,this.options.sort!=='board',!!this.options.kind&&this.options.kind!=='all',!!this.options.connection&&this.options.connection!=='all'].filter(Boolean).length;this.filterCaption?.setText(filters?`筛选与排序 · ${filters}`:'筛选与排序');const board=this.host.board(),items=this.items(),all=readingItems(board,this.host.ids,{...this.options,query:'',status:'all',kind:'all',connection:'all'}),progress=readingProgress(all);this.progress.empty();this.progress.createSpan({text:`已读 ${progress.done} / ${progress.total}`});this.progress.createEl('progress',{attr:{value:progress.done,max:Math.max(1,progress.total),'aria-label':'阅读完成进度'}});this.list.empty();if(!items.some(n=>n.id===this.activeId))this.activeId=items[0]?.id;
  const window=readingWindow(items,this.activeId);this.counter.setText(`${items.length} 项内容${items.length>100?` · ${window.start+1}–${window.end}`:''}`);
@@ -56,8 +56,8 @@ export class ReadingDesk extends Modal{
  }
  private async renderPage(n:Card,force=false){
  if(!this.alive)return;
- const file=n.file?this.app.vault.getAbstractFileByPath(n.file):null;
- const key=JSON.stringify([n.id,n.kind,readingTitle(n),n.text,n.file,n.imageUrl,file instanceof TFile?[file.path,file.stat.mtime,file.stat.size]:null]);
+ const file=n.file?this.app.vault.getAbstractFileByPath(n.file):null,source=n.file||this.host.sourcePath?.()||'';
+ const key=JSON.stringify([n.id,n.kind,readingTitle(n),n.text,n.file,n.imageUrl,source,file instanceof TFile?[file.path,file.stat.mtime,file.stat.size]:null]);
  if(!force&&key===this.pageKey){this.syncPageControls(n);this.renderCompanion();return;}
  this.pageKey=key;let ready=false;
  const generation=++this.generation;
@@ -65,7 +65,7 @@ export class ReadingDesk extends Modal{
  this.previewScope?.unload();const scope=new Component();scope.load();this.previewScope=scope;this.page.empty();this.page.scrollTop=0;this.headings=[];this.renderCompanion();const head=this.page.createDiv('ts-reading-page-head');head.createDiv({cls:'ts-reading-eyebrow',text:n.kind==='card'?'笔记原文':n.kind==='image'?'图像资料':'白板文本'});head.createEl('h2',{text:readingTitle(n).slice(0,160)});if(n.file)head.createDiv({cls:'ts-reading-source',text:n.file});
  const content=this.page.createDiv('ts-reading-prose');this.syncPageControls(n);
 
- let text=n.text||'',source=n.file||'';
+ let text=n.text||'';
  if(n.kind==='image'){const remote=remoteImageUrl(n.imageUrl),local=file instanceof TFile?this.app.vault.getResourcePath(file):undefined;if(remote||local){const img=content.createEl('img',{attr:{src:(remote||local)!,alt:readingTitle(n),referrerpolicy:'no-referrer'}});let fallback=false;img.onerror=()=>{if(!img.isConnected)return;if(remote&&local&&!fallback){fallback=true;img.src=local;}else content.setText('图片无法显示，请打开原文件检查。');};}else content.setText('原图片不存在，白板引用已保留。');}
  else{if(n.kind==='card'){if(!(file instanceof TFile)){content.setText('找不到原笔记，请重新关联或恢复该文件。');return;}if(file.stat.size>2*1024*1024){content.setText('笔记大于 2 MB，请使用“右侧打开原文”阅读。');return;}try{text=await this.app.vault.cachedRead(file);}catch{if(this.alive&&generation===this.generation)content.setText('笔记暂时无法读取，请重试或打开原文。');return;}}
  if(!this.alive||generation!==this.generation){scope.unload();return;}if(text.length>80000){this.page.createDiv({cls:'ts-reading-empty',text:'当前展示前 80,000 字符，完整内容请打开原文。'});text=text.slice(0,80000);}

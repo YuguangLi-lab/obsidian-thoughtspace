@@ -1,4 +1,4 @@
-import {Board,Card,Edge,clone,contained} from './model';
+import {Board,Card,Edge,clone,selectionExpansion} from './model';
 import {branchDescendants} from './mindmap';
 import {markdownRows} from './markdown-context';
 import {textExcerptPresentation} from './excerpt-sources';
@@ -6,8 +6,8 @@ export interface ReuseBundle{nodes:Card[];edges:Edge[];externalEdges:number;}
 export interface ReuseOptions{branches:boolean;placement:'right'|'below';frame:string;}
 export function reuseBundle(board:Board,selected:ReadonlySet<string>,branches=true):ReuseBundle{
  const byId=new Map(board.nodes.map(n=>[n.id,n]));if(!selected.size||[...selected].some(id=>!byId.has(id)))throw Error('所选内容已变化，请重新选择');
- const ids=new Set(selected);let previous=-1;
- while(previous!==ids.size){previous=ids.size;for(const n of board.nodes)if(n.kind==='section'&&ids.has(n.id))for(const child of board.nodes)if(contained(n,child))ids.add(child.id);const roots=new Set(board.nodes.filter(n=>ids.has(n.id)&&(branches||n.branchFolded)).map(n=>n.id));branchDescendants(board,roots).forEach(id=>ids.add(id));}
+ const ids=new Set(selected),{expand}=selectionExpansion(board);let previous=-1;
+ while(previous!==ids.size){previous=ids.size;for(const id of expand(ids))ids.add(id);const roots=new Set(board.nodes.filter(n=>ids.has(n.id)&&(branches||n.branchFolded)).map(n=>n.id));branchDescendants(board,roots).forEach(id=>ids.add(id));}
  return {nodes:clone(board.nodes.filter(n=>ids.has(n.id))),edges:clone(board.edges.filter(e=>ids.has(e.from)&&ids.has(e.to))),externalEdges:board.edges.filter(e=>ids.has(e.from)!==ids.has(e.to)).length};
 }
 export function reuseStamp(board:Board){return JSON.stringify({nodes:board.nodes,edges:board.edges});}

@@ -5,6 +5,7 @@ import {transformSync} from 'esbuild';
 import {emptyBoard,History,type Board} from '../src/model';
 import {isWorkspaceFile} from '../src/workspace';
 import {isPdfFile,pdfCard,pdfDropReference,pdfPage} from '../src/pdf-card';
+import {isNativeImagePath as isImage} from '../src/native-note-drop';
 import {resolveNativeNoteDrop,type NativeNoteReference} from '../src/native-note-drop';
 
 const source=readFileSync('src/main.ts','utf8');
@@ -25,7 +26,9 @@ function fixture(){
  let sequence=0;
  const files=new Map<string,TFile>(),tasks:Promise<unknown>[]=[],errors:unknown[]=[],history=new History();
  const calls={changes:0,sourceWrites:0,selection:0,focus:0,materials:[] as unknown[][],attachments:[] as unknown[][],boards:[] as unknown[][],pdfs:[] as unknown[][],files:[] as unknown[][]};
- const deps={resolveNativeNoteDrop,isWorkspaceFile,isPdfFile,pdfCard,pdfDropReference,pdfPage,TFile,MATERIAL_DRAG,EXT,
+ const imageSizes=new Map<string,{width:number;height:number}>();
+ let measure=async(entries:NativeNoteReference<TFile>[],width:number)=>new Map(entries.filter(ref=>isImage(ref.path)).map(ref=>[ref.path,imageSizes.get(ref.path)||{width,height:width*.75}] as const));
+ const deps={isImage,measureDroppedImages:(...args:Parameters<typeof measure>)=>measure(...args),resolveNativeNoteDrop,isWorkspaceFile,isPdfFile,pdfCard,pdfDropReference,pdfPage,TFile,MATERIAL_DRAG,EXT,
   parseLinktext:(link:string)=>{const hash=link.indexOf('#');return{path:hash<0?link:link.slice(0,hash),subpath:hash<0?'':link.slice(hash)};},
   uid:()=>`drop-${++sequence}`,clone:structuredClone,
   act:(run:()=>unknown)=>{try{const pending=Promise.resolve(run());tasks.push(pending);void pending.catch(error=>errors.push(error));}catch(error){errors.push(error);}},
@@ -42,7 +45,7 @@ function fixture(){
  };
  const forbidWrite=()=>{calls.sourceWrites++;throw Error('Source note writes are forbidden during reference insertion');};
  Object.assign(view,{session:owner,file:owner.file,closed:false,selected:new Set(['previous']),selectedEdge:'previous-edge',contextOpen:true,
-  app:{dragManager:{draggable:null},vault:{getName:()=> 'demo-vault',getAbstractFileByPath:(path:string)=>files.get(path),getFileByPath:(path:string)=>files.get(path),modify:forbidWrite,process:forbidWrite,create:forbidWrite,createBinary:forbidWrite},metadataCache:{getFirstLinkpathDest:resolve}},
+  app:{dragManager:{draggable:null},vault:{getName:()=> 'demo-vault',getResourcePath:(file:TFile)=>'app://local/'+file.path,getAbstractFileByPath:(path:string)=>files.get(path),getFileByPath:(path:string)=>files.get(path),modify:forbidWrite,process:forbidWrite,create:forbidWrite,createBinary:forbidWrite},metadataCache:{getFirstLinkpathDest:resolve}},
   plugin:{settings:{defaultCardWidth:300},receiveMaterial:(...args:unknown[])=>calls.materials.push(args)},
   point:position,materialDropPoint:position,stage:{focus:()=>calls.focus++},updateSelection:()=>calls.selection++,renderBoard(){},
   importBoardAttachments:(...args:unknown[])=>calls.attachments.push(args),addBoard:(...args:unknown[])=>calls.boards.push(args),
@@ -55,7 +58,7 @@ function fixture(){
  };
  const refs=(items:TFile[]):NativeNoteReference<TFile>[]=>items.map(file=>({file,path:file.path,page:1}));
  const drain=async()=>{await Promise.allSettled(tasks);if(errors.length)throw errors[0];};
- return{view,owner,files,calls,history,errors,tasks,add,event,refs,drain,position};
+ return{view,owner,files,calls,history,errors,tasks,add,event,refs,drain,position,imageSizes,setMeasure:(next:typeof measure)=>{measure=next;}};
 }
 function deferred<T>(){let resolve!:(value:T)=>void;const promise=new Promise<T>(done=>resolve=done);return{promise,resolve};}
 
@@ -89,7 +92,7 @@ test('a rejected cross-vault URI cannot be rescued by a same-name local PDF disp
 });
 
 test('an unsupported native draggable cannot be rescued by unrelated PDF text',async()=>{
- for(const kind of ['image','folder','unknown']){
+ for(const kind of ['folder','unknown']){
   const f=fixture(),pdf=f.add('Papers/local.pdf'),image=f.add('Images/figure.png'),before=structuredClone(f.owner.board),e=f.event({'text/plain':`[[${pdf.path}#page=7]]`});
   f.view.app.dragManager.draggable=kind==='image'?{type:'file',file:image}:kind==='folder'?{type:'folder',file:{path:'Papers'}}:{type:'unknown'};
   f.view.handleBoardDrop(e.value);await f.drain();assert.equal(e.value.defaultPrevented,false,kind);assert.deepEqual(f.owner.board,before,kind);assert.equal(f.calls.changes,0,kind);assert.equal(f.calls.sourceWrites,0,kind);assert.deepEqual([...f.view.selected],['previous'],kind);
@@ -151,8 +154,35 @@ test('deletion, path changes or replacement during inline save reject the whole 
 });
 
 test('unsupported and protected files cannot enter a native batch, and unrelated text remains unclaimed',async()=>{
- for(const path of ['image.png','Boards/other.thoughtspace','ThoughtSpace-plugin-backups/Old.md','ThoughtSpace/白板搜索/Index.md']){
+ for(const path of ['image.svg','Boards/other.thoughtspace','ThoughtSpace-plugin-backups/Old.md','ThoughtSpace/白板搜索/Index.md']){
   const f=fixture(),valid=f.add(),invalid=f.add(path);await assert.rejects(f.view.insertDroppedNotes(f.refs([valid,invalid]),{x:0,y:0},f.owner),/支持|文件|笔记|备份|删除|移|变化|改变/);assert.equal(f.calls.changes,0);assert.equal(f.owner.board.nodes.length,0);
  }
  const f=fixture(),e=f.event({'text/plain':'ordinary text without a file link'});f.view.handleBoardDrop(e.value);await f.drain();assert.equal(e.value.defaultPrevented,false);assert.equal(f.calls.changes,0);assert.equal(f.calls.attachments.length,0);
+});
+
+
+test('explorer and search mixed media drops reference original files in one reversible transaction',async()=>{
+ const f=fixture(),files=[f.add('图/横图.png'),f.add('论文/研究.pdf'),f.add('笔记/想法.md'),f.add('图/竖图.webp')],before=structuredClone(f.owner.board),e=f.event();
+ f.imageSizes.set(files[0].path,{width:300,height:150});f.imageSizes.set(files[3].path,{width:300,height:450});
+ f.view.app.dragManager.draggable={type:'files',files};f.view.handleBoardDrop(e.value);await f.drain();
+ assert.equal(f.calls.changes,1);assert.equal(f.calls.sourceWrites,0);assert.deepEqual(f.owner.board.nodes.map(n=>n.kind),['image','pdf','card','image']);
+ assert.deepEqual(f.owner.board.nodes.map(n=>n.file),files.map(f=>f.path));assert.equal(f.owner.board.nodes[0].height,150);assert.equal(f.owner.board.nodes[3].height,450);assert.deepEqual(f.owner.board.viewport,before.viewport);
+ assert.ok(f.owner.board.nodes[3].y>=Math.max(...f.owner.board.nodes.slice(0,3).map(n=>n.y+n.height))+32);
+ f.owner.board=f.history.undo(f.owner.board)!;assert.deepEqual(f.owner.board,before);
+});
+test('search-result link to an image preserves the native original instead of importing unrelated text',async()=>{
+ const f=fixture(),file=f.add('图/中文 #1 [B].png'),e=f.event({'text/plain':'其他显示文本'});f.view.app.dragManager.draggable={type:'link',file,linktext:file.path,sourcePath:'笔记/来源.md'};
+ f.view.handleBoardDrop(e.value);await f.drain();assert.equal(e.value.defaultPrevented,true);assert.equal(f.owner.board.nodes[0].kind,'image');assert.equal(f.owner.board.nodes[0].file,file.path);assert.equal(f.calls.sourceWrites,0);
+});
+test('image probing rechecks board and exact file identity before committing the entire batch',async()=>{
+ for(const state of ['switched','deleted','replaced','renamed','blocked']){
+  const f=fixture(),files=[f.add('Notes/原文.md'),f.add('图/原图.png')],gate=deferred<Map<string,{width:number;height:number}>>(),before=structuredClone(f.owner.board);f.setMeasure(()=>gate.promise);
+  const pending=f.view.insertDroppedNotes(f.refs(files),{x:10,y:10},f.owner);
+  if(state==='switched')f.view.session={board:emptyBoard()};if(state==='deleted')f.files.delete(files[1].path);if(state==='replaced')f.add(files[1].path);if(state==='renamed')files[1].path='其他.png';if(state==='blocked')f.owner.blocked=true;
+  gate.resolve(new Map());await assert.rejects(pending);assert.deepEqual(f.owner.board,before);assert.equal(f.calls.changes,0);assert.equal(f.calls.sourceWrites,0);
+ }
+});
+test('measured wide images reserve their actual width before placing the next node',async()=>{
+ const f=fixture(),image=f.add('Images/banner.png'),note=f.add();f.imageSizes.set(image.path,{width:600,height:60});await f.view.insertDroppedNotes(f.refs([image,note]),{x:0,y:0},f.owner);
+ const [first,second]=f.owner.board.nodes;assert.equal(second.x,first.x+first.width+32);
 });

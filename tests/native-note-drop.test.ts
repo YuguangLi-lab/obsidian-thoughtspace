@@ -20,10 +20,10 @@ test('deleted and replaced native md/pdf identities are handled without rescuing
  for(const path of ['folder/Note.md','folder/paper.pdf'])for(const replacement of [false,true]){const f=fixture(),stale=f.files.get(path)!;f.files.delete(path);if(replacement)f.files.set(path,new NoteFile(path));assert.deepEqual(f.drop({type:'file',file:stale},'[[folder/Note.md]]'),{handled:true,references:[]});assert.equal(f.resolutions.length,0);}
 });
 test('native arrays preserve supported order and deduplicate once within the batch',()=>{
- const f=fixture(),stale=new NoteFile('deleted.md');const files=[f.note,f.files.get('folder/image.png'),{path:'folder',children:[]},stale,f.pdf,f.note];assert.deepEqual(f.drop({type:'files',files}),{handled:true,references:[{file:f.note,path:f.note.path,page:1},{file:f.pdf,path:f.pdf.path,page:1}]});assert.ok(f.lookups.length<=files.length);assert.equal(f.resolutions.length,0);
+ const f=fixture(),image=f.files.get('folder/image.png')!;const files=[f.note,image,f.pdf,f.note];assert.deepEqual(f.drop({type:'files',files}),{handled:true,references:[{file:f.note,path:f.note.path,page:1},{file:image,path:image.path,page:1},{file:f.pdf,path:f.pdf.path,page:1}]});assert.ok(f.lookups.length<=files.length);assert.equal(f.resolutions.length,0);
 });
 test('unsupported folders and malformed native types are not consumed or rescued from text',()=>{
- const f=fixture();for(const draggable of [{type:'folder',file:{path:'folder'}},{type:'file',file:f.files.get('folder/image.png')},{type:'file',file:{path:'fake.md',extension:'md'}},{type:'files',files:'folder/Note.md'},{type:'files',files:[f.files.get('folder/image.png')]},{type:'unknown'},42])assert.deepEqual(f.drop(draggable,'[[folder/Note.md]]'),{handled:false,references:[]});
+ const f=fixture();for(const draggable of [{type:'folder',file:{path:'folder'}},{type:'file',file:new NoteFile('unsupported.exe')},{type:'file',file:{path:'fake.md',extension:'md'}},{type:'files',files:'folder/Note.md'},{type:'files',files:[new NoteFile('unsupported.exe')]},{type:'unknown'},42])assert.deepEqual(f.drop(draggable,'[[folder/Note.md]]'),{handled:false,references:[]});
 });
 test('native PDF links preserve the linktext page before falling back to the exact file',()=>{
  const f=fixture();for(const linktext of ['paper.pdf#page=7','[[paper.pdf#page=7|Evidence]]','![[paper.pdf#page=7]]'])assert.deepEqual(f.drop({type:'link',file:f.pdf,linktext}),{handled:true,references:[{file:f.pdf,path:f.pdf.path,page:7}]});assert.equal(f.resolutions.length,0);
@@ -58,15 +58,23 @@ test('fallback never extracts accidental links from prose, external URLs or inva
 test('plain path batches require every line to exist before consuming any valid member',()=>{
  const f=fixture();assert.deepEqual(f.drop(null,'folder/Note.md\nRead folder/paper.pdf'),{handled:false,references:[]});assert.deepEqual(f.drop(null,'folder/Note.md|display prose'),{handled:false,references:[]});assert.equal(f.resolutions.length,0);
 });
-test('plain fallback accepts only existing explicit md/pdf paths and does not basename-resolve prose',()=>{
- const f=fixture();assert.deepEqual(f.drop(null,'folder/Note.md\nfolder/paper.pdf#page=2').references.map(r=>[r.path,r.page]),[['folder/Note.md',1],['folder/paper.pdf',2]]);for(const text of ['Note','Note.md','See folder/Note.md','folder/image.png'])assert.deepEqual(f.drop(null,text),{handled:false,references:[]});assert.equal(f.resolutions.length,0);
+test('plain fallback accepts existing explicit Markdown/PDF/image paths and does not basename-resolve prose',()=>{
+ const f=fixture();assert.deepEqual(f.drop(null,'folder/Note.md\nfolder/paper.pdf#page=2').references.map(r=>[r.path,r.page]),[['folder/Note.md',1],['folder/paper.pdf',2]]);for(const text of ['Note','Note.md','See folder/Note.md','folder/missing.png'])assert.deepEqual(f.drop(null,text),{handled:false,references:[]});assert.equal(f.resolutions.length,0);
 });
-test('unknown wiki targets do not create notes while existing members can be referenced',()=>{
- const f=fixture();assert.deepEqual(f.drop(null,'[[Missing]]'),{handled:false,references:[]});assert.deepEqual(f.drop(null,'[[Missing]]\n[[Note]]').references.map(r=>r.path),[f.note.path]);assert.equal(f.files.size,5);
+test('unknown wiki targets cancel a whole batch without creating notes',()=>{
+ const f=fixture();assert.deepEqual(f.drop(null,'[[Missing]]'),{handled:false,references:[]});assert.deepEqual(f.drop(null,'[[Missing]]\n[[Note]]').references.map(r=>r.path),[]);assert.equal(f.files.size,5);
 });
 test('missing transfer and unreadable browser formats are harmless',()=>{
  const f=fixture();assert.deepEqual(resolveNativeNoteDrop(f.lookup,null,null,''),{handled:false,references:[]});assert.deepEqual(resolveNativeNoteDrop(f.lookup,neverRead,null,''),{handled:false,references:[]});
 });
-test('native multi-file resolution stays linear for large batches with unsupported members',()=>{
- const f=fixture([]),files:NoteFile[]=[];for(let i=0;i<1000;i++){const file=new NoteFile(`notes/${i}.md`);f.files.set(file.path,file);files.push(file,new NoteFile(`${i}.png`),file);}const result=f.drop({type:'files',files});assert.equal(result.references.length,1000);assert.ok(f.lookups.length<=files.length);assert.equal(f.resolutions.length,0);
+test('native multi-file resolution stays linear for large supported batches',()=>{
+ const f=fixture([]),files:NoteFile[]=[];for(let i=0;i<1000;i++){const file=new NoteFile(`notes/${i}.md`);f.files.set(file.path,file);const image=new NoteFile(`images/${i}.png`);f.files.set(image.path,image);files.push(file,image,file);}const result=f.drop({type:'files',files});assert.equal(result.references.length,2000);assert.ok(f.lookups.length<=files.length);assert.equal(f.resolutions.length,0);
+});
+
+test('text/uri-list comment records do not discard valid same-vault note and PDF references',()=>{
+ const f=fixture(),uri='# Source selection\r\nobsidian://open?vault=demo-vault&file=folder%2FNote\r\n# Second selection\r\nobsidian://open?file=folder%2Fpaper.pdf%23page%3D4';
+ assert.deepEqual(f.drop(null,'',uri).references.map(r=>[r.path,r.page]),[['folder/Note.md',1],['folder/paper.pdf',4]]);
+ assert.deepEqual(f.drop(null,'',uri+'\nhttps://example.org/file.md'),{handled:false,references:[]});
+ assert.deepEqual(f.drop(null,'','# Only a comment'),{handled:false,references:[]});
+ assert.deepEqual(f.drop(null,'# Prose\nobsidian://open?file=folder%2FNote'),{handled:false,references:[]});
 });

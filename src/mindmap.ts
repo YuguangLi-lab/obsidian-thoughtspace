@@ -69,7 +69,7 @@ function layoutIndexedMindmap(b:Board,id:string,index:ReturnType<typeof layoutIn
   for(const n of queue){const e=incoming.get(n.id);if(!e)continue;
     e.fromSide=vertical?(up?'top':'bottom'):sides.get(e.to)==='left'?'left':'right';e.toSide=vertical?(up?'bottom':'top'):sides.get(e.to)==='left'?'right':'left';
   }
-  b.version=3;b.mode='mindmap';if(root.mindmapRules)root.mindmapRules.layout=direction;b.mindmapLayout=direction;b.mindmapDirection=vertical?(up?'up':'down'):'right';root.topic=true;
+  b.version=3;b.mode='mindmap';root.mindmapRules={layout:direction,density,automatic:root.mindmapRules?.automatic??false};b.mindmapLayout=direction;b.mindmapDirection=vertical?(up?'up':'down'):'right';root.topic=true;
 }
 
 /** Isolated live geometry: index once, copy only the edited tree, never cache mutable drafts. */

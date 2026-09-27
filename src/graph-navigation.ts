@@ -1,5 +1,6 @@
 import type {Board,Card,Edge} from './model';
 import {branchTopology} from './mindmap';
+import {sectionContains} from './sections';
 export type RelationDirection='upstream'|'downstream'|'connected';
 function contentIds(board:Board){const nodes=new Set<string>();for(const node of board.nodes)if(node.kind!=='section')nodes.add(node.id);return nodes;}
 /** Rebuild only the adjacency data consumed by this action; never retain mutable graph state. */
@@ -37,10 +38,15 @@ export function shortestRelationPath(board:Board,from:string,to:string){
 }
 /** Walk shared ancestor chains once, even when revealing thousands of descendants. */
 export function unfoldRelationAncestors(board:Board,ids:ReadonlySet<string>){
- const {parents}=branchTopology(board),ancestors=new Set<string>();
- for(const id of ids){let p=parents.get(id);while(p&&!ancestors.has(p)){ancestors.add(p);p=parents.get(p);}}
- let changed=0;for(const n of board.nodes)if(ancestors.has(n.id)&&n.branchFolded){delete n.branchFolded;changed++;}return changed;
+ const {parents}=branchTopology(board),nodes=new Map(board.nodes.map(n=>[n.id,n])),groups=board.nodes.filter(n=>n.kind==='section');
+ const pending=[...ids].map(id=>({id,frames:true})),seen=new Map<string,boolean>();let changed=0;
+ while(pending.length){const current=pending.pop()!,previous=seen.get(current.id);if(previous===true||previous===false&&!current.frames)continue;seen.set(current.id,current.frames);const node=nodes.get(current.id);if(!node)continue;
+  if(current.frames)for(const group of groups)if(sectionContains(group,node)){if(group.sectionFolded){delete group.sectionFolded;changed++;}pending.push({id:group.id,frames:true});}
+  const parent=parents.get(current.id);if(parent){const ancestor=nodes.get(parent);if(ancestor?.branchFolded){delete ancestor.branchFolded;changed++;}pending.push({id:parent,frames:ancestor?.kind==='section'});}
+ }
+ return changed;
 }
+
 export function insertBetween(board:Board,edgeId:string,node:Card,newEdgeId:string,expected?:string){
  const edge=board.edges.find(e=>e.id===edgeId),nodes=new Map(board.nodes.map(n=>[n.id,n]));
  if(!edge||expected!==undefined&&JSON.stringify(edge)!==expected)throw Error('连线已变化，请重新选择');

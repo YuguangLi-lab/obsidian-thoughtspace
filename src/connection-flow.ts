@@ -47,5 +47,5 @@ export function reconnectEdge(board:Board,id:string,end:'from'|'to',target:strin
  if(next.from===next.to||duplicateConnection(board,next,id)||JSON.stringify(next)===JSON.stringify(edge))return false;
  // Reconnecting a mind-map branch creates an ordinary relationship.
  if(next.from!==edge.from||next.to!==edge.to)delete next.kind;
- Object.assign(edge,next);if(next.kind===undefined)delete edge.kind;return true;
+ Object.assign(edge,next);if(next.kind===undefined)delete edge.kind;board.version=3;return true;
 }

@@ -15,6 +15,7 @@ export function saveTopicRelation(source:Board,selected:string,value:TopicRelati
  if(selected===value.target||!tree.has(value.target))throw Error('请选择当前主题树中的另一个主题');if(nodes.get(selected)?.locked||nodes.get(value.target)?.locked)throw Error('请先解锁两个主题');
  if(value.label.length>200||!['forward','both','none'].includes(value.direction))throw Error('关系名称最多 200 字，方向须有效');
  let edge=value.id?b.edges.find(e=>e.id===value.id):undefined;if(value.id&&(!edge||edge.kind==='branch'||edge.from!==selected))throw Error('这条关联线已变化，请重新选择');
+ if(edge&&nodes.get(edge.to)?.locked)throw Error('请先解锁原关联主题');
  if(b.edges.some(e=>e.kind!=='branch'&&e.id!==value.id&&e.from===selected&&e.to===value.target))throw Error('已存在这条关联线，请编辑原关系');
  if(!edge){const id=makeId();if(!id||b.nodes.some(n=>n.id===id)||b.edges.some(e=>e.id===id))throw Error('关联线标识冲突');edge={id,from:selected,to:value.target,label:'',style:'curve',dashed:true,color:'slate'};b.edges.push(edge);}
  edge.to=value.target;edge.label=value.label.trim();edge.direction=value.direction;b.version=3;parseBoard(JSON.stringify(b));return{board:b,root,selected};

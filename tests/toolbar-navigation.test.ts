@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import {toolbarNavigation} from '../src/toolbar-navigation';
 
 function fixture(){
- const doc:any={activeElement:null,defaultView:{getComputedStyle:(element:Control)=>({overflowX:element.overflow})}};
+ const doc:any={activeElement:null,defaultView:{getComputedStyle:(element:Control)=>({overflowX:element.overflow,direction:element.direction})}};
  class Control{
   ownerDocument=doc;parentElement:Control|null=null;children:Control[]=[];listeners=new Map<string,Set<(event:any)=>void>>();
-  role='';disabled=false;hidden=false;overflow='visible';clientWidth=200;scrollWidth=200;scrollLeft=0;scrollTop=23;clientLeft=0;offsetWidth=200;
+  role='';disabled=false;hidden=false;overflow='visible';direction='ltr';clientWidth=200;scrollWidth=200;scrollLeft=0;scrollTop=23;clientLeft=0;offsetWidth=200;
   private rectangle={left:0,right:200,width:200};private initialScroll=new Map<Control,number>();
   rectReads=0;tabIndex?:number;focusCalls:unknown[]=[];
   constructor(public tagName='DIV',public name=''){}
@@ -68,6 +68,15 @@ test('disabled and hidden controls are skipped and single-button navigation does
  const f=fixture();f.b.disabled=true;f.c.hidden=true;const dispose=f.install(f.row);
  const event=f.press(f.a,'ArrowRight');assert.equal(event.defaultPrevented,true);assert.equal(f.a.focusCalls.length,0);
  f.c.hidden=false;f.press(f.a,'ArrowLeft');assert.equal(f.doc.activeElement,f.c);dispose();
+});
+test('RTL arrows follow visual direction while Home and End retain logical tool order',()=>{
+ const f=fixture();f.row.direction='rtl';const dispose=f.install(f.row);
+ f.press(f.b,'ArrowRight');assert.equal(f.doc.activeElement,f.a,'the previous RTL button is visually to the right');
+ f.press(f.b,'ArrowLeft');assert.equal(f.doc.activeElement,f.c,'the next RTL button is visually to the left');
+ f.press(f.a,'ArrowRight');assert.equal(f.doc.activeElement,f.c,'wrap from the visual right edge');
+ f.press(f.c,'ArrowLeft');assert.equal(f.doc.activeElement,f.a,'wrap from the visual left edge');
+ f.press(f.b,'Home');assert.equal(f.doc.activeElement,f.a);f.press(f.b,'End');assert.equal(f.doc.activeElement,f.c);
+ f.row.direction='ltr';f.press(f.b,'ArrowRight');assert.equal(f.doc.activeElement,f.c,'direction changes take effect without reinstalling');dispose();
 });
 test('native selects, composition and host shortcuts keep their own key behavior',()=>{
  const f=fixture(),select=f.row.add(new f.Control('SELECT'));const dispose=f.install(f.row);

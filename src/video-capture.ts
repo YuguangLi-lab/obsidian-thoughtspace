@@ -1,5 +1,7 @@
 import type { Board, Card } from './model';
 import { yingjianNotePath, parseYingjianLink } from './yingjian';
+import {markdownRows} from './markdown-context';
+const captureId=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 export type CaptureLayout={width:number;placement:'below'|'right';color:'blue'|'green'|'rose'|'slate'};
 export function captureLayout(raw:unknown):CaptureLayout{
  const r=(raw&&typeof raw==='object'?raw:{}) as Partial<CaptureLayout>;
@@ -8,20 +10,22 @@ export function captureLayout(raw:unknown):CaptureLayout{
 export interface VideoCaptureRequest { id:string; board:string; note:string; vaultId:string; layout?:CaptureLayout; presentation?:'objects'; }
 export function videoCaptureRequest(raw:unknown):VideoCaptureRequest {
  const r=raw as VideoCaptureRequest;
- if(!r||typeof r.id!=='string'||!/^[a-f0-9-]{36}$/.test(r.id)||!yingjianNotePath(r.note)||typeof r.board!=='string'||!r.board.endsWith('.thoughtspace')||!yingjianNotePath(r.board.slice(0,-13)+'.md')||typeof r.vaultId!=='string'||!/^[a-f0-9]{20}$/.test(r.vaultId))throw Error('视频记录目标或标识无效');
+ if(!r||typeof r.id!=='string'||!captureId.test(r.id)||!yingjianNotePath(r.note)||typeof r.board!=='string'||!r.board.endsWith('.thoughtspace')||!yingjianNotePath(r.board.slice(0,-13)+'.md')||typeof r.vaultId!=='string'||!/^[a-f0-9]{20}$/.test(r.vaultId))throw Error('视频记录目标或标识无效');
  if(r.presentation!==undefined&&r.presentation!=='objects')throw Error('不支持的视频记录展示方式');
  return{id:r.id,board:r.board,note:r.note,vaultId:r.vaultId,...(r.layout?{layout:captureLayout(r.layout)}:{}),...(r.presentation?{presentation:r.presentation}:{})};
 }
 export interface VideoCaptureContent {text:string;image?:string;imageSize?:{width:number;height:number}}
 /** Read the saved ID-matched capture. Plain text objects never render arbitrary HTML. */
 export function videoCaptureContent(raw:string,id:string):VideoCaptureContent {
- if(raw.length>500000||!/^[a-f0-9-]{36}$/.test(id))throw Error('记录格式或长度无效');
- const normalized=raw.replace(/\r\n?/g,'\n');
- const header=/^> \[!(note|question|todo)\] [^\n]*?\[((?:\d{1,3}:)?\d{1,2}:\d{2})\]\((yingjian:\/\/open\?[^\s)]+)\)$/m.exec(normalized);
+ if(raw.length>500000||!captureId.test(id))throw Error('记录格式或长度无效');
+ const normalized=raw.replace(/\r\n?/g,'\n'),lines=normalized.split('\n'),rows=[...markdownRows(normalized)];
+ const anchors=rows.filter(row=>!row.code&&row.topLevel&&row.visible.trim()==='^video-t-'+id);
+ if(anchors.length!==1)throw Error(anchors.length?'这条记录的备份标记重复，请先检查原笔记':'找不到这条记录的备份标记');
+ let end=anchors[0].line;while(end>0&&!lines[end-1].trim())end--;
+ let start=end;while(start>0&&/^> ?/.test(lines[start-1]))start--;
+ const header=!rows[start]?.code&&/^> \[!(note|question|todo)\] [^\n]*?\[((?:\d{1,3}:)?\d{1,2}:\d{2}(?:\.\d{1,3})?)\]\((yingjian:\/\/open\?[^\s)]+)\)$/.exec(rows[start]?.visible||'');
  if(!header||!parseYingjianLink(header[3]))throw Error('找不到这条记录的有效时间戳');
- const start=header.index+header[0].length,tail=normalized.slice(start),marker=new RegExp('^\\^video-t-'+id+'$','m').exec(tail);
- if(!marker)throw Error('找不到这条记录的备份标记');
- const kind=header[1],body=tail.slice(0,marker.index).split('\n').filter(line=>line.startsWith('>')).map(line=>line.replace(/^> ?/,''));
+ const kind=header[1],body=lines.slice(start+1,end).map(line=>line.replace(/^> ?/,''));
  while(body.length&&!body.at(-1)?.trim())body.pop();
  const imageMatch=/^!\[\[([^\]|]+)\|640\]\]$/.exec(body.at(-1)||'');let image:string|undefined;
  if(imageMatch&&imageMatch[1].endsWith(`/视频截图-${id}.png`)){

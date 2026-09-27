@@ -18,16 +18,24 @@ function normalizePath(path:string,base=''):string|undefined {
 const encodePath=(path:string)=>encodeURIComponent(path).replace(/%2F/gi,'/').replace(/[!'()*]/g,char=>'%'+char.charCodeAt(0).toString(16).toUpperCase());
 
 /** Keep display labels, wiki aliases and the original encoded/unencoded subpath bytes. */
-function sourceTarget(link:string):{path:string;replace:(path:string)=>string}|undefined {
+function sourceTargets(link:string):{path:string;replace:(path:string)=>string}[] {
  if(link.startsWith('[[')&&link.endsWith(']]')){
   const body=link.slice(2,-2),alias=body.indexOf('|'),target=alias<0?body:body.slice(0,alias),hash=target.indexOf('#');
-  return{path:hash<0?target:target.slice(0,hash),replace:path=>'[['+path+(hash<0?'':target.slice(hash))+(alias<0?'':body.slice(alias))+']]'};
+  return[{path:hash<0?target:target.slice(0,hash),replace:path=>'[['+path+(hash<0?'':target.slice(hash))+(alias<0?'':body.slice(alias))+']]'}];
  }
- const markdown=/^(\[[^\n]*?\]\()(.+)(\))$/.exec(link);if(!markdown)return;
+ const markdown=/^(\[[^\n]*?\]\()(.+)(\))$/.exec(link);if(!markdown)return [];
  const angle=markdown[2].startsWith('<')&&markdown[2].endsWith('>'),raw=angle?markdown[2].slice(1,-1):markdown[2];
- let decoded:string;try{decoded=decodeURIComponent(raw);}catch{return;}
- const hash=decoded.indexOf('#'),rawHash=raw.search(/#|%23/i),fragment=rawHash<0?'':raw.slice(rawHash);
- return{path:hash<0?decoded:decoded.slice(0,hash),replace:path=>markdown[1]+(angle?'<':'')+encodePath(path)+fragment+(angle?'>':'')+markdown[3]};
+ const hashes=[raw.indexOf('#')];
+ // A literal # delimits the subpath; %23 can be part of a real filename.
+ // Retain legacy fully encoded anchors only as a fallback after exact resolution.
+ for(const match of [...raw.matchAll(/%23/gi)].reverse())if(hashes[0]<0||match.index<hashes[0])hashes.push(match.index);
+ const targets:{path:string;replace:(path:string)=>string}[]=[];
+ for(const hash of hashes){
+  let path:string;try{path=decodeURIComponent((hash<0?raw:raw.slice(0,hash)).replace(/\\([!"#$%&'()*+,\-./:;<=>?@[\]\\^_`{|}~])/g,'$1'));}catch{continue;}
+  const fragment=hash<0?'':raw.slice(hash);
+  targets.push({path,replace:path=>markdown[1]+(angle?'<':'')+encodePath(path)+fragment+(angle?'>':'')+markdown[3]});
+ }
+ return targets;
 }
 
 /** Build the pre-rename namespace once. Ambiguous short links remain untouched;
@@ -67,10 +75,13 @@ export function createBoardReferenceRenamer(oldPath:string,newPath:string,curren
   const nodes=board.nodes.map(node=>{
    const file=node.file?move(node.file):undefined,note=node.videoCapture?move(node.videoCapture.note):undefined;
    const text=node.kind==='text'&&node.text?rebaseReuseSources(node.text,link=>{
-    const target=sourceTarget(link);if(!target)return link;const destination=resolve(target.path,oldBoard);if(!destination)return link;
-    // A board move can also change the meaning of a relative source link.
-    if(previous(destination)===destination&&oldBoard===boardPath)return link;
-    return target.replace(destination);
+    for(const target of sourceTargets(link)){
+     const destination=resolve(target.path,oldBoard);if(!destination)continue;
+     // A board move can also change the meaning of a relative source link.
+     if(previous(destination)===destination&&oldBoard===boardPath)return link;
+     return target.replace(destination);
+    }
+    return link;
    }):node.text;
    if(file===node.file&&note===node.videoCapture?.note&&text===node.text)return node;
    changed=true;return{...node,...(file!==node.file?{file}:{}),...(note!==node.videoCapture?.note&&node.videoCapture?{videoCapture:{...node.videoCapture,note:note!}}:{}),...(text!==node.text?{text}:{})};

@@ -332,3 +332,21 @@
 @container ts-board-canvas (max-width:460px) {
  .ts-root .ts-inline-chrome .ts-inline-editor-bar :is(.ts-inline-editor-badge,.ts-inline-layout-hint,.ts-inline-command-hint) {display:none;}
 }
+
+/* Short editing splits keep formatting, draft actions and camera tools in
+   separate bands. The camera row scrolls locally instead of taking two rows. */
+@container ts-board-canvas (max-height:280px) {
+ .ts-root .ts-main:has(> .ts-inline-chrome) > .ts-footer {bottom:4px;}
+ .ts-root .ts-main:has(> .ts-inline-chrome) > .ts-footer .ts-view-dock {
+  display:flex; flex-wrap:nowrap; justify-content:flex-start; gap:6px;
+  overflow-x:auto; overflow-y:hidden; overscroll-behavior:contain;
+  scrollbar-width:thin; pointer-events:auto;
+ }
+ .ts-root .ts-main:has(> .ts-inline-chrome) > .ts-footer .ts-view-dock :is(.ts-canvas-controls,.ts-camera-controls) {flex:0 0 auto;}
+ .ts-root .ts-main:has(> .ts-inline-chrome) > .ts-footer .ts-canvas-summary {display:none;}
+ .ts-root .ts-main > .ts-inline-chrome {
+  top:max(8px,calc(var(--ts-format-reserve,116px) - 18px));
+  bottom:max(8px,calc(var(--ts-footer-reserve,68px) - 20px));
+ }
+ .ts-root .ts-inline-chrome > .ts-inline-editor-bar {padding-block:3px;}
+}

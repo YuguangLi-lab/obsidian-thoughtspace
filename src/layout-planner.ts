@@ -2,6 +2,7 @@ import {branchState,foldedMoveUnits,moveFoldedUnit} from './mindmap';
 import {Board,Card,colorNames,colors,uid} from './model';
 import {sectionBounds,sectionContains,sectionMemberQuery} from './sections';
 import {readingTitle,reviewLabels} from './reading-desk';
+import {validateGroupDestination} from './group-organizer';
 export const layoutModes={grid:'整齐网格',row:'横向排列',column:'纵向排列',masonry:'紧凑瀑布流',kind:'按类型分栏',color:'按颜色分栏',review:'按阅读状态分栏',connections:'按连线聚类',distributeX:'横向等距',distributeY:'纵向等距',alignLeft:'左对齐',alignCenter:'水平居中',alignRight:'右对齐',alignTop:'顶端对齐',alignMiddle:'垂直居中',alignBottom:'底端对齐'} as const;
 export interface LayoutOptions{mode:keyof typeof layoutModes;columns:number;gap:number;sort:'position'|'title';anchor:'corner'|'center';createSections?:boolean}
 export interface LayoutSection {title:string;color:Card['color'];ids:string[];x:number;y:number;width:number;height:number}
@@ -95,7 +96,9 @@ export function applyLayout(board:Board,plan:LayoutPlan){
  if(plan.section&&(![plan.section.next.x,plan.section.next.y,plan.section.next.width,plan.section.next.height].every(Number.isFinite)||plan.section.next.width<=0||plan.section.next.height<=0))throw Error('分组布局无效，请重新预览');
  if(plan.section){const section=board.nodes.find(n=>n.id===plan.section!.original.id);if(!section||layoutSignature([section])!==layoutSignature([plan.section.original])||sectionMembersSignature(board,section)!==plan.section.members)throw Error('分组或框内内容已变化，请重新预览');}
  const positions=new Map(plan.items.map(n=>[n.id,n]));if(positions.size!==ids.size||[...ids].some(id=>!positions.has(id))||plan.items.some(n=>!Number.isFinite(n.x)||!Number.isFinite(n.y)))throw Error('布局预览无效，请重新生成');
- units??=foldedMoveUnits(board,ids);if(units.length!==ids.size)throw Error('折叠分支或锁定状态已变化，请重新预览');validateNewSections(board,plan,units);for(const unit of units){const next=positions.get(unit.root.id)!;moveFoldedUnit(unit,next.x,next.y);}
+ units??=foldedMoveUnits(board,ids);if(units.length!==ids.size)throw Error('折叠分支或锁定状态已变化，请重新预览');validateNewSections(board,plan,units);
+ if(plan.section){const projected=projectedMembers(plan.items,units);validateGroupDestination(board,new Set(projected.map(n=>n.id)),plan.section.original,plan.section.next,projected);}
+ for(const unit of units){const next=positions.get(unit.root.id)!;moveFoldedUnit(unit,next.x,next.y);}
  if(plan.newSections){board.version=3;board.nodes.push(...plan.newSections.map(frame=>({id:uid(),kind:'section' as const,title:frame.title,color:frame.color,x:frame.x,y:frame.y,width:frame.width,height:frame.height})));}
  if(plan.section){const n=board.nodes.find(n=>n.id===plan.section!.original.id)!;const next=plan.section.next;Object.assign(n,{x:next.x,y:next.y,width:next.width,height:next.height});}
 }
@@ -111,9 +114,14 @@ export function planSectionLayout(board:Board,sectionId:string,options:LayoutOpt
  // Fixed objects are obstacles. Keeping the original section avoids moving a locked card indirectly.
  if(members.some(n=>n.locked))throw Error('分组内有锁定对象，请先解锁后整理分组');
  const plan=planLayout(board,new Set(members.map(n=>n.id)),{...options,anchor:'corner',createSections:false});
- const dx=section.x+30-plan.bounds.x,dy=section.y+60-plan.bounds.y;
+ const units=foldedMoveUnits(board,new Set(plan.ids)),logicalBounds=layoutBounds(projectedMembers(plan.items,units));
+ const dx=section.x+30-logicalBounds.x,dy=section.y+60-logicalBounds.y;
  for(const n of plan.items){n.x+=dx;n.y+=dy;}for(const lane of plan.lanes){lane.x+=dx;if(lane.y!==undefined)lane.y+=dy;}
- plan.bounds=layoutBounds(plan.items);const next={...section,...sectionBounds(plan.items)!};
+ // Hidden descendants and members pinned by an external lock remain part of the
+ // logical frame. Fit their final positions, never just the visible layout roots.
+ const projected=projectedMembers(plan.items,units),positions=new Map(projected.map(n=>[n.id,n])),logical=[...projected,...members.filter(n=>!positions.has(n.id))],bounds=layoutBounds(logical);
+ plan.bounds=layoutBounds(plan.items);const next={...section,x:bounds.x-30,y:bounds.y-60,width:bounds.width+60,height:bounds.height+90};
+ validateGroupDestination(board,new Set(projected.map(n=>n.id)),section,next,projected);
  plan.section={original:{...section},next,members:sectionMembersSignature(board,section)};
  return plan;
 }

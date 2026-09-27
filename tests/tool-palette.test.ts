@@ -70,8 +70,18 @@ test('inside clicks retain the panel, other rail tools dismiss it, and nested tr
  const f=fixture();const icon=f.triggerA.append(new Element(f.doc,'SPAN'));icon.dispatch('pointerdown');icon.click();assert.equal(f.panelA.hidden,false);
  f.headerButton.dispatch('pointerdown');f.headerButton.click();assert.equal(f.panelA.hidden,false);f.railAction.dispatch('pointerdown');assert.equal(f.panelA.hidden,true);assert.equal(f.triggerA.focuses.length,0);f.binding.dispose();
 });
-test('action activation closes after execution without stealing focus from the new editor',()=>{
+test('action activation closes before execution without stealing focus from the new editor',()=>{
  const f=fixture();let activations=0;f.buttons[0].addEventListener('click',()=>{activations++;f.editor.focus();});f.triggerA.click();f.buttons[0].append(new Element(f.doc,'SPAN')).click();assert.equal(activations,1);assert.equal(f.panelA.hidden,true);assert.equal(f.doc.activeElement,f.editor);assert.equal(f.triggerA.focuses.length,0);f.binding.dispose();
+});
+test('synchronous action callbacks measure the canvas after palette-only chrome hiding ends',()=>{
+ const f=fixture();let measuredHidden:boolean|undefined,measuredDisclosure:string|null=null;
+ f.buttons[0].addEventListener('click',()=>{measuredHidden=f.panelA.hidden;measuredDisclosure=f.triggerA.getAttribute('aria-expanded');});
+ f.triggerA.click();assert.equal(f.panelA.hidden,false);f.buttons[0].append(new Element(f.doc,'SPAN')).click();
+ assert.equal(measuredHidden,true,'fit commands must measure the restored floating toolbar');assert.equal(measuredDisclosure,'false');f.binding.dispose();
+});
+test('disabled action targets cannot dismiss their palette before another action is chosen',()=>{
+ const f=fixture();f.triggerA.click();f.buttons[0].disabled=true;f.buttons[0].dispatch('click');assert.equal(f.panelA.hidden,false);
+ f.buttons[0].disabled=false;f.buttons[0].setAttribute('aria-disabled','true');f.buttons[0].append(new Element(f.doc,'SPAN')).click();assert.equal(f.panelA.hidden,false);f.binding.dispose();
 });
 test('an action opening the other palette does not close the new palette',()=>{
  const f=fixture();f.buttons[0].addEventListener('click',()=>f.binding.open(html(f.panelB)));f.triggerA.click();f.buttons[0].click();assert.equal(f.panelA.hidden,true);assert.equal(f.panelB.hidden,false);assert.equal(f.doc.activeElement,f.input);f.binding.dispose();

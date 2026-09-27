@@ -1,3 +1,4 @@
+import {centerViewportInSafeArea} from '../src/viewport-fit';
 import {textFitsContent} from '../src/text-sizing';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -35,7 +36,7 @@ function fixture(zoom=1){
   dispose(){this.options.dispose?.();}
   syncGeometry(){}
  }
- const deps={textFitsContent,TFile,InlineNodeEditor,InlineCardFit:class {schedule(){}dispose(){}},InlineTextFit:class {constructor(_app:unknown,_body:unknown,_path:unknown,_node:unknown,apply:(size:{width:number;height:number})=>void){calls.fits.push(apply);}schedule(){}async flush(){}dispose(){}},markdownEdit,uid:()=>`new-${++seq}`,fitTextNode:()=>{},
+ const deps={centerViewportInSafeArea,textFitsContent,TFile,InlineNodeEditor,InlineCardFit:class {schedule(){}dispose(){}},InlineTextFit:class {constructor(_app:unknown,_body:unknown,_path:unknown,_node:unknown,apply:(size:{width:number;height:number})=>void){calls.fits.push(apply);}schedule(){}async flush(){}dispose(){}},markdownEdit,uid:()=>`new-${++seq}`,fitTextNode:()=>{},
   readCurrentNativeNote:(_app:unknown,file:TFile)=>read(file),
   branchState,unfoldAncestors,foldCards,
   writeNativeNoteDraft:async(_app:unknown,file:TFile,original:string,value:string,validate:()=>unknown)=>{calls.nativeWrites++;validate();assert.equal(file.content,original);file.content=value;},
@@ -54,7 +55,7 @@ function fixture(zoom=1){
   app:{vault:{getAbstractFileByPath:(path:string)=>files.get(path)},workspace:{setActiveLeaf(){calls.active++;}}},
   plugin:{settings:{defaultTextSize:18,defaultCardWidth:300,cardFolder:'Cards'},
    createUnique:async()=>{calls.createdFiles++;return addFile(`Cards/new-${files.size}.md`);}},
-  point:()=>({x:250,y:180}),clearCanvasGesture:()=>calls.clear++,updateSelection:()=>calls.selection++,
+  viewportInsets:()=>({left:0,top:0,right:0,bottom:0}),point:()=>({x:250,y:180}),clearCanvasGesture:()=>calls.clear++,updateSelection:()=>calls.selection++,
   rememberViewport:()=>calls.remember++,transform:()=>calls.transform++,renderSelectionTools(){},
   applyInlineSize:(_id:string,size:{width:number;height:number})=>calls.sizes.push(size),
   renderBoard(){calls.render++;view.positions.clear();const hidden=branchState(board as any).hidden;for(const n of board.nodes)if(!hidden.has(n.id)||n.id===view.inlineId||n.id===view.inlineTarget)view.positions.set(n.id,{querySelector:()=>({})});},
@@ -127,7 +128,7 @@ test('text Markdown save refuses replacement of a changed or locked node',async(
 for(const zoom of [.4,1.6])test(`ordinary editing keeps explicit reveal behavior at zoom ${zoom}`,async()=>{
  const f=fixture(zoom),n=f.node(),nextZoom=zoom<.75?.9:zoom;
  await f.view.startInlineEdit(n.id);
- assert.deepEqual(f.board.viewport,{x:500-(n.x+n.width/2)*nextZoom,y:355-(n.y+n.height/2)*nextZoom,zoom:nextZoom});
+ assert.deepEqual(f.board.viewport,{x:500-(n.x+n.width/2)*nextZoom,y:400-(n.y+n.height/2)*nextZoom,zoom:nextZoom});
  assert.equal(f.calls.remember,1);assert.equal(f.calls.transform,1);assert.equal(f.calls.persist,1);
  assert.equal(f.view.inlineId,n.id);
 });

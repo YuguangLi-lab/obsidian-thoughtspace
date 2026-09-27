@@ -48,7 +48,8 @@ function fixture(options:{hiddenGroup?:boolean;integration?:boolean}={}){
  const overview=button(organize,'分组总览','查看所有分组'),move=button(organize,'移入已有分组'),topic=button(mindmap,'子主题 · Tab'),pdf=button(workspace,'插入 PDF 卡片','从本地文件插入'),read=button(workspace,'阅读 PDF'),hidden=button(workspace,'隐藏 PDF 工具');hidden.hidden=true;
  if(options.hiddenGroup)mindmap.hidden=true;
  const module={exports:{} as any};new Function('require','module','exports',transformSync(readFileSync('src/rail-tool-search.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>name==='obsidian'?{setIcon:()=>{}}:{},module,module.exports);
- const binding=module.exports.installRailToolSearch(panel,tools),header=panel.children.find(child=>child.className==='ts-rail-search')!,field=header.children[0],input=field.children.find(child=>child.tagName==='INPUT')!,clear=field.children.find(child=>child.tagName==='BUTTON')!,status=header.children[1],empty=panel.children.find(child=>child.className==='ts-rail-empty')!;
+ const changes:{section:Element|undefined;searching:boolean}[]=[];
+ const binding=module.exports.installRailToolSearch(panel,tools,{onCategoryChange:(section:Element|undefined,searching=false)=>changes.push({section,searching})}),header=panel.children.find(child=>child.className==='ts-rail-search')!,field=header.children[0],input=field.children.find(child=>child.tagName==='INPUT')!,clear=field.children.find(child=>child.tagName==='BUTTON')!,status=header.children[1],empty=panel.children.find(child=>child.className==='ts-rail-empty')!;
  if(options.integration){
   const trigger=rail.createEl('button');let hidden=panel.hidden;
   Object.defineProperty(panel,'hidden',{get:()=>hidden,set:(value:boolean)=>{if(value&&!hidden)closed++;hidden=value;}});
@@ -58,7 +59,7 @@ function fixture(options:{hiddenGroup?:boolean;integration?:boolean}={}){
  }
  const search=(value:string)=>{input.value=value;input.dispatch('input');};
  const key=(target:Element,key:string,extra:Record<string,unknown>={})=>target.dispatch('keydown',{key,...extra});
- return{doc,panel,tools,open:()=>palettes?.open(panel as unknown as HTMLElement),organize,mindmap,workspace,overview,move,topic,pdf,read,hidden,input,clear,status,empty,binding,search,key,closed:()=>closed,install:()=>module.exports.installRailToolSearch(panel,tools),recent:()=>tools.querySelectorAll('.ts-rail-recent-button'),recentGroup:()=>tools.querySelectorAll('.ts-rail-recent')[0],visible:()=>tools.querySelectorAll('button').filter(element=>element.getClientRects().length>0)};
+ return{doc,panel,tools,changes,open:()=>palettes?.open(panel as unknown as HTMLElement),organize,mindmap,workspace,overview,move,topic,pdf,read,hidden,input,clear,status,empty,binding,search,key,closed:()=>closed,install:()=>module.exports.installRailToolSearch(panel,tools),recent:()=>tools.querySelectorAll('.ts-rail-recent-button'),recentGroup:()=>tools.querySelectorAll('.ts-rail-recent')[0],visible:()=>tools.querySelectorAll('button').filter(element=>element.getClientRects().length>0)};
 }
 
 test('search normalizes full-width text and combines tokens across tool title and group name',()=>{
@@ -120,6 +121,14 @@ test('recent shortcuts execute the current original handler once and follow the 
  f.open();f.recent()[0].children[1].click();assert.equal(actions,2);assert.equal(f.pdf.clicks,2);assert.equal(f.closed(),2);assert.equal(f.recent().length,1);
  f.open();f.key(f.input,'Enter');assert.equal(actions,3);assert.equal(f.closed(),3);f.key(f.input,'Enter',{repeat:true});assert.equal(actions,3);f.binding.dispose();
 });
+test('recent and search Enter actions measure restored canvas chrome and execute exactly once',()=>{
+ const f=fixture({integration:true}),hiddenAtAction:boolean[]=[];
+ f.pdf.addEventListener('click',()=>hiddenAtAction.push(f.panel.hidden));
+ f.pdf.click();f.open();assert.equal(f.recent().length,1,'the direct action remains available as a recent shortcut');
+ f.recent()[0].children[1].click();f.open();f.search('pdf 卡片');f.key(f.input,'Enter');
+ assert.deepEqual(hiddenAtAction,[true,true,true],'direct, recent and search callbacks all measure after the palette closes');
+ assert.equal(f.pdf.clicks,3);assert.equal(f.closed(),3);f.binding.dispose();
+});
 test('recent buttons join the existing keyboard order and Up from the first returns to search',()=>{
  const f=fixture({integration:true});f.pdf.click();f.open();f.topic.click();f.open();const recent=f.recent();
  f.key(f.input,'ArrowDown');assert.equal(f.doc.activeElement,recent[0]);f.key(recent[0],'ArrowDown');assert.equal(f.doc.activeElement,recent[1]);
@@ -136,6 +145,71 @@ test('hidden, disabled and removed originals cannot remain executable recent act
  f.move.disabled=false;f.move.remove();f.binding.open();stale.click();assert.equal(f.move.clicks,1);assert.equal(f.recent().length,0);f.binding.dispose();assert.equal(f.pdf.hidden,true);assert.equal(f.mindmap.hidden,true);
 });
 test('installing twice shares one binding and disposing clears only its panel-local recent history',()=>{
- const f=fixture();f.pdf.click();const again=f.install();assert.equal(again,f.binding);assert.equal(f.panel.querySelectorAll('.ts-rail-search').length,1);assert.equal(f.tools.querySelectorAll('.ts-rail-recent').length,1);assert.equal(f.tools.listeners.get('click')?.length,1);
+ const f=fixture();f.pdf.click();const again=f.install();assert.equal(again,f.binding);assert.equal(f.panel.querySelectorAll('.ts-rail-search').length,1);assert.equal(f.tools.querySelectorAll('.ts-rail-recent').length,1);assert.equal(f.panel.listeners.get('click')?.length,1);assert.equal(f.panel.listeners.get('click')?.[0].capture,true);assert.equal(f.tools.listeners.get('click')?.length??0,0);
  f.binding.dispose();const next=f.install();assert.notEqual(next,f.binding);assert.equal(f.recentGroup().hidden,true);assert.equal(f.recent().length,0);next.dispose();
+});
+
+test('category selection filters original actions without moving nodes or replacing handlers',()=>{
+ const f=fixture(),originals=f.tools.querySelectorAll('button');let calls=0;f.topic.addEventListener('click',()=>calls++);
+ f.binding.setCategory(f.mindmap);assert.deepEqual(f.visible(),[f.topic]);assert.equal(f.empty.hidden,true);f.topic.click();assert.equal(calls,1);
+ assert.equal(f.recentGroup().hidden,true);assert.deepEqual(f.tools.querySelectorAll('button'),originals);
+ f.binding.setCategory(f.organize);assert.deepEqual(f.visible(),[f.overview,f.move]);
+ f.binding.setCategory(f.workspace);assert.deepEqual(f.visible(),[f.pdf,f.read]);
+ f.binding.setCategory();assert.equal(f.recent().length,1);assert.equal(f.visible().length,6);f.binding.dispose();
+});
+
+test('keyword search spans categories and clearing restores the remembered category',()=>{
+ const f=fixture();f.binding.setCategory(f.organize);f.search('pdf');assert.deepEqual(f.visible(),[f.pdf,f.read]);
+ assert.deepEqual(f.changes.at(-1),{section:f.organize,searching:true});f.clear.click();assert.deepEqual(f.visible(),[f.overview,f.move]);assert.deepEqual(f.changes.at(-1),{section:f.organize,searching:false});
+ f.search('子主题');f.key(f.input,'Enter');assert.equal(f.topic.clicks,1);f.key(f.input,'Escape');assert.deepEqual(f.visible(),[f.overview,f.move]);assert.equal(f.recentGroup().hidden,true);f.binding.dispose();
+});
+
+test('choosing a category clears search while reopening retains that category and refreshes tool state',()=>{
+ const f=fixture();f.search('pdf');f.binding.setCategory(f.mindmap);assert.equal(f.input.value,'');assert.equal(f.clear.hidden,true);assert.deepEqual(f.visible(),[f.topic]);
+ f.search('分组');f.binding.open();assert.equal(f.input.value,'');assert.equal(f.doc.activeElement,f.input);assert.deepEqual(f.visible(),[f.topic]);
+ f.binding.setCategory(f.workspace);f.pdf.disabled=true;f.key(f.input,'Enter');assert.equal(f.pdf.clicks,0);assert.equal(f.read.clicks,1);f.binding.dispose();
+});
+
+test('category changes retain external hiding, disabled actions and original visibility on disposal',()=>{
+ const f=fixture({hiddenGroup:true});f.binding.setCategory(f.mindmap);assert.deepEqual(f.visible(),[]);assert.equal(f.empty.hidden,false);
+ f.binding.setCategory(f.workspace);f.pdf.hidden=true;f.read.setAttribute('aria-disabled','true');f.binding.open();assert.deepEqual(f.visible(),[f.read]);f.key(f.input,'Enter');assert.equal(f.read.clicks,0);
+ f.binding.setCategory(f.organize);f.binding.dispose();assert.equal(f.pdf.hidden,true);assert.equal(f.hidden.hidden,true);assert.equal(f.mindmap.hidden,true);assert.equal(f.topic.hidden,false);assert.equal(f.read.hidden,false);assert.equal(f.organize.hidden,false);
+});
+
+test('category callbacks reflect only selection or search-mode changes and stop after disposal',()=>{
+ const f=fixture();assert.deepEqual(f.changes,[{section:undefined,searching:false}]);f.binding.setCategory(f.organize);f.binding.setCategory(f.organize);f.search('pdf');f.search('pdf 卡片');f.search('');
+ assert.deepEqual(f.changes,[{section:undefined,searching:false},{section:f.organize,searching:false},{section:f.organize,searching:true},{section:f.organize,searching:false}]);
+ const count=f.changes.length;f.binding.dispose();f.binding.setCategory(f.workspace);f.binding.open();assert.equal(f.changes.length,count);
+ for(const element of [f.input,f.clear,f.panel,f.tools])for(const listeners of element.listeners.values())assert.equal(listeners.length,0);
+});
+
+test('switching categories does not steal category-button focus and rescues focus from a hidden action',()=>{
+ const f=fixture(),categoryButton=f.panel.createEl('button');categoryButton.focus();f.binding.setCategory(f.organize);assert.equal(f.doc.activeElement,categoryButton);
+ f.overview.focus();f.binding.setCategory(f.workspace);assert.equal(f.doc.activeElement,f.input);
+ f.binding.setCategory();f.pdf.click();f.recent()[0].focus();f.binding.setCategory(f.workspace);assert.equal(f.doc.activeElement,f.input);f.binding.dispose();
+});
+
+test('category search defers IME changes and reinstates the category after composition and clear',()=>{
+ const f=fixture();f.binding.setCategory(f.organize);f.input.dispatch('compositionstart');f.search('pdf');assert.deepEqual(f.visible(),[f.overview,f.move]);
+ f.input.dispatch('compositionend');assert.deepEqual(f.visible(),[f.pdf,f.read]);f.clear.click();assert.deepEqual(f.visible(),[f.overview,f.move]);f.binding.dispose();
+});
+
+test('a removed category recovers to all tools while an unrelated element cannot become a category',()=>{
+ const f=fixture();f.binding.setCategory(f.organize);f.binding.setCategory(f.pdf);assert.deepEqual(f.visible(),[f.overview,f.move]);
+ f.organize.remove();f.binding.open();assert.deepEqual(f.visible(),[f.topic,f.pdf,f.read]);assert.deepEqual(f.changes.at(-1),{section:undefined,searching:false});f.binding.dispose();
+});
+
+test('leaving the wide-panel empty state restores recent actions after their CSS-hidden ancestor becomes visible',()=>{
+ for(const restore of ['clear','all','open']){
+  const f=fixture();
+  // Wide palettes hide .ts-rail-actions with :has(.ts-rail-empty:not([hidden])).
+  // Model browser layout visibility, which changes when empty.hidden changes.
+  for(const original of f.tools.querySelectorAll('button')){
+   const rects=original.getClientRects.bind(original);original.getClientRects=()=>f.empty.hidden?rects():[];
+  }
+  f.pdf.click();assert.equal(f.recent().length,1);f.search('missing');assert.equal(f.empty.hidden,false);
+  if(restore==='clear')f.clear.click();else if(restore==='all')f.binding.setCategory();else f.binding.open();
+  assert.equal(f.empty.hidden,true);assert.equal(f.recentGroup().hidden,false);assert.equal(f.recent().length,1,restore);
+  assert.equal(f.recent()[0].getAttribute('aria-label'),'插入 PDF 卡片');f.binding.dispose();
+ }
 });

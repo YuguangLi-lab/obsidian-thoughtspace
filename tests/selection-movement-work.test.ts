@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {clone,emptyBoard,movableSelection,selectionMemberships,type Card} from '../src/model';
 import {dragCommitChanges} from '../src/drag-draft';
+import {moveSelection} from '../src/board-tools';
 
 const node=(id:string,x=0,extra:Partial<Card>={}):Card=>({id,kind:'text',text:id,x,y:0,width:120,height:80,color:'sand',...extra});
 function fixture(count=1200){const b=emptyBoard();b.version=3;const nodes=Array.from({length:count},(_,i)=>node('n'+i,i*150));let reads=0;b.nodes=new Proxy(nodes,{get(target,key,receiver){if(typeof key==='string'&&/^\d+$/.test(key))reads++;return Reflect.get(target,key,receiver);}});return{b,nodes,reads:()=>reads};}
@@ -24,8 +25,12 @@ test('movement observes live folds, locks and nested group membership',()=>{
  b.nodes[4].locked=false;assert.deepEqual([...movableSelection(b,new Set(['group']))],['group','nested','a','b','locked']);
  delete b.nodes[0].branchFolded;delete b.nodes[0].sectionFolded;b.nodes[1].sectionFolded=true;assert.equal(movableSelection(b,new Set(['a'])).size,0);
  b.nodes[1].sectionFolded=false;assert.deepEqual([...movableSelection(b,new Set(['a']))],['a']);
- const membership=selectionMemberships(b,[b.nodes[0]]);assert.deepEqual(membership.get('group')!.map(n=>n.id),['locked','a']);
- b.nodes[2].x=1200;assert.deepEqual(selectionMemberships(b,[b.nodes[0]]).get('group')!.map(n=>n.id),['locked']);
+ const membership=selectionMemberships(b,[b.nodes[0]]);assert.deepEqual(membership.get('group')!.map(n=>n.id),['locked','a','nested']);
+ const before=clone(b);moveSelection(b,new Set(['group']),75,35);
+ for(const id of ['group','nested','a','locked']){const original=before.nodes.find(n=>n.id===id)!,moved=b.nodes.find(n=>n.id===id)!;assert.equal(moved.x,original.x+75,id);assert.equal(moved.y,original.y+35,id);}
+ assert.deepEqual(b.nodes[3],before.nodes[3]);assert.deepEqual(b.edges,before.edges);moveSelection(b,new Set(['group']),-75,-35);assert.deepEqual(b,before);
+ b.nodes[2].x=1200;assert.deepEqual(selectionMemberships(b,[b.nodes[0]]).get('group')!.map(n=>n.id),['locked','nested']);
+ const outside=clone(b.nodes[2]);moveSelection(b,new Set(['group']),-20,55);assert.deepEqual(b.nodes[2],outside);assert.equal(b.nodes[1].x,0);assert.equal(b.nodes[1].y,75);
 });
 test('batch drag commits compare geometry without per-object entry arrays',t=>{
  const f=fixture(),originals=new Map(f.nodes.map(n=>[n.id,{...n}])),drafts=new Map(f.nodes.map(n=>[n.id,{...n,x:n.x+35,y:20}]));let entries=0;const original=Object.entries;

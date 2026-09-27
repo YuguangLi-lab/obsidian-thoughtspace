@@ -37,16 +37,16 @@ function deferred<T>(){let resolve!:(value:T)=>void,reject!:(error:Error)=>void;
 const tick=async()=>{for(let i=0;i<12;i++)await Promise.resolve();};
 const node=(id:string,kind:Card['kind']='text'):Card=>({id,kind,text:`# ${id}\n\n正文 ${id}`,title:id,x:0,y:0,width:200,height:100,color:'green',...(kind==='card'?{file:`notes/${id}.md`}:{})});
 function fixture(nodes:Card[]=[node('alpha'),node('beta'),node('gamma')],options:{read?:(file:TFile)=>Promise<string>;render?:(text:string,el:Element)=>Promise<void>}={}){
- const board={...emptyBoard(),nodes},reads:string[]=[],renders:string[]=[],notices:string[]=[],scopes:{loaded:boolean}[]=[],opened:string[]=[],revealed:string[]=[],commits:string[]=[];
+ const board={...emptyBoard(),nodes},reads:string[]=[],renders:string[]=[],notices:string[]=[],scopes:{loaded:boolean}[]=[],opened:string[]=[],revealed:string[]=[],commits:string[]=[],sources:string[]=[],vaultEvents=new Map<string,((file:TFile)=>unknown)[]>();
  class Component{loaded=false;disposers:(()=>void)[]=[];constructor(){scopes.push(this);}load(){this.loaded=true;}unload(){this.loaded=false;for(const dispose of this.disposers.splice(0))dispose();}registerDomEvent(el:Element,name:string,fn:(e:any)=>unknown){el.addEventListener(name,fn);this.disposers.push(()=>el.removeEventListener(name));}registerEvent(){}register(fn:()=>void){this.disposers.push(fn);}}
  const files=new Map(nodes.filter(n=>n.file).map(n=>[n.file!,new TFile(n.file!)]));
- const app={vault:{getAbstractFileByPath:(path:string)=>files.get(path),cachedRead:async(file:TFile)=>{reads.push(file.path);return options.read?options.read(file):`# ${file.path}\n\n笔记正文`;},on:()=>({}),getResourcePath:(file:TFile)=>file.path},workspace:{openLinkText:async()=>{}}};
- const host={board:()=>board,ids:new Set<string>(),title:'阅读测试白板',settings:{surfaceStyle:'glass',readingSize:16,readingWidth:'comfortable'},commit:(edit:(b:typeof board)=>void)=>{commits.push('edit');edit(board);},reveal:(id:string)=>revealed.push(id),open:async(file:TFile)=>{opened.push(file.path);}};
- const deps={Modal,Component,TFile,Notice:class{constructor(message:string){notices.push(message);}},setIcon:()=>{},themeSurface:()=>{},remoteImageUrl:()=>undefined,...reading,MarkdownRenderer:{render:async(_app:unknown,text:string,el:Element)=>{renders.push(text);if(options.render)await options.render(text,el);else{el.createEl('h1',{text:text.split('\n')[0].replace(/^# /,'')});el.createEl('p',{text});}}},navigator:{clipboard:{writeText:async()=>{}}}};
+ const app={vault:{getAbstractFileByPath:(path:string)=>files.get(path),cachedRead:async(file:TFile)=>{reads.push(file.path);return options.read?options.read(file):`# ${file.path}\n\n笔记正文`;},on:(name:string,run:(file:TFile)=>unknown)=>{const callbacks=vaultEvents.get(name)||[];callbacks.push(run);vaultEvents.set(name,callbacks);return{};},getResourcePath:(file:TFile)=>file.path},workspace:{openLinkText:async()=>{}}};
+ const host={sourcePath:()=> 'Boards/Research.thoughtspace',board:()=>board,ids:new Set<string>(),title:'阅读测试白板',settings:{surfaceStyle:'glass',readingSize:16,readingWidth:'comfortable'},commit:(edit:(b:typeof board)=>void)=>{commits.push('edit');edit(board);},reveal:(id:string)=>revealed.push(id),open:async(file:TFile)=>{opened.push(file.path);}};
+ const deps={Modal,Component,TFile,Notice:class{constructor(message:string){notices.push(message);}},setIcon:()=>{},themeSurface:()=>{},remoteImageUrl:()=>undefined,...reading,MarkdownRenderer:{render:async(_app:unknown,text:string,el:Element,source:string)=>{sources.push(source);renders.push(text);if(options.render)await options.render(text,el);else{el.createEl('h1',{text:text.split('\n')[0].replace(/^# /,'')});el.createEl('p',{text});}}},navigator:{clipboard:{writeText:async()=>{}}}};
  const source=readFileSync('src/reading-desk-view.ts','utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
  const Desk=new Function(...Object.keys(deps),transformSync(source+'\nreturn ReadingDesk;',{loader:'ts'}).code)(...Object.values(deps));
  const modal=new Desk(app,host);modal.onOpen();
- return{modal,board,host,files,reads,renders,notices,scopes,opened,revealed,commits};
+ return{modal,board,host,files,reads,renders,notices,scopes,opened,revealed,commits,sources,emit:(name:string,file:TFile)=>{for(const run of vaultEvents.get(name)||[])run(file);}};
 }
 const find=(modal:any,selector:string):Element=>{const el=modal.modalEl.querySelector(selector);assert.ok(el,selector);return el;};
 const label=(modal:any,value:string)=>find(modal,`[aria-label="${value}"]`);
@@ -116,4 +116,23 @@ test('finishing the last filtered article returns focus to search instead of a h
 });
 test('following a relation moves focus into the current article instead of a detached relation',async()=>{
  const f=fixture();f.board.edges=[{id:'edge',from:'alpha',to:'beta',label:''}];await tick();f.modal.asideTab='relations';f.modal.renderCompanion();const relation=find(f.modal,'.ts-reading-relation');relation.focus();relation.click();await tick();assert.equal(f.modal.activeId,'beta');assert.equal(f.modal.document.activeElement,f.modal.page);f.modal.close();
+});
+
+
+test('I140-8 reading board text resolves relative links and embeds from the board location',async()=>{
+ const f=fixture([{...node('alpha'),text:'[[./References/Paper]]\n![[./Assets/plot.png]]'}]);await tick();assert.deepEqual(f.sources,['Boards/Research.thoughtspace']);
+ f.modal.close();const note=fixture([node('alpha','card')]);await tick();assert.deepEqual(note.sources,['notes/alpha.md']);note.modal.close();
+});
+
+test('I140-9 reading a deleted or restored note refreshes its content and original-file controls',async()=>{
+ const f=fixture([node('alpha','card')]);await tick();const file=f.files.get('notes/alpha.md')!;
+ f.files.delete(file.path);f.emit('delete',file);await tick();assert.match(find(f.modal,'.ts-reading-prose').textContent,/找不到原笔记/);assert.equal(find(f.modal,'[data-reading-open]').hidden,true);
+ const restored=new TFile(file.path);f.files.set(restored.path,restored);f.emit('create',restored);await tick();assert.match(find(f.modal,'.ts-reading-prose').textContent,/笔记正文/);assert.equal(find(f.modal,'[data-reading-open]').hidden,false);assert.equal(f.reads.length,2);f.modal.close();
+});
+
+test('I140-8 reading text invalidates its cached relative-link context after moving the board',async()=>{
+ const f=fixture([{...node('alpha'),text:'[[./References/Paper]]'}]);await tick();
+ f.host.sourcePath=()=> 'Archive/Research.thoughtspace';f.modal.renderList();await tick();
+ assert.deepEqual(f.sources,['Boards/Research.thoughtspace','Archive/Research.thoughtspace']);
+ f.modal.close();
 });

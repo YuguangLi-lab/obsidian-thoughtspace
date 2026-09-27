@@ -62,7 +62,7 @@ export function editTopic(source:Board,id:string,action:TopicAction,values:reado
  }else if(action==='duplicate'){
   const nodes=subtree(id),mapping=new Map(nodes.map(node=>[node.id,fresh()]));
   for(const node of nodes)b.nodes.push({...clone(node),id:mapping.get(node.id)!});
-  for(const edge of [...b.edges])if(edge.kind==='branch'&&mapping.has(edge.from)&&mapping.has(edge.to))b.edges.push({...clone(edge),id:fresh(),from:mapping.get(edge.from)!,to:mapping.get(edge.to)!});
+  for(const edge of [...b.edges])if(mapping.has(edge.from)&&mapping.has(edge.to))b.edges.push({...clone(edge),id:fresh(),from:mapping.get(edge.from)!,to:mapping.get(edge.to)!});
   selected=mapping.get(id)!;
   // A copied center becomes a branch; copies share note files, never duplicate vault files.
   b.edges.push(connect(parent??id,selected));if(parent!==undefined)moveAfter(selected,id);else delete n.branchFolded;

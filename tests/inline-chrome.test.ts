@@ -52,7 +52,8 @@ function fixture(t:any,inCanvas=true){
  const doc:any={activeElement:null,defaultView:{setTimeout:(run:()=>void)=>{timers.set(++id,run);return id;},clearTimeout:(key:number)=>timers.delete(key),requestAnimationFrame:(run:()=>void)=>{frames.set(++id,run);return id;},cancelAnimationFrame:(key:number)=>frames.delete(key),navigator:{clipboard:{writeText:async()=>{}}}}};
  const root=doc.body=new Element('DIV',doc,'ts-root'),main=root.createDiv(inCanvas?'ts-main':'unrelated-host'),world=main.createDiv('ts-world'),node=world.createDiv('ts-node');world.style.transform='translate(-900px, -400px) scale(.3)';node.createDiv('ts-text-body');
  const previousStyle=globalThis.getComputedStyle,previousObserver=globalThis.ResizeObserver;
- Object.assign(globalThis,{getComputedStyle:()=>({fontFamily:'Host font',fontSize:'16px',fontWeight:'400',lineHeight:'24px',letterSpacing:'0px',textAlign:'left',paddingTop:'8px',paddingRight:'8px',paddingBottom:'8px',paddingLeft:'8px'}),ResizeObserver:class{observe(){}disconnect(){disconnected++;}}});
+ Object.assign(globalThis,{getComputedStyle:()=>({direction:'ltr',overflowX:'visible',fontFamily:'Host font',fontSize:'16px',fontWeight:'400',lineHeight:'24px',letterSpacing:'0px',textAlign:'left',paddingTop:'8px',paddingRight:'8px',paddingBottom:'8px',paddingLeft:'8px'}),ResizeObserver:class{observe(){}disconnect(){disconnected++;}}});
+ doc.defaultView.getComputedStyle=globalThis.getComputedStyle;
  const calls={save:[] as string[],cancel:0,topic:0},options={app:{},value:'Draft',nodeKind:'text',label:'编辑草稿',placeholder:'',markdown:false,resize(){},save:async(value:string)=>{calls.save.push(value);},cancel:()=>{calls.cancel++;},continueTopic:async()=>{calls.topic++;}};
  const editor=new module.exports.InlineNodeEditor(node,options);
  t.after(()=>{editor.dispose();Object.assign(globalThis,{getComputedStyle:previousStyle,ResizeObserver:previousObserver});});
@@ -105,4 +106,33 @@ test('disposing removes only this draft chrome and cancels its local focus/layou
 
 test('a non-canvas fallback keeps its action row owned without requiring a global document lookup',t=>{
  const f=fixture(t,false);assert.equal(f.chrome(),null);assert.equal(f.bar()!.parentElement,f.editor.el);assert.equal(f.editor.ownsFocus(f.bar()),true);
+});
+
+for(const recovery of [false,true])test(`keyboard copy remains reachable while ${recovery?'recovery':'save'} owns the draft`,async t=>{
+  const f=fixture(t),copied:string[]=[];let release!:()=>void;
+  f.doc.defaultView.navigator.clipboard.writeText=async(value:string)=>{copied.push(value);};
+  const gate=new Promise<void>(resolve=>release=resolve);f.options.save=()=>gate;
+  const pending=recovery?f.editor.backup(()=>gate):f.editor.commit();await Promise.resolve();
+  const copy=f.editor.actions[2] as Element;copy.focus();f.flushFocus();
+  try{
+   assert.equal(copy.disabled,false);
+   for(const key of ['Enter',' ']){
+    const event=f.press(copy,key);
+    assert.equal(event.defaultPrevented,false,`${recovery?'recovery':'save'} must allow native ${JSON.stringify(key)} activation of Copy`);
+    // Native buttons click on an unprevented Enter/Space activation.
+    if(!event.defaultPrevented)copy.onclick?.();
+   }
+   await Promise.resolve();assert.deepEqual(copied,['Draft','Draft']);
+   assert.equal(f.editor.input.readOnly,true);assert.equal(f.editor.saving,true);
+   for(const key of ['Enter',' ','Escape'])assert.equal(f.press(f.editor.input,key).defaultPrevented,true,'the saving draft remains protected');
+   assert.equal(f.press(copy,'Enter',{ctrlKey:true}).defaultPrevented,true,'a save shortcut must not activate Copy');
+  }finally{release();await pending;}
+});
+
+for(const failure of ['missing','throws'])test(`a ${failure} clipboard API reports a copy failure and keeps the editable draft`,async t=>{
+ const f=fixture(t),copy=f.editor.actions[2] as Element;
+ if(failure==='missing')delete f.doc.defaultView.navigator.clipboard;
+ else f.doc.defaultView.navigator.clipboard.writeText=()=>{throw Error('Clipboard unavailable');};
+ assert.doesNotThrow(()=>copy.onclick?.());await Promise.resolve();
+ assert.match(f.editor.status.textContent,/复制失败/);assert.equal(f.editor.value,'Draft');assert.equal(f.editor.input.readOnly,false);assert.equal(f.calls.cancel,0);
 });

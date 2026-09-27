@@ -1,16 +1,16 @@
 import {markdownRows} from './markdown-context';
 import {imageMarkdown,remoteImageUrl} from './image-host';
 import {fileReference} from './journal-links-model';
-import {branchState,foldedMoveUnits,moveFoldedUnit} from './mindmap';
+import {foldedMoveUnits,moveFoldedUnit} from './mindmap';
 import {textExcerptPresentation} from './excerpt-sources';
 import {Board,Card,Edge,clone,uid,parseBoard,nodeMinimumHeight} from './model';
-import {Rect,marqueeSelection} from './board-tools';
+import {Rect,visibleMarqueeSelection} from './board-tools';
 function firstLine(text:string|undefined){if(text===undefined)return;const end=text.indexOf('\n');return end<0?text:text.slice(0,end);}
 export const nodeName=(n:Card)=>n.title||n.file?.split('/').pop()||firstLine(n.text)||'未命名对象';
 export const readingOrder=(nodes:Card[])=>[...nodes].sort((a,b)=>a.y-b.y||a.x-b.x||a.id.localeCompare(b.id));
 export function selectStudio(board:Board,ids:ReadonlySet<string>,mode:'invert'|'type'|'color'|'component'|'viewport',rect?:Rect):Set<string>{
  if(mode==='invert')return new Set(board.nodes.filter(n=>!ids.has(n.id)).map(n=>n.id));
- if(mode==='viewport'){const hidden=branchState(board).hidden;return marqueeSelection(board.nodes.filter(n=>!hidden.has(n.id)),rect!);}
+ if(mode==='viewport')return visibleMarqueeSelection(board,rect!);
  const first=board.nodes.find(n=>ids.has(n.id));if(!first)return new Set();
  if(mode==='type'||mode==='color')return new Set(board.nodes.filter(n=>mode==='type'?n.kind===first.kind:n.color===first.color).map(n=>n.id));
  const adjacent=new Map<string,string[]>();for(const e of board.edges){for(const[a,b]of [[e.from,e.to],[e.to,e.from]]){if(!adjacent.has(a))adjacent.set(a,[]);adjacent.get(a)!.push(b);}}
@@ -53,7 +53,7 @@ function mergeWritingReferences(board:Board,oldIds:ReadonlySet<string>,survivor:
 export function mergeTexts(board:Board,ids:ReadonlySet<string>){
  const nodes=texts(board,ids);if(nodes.length<2)throw Error('请至少选择两个未锁定的普通文本');const first=nodes[0],selected=new Set(nodes.map(n=>n.id));
  const parts=nodes.map(n=>textExcerptPresentation(n.text||'')),merged=withSources(parts.map(p=>p.sources.length?p.body.trimEnd():p.body).join('\n\n'),parts.flatMap(p=>p.sources.map(s=>s.citation)));
- if(merged.length>100000)throw Error('合并后的文本超过 100,000 字符');first.text=merged;first.autoSize=false;first.height=Math.min(1100,Math.max(first.height,nodes.reduce((sum,n)=>sum+n.height,0)));
+ if(merged.length>100000)throw Error('合并后的文本超过 100,000 字符');first.text=merged;first.autoSize=false;const expanded=(n:Card)=>n.collapsed?n.expandedHeight!:n.height,height=Math.min(1100,Math.max(expanded(first),nodes.reduce((sum,n)=>sum+expanded(n),0)));if(first.collapsed)first.expandedHeight=height;else first.height=height;
  board.nodes=board.nodes.filter(n=>!selected.has(n.id)||n===first);const seen=new Set<string>();
  board.edges=board.edges.flatMap(e=>{const affected=selected.has(e.from)||selected.has(e.to),next={...e,from:selected.has(e.from)?first.id:e.from,to:selected.has(e.to)?first.id:e.to};if(next.from===next.to)return [];
   if(affected){const key=JSON.stringify([next.from,next.to,next.label,next.style||'curve',next.direction||'forward',!!next.dashed,next.color||'',next.fromSide||'',next.toSide||'']);if(seen.has(key))return [];seen.add(key);}return [next];});

@@ -40,11 +40,11 @@ export function conditionExpression(c:CustomCondition,fields:CustomField[]){cons
  return `${key} ${c.op==='eq'?'==':c.op==='gte'?'>=':'<='} ${JSON.stringify(value)}`;
 }
 export function databaseBase(view:SavedDatabaseView,fields:CustomField[],folder:string,boardPaths:readonly string[]=[]){
- const f=view.filter,filters:string[]=['file.ext == "md"'];
+ const f=view.filter,filters:string[]=['file.ext == "md"','!file.inFolder("ThoughtSpace/白板搜索")','!file.inFolder("ThoughtSpace-plugin-backups")'];
  if(view.source==='cards')filters.push(`file.inFolder(${JSON.stringify(folder)})`);
  if(view.source==='board')filters.push(boardPaths.length?'('+boardPaths.map(p=>`file.path == ${JSON.stringify(p)}`).join(' || ')+')':'false');
  if(f.query)filters.push(`(file.name.lower().contains(${JSON.stringify(f.query.toLocaleLowerCase())}) || file.path.lower().contains(${JSON.stringify(f.query.toLocaleLowerCase())}) || file.tags.toString().lower().contains(${JSON.stringify(f.query.toLocaleLowerCase())}))`);
- if(f.tag)filters.push(`file.hasTag(${JSON.stringify(f.tag.replace(/^#/,''))})`);
+ if(f.tag)filters.push(`file.tags.filter(value.replace(/^#/, "") == ${JSON.stringify(f.tag.replace(/^#/,''))}).length > 0`);
  if(f.status)filters.push(f.status==='inbox'?`(!${propertyKeys.status} || ${propertyKeys.status} == "inbox")`:`${propertyKeys.status} == ${JSON.stringify(f.status)}`);
  if(f.priority)filters.push(`${propertyKeys.priority} == ${JSON.stringify(f.priority)}`);
  if(f.overdue)filters.push(`(${propertyKeys.status} != "done" && ${propertyKeys.due} && date(${propertyKeys.due}) < today())`);

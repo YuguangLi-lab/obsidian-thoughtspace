@@ -2,7 +2,11 @@
 export function inlineCodeRanges(text:string):{from:number;to:number}[]{
  const runs:{from:number;to:number;escaped:boolean;next:number}[]=[],last=new Map<number,number>();
  for(let i=text.indexOf('`');i>=0;i=text.indexOf('`',i)){const from=i;while(text[i]==='`')i++;let slash=from;while(slash>0&&text[slash-1]==='\\')slash--;runs.push({from,to:i,escaped:(from-slash)%2===1,next:-1});}
- for(let i=runs.length-1;i>=0;i--){const n=runs[i].to-runs[i].from;runs[i].next=last.get(n)??-1;last.set(n,i);}
+ for(let i=runs.length-1;i>=0;i--){
+  // Inline spans may contain a soft line break, never a paragraph boundary.
+  if(i+1<runs.length&&/\r?\n[ \t]*\r?\n/.test(text.slice(runs[i].to,runs[i+1].from)))last.clear();
+  const n=runs[i].to-runs[i].from;runs[i].next=last.get(n)??-1;last.set(n,i);
+ }
  const ranges:{from:number;to:number}[]=[];
  for(let i=0;i<runs.length;i++){const run=runs[i];if(run.escaped||run.next<0)continue;ranges.push({from:run.from,to:runs[run.next].to});i=run.next;}
  return ranges;

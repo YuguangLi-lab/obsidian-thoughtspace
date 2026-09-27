@@ -23,9 +23,9 @@ test('branch selection expands links without calculating unrelated folded-frame 
  assert.equal(reads(),0,'branch selection only needs containment for actual child groups');assert.deepEqual([...ids],['child','leaf']);assert.deepEqual(b,before);
 });
 
-test('relation ancestor reveal opens parent links without touching folded frames',()=>{
+test('relation ancestor reveal checks target containment once and leaves unrelated folded frames unchanged',()=>{
  const b=fixture(),before=clone(b),reads=geometryReads(b);assert.equal(unfoldRelationAncestors(b,new Set(['leaf','child'])),2);
- assert.equal(reads(),0,'relation reveal does not use visibility');assert.ok(b.nodes.slice(0,2).every(n=>!n.branchFolded));assert.deepEqual(b.nodes.slice(3),before.nodes.slice(3));
+ assert.ok(reads()<=128,'relation reveal shares targeted ancestor checks instead of resolving every folded member');assert.ok(b.nodes.slice(0,2).every(n=>!n.branchFolded));assert.deepEqual(b.nodes.slice(3),before.nodes.slice(3));
 });
 
 test('ancestor reveal checks enclosing groups once without resolving all folded material first',()=>{

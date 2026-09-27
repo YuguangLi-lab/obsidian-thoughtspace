@@ -4,12 +4,13 @@ import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import * as literals from '../src/markdown-literals';
 import * as context from '../src/markdown-context';
+import * as links from '../src/markdown-links';
 import {planMarkdownEdit,type MarkdownCommand} from '../src/markdown-edit';
 import {editorMatches,editorReplacement} from '../src/editor-search';
 
 function formatting(){
  const scans:number[]=[],module={exports:{} as {planMarkdownEdit:typeof planMarkdownEdit}};
- new Function('require','module','exports',transformSync(readFileSync('src/markdown-edit.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>name==='./markdown-literals'?{...literals,inlineCodeRanges:(text:string)=>{scans.push(text.length);return literals.inlineCodeRanges(text);}}:context,module,module.exports);
+ new Function('require','module','exports',transformSync(readFileSync('src/markdown-edit.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>name==='./markdown-literals'?{...literals,inlineCodeRanges:(text:string)=>{scans.push(text.length);return literals.inlineCodeRanges(text);}}:name==='./markdown-links'?links:context,module,module.exports);
  return{plan:module.exports.planMarkdownEdit,scans};
 }
 

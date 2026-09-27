@@ -23,3 +23,10 @@ export function hostSettings(app:unknown):HostSettings|undefined {
 export function workspaceLeafId(leaf:unknown):string|undefined {
  return isRecord(leaf)&&typeof leaf.id==='string'?leaf.id:undefined;
 }
+
+interface HostCommands {listCommands():{id:string}[];executeCommandById(id:string):boolean}
+export function hostCommands(app:unknown):HostCommands|undefined {
+ if(!isRecord(app)||!isRecord(app.commands))return;
+ const commands=app.commands;
+ if(typeof commands.listCommands==='function'&&typeof commands.executeCommandById==='function')return commands as unknown as HostCommands;
+}

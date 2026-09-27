@@ -13,9 +13,14 @@ export function branchOutline(board:Board,rootId:string){
   for(let i=list.length-1;i>=0;i--)stack.push({node:list[i],depth:row.depth+1});
  }return rows;
 }
+function branchFileReference(node:Card){
+ const link=fileReference(node.file!);if(node.kind!=='pdf')return link;
+ const page=`#page=${node.pdfPage||1}`;
+ return link.endsWith(']]')?link.slice(0,-2)+page+']]':link.slice(0,-1)+page+')';
+}
 export function branchMarkdown(board:Board,rootId:string){
  const rows=branchOutline(board,rootId),parts:string[]=[];let size=0;
- for(const {node,depth} of rows){const raw=node.kind==='image'&&node.imageUrl?imageMarkdown(node.imageUrl):node.kind==='text'?node.text||'未命名主题':node.file?`${node.kind==='image'?'!':''}${fileReference(node.file)}`:node.title||'未命名主题';
+ for(const {node,depth} of rows){const raw=node.kind==='image'&&node.imageUrl?imageMarkdown(node.imageUrl):node.kind==='text'?node.text||'未命名主题':node.file?`${node.kind==='image'?'!':''}${branchFileReference(node)}`:node.title||'未命名主题';
   const lines=raw.replace(/\r\n?/g,'\n').trim().split('\n'),indent='  '.repeat(depth),text=lines.map((line,i)=>indent+(i?'  ':'- ')+line).join('\n');size+=text.length;if(size>500000)throw Error('分支内容超过 500,000 字符，请分段整理');parts.push(text);
  }
  return parts.join('\n')+'\n';
