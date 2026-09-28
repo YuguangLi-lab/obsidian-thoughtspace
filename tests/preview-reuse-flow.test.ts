@@ -17,6 +17,8 @@ import {mediaDimensions} from '../src/media-geometry';
 import {foldCards} from '../src/board-tools';
 import {releaseEditorResource} from '../src/editor-cleanup';
 import {excerptPresentation} from '../src/excerpt-sources';
+import {MediaPlayback} from '../src/media-playback';
+import type {MediaCardOptions} from '../src/media-card-player';
 
 // Exercise the production BoardView render path. Only the vault, Obsidian DOM,
 // renderer boundaries and queue clock are substituted; cached nodes and their
@@ -24,6 +26,7 @@ import {excerptPresentation} from '../src/excerpt-sources';
 const source=readFileSync(process.env.PREVIEW_SOURCE||'src/main.ts','utf8');
 function take(start:string,end:string){const a=source.indexOf(start),b=source.indexOf(end,a);assert.ok(a>=0&&b>a,start);return source.slice(a,b);}
 const methods=take('  private renderBoard(', '  private pdfTotals=')
+ +take('  private renderMediaCard(', '  private choosePdfPage(')
  +take('  private renderPdfCard(', '  private addPorts(')
  +take('  private positionNode(', '  private applyInlineSize(')
  +take('  async setTextAutoHeight(', '  fitCards(')
@@ -73,7 +76,7 @@ class Dom {
  replaceChildren(...children:Dom[]){this.empty();for(const child of children){child.remove();child.parent=this;this.children.push(child);}}
  insertBefore(child:Dom,before:Dom|null){child.remove();const index=before?this.children.indexOf(before):-1;this.children.splice(index<0?this.children.length:index,0,child);child.parent=this;}
  matches(selector:string){return selector.split(',').some(s=>s.startsWith('.')?s.slice(1).split('.').every(c=>this.classes.has(c)):s===this.tag);}
- querySelectorAll(selector:string):Dom[]{return this.children.flatMap(c=>[...(c.matches(selector)?[c]:[]),...c.querySelectorAll(selector)]);}
+ querySelectorAll(selector:string):Dom[]{if(selector.startsWith(':scope > '))return this.children.filter(c=>c.matches(selector.slice(9)));return this.children.flatMap(c=>[...(c.matches(selector)?[c]:[]),...c.querySelectorAll(selector)]);}
  querySelector(selector:string){return this.querySelectorAll(selector)[0]||null;}
  contains(other:Dom):boolean{return this===other||this.children.some(c=>c.contains(other));}
  addEventListener(){}removeEventListener(){}
@@ -94,12 +97,13 @@ class Queue {
  add(alive:()=>boolean,run:()=>Promise<void>){this.added++;this.jobs.push({alive,run});}
  async drain(){for(const job of this.jobs.splice(0))if(job.alive())await job.run();}
 }
-const node=(kind:model.Card['kind'],patch:Partial<model.Card>={}):model.Card=>({id:'node',kind,x:10,y:20,width:300,height:180,color:'sand',...({card:{file:'note.md'},text:{text:'Visible text'},image:{file:'photo.png'},pdf:{file:'book.pdf'},board:{file:'child.thoughtspace'},section:{title:'Group'}}[kind]),...patch});
+const node=(kind:model.Card['kind'],patch:Partial<model.Card>={}):model.Card=>({id:'node',kind,x:10,y:20,width:300,height:180,color:'sand',...({card:{file:'note.md'},text:{text:'Visible text'},image:{file:'photo.png'},pdf:{file:'book.pdf'},audio:{file:'recording.mp3'},video:{file:'recording.mp4'},board:{file:'child.thoughtspace'},section:{title:'Group'}}[kind]),...patch});
 function fixture(kind:model.Card['kind']='card',patch:Partial<model.Card>={}){
  const n=node(kind,patch),board={...model.emptyBoard(),version:3 as const,nodes:[n]},files=new Map<string,File>(),metadata={frontmatter:{} as Record<string,unknown>,tags:[] as string[]};
  if(n.file)files.set(n.file,new File(n.file));
  const calls={metadata:0,tags:0,childCandidates:0,read:0,markdown:0,pdf:0,textFit:0,cardFit:0,mediaFits:[] as {node:model.Card;size:{width:number;height:number}}[]};
  const world=new Dom();world.root=true;const svg=world.createEl('svg'),previewQueue=new Queue(),pdfPreviewQueue=new Queue();
+ const mediaMounts:{options:MediaCardOptions;body:Dom;paused:number;disposed:number}[]=[];
  const session={board,blocked:false,file:new File('board.thoughtspace')};
  const deps={textBlockPadding,...model,...keys,renderBranchControls:branchModule.exports.renderBranchControls,branchState,branchRenderSnapshot,childConnectionCandidates:(board:model.Board,roots?:ReadonlySet<string>)=>{calls.childCandidates++;return childConnectionCandidates(board,roots);},sectionDisplayNode,visibleNodes,viewportRect,markdownPreview,visibleGridSize,textFontFamily,textFitsContent,cardDisplayTitle,mediaDimensions,
   TFile:File,Component:Scope,Element:Dom,getAllTags:(cache:{tags?:string[]})=>{calls.tags++;return cache.tags||null;},setIcon:()=>{},
@@ -107,6 +111,7 @@ function fixture(kind:model.Card['kind']='card',patch:Partial<model.Card>={}){
   bindCardTitle:()=>()=>{},readProperties:(fm:Record<string,unknown>)=>({status:fm.thoughtspace_status}),statuses:{done:'完成'},isOverdue:()=>false,localDay:()=>'',
   textExcerptPresentation:(body:string)=>({body,sources:[]}),excerptPresentation:(body:string)=>({body,sources:[]}),renderTextPreview:(body:Dom,text:string)=>{body.appendText(text);body.dataset.mathStatus='none';},fitTextNode:(node:model.Card)=>{node.height=420;},remoteImageUrl:()=>undefined,
   pdfSubpath:(page:number)=>`#page=${page}`,loadPdfJs:()=>{},
+  mountMediaCard:(host:Dom,options:MediaCardOptions)=>{const mounted={options,body:host.createDiv('ts-av-player'),paused:0,disposed:0};mediaMounts.push(mounted);return{getState(){return{time:0,rate:1,volume:1}},play(){options.onPlay?.()},pause(){mounted.paused++;},dispose(){mounted.disposed++;mounted.body.remove();},seek(){}};},
   MarkdownRenderer:{async render(_app:unknown,body:string,host:Dom){calls.markdown++;host.createDiv({cls:'rendered-content',text:body});}},
   renderPdfThumbnail:async(options:{host:Dom;onSize:(size:{width:number;height:number})=>void;alive:()=>boolean})=>{calls.pdf++;if(!options.alive())return;options.host.createEl('canvas');options.onSize({width:640,height:320});return{total:12};}
  };
@@ -116,8 +121,8 @@ function fixture(kind:model.Card['kind']='card',patch:Partial<model.Card>={}){
  new Function('require','module','exports',transformSync(readFileSync('src/card-preview.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>previewImports[name],cardPreviewModule,cardPreviewModule.exports);
  const allDeps={...deps,...cardPreviewModule.exports};
  const View=new Function(...Object.keys(allDeps),transformSync(`class View{${methods}};return View`,{loader:'ts'}).code)(...Object.values(allDeps));
- const view=new View();Object.assign(view,{session,world,svg,stage:new Dom(),contentEl:new Dom(),zoomLabel:new Dom(),selected:new Set(),positions:new Map(),nodeScopes:new Map(),nodeKeys:new Map(),pdfTotals:new Map(),previewQueue,pdfPreviewQueue,
-  plugin:{settings:{gridStep:24,previewLimit:20,detailZoom:.4}},
+ const view=new View();Object.assign(view,{session,world,svg,stage:new Dom(),contentEl:new Dom(),zoomLabel:new Dom(),selected:new Set(),positions:new Map(),nodeScopes:new Map(),nodeKeys:new Map(),mediaStates:new Map(),mediaPlayers:new Map(),mediaIdentities:new Map(),pdfTotals:new Map(),previewQueue,pdfPreviewQueue,
+  plugin:{settings:{gridStep:24,previewLimit:20,detailZoom:.4},mediaWorkspace:{playback:new MediaPlayback(),identity:(file:any)=>({path:file.path,mtime:file.stat.mtime,size:file.stat.size})}},
   app:{vault:{getAbstractFileByPath:(path:string)=>files.get(path),getResourcePath:(file:File)=>file.path,async cachedRead(){calls.read++;return 'Rendered **note**';}},metadataCache:{getFileCache:()=>{calls.metadata++;return metadata;}}},
   displayBoard:()=>board,updateBackToContent(){},syncCanvasControls(){},updateObjectFilter(){},renderSaveStatus(){},renderNavigation(){},renderEdges(){},renderInspector(){},renderMinimap(){},addPorts(){},
   queueTextFit(){calls.textFit++;},queueCardFit(){calls.cardFit++;},queueNodeFit(fitNode:model.Card,size:{width:number;height:number}){calls.mediaFits.push({node:fitNode,size});}
@@ -125,7 +130,7 @@ function fixture(kind:model.Card['kind']='card',patch:Partial<model.Card>={}){
  const render=()=>view.renderBoard(),element=()=>view.positions.get(n.id) as Dom,scope=()=>view.nodeScopes.get(n.id) as Scope;
  const replace=(changes:Partial<model.Card>)=>{board.nodes[0]={...board.nodes[0],...changes};render();};
  const drain=async()=>{await previewQueue.drain();await pdfPreviewQueue.drain();};
- render();return{view,board,session,calls,metadata,files,previewQueue,pdfPreviewQueue,render,element,scope,replace,drain};
+ render();return{view,board,session,calls,metadata,files,previewQueue,pdfPreviewQueue,mediaMounts,render,element,scope,replace,drain};
 }
 
 for(const kind of ['card','text','image','pdf'] as const)test(`${kind}: appearance changes retain mounted content and renderer scope`,async()=>{
@@ -191,6 +196,21 @@ test('changing outgoing children refreshes branch controls and folding removes o
  const child=f.view.positions.get('child') as Dom,childScope=f.view.nodeScopes.get('child') as Scope;
  f.replace({branchFolded:true});assert.equal(f.element().querySelector('.ts-branch-toggle')?.getAttribute('aria-expanded'),'false');assert.equal(f.view.positions.has('child'),false);assert.equal(child.isConnected,false);assert.equal(childScope.unloaded,1);
  f.replace({branchFolded:false});assert.equal(f.view.positions.has('child'),true);assert.notEqual(f.view.positions.get('child'),child);
+});
+
+for(const kind of ['audio','video'] as const)test(`${kind}: link candidates and branch controls refresh without replacing a playing media instance`,()=>{
+ const f=fixture(kind),el=f.element(),scope=f.scope(),player=f.view.mediaPlayers.get('node'),mounted=f.mediaMounts[0],body=mounted.body;
+ const playback={time:24.5,rate:1.25,volume:.4};mounted.options.onState(playback);assert.equal(el.querySelector('.ts-branch-controls'),null);
+ const retained=()=>{assert.equal(f.element(),el);assert.equal(f.scope(),scope);assert.equal(f.view.mediaPlayers.get('node'),player);assert.equal(el.querySelector('.ts-av-player'),body);assert.equal(f.mediaMounts.length,1);assert.equal(mounted.paused,0);assert.equal(mounted.disposed,0);assert.equal(scope.unloaded,0);assert.deepEqual(f.view.mediaStates.get('node'),playback);};
+ f.board.nodes.push(node('text',{id:'first',x:450,y:20}),node('text',{id:'second',x:450,y:250}));
+ f.board.edges.push({id:'first-link',from:'node',to:'first',label:'摘录'});f.render();retained();assert.equal(el.querySelector('.ts-branch-count')?.textContent,'1');assert.ok(el.querySelector('.ts-branch-setup'));
+ f.board.edges.push({id:'second-link',from:'node',to:'second',label:'另一个摘录'});f.render();retained();assert.equal(el.querySelectorAll('.ts-branch-controls').length,1);assert.equal(el.querySelector('.ts-branch-count')?.textContent,'2');
+ f.board.edges[0].kind='branch';f.render();retained();assert.equal(el.querySelectorAll('.ts-branch-controls').length,1);assert.equal(el.querySelector('.ts-branch-setup'),null);assert.equal(el.querySelector('.ts-branch-count')?.textContent,'1');assert.equal(el.querySelector('.ts-branch-toggle')?.getAttribute('aria-expanded'),'true');
+ f.board.edges.splice(0,1);f.render();retained();assert.ok(el.querySelector('.ts-branch-setup'));assert.equal(el.querySelector('.ts-branch-count')?.textContent,'1');
+ f.board.edges=[];f.render();retained();assert.equal(el.querySelector('.ts-branch-controls'),null);
+ f.replace({width:500,height:350});retained();assert.deepEqual([el.style.width,el.style.height],['500px','350px']);
+ // Real file revision still retires the retained player, so reuse cannot hide new content.
+ f.files.get(f.board.nodes[0].file!)!.stat.mtime++;f.render();assert.notEqual(f.element(),el);assert.equal(mounted.paused,1);assert.equal(mounted.disposed,1);assert.equal(scope.unloaded,1);assert.equal(f.mediaMounts.length,2);assert.notEqual(f.view.mediaPlayers.get('node'),player);
 });
 
 for(const autoFit of [undefined,false])test(`fixed card with autoFit=${autoFit} keeps rendered content across resize and dimension undo`,async()=>{

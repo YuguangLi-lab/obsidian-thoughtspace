@@ -1,3 +1,4 @@
+import {mediaKind,mediaCard} from '../src/media-source';
 import {centerViewportInSafeArea} from '../src/viewport-fit';
 import {textFitsContent} from '../src/text-sizing';
 import test from 'node:test';
@@ -36,7 +37,7 @@ function fixture(zoom=1){
   dispose(){this.options.dispose?.();}
   syncGeometry(){}
  }
- const deps={centerViewportInSafeArea,textFitsContent,TFile,InlineNodeEditor,InlineCardFit:class {schedule(){}dispose(){}},InlineTextFit:class {constructor(_app:unknown,_body:unknown,_path:unknown,_node:unknown,apply:(size:{width:number;height:number})=>void){calls.fits.push(apply);}schedule(){}async flush(){}dispose(){}},markdownEdit,uid:()=>`new-${++seq}`,fitTextNode:()=>{},
+ const deps={mediaKind,mediaCard,centerViewportInSafeArea,textFitsContent,TFile,InlineNodeEditor,InlineCardFit:class {schedule(){}dispose(){}},InlineTextFit:class {constructor(_app:unknown,_body:unknown,_path:unknown,_node:unknown,apply:(size:{width:number;height:number})=>void){calls.fits.push(apply);}schedule(){}async flush(){}dispose(){}},markdownEdit,uid:()=>`new-${++seq}`,fitTextNode:()=>{},
   readCurrentNativeNote:(_app:unknown,file:TFile)=>read(file),
   branchState,unfoldAncestors,foldCards,
   writeNativeNoteDraft:async(_app:unknown,file:TFile,original:string,value:string,validate:()=>unknown)=>{calls.nativeWrites++;validate();assert.equal(file.content,original);file.content=value;},

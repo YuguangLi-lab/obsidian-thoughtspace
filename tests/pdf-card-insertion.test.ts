@@ -1,9 +1,10 @@
+import {mediaKind,mediaCard} from '../src/media-source';
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {transformSync} from 'esbuild';
 import {pdfCard,pdfPage,isPdfFile} from '../src/pdf-card';import {emptyBoard,parseBoard} from '../src/model';
 const source=readFileSync('src/main.ts','utf8');
 test('inserting PDF uses an independent object type without Markdown auto-fit or editor state',()=>{
  const start=source.indexOf('  private addFile('),end=source.indexOf('  private async newCard(',start);
- const View=new Function('uid','pdfCard','pdfPage','isPdfFile',transformSync('class View{'+source.slice(start,end)+'}\nreturn View',{loader:'ts'}).code)(()=> 'pdf-id',pdfCard,pdfPage,isPdfFile);
+ const View=new Function('uid','pdfCard','pdfPage','isPdfFile','mediaKind','mediaCard',transformSync('class View{'+source.slice(start,end)+'}\nreturn View',{loader:'ts'}).code)(()=> 'pdf-id',pdfCard,pdfPage,isPdfFile,mediaKind,mediaCard);
  const view=new View();view.session={board:emptyBoard()};view.plugin={settings:{defaultCardWidth:320}};view.mutate=(fn:any)=>{fn(view.session.board);parseBoard(JSON.stringify(view.session.board))};
  view.addFile({path:'论文.pdf',extension:'pdf'},{x:500,y:200},2);const node=view.session.board.nodes[0];assert.equal(node.kind,'pdf');assert.equal(node.pdfPage,2);assert.equal(node.autoFit,undefined);assert.equal(node.x,340);assert.equal(view.session.board.version,3);
  assert.throws(()=>view.addFile({path:'script.js',extension:'js'},{x:0,y:0}),/仅支持/);assert.equal(view.session.board.nodes.length,1);

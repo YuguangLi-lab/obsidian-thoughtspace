@@ -24,6 +24,14 @@ test('fixed-size Markdown cards reuse content when only their dimensions change'
   for(const patch of [{collapsed:true},{expandedHeight:350},{locked:true},{preferredWidth:500},{fontSize:22},{borderWidth:3}])assert.notEqual(nodeRenderKey({...card,...patch},[]),key);
  }
 });
-test('auto-fit notes and media retain size-based renderer invalidation',()=>{
+test('native audio and video resizing retain playback identity while source and fold changes rebuild',()=>{
+ for(const kind of ['audio','video'] as const){
+  const media:Card={...node,kind,file:kind==='audio'?'recording.mp3':'recording.mp4',mediaStart:12.25},context=[true,false,100,1024],key=nodeRenderKey(media,context);
+  for(const patch of [{width:500},{height:350},{x:-30,y:200,width:720,height:480}])assert.equal(nodeRenderKey({...media,...patch},context),key,`${kind} resize ${JSON.stringify(patch)}`);
+  for(const patch of [{file:kind==='audio'?'other.mp3':'other.mp4'},{mediaStart:42.5},{collapsed:true,height:72,expandedHeight:350}])assert.notEqual(nodeRenderKey({...media,...patch},context),key,`${kind} changed ${JSON.stringify(patch)}`);
+  assert.notEqual(nodeRenderKey(media,[true,false,101,1024]),key,`${kind} file revision`);
+ }
+});
+test('auto-fit notes, text, images, PDF and containers retain size-based renderer invalidation',()=>{
  for(const kind of ['card','text','image','pdf','board','section'] as const){const n={...node,kind,autoFit:true};assert.notEqual(nodeRenderKey({...n,width:500,height:350},[]),nodeRenderKey(n,[]));}
 });

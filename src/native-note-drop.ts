@@ -1,5 +1,5 @@
 export interface NativeNoteFile {path:string;extension:string}
-export interface NativeNoteReference<F> {file:F;path:string;page:number}
+export interface NativeNoteReference<F> {file:F;path:string;page:number;start?:number}
 export interface NativeNoteDropLookup<F extends NativeNoteFile> {
  vaultName:string;
  getFile:(path:string)=>F|undefined;
@@ -7,19 +7,22 @@ export interface NativeNoteDropLookup<F extends NativeNoteFile> {
  isFile:(value:unknown)=>value is F;
 }
 export interface NativeNoteDropResult<F> {handled:boolean;references:NativeNoteReference<F>[]}
-type DropTarget={link:string;page:number;kind:'wiki'|'uri'|'path';literal?:{path:string;page:number};legacyPage?:{path:string;page:number};exactOnly?:boolean};
+type DropLocator={path:string;page:number;start?:number};
+type DropTarget={link:string;page:number;start?:number;kind:'wiki'|'uri'|'path';literal?:DropLocator;legacyPage?:DropLocator;exactOnly?:boolean};
 
 function linkTarget(raw:string,kind:DropTarget['kind']):DropTarget|undefined {
  const link=(kind==='wiki'?raw.split('|')[0]:raw).trim();
  if(!link||hasAsciiControl(link)||/^[a-z][a-z\d+.-]*:/i.test(link)||link.startsWith('/')||link.includes('\\'))return;
  // A PDF page suffix belongs to the final #, not a # inside the filename.
- const pdf=/^(.+\.pdf)#page=(\d+)$/i.exec(link),hash=pdf?pdf[1].length:link.indexOf('#'),path=hash<0?link:link.slice(0,hash),fragment=hash<0?'':link.slice(hash);
+ const pdf=/^(.+\.pdf)#page=(\d+)$/i.exec(link),media=/^(.+\.(?:mp4|webm|mov|m4v|ogv|mp3|m4a|wav|ogg|oga|flac|aac|opus))#t=(.*)$/i.exec(link),hash=pdf?pdf[1].length:media?media[1].length:link.indexOf('#'),path=hash<0?link:link.slice(0,hash),fragment=hash<0?'':link.slice(hash);
  if(!path)return;
- let page=1;
+ let page=1,start:number|undefined;
  if(/\.pdf$/i.test(path)&&fragment){const match=/^#page=(\d+)$/.exec(fragment);if(!match)return;page=Number(match[1]);if(!Number.isSafeInteger(page)||page<1)return;}
+ const literalMedia=!!mediaKind(link);
+ if(mediaKind(path)&&fragment){start=mediaFragmentTime(fragment);if(start===undefined&&!literalMedia)return;}
  // Existing exact names are authoritative before treating # as a heading.
  // This also allows embedded media named e.g. “Figure [1] #2.png”.
- return{link:path,page,kind,...(/[#[\]]/.test(link)?{literal:{path:link,page:1}}:{})};
+ return{link:path,page,kind,...(start!==undefined?{start}:{}),...(literalMedia&&fragment&&start===undefined?{exactOnly:true}:{}),...(/[#[\]]/.test(link)?{literal:{path:link,page:1}}:{})};
 }
 function wikiTargets(raw:string):DropTarget[]|undefined {
  const targets:DropTarget[]=[];let cursor=0;
@@ -71,13 +74,16 @@ function uriTargets(raw:string,vaultName:string,comments=false):DropTarget[]|und
   // URI parameters encode file names independently of URL fragments. A # or
   // bracket in the actual file name must not be reparsed as wiki syntax.
   if(/[#[\]]/.test(path)&&!hasAsciiControl(path)&&!/^([a-z][a-z\d+.-]*:|\/)/i.test(path)&&!path.includes('\\')){
-   let page=1;
+   let page=1,start:number|undefined;
    if(/\.pdf$/i.test(path)&&url.hash){const match=/^#page=(\d+)$/.exec(url.hash);if(!match)return;page=Number(match[1]);if(!Number.isSafeInteger(page)||page<1)return;}
-   literal={path,page};
+   if(mediaKind(path)&&url.hash){start=mediaFragmentTime(url.hash);if(start===undefined)return;}
+   literal={path,page,...(start!==undefined?{start}:{})};
    // Older URI producers encode the PDF page suffix inside the file parameter.
    // Resolve an actual complete filename first, then this exact PDF fallback.
    const match=!url.hash&&/^(.+\.pdf)#page=(\d+)$/i.exec(path);
    if(match){const page=Number(match[2]);if(Number.isSafeInteger(page)&&page>0)legacyPage={path:match[1],page};}
+   const mediaMatch=!url.hash&&/^(.+)#t=(.*)$/.exec(path);
+   if(mediaMatch&&mediaKind(mediaMatch[1])){const start=mediaFragmentTime('#t='+mediaMatch[2]);if(start!==undefined)legacyPage={path:mediaMatch[1],page:1,start};}
   }
   const target=url.hash&&path.includes('#')?undefined:linkTarget(path+url.hash,'uri');
   if(!target&&!literal)return;
@@ -106,10 +112,11 @@ function transferTargets(transfer:Pick<DataTransfer,'getData'>|null,vaultName:st
 export function resolveNativeNoteDrop<F extends NativeNoteFile>(lookup:NativeNoteDropLookup<F>,transfer:Pick<DataTransfer,'getData'>|null,draggable:unknown,sourcePath:string):NativeNoteDropResult<F> {
  const references:NativeNoteReference<F>[]=[],seen=new Set<string>();
  const supported=(value:unknown):value is F=>lookup.isFile(value)&&isSupportedPath('.'+value.extension);
- const add=(value:unknown,page=1)=>{
+ const add=(value:unknown,page=1,start?:number)=>{
   if(!supported(value)||lookup.getFile(value.path)!==value)return false;
   if(value.extension.toLowerCase()!=='pdf')page=1;
-  const key=value.path+'\0'+page;if(!seen.has(key)){seen.add(key);references.push({file:value,path:value.path,page});}return true;
+  if(!mediaKind(value.path))start=undefined;
+  const key=value.path+'\0'+page+'\0'+(start||0);if(!seen.has(key)){seen.add(key);references.push({file:value,path:value.path,page,...(start!==undefined?{start}:{})});}return true;
  };
  const result=(handled=references.length>0):NativeNoteDropResult<F>=>({handled,references});
  const resolveTarget=(target:DropTarget,path:string):NativeNoteReference<F>|undefined=>{
@@ -118,13 +125,13 @@ export function resolveNativeNoteDrop<F extends NativeNoteFile>(lookup:NativeNot
    const relative=target.kind==='wiki'?vaultRelativePath(folder+literal):undefined;
    const file=lookup.getFile(literal)||(target.kind!=='path'?lookup.getFile(literal+'.md'):undefined)
     ||(relative?(lookup.getFile(relative)||lookup.getFile(relative+'.md')):undefined);
-   if(supported(file))return{file,path:file.path,page:target.literal.page};
+   if(supported(file))return{file,path:file.path,page:target.literal.page,...(target.literal.start!==undefined?{start:target.literal.start}:{})};
   }
-  if(target.legacyPage){const file=lookup.getFile(target.legacyPage.path);if(supported(file))return{file,path:file.path,page:target.legacyPage.page};}
+  if(target.legacyPage){const file=lookup.getFile(target.legacyPage.path);if(supported(file))return{file,path:file.path,page:target.legacyPage.page,...(target.legacyPage.start!==undefined?{start:target.legacyPage.start}:{})};}
   if(target.exactOnly)return;
   const relative=target.kind==='wiki'?vaultRelativePath(path.slice(0,path.lastIndexOf('/')+1)+target.link):undefined;
   const file=target.kind==='wiki'?(lookup.getFile(target.link)||(relative?lookup.getFile(relative):undefined)||lookup.resolve(target.link,path)):target.kind==='uri'?(lookup.getFile(target.link)||lookup.getFile(target.link+'.md')||lookup.resolve(target.link,path)):lookup.getFile(target.link);
-  if(supported(file))return{file,path:file.path,page:target.page};
+  if(supported(file))return{file,path:file.path,page:target.page,...(target.start!==undefined?{start:target.start}:{})};
  };
  if(draggable!==undefined&&draggable!==null){
   if(!isRecord(draggable))return result(false);
@@ -136,20 +143,21 @@ export function resolveNativeNoteDrop<F extends NativeNoteFile>(lookup:NativeNot
   }
   if(draggable.type!=='link')return result(false);
   const target=nativeLinkTarget(draggable.linktext);
-  if(draggable.file!==undefined&&draggable.file!==null){const handled=supported(draggable.file);if(handled)add(draggable.file,target?.page);return result(handled);}
+  if(draggable.file!==undefined&&draggable.file!==null){const file=draggable.file,handled=supported(file);if(handled)add(file,target?.page,target?.literal?.path===file.path?undefined:target?.start);return result(handled);}
   if(!target)return result(false);
-  const ref=resolveTarget(target,typeof draggable.sourcePath==='string'?draggable.sourcePath:sourcePath);if(ref)add(ref.file,ref.page);return result();
+  const ref=resolveTarget(target,typeof draggable.sourcePath==='string'?draggable.sourcePath:sourcePath);if(ref)add(ref.file,ref.page,ref.start);return result();
  }
  const targets=transferTargets(transfer,lookup.vaultName);if(!targets)return result(false);
  for(const target of targets){
   const ref=resolveTarget(target,sourcePath);
-  if(!ref||!add(ref.file,ref.page)){references.length=0;return result(false);}
+  if(!ref||!add(ref.file,ref.page,ref.start)){references.length=0;return result(false);}
  }
  return result();
 }
 // Keep the pure decoder aligned with content-tools.isImage without loading Obsidian UI.
 export function isNativeImagePath(path:string){return /\.(png|jpe?g|gif|webp|avif|bmp)$/i.test(path);}
-function isSupportedPath(path:string){return /\.(md|pdf)$/i.test(path)||isNativeImagePath(path);}
+function isSupportedPath(path:string){return /\.(md|pdf)$/i.test(path)||isNativeImagePath(path)||!!mediaKind(path);}
+function mediaFragmentTime(fragment:string):number|undefined {const match=/^#t=(\d+(?:\.\d+)?(?:e[+-]?\d+)?)$/i.exec(fragment);if(!match)return;const value=Number(match[1]);return validMediaTime(value)?value:undefined;}
 function vaultRelativePath(path:string):string|undefined{
  const segments:string[]=[];
  for(const segment of path.split('/')){if(!segment||segment==='.')continue;if(segment==='..'){if(!segments.length)return;segments.pop();}else segments.push(segment);}
@@ -157,3 +165,4 @@ function vaultRelativePath(path:string):string|undefined{
 }
 import {hasAsciiControl,isRecord,isUnknownArray} from './value-guards';
 import {markdownLinkRanges} from './markdown-links';
+import {mediaKind,validMediaTime} from './media-source';

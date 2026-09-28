@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import{readFileSync}from'node:fs';import{transformSync}from'esbuild';
-const source=readFileSync('src/main.ts','utf8'),start=source.indexOf('  private dragDocuments='),end=source.indexOf('  private videoBridge?',start),moreStart=source.indexOf('  clearMaterialDrag(){');
+const source=readFileSync('src/main.ts','utf8'),start=source.indexOf('  private dragDocuments='),end=source.indexOf('  private videoBridgeDisposed=',start),moreStart=source.indexOf('  clearMaterialDrag(){');
 const methods=source.slice(start,end)+source.slice(moreStart).split('\n').slice(0,2).join('\n');
 function setup(){
  const callbacks:(()=>void)[]=[],pending:Promise<unknown>[]=[],received:unknown[]=[],errors:string[]=[];let token=0;

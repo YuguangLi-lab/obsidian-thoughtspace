@@ -7,13 +7,14 @@ import type {Card} from '../src/model';
 // Run the production rendering branch including its low-detail early return.
 const source=readFileSync(process.env.RESIZE_SOURCE||'src/main.ts','utf8');
 const start=source.indexOf('      const childCount=branches.children.get(n.id)');
-const end=source.indexOf("      const header = el.createDiv('ts-node-header')",start);
-assert.ok(start>=0&&end>start);
+const optionsEnd=source.indexOf('\n',start),controlsStart=source.indexOf("      if(n.kind!=='section')renderBranchControls(el,branchOptions)",optionsEnd);
+const end=source.indexOf("      const header = el.createDiv('ts-node-header')",controlsStart);
+assert.ok(start>=0&&optionsEnd>start&&controlsStart>optionsEnd&&end>controlsStart);
 const branchModule={exports:{} as typeof import('../src/branch-controls')};
 new Function('require','module','exports',transformSync(readFileSync('src/branch-controls.ts','utf8'),{loader:'ts',format:'cjs'}).code)(
  (name:string)=>{assert.equal(name,'obsidian');return{setIcon:()=>{}};},branchModule,branchModule.exports);
 const render=new Function('n','el','detail','branches','button','TFile','cardDisplayTitle','childCandidates','renderBranchControls',
- transformSync(`const fileInfo=undefined;for(const node of [n]){${source.slice(start,end)}}`,{loader:'ts'}).code);
+ transformSync(`const fileInfo=undefined;for(const node of [n]){${source.slice(start,optionsEnd)}${source.slice(controlsStart,end)}}`,{loader:'ts'}).code);
 class El{
  children:El[]=[];classes=new Set<string>();attrs:Record<string,string>={};classList={toggle:()=>{}};
  constructor(public cls=''){}
@@ -32,7 +33,7 @@ function controls(kind:Card['kind'],detail:boolean,extra:Partial<Card>={}){
  return el;
 }
 test('low-detail cards retain one resize handle without mounting a detailed preview',()=>{
- for(const kind of ['card','text','board','image','pdf'] as const){
+ for(const kind of ['card','text','board','image','pdf','audio','video'] as const){
   const el=controls(kind,false,{branchFolded:true});
   assert.ok(el.classes.has('ts-node-summary'),kind);
   assert.equal(el.children.filter(c=>c.cls==='ts-resize').length,1,kind);

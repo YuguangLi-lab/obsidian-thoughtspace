@@ -53,7 +53,7 @@ export function planLayout(board:Board,ids:ReadonlySet<string>,options:LayoutOpt
   if(options.mode==='grid')for(let i=0;i<nodes.length;i+=cols){const row=nodes.slice(i,i+cols);row.forEach((n,j)=>{n.x=original.x+j*(width+gap);n.y=rowY;});rowY+=Math.max(...row.map(n=>n.height))+gap;}
   else for(const n of nodes){const column=bottoms.indexOf(Math.min(...bottoms));n.x=original.x+column*(width+gap);n.y=bottoms[column];bottoms[column]+=n.height+gap;}
  }else{
-  const kinds:Record<string,string>={card:'笔记',text:'文本',image:'图片',pdf:'PDF',board:'子白板'},groups=new Map<string,Card[]>();
+  const kinds:Record<Card['kind'],string>={card:'笔记',text:'文本',image:'图片',pdf:'PDF',board:'子白板',section:'分组',audio:'音频',video:'视频'},groups=new Map<string,Card[]>();
   for(const n of nodes){const label=options.mode==='kind'?kinds[n.kind]:options.mode==='color'?colorNames[n.color]:n.kind==='board'?'子白板':reviewLabels[n.review||'later'];const group=groups.get(label)||[];group.push(n);groups.set(label,group);}
   let x=original.x;for(const [label,group]of groups){const width=Math.max(...group.map(n=>n.width));let y=original.y;for(const n of group){n.x=x;n.y=y;y+=n.height+gap;}lanes.push({label,x,width,ids:group.map(n=>n.id)});x+=width+gap;}
  }

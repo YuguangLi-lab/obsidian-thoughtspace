@@ -28,7 +28,7 @@ class Element {
   classes=new Set<string>();
   classList={contains:(name:string)=>this.classes.has(name),toggle:(name:string,on:boolean)=>this.toggleClass(name,on)};
   constructor(readonly selectors:Record<string,Element>={}){}
-  closest(selector:string){return this.selectors[selector]||null;}
+  closest(selector:string){return this.selectors[selector]||selector.split(',').map(part=>this.selectors[part]).find(Boolean)||null;}
   getAttribute(name:string){return name==='data-id'?this.dataset.id:name==='data-edge'?this.dataset.edge:null;}
   toggleClass(name:string,on:boolean){if(on)this.classes.add(name);else this.classes.delete(name);}
   addClass(name:string){this.classes.add(name);}
@@ -205,9 +205,10 @@ test('right click and macOS Control-click do not begin a marquee or alter select
 });
 
 test('inputs, native editor content and toolbar buttons retain their normal pointer handling',()=>{
-  const f=fixture(),interactive=new Element();
-  const target=new Element({'a,input,textarea,select,button,[contenteditable=true],.ts-inline-editor':interactive});
-  f.view.pointerDown(f.event(0,0,{target}));assert.equal(f.view.marquee,undefined);assert.equal(f.view.gesture,undefined);assert.deepEqual(ids(f.view),['old']);
+  for(const selector of ['a','input','textarea','select','button','video','audio','.ts-av-player','[contenteditable=true]','.ts-inline-editor']){
+   const f=fixture(),interactive=new Element(),target=new Element({[selector]:interactive});
+   f.view.pointerDown(f.event(0,0,{target}));assert.equal(f.view.marquee,undefined,selector);assert.equal(f.view.gesture,undefined,selector);assert.deepEqual(ids(f.view),['old'],selector);
+  }
 });
 
 test('Escape cancels the pending pointer frame, removes the marquee and restores the previous selection',()=>{

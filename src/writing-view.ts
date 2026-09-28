@@ -11,8 +11,8 @@ import {themeSurface} from './ui-tokens';
 export const WRITING='thoughtspace-writing';
 interface WritingSession {board:Board;file:TFile;blocked:boolean;status?:string;listeners:Set<(kind:SessionUpdate)=>void>;change:(f:(b:Board)=>void,before?:Board,allowLocked?:boolean,recordHistory?:boolean)=>void;flush:()=>Promise<void>}
 export interface WritingHost<S extends WritingSession=WritingSession> {session:(file:TFile)=>Promise<S>;release:(session:S)=>Promise<void>;openBoard:(file:TFile)=>Promise<unknown>;createUnique:(folder:string,name:string,ext:string,text:string)=>Promise<TFile>;openNoteInSidebar:(file:TFile)=>Promise<WorkspaceLeaf>}
-const kinds:Record<string,string>={section:'分组',card:'笔记',image:'图片',text:'文本'};
-const icons:Record<string,string>={section:'folder-open',card:'file-text',image:'image',text:'type'};
+const kinds:Record<Card['kind'],string>={section:'分组',card:'笔记',image:'图片',text:'文本',pdf:'PDF',board:'子白板',audio:'音频',video:'视频'};
+const icons:Record<Card['kind'],string>={section:'folder-open',card:'file-text',image:'image',text:'type',pdf:'file-text',board:'panels-top-left',audio:'audio-lines',video:'video'};
 export class WritingView<S extends WritingSession=WritingSession> extends ItemView {
  private file?:TFile;
  private owner?:S;
@@ -318,7 +318,7 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   let raw=n.kind==='text'?n.text||'':n.kind==='section'?writingParts(owner.board,[id]).slice(1).map(p=>'- '+writingName(p.node)).join('\n'):'';
   try{
    if(n.kind==='image'&&remoteImageUrl(n.imageUrl)&&!(f instanceof TFile))raw=imageMarkdown(n.imageUrl!);
-   else if(f instanceof TFile)raw=n.kind==='image'?'!'+this.app.fileManager.generateMarkdownLink(f,this.file!.path):await readCurrentNativeNote(this.app,f);
+   else if(f instanceof TFile)raw=n.kind==='card'?await readCurrentNativeNote(this.app,f):(n.kind==='image'?'!':'')+this.app.fileManager.generateMarkdownLink(f,this.file!.path);
    if(run!==this.revision)return;
    const content=reading.createDiv('markdown-rendered');await MarkdownRenderer.render(this.app,raw.slice(0,60000),content,f instanceof TFile?f.path:this.file!.path,scope);
    const heading=content.querySelector('h1');if(heading?.textContent?.trim()===writingName(n).trim())heading.remove();
@@ -375,12 +375,12 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
     const file=this.app.vault.getAbstractFileByPath(n.file);if(!(file instanceof TFile))throw Error(`材料不存在：${n.file}`);
     source=this.app.fileManager.generateMarkdownLink(file,destination);
     if(n.kind==='image')body='!'+source;
-    else{
+    else if(n.kind==='card'){
      const raw=reads.get(file)?.raw??await readCurrentNativeNote(this.app,file);reads.set(file,{raw,path:file.path});
      const cache=this.app.metadataCache.getFileCache(file);
      const references=[...(cache?.links||[]),...(cache?.embeds||[])].flatMap(ref=>{const parsed=parseLinktext(ref.link),target=parsed.path?this.app.metadataCache.getFirstLinkpathDest(parsed.path,file.path):file;if(!target)return[];let replacement=this.app.fileManager.generateMarkdownLink(target,destination,parsed.subpath,ref.displayText);if(ref.original.startsWith('!')&&!replacement.startsWith('!'))replacement='!'+replacement;return[{original:ref.original,replacement,start:ref.position.start,end:ref.position.end}];});
      body=rebaseFragment(raw,{id:'draft',kind:'paragraph',title:'',heading:'',body:raw.replace(/\r\n?/g,'\n'),start:1,end:raw.split(/\r\n?|\n/).length},references);
-    }
+    }else body=source;
    }
    if(note?.trim())body+='\n\n'+note.trim();
    const explicit=snapshot.writing?.options?.[n.id]?.level;

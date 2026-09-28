@@ -2,10 +2,11 @@ import type {Card} from './model';
 /** Placement and paint-only fields are patched in place. Measurement-dependent
  * dimensions and behavior stay keyed because preview callbacks capture nodes. */
 export function nodeRenderKey(node:Card,context:readonly unknown[]):string{
- const content:Record<string,unknown>={},paint=node.kind==='card'||node.kind==='text'||node.kind==='image'||node.kind==='pdf';
- // Fixed Markdown previews reflow with CSS and have no auto-fit callbacks.
+ const content:Record<string,unknown>={},paint=node.kind==='card'||node.kind==='text'||node.kind==='image'||node.kind==='pdf'||node.kind==='audio'||node.kind==='video';
+ // Fixed Markdown previews and native players reflow with CSS. Their dimensions
+ // do not invalidate content; a media resize must retain playback and controls.
  // Switching autoFit or any content/behavior still replaces the old renderer.
- const fixed=node.kind==='card'&&!node.autoFit;
+ const fixed=node.kind==='card'&&!node.autoFit||node.kind==='audio'||node.kind==='video';
  // Build the final shape directly instead of cloning and deleting 8–10 fields
  // for every mounted card. Own-key order and unknown content fields stay intact.
  for(const key of Object.keys(node)){

@@ -1,6 +1,6 @@
 import {Board,Card,contained} from './model';
 import {branchState} from './mindmap';
-export const searchKinds:Record<Card['kind'],string>={card:'笔记',text:'文本',image:'图片',pdf:'PDF',section:'分组',board:'子白板'};
+export const searchKinds:Record<Card['kind'],string>={card:'笔记',text:'文本',image:'图片',pdf:'PDF',audio:'音频',video:'视频',section:'分组',board:'子白板'};
 export interface SearchMetadata{title?:string;tags?:string[];headings?:string[];body?:string;}
 export interface BoardSearchEntry{id:string;kind:Card['kind'];color:Card['color'];title:string;path:string;groups:{id:string;title:string}[];body:string;search:string;searchBody?:string;hidden:boolean;}
 export interface BoardSearchFilter{query:string;kind:string;group:string;color:string;}

@@ -6,6 +6,24 @@ A visual research and writing workspace for Obsidian. Arrange linked Markdown no
 
 **Desktop only · Obsidian 1.13.7 or newer.**
 
+## Built-in audio and video workspace
+
+Open **Audio/video notes** from the ribbon, a media file's context menu, or the command palette. Use a **main tab, right sidebar, or native Obsidian popout window**. Focus mode keeps only the player visible. No whiteboard or external player plugin is required.
+
+Wide windows place the viewer above the composer on the left, with a full-height timeline on the right. Save and pagination controls remain fixed. Use Layout to adjust the split and More for native playback placements or sending media to a board. Collapse the picture to give notes more space without rebuilding playback. Narrow or short panes switch between writing and the timeline without losing drafts. Filter all, text, or screenshot entries; locate the current time or last entry. Pagination mounts at most 50 records while search covers all loaded history. Comfortable and compact timeline density switch without rebuilding records or the editor. Local screenshots have lazy thumbnails and full-size previews. Advanced playback controls live under **More**.
+
+- Playback includes speed, ±10-second and exact-time seeking, A–B loops, native fullscreen/Picture-in-Picture where supported, and matching `.vtt`/`.srt` subtitle files.
+- Capture a timestamp, write Markdown, or attach a video frame to a draft. **Save** or `Ctrl/Cmd + Enter` appends it to a regular Markdown note. Merely opening media creates no note.
+- Search the timestamp timeline, jump back, and send excerpts or media to a whiteboard. Imported excerpts connect to their source media card.
+- Position, rate, volume and loops follow the same media between placements. The last 80 media states are saved in batches to the plugin's `media-playback.json`; switching files does not autoplay them. Starting a player pauses other built-in media players.
+- Unsaved drafts block file/placement changes and survive closing/reopening the view during the same plugin session. **Save before restarting Obsidian or reloading the plugin**; drafts are not persisted across restarts.
+
+Whiteboards still support **Insert content → Video card / Audio card** and file/search drag-and-drop, folding, resizing, connections, timestamp capture and frame notes. A card's sidebar button opens the full workspace.
+
+Media loads only on playback. Board cards release sources when offscreen or folded; a standalone workspace may keep playing behind other tabs and releases resources when closed. Recognized files include MP4/WebM/MOV/M4V/OGV and MP3/M4A/WAV/OGG/OGA/FLAC/AAC/OPUS; codec support depends on Obsidian's embedded browser. Place external media over 128 MB in the vault before dragging it in.
+
+Legacy Yingjian timestamp notes work when their exact source maps to a media file in this vault. Original prose and anchors are retained. External file paths, online video providers and transcription services are outside this compatibility scope.
+
 ## Markdown text and tables
 
 Double-click a text frame to edit Markdown with Obsidian's native live preview. Headings, lists, callouts, code, links, `$inline math$`, `$$display math$$` and tables render inside the frame. Automatic sizing measures the rendered content; manually narrowed tables can scroll horizontally.
