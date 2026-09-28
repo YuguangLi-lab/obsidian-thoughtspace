@@ -35,3 +35,10 @@ test('native audio and video resizing retain playback identity while source and 
 test('auto-fit notes, text, images, PDF and containers retain size-based renderer invalidation',()=>{
  for(const kind of ['card','text','image','pdf','board','section'] as const){const n={...node,kind,autoFit:true};assert.notEqual(nodeRenderKey({...n,width:500,height:350},[]),nodeRenderKey(n,[]));}
 });
+
+test('webpage resizing preserves browser state, while URL and fold changes rebuild',()=>{
+ const n={...node,webUrl:'https://example.com/'},key=nodeRenderKey(n,[]);
+ assert.equal(nodeRenderKey({...n,width:800,height:600},[]),key);
+ assert.notEqual(nodeRenderKey({...n,webUrl:'https://example.org/'},[]),key);
+ assert.notEqual(nodeRenderKey({...n,collapsed:true,expandedHeight:600},[]),key);
+});

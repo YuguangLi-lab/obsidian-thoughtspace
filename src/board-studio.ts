@@ -33,7 +33,7 @@ export function replaceText(board:Board,preview:ReturnType<typeof replacementPre
 }
 function editable(board:Board,ids:ReadonlySet<string>){return readingOrder(board.nodes.filter(n=>ids.has(n.id)&&!n.locked&&n.kind!=='section'));}
 function texts(board:Board,ids:ReadonlySet<string>){
- const nodes=editable(board,ids).filter(n=>n.kind==='text');let selected:Set<string>|undefined;
+ const nodes=editable(board,ids).filter(n=>n.kind==='text'&&!n.webUrl);let selected:Set<string>|undefined;
  if(nodes.some(n=>n.topic)||board.edges.some(e=>{if(e.kind!=='branch')return false;selected??=new Set(nodes.map(n=>n.id));return selected.has(e.from)||selected.has(e.to);}))throw Error('请先将思维导图主题转为普通文本');return nodes;
 }
 function withSources(body:string,sources:string[]){return sources.length?body.trimEnd()+'\n\n'+[...new Set(sources)].map(s=>'> '+s).join('\n\n'):body;}

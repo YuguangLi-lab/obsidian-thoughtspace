@@ -15,8 +15,8 @@ export function textHasTable(node:Pick<Card,'text'>):boolean {
  }
  tableCache.set(node,{text,table});return table;
 }
-export function textFitsContent(node:Pick<Card,'kind'|'topic'|'text'|'textAutoHeight'|'autoSize'>|undefined):boolean {
- return node?.kind==='text'&&(node.textAutoHeight===true||(node.textAutoHeight!==false&&node.autoSize!==false&&(node.topic===true||textHasTable(node))));
+export function textFitsContent(node:Pick<Card,'kind'|'topic'|'text'|'webUrl'|'textAutoHeight'|'autoSize'>|undefined):boolean {
+ return node?.kind==='text'&&!node.webUrl&&(node.textAutoHeight===true||(node.textAutoHeight!==false&&node.autoSize!==false&&(node.topic===true||textHasTable(node))));
 }
 
 /** Keep one body-text line visible in a manually shortened frame without changing
@@ -26,6 +26,6 @@ export function textBlockPadding(node:Pick<Card,'fontSize'|'borderWidth'>,height
 }
 
 /** Tables own their cell grid, while notes and groups retain an outer frame. */
-export function nodeHasBorder(node:Pick<Card,'kind'|'text'>):boolean {
- return node.kind==='card'||node.kind==='section'||node.kind==='text'&&!textHasTable(node);
+export function nodeHasBorder(node:Pick<Card,'kind'|'text'|'webUrl'>):boolean {
+ return node.kind==='card'||node.kind==='section'||node.kind==='text'&&!node.webUrl&&!textHasTable(node);
 }

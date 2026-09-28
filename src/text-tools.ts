@@ -27,8 +27,9 @@ export function fitTextNode(node: Card, host: HTMLElement, renderedBody?:HTMLEle
  const sourceSlot=()=>{const source=win.createSpan();Object.assign(source.style,{display:'inline-block',boxSizing:'border-box',width:'20px',minWidth:'20px',maxWidth:'20px',height:'20px',marginLeft:'5px',verticalAlign:'-3px'});return source;};
  if(rendered){
   // Measure intrinsic columns in the detached clone; live tables retain overflow scrolling.
-  if(table&&!manual)for(const el of Array.from(probe.querySelectorAll('table')))Object.assign(el.style,{display:'table',width:'max-content',maxWidth:'none',overflow:'visible'});
+  if(table)for(const el of Array.from(probe.querySelectorAll('table')))Object.assign(el.style,{display:'table',width:'max-content',maxWidth:'100%',overflow:'visible'});
   const actual=styleOf(renderedBody);for(const key of ['paddingTop','paddingRight','paddingBottom','paddingLeft','fontFamily','fontSize','fontWeight','lineHeight','letterSpacing','textAlign'] as const)if(actual[key])probe.style[key]=actual[key];
+  if(table)Object.assign(probe.style,{paddingTop:'0px',paddingRight:'0px',paddingBottom:'0px',paddingLeft:'0px'});
   // Clones must not duplicate MathJax/Markdown IDs or retain a popover's extra content.
   probe.removeAttribute('id');for(const element of Array.from(probe.querySelectorAll('[id]')))element.removeAttribute('id');
   const sources=Array.from(probe.querySelectorAll('.ts-source-trigger'));for(const source of sources)source.replaceWith(sourceSlot());

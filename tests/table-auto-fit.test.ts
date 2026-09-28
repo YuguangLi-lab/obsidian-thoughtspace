@@ -16,7 +16,7 @@ test('table measurement uses intrinsic columns without mutating live preview and
  const doc=new TextDocument(),host=doc.createElement('div'),body=doc.createElement('div'),t=doc.createElement('table');body.dataset.markdownStatus='ready';body.appendChild(t);
  const n=node();fitTextNode(n,host as unknown as HTMLElement,body as unknown as HTMLElement);
  const frame=doc.elements.find(e=>e.classList.contains('ts-text-fit-context'))!.children[0];
- assert.equal(frame.style.maxWidth,'960px');assert.equal(frame.children[0].querySelector('table')!.style.display,'table');assert.equal(t.style.display,undefined);assert.equal(n.width,344);
+ assert.equal(frame.style.maxWidth,'960px');assert.equal(frame.children[0].querySelector('table')!.style.maxWidth,'100%');assert.equal(frame.children[0].querySelector('table')!.style.display,'table');assert.equal(t.style.display,undefined);assert.equal(n.width,344);
  n.textAutoHeight=true;n.width=200;fitTextNode(n,host as unknown as HTMLElement,body as unknown as HTMLElement);assert.equal(n.width,200);
 });
 
@@ -25,4 +25,12 @@ test('toolbar eligibility refreshes only when text changes between table and pro
  board.nodes[0].text='ordinary prose';assert.equal(selectionFormatKey(board,ids,undefined),before);
  board.nodes[0].text=table;const tableKey=selectionFormatKey(board,ids,undefined);assert.notEqual(tableKey,before);
  board.nodes[0].text+='\n| extra | 3 |';assert.equal(selectionFormatKey(board,ids,undefined),tableKey);
+});
+
+test('table draft measurement discards surrounding text-frame padding',()=>{
+ const doc=new TextDocument();Object.assign(doc.computed,{paddingTop:'14px',paddingBottom:'14px',paddingLeft:'16px',paddingRight:'16px'});
+ const host=doc.createElement('div'),body=doc.createElement('div');body.dataset.markdownStatus='ready';body.appendChild(doc.createElement('table'));
+ fitTextNode(node(),host as unknown as HTMLElement,body as unknown as HTMLElement);
+ const probe=doc.elements.find(e=>e.classList.contains('ts-text-fit-context'))!.children[0].children[0];
+ for(const key of ['paddingTop','paddingRight','paddingBottom','paddingLeft'])assert.equal(probe.style[key],'0px');
 });

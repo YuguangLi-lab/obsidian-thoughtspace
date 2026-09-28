@@ -45,7 +45,7 @@
 .ts-root .ts-text-markdown .callout-content > :last-child { margin-block-end: 0; }
 
 /* Keep native table content readable, and scroll within a manually narrowed frame. */
-.ts-root .ts-text-markdown table { display: table; width: max-content; max-width: none; border-collapse: collapse; font: inherit; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.ts-root .ts-text-markdown table { display: table; width: max-content; max-width: 100%; border-collapse: collapse; font: inherit; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
 .ts-root .ts-text-markdown :is(th,td) { min-width: 5em; padding: .4em .65em; border: 1px solid var(--table-border-color,var(--background-modifier-border)); vertical-align: top; }
 .ts-root .ts-text-markdown th { font-weight: var(--table-header-weight,600); }
 .ts-root .ts-text-markdown .math-block { max-width: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
@@ -152,3 +152,8 @@
 }
 .ts-root .ts-node.ts-text.is-table-card:not(.is-compact-fold) > .ts-text-body,
 .ts-root .ts-node.ts-text.is-table-card .ts-inline-editor > :is(.ts-inline-input,.ts-inline-native) { padding:0!important; }
+
+/* Wide tables wrap within the measured frame. Truly oversized column sets keep
+   their own reachable scrollbar instead of overflowing a clipped Markdown root. */
+.ts-root .ts-node.is-table-card .ts-text-markdown { overflow-x:auto; scrollbar-width:thin; }
+.ts-root .ts-node.is-table-card .ts-inline-native .cm-table-widget { padding:0; }

@@ -1,5 +1,19 @@
 # 更新记录
 
+## 1.3.11
+
+- 修复旧版已折叠分组无法点击展开：恢复紧凑分组标题及按钮的鼠标命中区域，保留原分组和子项数据。
+- 白板粘贴网页链接直接生成网页卡片；选中对象时同样可用，原位编辑时保留编辑器自身粘贴行为。
+
+- 新增网页卡片（默认 640 × 460）：通过插入菜单、粘贴或拖入 HTTP(S) 链接创建；支持打开、复制、修改链接、连线和紧凑折叠。
+- 网页默认以大预览区域显示，顶部集中放置链接操作，调整尺寸时保留网页浏览状态，折叠与移出渲染范围时释放预览；保留 Markdown 链接，导出原生 Canvas 时生成链接节点。
+- 图片卡片新增极速图床上传按钮，已托管图片可复制链接；保留本地附件和加载回退，上传期间锁定对象不会覆盖当前内容。
+- 修复宽表格超过卡片上限后右侧裁切：普通表格自动换行适配，高列数表格可横向滚动。修复进入编辑后测量误带文本留白导致卡片撑宽。
+
+- Add webpage cards with large sandboxed previews, compact folding and native Canvas link export.
+- Add image-host shortcuts while keeping local attachments and fallback rendering.
+- Fix clipped wide tables and extra padding in table draft measurements.
+
 ## 1.3.10
 
 - 表格卡片直接显示单元格网格，去掉外层文本框与外框编辑入口，保留选中、缩放和折叠操作。

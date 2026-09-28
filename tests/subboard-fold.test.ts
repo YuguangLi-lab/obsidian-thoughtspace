@@ -33,7 +33,7 @@ class El{
  all():El[]{return this.children.flatMap(c=>[c,...c.all()])}
 }
 function render(collapsed=false,locked=false,blocked=false,missing=false){
- const source=readFileSync('src/main.ts','utf8'),start=source.indexOf("      } else if (n.kind === 'board') {"),end=source.indexOf("      } else if(n.kind==='text'){",start);
+ const source=readFileSync('src/main.ts','utf8'),start=source.indexOf("      } else if (n.kind === 'board') {"),end=source.indexOf("      } else if(n.webUrl){",start);
  assert.ok(start>=0&&end>start);
  const body=source.slice(start+"      } else if (n.kind === 'board') {".length,end);
  const n={...portal(),locked,...(collapsed?{collapsed:true,height:72,expandedHeight:260}:{})},board={...emptyBoard(),version:3,nodes:[n]},el=new El(),header=el.createDiv('ts-node-header'),pending:Promise<any>[]=[];let reads=0,entered=0;

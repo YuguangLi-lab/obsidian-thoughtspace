@@ -2,7 +2,7 @@
 
 [English](USER-GUIDE.md) · [中文完整教程](USER-GUIDE.zh-CN.md) · [Project home](../README.md)
 
-This guide describes **ThoughtSpace Whiteboard 1.3.10**, for **Obsidian desktop 1.13.7 or newer**. The current interface is mainly Chinese. English explanations below include the actual Chinese labels so you can find each action. Button labels may appear as icons in narrow panes; hover over an icon to read its tooltip.
+This guide describes **ThoughtSpace Whiteboard 1.3.11**, for **Obsidian desktop 1.13.7 or newer**. The current interface is mainly Chinese. English explanations below include the actual Chinese labels so you can find each action. Button labels may appear as icons in narrow panes; hover over an icon to read its tooltip.
 
 ## Contents
 
@@ -209,6 +209,12 @@ For a fresh table, use **插入内容 → 表格**, right-click empty space and 
 Dragging existing vault files retains their source paths; it does not move those files. Multiple selected notes, including supported mixed-file batches, can be undone as one board operation. Internal-note links can also be dragged onto the board. Use **插入内容 → 已有笔记 / PDF 卡片 / 图片** when a picker is more convenient.
 
 The image menu supports local images and image links. Remote images may contact their host when displayed. The optional image-host integration is disabled by default; enabling it requires the separate supported image-host plugin and its configuration.
+
+### Webpage cards and image-host shortcuts
+
+Choose **插入内容 → 网页卡片** and enter an HTTP(S) URL, or paste/drop a single webpage URL onto the blank board. Cards support connections, resizing and folding. New cards open a 640 × 460 page preview with compact address actions; some websites prohibit embedding, so use **打开网页** instead. Cards show the domain and URL without automatically fetching page titles. Native Canvas export preserves a link node.
+
+The cloud button above an image uploads it through your configured **极速图床** plugin; once hosted, it copies the URL. Local attachments remain available for fallback.
 
 ### Read a PDF and keep its source
 
