@@ -10,6 +10,7 @@ import {srtToWebVtt} from './media-subtitles';
 import {markdownRows} from './markdown-context';
 import {markdownLinkRanges} from './markdown-links';
 import {maskInlineCode} from './markdown-literals';
+import {isExternalMediaReference,readExternalMediaReference,resolveMediaResource,validateExternalMediaReference,validateExternalMediaReferenceSync} from './external-media';
 
 export interface MediaWorkspaceHooks {state:(state:MediaCardState)=>void;capture:(time:number)=>Promise<unknown>;frame:(blob:Blob,time:number)=>Promise<unknown>;frameCaptureState?:(busy:boolean,time:number)=>void;initialState?:MediaCardState}
 export interface MediaMomentDraft {id:string;time:number;text:string;image?:Blob;source?:MediaIdentity}
@@ -40,6 +41,12 @@ export class MediaWorkspaceService {
  constructor(private app:App,private statePath:string,private operations:Operations){}
  identity(file:TFile):MediaIdentity{return {path:file.path,mtime:file.stat.mtime,size:file.stat.size};}
  private ensure(file:TFile,path=file.path,mtime=file.stat.mtime,size=file.stat.size){if(this.disposed||this.app.vault.getAbstractFileByPath(path)!==file||file.path!==path||file.stat.mtime!==mtime||file.stat.size!==size||!mediaKind(path)||!isWorkspaceFile(file))throw Error('媒体已移动、删除或更新，请重新选择');}
+ resolveResource(file:TFile):string|Promise<string>{
+  this.ensure(file);const identity=this.identity(file),result=resolveMediaResource(this.app,file);
+  if(typeof result==='string')return result;
+  return result.then(url=>{this.ensure(file,identity.path,identity.mtime,identity.size);return url;});
+ }
+ async validateResource(file:TFile):Promise<void>{await this.resolveResource(file);}
  async load(){try{if(this.disposed)return;if(await this.app.vault.adapter.exists(this.statePath)){if(this.disposed)return;const raw=await this.app.vault.adapter.read(this.statePath);if(!this.disposed&&raw.length<=256000)this.playback.import(JSON.parse(raw));}}catch(error){console.warn('[ThoughtSpace] 媒体进度无法读取，使用新会话',error);}}
  private schedule(){if(this.disposed||this.timer!==undefined)return;this.timer=setTimeout(()=>{this.timer=undefined;void this.flush().catch(error=>console.error('[ThoughtSpace] 媒体进度保存失败',error));},5000);}
  flush(){if(this.timer!==undefined){clearTimeout(this.timer);this.timer=undefined;}const text=JSON.stringify(this.playback.export());const next=this.writes.catch(()=>undefined).then(()=>this.app.vault.adapter.write(this.statePath,text));this.writes=next;return next;}
@@ -58,10 +65,11 @@ export class MediaWorkspaceService {
    return subtitleRead;
   };
   let handle:MediaCardHandle;
-  handle=mountMediaCard(host,{kind:mediaKind(file.path)!,title:file.basename,src:()=>{this.ensure(file,identity.path,identity.mtime,identity.size);return this.app.vault.getResourcePath(file);},state:this.playback.get(identity)||hooks.initialState,
+  const validateCapture=async()=>{await this.validateResource(file);if(!alive())throw Error('媒体已移动、删除或更新，请重新选择');};
+  handle=mountMediaCard(host,{kind:mediaKind(file.path)!,title:file.basename,src:()=>{this.ensure(file,identity.path,identity.mtime,identity.size);return this.resolveResource(file);},state:this.playback.get(identity)||hooks.initialState,
    suspendWhenHidden:false,onPlay:()=>this.playback.activate(handle),
    tracks:subtitle?[{label:'字幕',src:subtitleSource}]:undefined,
-   onState:state=>{if(alive()){this.playback.remember(identity,state,handle);hooks.state(state);}},onCapture:hooks.capture,onCaptureFrame:hooks.frame,onFrameCaptureState:hooks.frameCaptureState,
+   onState:state=>{if(alive()){this.playback.remember(identity,state,handle);hooks.state(state);}},onCapture:async time=>{await validateCapture();return hooks.capture(time);},onCaptureFrame:async(blob,time)=>{await validateCapture();return hooks.frame(blob,time);},onFrameCaptureState:hooks.frameCaptureState,
    onOpen:()=>{this.playback.pauseAll();return this.operations.openFile(file);},alive});
   const unregister=this.playback.register(identity,handle);
   const wrapper:MediaCardHandle={getState:()=>handle.getState(),play:()=>{if(!closed)handle.play();},pause:()=>{if(!closed)handle.pause();},seek:time=>{if(!closed)handle.seek(time);},dispose:()=>{
@@ -138,22 +146,26 @@ export class MediaWorkspaceService {
   const claimed=this.drafts.get(snapshot.id);if(claimed&&(claimed.source!==file||claimed.identity.path!==identity.path||claimed.identity.mtime!==identity.mtime||claimed.identity.size!==identity.size))throw Error('这条草稿的媒体已变化，请重新摘录');
   this.drafts.set(snapshot.id,{source:file,identity});
   const previous=this.noteQueues.get(file)||Promise.resolve();const task=previous.catch(()=>undefined).then(async()=>{
-   const ensure=()=>this.ensure(file,identity.path,identity.mtime,identity.size);ensure();const found=await this.readNotes(file,identity);ensure();let result:{note:TFile;raw:string}|undefined=found.notes[0];
+   const ensure=()=>this.ensure(file,identity.path,identity.mtime,identity.size);ensure();
+   const reference=isExternalMediaReference(file.path)?await readExternalMediaReference(this.app,file):undefined;ensure();
+   const verify=async()=>{ensure();if(reference)await validateExternalMediaReference(reference);ensure();};
+   const found=await this.readNotes(file,identity);await verify();let result:{note:TFile;raw:string}|undefined=found.notes[0];
    if(found.issues.some(issue=>!found.notes[0]||issue.priority<=found.notes[0].priority))throw Error('主媒体笔记未能完整读取，请检查原笔记或稍后重试；草稿保留');
    for(const candidate of found.notes)if(readMediaMoments(candidate.raw,{vault:this.app.vault.getName(),file:file.path}).some(moment=>moment.id===snapshot.id)){this.images.delete(snapshot.id);this.drafts.delete(snapshot.id);return {note:candidate.note};}
-   if(!result){const note=await this.operations.createNote(file.basename+' · 音视频笔记',mediaNoteDocument(file.path));this.notes.set(file,note);ensure();result={note,raw:await this.app.vault.read(note)};ensure();}
+   if(!result){const note=await this.operations.createNote(file.basename+' · 音视频笔记',mediaNoteDocument(file.path));this.notes.set(file,note);await verify();result={note,raw:await this.app.vault.read(note)};await verify();}
    const note=result.note,notePath=note.path,source={vault:this.app.vault.getName(),file:file.path};
    if(readMediaMoments(result.raw,source).some(moment=>moment.id===snapshot.id)){this.images.delete(snapshot.id);this.drafts.delete(snapshot.id);return {note};}
    let image:string|undefined;
    if(snapshot.image){let attachment=this.images.get(snapshot.id);if(attachment&&attachment.source!==file)throw Error('截图记录已属于另一媒体');
     if(!attachment||this.app.vault.getAbstractFileByPath(attachment.image.path)!==attachment.image){
-     const bytes=await snapshot.image.arrayBuffer();ensure();const path=await this.app.fileManager.getAvailablePathForAttachment(`媒体截图-${snapshot.id}.png`,notePath);ensure();
-     const created=await this.app.vault.createBinary(path,bytes);this.images.set(snapshot.id,attachment={source:file,image:created});ensure();
+     const bytes=await snapshot.image.arrayBuffer();await verify();const path=await this.app.fileManager.getAvailablePathForAttachment(`媒体截图-${snapshot.id}.png`,notePath);await verify();
+     const created=await this.app.vault.createBinary(path,bytes);this.images.set(snapshot.id,attachment={source:file,image:created});await verify();
     }
     image=encodedImage(attachment.image.path);
    }
    if(this.app.vault.getAbstractFileByPath(notePath)!==note)throw Error('记录笔记已移动或删除，草稿保留');
-   await this.app.vault.process(note,current=>{ensure();if(note.path!==notePath||this.app.vault.getAbstractFileByPath(notePath)!==note||!isWorkspaceFile(note)||!this.sourceMatches(mediaNoteSource(current),file))throw Error('记录笔记的媒体来源已变化，草稿保留');return appendMediaMoment(current,{id:snapshot.id,time:snapshot.time,text:snapshot.text,image},source);});
+   await verify();
+   await this.app.vault.process(note,current=>{ensure();if(reference)validateExternalMediaReferenceSync(reference);if(note.path!==notePath||this.app.vault.getAbstractFileByPath(notePath)!==note||!isWorkspaceFile(note)||!this.sourceMatches(mediaNoteSource(current),file))throw Error('记录笔记的媒体来源已变化，草稿保留');return appendMediaMoment(current,{id:snapshot.id,time:snapshot.time,text:snapshot.text,image},source);});
    this.images.delete(snapshot.id);this.drafts.delete(snapshot.id);return {note};
   });this.noteQueues.set(file,task);void task.finally(()=>{if(this.noteQueues.get(file)===task)this.noteQueues.delete(file);}).catch(()=>undefined);return task;
  }

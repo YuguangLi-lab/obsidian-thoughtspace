@@ -40,3 +40,11 @@ test('invalid timestamps, external media, prose and atomic unsupported batches d
  const uri='obsidian://open?vault=other&file='+encodeURIComponent(path);assert.deepEqual(f.drop(null,`[[${path}]]`,uri),{handled:false,references:[]});
  assert.deepEqual(f.drop({type:'files',files:[f.files.get(path),new File('资料/unsupported.exe')]}),{handled:true,references:[]});
 });
+
+test('external media reference attachments preserve time points when dragged from Obsidian',()=>{
+ for(const path of ['媒体引用/课程 #1.tsvideo','媒体引用/访谈.tsaudio']){
+  const f=fixture([path]),file=f.files.get(path)!;
+  assert.deepEqual(f.drop({type:'file',file}).references,[{file,path,page:1}]);
+  assert.deepEqual(f.drop(null,`[[${path}#t=12.5]]`).references,[{file,path,page:1,start:12.5}]);
+ }
+});

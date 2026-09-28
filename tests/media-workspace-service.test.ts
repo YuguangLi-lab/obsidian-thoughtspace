@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {mkdtemp,writeFile,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 import {createRequire} from 'node:module';
 import {createHash} from 'node:crypto';
 import {posix} from 'node:path';
@@ -25,11 +28,20 @@ function deferred<T=void>(){let resolve!:(value:T)=>void,reject!:(error:unknown)
 const tick=()=>new Promise<void>(resolve=>setImmediate(resolve));
 const timers=new Map<number,()=>void>();let timerId=0;
 const compiled=transformSync(readFileSync('src/media-workspace-service.ts','utf8'),{loader:'ts',format:'cjs'}).code,module={exports:{}},nodeRequire=createRequire(import.meta.url);
+const externalModule={exports:{}};
+new Function('require','module','exports',transformSync(readFileSync('src/external-media.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>{
+ if(name==='obsidian')return{Platform:{resourcePathPrefix:'app://runtime-id/'}};
+ if(name==='./media-source')return mediaSource;
+ if(name==='./value-guards')return{hasAsciiControl:(value:string)=>/[\x00-\x1f]/.test(value),isRecord:(value:unknown)=>!!value&&typeof value==='object'&&!Array.isArray(value)};
+ return nodeRequire(name);
+},externalModule,externalModule.exports);
+const external=externalModule.exports as typeof import('../src/external-media');
 let mountPlayer:(_host:unknown,options:MediaCardOptions)=>unknown;
 new Function('require','module','exports','setTimeout','clearTimeout',compiled)((name:string)=>{
  if(name==='obsidian')return{TFile,FileSystemAdapter};
  if(name==='./media-playback')return playback;
  if(name==='./media-source')return mediaSource;
+ if(name==='./external-media')return external;
  if(name==='./media-notes')return notes;
  if(name==='./media-subtitles')return subtitles;
  if(name==='./markdown-context')return markdownContext;
@@ -226,6 +238,36 @@ test('local short wiki and relative Markdown images resolve against their origin
 test('unresolved local images become visible repair hints instead of ambiguous links on another board',async()=>{
  const f=fixture();f.addNote(notes.appendMediaMoment(notes.mediaNoteDocument(f.source.path),{...draft(),image:'![[missing.png]]'},{vault:'vault',file:f.source.path}));const result=await f.service.moments(f.source);
  assert.equal(result.entries[0].image,undefined);assert.match(result.entries[0].text,/截图未找到/);assert.match(result.warnings.join(' '),/截图附件无法解析/);await f.service.dispose();
+});
+
+test('external video changed before saving leaves notes and attachments untouched',async t=>{
+ const folder=await mkdtemp(join(tmpdir(),'thoughtspace-save-'));t.after(()=>rm(folder,{recursive:true,force:true}));
+ const path=join(folder,'external.mp4');await writeFile(path,'original');const descriptor=await external.createExternalMediaReference(path);
+ const f=fixture();f.files.delete(f.source.path);f.source.path='media/course.tsvideo';f.files.set(f.source.path,f.source);f.texts.set(f.source,descriptor.content);f.source.stat.size=Buffer.byteLength(descriptor.content);
+ await writeFile(path,'replacement video');await assert.rejects(f.service.saveMoment(f.source,{...draft(),image:new Blob(['PNG'],{type:'image/png'})}),/变化|重新关联/);
+ assert.equal(f.counters.notes,0);assert.equal(f.counters.binaries,0);assert.equal(f.counters.processes,0);await f.service.dispose();
+});
+test('an external audio excerpt saves and reopens through its vault reference without copying media',async t=>{
+ const folder=await mkdtemp(join(tmpdir(),'thoughtspace-audio-'));t.after(()=>rm(folder,{recursive:true,force:true}));
+ const path=join(folder,'lecture.mp3');await writeFile(path,'original audio');const descriptor=await external.createExternalMediaReference(path);assert.equal(descriptor.extension,'tsaudio');
+ const f=fixture();f.files.delete(f.source.path);f.source.path='media/course.tsaudio';f.files.set(f.source.path,f.source);f.texts.set(f.source,descriptor.content);f.source.stat.size=Buffer.byteLength(descriptor.content);
+ const result=await f.service.saveMoment(f.source,draft('outside-audio',61.5,'外部音频摘录')),raw=f.texts.get(result.note)!;
+ assert.equal(notes.mediaNoteSource(raw),f.source.path);assert.ok(!raw.includes(descriptor.source));assert.equal(f.counters.binaries,0);assert.equal(f.counters.notes,1);
+ const timeline=await f.service.moments(f.source);assert.deepEqual(timeline.entries.map((row:any)=>[row.time,row.text]),[[61.5,'外部音频摘录']]);await f.service.dispose();
+});
+test('external video changing inside atomic note process cannot commit a stale screenshot',async t=>{
+ const folder=await mkdtemp(join(tmpdir(),'thoughtspace-commit-'));t.after(()=>rm(folder,{recursive:true,force:true}));
+ const path=join(folder,'external.mp4');await writeFile(path,'original');const descriptor=await external.createExternalMediaReference(path);
+ const f=fixture();f.files.delete(f.source.path);f.source.path='media/course.tsvideo';f.files.set(f.source.path,f.source);f.texts.set(f.source,descriptor.content);f.source.stat.size=Buffer.byteLength(descriptor.content);
+ const original=notes.mediaNoteDocument(f.source.path),note=f.addNote(original);f.controls.beforeProcess=()=>writeFile(path,'replacement video');
+ await assert.rejects(f.service.saveMoment(f.source,{...draft(),image:new Blob(['PNG'],{type:'image/png'})}),/变化|重新关联/);assert.equal(f.texts.get(note),original);await f.service.dispose();
+});
+test('workspace checks external source after PNG encoding before attaching it to the draft',async t=>{
+ const folder=await mkdtemp(join(tmpdir(),'thoughtspace-frame-'));t.after(()=>rm(folder,{recursive:true,force:true}));
+ const path=join(folder,'external.mp4');await writeFile(path,'original');const descriptor=await external.createExternalMediaReference(path);
+ const f=fixture();f.files.delete(f.source.path);f.source.path='media/course.tsvideo';f.files.set(f.source.path,f.source);f.texts.set(f.source,descriptor.content);f.source.stat.size=Buffer.byteLength(descriptor.content);let frames=0;
+ f.service.mount(f.host(),f.source,{...f.hooks(),frame:async()=>{frames++;}});assert.match(await f.mounts[0].options.src(),/^app:\/\/runtime-id\//);
+ await writeFile(path,'replacement video');await assert.rejects(Promise.resolve(f.mounts[0].options.onCaptureFrame!(new Blob(['PNG'],{type:'image/png'}),4)),/变化|重新关联/);assert.equal(frames,0);await f.service.dispose();
 });
 
 const srt='1\n00:00:01,000 --> 00:00:02,500\nhello\n';

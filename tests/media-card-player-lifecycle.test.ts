@@ -185,6 +185,7 @@ function fixture(extra: Partial<MediaCardOptions> = {}) {
 }
 const tick = () => new Promise<void>(resolve => setImmediate(resolve));
 function deferred() { let resolve!: () => void, reject!: (reason: unknown) => void; const promise = new Promise<void>((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; }
+function deferredSource() { let resolve!: (source: string) => void, reject!: (reason: unknown) => void; const promise = new Promise<string>((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; }
 function timeRequests() {
   const requests: { current: string; submit: (value: string) => void; closeCalls: number }[] = [];
   return { requests, requestTime(current: string, submit: (value: string) => void) {
@@ -215,6 +216,104 @@ for (const kind of ['audio', 'video'] as const) test(`${kind} creates no media e
   assert.equal(media.currentTime, 25);
   assert.equal(media.playbackRate, 1.5);
   f.handle.dispose();
+});
+
+test('an asynchronous source resolves lazily and duplicate playback requests share one decoder and current resume state', async () => {
+  const source = deferredSource(); let requests = 0, starts = 0;
+  const f = fixture({ controls: 'board', src: () => { requests++; return source.promise; }, onPlay: () => { starts++; } });
+  assert.equal(requests, 0); assert.equal(f.doc.medias().length, 0);
+  f.handle.play(); f.handle.play(); f.click('播放视频');
+  assert.equal(requests, 1); assert.equal(f.doc.medias().length, 0);
+  assert.equal(f.find('ts-media-card__loading').hidden, false);
+  f.handle.seek(17.25);
+  source.resolve('file:///external/lesson.mp4'); await tick();
+  assert.equal(f.doc.medias().length, 1); const media = f.doc.medias()[0];
+  assert.equal(media.playCalls, 1); assert.equal(starts, 1); assert.equal(media.src, 'file:///external/lesson.mp4');
+  media.metadata(); assert.equal(media.currentTime, 17.25);
+  media.frame(); assert.equal(f.find('ts-media-card__loading').hidden, true);
+  f.handle.dispose();
+});
+
+for (const stop of ['pause', 'dispose', 'offscreen', 'hidden', 'stale'] as const) test(`${stop} invalidates pending source resolution before it can create or play media`, async () => {
+  const source = deferredSource(); let starts = 0;
+  const f = fixture({ controls: 'board', src: () => source.promise, onPlay: () => { starts++; } });
+  f.handle.play();
+  if (stop === 'pause') f.handle.pause();
+  else if (stop === 'dispose') f.handle.dispose();
+  else if (stop === 'offscreen') f.doc.observers[0].visibility(false);
+  else if (stop === 'hidden') { f.doc.visibilityState = 'hidden'; f.doc.emit('visibilitychange'); }
+  else f.setLive(false);
+  source.resolve('file:///external/lesson.mp4'); await tick();
+  assert.equal(f.doc.medias().length, 0); assert.equal(starts, 0);
+  assert.equal(f.find('ts-media-card__loading').hidden, true); f.handle.dispose();
+});
+
+test('hiding during independent background player source resolution still cancels its deferred start', async () => {
+  const source = deferredSource();
+  const f = fixture({ kind: 'audio', suspendWhenHidden: false, src: () => source.promise });
+  f.handle.play(); f.doc.visibilityState = 'hidden'; f.doc.emit('visibilitychange');
+  f.doc.visibilityState = 'visible'; f.doc.emit('visibilitychange');
+  source.resolve('file:///external/lesson.mp3'); await tick();
+  assert.equal(f.doc.medias().length, 0); assert.equal(f.find('ts-media-card__status').textContent, ''); f.handle.dispose();
+});
+
+for (const completion of ['resolve', 'reject'] as const) for (const started of [false, true]) test(`an old source ${completion} cannot change a newer ${started ? 'playing decoder' : 'pending request'} after pause and retry`, async () => {
+  const old = deferredSource(), current = deferredSource(); let requests = 0;
+  const f = fixture({ controls: 'board', src: () => ++requests === 1 ? old.promise : current.promise });
+  f.handle.play(); f.handle.pause(); f.handle.play(); assert.equal(requests, 2);
+  if (started) { current.resolve('file:///external/current.mp4'); await tick(); }
+  if (completion === 'resolve') old.resolve('file:///external/old.mp4'); else old.reject(Error('旧媒体已移动。'));
+  await tick(); assert.equal(f.doc.medias().length, started ? 1 : 0); assert.equal(f.find('ts-media-card__loading').hidden, false);
+  assert.doesNotMatch(f.find('ts-media-card__status').textContent, /旧媒体/);
+  if (!started) { current.resolve('file:///external/current.mp4'); await tick(); }
+  assert.equal(f.doc.medias().length, 1); assert.equal(f.doc.medias()[0].src, 'file:///external/current.mp4');
+  assert.equal(f.doc.medias()[0].playCalls, 1); f.handle.dispose();
+});
+
+for (const asynchronous of [false, true]) test(`${asynchronous ? 'async' : 'sync'} source errors show safe actionable details and allow an explicit retry`, async () => {
+  let requests = 0;
+  const f = fixture({ controls: 'board', src: () => {
+    if (++requests > 1) return 'file:///external/reselected.mp4';
+    const error = Error('媒体文件已移动，请重新选择文件。');
+    if (asynchronous) return Promise.reject(error);
+    throw error;
+  } });
+  f.handle.play(); await tick();
+  assert.match(f.find('ts-media-card__status').textContent, /媒体文件已移动，请重新选择文件。/);
+  assert.equal(f.doc.medias().length, 0); assert.equal(f.find('ts-media-card__loading').hidden, true);
+  f.handle.play(); assert.equal(requests, 2); assert.equal(f.doc.medias().length, 1);
+  assert.equal(f.doc.medias()[0].playCalls, 1); f.handle.dispose();
+});
+
+test('asynchronous source rejection cannot expose a source URL or credentials', async () => {
+  const source = deferredSource();
+  const f = fixture({ src: () => source.promise }); f.handle.play();
+  source.reject(Error('https://private.example/media?token=secret')); await tick();
+  assert.match(f.find('ts-media-card__status').textContent, /无法读取媒体/);
+  assert.doesNotMatch(f.card.textContent, /private|secret|https:/); f.handle.dispose();
+});
+
+test('a synchronous source callback cannot resurrect playback after pausing its request', () => {
+  let f!: ReturnType<typeof fixture>;
+  f = fixture({ src: () => { f.handle.pause(); return 'file:///external/cancelled.mp4'; } });
+  f.handle.play(); assert.equal(f.doc.medias().length, 0); f.handle.dispose();
+});
+
+test('an asynchronous empty source leaves no decoder and can be resolved again after a new click', async () => {
+  let requests = 0;
+  const f = fixture({ controls: 'board', src: async () => ++requests === 1 ? '  ' : 'file:///external/valid.mp4' });
+  f.handle.play(); await tick();
+  assert.equal(f.doc.medias().length, 0); assert.equal(f.find('ts-media-card__loading').hidden, true);
+  assert.match(f.find('ts-media-card__status').textContent, /媒体来源为空/);
+  f.handle.play(); await tick(); assert.equal(requests, 2); assert.equal(f.doc.medias().length, 1); f.handle.dispose();
+});
+
+test('a source resolver can re-enter playback synchronously without creating duplicate requests', async () => {
+  const source = deferredSource(); let requests = 0, f!: ReturnType<typeof fixture>;
+  f = fixture({ src: () => { requests++; f.handle.play(); return source.promise; } });
+  f.handle.play(); assert.equal(requests, 1); assert.equal(f.doc.medias().length, 0);
+  source.resolve('file:///external/once.mp4'); await tick();
+  assert.equal(f.doc.medias().length, 1); assert.equal(f.doc.medias()[0].playCalls, 1); f.handle.dispose();
 });
 
 for (const kind of ['audio', 'video'] as const) test(`board ${kind} keeps loading visible until playable data arrives, independently of ordinary feedback`, () => {

@@ -1,3 +1,5 @@
+import {ExternalMediaPicker} from './external-media-picker';
+import {createExternalMediaReference,isExternalMediaReference} from './external-media';
 import {consumeMarkdownPreviewWheel} from './markdown-preview-scroll';
 import {InlineTextFit} from './inline-text-fit';
 import {markdownEdit} from './markdown-edit';
@@ -370,16 +372,17 @@ export default class ThoughtSpace extends Plugin {
     this.settings = cleanPluginSettings(await this.loadData());
     this.mediaWorkspace=new MediaWorkspaceService(this.app,normalizePath(`${this.manifest.dir||this.app.vault.configDir+'/plugins/'+this.manifest.id}/media-playback.json`),{
       createNote:(title,body)=>this.createUnique(normalizePath(this.settings.cardFolder+'/媒体笔记'),title,'md',body),
-      openFile:file=>this.app.workspace.getLeaf('tab').openFile(file)
+      openFile:file=>isExternalMediaReference(file.path)?this.openMediaWorkspace(file,'tab'):this.app.workspace.getLeaf('tab').openFile(file)
     });
     await this.mediaWorkspace.load();
-    this.mediaWorkspaceHost={open:(file,placement,time)=>this.openMediaWorkspace(file,placement,time),pick:done=>this.pickMediaFile(done),mount:(host,file,hooks)=>this.mediaWorkspace.mount(host,file,hooks),moments:file=>this.mediaWorkspace.moments(file),saveMoment:(file,data)=>this.mediaWorkspace.saveMoment(file,data),openNote:file=>this.openNoteInSidebar(file),sendToBoard:(file,moment)=>this.sendMediaToBoard(file,moment)};
+    this.mediaWorkspaceHost={open:(file,placement,time)=>this.openMediaWorkspace(file,placement,time),pick:done=>this.pickMediaFile(done),pickExternal:done=>this.pickExternalMedia(done),mount:(host,file,hooks)=>this.mediaWorkspace.mount(host,file,hooks),moments:file=>this.mediaWorkspace.moments(file),saveMoment:(file,data)=>this.mediaWorkspace.saveMoment(file,data),openNote:file=>this.openNoteInSidebar(file),sendToBoard:(file,moment)=>this.sendMediaToBoard(file,moment)};
     this.registerView(MEDIA_WORKSPACE,leaf=>new MediaWorkspaceView(leaf,this.mediaWorkspaceHost));
     this.register(()=>{this.mediaClosed=true;void this.mediaWorkspace.dispose().catch(report);});
     this.registerEvent(this.app.vault.on('rename',(file,oldPath)=>{if(file instanceof TFile)this.mediaWorkspace.playback.rename(oldPath,file.path);}));
     this.registerEvent(this.app.vault.on('delete',file=>this.mediaWorkspace.playback.remove(file.path)));
     this.registerObsidianProtocolHandler('thoughtspace-player',params=>act(async()=>{const source=parseMediaPlayerUrl(params);if(!source||source.vault!==this.app.vault.getName())throw Error('媒体链接无效或属于其他仓库');const file=this.app.vault.getAbstractFileByPath(source.file);if(!(file instanceof TFile)||!isWorkspaceFile(file))throw Error('来源媒体已移动或删除');await this.openMediaWorkspace(file,'tab',source.time);}));
     for(const [placement,name]of [['tab','在主页面打开媒体播放器'],['sidebar','在右侧栏打开媒体播放器'],['window','在独立窗口打开媒体播放器']]as const)this.addCommand({id:'media-player-'+placement,name,callback:()=>act(()=>this.openMediaWorkspace(undefined,placement))});
+    this.addCommand({id:'link-external-media',name:'链接仓库外的视频或音频',callback:()=>this.pickExternalMedia(file=>this.openMediaWorkspace(file,'tab'))});
     this.setupBoardSearch();this.register(()=>this.pdfDocuments.clear());
     this.noteToolbar=new NoteMarkdownToolbars(this.app,()=>this.settings.noteMarkdownToolbar!==false,(name,source)=>this.createConceptLinkNote(name,source));this.addChild(this.noteToolbar);this.registerEditorExtension(this.noteToolbar.extension());
     this.addSettingTab(new ThoughtSpaceSettings(this.app, this));
@@ -656,7 +659,7 @@ export default class ThoughtSpace extends Plugin {
   async showSnapshots(file:TFile){const items=await this.layoutSnapshots(file);if(!items.length){new Notice('还没有布局快照，请先保存一个');return;}
     new ActionPicker(this.app,'恢复布局（自动备份当前布局；不回滚笔记正文）',items.map(item=>({title:`${new Date(item.createdAt).toLocaleString()} · ${item.label} · ${item.nodes} 个对象`,run:()=>this.restoreLayoutSnapshot(file,item.path)}))).open();
   }
-  async exportOutline(file:TFile){const board=await this.readBoard(file),out=await this.createUnique(`${ROOT}/导出`,`${file.basename}-大纲`,'md',boardOutline(board,file.basename));new Notice(`已导出 ${out.path}`);return out;}
+  async exportOutline(file:TFile){const board=await this.readBoard(file),out=await this.createUnique(`${ROOT}/导出`,`${file.basename}-大纲`,'md',boardOutline(board,file.basename,this.app.vault.getName()));new Notice(`已导出 ${out.path}`);return out;}
   openDatabase(view?: BoardView) {
     const modal=new DatabaseModal(this.app, { preferences:this.settings.database,savePreferences:()=>this.saveData(this.settings),boardPath:view?.file?.path,cardFolder: this.settings.cardFolder, boardPaths: view?.session ? new Set(view.session.board.nodes.filter(n => n.kind === 'card' && n.file).map(n => n.file!)) : undefined, boardTitle: view?.file?.basename, preview: file => new NotePreview(this.app, file, this).open() }, this.propertyStore);modal.open();return modal;
   }
@@ -1086,10 +1089,34 @@ export default class ThoughtSpace extends Plugin {
     view.seekMediaSource(source);
   }
   openMediaLibrary(){act(()=>this.openMediaWorkspace(undefined,'tab'));}
-  pickMediaFile(done:(file:TFile)=>void){
-    const app=this.app,recent=this.mediaWorkspace.playback.recent();
-    class Picker extends FuzzySuggestModal<TFile>{getItems(){return app.vault.getFiles().filter(f=>isWorkspaceFile(f)&&!!mediaKind(f.path)).sort((a,b)=>{const ai=recent.indexOf(a.path),bi=recent.indexOf(b.path);return(ai<0?Infinity:ai)-(bi<0?Infinity:bi)||a.path.localeCompare(b.path);});}getItemText(file:TFile){return file.path;}onChooseItem(file:TFile){act(()=>done(file));}}
-    const picker=new Picker(app);picker.setPlaceholder('搜索仓库中的音频或视频 · 最近播放优先');picker.open();
+  async linkExternalMedia(input:string,kind?:'audio'|'video'):Promise<TFile>{
+    const reference=await createExternalMediaReference(input);
+    if(kind&&reference.kind!==kind)throw Error(kind==='video'?'请选择本地视频文件':'请选择本地音频文件');
+    if(this.mediaClosed)throw Error('插件已关闭，请重新打开');
+    const folder=normalizePath(this.settings.cardFolder+'/媒体引用/'+createHash('sha256').update(reference.content).digest('hex').slice(0,12));
+    const title=reference.basename;
+    const path=normalizePath(folder+'/'+safeName(title)+'.'+reference.extension),existing=this.app.vault.getAbstractFileByPath(path);
+    const verify=async(file:TFile)=>{
+      const path=file.path,stamp=file.stat.mtime,size=file.stat.size;
+      const ensure=()=>{if(this.mediaClosed||this.app.vault.getAbstractFileByPath(path)!==file||file.path!==path||file.stat.mtime!==stamp||file.stat.size!==size)throw Error('媒体引用已变化，请重新选择');};
+      ensure();const content=await this.app.vault.read(file);ensure();
+      if(content!==reference.content)throw Error('媒体引用的来源已变化，请重新选择');
+      await this.mediaWorkspace.validateResource(file);ensure();return file;
+    };
+    if(existing instanceof TFile&&await this.app.vault.read(existing)===reference.content)return verify(existing);
+    return verify(await this.createUnique(folder,title,reference.extension,reference.content));
+  }
+  pickExternalMedia(done:(file:TFile)=>unknown,kind?:'audio'|'video'){
+    new ExternalMediaPicker(this.app,input=>this.linkExternalMedia(input,kind),done,kind).open();
+  }
+  pickMediaFile(done:(file:TFile)=>unknown,kind?:'audio'|'video'){
+    const app=this.app,recent=this.mediaWorkspace.playback.recent(),external={external:true},linkOutside=()=>this.pickExternalMedia(done,kind);
+    class Picker extends FuzzySuggestModal<TFile|typeof external>{
+      getItems(){return [...app.vault.getFiles().filter(f=>isWorkspaceFile(f)&&!!mediaKind(f.path)&&(!kind||mediaKind(f.path)===kind)).sort((a,b)=>{const ai=recent.indexOf(a.path),bi=recent.indexOf(b.path);return(ai<0?Infinity:ai)-(bi<0?Infinity:bi)||a.path.localeCompare(b.path);}),external];}
+      getItemText(file:TFile|typeof external){return file instanceof TFile?file.path:'＋ 链接仓库外的'+(kind==='audio'?'音频':'视频或音频')+'…';}
+      onChooseItem(file:TFile|typeof external){if(file instanceof TFile)act(()=>done(file));else linkOutside();}
+    }
+    const picker=new Picker(app);picker.setPlaceholder('搜索音视频，或选择“链接仓库外的视频”');picker.open();
   }
   openMediaWorkspace(file?:TFile,placement:MediaPlacement='tab',time?:number):Promise<void>{
     const requestedPath=file?.path;
@@ -1103,7 +1130,14 @@ export default class ThoughtSpace extends Plugin {
       const current=workspace.getActiveFile(),target=file||previous?.currentFile()||(current&&mediaKind(current.path)?current:undefined);
       if(target&&(!isWorkspaceFile(target)||!mediaKind(target.path)||this.app.vault.getAbstractFileByPath(requestedPath||target.path)!==target||requestedPath&&target.path!==requestedPath))throw Error('媒体文件已移动或删除，请重新选择');
       if(time!==undefined)mediaTime(time);
-      if(previous&&previous.currentFile()===target&&previous.getState().placement===placement){if(time!==undefined)await previous.setState({...previous.getState(),time});if(placement==='sidebar')workspace.rightSplit.expand();await workspace.revealLeaf(previous.leaf);return;}
+      if(previous&&previous.currentFile()===target&&previous.getState().placement===placement){
+        const live=()=>!this.mediaClosed&&previous.leaf.view===previous&&workspace.getLeavesOfType(MEDIA_WORKSPACE).includes(previous.leaf);
+        if(time!==undefined)await previous.setState({...previous.getState(),time});
+        if(!live())return;if(placement==='sidebar')workspace.rightSplit.expand();
+        await workspace.revealLeaf(previous.leaf);
+        // Revealing a pane does not select an already-open tab.
+        if(live())workspace.setActiveLeaf(previous.leaf,{focus:true});return;
+      }
       if(previous&&!previous.canMove())return;
       const playing=previous?.containerEl.querySelector<HTMLMediaElement>('audio,video')?.paused===false;
       const sameSource=previous?.currentFile()===target,previousLayout=sameSource?previous?.getState():undefined;
@@ -2199,8 +2233,7 @@ class BoardView extends FileView {
   async insertMediaCard(position=this.point(),kind?:'audio'|'video'){
     const owner=this.requireOwner();if(this.inline&&!await this.inline.commit())return;this.requireOwner(owner);
     const app=this.app,accept=(file:TFile)=>{this.requireOwner(owner);if(app.vault.getAbstractFileByPath(file.path)!==file||!mediaKind(file.path)||!isWorkspaceFile(file))throw Error('媒体已移动或删除，请重新选择');this.addFile(file,position);this.contextOpen=false;this.updateSelection();this.stage.focus({preventScroll:true});};
-    class MediaPicker extends FuzzySuggestModal<TFile>{getItems(){return app.vault.getFiles().filter(file=>isWorkspaceFile(file)&&!!mediaKind(file.path)&&(!kind||mediaKind(file.path)===kind));}getItemText(file:TFile){return file.path;}onChooseItem(file:TFile){act(()=>accept(file));}}
-    const picker=new MediaPicker(app);picker.setPlaceholder(kind==='audio'?'选择仓库中的音频…':kind==='video'?'选择仓库中的视频…':'搜索音频或视频…');picker.open();
+    this.plugin.pickMediaFile(accept,kind);
   }
   async insertPdfCard(position=this.point(),initial?:TFile,page=1) {
     const owner=this.requireOwner();if(this.inline&&!await this.inline.commit())return;this.requireOwner(owner);
@@ -2697,7 +2730,9 @@ class BoardView extends FileView {
     const original=owner!.board.nodes.find(n=>n.id===id),path=original?.file,kind=original?.kind,file=path?this.app.vault.getAbstractFileByPath(path):undefined;
     if(!original||!path||(kind!=='audio'&&kind!=='video')||!(file instanceof TFile))throw Error('来源媒体已移动或删除');
     const stamp=file.stat.mtime,size=file.stat.size;
+    await this.plugin.mediaWorkspace.validateResource(file);this.requireOwner(owner);
     if(this.inline&&!await this.inline.commit())return;this.requireOwner(owner);
+    await this.plugin.mediaWorkspace.validateResource(file);this.requireOwner(owner);
     const media=owner!.board.nodes.find(n=>n.id===id);
     if(!media||media.file!==path||media.kind!==kind||file.path!==path||this.app.vault.getAbstractFileByPath(path)!==file||file.stat.mtime!==stamp||file.stat.size!==size)throw Error('来源媒体已变化，请重新摘录');
     this.mediaPlayers.get(id)?.pause();
@@ -2712,15 +2747,16 @@ class BoardView extends FileView {
     if(node?.kind!=='video'||!path||!(file instanceof TFile)||blob.type!=='image/png'||blob.size>20*1024*1024)throw Error('无法保存此视频截图');
     const stamp=file.stat.mtime,size=file.stat.size;
     const ensure=()=>{this.requireOwner(owner);const current=owner!.board.nodes.find(n=>n.id===id);if(current?.kind!=='video'||current.file!==path||file.path!==path||this.app.vault.getAbstractFileByPath(path)!==file||file.stat.mtime!==stamp||file.stat.size!==size)throw Error('来源视频已变化，请重新截图');return current;};
+    await this.plugin.mediaWorkspace.validateResource(file);ensure();
     if(this.inline&&!await this.inline.commit())return;ensure();
-    const bytes=await blob.arrayBuffer();ensure();
+    const bytes=await blob.arrayBuffer();ensure();await this.plugin.mediaWorkspace.validateResource(file);ensure();
     const imagePath=await this.app.fileManager.getAvailablePathForAttachment(`视频截图-${Date.now()}.png`,owner!.file.path);ensure();
     const image=await this.app.vault.createBinary(imagePath,bytes);
-    try{ensure();}catch{new Notice(`截图已保留：${image.path}；白板或来源已变化，未插入卡片`);return;}
+    try{await this.plugin.mediaWorkspace.validateResource(file);ensure();}catch{new Notice(`截图已保留：${image.path}；白板或来源已变化，未插入卡片`);return;}
     const source=mediaSourceMarkdown({vault:this.app.vault.getName(),board:owner!.file.path,node:id,file:path,time});
     const attachment=this.app.fileManager.generateMarkdownLink(image,owner!.file.path),body=`!${attachment}\n\n${source}\n`;
     const note=await this.plugin.createUnique(owner!.file.parent?.path||'',`${file.basename} ${mediaClock(time).replace(/:/g,'-')}`,'md',body);
-    let current:Card;try{current=ensure();}catch{new Notice(`截图笔记已保留：${note.path}；白板或来源已变化，未插入卡片`);return;}
+    let current:Card;try{await this.plugin.mediaWorkspace.validateResource(file);current=ensure();}catch{new Notice(`截图笔记已保留：${note.path}；白板或来源已变化，未插入卡片`);return;}
     const next=uid();owner!.change(b=>{b.version=3;b.nodes.push({id:next,kind:'card',file:note.path,x:current.x+current.width+56,y:current.y+current.height+24,width:320,height:260,color:current.color,transparent:true,autoFit:true,preferredWidth:320});b.edges.push({id:uid(),from:id,to:next,label:mediaClock(time),style:this.plugin.settings.defaultEdgeStyle,direction:'forward'});});
     this.selected=new Set([next]);this.selectedEdge=undefined;this.updateSelection();new Notice('视频截图已保存为 Markdown 笔记，可点击时间回到视频');
   }
@@ -2736,7 +2772,7 @@ class BoardView extends FileView {
     const stamp=file.stat.mtime,size=file.stat.size,alive=()=>!this.closed&&this.session===owner&&el.isConnected&&this.app.vault.getAbstractFileByPath(path)===file&&file.path===path&&file.stat.mtime===stamp&&file.stat.size===size&&owner.board.nodes.some(node=>node.id===n.id&&node.file===path&&node.kind===kind&&!node.collapsed);
     const identity=JSON.stringify([path,stamp,file.stat.size,n.mediaStart||0]);if(this.mediaIdentities.get(n.id)!==identity){this.mediaStates.delete(n.id);this.mediaIdentities.set(n.id,identity);}
     const shared=this.plugin.mediaWorkspace.playback,mediaIdentity=this.plugin.mediaWorkspace.identity(file);
-    const handle=mountMediaCard(body,{kind,controls:'board',title:file.basename,src:()=>this.app.vault.getResourcePath(file),initialTime:n.mediaStart||0,state:shared.get(mediaIdentity)||this.mediaStates.get(n.id),captureEnabled:!owner.blocked,onPlay:()=>shared.activate(handle),
+    const handle=mountMediaCard(body,{kind,controls:'board',title:file.basename,src:()=>this.plugin.mediaWorkspace.resolveResource(file),initialTime:n.mediaStart||0,state:shared.get(mediaIdentity)||this.mediaStates.get(n.id),captureEnabled:!owner.blocked,onPlay:()=>shared.activate(handle),
       requestTime:(current,submit)=>{const prompt=new Prompt(this.app,'跳转到时间 · 秒数或时:分:秒',current,value=>{if(alive())submit(value);});prompt.open();return()=>prompt.close();},
       onState:state=>{if(!this.closed&&this.session===owner&&file.path===path&&file.stat.mtime===stamp&&file.stat.size===size&&this.app.vault.getAbstractFileByPath(path)===file&&owner.board.nodes.some(node=>node.id===n.id&&node.file===path&&node.kind===kind)){this.mediaStates.set(n.id,state);shared.remember(mediaIdentity,state,handle);}},
       onCapture:time=>this.captureMedia(n.id,time,owner),onOpen:()=>this.plugin.openMediaWorkspace(file,'tab',handle.getState().time),
@@ -3954,7 +3990,7 @@ class BoardView extends FileView {
   }
   private async exportCanvas() {
     if (!this.session) return;
-    const f = await this.plugin.createUnique(this.file?.parent?.path || ROOT, `${this.file?.basename || '白板'}-导出`, 'canvas', JSON.stringify(canvasExport(this.session.board), null, 2));
+    const f = await this.plugin.createUnique(this.file?.parent?.path || ROOT, `${this.file?.basename || '白板'}-导出`, 'canvas', JSON.stringify(canvasExport(this.session.board,this.app.vault.getName()), null, 2));
     new Notice(`已导出原生 Canvas：${f.path}`); await this.app.workspace.getLeaf('tab').openFile(f);
   }
 }

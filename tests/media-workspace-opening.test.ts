@@ -15,7 +15,7 @@ const turn=()=>new Promise<void>(resolve=>setImmediate(resolve));
 type Placement='tab'|'sidebar'|'window';
 function opening(){
  const a=new TFile('media/A.mp4'),b=new TFile('media/B.mp3'),files=new Map([a,b].map(file=>[file.path,file]));
- const leaves:Leaf[]=[],shared=new Map<string,number>(),calls={create:[] as string[],set:[] as string[],reveal:[] as Leaf[],pause:0,expand:0};
+ const leaves:Leaf[]=[],shared=new Map<string,number>(),calls={create:[] as string[],set:[] as string[],reveal:[] as Leaf[],activate:[] as {leaf:Leaf;focus:boolean}[],pause:0,expand:0};
  let active:View|undefined,activeFile:TFile|undefined;
  let beforeSet:((leaf:Leaf,state:any)=>Promise<void>)|undefined,beforeReveal:((leaf:Leaf)=>Promise<void>)|undefined;
  class View {
@@ -31,19 +31,20 @@ function opening(){
  class Leaf {
   view:View;attached=true;detaches=0;
   constructor(public where:Placement){this.view=new View(this);leaves.push(this);}
-  async setViewState(state:any){calls.set.push(state.state.file||'empty');await beforeSet?.(this,state);await this.view.setState(state.state);}
+  async setViewState(state:any){calls.set.push(state.state.file||'empty');await beforeSet?.(this,state);await this.view.setState(state.state);if(state.active)active=this.view;}
   detach(){this.detaches++;this.attached=false;this.view.closed=true;if(active===this.view)active=undefined;}
  }
  const workspace={
   getLeavesOfType:()=>leaves.filter(leaf=>leaf.attached),getActiveViewOfType:()=>active,getActiveFile:()=>activeFile,
   getLeaf:(where:Placement)=>{calls.create.push(where);return new Leaf(where);},getRightLeaf:()=>{calls.create.push('sidebar');return new Leaf('sidebar');},
-  rightSplit:{expand:()=>calls.expand++},revealLeaf:async(leaf:Leaf)=>{calls.reveal.push(leaf);await beforeReveal?.(leaf);active=leaf.view;},
+  rightSplit:{expand:()=>calls.expand++},revealLeaf:async(leaf:Leaf)=>{calls.reveal.push(leaf);await beforeReveal?.(leaf);},
+  setActiveLeaf:(leaf:Leaf,options:{focus:boolean})=>{calls.activate.push({leaf,focus:options.focus});active=leaf.view;},
  };
  const deps={MediaWorkspaceView:View,MEDIA_WORKSPACE:'thoughtspace-media-player',TFile,isWorkspaceFile,mediaKind,mediaTime};
  const Plugin=new Function(...Object.keys(deps),transformSync(`class Plugin{${method('  openMediaWorkspace(')}};return Plugin`,{loader:'ts'}).code)(...Object.values(deps));
  const plugin=new Plugin();Object.assign(plugin,{mediaOpening:Promise.resolve(),mediaClosed:false,app:{workspace,vault:{getAbstractFileByPath:(path:string)=>files.get(path)}},mediaWorkspace:{playback:{pauseAll:()=>{calls.pause++;for(const leaf of leaves.filter(leaf=>leaf.attached)){const v=leaf.view;if(v.file)shared.set(v.file.path,v.time);v.paused=true;}}}}});
  const existing=(file:TFile|undefined=a,placement:Placement='tab',time=24)=>{const leaf=new Leaf(placement);leaf.view.file=file;leaf.view.placement=placement;leaf.view.time=time;active=leaf.view;return leaf;};
- return{a,b,files,leaves,calls,plugin,existing,setActiveFile:(file:TFile)=>{activeFile=file;},setBeforeSet:(fn:typeof beforeSet)=>{beforeSet=fn;},setBeforeReveal:(fn:typeof beforeReveal)=>{beforeReveal=fn;}};
+ return{a,b,files,leaves,calls,plugin,existing,get activeView(){return active;},setActiveView:(view?:View)=>{active=view;},setActiveFile:(file:TFile)=>{activeFile=file;},setBeforeSet:(fn:typeof beforeSet)=>{beforeSet=fn;},setBeforeReveal:(fn:typeof beforeReveal)=>{beforeReveal=fn;}};
 }
 
 for(const placement of ['tab','sidebar','window'] as const)test(`opening ${placement} uses its native leaf and never autoplays the first open`,async()=>{
@@ -52,6 +53,17 @@ for(const placement of ['tab','sidebar','window'] as const)test(`opening ${place
 test('same media and placement reuse the view without resetting its current timestamp',async()=>{
  const f=opening(),leaf=f.existing(f.a,'sidebar',39.125);await f.plugin.openMediaWorkspace(undefined,'sidebar');assert.equal(f.calls.create.length,0);assert.equal(f.calls.pause,0);assert.equal(leaf.view.time,39.125);assert.equal(leaf.view.states.length,0);assert.equal(f.calls.expand,1);
  await f.plugin.openMediaWorkspace(f.a,'sidebar',6.25);assert.equal(leaf.view.time,6.25);assert.equal(leaf.view.states.length,1);assert.equal(leaf.detaches,0);
+});
+test('a timestamp link to an existing hidden media tab explicitly activates it after seeking',async()=>{
+ const f=opening(),leaf=f.existing(f.a,'tab',4);f.setActiveView();f.setActiveFile(new TFile('Boards/current.thoughtspace'));
+ await f.plugin.openMediaWorkspace(f.a,'tab',7.25);
+ assert.equal(leaf.view.time,7.25);assert.equal(f.activeView,leaf.view);assert.deepEqual(f.calls.activate,[{leaf,focus:true}]);assert.deepEqual(f.calls.reveal,[leaf]);assert.equal(f.calls.create.length,0);assert.equal(f.calls.pause,0);
+});
+for(const closing of ['plugin','leaf'] as const)test(`closing the ${closing} while revealing an existing media tab does not focus it afterward`,async()=>{
+ const f=opening(),leaf=f.existing(f.a,'tab',4),entered=deferred(),resume=deferred();f.setActiveView();
+ f.setBeforeReveal(async()=>{entered.resolve();await resume.promise;});const pending=f.plugin.openMediaWorkspace(f.a,'tab',7.25);await entered.promise;
+ if(closing==='plugin')f.plugin.mediaClosed=true;else leaf.detach();resume.resolve();await pending;
+ assert.equal(f.calls.activate.length,0);assert.equal(f.activeView,undefined);assert.equal(f.calls.create.length,0);
 });
 test('tab to sidebar to popout transfers the current file and position and resumes only an already-playing source',async()=>{
  const f=opening(),old=f.existing(f.a,'tab',44.5);old.view.paused=false;await f.plugin.openMediaWorkspace(undefined,'sidebar');const sidebar=f.leaves.at(-1)!;

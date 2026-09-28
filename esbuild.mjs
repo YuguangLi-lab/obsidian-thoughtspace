@@ -1,6 +1,6 @@
 import { build } from 'esbuild';
 import {readFile,writeFile} from 'node:fs/promises';
-await build({entryPoints:['src/main.ts'],bundle:true,external:['path','crypto','electron','obsidian','@codemirror/view','@codemirror/state'],format:'cjs',target:'es2022',outfile:'main.js',sourcemap:false});
+await build({entryPoints:['src/main.ts'],bundle:true,external:['fs/promises','fs','url','path','crypto','electron','obsidian','@codemirror/view','@codemirror/state'],format:'cjs',target:'es2022',outfile:'main.js',sourcemap:false});
 const css=await readFile('styles.css','utf8'),journal=await readFile('src/journal-quiet.css','utf8');
 const section=`/* BEGIN journal-quiet generated */\n${journal}\n/* END journal-quiet generated */`;
 const marker=/\/\* BEGIN journal-quiet generated \*\/[\s\S]*?\/\* END journal-quiet generated \*\//;

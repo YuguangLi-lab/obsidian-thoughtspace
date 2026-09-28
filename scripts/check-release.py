@@ -23,6 +23,7 @@ if not entry or not entry.group(1).strip():
 notes = entry.group(1).strip() + '\n\n'
 notes += 'Install or update with `main.js`, `manifest.json`, and `styles.css`; keep your existing `data.json`.\n'
 notes += '安装或升级时替换这三个运行文件，保留已有 `data.json`。本次发布附带 GitHub 构建来源证明。\n'
+notes += f'\n[中文完整教程](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/{tag}/docs/USER-GUIDE.zh-CN.md) · [Complete English guide](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/{tag}/docs/USER-GUIDE.md)\n'
 (root / 'dist').mkdir(exist_ok=True)
 (root / 'dist' / 'release-notes.md').write_text(notes)
 print('Release metadata verified:', tag)

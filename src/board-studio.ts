@@ -2,6 +2,7 @@ import {markdownRows} from './markdown-context';
 import {imageMarkdown,remoteImageUrl} from './image-host';
 import {fileReference} from './journal-links-model';
 import {mediaFileMarkdown} from './media-source';
+import {externalMediaMarkdown} from './media-export';
 import {foldedMoveUnits,moveFoldedUnit} from './mindmap';
 import {textExcerptPresentation} from './excerpt-sources';
 import {Board,Card,Edge,clone,uid,parseBoard,nodeMinimumHeight} from './model';
@@ -20,7 +21,7 @@ export function selectStudio(board:Board,ids:ReadonlySet<string>,mode:'invert'|'
 /** Work on a validated draft; callers can commit exactly one undo entry or skip a no-op. */
 export function studioDraft(board:Board,edit:(draft:Board)=>void){const result=clone(board);edit(result);const serialized=JSON.stringify(result);parseBoard(serialized);return serialized===JSON.stringify(board)?undefined:result;}
 export function saveSelection(board:Board,ids:ReadonlySet<string>,name:string){name=name.trim();if(!name||name.length>60)throw Error('选区名称需要 1–60 个字符');const members=board.nodes.filter(n=>ids.has(n.id)).map(n=>n.id);if(!members.length)throw Error('请先选择对象');board.selectionSets??=[];if(board.selectionSets.length>=30)throw Error('每张白板最多保存 30 个选区');if(board.selectionSets.some(s=>s.name===name))throw Error('选区名称已存在');board.selectionSets.push({id:uid(),name,ids:members});}
-export function selectionMarkdown(board:Board,ids:ReadonlySet<string>){return readingOrder(board.nodes.filter(n=>ids.has(n.id))).map(n=>n.kind==='text'?n.text:n.kind==='image'&&remoteImageUrl(n.imageUrl)?imageMarkdown(n.imageUrl!):n.file?(n.kind==='audio'||n.kind==='video'?mediaFileMarkdown(n.file,n.mediaStart):`${n.kind==='image'?'!':''}${fileReference(n.file)}`):`## ${(n.title||'分组').replace(/[\r\n]+/g,' ')}`).join('\n\n');}
+export function selectionMarkdown(board:Board,ids:ReadonlySet<string>,vaultName?:string){return readingOrder(board.nodes.filter(n=>ids.has(n.id))).map(n=>n.kind==='text'?n.text:n.kind==='image'&&remoteImageUrl(n.imageUrl)?imageMarkdown(n.imageUrl!):n.file?(n.kind==='audio'||n.kind==='video'?externalMediaMarkdown(n,vaultName)??mediaFileMarkdown(n.file,n.mediaStart):`${n.kind==='image'?'!':''}${fileReference(n.file)}`):`## ${(n.title||'分组').replace(/[\r\n]+/g,' ')}`).join('\n\n');}
 export function selectionCSV(board:Board,ids:ReadonlySet<string>){const quote=(v:string|number|undefined)=>{let s=String(v??'');if(/^[\s]*[=+@-]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"';};return [['类型','名称','路径','X','Y','宽度','高度','颜色'],...readingOrder(board.nodes.filter(n=>ids.has(n.id))).map(n=>[n.kind,nodeName(n),n.file,n.x,n.y,n.width,n.height,n.color])].map(row=>row.map(quote).join(',')).join('\r\n');}
 export function replacementPreview(board:Board,ids:ReadonlySet<string>,search:string,replacement:string){if(!search)throw Error('请输入查找文字');if(search.length>1000||replacement.length>10000)throw Error('查找或替换文字过长');return board.nodes.filter(n=>n.kind==='text'&&!n.locked&&ids.has(n.id)&&(n.text||'').includes(search)).map(n=>{const parts=n.text!.split(search);return{id:n.id,before:n.text!,after:parts.join(replacement),count:parts.length-1};});}
 export function replaceText(board:Board,preview:ReturnType<typeof replacementPreview>){

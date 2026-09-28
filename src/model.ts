@@ -1,3 +1,4 @@
+import {externalMediaMarkdown} from './media-export';
 import {isRecord,isUnknownArray,isFiniteNumber,isOneOf} from './value-guards';
 import {remoteImageUrl} from './image-host';
 import {isVaultMediaPath,mediaKind,validMediaTime} from './media-source';
@@ -128,12 +129,12 @@ export class History {
   redo(current:Board){const next=this.redoStack.pop();if(next){this.undoStack.push(JSON.stringify(current));this.trim();return JSON.parse(next) as Board;}}
 }
 
-export function canvasExport(b: Board) {
+export function canvasExport(b: Board,vaultName?:string) {
   // Index only as far as requested endpoints; retain find's first-match semantics.
   const nodes=new Map<string,Card>();let next=0;
   const nodeById=(id:string)=>{while(!nodes.has(id)&&next<b.nodes.length){const node=b.nodes[next++],key=node.id;if(!nodes.has(key))nodes.set(key,node);}return nodes.get(id)!;};
   const palette: Record<Color, string> = { sand: '3', blue: '5', green: '4', rose: '1', purple: '6', orange:'#edab6d',red:'#df8580',teal:'#87c8bb',cyan:'#8fcbdc',lime:'#b9cd82',slate:'#aab4c2',brown:'#c2a18c' };
-  return { nodes: b.nodes.map(n => ({ id:n.id, type:n.kind==='section'?'group':n.kind==='text'?'text':'file', x:n.x,y:n.y,width:n.width,height:n.height,color:palette[n.color], ...(n.kind==='section'?{label:n.title}:n.kind==='text'?{text:n.text}:{file:n.file,...(n.kind==='pdf'?{subpath:`#page=${n.pdfPage||1}`}:(n.kind==='audio'||n.kind==='video')&&n.mediaStart?{subpath:`#t=${n.mediaStart}`}:{})}) })),
+  return { nodes: b.nodes.map(n => {const mediaLink=externalMediaMarkdown(n,vaultName);return ({ id:n.id, type:n.kind==='section'?'group':n.kind==='text'||mediaLink?'text':'file', x:n.x,y:n.y,width:n.width,height:n.height,color:palette[n.color], ...(n.kind==='section'?{label:n.title}:mediaLink?{text:mediaLink}:n.kind==='text'?{text:n.text}:{file:n.file,...(n.kind==='pdf'?{subpath:`#page=${n.pdfPage||1}`}:(n.kind==='audio'||n.kind==='video')&&n.mediaStart?{subpath:`#t=${n.mediaStart}`}:{})}) });}),
     edges:b.edges.map(e=>({id:e.id,fromNode:e.from,toNode:e.to,...connectionSides(nodeById(e.from),nodeById(e.to),e),fromEnd:e.direction==='both'?'arrow':'none',toEnd:e.direction==='none'?'none':'arrow',label:e.label,...(e.color?{color:palette[e.color]}:{})})) };
 }
 export interface Task { line: number; text: string; checked: boolean; source: string; checkboxOffset?:number }

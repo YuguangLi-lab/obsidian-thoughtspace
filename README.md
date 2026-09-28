@@ -6,11 +6,34 @@ A visual research and writing workspace for Obsidian. Arrange linked Markdown no
 
 **Desktop only · Obsidian 1.13.7 or newer.**
 
+## Start here
+
+**[Complete English tutorial](docs/USER-GUIDE.md) · [完整中文教程](docs/USER-GUIDE.zh-CN.md)**
+
+The guides cover the whole workflow, not just the latest release. English instructions include the current Chinese button names so you can find them in the interface.
+
+| What you want to do | Start with |
+| --- | --- |
+| Install and make your first board | [Installation](docs/USER-GUIDE.md#installation) → [Ten-minute quick start](docs/USER-GUIDE.md#quick-start) |
+| Build and fold a topic tree | [Mind maps](docs/USER-GUIDE.md#mind-maps) |
+| Read notes/PDFs and collect evidence | [Reading and excerpts](docs/USER-GUIDE.md#reading) |
+| Turn material into an article | [Writing from a board](docs/USER-GUIDE.md#writing) |
+| Watch, capture frames and take timestamp notes | [Audio/video workspace](docs/USER-GUIDE.md#audio-video) |
+| Change mouse/keyboard behavior or troubleshoot | [Controls](docs/USER-GUIDE.md#controls) · [Troubleshooting](docs/USER-GUIDE.md#troubleshooting) |
+
+```mermaid
+flowchart LR
+    A["Notes, PDFs, images, audio/video"] --> B["Whiteboard and excerpts"]
+    B --> C["Groups and mind maps"]
+    C --> D["Reading and writing"]
+    D --> E["Markdown draft"]
+```
+
 ## Built-in audio and video workspace
 
 Open **Audio/video notes** from the ribbon, a media file's context menu, or the command palette. Use a **main tab, right sidebar, or native Obsidian popout window**. Focus mode keeps only the player visible. No whiteboard or external player plugin is required.
 
-Wide windows place the viewer above the composer on the left, with a full-height timeline on the right. Save and pagination controls remain fixed. Use Layout to adjust the split and More for native playback placements or sending media to a board. Collapse the picture to give notes more space without rebuilding playback. Narrow or short panes switch between writing and the timeline without losing drafts. Filter all, text, or screenshot entries; locate the current time or last entry. Pagination mounts at most 50 records while search covers all loaded history. Comfortable and compact timeline density switch without rebuilding records or the editor. Local screenshots have lazy thumbnails and full-size previews. Advanced playback controls live under **More**.
+Wide windows place the viewer on the left and stack the composer above the timeline on the right. Save and pagination controls remain fixed. Use Layout to adjust the split and More for native playback placements or sending media to a board. Collapse the picture to give notes more space without rebuilding playback. Narrow panes switch between writing and the timeline without losing drafts. Filter all, text, or screenshot entries; locate the current time or last entry. Pagination mounts at most 50 records while search covers all loaded history. Comfortable and compact timeline density switch without rebuilding records or the editor. Local screenshots have lazy thumbnails and full-size previews. Advanced playback controls live under **More**.
 
 - Playback includes speed, ±10-second and exact-time seeking, A–B loops, native fullscreen/Picture-in-Picture where supported, and matching `.vtt`/`.srt` subtitle files.
 - Capture a timestamp, write Markdown, or attach a video frame to a draft. **Save** or `Ctrl/Cmd + Enter` appends it to a regular Markdown note. Merely opening media creates no note.
@@ -18,9 +41,11 @@ Wide windows place the viewer above the composer on the left, with a full-height
 - Position, rate, volume and loops follow the same media between placements. The last 80 media states are saved in batches to the plugin's `media-playback.json`; switching files does not autoplay them. Starting a player pauses other built-in media players.
 - Unsaved drafts block file/placement changes and survive closing/reopening the view during the same plugin session. **Save before restarting Obsidian or reloading the plugin**; drafts are not persisted across restarts.
 
+**Local files outside the vault:** choose **Link external video or audio** in the media picker or the workspace More menu, then paste an absolute local path or `file://` URL. The board media picker has the same entry. Only a small `.tsvideo` / `.tsaudio` reference is stored in the vault; the original stays in place. Playback, seeking, timestamp notes and frame capture work through the reference. Paths remain local to the computer; moved or changed files must be linked again.
+
 Whiteboards still support **Insert content → Video card / Audio card** and file/search drag-and-drop, folding, resizing, connections, timestamp capture and frame notes. A card's sidebar button opens the full workspace.
 
-Media loads only on playback. Board cards release sources when offscreen or folded; a standalone workspace may keep playing behind other tabs and releases resources when closed. Recognized files include MP4/WebM/MOV/M4V/OGV and MP3/M4A/WAV/OGG/OGA/FLAC/AAC/OPUS; codec support depends on Obsidian's embedded browser. Place external media over 128 MB in the vault before dragging it in.
+Media loads only on playback. Board cards release sources when offscreen or folded; a standalone workspace may keep playing behind other tabs and releases resources when closed. Recognized files include MP4/WebM/MOV/M4V/OGV and MP3/M4A/WAV/OGG/OGA/FLAC/AAC/OPUS; codec support depends on Obsidian's embedded browser. Dragging files from the computer still copies them with a 128 MB import limit. Use an external file reference for larger files without copying.
 
 Legacy Yingjian timestamp notes work when their exact source maps to a media file in this vault. Original prose and anchors are retained. External file paths, online video providers and transcription services are outside this compatibility scope.
 
@@ -32,7 +57,7 @@ Use **Table** in the side toolbar, **Add table here** in the empty-canvas contex
 
 While editing Markdown tables, lists, math or code in a mind map, Enter and Tab edit the content. Continuous topic creation remains available for plain single-line topics.
 
-## 1.0: Organize and reuse
+## Organize and reuse
 
 - **Paper background**: choose the paper icon in the bottom canvas controls or select Paper in settings. Static texture adapts to light and dark themes without changing snapping.
 

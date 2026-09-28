@@ -10,7 +10,8 @@
 | Clipboard writes | Explicit copy commands export selected content or links. ThoughtSpace does not poll or read the system clipboard. Paste is handled through user-initiated browser/Obsidian events. |
 | Remote image loading | A card with an HTTPS image URL loads that image from its host. The request exposes the usual network metadata to that host. Image elements use a no-referrer policy. |
 | Optional image uploads | When enabled in settings, new images are sent through the separately installed Fast Image Bed plugin and its configured provider. Disabled by default. Credentials are managed by that plugin, and a local attachment is retained. |
-| External links and video integration | User actions open supported links or hand a video location to the Yingjian integration. A hash of the vault path is used to distinguish vaults; it is not a secret. |
+| Local media outside the vault | After you explicitly link an absolute local path or `file://` URL, a small `.tsvideo` or `.tsaudio` file records the source path, size and modification time. The built-in player reads that file from its original location; it does not copy or modify the original media. These references contain local paths, so review them before sharing or syncing to another computer. Missing or changed files require linking again. |
+| Media playback and external links | Audio/video playback, timestamp notes and frame capture run inside Obsidian without a separate player plugin. User actions open supported links. Compatible legacy Yingjian timestamp links are resolved to media inside the current vault; a hash of the vault path distinguishes legacy vaults and is not a secret. |
 
 The plugin does not implement telemetry or an analytics service. This does not prevent Obsidian, Markdown embeds, other installed plugins, or an optional service from making their own requests. Community plugins run with Obsidian's privileges; they are not individually sandboxed.
 

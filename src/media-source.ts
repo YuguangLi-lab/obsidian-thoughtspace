@@ -5,8 +5,8 @@ export type MediaKind='audio'|'video';
 export const maximumMediaTime=100000000;
 /** Extensions identify attachment types; they do not promise browser codec support. */
 export function mediaKind(path:string):MediaKind|undefined {
- if(/\.(mp4|webm|mov|m4v|ogv)$/i.test(path))return 'video';
- if(/\.(mp3|m4a|wav|ogg|oga|flac|aac|opus)$/i.test(path))return 'audio';
+ if(/\.(mp4|webm|mov|m4v|ogv|tsvideo)$/i.test(path))return 'video';
+ if(/\.(mp3|m4a|wav|ogg|oga|flac|aac|opus|tsaudio)$/i.test(path))return 'audio';
 }
 /** Retain literal percent signs and hashes. URL decoding belongs only at the URL boundary. */
 export function isVaultMediaPath(path:unknown):path is string{return isVaultPath(path)&&mediaKind(path)!==undefined;}

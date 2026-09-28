@@ -14,7 +14,7 @@ function linkTarget(raw:string,kind:DropTarget['kind']):DropTarget|undefined {
  const link=(kind==='wiki'?raw.split('|')[0]:raw).trim();
  if(!link||hasAsciiControl(link)||/^[a-z][a-z\d+.-]*:/i.test(link)||link.startsWith('/')||link.includes('\\'))return;
  // A PDF page suffix belongs to the final #, not a # inside the filename.
- const pdf=/^(.+\.pdf)#page=(\d+)$/i.exec(link),media=/^(.+\.(?:mp4|webm|mov|m4v|ogv|mp3|m4a|wav|ogg|oga|flac|aac|opus))#t=(.*)$/i.exec(link),hash=pdf?pdf[1].length:media?media[1].length:link.indexOf('#'),path=hash<0?link:link.slice(0,hash),fragment=hash<0?'':link.slice(hash);
+ const pdf=/^(.+\.pdf)#page=(\d+)$/i.exec(link),media=/^(.+\.(?:mp4|webm|mov|m4v|ogv|mp3|m4a|wav|ogg|oga|flac|aac|opus|tsvideo|tsaudio))#t=(.*)$/i.exec(link),hash=pdf?pdf[1].length:media?media[1].length:link.indexOf('#'),path=hash<0?link:link.slice(0,hash),fragment=hash<0?'':link.slice(hash);
  if(!path)return;
  let page=1,start:number|undefined;
  if(/\.pdf$/i.test(path)&&fragment){const match=/^#page=(\d+)$/.exec(fragment);if(!match)return;page=Number(match[1]);if(!Number.isSafeInteger(page)||page<1)return;}

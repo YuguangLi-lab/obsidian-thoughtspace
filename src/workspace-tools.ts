@@ -1,3 +1,4 @@
+import {externalMediaMarkdown} from './media-export';
 import {imageMarkdown,remoteImageUrl} from './image-host';
 import {fileReference} from './journal-links-model';
 import {gridLanding} from './canvas-controls';
@@ -10,7 +11,7 @@ export function matchSize(board:Board,ids:ReadonlySet<string>,axis:'width'|'heig
  for(const n of nodes.slice(1)){if(axis!=='height')n.width=first.width;if(axis!=='width')n.height=first.height;if(n.kind==='card')n.autoFit=false;if(n.kind==='text'){n.autoSize=false;n.textAutoHeight=false;}}
 }
 export function snapSelection(board:Board,ids:ReadonlySet<string>,step=24){const landing=gridLanding(board,ids,step);if(!landing)return;const {dx,dy}=landing;for(const n of board.nodes)if(ids.has(n.id)&&!n.locked){n.x+=dx;n.y+=dy;}}
-export function boardOutline(board:Board,title:string){const clean=(s:string)=>s.replace(/[\r\n]+/g,' ').trim();const names=new Map(board.nodes.map(n=>[n.id,clean(n.title||n.file?.split('/').pop()||n.text?.split('\n')[0]||n.id)]));return `# ${clean(title)}\n\n`+board.nodes.map(n=>n.kind==='section'?`## ${clean(n.title||'分组')}`:n.kind==='text'?n.text||'':n.kind==='image'?(remoteImageUrl(n.imageUrl)?imageMarkdown(n.imageUrl!):`!${fileReference(n.file!)}`):`- ${fileReference(n.file!)}`).join('\n\n')+'\n\n## 关系\n\n'+board.edges.map(e=>{return `- ${names.get(e.from)} → ${names.get(e.to)}${e.label?'：'+clean(e.label):''}`;}).join('\n')+'\n';}
+export function boardOutline(board:Board,title:string,vaultName?:string){const clean=(s:string)=>s.replace(/[\r\n]+/g,' ').trim();const names=new Map(board.nodes.map(n=>[n.id,clean(n.title||n.file?.split('/').pop()||n.text?.split('\n')[0]||n.id)]));return `# ${clean(title)}\n\n`+board.nodes.map(n=>n.kind==='section'?`## ${clean(n.title||'分组')}`:n.kind==='text'?n.text||'':n.kind==='image'?(remoteImageUrl(n.imageUrl)?imageMarkdown(n.imageUrl!):`!${fileReference(n.file!)}`):`- ${externalMediaMarkdown(n,vaultName)??fileReference(n.file!)}`).join('\n\n')+'\n\n## 关系\n\n'+board.edges.map(e=>{return `- ${names.get(e.from)} → ${names.get(e.to)}${e.label?'：'+clean(e.label):''}`;}).join('\n')+'\n';}
 export function cardHeight(body:HTMLElement,node:Card){const chrome=92;return Math.min(1100,Math.max(150,Math.ceil(body.scrollHeight+chrome)));}
 export function measureNoteCard(preview:HTMLElement,preferredWidth=240):{width:number;height:number}{
  const px=(value:string)=>{const n=parseFloat(value);return Number.isFinite(n)?n:0;};

@@ -1,5 +1,36 @@
 # 更新记录
 
+## 1.3.7
+
+- 支持链接电脑中、仓库外的本地视频与音频；原文件保留原位，仓库仅保存小型引用文件。
+- 外部媒体沿用白板卡片、侧边栏及独立播放器，支持播放进度、时间点摘录和视频截图；原文件移动或变化时提示重新关联。
+- 异步加载媒体时防止重复加载，暂停或关闭后不会因迟到结果自动播放。
+- 外部媒体的选区 Markdown、大纲及 Canvas 导出保留播放器与时间点链接，避免打开内部引用文件。
+- 修复已有播放器跳转时间点后没有激活对应标签页的问题；页面关闭或插件卸载后不再执行过期切换。
+- 将“写下此刻”移到右侧上方，时间轴放在其下；左侧专注观看，窄侧栏保留写作/时间轴切换。
+- 新增覆盖白板、思维导图、阅读、写作、音视频、设置和排错的完整中英文教程，仓库首页与发布页提供入口。
+
+**English**
+
+- Link local video and audio outside the vault without copying the original files. Reuse the board, sidebar and standalone player, timestamp notes and frame capture.
+- Move the composer to the upper-right above the timeline, refine media controls, and keep a writing/timeline switcher in narrow panes.
+- Prevent late asynchronous loads from playing after pause or closure. Preserve playable timestamp links in external-media exports and activate an already-open player tab when following a timestamp.
+- Add complete Chinese and English user guides covering the current workflows, settings and troubleshooting.
+
+## 1.3.6
+
+- 将文件类型并入媒体工作区标题，移除观看区重复标题，减少顶部占用。
+- 扩大摘录编辑区并简化嵌套边框；截图放入固定附件条，正文独立滚动。
+- 优化窄时间轴布局：长文与截图使用完整内容宽度，短记录保持紧凑排列。
+- 减轻白板媒体卡片的重复边界，收紧音频留白，明确标题和操作主次；保留字体继承及原生播放入口。
+
+## 1.3.5
+
+- 深度打磨媒体工作区：观看、写摘录与时间轴保持独立分区，统一标题、边界、间距和操作层次。
+- 收紧时间轴短记录的时间、正文与操作布局，让阅读更连贯，减少重复边框和空白。
+- 优化窄侧栏与矮窗口中的分区滚动，保留保存摘录和时间轴翻页入口。
+- 精细调整白板媒体卡片的深色画面、播放入口、音频布局与摘录操作组；保留 Obsidian 正文字体及原生播放操作。
+
 ## 1.3.4
 
 - 本次 GitHub 发布包含 1.1.0–1.3.3 的累计更新：内置音视频卡片、主页面/右侧栏/独立窗口播放器、时间点摘录、视频截图、字幕、片段循环，以及媒体工作区和白板播放器界面重设计。

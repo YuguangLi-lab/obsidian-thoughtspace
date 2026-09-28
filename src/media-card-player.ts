@@ -21,8 +21,8 @@ export interface MediaCardOptions {
   /** Host-owned native prompt; returns a close callback for player teardown. */
   requestTime?: (current: string, submit: (value: string) => void) => (() => void);
   title: string;
-  /** Resolve local resource paths only after a deliberate playback request. */
-  src: () => string;
+  /** Resolve local resources only after explicit play; reject with a user-facing message. */
+  src: () => string | Promise<string>;
   initialTime?: number;
   state?: MediaCardState;
   captureEnabled?: boolean;
@@ -73,6 +73,14 @@ const parseTimestamp = (text: string): number | undefined => {
   const total = values.reduce((time, part) => time * 60 + part, 0);
   return Number.isFinite(total) && total <= Number.MAX_SAFE_INTEGER ? total : undefined;
 };
+const sourceErrorMessage = (error: unknown): string => {
+  const detail = error instanceof Error ? error.message.trim() : '';
+  // Resolvers can explain re-selection or access failures, but raw backend
+  // locations and credentials must not become player feedback.
+  const privateDetail = /[\r\n]|\b[a-z][a-z\d+.-]*:\/\/|(?:authorization|token|password|secret|api[-_ ]?key)\s*[:=]|\bbearer\s+|(?:^|[\s"'(])(?:\/|[a-z]:\\|\\\\)/i;
+  return detail && detail.length <= 300 && !privateDetail.test(detail)
+    ? `无法读取媒体：${detail}` : '无法读取媒体，请检查文件或来源链接。';
+};
 
 /** A card owns one decoder at most, and owns none until the user presses Play. */
 export function mountMediaCard(host: HTMLElement, options: MediaCardOptions): MediaCardHandle {
@@ -81,6 +89,7 @@ export function mountMediaCard(host: HTMLElement, options: MediaCardOptions): Me
   let menu: Menu | undefined, closeTimePrompt: (() => void) | undefined;
   let timePromptEpoch = 0;
   let playRequestEpoch = 0;
+  let sourceRequest: number | undefined;
   let presentationRequestEpoch = 0;
   let disposed = false, visible = true, media: HTMLMediaElement | undefined, pendingSeek = true;
   let loopA = Number.isFinite(options.state?.loopA) && options.state!.loopA! >= 0 ? options.state!.loopA : undefined;
@@ -98,6 +107,7 @@ export function mountMediaCard(host: HTMLElement, options: MediaCardOptions): Me
   const live = () => !disposed && options.alive();
   const ownsPresentation = () => !!media && (doc.pictureInPictureElement === media || doc.fullscreenElement === card || doc.fullscreenElement === media);
   const hiddenSuspends = () => options.suspendWhenHidden !== false && (!visible || doc.visibilityState === 'hidden') && !ownsPresentation();
+  const hiddenSource = () => sourceRequest !== undefined && (!visible || doc.visibilityState === 'hidden');
   const listening = (target: EventTarget, name: string, listener: EventListener, bucket = removers) => {
     target.addEventListener(name, listener);
     bucket.push(() => target.removeEventListener(name, listener));
@@ -500,7 +510,10 @@ export function mountMediaCard(host: HTMLElement, options: MediaCardOptions): Me
   /** Clearing src followed by load aborts fetches and releases native decoder state. */
   const release = () => {
     playRequestEpoch++;
+    const resolvingSource = sourceRequest !== undefined;
+    sourceRequest = undefined;
     setLoading();
+    if (resolvingSource) report('');
     menu?.hide(); menu = undefined;
     timePromptEpoch++;
     closeTimePrompt?.(); closeTimePrompt = undefined;
@@ -550,15 +563,11 @@ export function mountMediaCard(host: HTMLElement, options: MediaCardOptions): Me
     release();
     report(message);
   };
-  const play = () => {
+  const startPlayback = (source?: string) => {
     if (!live() || hiddenSuspends()) return;
     let current = media;
     if (!current) {
-      let source: string;
-      try { source = options.src(); }
-      catch { report('无法读取媒体，请检查文件或来源链接。'); return; }
-      if (!live()) return;
-      if (!source?.trim()) { report('媒体来源为空，请重新选择文件。'); return; }
+      if (typeof source !== 'string' || !source.trim()) { setLoading(); report('媒体来源为空，请重新选择文件。'); return; }
       current = element(options.kind);
       media = current;
       const owned = current;
@@ -697,6 +706,38 @@ export function mountMediaCard(host: HTMLElement, options: MediaCardOptions): Me
       }, rejectPlay);
     } catch (error) { rejectPlay(error); }
   };
+  const play = () => {
+    if (!live() || hiddenSuspends() || sourceRequest !== undefined) return;
+    if (media) { startPlayback(); return; }
+    // Reserve before calling the resolver: it can synchronously re-enter or
+    // suspend this player as well as settle asynchronously after a replacement.
+    const request = ++playRequestEpoch;
+    sourceRequest = request;
+    const ownsRequest = () => sourceRequest === request && playRequestEpoch === request;
+    const rejectSource = (error: unknown) => {
+      if (!ownsRequest()) return;
+      sourceRequest = undefined;
+      setLoading();
+      report(sourceErrorMessage(error));
+    };
+    const acceptSource = (source: string, asynchronous = false) => {
+      if (!ownsRequest()) return;
+      if (!live() || hiddenSuspends() || asynchronous && hiddenSource()) { release(); return; }
+      sourceRequest = undefined;
+      startPlayback(source);
+    };
+    try {
+      const source = options.src();
+      if (typeof source === 'string') acceptSource(source);
+      else {
+        if (ownsRequest() && live()) {
+          setLoading('正在读取媒体…');
+          report(boardControls ? '' : '正在读取媒体…');
+        }
+        void Promise.resolve(source).then(value => acceptSource(value, true), rejectSource);
+      }
+    } catch (error) { rejectSource(error); }
+  };
   listening(playButton, 'click', play);
   listening(rate, 'change', () => {
     if (!live()) return;
@@ -727,7 +768,7 @@ export function mountMediaCard(host: HTMLElement, options: MediaCardOptions): Me
       seekRelative(key.key === 'ArrowLeft' ? -10 : 10);
     }
   });
-  listening(doc, 'visibilitychange', () => { if (!live() || hiddenSuspends()) suspend(); });
+  listening(doc, 'visibilitychange', () => { if (!live() || hiddenSuspends() || hiddenSource()) suspend(); });
   listening(doc, 'fullscreenchange', () => { if (live()) { refresh(); if (hiddenSuspends()) suspend(); } });
   // Observe this document's viewport, including Obsidian pop-out windows.
   const Observer = doc.defaultView?.IntersectionObserver;
@@ -735,7 +776,7 @@ export function mountMediaCard(host: HTMLElement, options: MediaCardOptions): Me
     if (disposed) return;
     for (const entry of entries) if (entry.target === card) {
       visible = entry.isIntersecting;
-      if (!live() || hiddenSuspends()) suspend();
+      if (!live() || hiddenSuspends() || hiddenSource()) suspend();
     }
   }, { threshold: 0 }) : undefined;
   observer?.observe(card);

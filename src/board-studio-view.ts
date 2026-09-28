@@ -45,7 +45,7 @@ export class BoardStudioModal extends Modal{
  }else{
  this.tool('集中阅读与回顾','打开阅读桌，逐篇阅读并管理进度','book-open',()=>{this.close();this.host.read?.();},!this.host.read);
  this.tool('选区阅读巡览','按阅读顺序逐个聚焦，浮动导航随时退出','presentation',()=>{this.close();this.host.tour(studio.readingOrder(nodes.filter(n=>n.kind!=='section')).map(n=>n.id));},!nodes.some(n=>n.kind!=='section'));
- this.tool('复制选区 Markdown','文本保留换行；笔记与图片生成 Obsidian 链接','file-code',async()=>{await navigator.clipboard.writeText(studio.selectionMarkdown(this.host.board(),ids));new Notice('已复制选区 Markdown');},!ids.size);
+ this.tool('复制选区 Markdown','文本保留换行；笔记与图片生成 Obsidian 链接','file-code',async()=>{await navigator.clipboard.writeText(studio.selectionMarkdown(this.host.board(),ids,this.app.vault.getName()));new Notice('已复制选区 Markdown');},!ids.size);
  this.tool('复制选区 CSV','导出类型、名称、路径、坐标、尺寸和颜色','table',async()=>{await navigator.clipboard.writeText(studio.selectionCSV(this.host.board(),ids));new Notice('已复制选区 CSV');},!ids.size);
  this.tool('白板概览','查看内容构成、文件数量和重复引用','chart-no-axes-combined',()=>this.statsPanel());
  this.tool('关系浏览器','搜索连接名称或端点，跳到关联内容','git-compare-arrows',()=>this.relationships());

@@ -44,7 +44,7 @@ function fixture(){
  const view=new View(),forbid=()=>{calls.writes++;throw Error('Reference operations must not write source files');};
  Object.assign(view,{session:owner,file:owner.file,closed:false,selected:new Set(['previous']),selectedEdge:'previous-edge',contextOpen:true,mediaStates:new Map<string,MediaCardState>(),mediaIdentities:new Map<string,string>(),mediaPlayers:new Map(),
   app:{vault:{getName:()=> 'demo-vault',getAbstractFileByPath:(path:string)=>files.get(path),getResourcePath:(file:TFile)=>'app://vault/'+file.path,modify:forbid,process:forbid,create:forbid,createBinary:forbid}},
-  plugin:{settings:{defaultCardWidth:320,defaultTextSize:18,defaultEdgeStyle:'curve',detailZoom:.5},openNoteInSidebar:()=>{},openMediaWorkspace:()=>{},mediaWorkspace:{playback:new MediaPlayback(),identity:(file:TFile)=>({path:file.path,mtime:file.stat.mtime,size:file.stat.size})}},
+  plugin:{settings:{defaultCardWidth:320,defaultTextSize:18,defaultEdgeStyle:'curve',detailZoom:.5},openNoteInSidebar:()=>{},openMediaWorkspace:()=>{},mediaWorkspace:{validateResource:async()=>{},resolveResource:(file:TFile)=>'app://vault/'+file.path,playback:new MediaPlayback(),identity:(file:TFile)=>({path:file.path,mtime:file.stat.mtime,size:file.stat.size})}},
   stage:{ownerDocument:{},focus:()=>calls.focus++},updateSelection:()=>calls.selected++,renderBoard:()=>calls.render++,revealNode:(id:string)=>calls.revealed.push(id),startInlineEdit:async(...args:unknown[])=>{calls.edited.push(args);return true;}
  });
  const addFile=(path:string)=>{const file=new TFile(path);files.set(path,file);return file;};
@@ -123,4 +123,17 @@ test('obsolete scope cleanup disposes its own player without removing a newer mo
  const f=fixture(),{node}=f.addMedia(),first=f.render(node),old=f.view.mediaPlayers.get(node.id),second=f.render(node),current=f.view.mediaPlayers.get(node.id);assert.notEqual(old,current);
  first.disposals.forEach(dispose=>dispose());assert.equal(first.mounted.disposed,1);assert.equal(second.mounted.disposed,0);assert.equal(f.view.mediaPlayers.get(node.id),current);
  second.disposals.forEach(dispose=>dispose());assert.equal(second.mounted.disposed,1);assert.equal(f.view.mediaPlayers.has(node.id),false);
+});
+
+test('an external source validation failure never changes board history or selection',async()=>{
+ const f=fixture(),{node}=f.addMedia('outside','References/lecture.tsvideo'),before=structuredClone(f.owner.board);
+ f.view.plugin.mediaWorkspace.validateResource=async()=>{throw Error('原文件已变化，请重新关联');};
+ await assert.rejects(f.view.captureMedia(node.id,12,f.owner),/已变化/);
+ assert.deepEqual(f.owner.board,before);assert.equal(f.calls.changes,0);assert.deepEqual([...f.view.selected],['previous']);
+});
+test('external media is revalidated after an asynchronous inline edit before appending an excerpt',async()=>{
+ const f=fixture(),{node}=f.addMedia('outside','References/lecture.tsvideo'),before=structuredClone(f.owner.board);let changed=false,checks=0;
+ f.view.plugin.mediaWorkspace.validateResource=async()=>{checks++;if(changed)throw Error('原文件已变化');};
+ f.view.inline={commit:async()=>{changed=true;return true;}};
+ await assert.rejects(f.view.captureMedia(node.id,12,f.owner),/已变化/);assert.equal(checks,2);assert.deepEqual(f.owner.board,before);assert.equal(f.calls.changes,0);
 });
