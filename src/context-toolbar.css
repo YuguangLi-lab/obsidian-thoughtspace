@@ -231,3 +231,12 @@
 @media (prefers-reduced-motion: reduce) {
   :is(.ts-root, .ts-note-markdown-toolbar, .ts-writing) .ts-markdown-tools .ts-md-button { transition: none !important; }
 }
+
+/* Media-only multi-selection keeps the object/edge switch without an empty style row. */
+.ts-root .ts-floating-formatbar > .ts-format-row:has(> .ts-commandbar > .ts-selection-tools:empty) { display:none; }
+
+/* Group appearance names are explicit; values stay aligned on one compact row. */
+.ts-root .ts-floating-formatbar:has(.ts-format-context[data-kind="section"]) .ts-commandbar .ts-format-field > .ts-format-label { display:inline; font-size:11px; color:var(--text-muted); }
+.ts-root .ts-floating-formatbar:has(.ts-format-context[data-kind="section"]) .ts-commandbar .ts-format-field > .ts-format-label-icon { display:none; }
+.ts-root .ts-floating-formatbar:has(.ts-format-context[data-kind="section"]) .ts-commandbar .ts-format-field { gap:6px; padding-inline:6px; }
+.ts-root .ts-floating-formatbar .ts-appearance-group > .ts-format-label { flex:none; margin-inline:6px; padding:3px 6px; border-radius:4px; background:var(--ts-format-wash); color:var(--text-muted); font:400 10px/1.4 var(--font-interface); }

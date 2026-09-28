@@ -41,11 +41,11 @@ test('nested folds hide all contained objects and retain inner fold on outer exp
  const b=fixture();foldSections(b,new Set(['inner','outer']),true);
  assert.deepEqual([...sectionFoldState(b).hidden].sort(),['inner','inside','other']);
  let view=visibleBranchBoard(b);assert.deepEqual(view.nodes.map(n=>n.id),['outer','outside']);
- assert.deepEqual(view.edges.map(e=>e.id),['frame-edge']);assert.equal(view.nodes[0].height,72);
+ assert.deepEqual(view.edges.map(e=>e.id),['frame-edge']);assert.equal(view.nodes[0].height,40);
  assert.equal(b.nodes[0].height,500);assert.notEqual(view.nodes[0],b.nodes[0]);
  foldSections(b,new Set(['outer']),false);view=visibleBranchBoard(b);
  assert.deepEqual(view.nodes.map(n=>n.id),['outer','inner','other','outside']);
- assert.equal(view.nodes.find(n=>n.id==='inner')!.height,72);
+ assert.equal(view.nodes.find(n=>n.id==='inner')!.height,40);
  foldSections(b,new Set(['inner']),false);assert.equal(visibleBranchBoard(b),b);
 });
 
@@ -111,15 +111,15 @@ test('folded group culling uses the heading and undo restores visibility and geo
  const foldedAgain=history.redo(restored)!;assert.equal(foldedAgain.nodes[0].sectionFolded,true);assert.equal(foldedAgain.nodes[0].height,500);
 });
 
-test('compact group projection shares 320px bounds across marquee, culling, alignment and edges',()=>{
+test('compact group projection shares 180px bounds across marquee, culling, alignment and edges',()=>{
  const b=fixture();b.nodes[0].width=805;const before=clone(b);foldSections(b,new Set(['outer']),true);
  const view=visibleBranchBoard(b),group=view.nodes.find(n=>n.id==='outer')!,outside=view.nodes.find(n=>n.id==='outside')!;
- assert.deepEqual([group.x,group.y,group.width,group.height],[0,0,320,72]);
+ assert.deepEqual([group.x,group.y,group.width,group.height],[0,0,180,40]);
  assert.deepEqual([b.nodes[0].width,b.nodes[0].height],[805,500]);
  assert.deepEqual([...marqueeSelection(view.nodes,{x:-1,y:-1,width:322,height:74})],['outer']);
  assert.equal(visibleNodes(view.nodes,{x:350,y:0,width:400,height:70}).length,0);
- assert.equal(alignmentIndex(view.nodes,new Set(['outer']))!.bounds.width,320);
- assert.deepEqual(connectionPath(group,outside,{fromSide:'right',toSide:'left'}).from,{x:320,y:36});
+ assert.equal(alignmentIndex(view.nodes,new Set(['outer']))!.bounds.width,180);
+ assert.deepEqual(connectionPath(group,outside,{fromSide:'right',toSide:'left'}).from,{x:180,y:20});
  assert.equal(sectionDisplayNode({...frame('narrow',0,0,140,160),sectionFolded:true}).width,140);
  foldSections(b,new Set(['outer']),false);assert.deepEqual(b,before);
 });
@@ -129,10 +129,10 @@ test('compact group projection preserves existing card, nested group and branch 
  b.edges.push({id:'branch',from:'outside',to:'branch-child',label:'',kind:'branch'});
  foldCards(b,new Set(['inside']),true);foldSections(b,new Set(['inner']),true);b.nodes[4].branchFolded=true;
  const before=clone(b);foldSections(b,new Set(['outer']),true);
- assert.deepEqual(visibleBranchBoard(b).nodes.map(n=>[n.id,n.width,n.height]),[['outer',320,72],['outside',100,60]]);
+ assert.deepEqual(visibleBranchBoard(b).nodes.map(n=>[n.id,n.width,n.height]),[['outer',180,40],['outside',100,40]]);
  assert.deepEqual(b.nodes.slice(1),before.nodes.slice(1));
  foldSections(b,new Set(['outer']),false);assert.deepEqual(b,before);
- const view=visibleBranchBoard(b);assert.equal(view.nodes.find(n=>n.id==='inner')!.width,320);assert.ok(!view.nodes.some(n=>n.id==='inside'||n.id==='branch-child'));
+ const view=visibleBranchBoard(b);assert.equal(view.nodes.find(n=>n.id==='inner')!.width,180);assert.ok(!view.nodes.some(n=>n.id==='inside'||n.id==='branch-child'));
 });
 
 test('1200 members and deeply nested groups require no recursive traversal or geometry rewrite',()=>{

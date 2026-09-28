@@ -1,5 +1,40 @@
 # 更新记录
 
+## 1.3.10
+
+- 表格卡片直接显示单元格网格，去掉外层文本框与外框编辑入口，保留选中、缩放和折叠操作。
+
+- Markdown 表格默认随内容适配宽高，尊重手动调整和关闭自适应；排除代码、注释与属性中的表格示例。
+- 收紧表格留白与行距，透明底色搭配细单元格线，修复表头与正文列宽错位，预览与原位编辑保持一致。
+
+- 分组保留边框，恢复边框线型、粗细和颜色设置；折叠分组仍显示所选边框。
+- 分组支持复制、粘贴边框样式；图片、PDF、音视频及子白板继续无边框。
+
+- 统一紧凑折叠为最大 180 × 40 的标题条；图片可折叠，无边框媒体不再显示无效边框设置。
+
+- Groups keep editable borders; Markdown tables automatically fit content with transparent fills and fine cell grid lines.
+- Compact folded objects and context-aware appearance controls reduce wasted canvas space.
+
+## 1.3.9
+
+- 无边框对象不再显示边框工具：图片、PDF、音视频和子白板收起无效格式栏；分组仅保留背景与分割线。
+- 混合选择时边框修改仅作用于文本和笔记；样式复制与粘贴不再向其他对象写入边框参数。
+- 连线自身的样式与颜色操作保持独立。
+
+- Remove inapplicable border controls and empty style panels for frameless objects.
+- Mixed-selection border edits and style transfer apply border properties only to text and note cards.
+
+## 1.3.8
+
+- 图片、PDF、音视频、子白板及分组取消装饰外框，文本与笔记保留原有边框；选中轮廓与缩放手柄独立保留。
+- 内容、分组和子节点折叠统一为最大 180 × 40 的紧凑标题条，单击箭头或双击展开，恢复原尺寸。
+- 图片新增折叠入口；折叠后的框选、连线锚点、视口裁剪与缩略图共享显示尺寸，旧白板无需迁移。
+- Obsidian 原生 Canvas 的不支持格式附件取消占位外框，不影响 Markdown 笔记。
+
+- Frameless media and board objects; Markdown and text retain their document borders.
+- Compact folded titles (up to 180 × 40), with exact expanded dimensions preserved and matching selection, edges, and minimap geometry. Images can now fold too.
+- Remove the placeholder frame for generic unsupported attachments in native Canvas.
+
 ## 1.3.7
 
 - 支持链接电脑中、仓库外的本地视频与音频；原文件保留原位，仓库仅保存小型引用文件。

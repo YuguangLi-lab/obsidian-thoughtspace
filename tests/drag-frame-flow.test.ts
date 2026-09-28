@@ -94,7 +94,7 @@ test('multi-selection snap keeps live board order, locked objects and folded geo
  assert.equal(f.view.snapReadout.textContent,`吸附落点  ${landing.x}, ${landing.y}`);
  assert.deepEqual([landing.x,landing.y],[-0,16],'first unlocked selected board object remains the anchor');
  const frame=f.rendered[0].nodes.find(n=>n.id==='frame')!;
- assert.deepEqual([frame.width,frame.height],[320,72]);assert.equal(f.rendered[0].nodes.some(n=>n.id==='child'),false);
+ assert.deepEqual([frame.width,frame.height],[180,40]);assert.equal(f.rendered[0].nodes.some(n=>n.id==='child'),false);
  assert.deepEqual(f.board,saved);assert.deepEqual(f.snapBoards[0].nodes[0],saved.nodes[0]);
 });
 

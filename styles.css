@@ -4358,7 +4358,7 @@
 .ts-root .ts-text-markdown .callout-content > :last-child:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { margin-block-end: 0; }
 
 /* Keep native table content readable, and scroll within a manually narrowed frame. */
-.ts-root .ts-text-markdown table:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { display: block; width: max-content; max-width: 100%; border-collapse: collapse; font: inherit; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.ts-root .ts-text-markdown table:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { display: table; width: max-content; max-width: none; border-collapse: collapse; font: inherit; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
 .ts-root .ts-text-markdown :is(th,td):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { min-width: 5em; padding: .4em .65em; border: 1px solid var(--table-border-color,var(--background-modifier-border)); vertical-align: top; }
 .ts-root .ts-text-markdown th:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { font-weight: var(--table-header-weight,600); }
 .ts-root .ts-text-markdown .math-block:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { max-width: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
@@ -4409,8 +4409,8 @@
   background: transparent!important;
   backdrop-filter: none!important;
 }
-/* Preserve the borderless table presentation in preview and live editing. */
-.ts-root :is(.ts-text-markdown,.ts-card-preview,.ts-inline-native) :is(table,thead,tbody,tfoot,tr,th,td):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+/* One cell grid in preview and native editing; wrappers add no second frame. */
+.ts-root :is(.ts-text-markdown,.ts-card-preview,.ts-inline-native) :is(table,thead,tbody,tfoot,tr):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
   border: 0!important;
   box-shadow: none!important;
 }
@@ -4444,6 +4444,27 @@
   background: var(--background-modifier-hover);
 }
 .ts-root .ts-text.is-folded > .ts-text-body:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { padding-right: 78px; }
+
+/* Compact data rhythm: natural columns, quieter headers, fine cell grid. */
+.ts-root .ts-text-markdown table:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { margin-block: .55em; }
+.ts-root .ts-text-markdown :is(th,td):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { min-width: 4em; padding: .38em .7em; line-height: 1.55; }
+.ts-root .ts-text-markdown th:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { color: var(--text-muted); font-size: .9em; font-weight: 600; }
+.ts-root .ts-text-markdown td:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { font-variant-numeric: tabular-nums; }
+.ts-root .ts-text-markdown > table:first-child:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { margin-top: 0; }
+.ts-root .ts-text-markdown > table:last-child:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { margin-bottom: 0; }
+
+.ts-root :is(.ts-text-markdown,.ts-card-preview,.ts-inline-native) table:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { border-collapse:collapse; border-spacing:0; }
+.ts-root :is(.ts-text-markdown,.ts-card-preview,.ts-inline-native) :is(th,td):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border:1px solid color-mix(in srgb,var(--text-muted) 38%,var(--background-modifier-border))!important;
+  box-shadow:none!important;
+}
+
+/* A table card is just its grid. Selection/resize affordances remain temporary. */
+.ts-root .ts-main .ts-world > .ts-node.ts-text.is-table-card:not(.is-compact-fold):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border:0!important; border-radius:0!important; box-shadow:none!important;
+}
+.ts-root .ts-node.ts-text.is-table-card:not(.is-compact-fold) > .ts-text-body:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),
+.ts-root .ts-node.ts-text.is-table-card .ts-inline-editor > :is(.ts-inline-input,.ts-inline-native):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { padding:0!important; }
 
 /* END text-markdown generated */
 
@@ -5441,6 +5462,15 @@
   :is(.ts-root, .ts-note-markdown-toolbar, .ts-writing) .ts-markdown-tools .ts-md-button:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { transition: none !important; }
 }
 
+/* Media-only multi-selection keeps the object/edge switch without an empty style row. */
+.ts-root .ts-floating-formatbar > .ts-format-row:has(> .ts-commandbar > .ts-selection-tools:empty):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { display:none; }
+
+/* Group appearance names are explicit; values stay aligned on one compact row. */
+.ts-root .ts-floating-formatbar:has(.ts-format-context[data-kind="section"]) .ts-commandbar .ts-format-field > .ts-format-label:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { display:inline; font-size:11px; color:var(--text-muted); }
+.ts-root .ts-floating-formatbar:has(.ts-format-context[data-kind="section"]) .ts-commandbar .ts-format-field > .ts-format-label-icon:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { display:none; }
+.ts-root .ts-floating-formatbar:has(.ts-format-context[data-kind="section"]) .ts-commandbar .ts-format-field:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { gap:6px; padding-inline:6px; }
+.ts-root .ts-floating-formatbar .ts-appearance-group > .ts-format-label:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { flex:none; margin-inline:6px; padding:3px 6px; border-radius:4px; background:var(--ts-format-wash); color:var(--text-muted); font:400 10px/1.4 var(--font-interface); }
+
 /* END context-toolbar generated */
 
 /* BEGIN canvas-dock generated */
@@ -6385,6 +6415,57 @@
 @media (prefers-contrast:more) {
   .ts-root:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { --ts-object-line:var(--text-muted); }
   .ts-root .ts-node:is(.is-selected,.is-inline-editing):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { outline-width:2px; }
+}
+
+/* Media is its own surface; Markdown/text and groups retain a frame.
+   Selection outlines and resize handles remain independent affordances. */
+.ts-root .ts-main .ts-world > .ts-node:not(.ts-card):not(.ts-text):not(.ts-section):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border:0!important; box-shadow:none!important;
+}
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-image,.ts-pdf,.ts-video,.ts-audio,.ts-board):not(.is-compact-fold):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background:transparent!important; padding:0!important;
+}
+.ts-root .ts-node :is(.file-embed,.file-embed-link):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border:0; box-shadow:none;
+}
+.ts-root .ts-main .ts-world > .ts-node.is-compact-fold:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  display:block; min-width:0!important; min-height:0!important; padding:0!important;
+  border-radius:8px!important; background:var(--background-primary)!important;
+  box-shadow:none!important; overflow:visible;
+}
+.ts-root .ts-node.is-compact-fold > .ts-compact-fold-row:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  display:flex; align-items:center; gap:6px; height:100%; min-width:0; padding:0 7px 0 10px;
+  font:500 13px/1.25 var(--font-interface); color:var(--text-normal);
+}
+.ts-root .ts-compact-fold-icon:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { display:inline-flex; flex:none; color:var(--text-muted); }
+.ts-root .ts-compact-fold-icon svg:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { width:14px; height:14px; }
+.ts-root .ts-compact-fold-title:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { flex:1; min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.ts-root .ts-node.is-compact-fold .ts-compact-unfold:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  display:inline-flex; align-items:center; justify-content:center; flex:none; width:24px; min-width:24px;
+  height:26px; min-height:26px; margin:0; padding:3px!important; border:0; border-radius:5px;
+  background:transparent; box-shadow:none; color:var(--text-muted); opacity:1;
+}
+.ts-root .ts-node.is-compact-fold .ts-compact-unfold:hover:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { color:var(--text-normal); background:var(--background-modifier-hover); }
+.ts-root .ts-node.is-compact-fold .ts-compact-unfold:focus-visible:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { outline:2px solid var(--interactive-accent); }
+.ts-root .ts-node.ts-image > .ts-image-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  position:absolute; right:0; bottom:calc(100% + 16px); z-index:8; display:flex; padding:3px;
+  border:1px solid var(--background-modifier-border); border-radius:8px; background:var(--background-primary);
+  opacity:0; pointer-events:none;
+}
+.ts-root .ts-node.ts-image:is(:hover,:focus-within,.is-selected) > .ts-image-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { opacity:1; pointer-events:auto; }
+.ts-root .ts-node.ts-image > .ts-image-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::after { content:''; position:absolute; top:100%; right:0; width:26px; height:16px; }
+.ts-root .ts-node.ts-image > .ts-image-actions .ts-icon-button:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { width:26px; height:26px; padding:5px!important; border:0; box-shadow:none; background:transparent; }
+
+/* Native Canvas fallback attachments (for example .agx) have no preview.
+   Leave Markdown nodes, frames and every other native Canvas style untouched. */
+.workspace-leaf-content[data-type="canvas"] .canvas-node-container:has(> .canvas-node-content.file-embed.mod-generic) {
+  border:0!important; box-shadow:none!important; background:transparent!important;
+}
+.workspace-leaf-content[data-type="canvas"] .canvas-node-content.file-embed.mod-generic {
+  border:0!important; box-shadow:none!important; background:transparent!important;
+}
+.workspace-leaf-content[data-type="canvas"] .canvas-node.is-selected > .canvas-node-container:has(> .canvas-node-content.file-embed.mod-generic) {
+  outline:1.5px solid var(--interactive-accent); outline-offset:3px;
 }
 
 /* END object-chrome generated */

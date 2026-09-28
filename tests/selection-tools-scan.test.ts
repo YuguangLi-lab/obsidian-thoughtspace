@@ -1,3 +1,4 @@
+import {nodeHasBorder} from '../src/text-sizing';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -49,7 +50,7 @@ class Element {
 
 function fixture(size = 4) {
   const scans: {nodes: number; edges: number}[] = [];
-  const deps = {
+  const deps = {nodeHasBorder,
     colorNames, selectionFormatKey, patchSelectionEdges, renderEdgeFormatControls,
     selectionEdges: (...args: Parameters<typeof selectionEdges>) => {
       scans.push({nodes: args[0].nodes.length, edges: args[0].edges.length});

@@ -4,6 +4,7 @@ function take(start,end){const from=source.indexOf(start),to=source.indexOf(end,
 // Bundle real runtime dependencies, including branch visibility. Only host UI APIs
 // are supplied below; control rendering, eligibility and cache behavior stay real.
 const helperCode=buildSync({stdin:{contents:`
+ export {nodeHasBorder} from './src/text-sizing';
  export {selectionFormatKey} from './src/selection-format';
  export {selectionEdges,patchSelectionEdges} from './src/selection-edges';
  export {renderEdgeFormatControls} from './src/edge-format-controls';

@@ -28,8 +28,8 @@ test('folded text rejects undersized restoration while other foldable kinds reta
   assert.throws(()=>parseBoard(JSON.stringify(board)),/卡片折叠数据不完整/,kind);
  }
 });
-test('locked text and non-text objects are not modified by text collapse',()=>{
- const board=emptyBoard();board.version=3;board.nodes=[{...text(),locked:true},{...text(),id:'image',kind:'image',file:'image.png'},{...text(),id:'section',kind:'section',title:'分组'}];const before=clone(board);foldCards(board,new Set(board.nodes.map(n=>n.id)),true);assert.deepEqual(board,before);
+test('locked text, locked images and group frames are not modified by content collapse',()=>{
+ const board=emptyBoard();board.version=3;board.nodes=[{...text(),locked:true},{...text(),id:'image',kind:'image',file:'image.png',locked:true},{...text(),id:'section',kind:'section',title:'分组'}];const before=clone(board);foldCards(board,new Set(board.nodes.map(n=>n.id)),true);assert.deepEqual(board,before);
 });
 test('collapsed text never accesses the DOM, auto-fits or loses its saved expanded height',()=>{
  const node={...text(),collapsed:true,height:72,expandedHeight:240},before=clone(node);fitTextNode(node,undefined as unknown as HTMLElement);assert.deepEqual(node,before);

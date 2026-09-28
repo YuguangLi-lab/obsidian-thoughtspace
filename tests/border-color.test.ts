@@ -1,3 +1,4 @@
+import {nodeHasBorder} from '../src/text-sizing';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -8,7 +9,7 @@ function fixture(){
  const board=emptyBoard();board.version=3;board.nodes=[{id:'card',kind:'card',file:'note.md',transparent:true,x:0,y:0,width:300,height:200,color:'sand'},{id:'text',kind:'text',text:'text',x:400,y:0,width:200,height:100,color:'blue'},{id:'locked',kind:'card',file:'locked.md',locked:true,x:0,y:400,width:300,height:200,color:'green'}];
  let apply!:(b:Board,value:string)=>void;
  const line=readFileSync('src/main.ts','utf8').split('\n').find(l=>l.includes("select('边框颜色'"))!;
- new Function('select','colorNames','nodes','ids',transformSync(line,{loader:'ts'}).code)((_label:unknown,_options:unknown,_values:unknown,fn:typeof apply)=>{apply=fn},colorNames,board.nodes,new Set(board.nodes.map(n=>n.id)));
+ new Function('nodeHasBorder','select','colorNames','borderNodes','ids',transformSync(line,{loader:'ts'}).code)(nodeHasBorder,(_label:unknown,_options:unknown,_values:unknown,fn:typeof apply)=>{apply=fn},colorNames,board.nodes,new Set(board.nodes.map(n=>n.id)));
  return{board,apply};
 }
 test('border toolbar persists every explicit color without changing note, transparency or locks',()=>{

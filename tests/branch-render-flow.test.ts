@@ -68,7 +68,7 @@ test('in-place folds, reconnection, deletion and undo-style replacement are fres
 
 test('moving material out of a folded frame changes containment without stale membership',()=>{
  const f=fixture(1),frame=card('frame',{kind:'section',x:10000,y:10000,width:1000,height:1000,sectionFolded:true}),material=card('material',{x:10100,y:10100});
- f.board.nodes=[frame,material];f.view.renderBoard();assert.deepEqual(ids(f.edgeBoards.at(-1)!),['frame']);assert.equal(f.edgeBoards.at(-1)!.nodes[0].height,72);
+ f.board.nodes=[frame,material];f.view.renderBoard();assert.deepEqual(ids(f.edgeBoards.at(-1)!),['frame']);assert.equal(f.edgeBoards.at(-1)!.nodes[0].height,40);
  material.x=12000;f.view.renderBoard(true);assert.deepEqual(ids(f.edgeBoards.at(-1)!),['frame','material']);
  material.x=10100;f.view.renderBoard(true);assert.deepEqual(ids(f.edgeBoards.at(-1)!),['frame']);
  assert.equal(frame.height,1000,'render projections must not rewrite logical frame bounds');

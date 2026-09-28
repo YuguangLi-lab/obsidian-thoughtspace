@@ -45,7 +45,7 @@
 .ts-root .ts-text-markdown .callout-content > :last-child { margin-block-end: 0; }
 
 /* Keep native table content readable, and scroll within a manually narrowed frame. */
-.ts-root .ts-text-markdown table { display: block; width: max-content; max-width: 100%; border-collapse: collapse; font: inherit; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+.ts-root .ts-text-markdown table { display: table; width: max-content; max-width: none; border-collapse: collapse; font: inherit; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
 .ts-root .ts-text-markdown :is(th,td) { min-width: 5em; padding: .4em .65em; border: 1px solid var(--table-border-color,var(--background-modifier-border)); vertical-align: top; }
 .ts-root .ts-text-markdown th { font-weight: var(--table-header-weight,600); }
 .ts-root .ts-text-markdown .math-block { max-width: 100%; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
@@ -96,8 +96,8 @@
   background: transparent!important;
   backdrop-filter: none!important;
 }
-/* Preserve the borderless table presentation in preview and live editing. */
-.ts-root :is(.ts-text-markdown,.ts-card-preview,.ts-inline-native) :is(table,thead,tbody,tfoot,tr,th,td) {
+/* One cell grid in preview and native editing; wrappers add no second frame. */
+.ts-root :is(.ts-text-markdown,.ts-card-preview,.ts-inline-native) :is(table,thead,tbody,tfoot,tr) {
   border: 0!important;
   box-shadow: none!important;
 }
@@ -131,3 +131,24 @@
   background: var(--background-modifier-hover);
 }
 .ts-root .ts-text.is-folded > .ts-text-body { padding-right: 78px; }
+
+/* Compact data rhythm: natural columns, quieter headers, fine cell grid. */
+.ts-root .ts-text-markdown table { margin-block: .55em; }
+.ts-root .ts-text-markdown :is(th,td) { min-width: 4em; padding: .38em .7em; line-height: 1.55; }
+.ts-root .ts-text-markdown th { color: var(--text-muted); font-size: .9em; font-weight: 600; }
+.ts-root .ts-text-markdown td { font-variant-numeric: tabular-nums; }
+.ts-root .ts-text-markdown > table:first-child { margin-top: 0; }
+.ts-root .ts-text-markdown > table:last-child { margin-bottom: 0; }
+
+.ts-root :is(.ts-text-markdown,.ts-card-preview,.ts-inline-native) table { border-collapse:collapse; border-spacing:0; }
+.ts-root :is(.ts-text-markdown,.ts-card-preview,.ts-inline-native) :is(th,td) {
+  border:1px solid color-mix(in srgb,var(--text-muted) 38%,var(--background-modifier-border))!important;
+  box-shadow:none!important;
+}
+
+/* A table card is just its grid. Selection/resize affordances remain temporary. */
+.ts-root .ts-main .ts-world > .ts-node.ts-text.is-table-card:not(.is-compact-fold) {
+  border:0!important; border-radius:0!important; box-shadow:none!important;
+}
+.ts-root .ts-node.ts-text.is-table-card:not(.is-compact-fold) > .ts-text-body,
+.ts-root .ts-node.ts-text.is-table-card .ts-inline-editor > :is(.ts-inline-input,.ts-inline-native) { padding:0!important; }

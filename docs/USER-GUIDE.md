@@ -2,7 +2,7 @@
 
 [English](USER-GUIDE.md) · [中文完整教程](USER-GUIDE.zh-CN.md) · [Project home](../README.md)
 
-This guide describes **ThoughtSpace Whiteboard 1.3.7**, for **Obsidian desktop 1.13.7 or newer**. The current interface is mainly Chinese. English explanations below include the actual Chinese labels so you can find each action. Button labels may appear as icons in narrow panes; hover over an icon to read its tooltip.
+This guide describes **ThoughtSpace Whiteboard 1.3.10**, for **Obsidian desktop 1.13.7 or newer**. The current interface is mainly Chinese. English explanations below include the actual Chinese labels so you can find each action. Button labels may appear as icons in narrow panes; hover over an icon to read its tooltip.
 
 ## Contents
 
@@ -192,6 +192,8 @@ $$
 
 Headings, lists, links, code, callouts, inline/display math, and tables render in the frame. Task checkboxes in board-text previews are read-only; enter edit mode to change them. If live preview is unavailable in your host, a Markdown source editor is used instead.
 
+Tables fit their content by default. Manual resizing or disabling auto-fit preserves manual dimensions. Table cards display the grid directly, without an outer text frame. Transparent fills and fine cell grid lines distinguish rows and columns in both preview and native editing.
+
 For a fresh table, use **插入内容 → 表格**, right-click empty space and choose **在此添加表格**, or use the editing toolbar's table button. The first header is selected for replacement, without moving your camera. Wide tables can scroll horizontally after you narrow their text frame. Text automatically fits rendered content when auto height is enabled; right-click **关闭自动适应高度** to keep the current size. For linked notes, **自动适应笔记大小** adjusts the card preview to its content.
 
 <a id="media-import"></a>
@@ -238,6 +240,8 @@ Open **工作区 → 打开阅读桌** (Workspace → Open reading desk). Search
 ### Add relationships
 
 Click **连线**, select a source and destination, or drag from an object's connection port to another object. Double-click a connection to enter **关系说明** (Relationship description). Selecting a connection exposes its style controls: curved, straight, or elbow paths, direction, and appearance. Use a short label such as `supports`, `contradicts`, or `next step` to explain why two items are connected. Esc cancels an unfinished connection.
+
+Folded content, groups, and branches use a compact title strip up to **180 × 40**. Click its arrow or double-click to expand, preserving the original dimensions. Images also have fold controls above the object and in the context menu. Text and notes retain borders; images, PDFs, audio/video, child boards, and groups have no decorative outer frame.
 
 Ordinary relationships and parent/child branches serve different purposes. Use a parent's branch control to **折叠子节点** (Collapse children), **展开下一层** (Expand next level), or **展开所有子节点** (Expand all children). For eligible nodes with outgoing relationships, the node context menu offers **设为子节点并折叠** (Set as children and collapse). Folding a card preview, folding a group, and collapsing a branch are separate actions.
 
@@ -309,7 +313,7 @@ Loose-object scopes preserve content already inside groups. Locked objects and n
 
 ### Change object appearance and background
 
-Select a card or text frame and switch the top toolbar between **编辑 / 文字 / 背景 / 边框** (Edit / Text / Fill / Border). Adjust the available font, size, alignment, color, transparent fill, and border options. Switching toolbar modes preserves the current draft and text selection. Use the style copy/paste controls when several items should match.
+Select a card or text frame and switch the top toolbar between **编辑 / 文字 / 背景 / 边框** (Edit / Text / Fill / Border). Adjust the available font, size, alignment, color, transparent fill, and border options. Switching toolbar modes preserves the current draft and text selection. Use the style copy/paste controls when several items should match. Border controls apply to text frames, note cards, and groups, including mixed selections and pasted styles. Borderless objects do not offer border editing; groups retain background, border, and divider settings.
 
 Open **白板背景** in the bottom controls and choose **点阵 / 网格 / 纯色 / 纸张纹理 / 背景图片**. For paper, choose **自定义纸张…** to set paper color and texture strength; presets include cream, white, ivory, kraft, and recycled paper. For an image, choose **设置背景图片…**, import PNG/JPEG/WebP/GIF, and set cover, contain, tile, and opacity. Imported backgrounds are copied into the current vault's plugin folder without a network upload. General density, accent, surface, and reading preferences are under **界面与阅读**; object defaults are under **白板体验**.
 
@@ -365,11 +369,11 @@ Click **ThoughtSpace 音视频笔记**, right-click a vault media file, or run o
 | **在右侧栏打开媒体播放器** | Right sidebar |
 | **在独立窗口打开媒体播放器** | Native Obsidian popout window |
 
-No board or external player plugin is required. In 1.3.7, a wide workspace places the viewer on the left, **写下此刻** (Composer) at the upper right, and **时间轴** (Timeline) below it. Narrow panes provide **写摘录 / 时间轴** tabs; switching them preserves your draft and playback. Wide, short windows keep local scrolling within the composer and timeline. Save and pagination controls stay visible while their content scrolls.
+No board or external player plugin is required. In 1.3.8, a wide workspace places the viewer on the left, **写下此刻** (Composer) at the upper right, and **时间轴** (Timeline) below it. Narrow panes provide **写摘录 / 时间轴** tabs; switching them preserves your draft and playback. Wide, short windows keep local scrolling within the composer and timeline. Save and pagination controls stay visible while their content scrolls.
 
 Use **布局** (Layout) to adjust **观看区宽度**, or **恢复均衡布局** to reset it. **收起画面** keeps playback controls while giving notes more room; **专注播放** hides the note area. The header's **更多媒体操作** menu selects another media file, changes placement, or sends media to a board.
 
-### Link a large file outside the vault — new in 1.3.7
+### Link a large file outside the vault — new in 1.3.8
 
 1. In the media picker or workspace More menu, select **链接仓库外的视频或音频**.
 2. Paste the file's complete local path or a `file://` URL, then click **链接文件** (Link file).

@@ -12,5 +12,5 @@ test('G10 merge accepts folded ordinary texts and retains a valid reversible con
 test('G11 select current viewport uses folded group header geometry and excludes hidden contents',()=>{
  const b:Board={...emptyBoard(),version:3,nodes:[node('frame',0,0,{kind:'section',title:'Frame',width:900,height:900,sectionFolded:true}),node('hidden',30,30),node('visible',1000,10)],edges:[]};const before=clone(b);
  assert.deepEqual([...selectStudio(b,new Set(),'viewport',{x:-10,y:-10,width:1300,height:100})],['frame','visible']);assert.deepEqual(b,before);
- assert.deepEqual([...selectStudio(b,new Set(),'viewport',{x:0,y:0,width:300,height:60})],[],'partial header is not enough for frame selection');
+ assert.deepEqual([...selectStudio(b,new Set(),'viewport',{x:0,y:0,width:170,height:30})],[],'partial header is not enough for frame selection');
 });

@@ -11,7 +11,7 @@ import {sectionDisplayNode} from '../src/sections';
 import {visibleNodes,viewportRect,markdownPreview,RenderQueue} from '../src/rendering';
 import {visibleGridSize} from '../src/canvas-controls';
 import {textFontFamily} from '../src/text-tools';
-import {textFitsContent,textBlockPadding} from '../src/text-sizing';
+import {nodeHasBorder,textFitsContent,textBlockPadding} from '../src/text-sizing';
 import {cardDisplayTitle} from '../src/card-title-model';
 import {mediaDimensions} from '../src/media-geometry';
 import {foldCards} from '../src/board-tools';
@@ -105,7 +105,7 @@ function fixture(kind:model.Card['kind']='card',patch:Partial<model.Card>={}){
  const world=new Dom();world.root=true;const svg=world.createEl('svg'),previewQueue=new Queue(),pdfPreviewQueue=new Queue();
  const mediaMounts:{options:MediaCardOptions;body:Dom;paused:number;disposed:number}[]=[];
  const session={board,blocked:false,file:new File('board.thoughtspace')};
- const deps={textBlockPadding,...model,...keys,renderBranchControls:branchModule.exports.renderBranchControls,branchState,branchRenderSnapshot,childConnectionCandidates:(board:model.Board,roots?:ReadonlySet<string>)=>{calls.childCandidates++;return childConnectionCandidates(board,roots);},sectionDisplayNode,visibleNodes,viewportRect,markdownPreview,visibleGridSize,textFontFamily,textFitsContent,cardDisplayTitle,mediaDimensions,
+ const deps={nodeHasBorder,textBlockPadding,...model,...keys,renderBranchControls:branchModule.exports.renderBranchControls,branchState,branchRenderSnapshot,childConnectionCandidates:(board:model.Board,roots?:ReadonlySet<string>)=>{calls.childCandidates++;return childConnectionCandidates(board,roots);},sectionDisplayNode,visibleNodes,viewportRect,markdownPreview,visibleGridSize,textFontFamily,textFitsContent,cardDisplayTitle,mediaDimensions,
   TFile:File,Component:Scope,Element:Dom,getAllTags:(cache:{tags?:string[]})=>{calls.tags++;return cache.tags||null;},setIcon:()=>{},
   button:(host:Dom,label:string,_icon:string,fn:()=>void,cls='')=>{const el=host.createEl('button',{cls,attr:{'aria-label':label}});el.createSpan();el.createSpan({text:label});el.onclick=fn;return el;},
   bindCardTitle:()=>()=>{},readProperties:(fm:Record<string,unknown>)=>({status:fm.thoughtspace_status}),statuses:{done:'完成'},isOverdue:()=>false,localDay:()=>'',
@@ -139,7 +139,7 @@ for(const kind of ['card','text','image','pdf'] as const)test(`${kind}: appearan
  if(kind==='card'||kind==='text')patches.push({fillColor:'#abc123'},{transparent:true},{textColor:'rose'});
  for(const patch of patches){f.replace(patch);assert.equal(f.element(),el,`${kind} ${JSON.stringify(patch)} must not recreate preview`);assert.equal(f.scope(),scope);assert.deepEqual(el.children,children);}
  await f.drain();assert.equal(scope.unloaded,0);assert.deepEqual({read:f.calls.read,markdown:f.calls.markdown,pdf:f.calls.pdf,textFit:f.calls.textFit},before);
- assert.equal(el.classes.has('ts-color-blue'),true);assert.equal(el.classes.has('ts-color-sand'),false);assert.equal(el.classes.has('has-custom-border'),true);assert.equal(el.style.borderStyle,'dashed');
+ assert.equal(el.classes.has('ts-color-blue'),true);assert.equal(el.classes.has('ts-color-sand'),false);assert.equal(el.classes.has('has-custom-border'),kind==='card'||kind==='text');assert.equal(el.style.borderStyle,kind==='card'||kind==='text'?'dashed':'');
  if(kind==='card'||kind==='text'){assert.equal(el.css.get('--ts-card-fill'),'#abc123');assert.equal(el.classes.has('is-transparent'),true);assert.equal(el.dataset.ink,'rose');}
  f.replace({color:'sand',customBorder:false,borderStyle:undefined,fillColor:undefined,transparent:false,textColor:undefined});
  assert.equal(f.element(),el);assert.equal(el.classes.has('ts-color-blue'),false);assert.equal(el.classes.has('ts-color-sand'),true);assert.equal(el.style.borderStyle,'');assert.equal(el.classes.has('has-card-fill'),false);assert.equal(el.classes.has('is-transparent'),false);if(kind==='card'||kind==='text')assert.equal(el.dataset.ink,'default');
@@ -246,7 +246,7 @@ test('switching automatic sizing and undoing it rebuilds scopes and discards the
 
 test('folding a resized fixed card preserves its expanded size and lock invalidates its controls',()=>{
  const f=fixture('card',{autoFit:false}),initial=f.element();f.replace({width:420,height:320});assert.equal(f.element(),initial);
- foldCards(f.board,new Set(['node']),true);f.render();const folded=f.element();assert.notEqual(folded,initial);assert.equal(f.board.nodes[0].expandedHeight,320);assert.deepEqual([folded.style.width,folded.style.height],['420px','72px']);assert.equal(folded.querySelector('.ts-card-preview'),null);
+ foldCards(f.board,new Set(['node']),true);f.render();const folded=f.element();assert.notEqual(folded,initial);assert.equal(f.board.nodes[0].expandedHeight,320);assert.deepEqual([folded.style.width,folded.style.height],['180px','40px']);assert.equal(folded.querySelector('.ts-card-preview'),null);
  foldCards(f.board,new Set(['node']),false);f.render();const expanded=f.element();assert.notEqual(expanded,folded);assert.deepEqual([expanded.style.width,expanded.style.height],['420px','320px']);assert.ok(expanded.querySelector('.ts-card-preview'));
  f.replace({locked:true});assert.notEqual(f.element(),expanded);assert.equal(f.element().querySelector('.ts-resize'),null);assert.ok(f.element().querySelectorAll('button').find(b=>b.getAttribute('aria-label')==='折叠卡片')?.disabled);
 });
@@ -333,7 +333,7 @@ test('preview promotion and demotion preserve the budget across selection and zo
 
 test('folded text shows a single-line summary and keeps formula source for expansion',()=>{
  const f=fixture('text',{text:'标题\n$$x^2$$\n全文',collapsed:true,height:72,expandedHeight:180});
- assert.equal(f.element().querySelector('.ts-text-body')?.textContent,'标题');assert.equal(f.calls.textFit,0);assert.equal(f.element().querySelectorAll('button').some(b=>b.getAttribute('aria-label')==='展开文本'),true);assert.equal(f.element().querySelector('.ts-resize'),null);
+ assert.equal(f.element().querySelector('.ts-compact-fold-title')?.textContent,'标题');assert.equal(f.calls.textFit,0);assert.equal(f.element().querySelectorAll('button').some(b=>b.getAttribute('aria-label')==='展开内容'),true);assert.equal(f.element().querySelector('.ts-resize'),null);
  assert.equal(f.board.nodes[0].text,'标题\n$$x^2$$\n全文');f.replace({collapsed:undefined,height:180,expandedHeight:undefined});assert.equal(f.element().querySelector('.ts-text-body')?.textContent,'标题\n$$x^2$$\n全文');assert.equal(f.calls.textFit,1);assert.ok(f.element().querySelector('.ts-resize'));
 });
 
@@ -343,7 +343,7 @@ test('text auto-height button sits beside fold, defaults off and reflects explic
  const [fold,sizing]=buttons();assert.equal(fold.getAttribute('aria-label'),'折叠文本');assert.equal(fold.nextElementSibling,sizing);assert.equal(sizing.classes.has('ts-text-auto-height'),true);assert.equal(sizing.getAttribute('aria-pressed'),'false');assert.equal(sizing.classes.has('is-active'),false);
  sizing.onclick?.();assert.deepEqual(calls,[['node']]);
  const old=f.element(),oldScope=f.scope();f.replace({textAutoHeight:true});assert.notEqual(f.element(),old);assert.equal(oldScope.unloaded,1);let active=buttons()[1];assert.equal(active.getAttribute('aria-pressed'),'true');assert.equal(active.classes.has('is-active'),true);active.onclick?.();assert.deepEqual(calls,[['node'],['node']]);
- f.replace({collapsed:true,height:72,expandedHeight:180});active=buttons()[1];assert.equal(buttons()[0].getAttribute('aria-label'),'展开文本');assert.equal(active.getAttribute('aria-pressed'),'true');assert.equal(f.board.nodes[0].textAutoHeight,true);
+ f.replace({collapsed:true,height:72,expandedHeight:180});assert.equal(f.element().querySelector('.ts-text-actions'),null);assert.ok(f.element().querySelector('.ts-compact-unfold'));assert.equal(f.board.nodes[0].textAutoHeight,true);f.replace({collapsed:undefined,height:180,expandedHeight:undefined});assert.equal(buttons()[1].getAttribute('aria-pressed'),'true');
  f.replace({textAutoHeight:false});assert.equal(buttons()[1].getAttribute('aria-pressed'),'false');assert.equal(buttons()[1].classes.has('is-active'),false);
 });
 test('text sizing button preserves topic defaults and respects locked or blocked boards',()=>{

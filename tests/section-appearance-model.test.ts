@@ -64,7 +64,7 @@ test('section appearance survives clone, folded projection, persistence and hist
  foldSections(value,new Set(['section']),true);
  const folded=parseBoard(JSON.stringify(value)),display=sectionDisplayNode(folded.nodes[0]);
  assert.deepEqual(readNodeStyle(display),readNodeStyle(before.nodes[0]));
- assert.deepEqual([display.width,display.height],[320,72]);
+ assert.deepEqual([display.width,display.height],[180,40]);
  assert.deepEqual([folded.nodes[0].width,folded.nodes[0].height],[600,400]);
  const duplicate=clone(folded);duplicate.nodes[0].sectionDivider='dotted';
  assert.equal(folded.nodes[0].sectionDivider,'dashed');

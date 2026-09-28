@@ -39,7 +39,7 @@ function assertBoardData(b:unknown):asserts b is Board {
       (n.kind === 'section' && typeof n.title !== 'string')) throw new Error('白板节点数据不完整');
     if(['file','title','text'].some(key=>n[key]!==undefined&&typeof n[key]!=='string'))throw new Error('白板节点数据不完整');
     if ((n.collapsed !== undefined && typeof n.collapsed !== 'boolean') ||
-      (n.collapsed && (!isOneOf(n.kind,['card','pdf','board','text','audio','video']) || n.height !== 72 || !isFiniteNumber(n.expandedHeight) || n.expandedHeight < nodeMinimumHeight(n.kind))) ||
+      (n.collapsed && (!isOneOf(n.kind,['card','pdf','board','text','audio','video','image']) || n.height !== 72 || !isFiniteNumber(n.expandedHeight) || n.expandedHeight < nodeMinimumHeight(n.kind))) ||
       (!n.collapsed && n.expandedHeight !== undefined)) throw new Error('卡片折叠数据不完整');
     if ((n.kind === 'text' && typeof n.text !== 'string') || (n.topic !== undefined && (b.version !== 3 || typeof n.topic !== 'boolean'))) throw new Error('文本或主题数据不完整');
     if ((n.textColor !== undefined && !isOneOf(n.textColor,['default',...colors])) ||

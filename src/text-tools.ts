@@ -1,3 +1,4 @@
+import {textHasTable} from './text-sizing';
 import {yingjianTextParts} from './yingjian';
 import {textExcerptPresentation} from './excerpt-sources';
 import { Card, Color, colors, colorNames } from './model';
@@ -19,12 +20,14 @@ export function fitTextNode(node: Card, host: HTMLElement, renderedBody?:HTMLEle
  const frame=win.createDiv();frame.className='ts-text ts-text-fit-probe'+(node.topic?' ts-topic':'');
  const rendered=renderedBody?.dataset.markdownStatus==='ready'||renderedBody?.dataset.mathStatus==='ready';
  const probe=rendered?renderedBody.cloneNode(true) as HTMLElement:win.createDiv();if(!rendered)probe.className='ts-text-body';
- const manual=node.textAutoHeight===true||node.autoSize===false,fontSize=node.fontSize||16;
- Object.assign(frame.style,{position:'relative',display:'block',boxSizing:'border-box',width:manual?`${node.width}px`:'max-content',maxWidth:manual?'none':`${node.textMaxWidth||520}px`,minWidth:manual?'0':'80px',minHeight:'60px',height:'auto',border:`${node.borderWidth??1}px solid transparent`,transform:'none',overflow:'visible'});
- Object.assign(probe.style,{position:'static',display:'block',boxSizing:'border-box',width:'auto',maxWidth:'none',height:'auto',minHeight:'0',minWidth:'0',flex:'none',overflow:'visible',fontFamily:textFontFamily(node.fontFamily,hostStyle.getPropertyValue('--font-text')||hostStyle.fontFamily,hostStyle.getPropertyValue('--font-monospace')||'monospace'),fontSize:`${fontSize}px`,fontWeight:node.topic?'500':'400',lineHeight:'1.7',letterSpacing:'normal',whiteSpace:rendered?'normal':'pre-wrap',overflowWrap:'anywhere',padding:'14px 16px'});
+ const manual=node.textAutoHeight===true||node.autoSize===false,fontSize=node.fontSize||16,table=textHasTable(node);
+ Object.assign(frame.style,{position:'relative',display:'block',boxSizing:'border-box',width:manual?`${node.width}px`:'max-content',maxWidth:manual?'none':`${node.textMaxWidth||(table?960:520)}px`,minWidth:manual?'0':'80px',minHeight:'60px',height:'auto',border:`${table?0:node.borderWidth??1}px solid transparent`,transform:'none',overflow:'visible'});
+ Object.assign(probe.style,{position:'static',display:'block',boxSizing:'border-box',width:'auto',maxWidth:'none',height:'auto',minHeight:'0',minWidth:'0',flex:'none',overflow:'visible',fontFamily:textFontFamily(node.fontFamily,hostStyle.getPropertyValue('--font-text')||hostStyle.fontFamily,hostStyle.getPropertyValue('--font-monospace')||'monospace'),fontSize:`${fontSize}px`,fontWeight:node.topic?'500':'400',lineHeight:'1.7',letterSpacing:'normal',whiteSpace:rendered?'normal':'pre-wrap',overflowWrap:'anywhere',padding:table?'0':'14px 16px'});
  const presentation=textExcerptPresentation(node.text||''),text=presentation.sources.length?presentation.body.trimEnd():presentation.body;
  const sourceSlot=()=>{const source=win.createSpan();Object.assign(source.style,{display:'inline-block',boxSizing:'border-box',width:'20px',minWidth:'20px',maxWidth:'20px',height:'20px',marginLeft:'5px',verticalAlign:'-3px'});return source;};
  if(rendered){
+  // Measure intrinsic columns in the detached clone; live tables retain overflow scrolling.
+  if(table&&!manual)for(const el of Array.from(probe.querySelectorAll('table')))Object.assign(el.style,{display:'table',width:'max-content',maxWidth:'none',overflow:'visible'});
   const actual=styleOf(renderedBody);for(const key of ['paddingTop','paddingRight','paddingBottom','paddingLeft','fontFamily','fontSize','fontWeight','lineHeight','letterSpacing','textAlign'] as const)if(actual[key])probe.style[key]=actual[key];
   // Clones must not duplicate MathJax/Markdown IDs or retain a popover's extra content.
   probe.removeAttribute('id');for(const element of Array.from(probe.querySelectorAll('[id]')))element.removeAttribute('id');

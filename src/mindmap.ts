@@ -120,7 +120,7 @@ function branchDescendantIndex(b:Board,children:ReadonlyMap<string,readonly stri
  return ids;
  };
 }
-export function visibleBranchBoard(b:Board,getState?:()=>ReturnType<typeof branchState>):Board{if(!b.nodes.some(n=>n.branchFolded||n.sectionFolded))return b;const {hidden}=getState?getState():branchState(b);return hidden.size||b.nodes.some(n=>n.sectionFolded)?{...b,nodes:b.nodes.filter(n=>!hidden.has(n.id)).map(sectionDisplayNode),edges:b.edges.filter(e=>!hidden.has(e.from)&&!hidden.has(e.to))}:b;}
+export function visibleBranchBoard(b:Board,getState?:()=>ReturnType<typeof branchState>):Board{if(!b.nodes.some(n=>n.branchFolded||n.sectionFolded||n.collapsed))return b;const {hidden}=getState?getState():branchState(b);return hidden.size||b.nodes.some(n=>n.sectionFolded||n.branchFolded||n.collapsed)?{...b,nodes:b.nodes.filter(n=>!hidden.has(n.id)).map(sectionDisplayNode),edges:b.edges.filter(e=>!hidden.has(e.from)&&!hidden.has(e.to))}:b;}
 export function unfoldAncestors(b:Board,id:string){
  const {parents}=branchTopology(b),nodes=new Map(b.nodes.map(n=>[n.id,n])),groups=b.nodes.filter(n=>n.kind==='section'),pending=[{id,frames:true}],seen=new Map<string,boolean>();
  while(pending.length){const current=pending.pop()!,previous=seen.get(current.id);if(previous===true||previous===false&&!current.frames)continue;seen.set(current.id,current.frames);const node=nodes.get(current.id);if(!node)continue;

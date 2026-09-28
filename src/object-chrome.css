@@ -123,3 +123,54 @@
   .ts-root { --ts-object-line:var(--text-muted); }
   .ts-root .ts-node:is(.is-selected,.is-inline-editing) { outline-width:2px; }
 }
+
+/* Media is its own surface; Markdown/text and groups retain a frame.
+   Selection outlines and resize handles remain independent affordances. */
+.ts-root .ts-main .ts-world > .ts-node:not(.ts-card):not(.ts-text):not(.ts-section) {
+  border:0!important; box-shadow:none!important;
+}
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-image,.ts-pdf,.ts-video,.ts-audio,.ts-board):not(.is-compact-fold) {
+  background:transparent!important; padding:0!important;
+}
+.ts-root .ts-node :is(.file-embed,.file-embed-link) {
+  border:0; box-shadow:none;
+}
+.ts-root .ts-main .ts-world > .ts-node.is-compact-fold {
+  display:block; min-width:0!important; min-height:0!important; padding:0!important;
+  border-radius:8px!important; background:var(--background-primary)!important;
+  box-shadow:none!important; overflow:visible;
+}
+.ts-root .ts-node.is-compact-fold > .ts-compact-fold-row {
+  display:flex; align-items:center; gap:6px; height:100%; min-width:0; padding:0 7px 0 10px;
+  font:500 13px/1.25 var(--font-interface); color:var(--text-normal);
+}
+.ts-root .ts-compact-fold-icon { display:inline-flex; flex:none; color:var(--text-muted); }
+.ts-root .ts-compact-fold-icon svg { width:14px; height:14px; }
+.ts-root .ts-compact-fold-title { flex:1; min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.ts-root .ts-node.is-compact-fold .ts-compact-unfold {
+  display:inline-flex; align-items:center; justify-content:center; flex:none; width:24px; min-width:24px;
+  height:26px; min-height:26px; margin:0; padding:3px!important; border:0; border-radius:5px;
+  background:transparent; box-shadow:none; color:var(--text-muted); opacity:1;
+}
+.ts-root .ts-node.is-compact-fold .ts-compact-unfold:hover { color:var(--text-normal); background:var(--background-modifier-hover); }
+.ts-root .ts-node.is-compact-fold .ts-compact-unfold:focus-visible { outline:2px solid var(--interactive-accent); }
+.ts-root .ts-node.ts-image > .ts-image-actions {
+  position:absolute; right:0; bottom:calc(100% + 16px); z-index:8; display:flex; padding:3px;
+  border:1px solid var(--background-modifier-border); border-radius:8px; background:var(--background-primary);
+  opacity:0; pointer-events:none;
+}
+.ts-root .ts-node.ts-image:is(:hover,:focus-within,.is-selected) > .ts-image-actions { opacity:1; pointer-events:auto; }
+.ts-root .ts-node.ts-image > .ts-image-actions::after { content:''; position:absolute; top:100%; right:0; width:26px; height:16px; }
+.ts-root .ts-node.ts-image > .ts-image-actions .ts-icon-button { width:26px; height:26px; padding:5px!important; border:0; box-shadow:none; background:transparent; }
+
+/* Native Canvas fallback attachments (for example .agx) have no preview.
+   Leave Markdown nodes, frames and every other native Canvas style untouched. */
+.workspace-leaf-content[data-type="canvas"] .canvas-node-container:has(> .canvas-node-content.file-embed.mod-generic) {
+  border:0!important; box-shadow:none!important; background:transparent!important;
+}
+.workspace-leaf-content[data-type="canvas"] .canvas-node-content.file-embed.mod-generic {
+  border:0!important; box-shadow:none!important; background:transparent!important;
+}
+.workspace-leaf-content[data-type="canvas"] .canvas-node.is-selected > .canvas-node-container:has(> .canvas-node-content.file-embed.mod-generic) {
+  outline:1.5px solid var(--interactive-accent); outline-offset:3px;
+}

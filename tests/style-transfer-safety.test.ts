@@ -17,7 +17,7 @@ test('copy captures only visual style, excluding reference content, geometry and
  assert.deepEqual(readNodeStyle(source),richStyle);
  assert.deepEqual(source,before);
  const media:Card={...node('media','pdf'),pdfPage:19,fontSize:20,customBorder:true};
- assert.deepEqual(readNodeStyle(media),{color:'sand',fontSize:20,customBorder:true});
+ assert.deepEqual(readNodeStyle(media),{color:'sand',fontSize:20});
 });
 
 test('paste keeps mixed object references, content, geometry, branches, edges and viewport intact',()=>{
@@ -30,8 +30,8 @@ test('paste keeps mixed object references, content, geometry, branches, edges an
  const before=clone(board);
  const extraFields={...richStyle,id:'overwrite',file:'overwrite.md',text:'overwrite',title:'overwrite',kind:'text',x:999,y:999,width:999,height:999,locked:true,branchFolded:false,topic:false};
  applyNodeStyle(board,new Set(board.nodes.map(n=>n.id)),extraFields);
- const shared={color:'purple',textColor:'default',fontFamily:'serif',fontSize:28,textAlign:'right',customBorder:true,borderStyle:'dotted',borderWidth:0};
- for(let i=0;i<board.nodes.length;i++)assert.deepEqual(board.nodes[i],{...before.nodes[i],...shared,...(['card','text','section'].includes(before.nodes[i].kind)?{transparent:false,fillColor:'#Aa00fF'}:{})});
+ const shared={color:'purple',textColor:'default',fontFamily:'serif',fontSize:28,textAlign:'right'};
+ for(let i=0;i<board.nodes.length;i++)assert.deepEqual(board.nodes[i],{...before.nodes[i],...shared,...(['card','text','section'].includes(before.nodes[i].kind)?{customBorder:true,borderStyle:'dotted',borderWidth:0}:{}),...(['card','text','section'].includes(before.nodes[i].kind)?{transparent:false,fillColor:'#Aa00fF'}:{})});
  assert.deepEqual(board.edges,before.edges);
  assert.deepEqual(board.viewport,before.viewport);
  assert.deepEqual(parseBoard(JSON.stringify(board)),board);
@@ -103,4 +103,27 @@ test('empty or stale selection leaves the board and copied style unchanged',()=>
  applyNodeStyle(board,new Set(['deleted']),captured);
  assert.deepEqual(board,before);
  assert.deepEqual(captured,richStyle);
+});
+
+test('border style cannot be copied from or pasted onto borderless object kinds',()=>{
+ for(const kind of ['image','pdf','audio','video','board'] as const){
+  const legacy={...node('legacy',kind),borderWidth:4,borderStyle:'dashed' as const,customBorder:true};const captured=readNodeStyle(legacy);
+  for(const key of ['borderWidth','borderStyle','customBorder'])assert.equal(Object.hasOwn(captured,key),false);
+  const board={...emptyBoard(),nodes:[legacy,node('fresh',kind)]};applyNodeStyle(board,new Set(['legacy','fresh']),richStyle);
+  assert.deepEqual([legacy.borderWidth,legacy.borderStyle,legacy.customBorder],[4,'dashed',true]);
+  for(const key of ['borderWidth','borderStyle','customBorder'])assert.equal(Object.hasOwn(board.nodes[1],key),false);
+ }
+});
+
+test('group border overrides survive style copy, paste and serialization',()=>{
+ const board=emptyBoard();board.version=3;board.nodes=[node('group','section')];
+ const source={...node('source','section'),...richStyle,sectionDivider:'dashed' as const};
+ applyNodeStyle(board,new Set(['group']),readNodeStyle(source));
+ assert.deepEqual(readNodeStyle(board.nodes[0]),readNodeStyle(source));
+ assert.deepEqual(parseBoard(JSON.stringify(board)),board);
+});
+
+test('pasting frame styles leaves table card grid and source intact',()=>{
+ const table={...node('table','text'),text:'| A | B |\n| --- | --- |\n| 1 | 2 |'},board=emptyBoard();board.nodes=[table];
+ applyNodeStyle(board,new Set(['table']),richStyle);assert.equal(table.borderWidth,undefined);assert.equal(table.customBorder,undefined);assert.equal(readNodeStyle({...table,customBorder:true}).customBorder,undefined);
 });

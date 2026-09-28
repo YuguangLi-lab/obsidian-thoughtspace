@@ -1,4 +1,4 @@
-import {textBlockPadding} from '../src/text-sizing';
+import {nodeHasBorder,textBlockPadding,textFitsContent} from '../src/text-sizing';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -59,7 +59,7 @@ class Element extends EventTarget {
   disconnect(){if(this.contains(this.ownerDocument.activeElement))this.ownerDocument.activeElement=this.ownerDocument.body;this.isConnected=false;this.children.forEach(el=>el.disconnect());}
   empty(){this.children.forEach(el=>el.disconnect());this.children=[];}
 }
-const deps={textBlockPadding,...model,reflowAutomaticMindmaps,validateBranches,sectionDisplayNode,selectionEdges,selectionFormatKey,inkLabels,textFontFamily,syncNodeGeometry,
+const deps={nodeHasBorder,textBlockPadding,textFitsContent,...model,reflowAutomaticMindmaps,validateBranches,sectionDisplayNode,selectionEdges,selectionFormatKey,inkLabels,textFontFamily,syncNodeGeometry,
   preserveToolbarFocus,setIcon:()=>{},Notice:class {},act:(fn:()=>unknown)=>fn(),
   markdownToolbar:(host:Element,editor:{replaceToolbar(dispose?:()=>void):void},disposeOuter?:()=>void)=>{host.createDiv({cls:'ts-markdown-tools'});editor.replaceToolbar(disposeOuter);},
   button:(parent:Element,label:string,_icon:string,callback:()=>unknown,cls?:string)=>{
@@ -181,7 +181,7 @@ for(const [label,value]of [['分组背景','green'],['自定义分组背景','#7
 });
 test('section transparency retains custom color and default controls preserve legacy data',()=>{
  const f=fixture([section('group',{fillColor:'#abcdef'})]),before=model.clone(f.owner.board);
- assert.equal(f.control('标题分割线').value,'none');assert.equal(f.control('边框线型').value,'dashed');assert.equal(f.calls.persist,0);
+ assert.equal(f.control('标题分割线').value,'none');assert.equal(f.modes().some(m=>m.dataset.mode==='border'),true);assert.equal(f.calls.persist,0);
  f.choose('分组样式','transparent');assert.equal(f.owner.board.nodes[0].transparent,true);assert.equal(f.owner.board.nodes[0].fillColor,'#abcdef');
  f.choose('分组样式','solid');assert.deepEqual(f.owner.board.nodes[0],before.nodes[0]);
  f.choose('标题分割线','solid');f.choose('标题分割线','none');assert.equal(Object.hasOwn(f.owner.board.nodes[0],'sectionDivider'),false);
@@ -206,7 +206,7 @@ for(const stale of ['locked','selection','detached','invalid'])test(`section app
 test('section fill and divider remain present in folded display geometry and clear on reset',()=>{
  const f=fixture([section()]),element=new Element(),node=section('group',{fillColor:'green',sectionDivider:'dotted',borderWidth:0});
  f.view.positionNode(node,element);assert.equal(element.properties.get('--ts-card-fill'),model.cardFillHex.green);assert.equal(element.dataset.sectionDivider,'dotted');assert.equal(element.properties.get('--ts-section-divider-width'),'1px');
- f.view.positionNode({...node,sectionFolded:true},element);assert.equal(element.dataset.sectionDivider,'dotted');assert.equal((element.style as any).height,'72px');assert.equal(node.height,300);
+ f.view.positionNode({...node,sectionFolded:true},element);assert.equal(element.dataset.sectionDivider,'dotted');assert.equal((element.style as any).height,'40px');assert.equal(node.height,300);
  f.view.positionNode(section('group',{transparent:true}),element);assert.equal(element.properties.has('--ts-card-fill'),false);assert.equal(element.classes.has('is-transparent'),true);assert.equal(element.dataset.sectionDivider,'none');
 });
 
@@ -225,12 +225,12 @@ test('direct editing modes show one applicable panel and never persist a view-on
  assert.deepEqual(f.owner.board,before);assert.equal(f.calls.persist,0);
 });
 test('group, image and mixed selections expose only applicable editing modes',()=>{
- for(const [nodes,want] of [[[section()],['fill','border']],[[text('image',{kind:'image',file:'photo.png'})],['border']],[[text(),section()],['text','fill','border']]] as [model.Card[],string[]][]){
+ for(const [nodes,want] of [[[section()],['fill','border']],[[text('image',{kind:'image',file:'photo.png'})],[]],[[text(),section()],['text','fill','border']]] as [model.Card[],string[]][]){
   const f=fixture(nodes);
   const panels=f.view.selectionTools.children.filter((e:Element)=>e.attributes['data-appearance-panel']&&!e.hidden);
-  assert.equal(panels.length,1);assert.equal(panels[0].attributes['data-appearance-panel'],want[0]);
+  assert.equal(panels.length,want.length?1:0);if(want.length)assert.equal(panels[0].attributes['data-appearance-panel'],want[0]);
   assert.deepEqual(f.modes().map(e=>e.dataset.mode),want);
-  assert.deepEqual(f.modes().filter(e=>e.getAttribute('aria-pressed')==='true').map(e=>e.dataset.mode),[want[0]]);
+  assert.deepEqual(f.modes().filter(e=>e.getAttribute('aria-pressed')==='true').map(e=>e.dataset.mode),want.length?[want[0]]:[]);
  }
 });
 test('stale or disabled mode buttons cannot change a new selection or closed board',()=>{
@@ -344,4 +344,37 @@ test('custom card color rejects changed selection and invalid values before star
   if(stale==='selection')f.view.selected=new Set(['other']);color.value=stale==='invalid'?'bad':'#abcdef';color.onchange!();
   assert.deepEqual(f.owner.board,before);assert.equal(f.calls.persist,0);
  }
+});
+
+for(const kind of ['image','pdf','audio','video','board'] as const)test(`${kind}: no border category or border controls even with legacy overrides`,()=>{
+ const f=fixture([text(kind,{kind,customBorder:true,borderWidth:4,borderStyle:'dotted'})]);
+ assert.ok(!f.modes().some(m=>m.dataset.mode==='border'));
+ assert.ok(!f.view.selectionTools.querySelectorAll('select,input').some((e:Element)=>e.ariaLabel?.startsWith('边框')));
+ assert.equal(f.view.selectionTools.classes.has('is-visible'),false);
+ assert.equal(f.calls.persist,0);
+});
+for(const [label,value,key] of [['边框线型','dashed','borderStyle'],['边框粗细','3','borderWidth'],['边框颜色','blue','color']] as const)test(`mixed selection ${label} changes only text and notes`,()=>{
+ const nodes=[text('text'),text('card',{kind:'card',file:'note.md'}),...(['image','pdf','audio','video','board'] as const).map(kind=>text(kind,{kind,borderWidth:4,borderStyle:'dotted'}))];
+ const f=fixture(nodes),before=model.clone(f.owner.board);f.choose(label,value);
+ assert.equal(f.owner.board.nodes[0][key],label==='边框粗细'?3:value);assert.equal(f.owner.board.nodes[1][key],label==='边框粗细'?3:value);
+ assert.deepEqual(f.owner.board.nodes.slice(2),before.nodes.slice(2));f.owner.undo();assert.deepEqual(f.owner.board,before);
+});
+test('stale border callbacks recheck node kind instead of applying borders to converted media',()=>{
+ const f=fixture([text()]),control=f.control('边框线型');Object.assign(f.owner.board.nodes[0],{kind:'image',file:'image.png'});
+ const before=model.clone(f.owner.board.nodes[0]);control.value='dashed';control.onchange!();assert.deepEqual(f.owner.board.nodes[0],before);
+});
+
+for(const [label,value,key] of [['边框线型','dashed','borderStyle'],['边框粗细','3','borderWidth'],['边框颜色','blue','color']] as const)test(`group ${label} changes frame only and undoes`,()=>{
+ const f=fixture([section(),text('inside')],['group']),before=model.clone(f.owner.board);
+ assert.deepEqual(f.modes().map(m=>m.dataset.mode),['fill','border']);f.choose(label,value);
+ assert.equal(f.owner.board.nodes[0][key],label==='边框粗细'?3:value);assert.deepEqual(f.owner.board.nodes[1],before.nodes[1]);
+ const el=new Element();f.view.positionNode({...f.owner.board.nodes[0],sectionFolded:true},el);
+ assert.equal((el.style as any).borderWidth,label==='边框粗细'?'3px':'');
+ f.owner.undo();assert.deepEqual(f.owner.board,before);
+});
+
+test('table cards have no outer-frame controls and mixed border changes skip their grid',()=>{
+ const table=text('table',{text:'| A | B |\n| --- | --- |\n| 1 | 2 |'}),f=fixture([table]);
+ assert.ok(!f.modes().some(m=>m.dataset.mode==='border'));const el=new Element();f.view.positionNode(table,el);assert.equal((el.style as any).borderWidth,'0px');assert.equal(el.classes.has('is-table-card'),true);
+ const mixed=fixture([table,text('regular')]),before=model.clone(table);mixed.choose('边框粗细','3');assert.deepEqual(mixed.owner.board.nodes[0],before);assert.equal(mixed.owner.board.nodes[1].borderWidth,3);
 });

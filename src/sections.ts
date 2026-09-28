@@ -8,7 +8,9 @@ export function sectionBounds(nodes:readonly Card[]):SectionRect|undefined{
  return left===Infinity?undefined:{x:left-30,y:top-60,width:right-left+60,height:bottom-top+90};
 }
 
-export const SECTION_FOLDED_HEIGHT=72;
+export const SECTION_FOLDED_HEIGHT=40;
+export const COMPACT_FOLDED_WIDTH=180;
+export function isCompactFold(node:Card):boolean{return !!(node.collapsed||node.branchFolded||node.sectionFolded);}
 /** Logical bounds retain membership while a folded frame displays only its heading.
  * Strict nesting keeps coincident frames independent and cannot create a cycle. */
 export function sectionContains(section:Card,node:Card):boolean{
@@ -56,7 +58,7 @@ export function sectionFoldState(board:Board){
  return{folded,hidden};
 }
 /** Rendering projection only. Never persist it or derive group membership from it. */
-export function sectionDisplayNode(node:Card):Card{return node.kind==='section'&&node.sectionFolded?{...node,width:Math.min(node.width,320),height:SECTION_FOLDED_HEIGHT}:node;}
+export function sectionDisplayNode(node:Card):Card{return isCompactFold(node)?{...node,width:Math.min(node.width,COMPACT_FOLDED_WIDTH),height:SECTION_FOLDED_HEIGHT}:node;}
 /** Revealing a nested member opens every enclosing folded frame, not sibling folds. */
 export function unfoldSectionAncestors(board:Board,id:string):void{
  const node=board.nodes.find(item=>item.id===id);if(!node)return;
