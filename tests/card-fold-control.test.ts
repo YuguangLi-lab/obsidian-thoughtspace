@@ -1,5 +1,25 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {transformSync} from 'esbuild';
-const line=readFileSync('src/main.ts','utf8').split('\n').find(l=>l.includes('const folding = button(actions'))!;
-function control(locked:boolean,blocked:boolean,collapsed=false){const attrs:Record<string,string>={};const b={disabled:false,setAttribute(k:string,v:string){attrs[k]=v}};new Function('button','actions','n','foldCards',transformSync(line,{loader:'ts'}).code).call({session:{blocked}},()=>b,{}, {locked,collapsed},()=>{});return{...b,attrs}}
-test('locked cards cannot advertise folding as an enabled action',()=>{assert.equal(control(true,false).disabled,true);assert.equal(control(false,true).disabled,true);assert.equal(control(false,false).disabled,false)});
-test('fold action exposes its expanded state to assistive technology',()=>{assert.equal(control(false,false).attrs['aria-expanded'],'true');assert.equal(control(false,false,true).attrs['aria-expanded'],'false')});
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mountCardQuickActions} from '../src/card-quick-actions';
+
+class Control extends EventTarget {
+  attrs:Record<string,string>={};disabled=false;
+  setAttribute(name:string,value:string){this.attrs[name]=value;}
+}
+function control(locked:boolean,blocked:boolean,collapsed=false){
+  const actions=new Control(),folding=new Control();
+  mountCardQuickActions(actions as unknown as HTMLElement,{
+    kind:'card',locked,readOnly:blocked,collapsed,autoFit:false,fold:()=>{},
+    add:()=>folding as unknown as HTMLButtonElement
+  });
+  return folding;
+}
+test('locked cards cannot advertise folding as an enabled action',()=>{
+  assert.equal(control(true,false).disabled,true);
+  assert.equal(control(false,true).disabled,true);
+  assert.equal(control(false,false).disabled,false);
+});
+test('fold action exposes its expanded state to assistive technology',()=>{
+  assert.equal(control(false,false).attrs['aria-expanded'],'true');
+  assert.equal(control(false,false,true).attrs['aria-expanded'],'false');
+});

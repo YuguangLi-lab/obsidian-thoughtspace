@@ -2,7 +2,7 @@
 
 [English](USER-GUIDE.md) · [中文完整教程](USER-GUIDE.zh-CN.md) · [Project home](../README.md)
 
-This guide describes **ThoughtSpace Whiteboard 1.3.11**, for **Obsidian desktop 1.13.7 or newer**. The current interface is mainly Chinese. English explanations below include the actual Chinese labels so you can find each action. Button labels may appear as icons in narrow panes; hover over an icon to read its tooltip.
+This guide describes **ThoughtSpace Whiteboard 1.3.18**, for **Obsidian desktop 1.13.7 or newer**. The current interface is mainly Chinese. English explanations below include the actual Chinese labels so you can find each action. Button labels may appear as icons in narrow panes; hover over an icon to read its tooltip.
 
 ## Contents
 
@@ -155,6 +155,10 @@ F, Shift + F, F2, and free-board Enter can be disabled with **启用白板快捷
 
 ## 6. Write with cards, text, math, and tables
 
+Select or hover over a card to show its compact action strip: edit, read in the right sidebar, inspect references, toggle content fitting, and collapse. Text cards provide edit, automatic height, and collapse. The fitting button stays highlighted while enabled; switching it off preserves the current size. Buttons remain 28 screen pixels wide at 50%–200% canvas zoom. Obsidian body fonts and the card’s transparent fill are preserved.
+
+**编辑 / 阅读** (Edit / Read) are the primary note-card actions. Folded note and text cards have an expand arrow inside the title strip. For long notes, **继续阅读** scrolls down by part of the visible page and disappears at the end; an empty note offers **写下第一行想法** to open the native inline editor. The top formatting bar separates object/mode selection from its parameters and wraps fields in narrow windows.
+
 ### Choose the right kind of text
 
 Use **新建卡片** for an idea that should become a real note, searchable and reusable throughout Obsidian. New card files use the configured card directory, initially `ThoughtSpace/卡片/`. Use **文本** (Text), or double-click empty space, for labels, questions, and local working notes.
@@ -247,11 +251,21 @@ Open **工作区 → 打开阅读桌** (Workspace → Open reading desk). Search
 
 Click **连线**, select a source and destination, or drag from an object's connection port to another object. Double-click a connection to enter **关系说明** (Relationship description). Selecting a connection exposes its style controls: curved, straight, or elbow paths, direction, and appearance. Use a short label such as `supports`, `contradicts`, or `next step` to explain why two items are connected. Esc cancels an unfinished connection.
 
-Folded content, groups, and branches use a compact title strip up to **180 × 40**. Click its arrow or double-click to expand, preserving the original dimensions. Images also have fold controls above the object and in the context menu. Text and notes retain borders; images, PDFs, audio/video, child boards, and groups have no decorative outer frame.
+Folded content, groups, and branches use a compact title strip up to **180 × 40**. Click its arrow or double-click to expand, preserving the original dimensions. Images also have fold controls above the object and in the context menu. Text, notes, and groups retain border controls; images, PDFs, audio/video, and child boards have no decorative outer frame.
 
 Ordinary relationships and parent/child branches serve different purposes. Use a parent's branch control to **折叠子节点** (Collapse children), **展开下一层** (Expand next level), or **展开所有子节点** (Expand all children). For eligible nodes with outgoing relationships, the node context menu offers **设为子节点并折叠** (Set as children and collapse). Folding a card preview, folding a group, and collapsing a branch are separate actions.
 
 To make an ordinary connection a foldable branch, right-click the line and choose **允许折叠（设为父子分支）**. Cycles and multiple parents are rejected. Ctrl/Cmd + Shift + Enter on the canvas toggles branch folding or the next expansion level.
+
+### Reading expanded content
+
+Expanding content or increasing its measured size moves colliding neighbors down in their existing columns and enlarges their group when needed. The collision check uses visible objects, so empty gaps between mind-map nodes do not push unrelated cards away. Links, transparent backgrounds, and other cards' fold states are retained.
+
+Long note previews scroll inside the card after reaching its height limit. Scrolling at the top or bottom stays inside the preview; Ctrl/Cmd + wheel remains available for canvas zoom. A wide code block can scroll horizontally while the note scrolls vertically.
+
+Expansion and its automatic movement share one undo step. Collapsing reclaims automatically created space and restores neighboring positions and group dimensions. If other cards are still expanded, they keep the room they need. Delayed measurements and auto-sized text edits participate in recovery; reopening retains the latest content dimensions. Recovery data is saved with the board and survives reopening.
+
+Manually moving, resizing, adding or removing objects, or changing relationships establishes your new layout and stops restoration of the old positions. Text-only and color changes preserve valid recovery data. Gaps already created by older versions have no recorded original positions and cannot be safely inferred; undo the old expansion or arrange the board before starting a new expand/collapse cycle. Locked or overlapping groups that cannot retain their membership may reject expansion with an explanatory message. Existing layouts are not automatically rearranged on load.
 
 <a id="groups"></a>
 

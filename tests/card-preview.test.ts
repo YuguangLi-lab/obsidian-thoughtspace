@@ -18,7 +18,7 @@ function fixture(queue?:RenderQueue){
  }
  const doc=new TextDocument(),createElement=doc.createElement.bind(doc);let preview:TextElement;
  doc.createElement=tag=>{const element=createElement(tag);Object.defineProperty(element,'isConnected',{get:()=>element===preview||!!element.parentElement?.isConnected});return element;};
- const mathJobs:{resolve:()=>void;reject:(reason:unknown)=>void}[]=[];preview=doc.createElement('div');const scope=new Scope(),timers=new Map<number,()=>void>();let timerId=0,readCount=0,ready=0,errors=0;
+ const mathJobs:{resolve:()=>void;reject:(reason:unknown)=>void}[]=[];preview=doc.createElement('div');const scope=new Scope(),timers=new Map<number,()=>void>(),readyStates:boolean[]=[];let timerId=0,readCount=0,ready=0,errors=0;
  doc.defaultView.setTimeout=(fn,ms)=>{assert.equal(ms,5000);timers.set(++timerId,fn);return timerId;};doc.defaultView.clearTimeout=id=>{timers.delete(id);};
  preview.className='ts-card-preview markdown-rendered ts-preview-pending';
  Object.assign(preview.classList,{remove:(name:string)=>{preview.className=preview.className.split(/\s+/).filter(value=>value!==name).join(' ');}});
@@ -29,9 +29,35 @@ function fixture(queue?:RenderQueue){
  const scopeModule={exports:{}};new Function('require','module','exports',transformSync(readFileSync('src/preview-render-scope.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>imports[name],scopeModule,scopeModule.exports);imports['./preview-render-scope']=scopeModule.exports;
  const module={exports:{} as any};new Function('require','module','exports',transformSync(readFileSync('src/card-preview.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>imports[name],module,module.exports);
  const jobs:{alive:()=>boolean;run:()=>Promise<void>}[]=[];
- const render=()=>module.exports.renderCardPreview({app,file:{path:'Notes/current.md'},preview,scope,enqueue:(alive:()=>boolean,run:()=>Promise<void>)=>queue?queue.add(alive,run):jobs.push({alive,run}),sources:(value:typeof sources[number])=>sources.push(value),ready:()=>{assert.equal(preview.classList.contains('ts-preview-pending'),false,'loading decoration must be gone before auto-fit measures');ready++;},error:()=>{errors++;preview.textContent='retry';}});
- render();return{doc,preview,scope,Scope,timers,mathJobs,reads,renders,sources,jobs,render,readCount:()=>readCount,ready:()=>ready,errors:()=>errors};
+ const render=()=>module.exports.renderCardPreview({app,file:{path:'Notes/current.md'},preview,scope,enqueue:(alive:()=>boolean,run:()=>Promise<void>)=>queue?queue.add(alive,run):jobs.push({alive,run}),sources:(value:typeof sources[number])=>sources.push(value),ready:(bodyEmpty:boolean)=>{assert.equal(preview.classList.contains('ts-preview-pending'),false,'loading decoration must be gone before auto-fit measures');readyStates.push(bodyEmpty);ready++;},error:()=>{errors++;preview.textContent='retry';}});
+ render();return{doc,preview,scope,Scope,timers,mathJobs,reads,renders,sources,jobs,render,readyStates,readCount:()=>readCount,ready:()=>ready,errors:()=>errors};
 }
+
+for(const {label,source,rendered,empty} of [
+ {label:'empty note',source:'',rendered:'',empty:true},
+ {label:'whitespace-only note',source:' \n\t ',rendered:' \n\t ',empty:true},
+ {label:'frontmatter-only note',source:'---\ntags: [research]\n---\n',rendered:'',empty:true},
+ {label:'frontmatter followed by blank lines',source:'---\ntitle: Draft\n---\n \n',rendered:' \n',empty:true},
+ {label:'thematic break without text',source:'***',rendered:'***',empty:false},
+ {label:'dash thematic break',source:'---',rendered:'---',empty:false}
+])test(`ready reports source emptiness for ${label}`,async()=>{
+ const f=fixture(),pending=f.jobs[0].run();f.reads[0].resolve(source);await tick();
+ const job=f.renders[0];assert.equal(job.text,rendered);
+ if(!empty)job.element.appendChild(f.doc.createElement('hr'));
+ assert.equal(job.element.textContent,'','the DOM is intentionally textless');
+ job.resolve();await pending;
+ assert.deepEqual(f.readyStates,[empty]);assert.equal(f.errors(),0);f.scope.unload();
+});
+
+test('a nonempty asynchronous processor source stays nonempty while its rendered container is initially blank',async()=>{
+ const f=fixture(),pending=f.jobs[0].run(),source='```dataview\nTABLE file.name\n```';
+ f.reads[0].resolve(source);await tick();const job=f.renders[0];assert.equal(job.text,source);
+ const container=f.doc.createElement('div');container.className='block-language-dataview';job.element.appendChild(container);
+ assert.equal(job.element.textContent,'');job.resolve();await pending;
+ assert.deepEqual(f.readyStates,[false]);assert.equal(f.errors(),0);
+ container.appendChild(f.doc.createTextNode('Loaded results'));await tick();
+ assert.equal(f.preview.textContent,'Loaded results');assert.deepEqual(f.readyStates,[false]);f.scope.unload();
+});
 
 test('card preview keeps source context, read-only inputs, tag cleanup and renderer scope through completion',async()=>{
  const f=fixture(),pending=f.jobs[0].run();

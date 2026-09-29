@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import * as model from '../src/model';
 import * as mindmap from '../src/mindmap';
-import {reflowExpandedContent} from '../src/expansion-layout';
+import {reflowReadingContent} from '../src/expansion-reading-state';
 import {textFitsContent} from '../src/text-sizing';
 import {nodeFitChanges} from '../src/node-fit-batch';
 
@@ -15,7 +15,7 @@ function take(start:string,end:string){const a=source.indexOf(start),b=source.in
 const methods=take('  async setTextAutoHeight(','  fitCards(')
  +take('  private requireOwner(','  private canCreateBlankText(')
  +take('  private flushNodeFits(','  saveView(');
-const deps={...model,...mindmap,reflowExpandedContent,textFitsContent,nodeFitChanges,Notice:class{},EXT:'thoughtspace',report:()=>{},
+const deps={...model,...mindmap,reflowReadingContent,textFitsContent,nodeFitChanges,Notice:class{},EXT:'thoughtspace',report:()=>{},
  fitTextNode:(node:model.Card,_host:unknown,body:{measurements:number;height:number})=>{body.measurements++;node.height=body.height;}};
 function compile(code:string){return new Function(...Object.keys(deps),transformSync(code,{loader:'ts'}).code)(...Object.values(deps));}
 const View=compile(`class View{${methods}};return View`);

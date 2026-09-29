@@ -4,7 +4,8 @@ import {sectionContains,sectionDisplayNode} from './sections';
 
 const gap=24;
 interface Rect {x:number;y:number;width:number;height:number}
-interface Unit {root:Card;members:Card[];original:Rect;fixed:boolean;active:boolean;unsafe:boolean;tree?:boolean;probes?:Card[]}
+interface Unit {root:Card;members:Card[];visible:Card[];original:Rect;fixed:boolean;active:boolean;unsafe:boolean;tree?:boolean;probes?:Card[]}
+export interface ExpansionReflowOptions {forcedSources?:ReadonlySet<string>;ownershipReference?:Board}
 const intersects=(a:Rect,b:Rect)=>a.x<b.x+b.width&&a.x+a.width>b.x&&a.y<b.y+b.height&&a.y+a.height>b.y;
 const unfolds=(node:Card,old:Card)=>!!(old.collapsed&&!node.collapsed||old.branchFolded&&!node.branchFolded||old.sectionFolded&&!node.sectionFolded);
 function bounds(nodes:readonly Card[]):Rect {
@@ -14,7 +15,8 @@ function bounds(nodes:readonly Card[]):Rect {
 }
 
 /** Repair only expansion-related collisions; transactions retain ownership of undo. */
-export function reflowExpandedContent(board:Board,before:Board):void {
+export function reflowExpandedContent(board:Board,before:Board,options:ExpansionReflowOptions={}):void {
+ const replay=!!options.ownershipReference;
  let oldNodes:Map<string,Card>|undefined;
  const oldAt=(node:Card,index:number)=>{const old=before.nodes[index];return old?.id===node.id?old:!old&&!oldNodes?undefined:(oldNodes??=new Map(before.nodes.map(n=>[n.id,n]))).get(node.id);};
  let managedGrowth:Set<string>|undefined;
@@ -29,14 +31,19 @@ export function reflowExpandedContent(board:Board,before:Board):void {
  // Ordinary changes keep node order, so no index, group scan or visibility pass
  // is needed for typing without growth, styling, shrinking, adding or dragging.
  const possible=board.nodes.some((n,i)=>{const old=oldAt(n,i);return!!old&&(grows(n,old)||unfolds(n,old));});
- if(!possible)return;
+ if(!possible&&!options.forcedSources?.size&&!replay)return;
  oldNodes??=new Map(before.nodes.map(n=>[n.id,n]));
- const oldHidden=branchState(before).hidden,hidden=branchState(board).hidden,sources=new Set<string>(),revealed=new Set<string>();
- for(const n of board.nodes){const old=oldNodes.get(n.id);if(!old||hidden.has(n.id))continue;const a=sectionDisplayNode(old),b=sectionDisplayNode(n),opening=oldHidden.has(n.id)||unfolds(n,old);if(opening)revealed.add(n.id);if(oldHidden.has(n.id)||(opening||grows(n,old))&&(b.width>a.width||b.height>a.height))sources.add(n.id);}
- if(!sources.size)return;
+ const ownershipNodes=options.ownershipReference&&new Map(options.ownershipReference.nodes.map(n=>[n.id,n]));
+ // Restored frames may temporarily be smaller than their still-expanded cards.
+ // Keep baseline membership for visibility while honoring current fold flags
+ // and branch edges; the actual geometry is fitted and validated below.
+ const visibilityBoard=ownershipNodes?{...board,nodes:board.nodes.map(n=>{const ref=ownershipNodes.get(n.id);return ref?{...n,x:ref.x,y:ref.y,width:ref.width,height:ref.height}:n;})}:board;
+ const oldHidden=branchState(before).hidden,hidden=branchState(visibilityBoard).hidden,sources=new Set<string>(),revealed=new Set<string>();
+ for(const n of board.nodes){if(hidden.has(n.id))continue;if(options.forcedSources?.has(n.id))sources.add(n.id);const old=oldNodes.get(n.id);if(!old)continue;const a=sectionDisplayNode(old),b=sectionDisplayNode(n),opening=oldHidden.has(n.id)||unfolds(n,old);if(opening)revealed.add(n.id);if(oldHidden.has(n.id)||(opening||grows(n,old))&&(b.width>a.width||b.height>a.height))sources.add(n.id);}
+ if(!sources.size&&!replay)return;
 
  const nodes=new Map(board.nodes.map(n=>[n.id,n])),groups=board.nodes.filter(n=>n.kind==='section');
- const frozen=new Map(board.nodes.map(n=>[n.id,oldNodes!.get(n.id)||{...n}]));
+ const frozen=new Map(board.nodes.map(n=>[n.id,ownershipNodes?.get(n.id)||oldNodes!.get(n.id)||{...n}]));
  const owner=new Map<string,string>(),members=new Map(groups.map(g=>[g.id,new Set<string>()])),ambiguous=new Set<string>();
  const originalGroup=(g:Card)=>frozen.get(g.id)!;
  for(const n of board.nodes){
@@ -68,21 +75,33 @@ export function reflowExpandedContent(board:Board,before:Board):void {
    for(const n of tree)automatic.set(n.id,tree);
   }
  }
- const rect=(unit:Unit)=>bounds(unit.members.filter(n=>!hidden.has(n.id)));
+ const rect=(unit:Unit)=>bounds(unit.visible);
+ const collides=(unit:Unit,other:Unit)=>{
+  if(!intersects(rect(unit),rect(other)))return false;
+  // A tree's bounding box includes empty space between its members. Only the
+  // visible member rectangles can collide; visible frames remain full obstacles.
+  // Inherited group activity stays restricted to its changed content probes.
+  for(const node of unit.probes||unit.visible){
+   if(hidden.has(node.id))continue;
+   const area=sectionDisplayNode(node);
+   for(const target of other.visible)if(intersects(area,sectionDisplayNode(target)))return true;
+  }
+  return false;
+ };
  const ensure=(unit:Unit)=>{
   if(unit.unsafe||unit.members.some(n=>ambiguous.has(n.id)))throw Error('展开范围包含共享或重叠分组，无法自动让位；请先整理重叠分组');
-  if(unit.tree&&unit.active&&unit.fixed){const visible=unit.members.filter(n=>n.locked&&!hidden.has(n.id));for(let i=0;i<visible.length;i++)for(let j=i+1;j<visible.length;j++)if((revealed.has(visible[i].id)||revealed.has(visible[j].id))&&intersects(sectionDisplayNode(visible[i]),sectionDisplayNode(visible[j])))throw Error('导图内部展开后锁定对象重叠，请先调整或解锁导图对象');}
+  if(unit.tree&&unit.active&&unit.fixed){const visible=unit.visible.filter(n=>n.locked);for(let i=0;i<visible.length;i++)for(let j=i+1;j<visible.length;j++)if((revealed.has(visible[i].id)||revealed.has(visible[j].id))&&intersects(sectionDisplayNode(visible[i]),sectionDisplayNode(visible[j])))throw Error('导图内部展开后锁定对象重叠，请先调整或解锁导图对象');}
  };
  const inheritedActivity=new Map<string,Card[]>();
  const makeUnit=(root:Card,items:Card[],tree=false):Unit=>{
-  const oldVisible=items.map(n=>oldNodes!.get(n.id)).filter((n):n is Card=>!!n&&!oldHidden.has(n.id));
+  const visible=items.filter(n=>!hidden.has(n.id)),oldVisible=items.map(n=>oldNodes!.get(n.id)).filter((n):n is Card=>!!n&&!oldHidden.has(n.id));
   const scope=owner.get(root.id),allowed=members.get(root.id);
-  return{root,members:items,tree,original:bounds(oldVisible.length?oldVisible:items.filter(n=>!hidden.has(n.id))),fixed:items.some(n=>n.locked),active:root.kind==='section'?sources.has(root.id)||inheritedActivity.has(root.id):items.some(n=>sources.has(n.id)),probes:root.kind==='section'&&!sources.has(root.id)?inheritedActivity.get(root.id):undefined,unsafe:items.some(n=>n.id!==root.id&&(root.kind==='section'?!allowed?.has(n.id)&&(!hidden.has(n.id)||owner.get(n.id)!==scope):owner.get(n.id)!==scope))};
+  return{root,members:items,visible,tree,original:bounds(oldVisible.length?oldVisible:visible),fixed:items.some(n=>n.locked),active:root.kind==='section'?sources.has(root.id)||inheritedActivity.has(root.id):items.some(n=>sources.has(n.id)),probes:root.kind==='section'&&!sources.has(root.id)?inheritedActivity.get(root.id):undefined,unsafe:items.some(n=>n.id!==root.id&&(root.kind==='section'?!allowed?.has(n.id)&&(!hidden.has(n.id)||owner.get(n.id)!==scope):owner.get(n.id)!==scope))};
  };
  const scopes:[string|undefined,Card[]][]=[...groups].sort((a,b)=>depth(b.id)-depth(a.id)||a.id.localeCompare(b.id)).map(group=>[group.id,board.nodes.filter(n=>owner.get(n.id)===group.id)]);
  scopes.push([undefined,board.nodes.filter(n=>!owner.has(n.id))]);
  for(const [scope,candidates]of scopes){
-  if(scope!==undefined&&hidden.has(scope))continue;
+  if(scope!==undefined&&hidden.has(scope)&&!replay)continue;
   const units:Unit[]=[],seen=new Set<string>();
   for(const node of candidates){
    if(hidden.has(node.id)||seen.has(node.id))continue;
@@ -90,7 +109,7 @@ export function reflowExpandedContent(board:Board,before:Board):void {
    if(tree&&tree.some(n=>owner.get(n.id)!==owner.get(root.id))){const unit=makeUnit(node,[node],true);unit.fixed=true;unit.unsafe=true;units.push(unit);seen.add(node.id);continue;}
    const items=tree||material(root);for(const n of items)seen.add(n.id);units.push(makeUnit(root,items,!!tree));
   }
-  const active=units.filter(unit=>unit.active);if(!active.length)continue;
+  const active=units.filter(unit=>unit.active);if(!active.length&&!replay)continue;
   for(const unit of active)ensure(unit);
   const shared=new Map<string,Unit>();
   for(const unit of units)for(const n of unit.members){const other=shared.get(n.id);if(other&&other!==unit){unit.unsafe=true;other.unsafe=true;}else shared.set(n.id,unit);}
@@ -100,7 +119,7 @@ export function reflowExpandedContent(board:Board,before:Board):void {
   for(let index=0;index<pending.length;index++){
    const unit=pending[index];queued.delete(unit);ensure(unit);
    for(const other of units){
-    if(other===unit||!intersects(rect(unit),rect(other))||unit.probes&&!unit.probes.some(n=>!hidden.has(n.id)&&intersects(sectionDisplayNode(n),rect(other))))continue;
+    if(other===unit||!collides(unit,other))continue;
     let moving:Unit,stationary:Unit;
     if(unit.fixed&&other.fixed)throw Error('展开后的内容与锁定对象重叠，无法自动让位；请先调整或解锁对象');
     if(other.fixed||!unit.fixed&&order(unit,other)>0){moving=unit;stationary=other;}else{moving=other;stationary=unit;}
@@ -118,7 +137,9 @@ export function reflowExpandedContent(board:Board,before:Board):void {
   if(scope!==undefined){
    // Even a roomy frame must pass its changed content footprint upward. Keeping
    // that footprint avoids disturbing old, unrelated overlaps at another edge.
-   inheritedActivity.set(scope,[...new Set(units.filter(unit=>unit.active).flatMap(unit=>unit.probes||unit.members.filter(n=>!hidden.has(n.id))))]);
+   if(active.length)inheritedActivity.set(scope,[...new Set(units.filter(unit=>unit.active).flatMap(unit=>unit.probes||unit.visible))]);
+   // A replay must also fit hidden descendants from the inside out, without
+   // treating them as visible collision sources or repairing old overlaps.
    const group=nodes.get(scope)!,old=frozen.get(scope)!,inside=[...(members.get(scope)||[])].map(id=>nodes.get(id)!).filter(Boolean);
    if(inside.some(n=>n.x<group.x||n.y<group.y))throw Error('展开后的内容超出分组上方或左侧，无法在保留布局时自动让位');
    if(inside.length){

@@ -22,6 +22,7 @@ class El{
  createDiv(options:any){return this.createEl('div',options);}
  createSpan(options:any){return this.createDiv(options);}
  addClass(cls:string){this.classes.add(cls);}
+ toggleClass(cls:string,on:boolean){if(on)this.classes.add(cls);else this.classes.delete(cls);}
  setAttribute(name:string,value:string){this.attrs[name]=value;}
  querySelectorAll(selector:string):El[]{return this.children.flatMap(child=>[...(child.cls.split(' ').includes(selector.slice(1))?[child]:[]),...child.querySelectorAll(selector)]);}
 }

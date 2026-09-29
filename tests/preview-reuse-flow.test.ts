@@ -5,7 +5,7 @@ import {transformSync} from 'esbuild';
 import * as model from '../src/model';
 import * as renderKeys from '../src/node-render-key';
 import {branchState,reflowAutomaticMindmaps,validateBranches} from '../src/mindmap';
-import {reflowExpandedContent} from '../src/expansion-layout';
+import {reflowReadingContent} from '../src/expansion-reading-state';
 import {branchRenderSnapshot} from '../src/branch-render';
 import {childConnectionCandidates} from '../src/branch-disclosure';
 import {sectionDisplayNode} from '../src/sections';
@@ -14,6 +14,9 @@ import {visibleGridSize} from '../src/canvas-controls';
 import {textFontFamily} from '../src/text-tools';
 import {nodeHasBorder,textFitsContent,textBlockPadding} from '../src/text-sizing';
 import {cardDisplayTitle} from '../src/card-title-model';
+import {mountCardQuickActions} from '../src/card-quick-actions';
+import {mountCardReadingAffordance} from '../src/card-reading-affordance';
+import {cardControlLayout} from '../src/card-control-layout';
 import {mediaDimensions} from '../src/media-geometry';
 import {foldCards} from '../src/board-tools';
 import {releaseEditorResource} from '../src/editor-cleanup';
@@ -32,7 +35,7 @@ const methods=take('  private renderBoard(', '  private pdfTotals=')
  +take('  private positionNode(', '  private applyInlineSize(')
  +take('  async setTextAutoHeight(', '  fitCards(')
  +take('  private requireOwner(', '  private canCreateBlankText(');
-const sessionDeps={...model,reflowAutomaticMindmaps,reflowExpandedContent,validateBranches,Notice:class{}};
+const sessionDeps={...model,reflowAutomaticMindmaps,reflowReadingContent,validateBranches,Notice:class{}};
 const Session=new Function(...Object.keys(sessionDeps),transformSync(`class Session{${take('  change(fn:', '  persist() {')}};return Session`,{loader:'ts'}).code)(...Object.values(sessionDeps));
 const branchModule={exports:{} as typeof import('../src/branch-controls')};
 new Function('require','module','exports',transformSync(readFileSync('src/branch-controls.ts','utf8'),{loader:'ts',format:'cjs'}).code)(
@@ -103,16 +106,16 @@ const node=(kind:model.Card['kind'],patch:Partial<model.Card>={}):model.Card=>({
 function fixture(kind:model.Card['kind']='card',patch:Partial<model.Card>={}){
  const n=node(kind,patch),board={...model.emptyBoard(),version:3 as const,nodes:[n]},files=new Map<string,File>(),metadata={frontmatter:{} as Record<string,unknown>,tags:[] as string[]};
  if(n.file)files.set(n.file,new File(n.file));
- const calls={metadata:0,tags:0,childCandidates:0,read:0,markdown:0,pdf:0,textFit:0,cardFit:0,mediaFits:[] as {node:model.Card;size:{width:number;height:number}}[]};
+ const calls={metadata:0,tags:0,childCandidates:0,read:0,markdown:0,pdf:0,textFit:0,cardFit:0,previewed:[] as File[],mediaFits:[] as {node:model.Card;size:{width:number;height:number}}[]};
  const world=new Dom();world.root=true;const svg=world.createEl('svg'),previewQueue=new Queue(),pdfPreviewQueue=new Queue();
  const mediaMounts:{options:MediaCardOptions;body:Dom;paused:number;disposed:number}[]=[];
  const session={board,blocked:false,file:new File('board.thoughtspace')};
- const deps={nodeHasBorder,textBlockPadding,...model,...keys,renderBranchControls:branchModule.exports.renderBranchControls,branchState,branchRenderSnapshot,childConnectionCandidates:(board:model.Board,roots?:ReadonlySet<string>)=>{calls.childCandidates++;return childConnectionCandidates(board,roots);},sectionDisplayNode,visibleNodes,viewportRect,markdownPreview,visibleGridSize,textFontFamily,textFitsContent,cardDisplayTitle,mediaDimensions,
+ const deps={nodeHasBorder,textBlockPadding,...model,...keys,mountCardQuickActions,mountCardReadingAffordance,cardControlLayout,renderBranchControls:branchModule.exports.renderBranchControls,branchState,branchRenderSnapshot,childConnectionCandidates:(board:model.Board,roots?:ReadonlySet<string>)=>{calls.childCandidates++;return childConnectionCandidates(board,roots);},sectionDisplayNode,visibleNodes,viewportRect,markdownPreview,visibleGridSize,textFontFamily,textFitsContent,cardDisplayTitle,mediaDimensions,
   TFile:File,Component:Scope,Element:Dom,getAllTags:(cache:{tags?:string[]})=>{calls.tags++;return cache.tags||null;},setIcon:()=>{},
   button:(host:Dom,label:string,_icon:string,fn:()=>void,cls='')=>{const el=host.createEl('button',{cls,attr:{'aria-label':label}});el.createSpan();el.createSpan({text:label});el.onclick=fn;return el;},
   bindCardTitle:()=>()=>{},readProperties:(fm:Record<string,unknown>)=>({status:fm.thoughtspace_status}),statuses:{done:'完成'},isOverdue:()=>false,localDay:()=>'',
   textExcerptPresentation:(body:string)=>({body,sources:[]}),excerptPresentation:(body:string)=>({body,sources:[]}),renderTextPreview:(body:Dom,text:string)=>{body.appendText(text);body.dataset.mathStatus='none';},fitTextNode:(node:model.Card)=>{node.height=420;},remoteImageUrl:()=>undefined,
-  pdfSubpath:(page:number)=>`#page=${page}`,loadPdfJs:()=>{},
+  pdfSubpath:(page:number)=>`#page=${page}`,loadPdfJs:()=>{},NotePreview:class{constructor(_app:unknown,readonly file:File){}open(){calls.previewed.push(this.file);}},
   mountMediaCard:(host:Dom,options:MediaCardOptions)=>{const mounted={options,body:host.createDiv('ts-av-player'),paused:0,disposed:0};mediaMounts.push(mounted);return{getState(){return{time:0,rate:1,volume:1}},play(){options.onPlay?.()},pause(){mounted.paused++;},dispose(){mounted.disposed++;mounted.body.remove();},seek(){}};},
   MarkdownRenderer:{async render(_app:unknown,body:string,host:Dom){calls.markdown++;host.createDiv({cls:'rendered-content',text:body});}},
   renderPdfThumbnail:async(options:{host:Dom;onSize:(size:{width:number;height:number})=>void;alive:()=>boolean})=>{calls.pdf++;if(!options.alive())return;options.host.createEl('canvas');options.onSize({width:640,height:320});return{total:12};}
@@ -145,6 +148,124 @@ test('folded Markdown reading opens the native sidebar without changing layout o
 test('folded non-Markdown and missing sources keep expand controls without a dead reading shortcut',()=>{
  for(const kind of ['text','image','pdf'] as const){const f=fixture(kind,{collapsed:true,height:72,expandedHeight:240});assert.equal(f.element().querySelector('.ts-compact-read'),null);assert.ok(f.element().querySelector('.ts-compact-unfold'));}
  const f=fixture('card',{collapsed:true,height:72,expandedHeight:650});f.files.clear();f.render();assert.equal(f.element().querySelector('.ts-compact-read'),null);assert.ok(f.element().querySelector('.ts-compact-unfold'));
+});
+
+test('expanded note quick reading uses the native preview sidebar and keeps reading-and-linking explicit',async()=>{
+ const f=fixture('card',{transparent:true}),before=model.clone(f.board),opened:unknown[][]=[];
+ f.view.plugin.openNoteInSidebar=async(...args:unknown[])=>{opened.push(args);};
+ const read=f.element().querySelector('.ts-card-quick-read'),preview=f.element().querySelector('.ts-card-quick-preview');
+ assert.ok(read);assert.ok(preview);await read.onclick?.();
+ assert.deepEqual(opened,[[f.files.get(f.board.nodes[0].file!),undefined,false,true]]);
+ assert.deepEqual(f.calls.previewed,[],'ordinary reading must not open the modal');
+ await preview.onclick?.();assert.deepEqual(f.calls.previewed,[f.files.get(f.board.nodes[0].file!)]);
+ assert.deepEqual(f.board,before);
+});
+
+test('expanded edit and fold shortcuts pass their own card ID instead of the current selection',async()=>{
+ for(const kind of ['card','text'] as const){
+  const f=fixture(kind),edited:string[]=[],folded:unknown[][]=[],before=model.clone(f.board);
+  f.view.selected=new Set(['another-node']);f.view.startInlineEdit=async(id:string)=>{edited.push(id);};
+  f.view.editText=async(id:string)=>{edited.push(id);};f.view.foldText=(...args:unknown[])=>{folded.push(args);};
+  const edit=f.element().querySelector('.ts-card-quick-edit'),fold=f.element().querySelector('.ts-card-quick-fold');
+  assert.ok(edit);assert.ok(fold);await edit.onclick?.();await fold.onclick?.();
+  assert.deepEqual(edited,['node']);assert.deepEqual(folded,[['node',true]]);
+  assert.deepEqual([...f.view.selected],['another-node']);assert.deepEqual(f.board,before);
+  assert.equal(fold.getAttribute('aria-expanded'),'true');
+ }
+});
+
+test('note automatic sizing shortcuts resolve toggle direction from live state before the next redraw',async()=>{
+ const f=fixture('card',{autoFit:false}),calls:{ids:string[];automatic:boolean}[]=[];
+ f.view.fitCards=(ids:ReadonlySet<string>,automatic:boolean)=>{calls.push({ids:[...ids],automatic});f.board.nodes[0].autoFit=automatic;};
+ const autoFit=f.element().querySelector('.ts-card-quick-auto-fit');assert.ok(autoFit);
+ assert.equal(autoFit.getAttribute('aria-pressed'),'false');await autoFit.onclick?.();await autoFit.onclick?.();
+ assert.deepEqual(calls,[{ids:['node'],automatic:true},{ids:['node'],automatic:false}]);
+ f.board.nodes[0].autoFit=true;f.render();assert.equal(f.element().querySelector('.ts-card-quick-auto-fit')?.getAttribute('aria-pressed'),'true');
+ f.board.nodes[0].autoFit=false;f.render();assert.equal(f.element().querySelector('.ts-card-quick-auto-fit')?.getAttribute('aria-pressed'),'false');
+});
+
+test('text quick sizing delegates to the existing height command and does not show note-only actions',async()=>{
+ const f=fixture('text',{textAutoHeight:false}),called:string[]=[];
+ f.view.setTextAutoHeight=async(id:string)=>{called.push(id);};
+ const sizing=f.element().querySelector('.ts-card-quick-auto-fit');assert.ok(sizing);
+ await sizing.onclick?.();assert.deepEqual(called,['node']);
+ assert.equal(f.element().querySelector('.ts-card-quick-read'),null);assert.equal(f.element().querySelector('.ts-card-quick-preview'),null);
+ assert.equal(f.element().querySelector('.ts-card-actions')?.querySelectorAll('button').length,3);
+});
+
+test('expanded missing note sources retain folding without advertising dead file operations',()=>{
+ const f=fixture('card');f.files.clear();f.render();
+ for(const action of ['edit','read','preview','auto-fit'])assert.equal(f.element().querySelector(`.ts-card-quick-${action}`),null,action);
+ assert.ok(f.element().querySelector('.ts-card-quick-fold'));
+});
+
+test('rendered note controls cache floating dock counts and widths while compact expansion stays in the row',()=>{
+ for(const collapsed of [false,true])for(const missing of [false,true]){
+  const f=fixture('card',{collapsed,height:collapsed?40:180,expandedHeight:180});
+  if(missing){f.files.clear();f.render();}
+  const expected=missing||collapsed?1:5,dock=f.element().querySelector(collapsed?'.ts-compact-actions':'.ts-card-actions');
+  assert.ok(dock);assert.equal(f.element().dataset.controlCount,String(expected));
+  assert.equal(f.element().dataset.controlWidth,String(collapsed||missing?36:236));
+  assert.equal(dock.querySelectorAll('button').length,collapsed?(missing?0:1):expected);
+  if(collapsed){
+   const inline=f.element().querySelector('.ts-compact-inline-unfold'),row=f.element().querySelector('.ts-compact-fold-row');
+   assert.ok(inline);assert.equal(inline.parent,row);assert.equal(dock.contains(inline),false);
+  }
+ }
+ const text=fixture('text');assert.equal(text.element().dataset.controlCount,'3');assert.equal(text.element().dataset.controlWidth,'136');
+ const compactText=fixture('text',{collapsed:true,height:40,expandedHeight:180});assert.ok(compactText.element().querySelector('.ts-compact-inline-unfold'));
+ assert.equal(compactText.element().querySelector('.ts-compact-actions')?.querySelectorAll('button').length,0);
+});
+
+test('missing-source expanded single-button docks stay inside a narrow stage',()=>{
+  const f=fixture('card',{x:5,y:90,height:180,expandedHeight:180});
+  f.view.stage.clientWidth=48;f.view.stage.clientHeight=320;Object.assign(f.board.viewport,{x:0,y:0,zoom:1});f.files.clear();f.render();
+  const el=f.element(),display=sectionDisplayNode(f.board.nodes[0]),viewport=f.board.viewport;
+  const scale=Number(el.css.get('--ts-control-scale')),right=parseFloat(el.css.get('--ts-control-right')!);
+  assert.equal(el.dataset.controlCount,'1');assert.ok(Number.isFinite(scale)&&Number.isFinite(right));
+  const expected=cardControlLayout(display,viewport,48,320,1);
+  assert.equal(scale,expected.scale);assert.equal(right,expected.right);
+  // Reconstruct screen bounds from the published CSS variables. No DOM rect
+  // measurement is claimed by this fixture; a single action occupies 36 px.
+  const dockRight=(display.x+display.width-right)*viewport.zoom+viewport.x;
+  const dockLeft=dockRight-36*scale*viewport.zoom;
+  assert.ok(dockLeft>=-1e-8,`expanded left ${dockLeft}`);
+  assert.ok(dockRight<=48+1e-8,`expanded right ${dockRight}`);
+});
+
+test('expanded quick controls refresh their lock and read-only state while reading stays available',()=>{
+ for(const kind of ['card','text'] as const){
+  const f=fixture(kind);
+  for(const state of ['locked','read-only'] as const){
+   f.board.nodes[0].locked=state==='locked';f.session.blocked=state==='read-only';f.render();
+   for(const action of ['edit','auto-fit','fold'])assert.equal(f.element().querySelector(`.ts-card-quick-${action}`)?.disabled,true,`${kind}: ${state} ${action}`);
+   if(kind==='card')for(const action of ['read','preview'])assert.equal(f.element().querySelector(`.ts-card-quick-${action}`)?.disabled,false,action);
+  }
+ }
+});
+
+test('locked notes and blocked boards still permit both non-writing reading actions',async()=>{
+ for(const state of ['locked','read-only'] as const){
+  const f=fixture('card'),opened:unknown[][]=[];
+  f.board.nodes[0].locked=state==='locked';f.session.blocked=state==='read-only';f.render();
+  const before=model.clone(f.board);f.view.plugin.openNoteInSidebar=async(...args:unknown[])=>{opened.push(args);};
+  const read=f.element().querySelector('.ts-card-quick-read'),preview=f.element().querySelector('.ts-card-quick-preview');
+  assert.ok(read);assert.ok(preview);await read.onclick?.();await preview.onclick?.();
+  assert.deepEqual(opened,[[f.files.get(f.board.nodes[0].file!),undefined,false,true]],state);
+  assert.deepEqual(f.calls.previewed,[f.files.get(f.board.nodes[0].file!)]);assert.deepEqual(f.board,before);
+ }
+});
+
+test('old expanded note actions reject changed file links and switched sessions before invoking host operations',async()=>{
+ for(const action of ['edit','read','preview','auto-fit','fold'])for(const stale of ['file','session'] as const){
+  const f=fixture('card'),called:string[]=[];
+  f.view.startInlineEdit=async()=>{called.push('edit');};f.view.plugin.openNoteInSidebar=async()=>{called.push('read');};
+  f.view.fitCards=()=>{called.push('auto-fit');};f.view.foldText=()=>{called.push('fold');};
+  const control=f.element().querySelector(`.ts-card-quick-${action}`);assert.ok(control,action);
+  if(stale==='file')f.board.nodes[0].file='changed.md';else f.view.session={...f.session};
+  await assert.rejects(async()=>control.onclick?.(),/卡片已变化|白板已切换/,`${action}: ${stale}`);
+  assert.deepEqual(called,[]);assert.deepEqual(f.calls.previewed,[]);
+ }
 });
 
 for(const kind of ['card','text','image','pdf'] as const)test(`${kind}: appearance changes retain mounted content and renderer scope`,async()=>{
@@ -354,7 +475,7 @@ test('folded text shows a single-line summary and keeps formula source for expan
 test('text auto-height button sits beside fold, defaults off and reflects explicit state changes',()=>{
  const f=fixture('text'),calls:unknown[][]=[];f.view.setTextAutoHeight=(...args:unknown[])=>calls.push(args);
  const buttons=()=>f.element().querySelector('.ts-text-actions')!.children;
- const [fold,sizing]=buttons();assert.equal(fold.getAttribute('aria-label'),'折叠文本');assert.equal(fold.nextElementSibling,sizing);assert.equal(sizing.classes.has('ts-text-auto-height'),true);assert.equal(sizing.getAttribute('aria-pressed'),'false');assert.equal(sizing.classes.has('is-active'),false);
+ const [edit,sizing,fold]=buttons();assert.equal(edit.getAttribute('aria-label'),'编辑文本');assert.equal(fold.getAttribute('aria-label'),'折叠文本');assert.equal(sizing.nextElementSibling,fold);assert.equal(sizing.classes.has('ts-text-auto-height'),true);assert.equal(sizing.getAttribute('aria-pressed'),'false');assert.equal(sizing.classes.has('is-active'),false);
  sizing.onclick?.();assert.deepEqual(calls,[['node']]);
  const old=f.element(),oldScope=f.scope();f.replace({textAutoHeight:true});assert.notEqual(f.element(),old);assert.equal(oldScope.unloaded,1);let active=buttons()[1];assert.equal(active.getAttribute('aria-pressed'),'true');assert.equal(active.classes.has('is-active'),true);active.onclick?.();assert.deepEqual(calls,[['node'],['node']]);
  f.replace({collapsed:true,height:72,expandedHeight:180});assert.equal(f.element().querySelector('.ts-text-actions'),null);assert.ok(f.element().querySelector('.ts-compact-unfold'));assert.equal(f.board.nodes[0].textAutoHeight,true);f.replace({collapsed:undefined,height:180,expandedHeight:undefined});assert.equal(buttons()[1].getAttribute('aria-pressed'),'true');
@@ -362,7 +483,7 @@ test('text auto-height button sits beside fold, defaults off and reflects explic
 });
 test('text sizing button preserves topic defaults and respects locked or blocked boards',()=>{
  const topic=fixture('text',{topic:true});assert.equal(topic.element().querySelector('.ts-text-auto-height')!.getAttribute('aria-pressed'),'true');topic.replace({textAutoHeight:false});assert.equal(topic.element().querySelector('.ts-text-auto-height')!.getAttribute('aria-pressed'),'false');
- for(const blocked of [false,true]){const f=fixture('text',{locked:!blocked});if(blocked){f.session.blocked=true;f.render();}const actions=f.element().querySelector('.ts-text-actions')!.children;assert.equal(actions.length,2);assert.ok(actions.every(button=>button.disabled));}
+ for(const blocked of [false,true]){const f=fixture('text',{locked:!blocked});if(blocked){f.session.blocked=true;f.render();}const actions=f.element().querySelector('.ts-text-actions')!.children;assert.equal(actions.length,3);assert.ok(actions.every(button=>button.disabled));}
 });
 
 test('the same mounted height button performs two real transactions before repaint and remains undoable',async()=>{

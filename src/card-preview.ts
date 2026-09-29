@@ -7,7 +7,7 @@ import {markdownPreview} from './rendering';
 interface CardPreviewOptions {
  app:App;file:TFile;preview:HTMLElement;scope:Component;
  enqueue:(alive:()=>boolean,run:()=>Promise<void>)=>void;
- sources:(sources:ExcerptSource[])=>void;ready:()=>void;error:()=>void;
+ sources:(sources:ExcerptSource[])=>void;ready:(bodyEmpty:boolean)=>void;error:()=>void;
 }
 const generations=new WeakMap<HTMLElement,{stop:()=>void}>();
 /** A detached or stalled note preview must release its shared rendering slot. */
@@ -25,20 +25,21 @@ export function renderCardPreview({app,file,preview,scope,enqueue,sources,ready,
   try{
    const budget=new Promise<never>((_,reject)=>{deadline=win.setTimeout(()=>reject(Error('Card preview timed out')),5000);});
    const content=await Promise.race([app.vault.cachedRead(file),cancelled,budget]);if(!alive()||content===undefined)return;
-   const presentation=excerptPresentation(content);if(presentation.sources.length)sources(presentation.sources);
+   const presentation=excerptPresentation(content),body=markdownPreview(presentation.body);if(presentation.sources.length)sources(presentation.sources);
    if(!alive())return;
    // Mermaid and other native processors need an attached target to finish before
    // sizing. Keep their own root (including overflow/dir/listeners) after success;
    // cancellation detaches only that generation's output before any late writes.
    const rendered=output=win.createDiv();rendered.className='ts-card-preview-content markdown-rendered';preview.replaceChildren(rendered);
    const child=renderScope=new PreviewRenderScope();scope.addChild(child);
-   await Promise.race([MarkdownRenderer.render(app,markdownPreview(presentation.body),rendered,file.path,child),cancelled,budget]);if(!alive())return;
+   await Promise.race([MarkdownRenderer.render(app,body,rendered,file.path,child),cancelled,budget]);if(!alive())return;
    // Native math can complete after Markdown rendering. Size only its finished
    // output, under the same cancellation signal and total preview deadline.
    if(rendered.querySelector('.math')||rendered.querySelector('mjx-container'))await Promise.race([finishRenderMath(),cancelled,budget]);if(!alive())return;
    rendered.querySelectorAll('input').forEach(input=>{input.disabled=true;});
    rendered.querySelectorAll('p').forEach(p=>{if(Array.from(p.childNodes).every(node=>node.nodeType===3?!node.textContent?.trim():node.nodeType===1&&(node as Element).matches('a.tag')))p.remove();});
-   finishLoading();complete=true;ready();
+   // Textless markup and processors awaiting later output are still real content.
+   finishLoading();complete=true;ready(!body.trim());
   }catch{release();if(alive())error();}
   finally{
    if(deadline!==undefined)win.clearTimeout(deadline);

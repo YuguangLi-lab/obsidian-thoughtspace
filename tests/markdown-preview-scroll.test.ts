@@ -8,8 +8,10 @@ class Element {
  // Match the actual production selectors: class/tag, :not, descendant and direct child.
  // A selector regression must not pass merely because the mock recognizes a tag name.
  matches(selector:string):boolean{
-  const direct=selector.lastIndexOf('>');if(direct>=0)return this.matches(selector.slice(direct+1).trim())&&!!this.parentElement?.matches(selector.slice(0,direct).trim());
-  const space=selector.lastIndexOf(' ');if(space>=0){if(!this.matches(selector.slice(space+1)))return false;for(let parent=this.parentElement;parent;parent=parent.parentElement)if(parent.matches(selector.slice(0,space)))return true;return false;}
+  selector=selector.replace(/\s*>\s*/g,'>');
+  const direct=selector.lastIndexOf('>'),space=selector.lastIndexOf(' ');
+  if(direct>space)return this.matches(selector.slice(direct+1))&&!!this.parentElement?.matches(selector.slice(0,direct));
+  if(space>=0){if(!this.matches(selector.slice(space+1)))return false;for(let parent=this.parentElement;parent;parent=parent.parentElement)if(parent.matches(selector.slice(0,space)))return true;return false;}
   let excluded=false;selector=selector.replace(/:not\(([^)]+)\)/g,(_match,inner:string)=>{excluded||=this.matches(inner);return '';});if(excluded)return false;
   const tag=selector.match(/^[a-z]+/)?.[0],classes=[...selector.matchAll(/\.([\w-]+)/g)].map(match=>match[1]);
   return (!tag||this.tag===tag)&&classes.every(name=>this.classes.has(name))&&!!(tag||classes.length);
@@ -25,6 +27,12 @@ function fixture(patch:Partial<WheelEvent>={},block=new Element()){
 function textFixture(patch:Partial<WheelEvent>={}){
  const body=new Element('div',['ts-text-body']),frame=new Element('div',['ts-text']);body.parentElement=frame;body.scrollWidth=body.clientWidth;body.scrollHeight=500;
  return{...fixture({deltaX:0,deltaY:55,...patch},body),body,frame};
+}
+function cardFixture(patch:Partial<WheelEvent>={}){
+ const preview=new Element('div',['ts-card-preview']),frame=new Element('div',['ts-card']);preview.parentElement=frame;
+ preview.scrollWidth=preview.clientWidth;preview.clientHeight=1098;preview.scrollHeight=1355;
+ const f=fixture({deltaX:0,deltaY:55,...patch},preview);f.markdown.classes.clear();
+ return{...f,preview,frame};
 }
 test('horizontal table wheel scrolls its containing block and blocks board propagation',()=>{const f=fixture();assert.equal(f.consume(),true);assert.equal(f.block.scrollLeft,40);assert.deepEqual(f.handled(),[1,1]);});
 test('Shift wheel scrolls horizontally while keeping the vertical scroll state',()=>{const f=fixture({deltaX:0,deltaY:25,shiftKey:true});f.block.scrollHeight=300;assert.equal(f.consume(),true);assert.deepEqual([f.block.scrollLeft,f.block.scrollTop],[25,0]);});
@@ -77,4 +85,71 @@ test('nested tables and formulas use their own horizontal scroll and the body ve
   Object.assign(f.event,{deltaX:40,deltaY:0});assert.equal(f.consume(),true);assert.equal(nested.scrollLeft,40);assert.equal(f.body.scrollLeft,0);
   Object.assign(f.event,{deltaX:0,deltaY:30,shiftKey:true});assert.equal(f.consume(),true);assert.equal(nested.scrollLeft,70);assert.equal(f.body.scrollTop,55);
  }
+});
+test('expanded note previews scroll overflowing long content without moving the board',()=>{
+ const f=cardFixture();assert.equal(f.consume(),true);assert.equal(f.preview.scrollTop,55);assert.deepEqual(f.handled(),[1,1]);
+});
+test('note code, table and formula blocks scroll horizontally while vertical gestures reach the note preview',()=>{
+ for(const tag of ['pre','table','math']){
+  const f=cardFixture(),nested=new Element(tag);nested.parentElement=f.preview;f.child.parentElement=nested;
+  assert.equal(f.consume(),true);assert.equal(f.preview.scrollTop,55);assert.equal(nested.scrollTop,0);
+  Object.assign(f.event,{deltaX:40,deltaY:0});assert.equal(f.consume(),true);assert.equal(nested.scrollLeft,40);assert.equal(f.preview.scrollLeft,0);
+  Object.assign(f.event,{deltaX:0,deltaY:30,shiftKey:true});assert.equal(f.consume(),true);assert.equal(nested.scrollLeft,70);assert.equal(f.preview.scrollTop,55);
+ }
+});
+test('note preview top and bottom edges consume wheel without zooming or panning the board',()=>{
+ for(const [start,delta,end]of [[247,40,257],[257,40,257],[10,-40,0],[0,-40,0]]){
+  const f=cardFixture({deltaY:delta});f.preview.scrollTop=start;
+  assert.equal(f.consume(),true);assert.equal(f.preview.scrollTop,end);assert.deepEqual(f.handled(),[1,1]);
+ }
+});
+test('Ctrl and Meta preserve zoom over note previews and their nested code blocks',()=>{
+ for(const key of ['ctrlKey','metaKey'])for(const nested of [false,true]){
+  const f=cardFixture({[key]:true}),code=new Element('pre');
+  if(nested){code.parentElement=f.preview;f.child.parentElement=code;Object.assign(f.event,{deltaX:40,deltaY:55});}
+  assert.equal(f.consume(),false);assert.equal(f.preview.scrollTop,0);assert.equal(code.scrollLeft,0);assert.deepEqual(f.handled(),[0,0]);
+ }
+});
+test('folded notes, unrelated previews and nonoverflowing notes remain board wheel targets',()=>{
+ for(const mutate of [
+  (f:ReturnType<typeof cardFixture>)=>f.frame.classes.add('is-folded'),
+  (f:ReturnType<typeof cardFixture>)=>f.frame.classes.clear(),
+  (f:ReturnType<typeof cardFixture>)=>f.preview.classes.clear(),
+  (f:ReturnType<typeof cardFixture>)=>{const wrapper=new Element('div');wrapper.parentElement=f.frame;f.preview.parentElement=wrapper;},
+  (f:ReturnType<typeof cardFixture>)=>{f.preview.scrollHeight=f.preview.clientHeight;},
+  (f:ReturnType<typeof cardFixture>)=>{f.preview.style.overflowY='hidden';}
+ ]){const f=cardFixture();mutate(f);assert.equal(f.consume(),false);assert.deepEqual(f.handled(),[0,0]);}
+ for(const tag of ['pre','table','math']){
+  const f=cardFixture({deltaX:40,deltaY:0}),nested=new Element(tag);nested.parentElement=f.preview;f.child.parentElement=nested;f.frame.classes.add('is-folded');
+  assert.equal(f.consume(),false);assert.equal(nested.scrollLeft,0);assert.deepEqual(f.handled(),[0,0]);
+ }
+});
+test('a nested note code block consumes its horizontal edge instead of scrolling the preview or board',()=>{
+ const f=cardFixture({deltaX:40,deltaY:0}),code=new Element('pre');code.parentElement=f.preview;f.child.parentElement=code;
+ code.scrollLeft=400;f.preview.scrollWidth=800;
+ assert.equal(f.consume(),true);assert.equal(code.scrollLeft,400);assert.equal(f.preview.scrollLeft,0);assert.deepEqual(f.handled(),[1,1]);
+});
+test('diagonal note wheel routes horizontal code scrolling and vertical preview scrolling independently',()=>{
+ for(const [codeStart,previewStart,codeEnd,previewEnd]of [[0,0,1,55],[400,247,400,257],[400,257,400,257]]){
+  const f=cardFixture({deltaX:1,deltaY:55}),code=new Element('pre');code.parentElement=f.preview;f.child.parentElement=code;
+  code.scrollLeft=codeStart;f.preview.scrollTop=previewStart;f.preview.scrollWidth=800;
+  assert.equal(f.consume(),true);
+  assert.equal(code.scrollLeft,codeEnd);assert.equal(code.scrollTop,0);
+  assert.equal(f.preview.scrollTop,previewEnd);assert.equal(f.preview.scrollLeft,0);
+  assert.deepEqual(f.handled(),[1,1]);
+ }
+});
+test('a nested block that scrolls both axes consumes both without also scrolling its note preview',()=>{
+ for(const [x,y,endX,endY]of [[0,0,1,55],[400,300,400,300]]){
+  const f=cardFixture({deltaX:1,deltaY:55}),code=new Element('pre');code.parentElement=f.preview;f.child.parentElement=code;
+  code.scrollHeight=400;code.scrollLeft=x;code.scrollTop=y;f.preview.scrollWidth=800;
+  assert.equal(f.consume(),true);assert.deepEqual([code.scrollLeft,code.scrollTop],[endX,endY]);
+  assert.deepEqual([f.preview.scrollLeft,f.preview.scrollTop],[0,0]);assert.deepEqual(f.handled(),[1,1]);
+ }
+});
+test('diagonal wheel can send vertical scrolling inward and horizontal scrolling to the note preview',()=>{
+ const f=cardFixture({deltaX:40,deltaY:55}),code=new Element('pre');code.parentElement=f.preview;f.child.parentElement=code;
+ code.scrollWidth=code.clientWidth;code.scrollHeight=400;f.preview.scrollWidth=800;
+ assert.equal(f.consume(),true);assert.deepEqual([code.scrollLeft,code.scrollTop],[0,55]);
+ assert.deepEqual([f.preview.scrollLeft,f.preview.scrollTop],[40,0]);assert.deepEqual(f.handled(),[1,1]);
 });

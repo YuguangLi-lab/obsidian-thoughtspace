@@ -5,12 +5,13 @@ import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import * as model from '../src/model';
 import {reflowAutomaticMindmaps,validateBranches} from '../src/mindmap';
-import {reflowExpandedContent} from '../src/expansion-layout';
+import {reflowReadingContent} from '../src/expansion-reading-state';
 import {sectionDisplayNode} from '../src/sections';
 import {selectionEdges} from '../src/selection-edges';
 import {selectionFormatKey} from '../src/selection-format';
 import {inkLabels,textFontFamily} from '../src/text-tools';
 import {syncNodeGeometry} from '../src/node-render-key';
+import {cardControlLayout} from '../src/card-control-layout';
 import {preserveToolbarFocus} from '../src/toolbar-focus';
 
 const source=readFileSync('src/main.ts','utf8');
@@ -60,7 +61,7 @@ class Element extends EventTarget {
   disconnect(){if(this.contains(this.ownerDocument.activeElement))this.ownerDocument.activeElement=this.ownerDocument.body;this.isConnected=false;this.children.forEach(el=>el.disconnect());}
   empty(){this.children.forEach(el=>el.disconnect());this.children=[];}
 }
-const deps={nodeHasBorder,textBlockPadding,textFitsContent,...model,reflowAutomaticMindmaps,reflowExpandedContent,validateBranches,sectionDisplayNode,selectionEdges,selectionFormatKey,inkLabels,textFontFamily,syncNodeGeometry,
+const deps={nodeHasBorder,textBlockPadding,textFitsContent,...model,reflowAutomaticMindmaps,reflowReadingContent,validateBranches,sectionDisplayNode,selectionEdges,selectionFormatKey,inkLabels,textFontFamily,syncNodeGeometry,cardControlLayout,
   preserveToolbarFocus,setIcon:()=>{},Notice:class {},act:(fn:()=>unknown)=>fn(),
   markdownToolbar:(host:Element,editor:{replaceToolbar(dispose?:()=>void):void},disposeOuter?:()=>void)=>{host.createDiv({cls:'ts-markdown-tools'});editor.replaceToolbar(disposeOuter);},
   button:(parent:Element,label:string,_icon:string,callback:()=>unknown,cls?:string)=>{
@@ -168,7 +169,8 @@ test('positionNode applies and clears text fill and transparency without changin
   assert.equal(element.classes.has('has-card-fill'),false);assert.equal(element.properties.has('--ts-card-fill'),false);assert.equal(element.classes.has('is-transparent'),false);
   assert.deepEqual(Object.fromEntries(Object.entries(element.style).filter(([,value])=>typeof value==='string')),
     {left:'40px',top:'60px',width:'300px',height:'140px',borderStyle:'',borderWidth:'2px'});
-  assert.equal(element.properties.has('--ts-card-body-size'),false);
+  assert.equal(element.properties.get('--ts-card-body-size'),'24px');
+  assert.equal(element.properties.get('--ts-card-body-font'),textFontFamily(undefined));
 });
 
 const section=(id='group',patch:Partial<model.Card>={}):model.Card=>({id,kind:'section',title:'证据',x:0,y:0,width:480,height:300,color:'blue',...patch});

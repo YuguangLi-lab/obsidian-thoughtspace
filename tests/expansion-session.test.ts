@@ -7,7 +7,7 @@ import * as mindmap from '../src/mindmap';
 import {foldCards} from '../src/board-tools';
 import {sectionContains,sectionDisplayNode} from '../src/sections';
 import {nodeFitChanges} from '../src/node-fit-batch';
-import {reflowExpandedContent} from '../src/expansion-layout';
+import {reflowReadingContent} from '../src/expansion-reading-state';
 import {planGroupMove,applyGroupMove} from '../src/group-organizer';
 
 const source=readFileSync('src/main.ts','utf8');
@@ -16,7 +16,7 @@ function take(start:string,end:string){
  assert(from>=0&&to>from,`production method boundary: ${start}`);
  return source.slice(from,to);
 }
-const deps={...model,...mindmap,reflowExpandedContent,Notice:class{},EXT:'thoughtspace',report:()=>{}};
+const deps={...model,...mindmap,reflowReadingContent,Notice:class{},EXT:'thoughtspace',report:()=>{}};
 const Session=new Function(...Object.keys(deps),transformSync(take('class Session {','\nexport default class ThoughtSpace')+';return Session',{loader:'ts'}).code)(...Object.values(deps));
 const fits=take('  private queueNodeFit(','\n  private refreshFontMetrics(')+take('  private flushNodeFits(','\n\n  saveView(');
 const FitView=new Function('nodeFitChanges','clone',transformSync('class FitView{'+fits+'};return FitView',{loader:'ts'}).code)(nodeFitChanges,model.clone);
@@ -45,6 +45,12 @@ function separatedGroup(board:model.Board){
  const frame=node(board,'frame'),members=['note','image','audio'].map(id=>node(board,id));
  for(const member of members)assert(sectionContains(frame,member),`frame must retain ${member.id}`);
  for(let i=0;i<members.length;i++)for(let j=i+1;j<members.length;j++)noOverlap(members[i],members[j]);
+}
+function recoveredGroup(board:model.Board,before:model.Board){
+ for(const old of before.nodes)if(old.id!=='note')assert.deepEqual(node(board,old.id),old,`${old.id} should recover its original geometry and content`);
+ const note=node(board,'note'),original=node(before,'note');
+ assert.deepEqual({x:note.x,y:note.y,width:note.width,height:note.height},{x:original.x,y:original.y,width:original.width,height:original.height});
+ assert.equal(note.collapsed,true);separatedGroup(board);
 }
 
 test('expansion and delayed auto-fit move grouped media in one undoable Session transaction',async()=>{
@@ -141,4 +147,74 @@ test('an old preview key cannot apply delayed growth to a still-open note restor
  assert.deepEqual(s.board,before);assert.equal(writes(),saved);
  assert.equal(s.history.undoStack.length,0);assert.equal(s.history.redoStack.length,1);
  s.undo(true);assert.deepEqual(s.board,expanded);await s.flush();
+});
+
+test('Session collapse recovers grouped media after delayed auto-fit and reopening keeps the newest measured height',async()=>{
+ const {session:s,view,disk}=fixture(),before=model.clone(s.board);
+ s.change((board:model.Board)=>foldCards(board,new Set(['note']),false));
+ view.queueNodeFit(node(s.board,'note'),{width:280,height:900});view.flushNodeFits();
+ assert.equal(node(s.board,'note').height,900);
+ assert(node(s.board,'frame').height>node(before,'frame').height);separatedGroup(s.board);
+ assert.equal(s.history.undoStack.length,1,'delayed measurement belongs to the expansion undo entry');
+
+ s.change((board:model.Board)=>foldCards(board,new Set(['note']),true));
+ recoveredGroup(s.board,before);
+ assert.equal(node(s.board,'note').expandedHeight,900);
+ assert.equal(s.history.undoStack.length,2,'explicit collapse remains an independently undoable action');
+ await s.flush();assert.deepEqual(disk(),s.board);
+
+ s.change((board:model.Board)=>foldCards(board,new Set(['note']),false));
+ assert.equal(node(s.board,'note').height,900);
+ assert.equal(node(s.board,'note').expandedHeight,undefined);separatedGroup(s.board);
+ await s.flush();assert.deepEqual(disk(),s.board);
+});
+
+test('a fresh Session loaded from saved expanded data can still recover the original grouped layout on collapse',async()=>{
+ const first=fixture(),before=model.clone(first.session.board);
+ first.session.change((board:model.Board)=>foldCards(board,new Set(['note']),false));
+ first.view.queueNodeFit(node(first.session.board,'note'),{width:280,height:1050});first.view.flushNodeFits();
+ const expanded=model.clone(first.session.board);await first.session.flush();assert.deepEqual(first.disk(),expanded);
+
+ // Construct another production Session from JSON-backed disk state; no runtime
+ // object, undo history or view from the first Session is reused.
+ const restored=fixture(first.disk());
+ assert.deepEqual(restored.session.board,expanded);
+ assert.equal(restored.session.history.undoStack.length,0);
+ restored.session.change((board:model.Board)=>foldCards(board,new Set(['note']),true));
+ recoveredGroup(restored.session.board,before);
+ assert.equal(node(restored.session.board,'note').expandedHeight,1050);
+ await restored.session.flush();assert.deepEqual(restored.disk(),restored.session.board);
+});
+
+test('undoing collapse restores the expanded measured layout and redo restores the recovered group',async()=>{
+ const {session:s,view,disk}=fixture(),before=model.clone(s.board);
+ s.change((board:model.Board)=>foldCards(board,new Set(['note']),false));
+ view.queueNodeFit(node(s.board,'note'),{width:280,height:980});view.flushNodeFits();
+ const expanded=model.clone(s.board);
+ s.change((board:model.Board)=>foldCards(board,new Set(['note']),true));
+ recoveredGroup(s.board,before);
+ const collapsed=model.clone(s.board);
+
+ s.undo();assert.deepEqual(s.board,expanded);assert.equal(node(s.board,'note').height,980);separatedGroup(s.board);
+ await s.flush();assert.deepEqual(disk(),expanded);
+ s.undo(true);assert.deepEqual(s.board,collapsed);recoveredGroup(s.board,before);
+ assert.equal(node(s.board,'note').expandedHeight,980);
+ await s.flush();assert.deepEqual(disk(),collapsed);
+});
+
+test('a fit queued before explicit collapse cannot reopen the recovered note or restore stale displacement',async()=>{
+ const {session:s,view,disk,writes}=fixture(),before=model.clone(s.board);
+ s.change((board:model.Board)=>foldCards(board,new Set(['note']),false));
+ view.queueNodeFit(node(s.board,'note'),{width:280,height:900});view.flushNodeFits();
+ view.queueNodeFit(node(s.board,'note'),{width:280,height:1200});assert.equal(view.pendingFits.size,1);
+
+ s.change((board:model.Board)=>foldCards(board,new Set(['note']),true));
+ recoveredGroup(s.board,before);
+ const collapsed=model.clone(s.board),historyLength=s.history.undoStack.length;
+ await s.flush();const savedWrites=writes();
+ view.flushNodeFits();await s.flush();
+ assert.equal(view.pendingFits.size,0);
+ assert.deepEqual(s.board,collapsed);assert.deepEqual(disk(),collapsed);
+ assert.equal(node(s.board,'note').expandedHeight,900,'the unapplied 1200 px fit must not replace the last accepted height');
+ assert.equal(writes(),savedWrites);assert.equal(s.history.undoStack.length,historyLength);
 });

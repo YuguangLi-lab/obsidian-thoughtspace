@@ -7,25 +7,22 @@
 }
 .theme-dark .ts-root { --ts-object-shadow: 0 1px 3px #00000028, 0 4px 14px #00000022; }
 
-/* Selection traces the object; editing adds a second line outside its content.
-   A transparent object remains transparent in both states. */
+/* A single quiet outline follows the object without covering its document. */
 .ts-root .ts-node:is(.is-selected,.is-inline-editing) {
-  outline:1.5px solid var(--ts-accent); outline-offset:3px;
+  outline:1.5px solid var(--ts-accent); outline-offset:2px;
 }
 .ts-root .ts-node.ts-text.is-selected,
-.ts-root .ts-node.ts-card.is-selected { outline:1.5px solid var(--ts-accent); outline-offset:3px; }
-.ts-root .ts-node:is(.ts-card,.ts-text).is-inline-editing { outline:2px solid var(--ts-accent); outline-offset:4px; }
-.ts-root .ts-node.is-inline-editing::before {
-  content:''; position:absolute; inset:-8px; border:1px solid color-mix(in srgb,var(--ts-accent) 22%,transparent);
-  border-radius:inherit; pointer-events:none;
-}
+.ts-root .ts-node.ts-card.is-selected { outline:1.5px solid var(--ts-accent); outline-offset:2px; }
+.ts-root .ts-node:is(.ts-card,.ts-text).is-inline-editing { outline:2px solid var(--ts-accent); outline-offset:2px; }
+.ts-root .ts-node.is-inline-editing::before { content:none; }
 
-/* The upper-right corner keeps action targets away from all four edge ports.
-   A short diagonal gap fits compact groups without a dock over their titles. */
+/* Dock position is clamped in screen space, independent of document size.
+   Counter-scaling keeps controls usable while zooming the canvas. */
 .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions {
-  position:absolute; inset:auto auto calc(100% + 8px) calc(100% + 8px); transform:none;
-  z-index:8; display:flex; align-items:center; gap:2px; width:max-content;
-  margin:0; padding:3px; border:1px solid var(--ts-object-line); border-radius:8px;
+  position:absolute; inset:var(--ts-control-top,-56px) var(--ts-control-right,0px) auto auto;
+  transform:scale(var(--ts-control-scale,1)); transform-origin:top right;
+  z-index:8; display:flex; align-items:center; gap:4px; width:max-content; box-sizing:border-box;
+  margin:0; padding:3px; border:1px solid var(--ts-object-line); border-radius:9px;
   background:var(--background-primary); box-shadow:var(--ts-object-shadow);
   opacity:0; visibility:hidden; pointer-events:auto;
   transition:opacity 120ms ease 750ms,visibility 0s linear 870ms;
@@ -35,10 +32,10 @@
 .ts-root .ts-node:is(.ts-card,.ts-text):is(:hover,:focus-within,.is-selected,.is-folded) > .ts-card-actions { opacity:1; visibility:visible; transition-delay:0s; }
 .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-icon-button {
   display:inline-flex; align-items:center; justify-content:center; flex:none;
-  width:26px; min-width:26px; height:26px; min-height:26px; padding:5px!important;
+  width:28px; min-width:28px; height:28px; min-height:28px; padding:5px!important;
   border:0; border-radius:5px; background:transparent; color:var(--text-muted); box-shadow:none; opacity:1;
 }
-.ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-icon-button + .ts-icon-button { margin-left:1px; }
+.ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-icon-button { margin:0; }
 .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-icon-button svg { width:15px; height:15px; stroke-width:1.8; }
 .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-icon-button:is(:hover,:focus-visible):not(:disabled) { color:var(--text-normal); background:var(--background-modifier-hover); }
 .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-icon-button:is(.is-active,[aria-pressed=true]) { color:var(--ts-accent); background:var(--ts-object-active); }
@@ -70,6 +67,7 @@
 .ts-root .ts-node > .ts-resize {
   z-index:10; right:-12px; bottom:-12px; width:24px; height:24px;
   background:none; opacity:0; pointer-events:none; touch-action:none;
+  transform:scale(var(--ts-control-scale,1)); transform-origin:center;
 }
 .ts-root .ts-node > .ts-resize::before {
   content:''; position:absolute; inset:7px; border:1.5px solid var(--ts-accent); border-radius:2px;
@@ -139,25 +137,30 @@
 .ts-root .ts-compact-fold-icon svg { width:14px; height:14px; }
 .ts-root .ts-compact-fold-title { flex:1; min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
 .ts-root .ts-node.is-compact-fold .ts-compact-actions {
-  position:absolute; inset:auto auto calc(100% + 8px) calc(100% + 8px); z-index:8;
-  display:flex; gap:4px; width:max-content; pointer-events:auto;
+  position:absolute; inset:var(--ts-control-top,-56px) var(--ts-control-right,0px) auto auto; z-index:8;
+  transform:scale(var(--ts-control-scale,1)); transform-origin:top right;
+  display:flex; align-items:center; gap:4px; width:max-content; padding:3px; box-sizing:border-box;
+  border:1px solid var(--ts-object-line); border-radius:9px; pointer-events:auto;
+  background:var(--background-primary); box-shadow:var(--ts-object-shadow);
 }
 .ts-root .ts-node.is-compact-fold .ts-compact-actions > button {
   display:inline-flex; align-items:center; justify-content:center; flex:none;
-  height:28px; min-height:28px; margin:0; padding:5px!important; border:1px solid var(--ts-object-line); border-radius:7px;
+  height:28px; min-height:28px; margin:0; padding:5px!important; border:0; border-radius:5px;
   position:static; width:28px; min-width:28px; pointer-events:auto;
-  background:var(--background-primary)!important; box-shadow:var(--ts-object-shadow)!important; color:var(--text-muted); opacity:1;
+  background:transparent!important; box-shadow:none!important; color:var(--text-muted); opacity:1;
 }
 .ts-root .ts-node.is-compact-fold .ts-compact-actions > button:hover { color:var(--text-normal); background:var(--background-modifier-hover)!important; }
-.ts-root .ts-node.is-compact-fold .ts-compact-actions > button:focus-visible { outline:2px solid var(--interactive-accent); }
+.ts-root .ts-node.is-compact-fold .ts-compact-actions > button:focus-visible { outline:2px solid var(--interactive-accent); outline-offset:-1px; }
+.ts-root .ts-node.is-compact-fold .ts-compact-actions > button:disabled { opacity:.35; cursor:not-allowed; }
 .ts-root .ts-node.ts-image > .ts-image-actions {
-  position:absolute; inset:auto auto calc(100% + 8px) calc(100% + 8px); z-index:8; display:flex; padding:3px;
+  position:absolute; inset:var(--ts-control-top,-56px) var(--ts-control-right,0px) auto auto; z-index:8; display:flex; gap:4px; padding:3px;
+  transform:scale(var(--ts-control-scale,1)); transform-origin:top right;
   border:1px solid var(--background-modifier-border); border-radius:8px; background:var(--background-primary);
   opacity:0; visibility:hidden; pointer-events:auto;
   transition:opacity 120ms ease 750ms,visibility 0s linear 870ms;
 }
 .ts-root .ts-node.ts-image:is(:hover,:focus-within,.is-selected) > .ts-image-actions { opacity:1; visibility:visible; transition-delay:0s; }
-.ts-root .ts-node.ts-image > .ts-image-actions .ts-icon-button { width:26px; height:26px; padding:5px!important; border:0; box-shadow:none; background:transparent; }
+.ts-root .ts-node.ts-image > .ts-image-actions .ts-icon-button { width:28px; height:28px; padding:5px!important; border:0; box-shadow:none; background:transparent; }
 @media (hover:none) {
   .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions,
   .ts-root .ts-node.ts-image > .ts-image-actions { opacity:1; visibility:visible; transition:none; }
@@ -177,7 +180,7 @@
   border:0!important; box-shadow:none!important; background:transparent!important;
 }
 .workspace-leaf-content[data-type="canvas"] .canvas-node.is-selected > .canvas-node-container:has(> .canvas-node-content.file-embed.mod-generic) {
-  outline:1.5px solid var(--interactive-accent); outline-offset:3px;
+  outline:1.5px solid var(--interactive-accent); outline-offset:2px;
 }
 
 /* URL references stay light; the live webpage exists only while explicitly previewing. */

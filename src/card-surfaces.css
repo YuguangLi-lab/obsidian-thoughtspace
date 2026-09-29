@@ -1,0 +1,160 @@
+/* Document surfaces only: body typography, measured insets and object controls
+   stay with their existing owners. Load after object-chrome.css. */
+.ts-root {
+  --ts-card-surface-line:color-mix(in srgb,var(--background-modifier-border) 84%,var(--text-muted) 16%);
+  --ts-card-chip-line:color-mix(in srgb,var(--background-modifier-border) 70%,transparent);
+  --ts-card-chip-wash:color-mix(in srgb,var(--background-secondary) 45%,transparent);
+  --ts-card-surface-shadow:0 1px 2px color-mix(in srgb,var(--background-modifier-box-shadow,#000) 16%,transparent),0 4px 12px color-mix(in srgb,var(--background-modifier-box-shadow,#000) 10%,transparent);
+}
+.theme-dark .ts-root {
+  --ts-card-chip-line:color-mix(in srgb,var(--background-modifier-border) 88%,transparent);
+  --ts-card-surface-shadow:0 1px 3px color-mix(in srgb,var(--background-modifier-box-shadow,#000) 28%,transparent),0 4px 12px color-mix(in srgb,var(--background-modifier-box-shadow,#000) 18%,transparent);
+}
+
+/* Border widths/styles remain model-owned; explicit border colors win. */
+.ts-root .ts-main .ts-world > .ts-node.ts-card:not(.has-custom-border) {
+  border-color:var(--ts-card-surface-line)!important;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card:not(.is-compact-fold) {
+  border-radius:11px!important;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card:not(.is-transparent):not(.is-compact-fold) {
+  box-shadow:var(--ts-card-surface-shadow)!important;
+}
+
+/* Folding preserves the chosen document surface; media and groups retain theirs. */
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text).is-transparent {
+  background:transparent!important; box-shadow:none!important; backdrop-filter:none!important;
+}
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text).is-compact-fold.has-card-fill:not(.is-transparent) {
+  background:color-mix(in srgb,var(--ts-card-fill) 38%,var(--ts-surface,var(--background-primary)))!important;
+}
+.theme-dark .ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text).is-compact-fold.has-card-fill:not(.is-transparent) {
+  background:color-mix(in srgb,var(--ts-card-fill) 20%,var(--ts-surface,var(--background-primary)))!important;
+}
+.ts-root .ts-node:is(.ts-card,.ts-text).is-compact-fold > .ts-compact-fold-row {
+  font-family:var(--ts-card-body-font,var(--font-text));
+}
+
+/* Footer chips share a quiet surface, with source symbols and status dots intact. */
+.ts-root .ts-node.ts-card > .ts-card-meta {
+  gap:5px; border:0; background:transparent; box-shadow:none; color:var(--text-muted);
+}
+.ts-root .ts-node.ts-card > .ts-card-meta > :is(.ts-tag,.ts-state-pill,.ts-source-trigger) {
+  display:inline-flex; align-items:center; gap:4px; min-width:0; max-width:100%;
+  padding:2px 7px; border:1px solid var(--ts-card-chip-line); border-radius:5px;
+  background:var(--ts-card-chip-wash); box-shadow:none; font-family:var(--font-interface);
+  font-size:10px!important; font-weight:400; line-height:1.6;
+}
+.ts-root .ts-node.ts-card > .ts-card-meta > .ts-tag {
+  display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  color:var(--text-muted)!important; text-decoration:none!important;
+}
+.ts-root .ts-node.ts-card > .ts-card-meta > .ts-state-pill {
+  flex:none; white-space:nowrap;
+}
+.ts-root .ts-node.ts-card > .ts-card-meta > .ts-state-pill::before { flex:none; }
+.ts-root .ts-node.ts-card > .ts-card-meta > .ts-state-active { color:var(--text-accent); }
+.ts-root .ts-node.ts-card > .ts-card-meta > .ts-state-done { color:var(--text-success,var(--color-green)); }
+.ts-root .ts-node.ts-card > .ts-card-meta > .ts-source-trigger {
+  width:24px; height:24px; min-height:0; margin-right:0; color:var(--text-muted);
+}
+.ts-root .ts-node.ts-card > .ts-card-meta > .ts-source-trigger > span:last-child {
+  display:none;
+}
+.ts-root .ts-node.ts-card > .ts-card-meta > :is(.ts-tag,.ts-source-trigger):is(:hover,:focus-visible,[aria-expanded=true]) {
+  background:var(--background-modifier-hover); color:var(--text-normal)!important;
+  border-color:var(--background-modifier-border-hover,var(--background-modifier-border));
+}
+.ts-root .ts-node.ts-card > .ts-card-meta > :is(.ts-tag,.ts-source-trigger):focus-visible {
+  outline:2px solid var(--interactive-accent); outline-offset:2px;
+}
+
+/* Clear primary actions without changing document geometry. */
+.ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions {
+  border-radius:10px; border-color:var(--ts-object-line);
+  box-shadow:0 2px 4px #00000008,0 8px 22px #00000012;
+}
+.theme-dark .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions {
+  box-shadow:0 2px 4px #00000025,0 8px 22px #00000035;
+}
+.ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-icon-button.ts-card-action-primary {
+  width:64px; min-width:64px; gap:6px; padding:4px 7px!important;
+  font:500 12px/1 var(--font-interface); color:var(--text-normal);
+}
+.ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-card-action-primary > span:last-child {
+  display:inline; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+}
+.ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-card-quick-edit {
+  background:var(--ts-object-active); color:var(--ts-accent);
+}
+.ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-card-quick-preview {
+  border-left:1px solid var(--ts-object-line); border-radius:0 5px 5px 0;
+}
+/* Folded documents keep their essential expand action in the title strip.
+   Right-side breathing room remains reserved for the connection target. */
+.ts-root .ts-node.ts-document-compact > .ts-compact-fold-row {
+  gap:6px; padding-left:12px; padding-right:20px;
+}
+.ts-root .ts-node.ts-document-compact .ts-compact-inline-unfold {
+  display:inline-flex; align-items:center; justify-content:center; flex:none;
+  width:calc(24px * var(--ts-control-scale,1)); min-width:0;
+  height:calc(24px * var(--ts-control-scale,1)); min-height:0; margin:0; padding:0!important;
+  position:static; border:0; border-radius:6px; background:transparent;
+  box-shadow:none; color:var(--text-muted); pointer-events:auto;
+}
+.ts-root .ts-node.ts-document-compact .ts-compact-inline-unfold svg {
+  width:calc(14px * var(--ts-control-scale,1)); height:calc(14px * var(--ts-control-scale,1));
+}
+.ts-root .ts-node.ts-document-compact .ts-compact-inline-unfold:hover {
+  color:var(--ts-accent); background:var(--ts-object-active);
+}
+.ts-root .ts-node.ts-document-compact .ts-compact-inline-unfold:focus-visible {
+  outline:2px solid var(--ts-accent); outline-offset:1px;
+}
+.ts-root .ts-node.ts-document-compact .ts-compact-inline-unfold:disabled { opacity:.35; }
+.ts-root .ts-node.ts-document-compact .ts-compact-actions {
+  opacity:0; visibility:hidden; transition:opacity 120ms ease 750ms,visibility 0s linear 870ms;
+}
+.ts-root .ts-node.ts-document-compact:is(:hover,:focus-within,.is-selected) .ts-compact-actions {
+  opacity:1; visibility:visible; transition-delay:0s;
+}
+.ts-root .ts-node.ts-document-compact .ts-compact-actions:empty { display:none; }
+/* Keep long documents readable without an opaque surface or a layout shift. */
+.ts-root .ts-node.ts-card { --ts-card-reading-footer:12px; }
+.ts-root .ts-node.ts-card:has(> .ts-card-meta > :not(.ts-card-meta-placeholder)) { --ts-card-reading-footer:42px; }
+.ts-root .ts-node > .ts-card-reading-affordance {
+  position:absolute; z-index:5; right:16px; bottom:var(--ts-card-reading-footer);
+  display:inline-flex; align-items:center; justify-content:center; min-height:26px;
+  margin:0; padding:4px 9px; border:1px solid var(--ts-object-line); border-radius:7px;
+  font:500 11px/1.4 var(--font-interface); color:var(--text-muted);
+  background:var(--background-primary); box-shadow:0 2px 6px #0000000d;
+  opacity:0; transition:opacity 120ms ease; cursor:pointer;
+}
+.ts-root .ts-node > .ts-card-reading-affordance[hidden] { display:none; }
+.ts-root .ts-node:is(:hover,:focus-within,.is-selected) > .ts-card-reading-affordance { opacity:1; }
+.ts-root .ts-node > .ts-card-reading-affordance:hover { background:var(--ts-object-active); color:var(--ts-accent); }
+.ts-root .ts-node > .ts-card-reading-affordance:focus-visible { opacity:1; outline:2px solid var(--ts-accent); outline-offset:2px; }
+@media (hover:none) {
+  .ts-root .ts-node.ts-document-compact .ts-compact-actions,
+  .ts-root .ts-node > .ts-card-reading-affordance { opacity:1; visibility:visible; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .ts-root .ts-node.ts-document-compact .ts-compact-actions,
+  .ts-root .ts-node > .ts-card-reading-affordance { transition:none; }
+}
+
+.ts-root .ts-node.ts-card .ts-card-empty-prompt {
+  position:relative; width:100%; height:100%; min-width:0; min-height:0; margin:0; overflow:hidden;
+  display:flex; flex-direction:row; align-items:center; justify-content:center; gap:8px;
+  padding:0; border:0; background:transparent; box-shadow:none;
+  color:var(--text-faint); font:400 13px/1.4 var(--font-text); white-space:nowrap;
+}
+.ts-root .ts-node.ts-card .ts-card-empty-prompt svg { width:18px; height:18px; stroke-width:1.3; }
+.ts-root .ts-node.ts-card .ts-card-empty-prompt:hover:not(:disabled) { color:var(--text-muted); }
+.ts-root .ts-node.ts-card .ts-card-empty-prompt:focus-visible { outline:1px dashed var(--ts-accent); outline-offset:-4px; }
+.ts-root .ts-node.ts-card.is-inline-editing > :is(.ts-card-empty-prompt,.ts-card-reading-affordance) { display:none; }
+
+.ts-root .ts-node.ts-card .ts-card-empty-prompt > span:last-child { min-width:0; overflow:hidden; text-overflow:ellipsis; }
+
+.ts-root .ts-node.ts-card > .ts-card-preview.is-empty-document { overflow:hidden; }

@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import * as model from '../src/model';
 import * as mindmap from '../src/mindmap';
-import {reflowExpandedContent} from '../src/expansion-layout';
+import {reflowReadingContent} from '../src/expansion-reading-state';
 import * as boardTools from '../src/board-tools';
 import * as dragDraft from '../src/drag-draft';
 import * as dragTargets from '../src/drag-targets';
@@ -36,7 +36,7 @@ function fixture(nodes:model.Card[]=[card()],zoom=.54,edges:model.Edge[]=[]){
   const frames=new Map<number,()=>void>(),capture=new Set<number>(),notices:string[]=[];
   let frameId=0;
   const calls={persist:0,emit:0,render:0,edges:0,textMeasure:0};
-  const deps={...model,...mindmap,reflowExpandedContent,...boardTools,...dragDraft,...dragTargets,...experience,
+  const deps={...model,...mindmap,reflowReadingContent,...boardTools,...dragDraft,...dragTargets,...experience,
     Notice:class {constructor(message:string){notices.push(message);}},
     requestAnimationFrame:(fn:()=>void)=>{frames.set(++frameId,fn);return frameId;},
     cancelAnimationFrame:(id:number)=>frames.delete(id),

@@ -1,4 +1,5 @@
 import {webUrl} from './web-card';
+import {validReadingCheckpoint,type ReadingLayoutCheckpoint} from './expansion-checkpoint';
 import {externalMediaMarkdown} from './media-export';
 import {isRecord,isUnknownArray,isFiniteNumber,isOneOf} from './value-guards';
 import {remoteImageUrl} from './image-host';
@@ -8,6 +9,7 @@ import {markdownRows} from './markdown-context';
 import {yingjianNotePath} from './yingjian';
 /** Capture provenance survives independent text/image editing and safe note renames. */
 export interface Card { videoCapture?:{id:string;note:string}; sectionFolded?:boolean; sectionDivider?:'none'|'solid'|'dashed'|'dotted' }
+export interface Board {readingLayout?:ReadingLayoutCheckpoint}
 import { connectionSides, Side } from './connections';
 import { branchState, branchTopology, validateBranches } from './mindmap';
 import {sectionMemberQuery,sectionMovementPinned,sectionContains} from './sections';
@@ -27,7 +29,7 @@ export const uid = () => crypto.randomUUID();
 export const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 export function parseBoard(text: string): Board {
   const b:unknown = JSON.parse(text);
-  assertBoardData(b);validateBranches(b);return b;
+  assertBoardData(b);validateBranches(b);if(b.readingLayout!==undefined&&!validReadingCheckpoint(b.readingLayout,b.nodes))delete b.readingLayout;return b;
 }
 function assertBoardData(b:unknown):asserts b is Board {
   if (!isRecord(b) || !isOneOf(b.version,[1,2,3]) || !isUnknownArray(b.nodes) || !isUnknownArray(b.edges)) throw new Error('不支持的白板格式或版本');

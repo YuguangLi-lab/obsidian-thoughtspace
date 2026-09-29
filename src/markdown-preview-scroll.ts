@@ -1,4 +1,5 @@
-const blocks='.ts-text-markdown table,.ts-text-markdown pre,.ts-text-markdown .math-block,.ts-text:not(.is-folded) > .ts-text-body';
+const cardPreview='.ts-card:not(.is-folded) > .ts-card-preview';
+const blocks=`.ts-text-markdown table,.ts-text-markdown pre,.ts-text-markdown .math-block,.ts-text:not(.is-folded) > .ts-text-body,${cardPreview},${cardPreview} table,${cardPreview} pre,${cardPreview} .math-block`;
 const scrollable=(overflow:string)=>overflow==='auto'||overflow==='scroll'||overflow==='overlay';
 const extent=(full:number,visible:number)=>Number.isFinite(full)&&Number.isFinite(visible)&&visible>0&&full>visible?full-visible:0;
 const finite=(value:number)=>Number.isFinite(value)?value:0;
@@ -15,18 +16,19 @@ export function consumeMarkdownPreviewWheel(event:WheelEvent):boolean{
  let block=start?.closest<HTMLElement>(blocks);
  const rawX=finite(event.deltaX)||(event.shiftKey?finite(event.deltaY):0),rawY=event.shiftKey?0:finite(event.deltaY);
  if(!rawX&&!rawY)return false;
- while(block){
+ let consumedX=false,consumedY=false;
+ // Trackpad gestures can scroll a code block horizontally and its preview
+ // vertically. Each axis belongs to its nearest scrollable block, even at an edge.
+ while(block&&(!consumedX&&rawX||!consumedY&&rawY)){
   const style=block.ownerDocument.defaultView?.getComputedStyle(block);
   if(style){
    const maxX=scrollable(style.overflowX)?extent(block.scrollWidth,block.clientWidth):0,maxY=scrollable(style.overflowY)?extent(block.scrollHeight,block.clientHeight):0;
-   const dx=maxX&&rawX?pixels(rawX,event.deltaMode,block.clientWidth):0,dy=maxY&&rawY?pixels(rawY,event.deltaMode,block.clientHeight):0;
-   if(dx||dy){
-    if(dx){const rtl=style.direction==='rtl';block.scrollLeft=clamp(finite(block.scrollLeft)+dx,rtl?-maxX:0,rtl?0:maxX);}
-    if(dy)block.scrollTop=clamp(finite(block.scrollTop)+dy,0,maxY);
-    event.preventDefault();event.stopPropagation();return true;
-   }
+   const dx=!consumedX&&maxX&&rawX?pixels(rawX,event.deltaMode,block.clientWidth):0,dy=!consumedY&&maxY&&rawY?pixels(rawY,event.deltaMode,block.clientHeight):0;
+   if(dx){const rtl=style.direction==='rtl';block.scrollLeft=clamp(finite(block.scrollLeft)+dx,rtl?-maxX:0,rtl?0:maxX);consumedX=true;}
+   if(dy){block.scrollTop=clamp(finite(block.scrollTop)+dy,0,maxY);consumedY=true;}
   }
   block=block.parentElement?.closest<HTMLElement>(blocks);
  }
+ if(consumedX||consumedY){event.preventDefault();event.stopPropagation();return true;}
  return false;
 }

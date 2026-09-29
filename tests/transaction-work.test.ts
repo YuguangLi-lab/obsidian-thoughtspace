@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import * as model from '../src/model';
 import * as mindmap from '../src/mindmap';
-import {reflowExpandedContent} from '../src/expansion-layout';
+import {reflowReadingContent} from '../src/expansion-reading-state';
 
 const source=readFileSync('src/model.ts','utf8');let indexed=0,sets=0;
 class CountedSet<T> extends Set<T>{constructor(values?:Iterable<T>|null){super(values);sets++;indexed+=this.size;}}
@@ -34,7 +34,7 @@ test('history budgets retain undo and redo order and observe externally changed 
 });
 
 const main=readFileSync('src/main.ts','utf8'),start=main.indexOf('class Session {'),end=main.indexOf('\nexport default class ThoughtSpace',start);let clones=0,notices=0;
-const deps={...model,...mindmap,reflowExpandedContent,clone:<T>(b:T)=>{clones++;return model.clone(b);},Notice:class{constructor(){notices++;}},EXT:'thoughtspace',report:()=>{}};
+const deps={...model,...mindmap,reflowReadingContent,clone:<T>(b:T)=>{clones++;return model.clone(b);},Notice:class{constructor(){notices++;}},EXT:'thoughtspace',report:()=>{}};
 const Session=new Function(...Object.keys(deps),transformSync(main.slice(start,end)+';return Session',{loader:'ts'}).code)(...Object.values(deps));
 function session(){const s=new Session({}, {},JSON.stringify(board()));s.persist=()=>{};clones=notices=0;return s;}
 test('paused transactions reject before cloning large note and writing payloads',()=>{

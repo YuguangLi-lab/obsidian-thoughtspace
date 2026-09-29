@@ -4,11 +4,11 @@ import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import * as model from '../src/model';
 import * as mindmap from '../src/mindmap';
-import {reflowExpandedContent} from '../src/expansion-layout';
+import {reflowReadingContent} from '../src/expansion-reading-state';
 
 // Exercise the production Session, including its actual persistence queue and history.
 const source=readFileSync('src/main.ts','utf8'),start=source.indexOf('class Session {'),end=source.indexOf('\nexport default class ThoughtSpace',start);
-const deps={...model,...mindmap,reflowExpandedContent,Notice:class{},EXT:'thoughtspace',report:()=>{}};
+const deps={...model,...mindmap,reflowReadingContent,Notice:class{},EXT:'thoughtspace',report:()=>{}};
 const Session=new Function(...Object.keys(deps),transformSync(source.slice(start,end)+';return Session',{loader:'ts'}).code)(...Object.values(deps));
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 function fixture(){
