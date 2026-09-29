@@ -15,8 +15,8 @@ const turn=()=>new Promise<void>(resolve=>setImmediate(resolve));
 type Placement='tab'|'sidebar'|'window';
 function opening(){
  const a=new TFile('media/A.mp4'),b=new TFile('media/B.mp3'),files=new Map([a,b].map(file=>[file.path,file]));
- const leaves:Leaf[]=[],shared=new Map<string,number>(),calls={create:[] as string[],set:[] as string[],reveal:[] as Leaf[],activate:[] as {leaf:Leaf;focus:boolean}[],pause:0,expand:0};
- let active:View|undefined,activeFile:TFile|undefined;
+ const leaves:Leaf[]=[],onlineLeaves:OnlineLeaf[]=[],shared=new Map<string,number>(),calls={create:[] as string[],set:[] as string[],reveal:[] as Leaf[],activate:[] as {leaf:Leaf;focus:boolean}[],pause:0,expand:0,onlineStop:0};
+ let active:View|OnlineView|undefined,activeFile:TFile|undefined;
  let beforeSet:((leaf:Leaf,state:any)=>Promise<void>)|undefined,beforeReveal:((leaf:Leaf)=>Promise<void>)|undefined;
  class View {
   file?:TFile;placement:Placement='tab';time=0;paused=true;blocked=false;resumes=0;closed=false;states:any[]=[];
@@ -34,17 +34,29 @@ function opening(){
   async setViewState(state:any){calls.set.push(state.state.file||'empty');await beforeSet?.(this,state);await this.view.setState(state.state);if(state.active)active=this.view;}
   detach(){this.detaches++;this.attached=false;this.view.closed=true;if(active===this.view)active=undefined;}
  }
+ class OnlineView {
+  blocked=false;closed=false;draft='';
+  constructor(public leaf:OnlineLeaf){}
+  canMove(){return!this.blocked;}
+ }
+ class OnlineLeaf {
+  view:OnlineView;attached=true;detaches=0;loads=0;
+  constructor(){this.view=new OnlineView(this);onlineLeaves.push(this);}
+  async loadIfDeferred(){this.loads++;}
+  detach(){this.detaches++;this.attached=false;this.view.closed=true;if(active===this.view)active=undefined;}
+ }
  const workspace={
-  getLeavesOfType:()=>leaves.filter(leaf=>leaf.attached),getActiveViewOfType:()=>active,getActiveFile:()=>activeFile,
+  getLeavesOfType:(type:string)=>type==='thoughtspace-media-player'?leaves.filter(leaf=>leaf.attached):type==='thoughtspace-online-player'?onlineLeaves.filter(leaf=>leaf.attached):[],getActiveViewOfType:(Type:typeof View)=>active instanceof Type?active:undefined,getActiveFile:()=>activeFile,
   getLeaf:(where:Placement)=>{calls.create.push(where);return new Leaf(where);},getRightLeaf:()=>{calls.create.push('sidebar');return new Leaf('sidebar');},
   rightSplit:{expand:()=>calls.expand++},revealLeaf:async(leaf:Leaf)=>{calls.reveal.push(leaf);await beforeReveal?.(leaf);},
   setActiveLeaf:(leaf:Leaf,options:{focus:boolean})=>{calls.activate.push({leaf,focus:options.focus});active=leaf.view;},
  };
- const deps={MediaWorkspaceView:View,MEDIA_WORKSPACE:'thoughtspace-media-player',TFile,isWorkspaceFile,mediaKind,mediaTime};
+ const deps={MediaWorkspaceView:View,MEDIA_WORKSPACE:'thoughtspace-media-player',OnlineWorkspaceView:OnlineView,ONLINE_WORKSPACE:'thoughtspace-online-player',TFile,isWorkspaceFile,mediaKind,mediaTime};
  const Plugin=new Function(...Object.keys(deps),transformSync(`class Plugin{${method('  openMediaWorkspace(')}};return Plugin`,{loader:'ts'}).code)(...Object.values(deps));
- const plugin=new Plugin();Object.assign(plugin,{mediaOpening:Promise.resolve(),mediaClosed:false,app:{workspace,vault:{getAbstractFileByPath:(path:string)=>files.get(path)}},mediaWorkspace:{playback:{pauseAll:()=>{calls.pause++;for(const leaf of leaves.filter(leaf=>leaf.attached)){const v=leaf.view;if(v.file)shared.set(v.file.path,v.time);v.paused=true;}}}}});
+ const plugin=new Plugin();Object.assign(plugin,{mediaOpening:Promise.resolve(),mediaClosed:false,app:{workspace,vault:{getAbstractFileByPath:(path:string)=>files.get(path)}},onlinePlatform:{stop:()=>{calls.onlineStop++;}},mediaWorkspace:{playback:{pauseAll:()=>{calls.pause++;for(const leaf of leaves.filter(leaf=>leaf.attached)){const v=leaf.view;if(v.file)shared.set(v.file.path,v.time);v.paused=true;}}}}});
  const existing=(file:TFile|undefined=a,placement:Placement='tab',time=24)=>{const leaf=new Leaf(placement);leaf.view.file=file;leaf.view.placement=placement;leaf.view.time=time;active=leaf.view;return leaf;};
- return{a,b,files,leaves,calls,plugin,existing,get activeView(){return active;},setActiveView:(view?:View)=>{active=view;},setActiveFile:(file:TFile)=>{activeFile=file;},setBeforeSet:(fn:typeof beforeSet)=>{beforeSet=fn;},setBeforeReveal:(fn:typeof beforeReveal)=>{beforeReveal=fn;}};
+ const online=()=>{const leaf=new OnlineLeaf();active=leaf.view;return leaf;};
+ return{a,b,files,leaves,onlineLeaves,calls,plugin,existing,online,get activeView(){return active;},setActiveView:(view?:View)=>{active=view;},setActiveFile:(file:TFile)=>{activeFile=file;},setBeforeSet:(fn:typeof beforeSet)=>{beforeSet=fn;},setBeforeReveal:(fn:typeof beforeReveal)=>{beforeReveal=fn;}};
 }
 
 for(const placement of ['tab','sidebar','window'] as const)test(`opening ${placement} uses its native leaf and never autoplays the first open`,async()=>{
@@ -108,6 +120,43 @@ test('plugin close before processing or during destination setup cannot resume o
 });
 test('plugin close during reveal must not retire the old leaf or resume the new player',async()=>{
  const f=opening(),old=f.existing();old.view.paused=false;f.setBeforeReveal(async()=>{f.plugin.mediaClosed=true;});await f.plugin.openMediaWorkspace(f.a,'window');assert.equal(old.detaches,0);assert.equal(f.leaves.at(-1)!.view.resumes,0);assert.equal(f.leaves.at(-1)!.attached,false);
+});
+
+test('an online draft prevents a new local player from pausing playback, allocating a leaf or stopping its window',async()=>{
+ const f=opening(),online=f.online();online.view.blocked=true;online.view.draft='保留在线摘录';
+ await f.plugin.openMediaWorkspace(f.a,'tab');
+ assert.deepEqual(f.calls.create,[]);assert.equal(f.calls.pause,0);assert.equal(f.calls.onlineStop,0);assert.equal(online.attached,true);assert.equal(online.view.draft,'保留在线摘录');assert.equal(f.activeView,online.view);
+});
+test('a deferred online workspace must load before its draft guard can allow local navigation',async()=>{
+ const f=opening(),online=f.online(),restored=online.view;restored.blocked=true;restored.draft='恢复的在线草稿';
+ online.view={} as typeof restored;online.loadIfDeferred=async()=>{online.loads++;online.view=restored;};
+ await f.plugin.openMediaWorkspace(f.a,'tab');
+ assert.equal(online.loads,1);assert.deepEqual(f.calls.create,[]);assert.equal(f.calls.onlineStop,0);assert.equal(online.attached,true);assert.equal(restored.draft,'恢复的在线草稿');
+});
+test('an online draft also blocks revealing and seeking an already open local player',async()=>{
+ const f=opening(),local=f.existing(f.a,'tab',24),online=f.online();online.view.blocked=true;online.view.draft='保留在线摘录';
+ await f.plugin.openMediaWorkspace(f.a,'tab',77);
+ assert.equal(local.view.time,24);assert.deepEqual(f.calls.reveal,[]);assert.deepEqual(f.calls.activate,[]);assert.equal(f.calls.onlineStop,0);assert.equal(f.activeView,online.view);assert.equal(online.view.draft,'保留在线摘录');
+});
+for(const placement of ['tab','sidebar','window']as const)test(`switching an online workspace to a new local ${placement} stops the platform only after reveal succeeds`,async()=>{
+ const f=opening(),online=f.online();f.setBeforeReveal(async()=>{assert.equal(f.calls.onlineStop,0);});
+ await f.plugin.openMediaWorkspace(f.a,placement);
+ assert.equal(f.calls.onlineStop,1);assert.equal(f.leaves.at(-1)!.view.file,f.a);assert.equal(f.leaves.at(-1)!.attached,true);assert.equal(online.attached,true);assert.equal(online.view.closed,false);
+});
+test('switching back to an existing local tab stops the online platform without rebuilding the local player',async()=>{
+ const f=opening(),local=f.existing(f.a,'tab',31),online=f.online();
+ await f.plugin.openMediaWorkspace(f.a,'tab');
+ assert.equal(f.calls.onlineStop,1);assert.deepEqual(f.calls.create,[]);assert.equal(f.calls.pause,0);assert.equal(local.view.time,31);assert.equal(local.view.states.length,0);assert.equal(f.activeView,local.view);assert.equal(online.attached,true);
+});
+for(const phase of ['setup','reveal']as const)test(`a failed local ${phase} leaves the online window and notes available`,async()=>{
+ const f=opening(),online=f.online(),fail=async()=>{throw Error('local opening failed');};if(phase==='setup')f.setBeforeSet(fail);else f.setBeforeReveal(fail);
+ await assert.rejects(f.plugin.openMediaWorkspace(f.a,'window'));
+ assert.equal(f.calls.onlineStop,0);assert.equal(online.attached,true);assert.equal(online.detaches,0);assert.equal(f.leaves.at(-1)!.attached,false);
+});
+for(const phase of ['setup','reveal']as const)test(`an online draft started during local ${phase} keeps the platform and retires the temporary player`,async()=>{
+ const f=opening(),online=f.online(),startDraft=async()=>{online.view.blocked=true;online.view.draft='打开过程中新增的摘录';};if(phase==='setup')f.setBeforeSet(startDraft);else f.setBeforeReveal(startDraft);
+ await f.plugin.openMediaWorkspace(f.a,'window');
+ assert.equal(f.calls.onlineStop,0);assert.equal(online.attached,true);assert.equal(online.view.draft,'打开过程中新增的摘录');assert.equal(f.leaves.at(-1)!.attached,false);
 });
 
 function board(){

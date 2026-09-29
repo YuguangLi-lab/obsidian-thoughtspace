@@ -1,4 +1,9 @@
 import {webUrl,webCard,updateWebCard,renderWebCard} from './web-card';
+import {OnlinePlatform,parseOnlineSource,resolveOnlineSource,type OnlineState} from './online-platform';
+import {OnlineWorkspaceView,ONLINE_WORKSPACE,type OnlineWorkspaceHost} from './online-workspace-view';
+import {OnlineMediaService} from './online-media-service';
+import {onlineNoteSource,onlinePlayerUrl,parseOnlinePlayerUrl} from './online-media-notes';
+import {mountOnlinePreview} from './online-preview';
 import {ExternalMediaPicker} from './external-media-picker';
 import {createExternalMediaReference,isExternalMediaReference} from './external-media';
 import {consumeMarkdownPreviewWheel} from './markdown-preview-scroll';
@@ -34,7 +39,7 @@ import {isVaultMediaPath,mediaCard,mediaKind,mediaClock,mediaTime,mediaSourceMar
 import {mountMediaCard,type MediaCardState,type MediaCardHandle} from './media-card-player';
 import {MEDIA_WORKSPACE,MediaWorkspaceView,type MediaPlacement,type MediaWorkspaceHost} from './media-workspace-view';
 import {MediaWorkspaceService} from './media-workspace-service';
-import {mediaPlayerUrl,parseMediaPlayerUrl,mediaNoteSource,type MediaMoment} from './media-notes';
+import {imageMarkup,mediaPlayerUrl,parseMediaPlayerUrl,mediaNoteSource,type MediaMoment} from './media-notes';
 import {pdfCard,pdfSubpath,pdfPage,renderPdfThumbnail,isPdfFile,pdfDropReference,pdfPageKey} from './pdf-card';
 import {selectionFormatKey} from './selection-format';
 import {selectionEdges,patchSelectionEdges,type SelectionEdgeScope} from './selection-edges';
@@ -351,6 +356,11 @@ export default class ThoughtSpace extends Plugin {
   private mediaWorkspaceHost!:MediaWorkspaceHost;
   private mediaOpening:Promise<unknown>=Promise.resolve();
   private mediaClosed=false;
+  private onlinePlatform!:OnlinePlatform;
+  private onlineMedia!:OnlineMediaService;
+  private onlineWorkspaceHost!:OnlineWorkspaceHost;
+  private onlineState?:OnlineState;
+  private onlineListeners=new Set<(state:OnlineState)=>void>();
   private spaceHub?:SpaceHubModal;
   private paperSettingsModal?:PaperSettingsModal;
   private backgroundImageModal?:BackgroundImageModal;
@@ -376,7 +386,17 @@ export default class ThoughtSpace extends Plugin {
       openFile:file=>isExternalMediaReference(file.path)?this.openMediaWorkspace(file,'tab'):this.app.workspace.getLeaf('tab').openFile(file)
     });
     await this.mediaWorkspace.load();
-    this.mediaWorkspaceHost={open:(file,placement,time)=>this.openMediaWorkspace(file,placement,time),pick:done=>this.pickMediaFile(done),pickExternal:done=>this.pickExternalMedia(done),mount:(host,file,hooks)=>this.mediaWorkspace.mount(host,file,hooks),moments:file=>this.mediaWorkspace.moments(file),saveMoment:(file,data)=>this.mediaWorkspace.saveMoment(file,data),openNote:file=>this.openNoteInSidebar(file),sendToBoard:(file,moment)=>this.sendMediaToBoard(file,moment)};
+    this.onlinePlatform=new OnlinePlatform(state=>{this.onlineState=state;for(const notify of this.onlineListeners)notify(state);});
+    this.onlineMedia=new OnlineMediaService(this.app,(title,body)=>this.createUnique(normalizePath(this.settings.cardFolder+'/媒体笔记'),title,'md',body),()=>this.yingjianVaultId());
+    this.onlineWorkspaceHost={mount:(host,source)=>this.onlinePlatform.mount(host,source),pick:placement=>this.pickOnlineVideo(placement),open:(source,placement,time,note)=>this.openOnlineWorkspace(source,placement,time,note),state:()=>this.onlineState,subscribe:fn=>{this.onlineListeners.add(fn);return()=>this.onlineListeners.delete(fn);},command:(source,action,value)=>this.onlinePlatform.command(source,action,value),adopt:async(source,placement)=>{
+      for(const leaf of this.app.workspace.getLeavesOfType(ONLINE_WORKSPACE))if(leaf.view instanceof OnlineWorkspaceView&&!leaf.view.canMove())return;
+      const adopted=await this.onlinePlatform.adopt(source);await this.openOnlineWorkspace(adopted.path,placement,adopted.initialTime,undefined,true);
+    },capture:async source=>{const frame=await this.onlinePlatform.capture(source);if(this.mediaClosed)throw Error('播放器已关闭，截图未保存');return {blob:new Blob([Uint8Array.from(frame.bytes)],{type:'image/png'}),time:frame.time};},notes:(source,note)=>this.onlineMedia.notes(source,note),save:(source,data,note)=>this.onlineMedia.save(source,data,note),send:(source,time,text,image)=>this.sendOnlineToBoard(source,time,text,image),openNote:file=>this.openNoteInSidebar(file)};
+    this.registerView(ONLINE_WORKSPACE,leaf=>new OnlineWorkspaceView(leaf,this.onlineWorkspaceHost));
+    this.register(()=>{this.onlinePlatform.dispose();this.onlineMedia.dispose();this.onlineListeners.clear();});
+    this.addCommand({id:'open-online-video',name:'打开 B 站 / YouTube 在线视频',callback:()=>this.pickOnlineVideo('tab')});
+    this.registerObsidianProtocolHandler('thoughtspace-online-player',params=>act(async()=>{const link=parseOnlinePlayerUrl(params);if(!link||link.vault!==this.app.vault.getName())throw Error('在线视频链接无效或属于其他仓库');await this.openOnlineWorkspace(link.source,'tab',link.time,link.note);}));
+    this.mediaWorkspaceHost={open:(file,placement,time)=>this.openMediaWorkspace(file,placement,time),pick:done=>this.pickMediaFile(done),pickExternal:done=>this.pickExternalMedia(done),pickOnline:placement=>this.pickOnlineVideo(placement),mount:(host,file,hooks)=>this.mediaWorkspace.mount(host,file,hooks),moments:file=>this.mediaWorkspace.moments(file),saveMoment:(file,data)=>this.mediaWorkspace.saveMoment(file,data),openNote:file=>this.openNoteInSidebar(file),sendToBoard:(file,moment)=>this.sendMediaToBoard(file,moment)};
     this.registerView(MEDIA_WORKSPACE,leaf=>new MediaWorkspaceView(leaf,this.mediaWorkspaceHost));
     this.register(()=>{this.mediaClosed=true;void this.mediaWorkspace.dispose().catch(report);});
     this.registerEvent(this.app.vault.on('rename',(file,oldPath)=>{if(file instanceof TFile)this.mediaWorkspace.playback.rename(oldPath,file.path);}));
@@ -1089,6 +1109,68 @@ export default class ThoughtSpace extends Plugin {
     if(!view||view.file!==file||view.closed)throw Error('来源白板尚未就绪');
     view.seekMediaSource(source);
   }
+  pickOnlineVideo(placement:MediaPlacement='tab',accept?:(url:string)=>unknown){
+    new Prompt(this.app,'B 站 / YouTube 视频链接','',async input=>{
+      const source=await resolveOnlineSource(input);if(this.mediaClosed)return;
+      if(accept){const url=new URL(source.path);if(source.initialTime)url.searchParams.set('t',String(source.initialTime));await accept(url.href);}
+      else await this.openOnlineWorkspace(source.path,placement,source.initialTime);
+    }).open();
+  }
+  openOnlineWorkspace(input:string,placement:MediaPlacement='tab',time?:number,note?:string,adopted=false):Promise<void>{
+    const source=parseOnlineSource(input);if(!source)return Promise.reject(Error('在线视频链接无效'));
+    const job=this.mediaOpening.catch(()=>undefined).then(async()=>{
+      if(this.mediaClosed)return;
+      const workspace=this.app.workspace;
+      for(const leaf of [...workspace.getLeavesOfType(MEDIA_WORKSPACE),...workspace.getLeavesOfType(ONLINE_WORKSPACE)])await leaf.loadIfDeferred();
+      if(this.mediaClosed)return;
+      const views=workspace.getLeavesOfType(ONLINE_WORKSPACE).map(l=>l.view).filter((v):v is OnlineWorkspaceView=>v instanceof OnlineWorkspaceView);
+      const previous=workspace.getActiveViewOfType(OnlineWorkspaceView)||views.find(v=>v.currentSource()?.path===source.path)||views[0];
+      const same=previous?.currentSource()?.path===source.path&&(!note||note===previous.currentNote());
+      if(previous&&(!same||previous.getState().placement!==placement)&&!previous.canMove())return;
+      const canLeave=()=>{
+        if(previous&&(!same||previous.getState().placement!==placement)&&!previous.canMove())return false;
+        return workspace.getLeavesOfType(MEDIA_WORKSPACE).every(leaf=>!(leaf.view instanceof MediaWorkspaceView)||leaf.view.canMove());
+      };
+      if(!canLeave())return;
+      if(note)await this.onlineMedia.notes(source.path,note);
+      if(this.mediaClosed)return;
+      const target=time??(source.initialTime||undefined);
+      if(target!==undefined&&(!Number.isFinite(target)||target<0||target>864000))throw Error('在线视频时间无效');
+      const ensure=()=>{if(this.mediaClosed)throw Error('播放器已关闭');};
+      const launch=async()=>{
+        ensure();this.mediaWorkspace.playback.pauseAll();
+        if(adopted){if(this.onlineState?.sourcePath!==source.path||this.onlineState.closed)throw Error('平台当前视频已变化，请重新确认');await this.onlinePlatform.command(source.path,'focus');return;}
+        if(this.onlineState?.sourcePath===source.path&&!this.onlineState.closed){if(target!==undefined)await this.onlinePlatform.command(source.path,'seek',target);ensure();await this.onlinePlatform.command(source.path,'focus');}
+        else this.onlinePlatform.open(source.path,target??0);
+      };
+      if(same&&previous?.getState().placement===placement){
+        if(!canLeave())return;await launch();ensure();if(placement==='sidebar')workspace.rightSplit.expand();await workspace.revealLeaf(previous.leaf);workspace.setActiveLeaf(previous.leaf,{focus:true});return;
+      }
+      let leaf:WorkspaceLeaf|undefined;
+      try{
+        leaf=placement==='sidebar'?workspace.getRightLeaf(true)||undefined:workspace.getLeaf(placement==='window'?'window':'tab');
+        if(!leaf)throw Error('无法打开在线视频笔记');
+        await leaf.setViewState({type:ONLINE_WORKSPACE,active:true,state:{source:source.path,placement,note:note||(same?previous?.currentNote():undefined),...(target!==undefined?{time:target}:{})}});
+        ensure();
+        if(!canLeave()){leaf.detach();return;}
+        if(placement==='sidebar')workspace.rightSplit.expand();await workspace.revealLeaf(leaf);
+        ensure();if(!canLeave()){leaf.detach();return;}
+        await launch();ensure();
+        if(previous&&previous.leaf!==leaf){if(!previous.canMove()){leaf.detach();return;}previous.leaf.detach();}
+      }catch(error){leaf?.detach();throw error;}
+    });this.mediaOpening=job;return job;
+  }
+  async sendOnlineToBoard(input:string,time?:number,text?:string,image?:string){
+    const source=parseOnlineSource(input);if(!source)throw Error('在线视频来源无效');if(image!==undefined&&!imageMarkup(image))throw Error('截图引用无效');
+    const add=async(view:BoardView)=>{
+      if(time===undefined&&text===undefined&&image===undefined){await view.addWebCard(source.path);return;}
+      const value=time??0,url=onlinePlayerUrl(this.app.vault.getName(),source.path,value);
+      view.pasteTexts([image,text,`[${mediaClock(value)} · 回看视频](${url})`].filter(Boolean).join('\n\n'),false);
+    };
+    const view=this.app.workspace.getActiveViewOfType(BoardView)||this.currentBoard;
+    if(view?.session&&!view.closed){await add(view);return;}
+    const picker=new BoardPicker(this.app,null,async board=>{await this.openBoard(board);const target=this.currentBoard;if(!target||target.closed||target.file!==board)throw Error('白板已变化，请重新选择');await add(target);});picker.setPlaceholder('选择接收视频或摘录的白板…');picker.open();
+  }
   openMediaLibrary(){act(()=>this.openMediaWorkspace(undefined,'tab'));}
   async linkExternalMedia(input:string,kind?:'audio'|'video'):Promise<TFile>{
     const reference=await createExternalMediaReference(input);
@@ -1110,36 +1192,39 @@ export default class ThoughtSpace extends Plugin {
   pickExternalMedia(done:(file:TFile)=>unknown,kind?:'audio'|'video'){
     new ExternalMediaPicker(this.app,input=>this.linkExternalMedia(input,kind),done,kind).open();
   }
-  pickMediaFile(done:(file:TFile)=>unknown,kind?:'audio'|'video'){
-    const app=this.app,recent=this.mediaWorkspace.playback.recent(),external={external:true},linkOutside=()=>this.pickExternalMedia(done,kind);
-    class Picker extends FuzzySuggestModal<TFile|typeof external>{
-      getItems(){return [...app.vault.getFiles().filter(f=>isWorkspaceFile(f)&&!!mediaKind(f.path)&&(!kind||mediaKind(f.path)===kind)).sort((a,b)=>{const ai=recent.indexOf(a.path),bi=recent.indexOf(b.path);return(ai<0?Infinity:ai)-(bi<0?Infinity:bi)||a.path.localeCompare(b.path);}),external];}
-      getItemText(file:TFile|typeof external){return file instanceof TFile?file.path:'＋ 链接仓库外的'+(kind==='audio'?'音频':'视频或音频')+'…';}
-      onChooseItem(file:TFile|typeof external){if(file instanceof TFile)act(()=>done(file));else linkOutside();}
+  pickMediaFile(done:(file:TFile)=>unknown,kind?:'audio'|'video',online?:(url:string)=>unknown){
+    const app=this.app,recent=this.mediaWorkspace.playback.recent(),external={external:true},network={online:true},linkOutside=()=>this.pickExternalMedia(done,kind),linkOnline=()=>this.pickOnlineVideo('tab',online);
+    class Picker extends FuzzySuggestModal<TFile|typeof external|typeof network>{
+      getItems(){return [...app.vault.getFiles().filter(f=>isWorkspaceFile(f)&&!!mediaKind(f.path)&&(!kind||mediaKind(f.path)===kind)).sort((a,b)=>{const ai=recent.indexOf(a.path),bi=recent.indexOf(b.path);return(ai<0?Infinity:ai)-(bi<0?Infinity:bi)||a.path.localeCompare(b.path);}),external,...(kind==='audio'?[]:[network])];}
+      getItemText(file:TFile|typeof external|typeof network){return file instanceof TFile?file.path:file===network?'＋ B 站 / YouTube 在线视频…':'＋ 链接仓库外的'+(kind==='audio'?'音频':'视频或音频')+'…';}
+      onChooseItem(file:TFile|typeof external|typeof network){if(file instanceof TFile)act(()=>done(file));else if(file===network)linkOnline();else linkOutside();}
     }
-    const picker=new Picker(app);picker.setPlaceholder('搜索音视频，或选择“链接仓库外的视频”');picker.open();
+    const picker=new Picker(app);picker.setPlaceholder('搜索音视频，或打开本地文件 / 在线视频');picker.open();
   }
   openMediaWorkspace(file?:TFile,placement:MediaPlacement='tab',time?:number):Promise<void>{
     const requestedPath=file?.path;
     const job=this.mediaOpening.catch(()=>undefined).then(async()=>{
       if(this.mediaClosed)return;
       const workspace=this.app.workspace;
-      for(const leaf of workspace.getLeavesOfType(MEDIA_WORKSPACE))if(!(leaf.view instanceof MediaWorkspaceView))await leaf.loadIfDeferred();
+      for(const leaf of [...workspace.getLeavesOfType(MEDIA_WORKSPACE),...workspace.getLeavesOfType(ONLINE_WORKSPACE)])if(!(leaf.view instanceof MediaWorkspaceView)&&!(leaf.view instanceof OnlineWorkspaceView))await leaf.loadIfDeferred();
       if(this.mediaClosed)return;
       const views=workspace.getLeavesOfType(MEDIA_WORKSPACE).map(l=>l.view).filter((v):v is MediaWorkspaceView=>v instanceof MediaWorkspaceView);
       const active=workspace.getActiveViewOfType(MediaWorkspaceView),previous=active||views.find(v=>v.currentFile()===file)||views[0];
       const current=workspace.getActiveFile(),target=file||previous?.currentFile()||(current&&mediaKind(current.path)?current:undefined);
       if(target&&(!isWorkspaceFile(target)||!mediaKind(target.path)||this.app.vault.getAbstractFileByPath(requestedPath||target.path)!==target||requestedPath&&target.path!==requestedPath))throw Error('媒体文件已移动或删除，请重新选择');
       if(time!==undefined)mediaTime(time);
+      const canLeaveOnline=()=>workspace.getLeavesOfType(ONLINE_WORKSPACE).every(leaf=>!(leaf.view instanceof OnlineWorkspaceView)||leaf.view.canMove());
+      if(!canLeaveOnline())return;
       if(previous&&previous.currentFile()===target&&previous.getState().placement===placement){
         const live=()=>!this.mediaClosed&&previous.leaf.view===previous&&workspace.getLeavesOfType(MEDIA_WORKSPACE).includes(previous.leaf);
         if(time!==undefined)await previous.setState({...previous.getState(),time});
         if(!live())return;if(placement==='sidebar')workspace.rightSplit.expand();
         await workspace.revealLeaf(previous.leaf);
         // Revealing a pane does not select an already-open tab.
-        if(live())workspace.setActiveLeaf(previous.leaf,{focus:true});return;
+        if(live()&&canLeaveOnline()){this.onlinePlatform.stop();workspace.setActiveLeaf(previous.leaf,{focus:true});}return;
       }
       if(previous&&!previous.canMove())return;
+
       const playing=previous?.containerEl.querySelector<HTMLMediaElement>('audio,video')?.paused===false;
       const sameSource=previous?.currentFile()===target,previousLayout=sameSource?previous?.getState():undefined;
       const layout=previousLayout?{focusPlayer:previousLayout.focusPlayer,recordPanel:previousLayout.recordPanel,compactPlayer:previousLayout.compactPlayer,viewerRatio:previousLayout.viewerRatio,recordDensity:previousLayout.recordDensity}:{};
@@ -1153,6 +1238,8 @@ export default class ThoughtSpace extends Plugin {
         if(this.mediaClosed){leaf.detach();return;}
         if(placement==='sidebar')workspace.rightSplit.expand();await workspace.revealLeaf(leaf);
         if(this.mediaClosed){leaf.detach();return;}
+        if(!canLeaveOnline()){leaf.detach();return;}
+        this.onlinePlatform.stop();
         if(previous&&previous.leaf!==leaf){if(!previous.canMove()){leaf.detach();return;}previous.leaf.detach();}
         if(playing&&sameSource&&leaf.view instanceof MediaWorkspaceView)leaf.view.resumePlayback();
       }catch(error){leaf?.detach();if(playing&&!this.mediaClosed)previous?.resumePlayback();throw error;}
@@ -1185,6 +1272,7 @@ export default class ThoughtSpace extends Plugin {
     const stamp=file.stat.mtime,size=file.stat.size;if(file.extension!=='md'||size>2*1024*1024)throw Error('来源笔记无效或过大');
     const raw=await this.app.vault.read(file),header=/^---\r?\n([\s\S]*?)\r?\n(?:---|\.\.\.)[ \t]*(?:\r?\n|$)/.exec(raw),meta:unknown=header?parseYaml(header[1]):undefined;
     if(file.path!==path||file.stat.mtime!==stamp||file.stat.size!==size||this.app.vault.getAbstractFileByPath(path)!==file||!isRecord(meta)||meta.source!==parsed.video)throw Error('视频来源已变化，请刷新摘录后重试');
+    if(parseOnlineSource(parsed.video)){await this.openOnlineWorkspace(parsed.video,'tab',parsed.time,file.path);return;}
     await this.openMediaWorkspace(this.resolveLegacyMedia(parsed.video),'tab',parsed.time);
   }
   async openYingjianLink(params:Record<string,string>){const path=yingjianNotePath(params.note);if(params.vault!==undefined&&params.vault!==this.app.vault.getName()||!path||params.vaultId!==undefined&&params.vaultId!==this.yingjianVaultId())throw Error('影笺入口的仓库或笔记路径无效');let file=this.app.vault.getAbstractFileByPath(path);for(let attempt=0;!file&&attempt<12;attempt++){await new Promise(resolve=>window.setTimeout(resolve,150));file=this.app.vault.getAbstractFileByPath(path);}if(!(file instanceof TFile)||!isWorkspaceFile(file))throw Error('影笺笔记尚未同步到当前仓库，请同步后重试');await this.openYingjian(file);}
@@ -1192,8 +1280,9 @@ export default class ThoughtSpace extends Plugin {
     if(this.mediaClosed)return;
     if(!initial){await this.openMediaWorkspace();return;}
     const path=initial.path,stamp=initial.stat.mtime,size=initial.stat.size;if(initial.extension!=='md'||this.app.vault.getAbstractFileByPath(path)!==initial||!isWorkspaceFile(initial)||size>2*1024*1024)throw Error('来源笔记已变化或过大，请重新选择');
-    const raw=await this.app.vault.read(initial),source=mediaNoteSource(raw);
+    const raw=await this.app.vault.read(initial),source=mediaNoteSource(raw)||onlineNoteSource(raw);
     if(this.app.vault.getAbstractFileByPath(path)!==initial||initial.path!==path||initial.stat.mtime!==stamp||initial.stat.size!==size||!source)throw Error('媒体来源笔记已变化，请刷新后重试');
+    if(parseOnlineSource(source)){await this.openOnlineWorkspace(source,'tab',undefined,initial.path);return;}
     await this.openMediaWorkspace(this.resolveLegacyMedia(source),'tab');
   }
   async openExcerptNote(initial?:TFile){
@@ -1217,7 +1306,7 @@ export default class ThoughtSpace extends Plugin {
     if(file.extension!=='md')throw Error('请选择 Markdown 笔记');
     return this.openNoteInSidebar(file,undefined,true);
   }
-  openNoteInSidebar(file:TFile,subpath?:string,editing=false):Promise<WorkspaceLeaf>{
+  openNoteInSidebar(file:TFile,subpath?:string,editing=false,reading=false):Promise<WorkspaceLeaf>{
     const work=this.noteQueue.catch(()=>{}).then(async()=>{
       if(this.app.vault.getAbstractFileByPath(file.path)!==file)throw Error('笔记已移动或删除，请刷新后重试');
       // Finish an inline draft before another view starts editing the same file.
@@ -1226,11 +1315,11 @@ export default class ThoughtSpace extends Plugin {
       let leaf=this.app.workspace.getLeavesOfType(isPdfFile(file.path)?'pdf':'markdown').find(l=>right(l)&&l.getViewState().state?.file===file.path);
       if(!leaf&&this.settings.notePaneLeafId){const existing=this.app.workspace.getLeafById(this.settings.notePaneLeafId);if(existing&&right(existing)&&['markdown','pdf'].includes(existing.getViewState().type)&&!existing.getViewState().pinned)leaf=existing;}
       if(!leaf){const created=this.app.workspace.getRightLeaf(false);if(!created)throw new Error('无法创建右侧笔记面板');leaf=created;}
-      const same=leaf.getViewState().state?.file===file.path;
-      if(!same)await leaf.openFile(file,{state:editing?{mode:'source'}:undefined,eState:subpath?{subpath}:undefined});
+      const same=leaf.getViewState().state?.file===file.path,mode=editing?'source':reading?'preview':undefined;
+      if(!same)await leaf.openFile(file,{state:mode?{mode}:undefined,eState:subpath?{subpath}:undefined});
       else {
         if(leaf.isDeferred)await leaf.loadIfDeferred();
-        if(editing&&leaf.view instanceof MarkdownView&&leaf.view.getMode()!=='source')await leaf.setViewState({...leaf.getViewState(),state:{...leaf.view.getState(),mode:'source'}});
+        if(mode&&leaf.view instanceof MarkdownView&&leaf.view.getMode()!==mode)await leaf.setViewState({...leaf.getViewState(),state:{...leaf.view.getState(),mode}});
         if(subpath)leaf.setEphemeralState({subpath});
       }
       this.settings.notePaneLeafId=workspaceLeafId(leaf);await this.saveData(this.settings);await this.app.workspace.revealLeaf(leaf);
@@ -2246,7 +2335,7 @@ class BoardView extends FileView {
   async insertMediaCard(position=this.point(),kind?:'audio'|'video'){
     const owner=this.requireOwner();if(this.inline&&!await this.inline.commit())return;this.requireOwner(owner);
     const app=this.app,accept=(file:TFile)=>{this.requireOwner(owner);if(app.vault.getAbstractFileByPath(file.path)!==file||!mediaKind(file.path)||!isWorkspaceFile(file))throw Error('媒体已移动或删除，请重新选择');this.addFile(file,position);this.contextOpen=false;this.updateSelection();this.stage.focus({preventScroll:true});};
-    this.plugin.pickMediaFile(accept,kind);
+    this.plugin.pickMediaFile(accept,kind,url=>{this.requireOwner(owner);return this.addWebCard(url,position);});
   }
   async insertPdfCard(position=this.point(),initial?:TFile,page=1) {
     const owner=this.requireOwner();if(this.inline&&!await this.inline.commit())return;this.requireOwner(owner);
@@ -2311,7 +2400,7 @@ class BoardView extends FileView {
     const owner=this.requireOwner();new Prompt(this.app,'网页链接','https://',value=>{this.requireOwner(owner);return this.addWebCard(value,position);}).open();
   }
   async addWebCard(input:string,position=this.point()){
-    const owner=this.requireOwner(),node=webCard(input,uid(),position);if(this.inline&&!await this.inline.commit())return;this.requireOwner(owner);
+    const owner=this.requireOwner();if(/^https:\/\/b23\.tv\//.test(input.trim())){const resolved=await resolveOnlineSource(input);this.requireOwner(owner);input=resolved.path+(resolved.path.includes('?')?'&':'?')+'t='+resolved.initialTime;}const node=webCard(input,uid(),position);if(this.inline&&!await this.inline.commit())return;this.requireOwner(owner);
     owner.change(b=>{b.version=3;b.nodes.push(node);});this.selected=new Set([node.id]);this.selectedEdge=undefined;this.contextOpen=false;this.updateSelection();
   }
   private editWebCard(id:string){
@@ -2655,7 +2744,12 @@ class BoardView extends FileView {
         row.createSpan({cls:'ts-compact-fold-title',text:title,attr:{title}});
         const expand=()=>{this.requireOwner(owner);const current=owner.board.nodes.find(node=>node.id===n.id);if(!current||current.locked||owner.blocked)return;if(current.sectionFolded)this.setSelectionFold(new Set([n.id]),false,true);else if(current.collapsed)this.foldText(n.id,false);else if(current.branchFolded)this.foldBranches(new Set([n.id]),false,'level');};
         const label=n.sectionFolded?'展开分组':n.collapsed?'展开内容':'展开下一层';
-        const unfold=button(row,label,'chevron-down',expand,'ts-icon-button ts-compact-unfold');unfold.disabled=owner.blocked||!!n.locked;unfold.setAttribute('aria-expanded','false');unfold.onpointerdown=e=>e.stopPropagation();unfold.ondblclick=e=>e.stopPropagation();
+        const actions=row.createDiv({cls:'ts-compact-actions',attr:{role:'group','aria-label':'折叠对象操作'}});
+        if(n.kind==='card'&&fileInfo instanceof TFile&&fileInfo.extension==='md'){
+          const read=button(actions,'在右侧阅读笔记','panel-right-open',async()=>{this.requireOwner(owner);const current=owner.board.nodes.find(node=>node.id===n.id);if(!current||current.kind!=='card'||current.file!==fileInfo.path)throw Error('卡片已变化，请重新打开');await this.plugin.openNoteInSidebar(fileInfo,undefined,false,true);},'ts-icon-button ts-compact-read');
+          read.onpointerdown=e=>e.stopPropagation();read.ondblclick=e=>e.stopPropagation();
+        }
+        const unfold=button(actions,label,'chevron-down',expand,'ts-icon-button ts-compact-unfold');unfold.disabled=owner.blocked||!!n.locked;unfold.setAttribute('aria-expanded','false');unfold.onpointerdown=e=>e.stopPropagation();unfold.ondblclick=e=>e.stopPropagation();
         if(n.kind==='section')renderBranchControls(el,{...branchOptions,group:false});
         this.addPorts(el,n.id);
         el.ondblclick=e=>{if((e.target as Element).closest('button'))return;e.stopPropagation();act(expand);};
@@ -2693,7 +2787,7 @@ class BoardView extends FileView {
           el.ondblclick = e => { if ((e.target as Element).closest('button')) return; e.stopPropagation(); act(() => this.enterBoard(file)); };
         } else if(!n.collapsed) { el.createDiv('ts-portal-preview').createDiv({ cls: 'ts-missing', text: '找不到子白板。原入口保留，可以重新关联。' }); }
       } else if(n.webUrl){
-        const owner=this.session!;header.remove();renderWebCard(el,n,{open:()=>{this.requireOwner(owner);this.openWebCard(n.id);},edit:()=>{this.requireOwner(owner);this.editWebCard(n.id);},fold:()=>{this.requireOwner(owner);this.foldText(n.id,true);},copy:()=>{this.requireOwner(owner);this.copyWebCard(n.id);},disabled:owner.blocked||!!n.locked,register:dispose=>scope.register(dispose)});
+        const owner=this.session!;header.remove();renderWebCard(el,n,{open:()=>{this.requireOwner(owner);this.openWebCard(n.id);},edit:()=>{this.requireOwner(owner);this.editWebCard(n.id);},fold:()=>{this.requireOwner(owner);this.foldText(n.id,true);},copy:()=>{this.requireOwner(owner);this.copyWebCard(n.id);},disabled:owner.blocked||!!n.locked,register:dispose=>scope.register(dispose),online:parseOnlineSource(n.webUrl)?{open:()=>{this.requireOwner(owner);act(()=>this.plugin.openOnlineWorkspace(n.webUrl!,'sidebar'));},mount:host=>mountOnlinePreview(this.app,host,n.webUrl!,owner.file.path,scope)}:undefined});
       } else if(n.kind==='text'){
         header.remove();el.dataset.ink=n.textColor || 'default';
         const presentation=textExcerptPresentation(n.text||'');el.toggleClass('has-excerpt-source',!!presentation.sources.length);

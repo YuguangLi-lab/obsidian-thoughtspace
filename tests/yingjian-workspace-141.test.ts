@@ -9,6 +9,8 @@ import {isWorkspaceFile} from '../src/workspace';
 import {yingjianMoments,yingjianNoteSource,yingjianNotePath,yingjianLink,parseYingjianLink} from '../src/yingjian';
 import {isVaultMediaPath,mediaKind} from '../src/media-source';
 import {mediaNoteDocument,mediaNoteSource} from '../src/media-notes';
+import {parseOnlineSource} from '../src/online-platform';
+import {onlineNoteSource} from '../src/online-media-notes';
 const parseYaml=createRequire(import.meta.url)('js-yaml').load;
 const source='/Vault/课程/示范.mp4',vaultId='abcdef0123456789abcd';
 const link=yingjianLink(source,14.25,'课程.md',vaultId),moment=`[00:14](${link})`,header=`---\nsource: ${JSON.stringify(source)}\nvideo-note-id: course\n---\n`;
@@ -67,7 +69,7 @@ test('rename refresh follows the same source object and closing unregisters live
 
 const main=readFileSync('src/main.ts','utf8');
 const playback=main.slice(main.indexOf('  private resolveLegacyMedia('),main.indexOf('  async openExcerptNote('));
-const playbackDeps={parseYingjianLink,yingjianNotePath,TFile,isWorkspaceFile,isRecord,parseYaml,isVaultMediaPath,mediaKind,FileSystemAdapter,resolvePath,mediaNoteSource,window:{setTimeout:(fn:()=>void)=>setTimeout(fn,0)}};
+const playbackDeps={parseYingjianLink,yingjianNotePath,TFile,isWorkspaceFile,isRecord,parseYaml,isVaultMediaPath,mediaKind,FileSystemAdapter,resolvePath,mediaNoteSource,parseOnlineSource,onlineNoteSource,window:{setTimeout:(fn:()=>void)=>setTimeout(fn,0)}};
 const Playback=new Function(...Object.keys(playbackDeps),transformSync('class Harness {'+playback+'}\nreturn Harness;',{loader:'ts'}).code)(...Object.values(playbackDeps));
 function playbackFixture(){const f=fixture(),calls:any[]=[];const plugin=new Playback(),media=new TFile('课程/示范.mp4');f.files.set(media.path,media);plugin.app=f.app;Object.assign(f.app.vault,{adapter:new FileSystemAdapter(),getName:()=> 'Vault',getFiles:()=>[...f.files.values()]});plugin.openMediaWorkspace=async(...args:any[])=>{calls.push(args);};plugin.yingjianVaultId=()=>vaultId;return{...f,plugin,calls,media};}
 test('legacy timestamps open the native workspace at exact fractional time without an external plugin',async()=>{

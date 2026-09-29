@@ -89,7 +89,7 @@ function checkDocument(raw:string,source:MediaNoteSource):boolean {
  if(/^---\r?\n/.test(raw)&&!raw.split(/\r?\n/).some((line,index)=>index>0&&/^(---|\.\.\.)\s*$/.test(line)))throw Error('请先闭合笔记开头的属性区域');
  const props=noteProperties(raw);return !props.has('thoughtspace_media')||scalar(props.get('thoughtspace_media')||'')===source.file;
 }
-function imageMarkup(value:string):boolean {
+export function imageMarkup(value:string):boolean {
  if(!value||value.length>16384||control(value))return false;
  let path:string|undefined;
  const wiki=/^!\[\[([^\]\r\n]+)\]\]$/.exec(value);
@@ -128,7 +128,7 @@ function timestampLink(visible:string,parse:(url:string)=>number|undefined):Mome
  }
 }
 function momentHeader(visible:string):boolean {
- return /^ {0,3}>[ \t]?\[![^\]]+\]/.test(visible)&&!!timestampLink(visible,url=>/^(obsidian:\/\/thoughtspace-player|yingjian:\/\/open)\?/.test(url)?0:undefined);
+ return /^ {0,3}>[ \t]?\[![^\]]+\]/.test(visible)&&!!timestampLink(visible,url=>/^(obsidian:\/\/thoughtspace-(?:online-)?player|yingjian:\/\/open)\?/.test(url)?0:undefined);
 }
 /** Keep editable body Markdown intact; strip only the record's envelope and optional image. */
 function readMoments(raw:string,parse:(url:string)=>number|undefined,prefix:string):MediaMoment[] {
@@ -170,3 +170,6 @@ export function readLegacyMediaMoments(raw:string,source:MediaNoteSource,legacyS
   return parameterTime(params.get('t'));
  },'video-t-');
 }
+
+/** Shared pure parsing primitives for local and official-platform timestamp notes. */
+export {scalar,noteProperties,urlParams,paramsOnly,parameterTime,readMoments,validId,escapeLabel,maxDocument};

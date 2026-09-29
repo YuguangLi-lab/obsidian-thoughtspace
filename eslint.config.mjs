@@ -7,8 +7,8 @@ export default defineConfig([
   { ignores: ['node_modules/**', 'dist/**', 'main.js', 'tests/**', 'qa/**', 'scripts/**', '*.mjs'] },
   ...obsidianmd.configs.recommended,
   {
-    files: ['src/**/*.ts'],
-    languageOptions: { parserOptions: { projectService: true } },
+    files: ['src/**/*.{ts,mts,mjs}'],
+    languageOptions: { parserOptions: { projectService: {allowDefaultProject:['src/online-platform/*.mjs']} } },
     // The directory reports these general JS/TS diagnostics as warnings.
     // Keep them visible without conflating them with blocking Obsidian rules.
     // Every obsidianmd/* rule retains the official recommended severity.

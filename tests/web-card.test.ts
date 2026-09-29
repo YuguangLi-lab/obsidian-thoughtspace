@@ -28,3 +28,17 @@ test('web preview loads in a large card, is sandboxed and released on disposal',
  const frame=host.querySelector('iframe')!;assert.equal(frame.attributes.src,url);assert.equal(frame.attributes.sandbox.includes('allow-same-origin'),false);assert.equal(frame.attributes.referrerpolicy,'no-referrer');
  preview.onclick!({stopPropagation(){}});assert.equal(host.querySelector('iframe'),null);preview.onclick!({stopPropagation(){}});dispose();assert.equal(host.querySelector('iframe'),null);preview.onclick!({stopPropagation(){}});assert.equal(host.querySelector('iframe'),null);
 });
+test('online previews release their embedded player before opening the full workspace and on disposal',()=>{
+ const doc=new WebDoc(),host=doc.createElement('div');let mounts=0,releases=0,opens=0,dispose=()=>{};
+ const node=webCard('https://www.youtube.com/watch?v=M7lc1UVf-VE','youtube',{x:0,y:0});
+ renderWebCard(host as unknown as HTMLElement,node,{open(){},edit(){},fold(){},copy(){},disabled:false,register(fn){dispose=fn;},online:{open(){assert.equal(releases,1);opens++;},mount(){mounts++;return()=>{releases++;};}}});
+ assert.equal(mounts,1);assert.equal(host.querySelector('iframe'),null);
+ const buttons=host.querySelectorAll('button') as WebEl[];
+ buttons.find(button=>button.attributes.title==='打开在线视频笔记')!.onclick!({stopPropagation(){}});assert.equal(opens,1);assert.equal(releases,1);
+ buttons.find(button=>button.attributes.title==='在卡片内预览网页')!.onclick!({stopPropagation(){}});assert.equal(mounts,2);dispose();assert.equal(releases,2);
+});
+test('online video automatic titles follow link changes without overwriting custom titles',()=>{
+ const node=webCard('https://www.youtube.com/watch?v=M7lc1UVf-VE','video',{x:0,y:0});assert.match(node.title!,/YouTube/);
+ updateWebCard(node,'https://www.bilibili.com/video/BV1xx411c7mD/?p=2');assert.match(node.title!,/哔哩哔哩.*P2/);
+ node.title='自己的课程';updateWebCard(node,'https://example.com/');assert.equal(node.title,'自己的课程');
+});

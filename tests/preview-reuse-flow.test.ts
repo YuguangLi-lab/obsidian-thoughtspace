@@ -84,6 +84,7 @@ class Dom {
 class File {
  stat={mtime:100,size:200};basename:string;
  constructor(readonly path:string){this.basename=path.replace(/\.[^.]+$/,'');}
+ get extension(){return this.path.split('.').at(-1)||'';}
 }
 class Scope {
  unloaded=0;disposals:(()=>void)[]=[];children:Scope[]=[];load(){}
@@ -132,6 +133,18 @@ function fixture(kind:model.Card['kind']='card',patch:Partial<model.Card>={}){
  const drain=async()=>{await previewQueue.drain();await pdfPreviewQueue.drain();};
  render();return{view,board,session,calls,metadata,files,previewQueue,pdfPreviewQueue,mediaMounts,render,element,scope,replace,drain};
 }
+
+test('folded Markdown reading opens the native sidebar without changing layout or fold state',async()=>{
+ const f=fixture('card',{collapsed:true,height:72,expandedHeight:650,transparent:true}),before=model.clone(f.board),opened:unknown[][]=[];
+ f.view.plugin.openNoteInSidebar=async(...args:unknown[])=>{opened.push(args);};
+ const read=f.element().querySelector('.ts-compact-read');assert.ok(read);await read.onclick?.();
+ assert.deepEqual(opened,[[f.files.get(f.board.nodes[0].file!),undefined,false,true]]);assert.deepEqual(f.board,before);
+ f.board.nodes[0].file='changed.md';await assert.rejects(async()=>read.onclick?.(),/卡片已变化/);assert.equal(opened.length,1);
+});
+test('folded non-Markdown and missing sources keep expand controls without a dead reading shortcut',()=>{
+ for(const kind of ['text','image','pdf'] as const){const f=fixture(kind,{collapsed:true,height:72,expandedHeight:240});assert.equal(f.element().querySelector('.ts-compact-read'),null);assert.ok(f.element().querySelector('.ts-compact-unfold'));}
+ const f=fixture('card',{collapsed:true,height:72,expandedHeight:650});f.files.clear();f.render();assert.equal(f.element().querySelector('.ts-compact-read'),null);assert.ok(f.element().querySelector('.ts-compact-unfold'));
+});
 
 for(const kind of ['card','text','image','pdf'] as const)test(`${kind}: appearance changes retain mounted content and renderer scope`,async()=>{
  const f=fixture(kind);await f.drain();const el=f.element(),scope=f.scope(),children=[...el.children],before={read:f.calls.read,markdown:f.calls.markdown,pdf:f.calls.pdf,textFit:f.calls.textFit};

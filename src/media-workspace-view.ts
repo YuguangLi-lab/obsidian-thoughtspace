@@ -11,6 +11,7 @@ export interface MediaWorkspaceHost {
  open(file:TFile|undefined,placement:MediaPlacement,time?:number):Promise<unknown>;
  pick(done:(file:TFile)=>void):void;
  pickExternal?(done:(file:TFile)=>unknown):void;
+ pickOnline?(placement:MediaPlacement):void;
  mount(host:HTMLElement,file:TFile,hooks:{initialState?:MediaCardState;state:(state:MediaCardState)=>void;capture:(time:number)=>Promise<unknown>;frame:(blob:Blob,time:number)=>Promise<unknown>;frameCaptureState?:(busy:boolean,time:number)=>void}):MediaCardHandle;
  moments(file:TFile):Promise<{note?:TFile;entries:MediaMoment[];warnings?:string[]}>;
  saveMoment(file:TFile,data:{id:string;time:number;text:string;image?:Blob;source?:MediaIdentity}):Promise<{note:TFile}>;
@@ -205,6 +206,7 @@ export class MediaWorkspaceView extends ItemView {
   const failed=()=>{if(current())this.message('操作未完成，请重试；当前摘录会保留。');};
   const run=(fn:()=>unknown)=>()=>{if(!current())return;try{void Promise.resolve(fn()).catch(failed);}catch{failed();}};
   menu.addItem(item=>item.setTitle('选择音频或视频').setIcon('folder-open').onClick(run(()=>this.pick())));
+  if(this.host.pickOnline)menu.addItem(item=>item.setTitle('打开 B 站 / YouTube 在线视频').setIcon('globe').onClick(run(()=>{if(this.canMove())this.host.pickOnline?.(this.placement);})));
   if(this.host.pickExternal)menu.addItem(item=>item.setTitle('链接仓库外的视频或音频').setIcon('link').onClick(run(()=>this.pickExternal())));
   menu.addItem(item=>item.setTitle('将媒体加入白板').setIcon('panels-top-left').setDisabled(!file).onClick(run(()=>file&&this.isCurrent(file,generation)&&this.host.sendToBoard(file))));
   menu.addSeparator();
@@ -292,7 +294,7 @@ export class MediaWorkspaceView extends ItemView {
   el.onpointerdown=event=>{if(layoutOptions.open&&!layoutOptions.contains(event.target as Node))layoutOptions.open=false;};
   this.moreButton=this.action(headerActions,'更多媒体操作','ellipsis',event=>{layoutOptions.open=false;this.showMore(event);},true);
   this.status=el.createDiv({cls:'ts-media-workspace__status',attr:{role:'status','aria-live':'polite'}});
-  if(!this.file){const empty=el.createDiv('ts-media-workspace__empty');setIcon(empty.createDiv('ts-media-workspace__empty-icon'),'clapperboard');empty.createSpan({cls:'ts-media-workspace__eyebrow',text:'从一段声音或影像开始'});empty.createEl('h2',{text:'把值得留下的瞬间，写成笔记'});empty.createEl('p',{text:'打开仓库中的音视频，或链接电脑上的外部文件，边播放边摘录。文字、画面与时间点保存在同一份笔记里。'});this.action(empty,'选择媒体','folder-open',()=>this.pick());return;}
+  if(!this.file){const empty=el.createDiv('ts-media-workspace__empty');setIcon(empty.createDiv('ts-media-workspace__empty-icon'),'clapperboard');empty.createSpan({cls:'ts-media-workspace__eyebrow',text:'从一段声音或影像开始'});empty.createEl('h2',{text:'把值得留下的瞬间，写成笔记'});empty.createEl('p',{text:'打开仓库中的音视频，或链接电脑上的外部文件，边播放边摘录。文字、画面与时间点保存在同一份笔记里。'});this.action(empty,'选择媒体','folder-open',()=>this.pick());if(this.host.pickOnline)this.action(empty,'B 站 / YouTube','globe',()=>this.host.pickOnline?.(this.placement));return;}
   const layout=el.createDiv('ts-media-workspace__layout'),main=layout.createDiv('ts-media-workspace__main');
   const playerHost=main.createDiv('ts-media-workspace__player');
   const desk=layout.createDiv('ts-media-workspace__desk');

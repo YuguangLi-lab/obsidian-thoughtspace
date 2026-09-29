@@ -20,21 +20,19 @@
   border-radius:inherit; pointer-events:none;
 }
 
-/* One compact action dock has the same anchor for text, notes and folded
-   objects. A 16 px gap clears the top connection target even on narrow cards. */
+/* The upper-right corner keeps action targets away from all four edge ports.
+   A short diagonal gap fits compact groups without a dock over their titles. */
 .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions {
-  position:absolute; inset:auto 0 calc(100% + 16px) auto; transform:none;
+  position:absolute; inset:auto auto calc(100% + 8px) calc(100% + 8px); transform:none;
   z-index:8; display:flex; align-items:center; gap:2px; width:max-content;
   margin:0; padding:3px; border:1px solid var(--ts-object-line); border-radius:8px;
   background:var(--background-primary); box-shadow:var(--ts-object-shadow);
-  opacity:0; pointer-events:none; transition:opacity 100ms ease;
+  opacity:0; visibility:hidden; pointer-events:auto;
+  transition:opacity 120ms ease 750ms,visibility 0s linear 870ms;
 }
-/* A short bridge at the outer corner keeps the dock reachable. Its narrow
-   width leaves the midpoint connection target clear on compact objects. */
-.ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions::after {
-  content:''; position:absolute; inset:100% 0 auto auto; width:24px; height:16px; pointer-events:auto;
-}
-.ts-root .ts-node:is(.ts-card,.ts-text):is(:hover,:focus-within,.is-selected,.is-folded) > .ts-card-actions { opacity:1; pointer-events:auto; }
+/* Leaving the card must not remove the controls while the pointer crosses the
+   gap. Hovering the dock cancels the delay, without a bridge over link ports. */
+.ts-root .ts-node:is(.ts-card,.ts-text):is(:hover,:focus-within,.is-selected,.is-folded) > .ts-card-actions { opacity:1; visibility:visible; transition-delay:0s; }
 .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-icon-button {
   display:inline-flex; align-items:center; justify-content:center; flex:none;
   width:26px; min-width:26px; height:26px; min-height:26px; padding:5px!important;
@@ -112,13 +110,6 @@
   .ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-node-header .ts-section-content-fold > span:last-child,
   .ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-node-header .ts-branch-label { display:none; }
 }
-@media (hover:none) {
-  .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions { opacity:1; pointer-events:auto; }
-  .ts-root .ts-node > .ts-resize { opacity:1; pointer-events:auto; }
-}
-@media (prefers-reduced-motion:reduce) {
-  .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions { transition:none; }
-}
 @media (prefers-contrast:more) {
   .ts-root { --ts-object-line:var(--text-muted); }
   .ts-root .ts-node:is(.is-selected,.is-inline-editing) { outline-width:2px; }
@@ -147,21 +138,35 @@
 .ts-root .ts-compact-fold-icon { display:inline-flex; flex:none; color:var(--text-muted); }
 .ts-root .ts-compact-fold-icon svg { width:14px; height:14px; }
 .ts-root .ts-compact-fold-title { flex:1; min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
-.ts-root .ts-node.is-compact-fold .ts-compact-unfold {
-  display:inline-flex; align-items:center; justify-content:center; flex:none; width:24px; min-width:24px;
-  height:26px; min-height:26px; margin:0; padding:3px!important; border:0; border-radius:5px;
-  background:transparent; box-shadow:none; color:var(--text-muted); opacity:1;
+.ts-root .ts-node.is-compact-fold .ts-compact-actions {
+  position:absolute; inset:auto auto calc(100% + 8px) calc(100% + 8px); z-index:8;
+  display:flex; gap:4px; width:max-content; pointer-events:auto;
 }
-.ts-root .ts-node.is-compact-fold .ts-compact-unfold:hover { color:var(--text-normal); background:var(--background-modifier-hover); }
-.ts-root .ts-node.is-compact-fold .ts-compact-unfold:focus-visible { outline:2px solid var(--interactive-accent); }
+.ts-root .ts-node.is-compact-fold .ts-compact-actions > button {
+  display:inline-flex; align-items:center; justify-content:center; flex:none;
+  height:28px; min-height:28px; margin:0; padding:5px!important; border:1px solid var(--ts-object-line); border-radius:7px;
+  position:static; width:28px; min-width:28px; pointer-events:auto;
+  background:var(--background-primary)!important; box-shadow:var(--ts-object-shadow)!important; color:var(--text-muted); opacity:1;
+}
+.ts-root .ts-node.is-compact-fold .ts-compact-actions > button:hover { color:var(--text-normal); background:var(--background-modifier-hover)!important; }
+.ts-root .ts-node.is-compact-fold .ts-compact-actions > button:focus-visible { outline:2px solid var(--interactive-accent); }
 .ts-root .ts-node.ts-image > .ts-image-actions {
-  position:absolute; right:0; bottom:calc(100% + 16px); z-index:8; display:flex; padding:3px;
+  position:absolute; inset:auto auto calc(100% + 8px) calc(100% + 8px); z-index:8; display:flex; padding:3px;
   border:1px solid var(--background-modifier-border); border-radius:8px; background:var(--background-primary);
-  opacity:0; pointer-events:none;
+  opacity:0; visibility:hidden; pointer-events:auto;
+  transition:opacity 120ms ease 750ms,visibility 0s linear 870ms;
 }
-.ts-root .ts-node.ts-image:is(:hover,:focus-within,.is-selected) > .ts-image-actions { opacity:1; pointer-events:auto; }
-.ts-root .ts-node.ts-image > .ts-image-actions::after { content:''; position:absolute; top:100%; right:0; width:26px; height:16px; }
+.ts-root .ts-node.ts-image:is(:hover,:focus-within,.is-selected) > .ts-image-actions { opacity:1; visibility:visible; transition-delay:0s; }
 .ts-root .ts-node.ts-image > .ts-image-actions .ts-icon-button { width:26px; height:26px; padding:5px!important; border:0; box-shadow:none; background:transparent; }
+@media (hover:none) {
+  .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions,
+  .ts-root .ts-node.ts-image > .ts-image-actions { opacity:1; visibility:visible; transition:none; }
+  .ts-root .ts-node > .ts-resize { opacity:1; pointer-events:auto; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions,
+  .ts-root .ts-node.ts-image > .ts-image-actions { transition-duration:0s; }
+}
 
 /* Native Canvas fallback attachments (for example .agx) have no preview.
    Leave Markdown nodes, frames and every other native Canvas style untouched. */

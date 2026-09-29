@@ -1,5 +1,27 @@
 # 更新记录
 
+## 1.3.13
+
+- 在线视频默认只显示画面和官方播放控件；采用插件内主页面 / 侧栏布局，不自动弹出网站窗口或铺开整个网页。
+
+- 新增在线视频「记下此刻」和「快速截图」：实际时间固定到草稿，支持纯时间点、文字和 PNG 画面保存，截图时间点可回跳并发送到白板。
+- 修复播放器融合回归：恢复 B 站 / YouTube 在线链接、插件内嵌隔离播放器（主页面 / 侧栏 / 独立工作区）、实际播放时间同步、跳转、倍速和分 P 显式切换；不再把在线来源当作仓库文件。
+- 恢复旧影笺在线视频笔记与时间戳入口；新摘录追加到 Markdown 笔记，保留已有正文和来源。
+- 白板粘贴视频链接显示平台预览，提供在线视频笔记入口；媒体选择器与独立工作区恢复在线链接入口。
+- 保留原播放器的安全短链解析和登录页面流程，并修复异步导航/旧跳转覆盖、草稿切换和重复创建笔记的边界情况。
+- Restore the online-player branch lost during the merge, with playback embedded in the plugin, verified playback time, seeking, rates, and explicit Bilibili part changes. Legacy notes and timestamp links remain usable without installing Yingjian.
+
+## 1.3.12
+
+- 折叠的 Markdown 卡片新增右侧阅读入口，复用 Obsidian 原生阅读视图查看完整正文，保留折叠状态、透明设置与白板布局。
+- 折叠对象的展开按钮移到右上方独立位置，与四向连线、添加子节点入口分开，修复窄卡误触。
+- 折叠、自适应和图片操作按钮由整张卡片悬停触发；离开后延迟收起，移向按钮时保持可点，选中或键盘焦点时持续显示。原位编辑时继续收起以免遮挡。
+- 保留连线锚点和分支控件原位置，避免挤占紧凑思维导图的父子间距。
+
+- Separate expand controls from connection targets, including narrow folded objects.
+- Read folded Markdown cards in Obsidian's native sidebar without changing their fold state, transparency or board layout.
+- Keep action docks reachable across the hover gap with delayed dismissal and persistent selection/focus visibility; preserve native editing and connection geometry.
+
 ## 1.3.11
 
 - 修复旧版已折叠分组无法点击展开：恢复紧凑分组标题及按钮的鼠标命中区域，保留原分组和子项数据。
