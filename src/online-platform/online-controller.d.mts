@@ -32,6 +32,7 @@ export interface OnlineController {
  command(sourcePath:string,action:OnlineAction,value?:number):Promise<boolean>;
  queueSeek(sourcePath:string,time:number):boolean;
  adopt(expectedSourcePath:string):Promise<ParsedOnlineSource>;
+ position(sourcePath:string):Promise<number>;
  capture(sourcePath:string):Promise<{bytes:Uint8Array;time:number}>;
  stop():void;
 }

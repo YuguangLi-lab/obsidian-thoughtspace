@@ -173,6 +173,54 @@ test('official windows preserve sandbox, navigation, permissions and download bo
  await assert.rejects(f.player.command('https://www.youtube.com.attacker.test/watch?v=M7lc1UVf-VE','external'));
  assert.equal(f.external.length,0);f.player.stop();assert.equal(win.isDestroyed(),true);assert.equal(f.states.at(-1)?.closed,true);
 });
+test('position samples fresh Bilibili and YouTube time without changing playback or relying on the cached poll',async t=>{
+ for(const url of [bili,'https://www.youtube.com/watch?v=M7lc1UVf-VE']){
+  const f=fixture(t);f.player.open(url);await f.tick();await f.tick();const main=f.windows[0].webContents.mainFrame;
+  main.snapshot.time=43.125;main.snapshot.paused=false;const before=f.calls.length;
+  assert.equal(await f.player.position(url),43.125);assert.equal(f.states.at(-1)?.time,0);assert.equal(main.snapshot.paused,false);
+  assert.ok(f.calls.length>before);assert.ok(f.calls.slice(before).every(call=>call.action==='read'));
+ }
+});
+test('position rejects unready, ambiguous, advertised and out-of-range playback without returning an earlier timestamp',async t=>{
+ const f=fixture(t);await assert.rejects(f.player.position(bili),/打开/);f.player.open(bili);await assert.rejects(f.player.position(bili),/同步/);await f.tick();await f.tick();
+ const main=f.windows[0].webContents.mainFrame,original={...main.snapshot};
+ for(const snapshot of [{reason:'正在等待视频元数据'},{reason:'广告期间请在播放器操作'},{...original,time:-1},{...original,time:121},{...original,time:864001,duration:900000},{...original,time:NaN}]){
+  main.snapshot=snapshot;await assert.rejects(f.player.position(bili),/元数据|广告|无效|有效/);
+ }
+ main.snapshot=original;main.framesInSubtree.push(f.frame('https://player.bilibili.com/player.html'));await assert.rejects(f.player.position(bili),/多个播放器/);
+ assert.equal(f.calls.filter(call=>['pause','toggle'].includes(call.action)).length,0);
+});
+test('position rejects a changed video or part before a new source is explicitly adopted',async t=>{
+ const f=fixture(t);f.player.open(bili);await f.tick();await f.tick();const main=f.windows[0].webContents.mainFrame;
+ main.url=bili+'?p=2';main.snapshot.time=42;await assert.rejects(f.player.position(bili),/同步|切换/);
+ await assert.rejects(f.player.position(bili+'?p=2'),/打开/);await f.player.adopt(bili);await f.tick();
+ assert.equal(await f.player.position(bili+'?p=2'),42);
+});
+test('position discards asynchronous samples after navigation, reload, seeking, stop or replacement',async t=>{
+ for(const change of ['navigation','reload','seek','stop','replacement','frame'] as const){
+  const f=fixture(t);f.player.open(bili);await f.tick();await f.tick();const win=f.windows[0],main=win.webContents.mainFrame,gate=deferred<Snapshot>();
+  main.defer=()=>gate.promise;const pending=f.player.position(bili),rejected=assert.rejects(pending,/切换|跳转/);await setImmediate();
+  if(change==='navigation'){win.webContents.emit('did-start-navigation',{},bili+'?p=2',true,true);main.url=bili+'?p=2';win.webContents.emit('did-start-navigation',{},bili,true,true);main.url=bili;}
+  else if(change==='reload')await f.player.command(bili,'reload');
+  else if(change==='seek')f.player.queueSeek(bili,88);
+  else if(change==='stop')f.player.stop();
+  else if(change==='replacement')f.player.open(bili+'?p=2');
+  else{win.webContents.mainFrame=f.frame(bili);win.webContents.mainFrame.framesInSubtree=[win.webContents.mainFrame];}
+  gate.resolve({...main.snapshot,time:99});await rejected;
+ }
+});
+test('position binds its final sample to the selected media and rejects changes during delivery',async t=>{
+ const f=fixture(t);f.player.open(bili);await f.tick();await f.tick();const main=f.windows[0].webContents.mainFrame,original={...main.snapshot};
+ for(const change of ['media','ad','navigation'] as const){
+  let reads=0;main.defer=async()=>{
+   if(++reads===1)return original;
+   if(change==='navigation')main.url=bili+'?p=2';
+   return change==='ad'?{reason:'广告期间请在播放器操作'}:{...original,time:43,media:change==='media'?'blob:different-video':original.media};
+  };
+  await assert.rejects(f.player.position(bili),/变化|广告|切换/);main.url=bili;
+ }
+ main.defer=undefined;assert.equal(await f.player.position(bili),0);
+});
 test('capture returns decoded video PNG bytes and the canvas sample time without page compositor access',async t=>{
  const f=fixture(t);f.player.open(bili);await f.tick();await f.tick();const main=f.windows[0].webContents.mainFrame;main.snapshot.time=14.25;
  f.native.beforeDraw=()=>{main.snapshot.time=14.3;};

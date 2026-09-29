@@ -242,6 +242,30 @@ export function createOnlineController({ BrowserWindow, session, shell, getHost,
     publish(context, { available: false, candidate: null, status: 'waiting', error: '' })
     return { ...source, initialTime: found.snapshot.time }
   }
+  /** @param {string} sourcePath @returns {Promise<number>} */
+  const position = async (sourcePath) => {
+    const context = current
+    if (!context || !alive(context) || context.source.path !== sourcePath) throw new Error('请先打开对应的平台播放窗口')
+    if (!context.state.available || context.pendingSeek !== null || !matches(context)) throw new Error('请等待当前视频时间同步后再记录时间戳')
+    const requestedSource = context.source, generation = context.generation, contents = context.window.webContents, main = contents.mainFrame
+    const ensure = () => {
+      if (context.source !== requestedSource || !matches(context, generation) || contents.mainFrame !== main || context.pendingSeek !== null) throw new Error('读取时间戳期间视频已切换或跳转，本次记录已取消')
+    }
+    ensure()
+    const found = await inspect(context)
+    ensure()
+    if (!found.snapshot) throw new Error(found.reason)
+    const frame = found.frame, frameUrl = frame.url
+    // Read the selected media again so a slow auxiliary frame cannot leave us
+    // recording an earlier discovery sample or a replacement media source.
+    const result = await invoke(context, frame, 'read', 0, found.snapshot.media)
+    ensure()
+    if (frame.url !== frameUrl || !frames(context).includes(frame)) throw new Error('播放文件已变化，请等待重新识别')
+    if (result.reason) throw new Error(result.reason)
+    if (result.media !== found.snapshot.media) throw new Error('播放文件已变化，请等待重新识别')
+    if (typeof result.time !== 'number' || !Number.isFinite(result.time) || result.time < 0 || result.time > Math.min(864000, Number(result.duration) + .1)) throw new Error('播放时间无效，请等待视频重新同步')
+    return result.time
+  }
   /** @param {string} sourcePath @returns {Promise<{bytes:Uint8Array,time:number}>} */
   const capture = async (sourcePath) => {
     const context = current
@@ -333,5 +357,5 @@ export function createOnlineController({ BrowserWindow, session, shell, getHost,
     context.timer = every(() => void read(context), 1000)
     return source
   }
-  return { open, stop, command, queueSeek, adopt, capture }
+  return { open, stop, command, queueSeek, adopt, position, capture }
 }

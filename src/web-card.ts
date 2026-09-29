@@ -27,6 +27,7 @@ export function updateWebCard(node:Card,input:string):void {
 /** Only mounted webpage cards load previews; disposal releases the embedded page. */
 export function renderWebCard(host:HTMLElement,node:Card,options:{open:()=>void;edit:()=>void;fold:()=>void;copy:()=>void;disabled:boolean;register:(dispose:()=>void)=>void;online?:{open:()=>void;mount:(host:HTMLElement)=>()=>void}}) {
  const url=webUrl(node.webUrl);if(!url)return;let disposed=false;host.addClass('ts-web-card');
+ if(options.online)host.addClass('ts-web-card--online');
  const top=host.createDiv('ts-web-heading');top.createSpan({cls:'ts-web-domain',text:new URL(url).hostname,attr:{title:url}});
  const action=(parent:HTMLElement,title:string,label:string,run:()=>void)=>{const b=parent.createEl('button',{text:label,attr:{type:'button',title,'aria-label':title}});b.onclick=e=>{e.stopPropagation();if(!disposed&&host.isConnected)run();};b.onpointerdown=e=>e.stopPropagation();return b;};
 
@@ -41,7 +42,7 @@ export function renderWebCard(host:HTMLElement,node:Card,options:{open:()=>void;
   iframe=host.createEl('iframe',{cls:'ts-web-preview',attr:{title:node.title||url,src:url,sandbox:'allow-scripts allow-forms allow-popups',referrerpolicy:'no-referrer',loading:'lazy'}});
  };
  const preview=action(actions,'在卡片内预览网页','预览',togglePreview);
- if(options.online)action(actions,'打开在线视频笔记','播放',()=>{if(iframe)togglePreview();options.online!.open();});
+ if(options.online)action(actions,'打开在线视频笔记','笔记',()=>{if(iframe)togglePreview();options.online!.open();});
  action(actions,'复制网页链接','⧉',options.copy);action(actions,'修改网页链接','修改',options.edit).disabled=options.disabled;
  action(actions,'折叠网页','⌃',options.fold).disabled=options.disabled;
  togglePreview();

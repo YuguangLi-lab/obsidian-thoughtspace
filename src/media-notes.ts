@@ -17,7 +17,8 @@ const escapeLabel=(value:string)=>value.replace(/[\r\n]+/g,' ').replace(/[\\[\]*
 /** Standalone playback does not depend on a board or on a surviving board node. */
 export function mediaPlayerUrl(source:MediaNoteSource,time=0):string {
  if(!validSource(source))throw Error('媒体来源无效');mediaTime(time);
- return 'obsidian://thoughtspace-player?'+new URLSearchParams({vault:source.vault,file:source.file,t:String(time)}).toString();
+ // Obsidian decodes URI fields without converting form-encoded '+' to a space.
+ return 'obsidian://thoughtspace-player?'+new URLSearchParams({vault:source.vault,file:source.file,t:String(time)}).toString().replace(/\+/g,'%20');
 }
 function urlParams(input:string|URLSearchParams|Readonly<Record<string,unknown>>,scheme:string,host:string):URLSearchParams|undefined {
  if(typeof input==='string'){

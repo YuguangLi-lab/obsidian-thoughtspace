@@ -104,6 +104,13 @@ export class OnlinePlatform {
   return this.getController().command(path,action,value);
  }
  async adopt(path:string):Promise<OnlineSource>{const mounted=this.requireMount(path);const result=source(await this.getController().adopt(path));if(this.mounted!==mounted)throw Error('视频面板已切换，本次操作已取消');this.activePath=result.path;this.resume={path:result.path,time:result.initialTime??0};return result;}
+ async position(path:string):Promise<number>{
+  const mounted=this.requireMount(path);
+  if(this.activeHost!==mounted.host||this.activePath!==path||this.activeLease!==mounted)throw Error('视频面板正在切换，请稍后重试');
+  const time=await this.getController().position(path);
+  if(this.disposed||this.mounted!==mounted||mounted.released||!mounted.host.isConnected||this.activeHost!==mounted.host||this.activePath!==path||this.activeLease!==mounted)throw Error('读取时间戳期间视频面板已切换，本次记录已取消');
+  return time;
+ }
  async capture(path:string):Promise<{bytes:Uint8Array;time:number}>{const mounted=this.requireMount(path);if(this.activeHost!==mounted.host)throw Error('视频面板正在切换，请稍后重试');const result=await this.getController().capture(path);if(this.mounted!==mounted||this.activeHost!==mounted.host)throw Error('截图期间视频面板已切换，本次截图已取消');return result;}
  stop():void{this.controller?.stop();this.activeHost=undefined;this.activePath=undefined;this.activeLease=undefined;}
  dispose():void{if(this.disposed)return;this.disposed=true;this.stop();this.mounted=undefined;this.controller=undefined;}

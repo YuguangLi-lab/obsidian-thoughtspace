@@ -1,5 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {transformSync} from 'esbuild';import * as model from '../src/model';import * as mindmap from '../src/mindmap';
-const source=readFileSync('src/main.ts','utf8'),start=source.indexOf('class Session {'),end=source.indexOf('\nexport default class ThoughtSpace',start),deps={...model,...mindmap,Notice:class{},EXT:'thoughtspace',report:()=>{}};
+import {reflowExpandedContent} from '../src/expansion-layout';
+const source=readFileSync('src/main.ts','utf8'),start=source.indexOf('class Session {'),end=source.indexOf('\nexport default class ThoughtSpace',start),deps={...model,...mindmap,reflowExpandedContent,Notice:class{},EXT:'thoughtspace',report:()=>{}};
 const Session=new Function(...Object.keys(deps),transformSync(source.slice(start,end)+';return Session',{loader:'ts'}).code)(...Object.values(deps));
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 function fixture(process?:(fn:(s:string)=>string)=>Promise<void>,readExternal?:()=>Promise<string>){let disk=JSON.stringify(model.emptyBoard(),null,2);const plugin={app:{vault:{process:async(_:unknown,fn:(s:string)=>string)=>process?process(fn):void(disk=fn(disk)),read:readExternal||(async()=>disk)}},createUnique:async()=>({path:'恢复草稿.thoughtspace'})};const s=new Session(plugin,{path:'board.thoughtspace',basename:'board'},disk);return{s,read:()=>disk};}

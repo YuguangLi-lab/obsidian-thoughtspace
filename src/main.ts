@@ -3,7 +3,7 @@ import {OnlinePlatform,parseOnlineSource,resolveOnlineSource,type OnlineState} f
 import {OnlineWorkspaceView,ONLINE_WORKSPACE,type OnlineWorkspaceHost} from './online-workspace-view';
 import {OnlineMediaService} from './online-media-service';
 import {onlineNoteSource,onlinePlayerUrl,parseOnlinePlayerUrl} from './online-media-notes';
-import {mountOnlinePreview} from './online-preview';
+import {mountOnlineBoardPlayer,type OnlineBoardMoment,type OnlineBoardPlayerHandle} from './online-board-player';
 import {ExternalMediaPicker} from './external-media-picker';
 import {createExternalMediaReference,isExternalMediaReference} from './external-media';
 import {consumeMarkdownPreviewWheel} from './markdown-preview-scroll';
@@ -118,6 +118,7 @@ import { normalizeNativeTags, suggestedNoteName } from './native-tags';
 import { viewportRect, visibleNodes, intersects, RenderQueue } from './rendering';
 import { connectionPath, connectionSides, Side } from './connections';
 import { branchDescendants, branchState, branchTopology, visibleBranchBoard, unfoldAncestors, layoutMindmap, reflowAutomaticMindmaps, validateBranches } from './mindmap';
+import {reflowExpandedContent} from './expansion-layout';
 import {branchRenderSnapshot,type BranchRenderSnapshot} from './branch-render';
 import { TextModal, EdgeModal, ImagePicker, isImage } from './content-tools';
 import {calendarService,requireCalendar} from './calendar-integration';
@@ -275,7 +276,7 @@ class Session {
   change(fn: (b: Board) => void, before?: Board, allowLocked=false, recordHistory=true) {
     if (this.blocked) { new Notice('白板已暂停写入，请关闭所有该白板标签页后重新打开。'); return; }
     if(before===undefined)before=clone(this.board);
-    try { fn(this.board); inheritNewEdgeStyle(this.board,before); if(!allowLocked){let nodeIndex:Map<string,Card>|undefined;for(const old of before.nodes){if(!old.locked)continue;nodeIndex??=new Map(this.board.nodes.map(n=>[n.id,n]));const current=nodeIndex.get(old.id);if(!current)throw Error('请先解锁对象再移出或转换');if(current.locked)Object.assign(current,{x:old.x,y:old.y,width:old.width,height:old.height,collapsed:old.collapsed,expandedHeight:old.expandedHeight});}}assertBoardGeometry(this.board);validateBranches(this.board);reflowAutomaticMindmaps(this.board,before);assertBoardGeometry(this.board); } catch(e) { this.board=before; throw e; } if (this.board.version < 2 && this.board.nodes.some(n => n.kind === 'board')) this.board.version = 2;
+    try { fn(this.board); inheritNewEdgeStyle(this.board,before); if(!allowLocked){let nodeIndex:Map<string,Card>|undefined;for(const old of before.nodes){if(!old.locked)continue;nodeIndex??=new Map(this.board.nodes.map(n=>[n.id,n]));const current=nodeIndex.get(old.id);if(!current)throw Error('请先解锁对象再移出或转换');if(current.locked)Object.assign(current,{x:old.x,y:old.y,width:old.width,height:old.height,collapsed:old.collapsed,expandedHeight:old.expandedHeight});}}assertBoardGeometry(this.board);validateBranches(this.board);reflowAutomaticMindmaps(this.board,before);reflowExpandedContent(this.board,before);assertBoardGeometry(this.board); } catch(e) { this.board=before; throw e; } if (this.board.version < 2 && this.board.nodes.some(n => n.kind === 'board')) this.board.version = 2;
     // No-op commands must not clear redo, retain duplicate snapshots or repaint all views.
     if(Session.sameState(this.board,before))return;
     if(recordHistory)this.history.push(before); this.persist(); this.emit();
@@ -361,6 +362,7 @@ export default class ThoughtSpace extends Plugin {
   private onlineWorkspaceHost!:OnlineWorkspaceHost;
   private onlineState?:OnlineState;
   private onlineListeners=new Set<(state:OnlineState)=>void>();
+  private onlineBoardPlayers=new Set<OnlineBoardPlayerHandle>();
   private spaceHub?:SpaceHubModal;
   private paperSettingsModal?:PaperSettingsModal;
   private backgroundImageModal?:BackgroundImageModal;
@@ -383,17 +385,18 @@ export default class ThoughtSpace extends Plugin {
     this.settings = cleanPluginSettings(await this.loadData());
     this.mediaWorkspace=new MediaWorkspaceService(this.app,normalizePath(`${this.manifest.dir||this.app.vault.configDir+'/plugins/'+this.manifest.id}/media-playback.json`),{
       createNote:(title,body)=>this.createUnique(normalizePath(this.settings.cardFolder+'/媒体笔记'),title,'md',body),
+      onPlay:()=>this.pauseOnlineBoardPlayers(),
       openFile:file=>isExternalMediaReference(file.path)?this.openMediaWorkspace(file,'tab'):this.app.workspace.getLeaf('tab').openFile(file)
     });
     await this.mediaWorkspace.load();
-    this.onlinePlatform=new OnlinePlatform(state=>{this.onlineState=state;for(const notify of this.onlineListeners)notify(state);});
+    this.onlinePlatform=new OnlinePlatform(state=>{const started=state.available&&!state.paused&&(!this.onlineState?.available||this.onlineState.paused||this.onlineState.sourcePath!==state.sourcePath);this.onlineState=state;if(started)this.pauseOnlineBoardPlayers();for(const notify of this.onlineListeners)notify(state);});
     this.onlineMedia=new OnlineMediaService(this.app,(title,body)=>this.createUnique(normalizePath(this.settings.cardFolder+'/媒体笔记'),title,'md',body),()=>this.yingjianVaultId());
     this.onlineWorkspaceHost={mount:(host,source)=>this.onlinePlatform.mount(host,source),pick:placement=>this.pickOnlineVideo(placement),open:(source,placement,time,note)=>this.openOnlineWorkspace(source,placement,time,note),state:()=>this.onlineState,subscribe:fn=>{this.onlineListeners.add(fn);return()=>this.onlineListeners.delete(fn);},command:(source,action,value)=>this.onlinePlatform.command(source,action,value),adopt:async(source,placement)=>{
       for(const leaf of this.app.workspace.getLeavesOfType(ONLINE_WORKSPACE))if(leaf.view instanceof OnlineWorkspaceView&&!leaf.view.canMove())return;
       const adopted=await this.onlinePlatform.adopt(source);await this.openOnlineWorkspace(adopted.path,placement,adopted.initialTime,undefined,true);
     },capture:async source=>{const frame=await this.onlinePlatform.capture(source);if(this.mediaClosed)throw Error('播放器已关闭，截图未保存');return {blob:new Blob([Uint8Array.from(frame.bytes)],{type:'image/png'}),time:frame.time};},notes:(source,note)=>this.onlineMedia.notes(source,note),save:(source,data,note)=>this.onlineMedia.save(source,data,note),send:(source,time,text,image)=>this.sendOnlineToBoard(source,time,text,image),openNote:file=>this.openNoteInSidebar(file)};
     this.registerView(ONLINE_WORKSPACE,leaf=>new OnlineWorkspaceView(leaf,this.onlineWorkspaceHost));
-    this.register(()=>{this.onlinePlatform.dispose();this.onlineMedia.dispose();this.onlineListeners.clear();});
+    this.register(()=>{for(const player of this.onlineBoardPlayers)player.dispose();this.onlineBoardPlayers.clear();this.onlinePlatform.dispose();this.onlineMedia.dispose();this.onlineListeners.clear();});
     this.addCommand({id:'open-online-video',name:'打开 B 站 / YouTube 在线视频',callback:()=>this.pickOnlineVideo('tab')});
     this.registerObsidianProtocolHandler('thoughtspace-online-player',params=>act(async()=>{const link=parseOnlinePlayerUrl(params);if(!link||link.vault!==this.app.vault.getName())throw Error('在线视频链接无效或属于其他仓库');await this.openOnlineWorkspace(link.source,'tab',link.time,link.note);}));
     this.mediaWorkspaceHost={open:(file,placement,time)=>this.openMediaWorkspace(file,placement,time),pick:done=>this.pickMediaFile(done),pickExternal:done=>this.pickExternalMedia(done),pickOnline:placement=>this.pickOnlineVideo(placement),mount:(host,file,hooks)=>this.mediaWorkspace.mount(host,file,hooks),moments:file=>this.mediaWorkspace.moments(file),saveMoment:(file,data)=>this.mediaWorkspace.saveMoment(file,data),openNote:file=>this.openNoteInSidebar(file),sendToBoard:(file,moment)=>this.sendMediaToBoard(file,moment)};
@@ -401,7 +404,7 @@ export default class ThoughtSpace extends Plugin {
     this.register(()=>{this.mediaClosed=true;void this.mediaWorkspace.dispose().catch(report);});
     this.registerEvent(this.app.vault.on('rename',(file,oldPath)=>{if(file instanceof TFile)this.mediaWorkspace.playback.rename(oldPath,file.path);}));
     this.registerEvent(this.app.vault.on('delete',file=>this.mediaWorkspace.playback.remove(file.path)));
-    this.registerObsidianProtocolHandler('thoughtspace-player',params=>act(async()=>{const source=parseMediaPlayerUrl(params);if(!source||source.vault!==this.app.vault.getName())throw Error('媒体链接无效或属于其他仓库');const file=this.app.vault.getAbstractFileByPath(source.file);if(!(file instanceof TFile)||!isWorkspaceFile(file))throw Error('来源媒体已移动或删除');await this.openMediaWorkspace(file,'tab',source.time);}));
+    this.registerObsidianProtocolHandler('thoughtspace-player',params=>act(()=>this.openMediaPlayerSource(params)));
     for(const [placement,name]of [['tab','在主页面打开媒体播放器'],['sidebar','在右侧栏打开媒体播放器'],['window','在独立窗口打开媒体播放器']]as const)this.addCommand({id:'media-player-'+placement,name,callback:()=>act(()=>this.openMediaWorkspace(undefined,placement))});
     this.addCommand({id:'link-external-media',name:'链接仓库外的视频或音频',callback:()=>this.pickExternalMedia(file=>this.openMediaWorkspace(file,'tab'))});
     this.setupBoardSearch();this.register(()=>this.pdfDocuments.clear());
@@ -1109,6 +1112,11 @@ export default class ThoughtSpace extends Plugin {
     if(!view||view.file!==file||view.closed)throw Error('来源白板尚未就绪');
     view.seekMediaSource(source);
   }
+  async openMediaPlayerSource(input:string|Record<string,string>){
+    const source=parseMediaPlayerUrl(input);if(!source||source.vault!==this.app.vault.getName())throw Error('媒体链接无效或属于其他仓库');
+    const file=this.app.vault.getAbstractFileByPath(source.file);if(!(file instanceof TFile)||!isWorkspaceFile(file))throw Error('来源媒体已移动或删除');
+    await this.openMediaWorkspace(file,'tab',source.time);
+  }
   pickOnlineVideo(placement:MediaPlacement='tab',accept?:(url:string)=>unknown){
     new Prompt(this.app,'B 站 / YouTube 视频链接','',async input=>{
       const source=await resolveOnlineSource(input);if(this.mediaClosed)return;
@@ -1159,6 +1167,18 @@ export default class ThoughtSpace extends Plugin {
         if(previous&&previous.leaf!==leaf){if(!previous.canMove()){leaf.detach();return;}previous.leaf.detach();}
       }catch(error){leaf?.detach();throw error;}
     });this.mediaOpening=job;return job;
+  }
+  registerOnlineBoardPlayer(player:OnlineBoardPlayerHandle){this.onlineBoardPlayers.add(player);return()=>this.onlineBoardPlayers.delete(player);}
+  pauseOnlineBoardPlayers(except?:OnlineBoardPlayerHandle){for(const player of this.onlineBoardPlayers)if(player!==except)player.pause();}
+  activateOnlineBoardPlayer(player:OnlineBoardPlayerHandle){
+    this.mediaWorkspace.playback.pauseAll();this.pauseOnlineBoardPlayers(player);
+    const state=this.onlineState;if(state?.available&&!state.paused)void this.onlinePlatform.command(state.sourcePath,'pause').catch(report);
+  }
+  async saveOnlineBoardMoment(source:string,data:OnlineBoardMoment){
+    const {note}=await this.onlineMedia.save(source,data);
+    const {entries}=await this.onlineMedia.notes(source,note.path),moment=entries.find(entry=>entry.id===data.id);
+    if(!moment)throw Error(`摘录已保存至 ${note.path}，暂时无法读取，请重试`);
+    return{note,moment};
   }
   async sendOnlineToBoard(input:string,time?:number,text?:string,image?:string){
     const source=parseOnlineSource(input);if(!source)throw Error('在线视频来源无效');if(image!==undefined&&!imageMarkup(image))throw Error('截图引用无效');
@@ -1486,6 +1506,8 @@ class BoardView extends FileView {
   private mediaStates=new Map<string,MediaCardState>();
   private mediaIdentities=new Map<string,string>();
   private mediaPlayers=new Map<string,MediaCardHandle>();
+  private onlineBoardPlayers=new Map<string,OnlineBoardPlayerHandle>();
+  private onlineBoardStates=new Map<string,{source:string;time:number}>();
   private nodeScopes=new Map<string,Component>(); private nodeKeys=new Map<string,string>(); private previewQueue=new RenderQueue(); private pdfPreviewQueue=new RenderQueue(2); private renderFrame=0; private viewportOnlyRender=true; private mapKey=''; private mapViewport?:()=>void; private connectSide?:Side; private selected = new Set<string>(); private selectedEdge?: string;
   private batchFormatTarget:'nodes'|'edges'='nodes';private batchEdgeScope:SelectionEdgeScope='internal';
   private mode: 'select' | 'connect' = 'select'; private connectFrom?: string; private connectButton?: HTMLButtonElement;
@@ -1526,7 +1548,7 @@ class BoardView extends FileView {
   private selectionHeading?:HTMLElement;
   private selectionFormatCache?:{host:HTMLElement;owner:Session|undefined;editor:InlineNodeEditor|undefined;key:string};
   private topicAdding=false;
-  private inlineLayout?:Board;private inlineGeometry?:InlineGeometry;private inline?:InlineNodeEditor;private inlineId?:string;private inlineTarget?:string;private inlineStart=0;private inlineExit?:Promise<void>;private inlineStyleKey='';private inlineMeasureKey='';private nodeFitQueue=new LayoutRefreshQueue(()=>this.flushNodeFits());
+  private inlineLayout?:Board;private inlineGeometry?:InlineGeometry;private inline?:InlineNodeEditor;private inlineId?:string;private inlineTarget?:string;private inlineStart=0;private inlineExit?:Promise<void>;private inlineStyleKey='';private inlineMeasureKey='';private nodeFitQueue=new LayoutRefreshQueue(()=>act(()=>this.flushNodeFits()));
   private previewMetricsReady=false;
   private deferredCardFits=new Set<string>();
   private blankClicks=new BlankDoubleClick();private blankClickOwner?:Session;private blankTextCreating=false;
@@ -1741,7 +1763,7 @@ class BoardView extends FileView {
     if(this.renderFrame)return;
     this.renderFrame=(this.contentEl?.ownerDocument?.defaultView||window).requestAnimationFrame(()=>{this.renderFrame=0;const only=this.viewportOnlyRender;this.viewportOnlyRender=true;this.renderBoard(only);});
   }
-  private clearNodes(){this.connectionCandidates=[];this.connectionIndex=undefined;this.connectionGeometryKey='';(this.contentEl?.ownerDocument?.defaultView||window).cancelAnimationFrame(this.renderFrame);this.renderFrame=0;this.viewportOnlyRender=true;this.relationBar?.remove();this.relationBar=undefined;this.nodeFitQueue.cancel();this.pendingFits.clear();this.deferredCardFits.clear();this.previewQueue.clear();this.pdfPreviewQueue.clear();this.nodeScopes.forEach(s=>s.unload());this.nodeScopes.clear();this.mediaPlayers.clear();this.mediaStates.clear();this.mediaIdentities.clear();this.nodeKeys.clear();this.positions.forEach(e=>e.remove());this.positions.clear();this.endpointPorts.clear();this.mapKey='';this.edgeLayer?.clear();}
+  private clearNodes(){this.connectionCandidates=[];this.connectionIndex=undefined;this.connectionGeometryKey='';(this.contentEl?.ownerDocument?.defaultView||window).cancelAnimationFrame(this.renderFrame);this.renderFrame=0;this.viewportOnlyRender=true;this.relationBar?.remove();this.relationBar=undefined;this.nodeFitQueue.cancel();this.pendingFits.clear();this.deferredCardFits.clear();this.previewQueue.clear();this.pdfPreviewQueue.clear();this.nodeScopes.forEach(s=>s.unload());this.nodeScopes.clear();this.mediaPlayers.clear();this.mediaStates.clear();this.mediaIdentities.clear();this.onlineBoardPlayers.clear();this.onlineBoardStates.clear();this.nodeKeys.clear();this.positions.forEach(e=>e.remove());this.positions.clear();this.endpointPorts.clear();this.mapKey='';this.edgeLayer?.clear();}
   constructor(leaf: WorkspaceLeaf, private plugin: ThoughtSpace) { super(leaf); }
   getViewType() { return VIEW; } getIcon() { return 'network'; }
   getState() { return { ...super.getState(), tsTrail: this.trail.map(f => f.path) }; }
@@ -2061,6 +2083,25 @@ class BoardView extends FileView {
       if(!source&&node?.text){const citation=textExcerptPresentation(node.text).sources[0];if(citation)source=resolveSourceLink(citation.link,path=>this.app.metadataCache.getFirstLinkpathDest(path,this.file?.path||'')).file?.path;}
       act(async()=>{await this.prepareVideoBridge();await this.plugin.playYingjianTimestamp(href,source);});
     },{capture:true});
+    const openLocalMediaBoardLink=(e:MouseEvent)=>{
+      if(e.defaultPrevented||e.button!==0||Keymap.isModEvent(e))return;
+      const link=(e.target as Element).closest('a');
+      if(!link||link.closest('.ts-inline-editor,.cm-editor,.is-editing-title'))return;
+      // Read legacy form-encoded links before native callbacks lose space/plus identity.
+      const href=link.getAttribute('href')||'',board=parseMediaSourceUrl(href),player=board?undefined:parseMediaPlayerUrl(href),source=board||player;
+      if(!source||source.vault!==this.app.vault.getName())return;
+      e.preventDefault();e.stopPropagation();act(()=>board?this.plugin.openMediaSource(href):this.plugin.openMediaPlayerSource(href));
+    };
+    this.registerDomEvent(this.stage,'click',openLocalMediaBoardLink,{capture:true});
+    const openOnlineBoardLink=(e:MouseEvent)=>{
+      if(e.defaultPrevented||e.button!==0||Keymap.isModEvent(e))return;
+      const link=(e.target as Element).closest('a');
+      if(!link||link.closest('.ts-inline-editor,.cm-editor,.is-editing-title,.markdown-embed,.internal-embed'))return;
+      const online=parseOnlinePlayerUrl(link.getAttribute('href')||'');
+      if(!online||online.vault!==this.app.vault.getName()||!this.session?.board.nodes.some(node=>node.webUrl&&parseOnlineSource(node.webUrl)?.path===online.source))return;
+      e.preventDefault();e.stopPropagation();act(()=>this.seekOnlineSource(online.source,online.time,link.closest('[data-id]')?.getAttribute('data-id')||undefined));
+    };
+    this.registerDomEvent(this.stage,'click',openOnlineBoardLink,{capture:true});
     const openStageLink=(e:MouseEvent)=>{
       if(e.defaultPrevented)return;
       const link = (e.target as Element).closest('a'); if (!link) return;
@@ -2706,7 +2747,7 @@ class BoardView extends FileView {
     // the same visible nodes for detail allocation, mounting and DOM placement.
     const preferred:string[]=[],remaining:string[]=[],sections:Card[]=[],objects:Card[]=[];
     for(const n of visible){(this.selected.has(n.id)?preferred:remaining).push(n.id);(n.kind==='section'?sections:objects).push(n);}
-    if(!viewportOnly){const mediaIds=new Set(b.nodes.filter(n=>n.kind==='audio'||n.kind==='video').map(n=>n.id));for(const id of this.mediaStates.keys())if(!mediaIds.has(id)){this.mediaStates.delete(id);this.mediaIdentities.delete(id);}}
+    if(!viewportOnly){const mediaIds=new Set(b.nodes.filter(n=>n.kind==='audio'||n.kind==='video').map(n=>n.id));for(const id of this.mediaStates.keys())if(!mediaIds.has(id)){this.mediaStates.delete(id);this.mediaIdentities.delete(id);}const onlineIds=new Set(b.nodes.filter(n=>n.webUrl).map(n=>n.id));for(const id of this.onlineBoardStates.keys())if(!onlineIds.has(id))this.onlineBoardStates.delete(id);}
     const detailIds=new Set(preferred.concat(remaining).slice(0,this.plugin.settings.previewLimit)),ordered=sections.concat(objects);
     this.connectionCandidates=ordered;
     for (const n of ordered) {
@@ -2724,7 +2765,7 @@ class BoardView extends FileView {
       let metadata=fileInfo instanceof TFile?fileMetadata.get(fileInfo):undefined;
       if(fileInfo instanceof TFile&&!metadata){const cache=this.app.metadataCache.getFileCache(fileInfo);metadata={cache,tags:getAllTags(cache||{})};fileMetadata.set(fileInfo,metadata);}
       const childCount=branches.children.get(n.id)?.length||0,branchOptions={count:childCount,candidates:childCandidates.get(n.id)?.length||0,folded:!!n.branchFolded,disabled:!!this.session.blocked||!!n.locked,group:n.kind==='section',onToggle:()=>act(()=>this.foldBranches(new Set([n.id]),childCount?!n.branchFolded:true,childCount&&n.branchFolded?'level':'collapse',!childCount)),onMenu:(anchor:HTMLElement)=>this.branchDisclosureMenu(n.id,anchor)};
-      const isMedia=n.kind==='audio'||n.kind==='video',mediaBranchKey=isMedia?JSON.stringify([childCount,branchOptions.candidates,branchOptions.folded,branchOptions.disabled]):'';
+      const isMedia=n.kind==='audio'||n.kind==='video'||!!n.webUrl&&!!parseOnlineSource(n.webUrl),mediaBranchKey=isMedia?JSON.stringify([childCount,branchOptions.candidates,branchOptions.folded,branchOptions.disabled]):'';
       const key=nodeRenderKey(n,[isMedia?0:childCount,isMedia?0:branchOptions.candidates,detail,this.session.blocked,fileInfo instanceof TFile?[fileInfo.stat.mtime,fileInfo.stat.size,metadata?.cache?.frontmatter,metadata?.tags]:null]);
       const old=this.positions.get(n.id);if(old&&this.nodeKeys.get(n.id)===key){if(isMedia&&old.dataset.mediaBranches!==mediaBranchKey){old.querySelector(':scope > .ts-branch-controls')?.remove();renderBranchControls(old,branchOptions);old.dataset.mediaBranches=mediaBranchKey;old.classList.toggle('has-folded-branches',!!childCount&&!!n.branchFolded);}this.positionNode(n,old);old.toggleClass('is-filtered-out',!!this.filterMatches&&!this.filterMatches.has(n.id));old.toggleClass('is-selected',this.selected.has(n.id));old.toggleClass('is-unrelated',!!this.relatedFocus&&!this.relatedFocus.has(n.id));continue;}
       this.mediaPlayers.get(n.id)?.pause();old?.remove();this.nodeScopes.get(n.id)?.unload();const scope=new Component();scope.load();this.nodeScopes.set(n.id,scope);this.nodeKeys.set(n.id,key);
@@ -2787,7 +2828,7 @@ class BoardView extends FileView {
           el.ondblclick = e => { if ((e.target as Element).closest('button')) return; e.stopPropagation(); act(() => this.enterBoard(file)); };
         } else if(!n.collapsed) { el.createDiv('ts-portal-preview').createDiv({ cls: 'ts-missing', text: '找不到子白板。原入口保留，可以重新关联。' }); }
       } else if(n.webUrl){
-        const owner=this.session!;header.remove();renderWebCard(el,n,{open:()=>{this.requireOwner(owner);this.openWebCard(n.id);},edit:()=>{this.requireOwner(owner);this.editWebCard(n.id);},fold:()=>{this.requireOwner(owner);this.foldText(n.id,true);},copy:()=>{this.requireOwner(owner);this.copyWebCard(n.id);},disabled:owner.blocked||!!n.locked,register:dispose=>scope.register(dispose),online:parseOnlineSource(n.webUrl)?{open:()=>{this.requireOwner(owner);act(()=>this.plugin.openOnlineWorkspace(n.webUrl!,'sidebar'));},mount:host=>mountOnlinePreview(this.app,host,n.webUrl!,owner.file.path,scope)}:undefined});
+        const owner=this.session!;header.remove();renderWebCard(el,n,{open:()=>{this.requireOwner(owner);this.openWebCard(n.id);},edit:()=>{this.requireOwner(owner);this.editWebCard(n.id);},fold:()=>{this.requireOwner(owner);this.foldText(n.id,true);},copy:()=>{this.requireOwner(owner);this.copyWebCard(n.id);},disabled:owner.blocked||!!n.locked,register:dispose=>scope.register(dispose),online:parseOnlineSource(n.webUrl)?{open:()=>{this.requireOwner(owner);const state=this.onlineBoardStates.get(n.id);act(()=>this.plugin.openOnlineWorkspace(n.webUrl!,'sidebar',state&&state.source===parseOnlineSource(n.webUrl!)?.path?state.time:undefined));},mount:host=>this.mountOnlineBoardCard(n,host,owner)}:undefined});
       } else if(n.kind==='text'){
         header.remove();el.dataset.ink=n.textColor || 'default';
         const presentation=textExcerptPresentation(n.text||'');el.toggleClass('has-excerpt-source',!!presentation.sources.length);
@@ -2854,6 +2895,48 @@ class BoardView extends FileView {
     let previous:Element=this.svg;for(const n of ordered){const el=this.positions.get(n.id);if(el){if(previous.nextElementSibling!==el)this.world.insertBefore(el,previous.nextSibling);previous=el;}}
     this.renderEdges(branchRender,b);if(!viewportOnly)this.renderInspector();if(!viewportOnly||!this.mapKey)this.renderMinimap(branchRender);else this.mapViewport?.();
   }
+  private mountOnlineBoardCard(node:Card,host:HTMLElement,owner=this.session){
+    const source=parseOnlineSource(node.webUrl!);if(!source)throw Error('在线视频来源无效');
+    const current=()=>!this.closed&&this.session===owner&&!!owner?.board.nodes.some(item=>item.id===node.id&&item.webUrl&&parseOnlineSource(item.webUrl)?.path===source.path);
+    const remembered=this.onlineBoardStates.get(node.id);
+    const handle=mountOnlineBoardPlayer(host,source.path,{
+      alive:()=>current()&&host.isConnected,disabled:owner!.blocked||!!node.locked,
+      initialTime:remembered?.source===source.path?remembered.time:source.initialTime,
+      onState:state=>{if(current()&&state.available&&state.sourcePath===source.path)this.onlineBoardStates.set(node.id,{source:source.path,time:state.time});},
+      onPlay:()=>this.plugin.activateOnlineBoardPlayer(handle),
+      onCapture:moment=>this.captureOnlineBoardMoment(node.id,source.path,moment,owner)
+    });
+    this.onlineBoardPlayers.set(node.id,handle);const unregister=this.plugin.registerOnlineBoardPlayer(handle);
+    return()=>{handle.dispose();unregister();if(this.onlineBoardPlayers.get(node.id)===handle)this.onlineBoardPlayers.delete(node.id);};
+  }
+  private async captureOnlineBoardMoment(id:string,input:string,data:OnlineBoardMoment,owner=this.session){
+    const source=parseOnlineSource(input);if(!source)throw Error('在线视频来源无效');mediaTime(data.time);
+    const ensure=()=>{this.requireOwner(owner);const node=owner!.board.nodes.find(item=>item.id===id);if(node?.kind!=='text'||!node.webUrl||parseOnlineSource(node.webUrl)?.path!==source.path||node.locked)throw Error('视频卡片已变化或锁定，请回到原卡片重试');return node;};
+    ensure();if(this.inline&&!await this.inline.commit())throw Error('请先完成当前卡片的编辑');ensure();
+    const {note,moment}=await this.plugin.saveOnlineBoardMoment(source.path,data);
+    let node:Card;try{node=ensure();}catch{new Notice(`摘录已保留：${note.path}；白板或视频卡片已变化，未插入卡片`);return;}
+    const next='online-'+data.id;if(owner!.board.nodes.some(item=>item.id===next))return;
+    const link=onlinePlayerUrl(this.app.vault.getName(),source.path,moment.time,note.path);
+    const text=[moment.image,moment.text,`[${mediaClock(moment.time)} · 回看视频](${link})`].filter(Boolean).join('\n\n');
+    const width=320,height=moment.image?280:120,x=node.x+node.width+56;let y=node.y;
+    // Scan in vertical order so each overlapping card moves the new one below it.
+    const obstacles=owner!.board.nodes.filter(item=>item.kind!=='section'&&item.x<x+width&&item.x+item.width>x).sort((a,b)=>a.y-b.y);
+    for(const other of obstacles)if(other.y<y+height+24&&other.y+other.height+24>y)y=other.y+other.height+24;
+    owner!.change(board=>{board.version=3;board.nodes.push({id:next,kind:'text',text,x,y,width,height,color:node.color,fontSize:this.plugin.settings.defaultTextSize,autoSize:false});board.edges.push({id:uid(),from:id,to:next,label:mediaClock(moment.time),style:this.plugin.settings.defaultEdgeStyle,direction:'forward'});});
+    // Keep the player prioritized when the board has more cards than previewLimit.
+    this.selected=new Set([id]);this.selectedEdge=undefined;this.updateSelection();new Notice(moment.image?'截图与时间戳已保存并加入白板':'时间戳已保存并加入白板');
+  }
+  async seekOnlineSource(input:string,time:number,excerptId?:string){
+    const owner=this.requireOwner(),source=parseOnlineSource(input);mediaTime(time);if(!source)throw Error('在线视频来源无效');
+    const linked=new Set(owner.board.edges.filter(edge=>edge.to===excerptId).map(edge=>edge.from));
+    const matches=owner.board.nodes.filter(node=>node.webUrl&&parseOnlineSource(node.webUrl)?.path===source.path),node=matches.find(node=>linked.has(node.id))||matches[0];
+    if(!node)throw Error('来源视频已从白板移除');
+    if(node.collapsed||node.branchFolded){if(node.locked)throw Error('请先解锁并展开视频卡片');owner.change(board=>{foldCards(board,new Set([node.id]),false);const current=board.nodes.find(item=>item.id===node.id);if(current)delete current.branchFolded;});}
+    this.onlineBoardStates.set(node.id,{source:source.path,time});this.revealNode(node.id);
+    if(owner.board.viewport.zoom<this.plugin.settings.detailZoom){owner.board.viewport.zoom=1;this.revealNode(node.id);}
+    if(!this.onlineBoardPlayers.has(node.id))this.nodeKeys.delete(node.id);this.renderBoard();
+    const player=this.onlineBoardPlayers.get(node.id);if(!player)throw Error('请先展开来源视频卡片');await player.seek(time);
+  }
   private pdfTotals=new Map<string,{stamp:number;total:number}>();
   seekMediaSource(source:MediaSource){
     const owner=this.requireOwner();if(owner.file.path!==source.board)throw Error('来源白板已切换');
@@ -2913,7 +2996,7 @@ class BoardView extends FileView {
     const stamp=file.stat.mtime,size=file.stat.size,alive=()=>!this.closed&&this.session===owner&&el.isConnected&&this.app.vault.getAbstractFileByPath(path)===file&&file.path===path&&file.stat.mtime===stamp&&file.stat.size===size&&owner.board.nodes.some(node=>node.id===n.id&&node.file===path&&node.kind===kind&&!node.collapsed);
     const identity=JSON.stringify([path,stamp,file.stat.size,n.mediaStart||0]);if(this.mediaIdentities.get(n.id)!==identity){this.mediaStates.delete(n.id);this.mediaIdentities.set(n.id,identity);}
     const shared=this.plugin.mediaWorkspace.playback,mediaIdentity=this.plugin.mediaWorkspace.identity(file);
-    const handle=mountMediaCard(body,{kind,controls:'board',title:file.basename,src:()=>this.plugin.mediaWorkspace.resolveResource(file),initialTime:n.mediaStart||0,state:shared.get(mediaIdentity)||this.mediaStates.get(n.id),captureEnabled:!owner.blocked,onPlay:()=>shared.activate(handle),
+    const handle=mountMediaCard(body,{kind,controls:'board',title:file.basename,src:()=>this.plugin.mediaWorkspace.resolveResource(file),initialTime:n.mediaStart||0,state:shared.get(mediaIdentity)||this.mediaStates.get(n.id),captureEnabled:!owner.blocked,onPlay:()=>{shared.activate(handle);this.plugin.pauseOnlineBoardPlayers();},
       requestTime:(current,submit)=>{const prompt=new Prompt(this.app,'跳转到时间 · 秒数或时:分:秒',current,value=>{if(alive())submit(value);});prompt.open();return()=>prompt.close();},
       onState:state=>{if(!this.closed&&this.session===owner&&file.path===path&&file.stat.mtime===stamp&&file.stat.size===size&&this.app.vault.getAbstractFileByPath(path)===file&&owner.board.nodes.some(node=>node.id===n.id&&node.file===path&&node.kind===kind)){this.mediaStates.set(n.id,state);shared.remember(mediaIdentity,state,handle);}},
       onCapture:time=>this.captureMedia(n.id,time,owner),onOpen:()=>this.plugin.openMediaWorkspace(file,'tab',handle.getState().time),

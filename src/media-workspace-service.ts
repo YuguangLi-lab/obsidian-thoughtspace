@@ -26,7 +26,7 @@ function notePriority(raw:string){
  if(/^yingjian-capture-id:\s*[^\r\n]+/m.test(front))return 2;
  return 3;
 }
-interface Operations {createNote:(title:string,body:string)=>Promise<TFile>;openFile:(file:TFile)=>Promise<unknown>}
+interface Operations {createNote:(title:string,body:string)=>Promise<TFile>;openFile:(file:TFile)=>Promise<unknown>;onPlay?:()=>void}
 /** Own media resume state and append-only notes independently of any board view. */
 export class MediaWorkspaceService {
  readonly playback=new MediaPlayback(()=>this.schedule());
@@ -67,7 +67,7 @@ export class MediaWorkspaceService {
   let handle:MediaCardHandle;
   const validateCapture=async()=>{await this.validateResource(file);if(!alive())throw Error('媒体已移动、删除或更新，请重新选择');};
   handle=mountMediaCard(host,{kind:mediaKind(file.path)!,title:file.basename,src:()=>{this.ensure(file,identity.path,identity.mtime,identity.size);return this.resolveResource(file);},state:this.playback.get(identity)||hooks.initialState,
-   suspendWhenHidden:false,onPlay:()=>this.playback.activate(handle),
+   suspendWhenHidden:false,onPlay:()=>{this.playback.activate(handle);this.operations.onPlay?.();},
    tracks:subtitle?[{label:'字幕',src:subtitleSource}]:undefined,
    onState:state=>{if(alive()){this.playback.remember(identity,state,handle);hooks.state(state);}},onCapture:async time=>{await validateCapture();return hooks.capture(time);},onCaptureFrame:async(blob,time)=>{await validateCapture();return hooks.frame(blob,time);},onFrameCaptureState:hooks.frameCaptureState,
    onOpen:()=>{this.playback.pauseAll();return this.operations.openFile(file);},alive});
