@@ -4,11 +4,12 @@ import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import * as model from '../src/model';
 import * as mindmap from '../src/mindmap';
+import {reflowExpandedContent} from '../src/expansion-layout';
 const source=readFileSync(process.env.SESSION_LOCK_SOURCE||'src/main.ts','utf8');
 const start=source.indexOf('class Session {'),end=source.indexOf('\nexport default class ThoughtSpace',start);
 let indexed=0,maps=0;
 class CountedMap extends Map<string,model.Card> {constructor(entries?:Iterable<readonly [string,model.Card]>|null){super(entries);maps++;indexed+=this.size;}}
-const deps={...model,...mindmap,Map:CountedMap,Notice:class{},EXT:'thoughtspace',report:()=>{}};
+const deps={...model,...mindmap,reflowExpandedContent,Map:CountedMap,Notice:class{},EXT:'thoughtspace',report:()=>{}};
 const Session=new Function(...Object.keys(deps),transformSync(source.slice(start,end)+';return Session',{loader:'ts'}).code)(...Object.values(deps));
 function fixture(count=1200){const b=model.emptyBoard();b.version=3;b.nodes=Array.from({length:count},(_,i)=>({id:'n'+i,kind:'text' as const,text:'Keep',x:i*350,y:0,width:320,height:200,color:'sand' as const}));const s=new Session({}, {},JSON.stringify(b));s.persist=()=>{};maps=indexed=0;return s;}
 test('unlocked transactions skip the unused full-board lock index',()=>{

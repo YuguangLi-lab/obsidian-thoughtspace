@@ -1,0 +1,129 @@
+{
+  "limits": "Synthetic board DOM, production reflow/fold/history/connection functions and CSS. Not a live Obsidian vault. Mobile checks canvas coordinates, not a different responsive layout.",
+  "reports": [
+    {
+      "width": 1280,
+      "height": 900,
+      "scale": 0.5,
+      "legacyOverlaps": [
+        [
+          "notes",
+          "image"
+        ],
+        [
+          "notes",
+          "audio"
+        ],
+        [
+          "notes",
+          "pdf"
+        ]
+      ],
+      "expandedOverlaps": [],
+      "measuredOverlaps": [],
+      "membership": [
+        "audio",
+        "image",
+        "notes",
+        "pdf"
+      ],
+      "undoRestored": true,
+      "redoRestored": true,
+      "errors": [],
+      "passed": true
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "scale": 1,
+      "legacyOverlaps": [
+        [
+          "notes",
+          "image"
+        ],
+        [
+          "notes",
+          "audio"
+        ],
+        [
+          "notes",
+          "pdf"
+        ]
+      ],
+      "expandedOverlaps": [],
+      "measuredOverlaps": [],
+      "membership": [
+        "audio",
+        "image",
+        "notes",
+        "pdf"
+      ],
+      "undoRestored": true,
+      "redoRestored": true,
+      "errors": [],
+      "passed": true
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "scale": 1.5,
+      "legacyOverlaps": [
+        [
+          "notes",
+          "image"
+        ],
+        [
+          "notes",
+          "audio"
+        ],
+        [
+          "notes",
+          "pdf"
+        ]
+      ],
+      "expandedOverlaps": [],
+      "measuredOverlaps": [],
+      "membership": [
+        "audio",
+        "image",
+        "notes",
+        "pdf"
+      ],
+      "undoRestored": true,
+      "redoRestored": true,
+      "errors": [],
+      "passed": true
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "scale": 0.5,
+      "legacyOverlaps": [
+        [
+          "notes",
+          "image"
+        ],
+        [
+          "notes",
+          "audio"
+        ],
+        [
+          "notes",
+          "pdf"
+        ]
+      ],
+      "expandedOverlaps": [],
+      "measuredOverlaps": [],
+      "membership": [
+        "audio",
+        "image",
+        "notes",
+        "pdf"
+      ],
+      "undoRestored": true,
+      "redoRestored": true,
+      "errors": [],
+      "passed": true
+    }
+  ]
+}

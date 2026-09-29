@@ -41,7 +41,8 @@ function validSource(source:MediaSource):boolean{return validLabel(source.vault)
 export function mediaSourceUrl(source:MediaSource):string {
  if(!validSource(source))throw Error('媒体来源链接无效');
  const params=new URLSearchParams({vault:source.vault,board:source.board,node:source.node,file:source.file,t:String(source.time)});
- return 'obsidian://thoughtspace-media?'+params.toString();
+ // Obsidian decodes URI fields without converting form-encoded '+' to a space.
+ return 'obsidian://thoughtspace-media?'+params.toString().replace(/\+/g,'%20');
 }
 /** Handles both a full link and Obsidian's already-decoded protocol callback values. */
 export function parseMediaSourceUrl(input:string|URLSearchParams|Readonly<Record<string,unknown>>):MediaSource|undefined {

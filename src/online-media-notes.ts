@@ -47,7 +47,8 @@ export interface OnlinePlayerSource {vault:string;source:string;time:number;note
 export function onlinePlayerUrl(vault:string,source:string,time:number,note?:string):string {
  if(!validVault(vault)||note!==undefined&&!validNote(note))throw Error('在线视频回看链接的仓库或笔记路径无效');
  const params=new URLSearchParams({vault,source:requireSource(source),t:String(timeValue(time))});if(note!==undefined)params.set('note',note);
- return 'obsidian://'+protocol+'?'+params.toString();
+ // Obsidian decodes URI fields without converting form-encoded '+' to a space.
+ return 'obsidian://'+protocol+'?'+params.toString().replace(/\+/g,'%20');
 }
 /** Accepts both URI text and Obsidian's already-decoded callback fields. */
 export function parseOnlinePlayerUrl(input:string|Record<string,string>):OnlinePlayerSource|undefined {

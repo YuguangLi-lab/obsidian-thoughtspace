@@ -5,6 +5,7 @@ import {transformSync} from 'esbuild';
 import * as model from '../src/model';
 import * as renderKeys from '../src/node-render-key';
 import {branchState,reflowAutomaticMindmaps,validateBranches} from '../src/mindmap';
+import {reflowExpandedContent} from '../src/expansion-layout';
 import {branchRenderSnapshot} from '../src/branch-render';
 import {childConnectionCandidates} from '../src/branch-disclosure';
 import {sectionDisplayNode} from '../src/sections';
@@ -31,7 +32,7 @@ const methods=take('  private renderBoard(', '  private pdfTotals=')
  +take('  private positionNode(', '  private applyInlineSize(')
  +take('  async setTextAutoHeight(', '  fitCards(')
  +take('  private requireOwner(', '  private canCreateBlankText(');
-const sessionDeps={...model,reflowAutomaticMindmaps,validateBranches,Notice:class{}};
+const sessionDeps={...model,reflowAutomaticMindmaps,reflowExpandedContent,validateBranches,Notice:class{}};
 const Session=new Function(...Object.keys(sessionDeps),transformSync(`class Session{${take('  change(fn:', '  persist() {')}};return Session`,{loader:'ts'}).code)(...Object.values(sessionDeps));
 const branchModule={exports:{} as typeof import('../src/branch-controls')};
 new Function('require','module','exports',transformSync(readFileSync('src/branch-controls.ts','utf8'),{loader:'ts',format:'cjs'}).code)(
@@ -122,8 +123,8 @@ function fixture(kind:model.Card['kind']='card',patch:Partial<model.Card>={}){
  new Function('require','module','exports',transformSync(readFileSync('src/card-preview.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>previewImports[name],cardPreviewModule,cardPreviewModule.exports);
  const allDeps={...deps,...cardPreviewModule.exports};
  const View=new Function(...Object.keys(allDeps),transformSync(`class View{${methods}};return View`,{loader:'ts'}).code)(...Object.values(allDeps));
- const view=new View();view.hostedUploads=new Set();Object.assign(view,{session,world,svg,stage:new Dom(),contentEl:new Dom(),zoomLabel:new Dom(),selected:new Set(),positions:new Map(),nodeScopes:new Map(),nodeKeys:new Map(),mediaStates:new Map(),mediaPlayers:new Map(),mediaIdentities:new Map(),pdfTotals:new Map(),previewQueue,pdfPreviewQueue,
-  plugin:{settings:{gridStep:24,previewLimit:20,detailZoom:.4},mediaWorkspace:{playback:new MediaPlayback(),identity:(file:any)=>({path:file.path,mtime:file.stat.mtime,size:file.stat.size})}},
+ const view=new View();view.hostedUploads=new Set();Object.assign(view,{session,world,svg,stage:new Dom(),contentEl:new Dom(),zoomLabel:new Dom(),selected:new Set(),positions:new Map(),nodeScopes:new Map(),nodeKeys:new Map(),mediaStates:new Map(),mediaPlayers:new Map(),mediaIdentities:new Map(),onlineBoardPlayers:new Map(),onlineBoardStates:new Map(),pdfTotals:new Map(),previewQueue,pdfPreviewQueue,
+  plugin:{settings:{gridStep:24,previewLimit:20,detailZoom:.4},pauseOnlineBoardPlayers(){},mediaWorkspace:{playback:new MediaPlayback(),identity:(file:any)=>({path:file.path,mtime:file.stat.mtime,size:file.stat.size})}},
   app:{vault:{getAbstractFileByPath:(path:string)=>files.get(path),getResourcePath:(file:File)=>file.path,async cachedRead(){calls.read++;return 'Rendered **note**';}},metadataCache:{getFileCache:()=>{calls.metadata++;return metadata;}}},
   displayBoard:()=>board,updateBackToContent(){},syncCanvasControls(){},updateObjectFilter(){},renderSaveStatus(){},renderNavigation(){},renderEdges(){},renderInspector(){},renderMinimap(){},addPorts(){},
   queueTextFit(){calls.textFit++;},queueCardFit(){calls.cardFit++;},queueNodeFit(fitNode:model.Card,size:{width:number;height:number}){calls.mediaFits.push({node:fitNode,size});}

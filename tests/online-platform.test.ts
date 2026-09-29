@@ -3,6 +3,36 @@ import test from 'node:test';
 import {OnlinePlatform,parseOnlineSource,resolveOnlineSource} from '../src/online-platform';
 import {resolveOnlineVideo,type RedirectFetcher} from '../src/online-platform/online-resolver.mjs';
 import {allowsOnlineNavigation,isBilibiliShortLink,strictOnlineUrl} from '../src/online-platform/online-video.mjs';
+import type {OnlineController} from '../src/online-platform/online-controller.mjs';
+
+function positionFixture(){
+ const path='https://www.bilibili.com/video/BV1p5Yg6JEzR/',host={isConnected:true} as HTMLElement;
+ let samples=0,stops=0,sample=async()=>42.125;
+ const platform=new OnlinePlatform(()=>undefined),controller={position:async(sourcePath:string)=>{assert.equal(sourcePath,path);samples++;return sample();},stop:()=>{stops++;}} as OnlineController;
+ const internal=platform as unknown as {controller:OnlineController;activeHost:HTMLElement;activePath:string;activeLease:unknown;mounted:unknown};internal.controller=controller;internal.activeHost=host;internal.activePath=path;
+ const release=platform.mount(host,path);internal.activeLease=internal.mounted;
+ return{platform,path,host,release,internal,get samples(){return samples;},get stops(){return stops;},setSample(next:()=>Promise<number>){sample=next;}};
+}
+
+test('position requires the active connected source and returns the controller fresh sample',async()=>{
+ const f=positionFixture();assert.equal(await f.platform.position(f.path),42.125);assert.equal(f.samples,1);
+ await assert.rejects(f.platform.position(f.path+'?p=2'),/来源/);assert.equal(f.samples,1);
+ (f.host as unknown as {isConnected:boolean}).isConnected=false;await assert.rejects(f.platform.position(f.path),/插件内/);assert.equal(f.samples,1);f.platform.dispose();
+});
+test('position cancels delivery when the panel lease, source, connection or ownership changes',async()=>{
+ for(const change of ['lease','path','detached','released','stopped'] as const){
+  const f=positionFixture();let resolve!:(time:number)=>void;f.setSample(()=>new Promise(done=>{resolve=done;}));
+  const pending=f.platform.position(f.path),rejected=assert.rejects(pending,/切换|关闭/);
+  if(change==='lease')f.platform.mount(f.host,f.path);
+  else if(change==='path')f.internal.activePath=f.path+'?p=2';
+  else if(change==='detached')(f.host as unknown as {isConnected:boolean}).isConnected=false;
+  else if(change==='released')f.release();else f.platform.stop();
+  resolve(99);await rejected;f.platform.dispose();
+ }
+});
+test('position cannot sample a speculative destination before its player is active',async()=>{
+ const f=positionFixture();f.platform.mount({isConnected:true} as HTMLElement,f.path);await assert.rejects(f.platform.position(f.path),/切换/);assert.equal(f.samples,0);f.platform.dispose();
+});
 
 test('parsing and construction work without loading an Electron playback runtime',()=>{
  const platform=new OnlinePlatform(()=>{throw Error('No playback should begin');});platform.stop();platform.dispose();platform.dispose();

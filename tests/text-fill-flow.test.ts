@@ -5,6 +5,7 @@ import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import * as model from '../src/model';
 import {reflowAutomaticMindmaps,validateBranches} from '../src/mindmap';
+import {reflowExpandedContent} from '../src/expansion-layout';
 import {sectionDisplayNode} from '../src/sections';
 import {selectionEdges} from '../src/selection-edges';
 import {selectionFormatKey} from '../src/selection-format';
@@ -59,7 +60,7 @@ class Element extends EventTarget {
   disconnect(){if(this.contains(this.ownerDocument.activeElement))this.ownerDocument.activeElement=this.ownerDocument.body;this.isConnected=false;this.children.forEach(el=>el.disconnect());}
   empty(){this.children.forEach(el=>el.disconnect());this.children=[];}
 }
-const deps={nodeHasBorder,textBlockPadding,textFitsContent,...model,reflowAutomaticMindmaps,validateBranches,sectionDisplayNode,selectionEdges,selectionFormatKey,inkLabels,textFontFamily,syncNodeGeometry,
+const deps={nodeHasBorder,textBlockPadding,textFitsContent,...model,reflowAutomaticMindmaps,reflowExpandedContent,validateBranches,sectionDisplayNode,selectionEdges,selectionFormatKey,inkLabels,textFontFamily,syncNodeGeometry,
   preserveToolbarFocus,setIcon:()=>{},Notice:class {},act:(fn:()=>unknown)=>fn(),
   markdownToolbar:(host:Element,editor:{replaceToolbar(dispose?:()=>void):void},disposeOuter?:()=>void)=>{host.createDiv({cls:'ts-markdown-tools'});editor.replaceToolbar(disposeOuter);},
   button:(parent:Element,label:string,_icon:string,callback:()=>unknown,cls?:string)=>{

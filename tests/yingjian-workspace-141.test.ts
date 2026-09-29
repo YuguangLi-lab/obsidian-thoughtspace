@@ -143,7 +143,7 @@ test('player delivery accepts parsed CRLF capture provenance and preserves card-
  await plugin.receiveVideoCapture({id,board:boardFile.path,note:noteFile.path,vaultId});assert.equal(session.board.nodes.length,1);assert.equal(session.board.nodes[0].file,noteFile.path);assert.equal(released,1);
 });
 
-const eventEnd=main.indexOf('    const openStageLink='),eventStart=main.lastIndexOf("    this.registerDomEvent(this.stage,'click',e=>{",eventEnd);
+const eventEnd=main.indexOf('    const openLocalMediaBoardLink='),eventStart=main.lastIndexOf("    this.registerDomEvent(this.stage,'click',e=>{",eventEnd);
 function timestampEventFixture(){
  let handler!:Function,pending:Promise<unknown>|undefined;const plays:any[]=[];
  const register=main.slice(eventStart,eventEnd),deps={act:(action:()=>Promise<unknown>)=>{pending=action();}};

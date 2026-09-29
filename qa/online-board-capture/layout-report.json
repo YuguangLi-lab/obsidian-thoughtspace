@@ -1,0 +1,669 @@
+{
+  "limits": "Synthetic Playwright browser fixture; real module, web-card integration and stylesheet. No Obsidian Electron guest, real video, authentication, or cross-origin capture validation.",
+  "reports": [
+    {
+      "width": 640,
+      "height": 460,
+      "theme": "light",
+      "initial": {
+        "loads": 0,
+        "timestampDisabled": true,
+        "screenshotDisabled": true
+      },
+      "errors": [],
+      "geometry": {
+        "card": {
+          "x": 32,
+          "y": 100,
+          "width": 640,
+          "height": 460,
+          "right": 672,
+          "bottom": 560
+        },
+        "surface": {
+          "x": 40,
+          "y": 142,
+          "width": 624,
+          "height": 350,
+          "right": 664,
+          "bottom": 492
+        },
+        "footer": {
+          "x": 40,
+          "y": 492,
+          "width": 624,
+          "height": 38,
+          "right": 664,
+          "bottom": 530
+        },
+        "status": {
+          "x": 40,
+          "y": 530,
+          "width": 624,
+          "height": 22,
+          "right": 664,
+          "bottom": 552
+        },
+        "buttons": [
+          {
+            "label": "打开原网页",
+            "x": 461,
+            "y": 108,
+            "width": 26,
+            "height": 28,
+            "right": 487,
+            "bottom": 136
+          },
+          {
+            "label": "在卡片内预览网页",
+            "x": 490,
+            "y": 108,
+            "width": 38,
+            "height": 28,
+            "right": 528,
+            "bottom": 136
+          },
+          {
+            "label": "打开在线视频笔记",
+            "x": 531,
+            "y": 108,
+            "width": 38,
+            "height": 28,
+            "right": 569,
+            "bottom": 136
+          },
+          {
+            "label": "复制网页链接",
+            "x": 572,
+            "y": 108,
+            "width": 24,
+            "height": 28,
+            "right": 596,
+            "bottom": 136
+          },
+          {
+            "label": "修改网页链接",
+            "x": 599,
+            "y": 108,
+            "width": 38,
+            "height": 28,
+            "right": 637,
+            "bottom": 136
+          },
+          {
+            "label": "折叠网页",
+            "x": 640,
+            "y": 108,
+            "width": 24,
+            "height": 28,
+            "right": 664,
+            "bottom": 136
+          },
+          {
+            "label": "播放",
+            "x": 42,
+            "y": 498,
+            "width": 59,
+            "height": 30,
+            "right": 101,
+            "bottom": 528
+          },
+          {
+            "label": "记下此刻",
+            "x": 105,
+            "y": 498,
+            "width": 83,
+            "height": 30,
+            "right": 188,
+            "bottom": 528
+          },
+          {
+            "label": "截取画面",
+            "x": 192,
+            "y": 498,
+            "width": 83,
+            "height": 30,
+            "right": 275,
+            "bottom": 528
+          },
+          {
+            "label": "重试保存",
+            "x": 279,
+            "y": 498,
+            "width": 83,
+            "height": 30,
+            "right": 362,
+            "bottom": 528
+          }
+        ],
+        "outside": [],
+        "overlap": false,
+        "statusOutside": false,
+        "cardScrollWidth": 640,
+        "cardClientWidth": 640
+      },
+      "saves": [
+        {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "time": 41.25,
+          "image": false
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000002",
+          "time": 41.25,
+          "image": true
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "time": 41.25,
+          "image": true
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "time": 41.25,
+          "image": true
+        }
+      ],
+      "retrySameId": true,
+      "passed": true
+    },
+    {
+      "width": 320,
+      "height": 300,
+      "theme": "light",
+      "initial": {
+        "loads": 0,
+        "timestampDisabled": true,
+        "screenshotDisabled": true
+      },
+      "errors": [],
+      "geometry": {
+        "card": {
+          "x": 32,
+          "y": 100,
+          "width": 320,
+          "height": 300,
+          "right": 352,
+          "bottom": 400
+        },
+        "surface": {
+          "x": 40,
+          "y": 142,
+          "width": 304,
+          "height": 172,
+          "right": 344,
+          "bottom": 314
+        },
+        "footer": {
+          "x": 40,
+          "y": 314,
+          "width": 304,
+          "height": 38,
+          "right": 344,
+          "bottom": 352
+        },
+        "status": {
+          "x": 40,
+          "y": 352,
+          "width": 304,
+          "height": 40,
+          "right": 344,
+          "bottom": 392
+        },
+        "buttons": [
+          {
+            "label": "打开原网页",
+            "x": 141,
+            "y": 108,
+            "width": 26,
+            "height": 28,
+            "right": 167,
+            "bottom": 136
+          },
+          {
+            "label": "在卡片内预览网页",
+            "x": 170,
+            "y": 108,
+            "width": 38,
+            "height": 28,
+            "right": 208,
+            "bottom": 136
+          },
+          {
+            "label": "打开在线视频笔记",
+            "x": 211,
+            "y": 108,
+            "width": 38,
+            "height": 28,
+            "right": 249,
+            "bottom": 136
+          },
+          {
+            "label": "复制网页链接",
+            "x": 252,
+            "y": 108,
+            "width": 24,
+            "height": 28,
+            "right": 276,
+            "bottom": 136
+          },
+          {
+            "label": "修改网页链接",
+            "x": 279,
+            "y": 108,
+            "width": 38,
+            "height": 28,
+            "right": 317,
+            "bottom": 136
+          },
+          {
+            "label": "折叠网页",
+            "x": 320,
+            "y": 108,
+            "width": 24,
+            "height": 28,
+            "right": 344,
+            "bottom": 136
+          },
+          {
+            "label": "播放",
+            "x": 42,
+            "y": 320,
+            "width": 30,
+            "height": 30,
+            "right": 72,
+            "bottom": 350
+          },
+          {
+            "label": "记下此刻",
+            "x": 76,
+            "y": 320,
+            "width": 30,
+            "height": 30,
+            "right": 106,
+            "bottom": 350
+          },
+          {
+            "label": "截取画面",
+            "x": 110,
+            "y": 320,
+            "width": 30,
+            "height": 30,
+            "right": 140,
+            "bottom": 350
+          },
+          {
+            "label": "重试保存",
+            "x": 144,
+            "y": 320,
+            "width": 30,
+            "height": 30,
+            "right": 174,
+            "bottom": 350
+          }
+        ],
+        "outside": [],
+        "overlap": false,
+        "statusOutside": false,
+        "cardScrollWidth": 320,
+        "cardClientWidth": 320
+      },
+      "saves": [
+        {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "time": 41.25,
+          "image": false
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000002",
+          "time": 41.25,
+          "image": true
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "time": 41.25,
+          "image": true
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "time": 41.25,
+          "image": true
+        }
+      ],
+      "retrySameId": true,
+      "passed": true
+    },
+    {
+      "width": 200,
+      "height": 220,
+      "theme": "light",
+      "initial": {
+        "loads": 0,
+        "timestampDisabled": true,
+        "screenshotDisabled": true
+      },
+      "errors": [],
+      "geometry": {
+        "card": {
+          "x": 32,
+          "y": 100,
+          "width": 200,
+          "height": 220,
+          "right": 232,
+          "bottom": 320
+        },
+        "surface": {
+          "x": 40,
+          "y": 173,
+          "width": 184,
+          "height": 57,
+          "right": 224,
+          "bottom": 230
+        },
+        "footer": {
+          "x": 40,
+          "y": 230,
+          "width": 184,
+          "height": 38,
+          "right": 224,
+          "bottom": 268
+        },
+        "status": {
+          "x": 40,
+          "y": 268,
+          "width": 184,
+          "height": 44,
+          "right": 224,
+          "bottom": 312
+        },
+        "buttons": [
+          {
+            "label": "打开原网页",
+            "x": 48,
+            "y": 108,
+            "width": 26,
+            "height": 28,
+            "right": 74,
+            "bottom": 136
+          },
+          {
+            "label": "在卡片内预览网页",
+            "x": 77,
+            "y": 108,
+            "width": 38,
+            "height": 28,
+            "right": 115,
+            "bottom": 136
+          },
+          {
+            "label": "打开在线视频笔记",
+            "x": 118,
+            "y": 108,
+            "width": 38,
+            "height": 28,
+            "right": 156,
+            "bottom": 136
+          },
+          {
+            "label": "复制网页链接",
+            "x": 159,
+            "y": 108,
+            "width": 24,
+            "height": 28,
+            "right": 183,
+            "bottom": 136
+          },
+          {
+            "label": "修改网页链接",
+            "x": 186,
+            "y": 108,
+            "width": 38,
+            "height": 28,
+            "right": 224,
+            "bottom": 136
+          },
+          {
+            "label": "折叠网页",
+            "x": 48,
+            "y": 139,
+            "width": 24,
+            "height": 28,
+            "right": 72,
+            "bottom": 167
+          },
+          {
+            "label": "播放",
+            "x": 42,
+            "y": 236,
+            "width": 30,
+            "height": 30,
+            "right": 72,
+            "bottom": 266
+          },
+          {
+            "label": "记下此刻",
+            "x": 76,
+            "y": 236,
+            "width": 30,
+            "height": 30,
+            "right": 106,
+            "bottom": 266
+          },
+          {
+            "label": "截取画面",
+            "x": 110,
+            "y": 236,
+            "width": 30,
+            "height": 30,
+            "right": 140,
+            "bottom": 266
+          },
+          {
+            "label": "重试保存",
+            "x": 144,
+            "y": 236,
+            "width": 30,
+            "height": 30,
+            "right": 174,
+            "bottom": 266
+          }
+        ],
+        "outside": [],
+        "overlap": false,
+        "statusOutside": false,
+        "cardScrollWidth": 200,
+        "cardClientWidth": 200
+      },
+      "saves": [
+        {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "time": 41.25,
+          "image": false
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000002",
+          "time": 41.25,
+          "image": true
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "time": 41.25,
+          "image": true
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "time": 41.25,
+          "image": true
+        }
+      ],
+      "retrySameId": true,
+      "passed": true
+    },
+    {
+      "width": 320,
+      "height": 300,
+      "theme": "dark",
+      "initial": {
+        "loads": 0,
+        "timestampDisabled": true,
+        "screenshotDisabled": true
+      },
+      "errors": [],
+      "geometry": {
+        "card": {
+          "x": 32,
+          "y": 100,
+          "width": 320,
+          "height": 300,
+          "right": 352,
+          "bottom": 400
+        },
+        "surface": {
+          "x": 40,
+          "y": 142,
+          "width": 304,
+          "height": 172,
+          "right": 344,
+          "bottom": 314
+        },
+        "footer": {
+          "x": 40,
+          "y": 314,
+          "width": 304,
+          "height": 38,
+          "right": 344,
+          "bottom": 352
+        },
+        "status": {
+          "x": 40,
+          "y": 352,
+          "width": 304,
+          "height": 40,
+          "right": 344,
+          "bottom": 392
+        },
+        "buttons": [
+          {
+            "label": "打开原网页",
+            "x": 141,
+            "y": 108,
+            "width": 26,
+            "height": 28,
+            "right": 167,
+            "bottom": 136
+          },
+          {
+            "label": "在卡片内预览网页",
+            "x": 170,
+            "y": 108,
+            "width": 38,
+            "height": 28,
+            "right": 208,
+            "bottom": 136
+          },
+          {
+            "label": "打开在线视频笔记",
+            "x": 211,
+            "y": 108,
+            "width": 38,
+            "height": 28,
+            "right": 249,
+            "bottom": 136
+          },
+          {
+            "label": "复制网页链接",
+            "x": 252,
+            "y": 108,
+            "width": 24,
+            "height": 28,
+            "right": 276,
+            "bottom": 136
+          },
+          {
+            "label": "修改网页链接",
+            "x": 279,
+            "y": 108,
+            "width": 38,
+            "height": 28,
+            "right": 317,
+            "bottom": 136
+          },
+          {
+            "label": "折叠网页",
+            "x": 320,
+            "y": 108,
+            "width": 24,
+            "height": 28,
+            "right": 344,
+            "bottom": 136
+          },
+          {
+            "label": "播放",
+            "x": 42,
+            "y": 320,
+            "width": 30,
+            "height": 30,
+            "right": 72,
+            "bottom": 350
+          },
+          {
+            "label": "记下此刻",
+            "x": 76,
+            "y": 320,
+            "width": 30,
+            "height": 30,
+            "right": 106,
+            "bottom": 350
+          },
+          {
+            "label": "截取画面",
+            "x": 110,
+            "y": 320,
+            "width": 30,
+            "height": 30,
+            "right": 140,
+            "bottom": 350
+          },
+          {
+            "label": "重试保存",
+            "x": 144,
+            "y": 320,
+            "width": 30,
+            "height": 30,
+            "right": 174,
+            "bottom": 350
+          }
+        ],
+        "outside": [],
+        "overlap": false,
+        "statusOutside": false,
+        "cardScrollWidth": 320,
+        "cardClientWidth": 320
+      },
+      "saves": [
+        {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "time": 41.25,
+          "image": false
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000002",
+          "time": 41.25,
+          "image": true
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "time": 41.25,
+          "image": true
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "time": 41.25,
+          "image": true
+        }
+      ],
+      "retrySameId": true,
+      "passed": true
+    }
+  ]
+}
