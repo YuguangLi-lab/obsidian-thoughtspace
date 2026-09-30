@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import * as mediaSource from '../src/media-source';
 import * as previewSource from '../src/media-preview-source';
+import {MediaDraftStore,type StoredMediaDraft} from '../src/media-draft-store';
 import type {MediaCardState} from '../src/media-card-player';
 
 class TFile {
@@ -95,7 +96,7 @@ const compiled=transformSync(readFileSync('src/media-workspace-view.ts','utf8'),
 const module={exports:{}};
 new Function('require','module','exports',compiled)((name:string)=>name==='obsidian'?{ItemView,Menu,Modal,TFile,setIcon:()=>{},Notice:class{constructor(text:string){notices.push(text);}}}:name==='./media-source'?mediaSource:name==='./media-preview-source'?previewSource:undefined,module,module.exports);
 const {MediaWorkspaceView} = module.exports as {MediaWorkspaceView:new(leaf:unknown,host:unknown)=>any};
-function fixture(){
+function fixture(drafts?:MediaDraftStore){
  const a=new TFile('media/A.mp4'),b=new TFile('media/B.mp3'),noteA=new TFile('notes/A.md'),noteB=new TFile('notes/B.md');
  const files=new Map([a,b,noteA,noteB].map(file=>[file.path,file]));
  const events=new Map<string,((...args:any[])=>void)[]>();
@@ -106,6 +107,7 @@ function fixture(){
  let read=(file:TFile):Promise<{note?:TFile;entries:Moment[];warnings?:string[]}>=>(Promise.resolve({entries:[],note:file===a?noteA:noteB}));
  let write=async(file:TFile,_data:Draft)=>({note:file===a?noteA:noteB});
  const host={
+  drafts,recoverDrafts:undefined as (()=>void)|undefined,
   open:async(...args:unknown[])=>{opens.push(args);},pick:(done:(file:TFile)=>void)=>{pick=done;pickCount++;},
   mount:(_el:unknown,file:TFile,hooks:Hooks)=>{const mount={file,hooks,disposed:0,plays:0,seeks:[] as number[]};mounts.push(mount);return{dispose:()=>{mount.disposed++;hooks.frameCaptureState?.(false,0);hooks.state({time:33,rate:1.5,volume:.4});},seek:(time:number)=>{mount.seeks.push(time);hooks.state({...hooks.initialState||{rate:1,volume:1},time} as MediaCardState);},play:()=>mount.plays++,pause:()=>{}};},
   moments:(file:TFile)=>read(file),saveMoment:(file:TFile,data:Draft)=>{saves.push({file,data});return write(file,data);},openNote:async()=>{},sendToBoard:async(file:TFile,moment?:Moment)=>{sent.push({file,moment});},
@@ -566,4 +568,51 @@ test('opening another menu, changing source and closing the view each retire the
 test('layout details stay open for inside interaction and close for outside clicks or the more menu',async()=>{
  const f=fixture(),v=f.view();await v.setState({file:f.a.path});const options=v.contentEl.querySelector('.ts-media-workspace__layout-options') as Element,player=v.player,editor=v.input;
  options.open=true;v.contentEl.onpointerdown({target:v.layoutRange});assert.equal(options.open,true);v.contentEl.onpointerdown({target:v.input});assert.equal(options.open,false);options.open=true;more(v,{detail:1,clientX:9,clientY:20});assert.equal(options.open,false);assert.equal(v.player,player);assert.equal(v.input,editor);assert.equal(f.mounts.length,1);await v.onClose();assert.equal(v.contentEl.onpointerdown,null);
+});
+
+function localDrafts(){
+ const rows=new Map<string,StoredMediaDraft>();let failRemove=false,failPut=false;
+ const storage={read:async()=>[...rows.values()].map(value=>structuredClone(value)),put:async(value:StoredMediaDraft)=>{if(failPut)throw Error('quota');rows.set(value.id,structuredClone(value));},remove:async(id:string)=>{if(failRemove)throw Error('disk');rows.delete(id);}};
+ const create=()=>new MediaDraftStore(storage,()=>{},{setTimeout:()=>1,clearTimeout:()=>{}});
+ return{rows,create,failRemove:(v:boolean)=>failRemove=v,failPut:(v:boolean)=>failPut=v};
+}
+test('local draft survives host replacement, requires a decision, and duplicate restore shares one stable draft',async()=>{
+ const disk=localDrafts(),store=disk.create(),first=fixture(store),v=first.view();await v.setState({file:first.a.path});await frame(first.mounts[0].hooks,new Blob(['pixels'],{type:'image/png'}),7.25);v.input.value='跨重启文字';v.input.oninput();const id=v.memory.draft.id;await v.onClose();
+ assert.equal(disk.rows.size,1);assert.equal(first.saves.length,0);
+ const restarted=disk.create();await restarted.load();const next=fixture(restarted),a=next.view();await a.setState({file:next.a.path});assert.equal(a.input.value,'');assert.equal(a.input.readOnly,true);assert.equal(next.saves.length,0);
+ const recovered=restarted.activate(id);assert.equal(a.input.value,'跨重启文字');assert.equal(a.input.readOnly,false);assert.equal(await a.memory.draft.image.text(),'pixels');assert.equal(a.memory.draft.time,7.25);assert.equal(restarted.activate(id),recovered);
+ const b=next.view();await b.setState({file:next.a.path});assert.equal(a.memory,b.memory);await a.saveDraft();assert.equal(next.saves.length,1);assert.equal(next.saves[0].data.id,id);assert.equal(disk.rows.size,0);await a.saveDraft();assert.equal(next.saves.length,1);await a.onClose();await b.onClose();
+});
+test('discarding pending recovery unlocks the composer and never writes a note',async()=>{
+ const disk=localDrafts(),s=disk.create(),first=fixture(s),v=first.view();await v.setState({file:first.a.path});v.input.value='discard';v.input.oninput();await v.onClose();const next=disk.create();await next.load();const f=fixture(next),reopen=f.view();await reopen.setState({file:f.a.path});assert.equal(reopen.input.readOnly,true);await next.discard(next.pending()[0].id);assert.equal(reopen.input.readOnly,false);assert.equal(f.saves.length,0);const third=disk.create();await third.load();assert.equal(third.pending().length,0);await reopen.onClose();
+});
+test('source replacement keeps recovered text and image read-only and refuses note writes',async()=>{
+ const disk=localDrafts(),s=disk.create(),first=fixture(s),v=first.view();await v.setState({file:first.a.path});await frame(first.mounts[0].hooks,new Blob(['frame'],{type:'image/png'}),4);v.input.value='source bound';v.input.oninput();await v.onClose();const next=disk.create();await next.load();const f=fixture(next);f.a.stat.mtime++;const reopened=f.view();await reopened.setState({file:f.a.path});next.activate(next.pending()[0].id);assert.equal(reopened.input.readOnly,true);assert.equal(reopened.input.value,'source bound');assert.equal(reopened.saveButton.disabled,true);await assert.rejects(reopened.saveDraft());assert.equal(f.saves.length,0);assert.equal(disk.rows.size,1);await reopened.clearDraft();assert.equal(disk.rows.size,0);await reopened.onClose();
+});
+test('failed cleanup after a note save retains a locked retry snapshot across restart',async()=>{
+ const disk=localDrafts(),s=disk.create(),f=fixture(s),v=f.view();await v.setState({file:f.a.path});v.input.value='saved but receipt uncertain';v.input.oninput();disk.failRemove(true);await assert.rejects(v.saveDraft());assert.equal(f.saves.length,1);assert.equal(v.memory.draft.locked,true);assert.equal(v.input.readOnly,true);assert.equal(disk.rows.values().next().value?.locked,true);await v.onClose();
+ const next=disk.create();await next.load();const f2=fixture(next),w=f2.view();await w.setState({file:f2.a.path});next.activate(next.pending()[0].id);disk.failRemove(false);await w.saveDraft();assert.deepEqual(f2.saves[0].data,f.saves[0].data);assert.equal(disk.rows.size,0);await w.onClose();
+});
+test('failed local removal keeps visible text and pending save blocks edits until cleanup settles',async()=>{
+ const disk=localDrafts(),s=disk.create(),f=fixture(s),v=f.view();await v.setState({file:f.a.path});v.input.value='keep';v.input.oninput();await s.flush();disk.failRemove(true);await assert.rejects(v.clearDraft());assert.equal(v.input.value,'keep');assert.equal(disk.rows.size,1);disk.failRemove(false);await v.clearDraft();assert.equal(v.input.value,'');assert.equal(disk.rows.size,0);await v.onClose();
+});
+
+test('right editor height changes preserve draft, capture time, DOM selection and player identity',async()=>{
+ const f=fixture(),v=f.view();await v.setState({file:f.a.path});assert.equal(v.getState().composerRatio,40);const player=v.player,input=v.input;v.input.value='preserve selection';v.input.oninput();v.input.selectionStart=3;v.input.selectionEnd=8;v.input.focus();const d=v.memory.draft;
+ v.composerRange.value='60';v.composerRange.oninput();assert.equal(v.getState().composerRatio,60);assert.equal(v.contentEl.style.getPropertyValue('--ts-mw-composer'),'60%');assert.equal(v.player,player);assert.equal(v.input,input);assert.equal(v.input.selectionStart,3);assert.equal(v.input.selectionEnd,8);assert.equal(v.memory.draft,d);assert.equal(input.ownerDocument.activeElement,input);
+ await v.setState({...v.getState(),composerRatio:48,time:undefined});assert.equal(v.getState().composerRatio,48);assert.equal(f.mounts.length,1);const state={...v.getState(),composerRatio:60};await v.onClose();const reopened=f.view();await reopened.setState(state);assert.equal(reopened.getState().composerRatio,60);assert.equal(reopened.memory.draft,d);await reopened.onClose();
+});
+test('draft footer distinguishes local durability, errors and explicit note persistence',async()=>{
+ const disk=localDrafts(),s=disk.create(),f=fixture(s),v=f.view();await v.setState({file:f.a.path});v.input.value='local only';v.input.oninput();assert.match(v.draftStatus.textContent,/正在暂存/);assert.match(v.timeLabel.textContent,/摘录 /);await s.flush();assert.match(v.draftStatus.textContent,/已暂存本机.*尚未写入/);assert.equal(f.saves.length,0);v.input.value='new';v.input.oninput();disk.failPut(true);await assert.rejects(s.flush());assert.match(v.draftStatus.textContent,/暂存失败/);assert.equal(v.input.value,'new');disk.failPut(false);await v.saveDraft();assert.equal(f.saves.length,1);assert.match(v.saveTarget.title,/notes\/A.md/);assert.match(v.timeLabel.textContent,/播放 /);await v.onClose();
+});
+
+
+test('right-hand separator keyboard resizing preserves the current editor and draft',async()=>{
+ const f=fixture(),v=f.view();await v.setState({file:f.a.path});v.input.value='keep';v.input.oninput();const input=v.input,draft=v.memory.draft,player=v.player;
+ const divider=v.contentEl.querySelector('.ts-media-workspace__composer-divider');let prevented=false;divider.onkeydown({key:'ArrowDown',preventDefault:()=>{prevented=true;}});assert.equal(v.getState().composerRatio,42);assert.equal(divider.getAttribute('aria-valuenow'),'42');assert.equal(prevented,true);assert.equal(v.input,input);assert.equal(v.player,player);assert.equal(v.memory.draft,draft);await v.onClose();
+});
+
+test('pending recovery is actionable in the source header and leaves the draft read-only',async()=>{
+ const disk=localDrafts();disk.rows.set('header',{version:1,id:'header',text:'pending',time:1,updatedAt:1,source:{path:'media/A.mp4',mtime:100,size:1000}});const store=disk.create();await store.load();const f=fixture(store),v=f.view();let opened=0;f.host.recoverDrafts=()=>{opened++;};await v.setState({file:f.a.path});
+ assert.equal(v.contentEl.querySelector('.ts-media-workspace__header').contains(v.status),true);assert.equal(v.recoveryButton.hidden,false);assert.equal(v.input.readOnly,true);assert.equal(v.draftStatus.textContent,'待恢复 / 丢弃');await v.recoveryButton.click();assert.equal(opened,1);await v.onClose();
 });

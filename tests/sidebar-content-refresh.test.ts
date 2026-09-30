@@ -1,3 +1,4 @@
+import {resolveSourceLink} from '../src/excerpt-sources';
 import {mediaKind,mediaCard} from '../src/media-source';
 import {cardDisplayTitle} from '../src/card-title-model';
 import test from 'node:test';
@@ -20,7 +21,8 @@ assert.ok(eventStart>=0);const events=source.slice(eventStart,source.indexOf('\n
 const methods=take('  private renderSidebar()', '  private async populateSidebar()')
  +take('  private async buildSidebar(', '  private async exportCanvas(')
  +take('  private paint =', '  private renderSaveStatus(')
- +take('  private scheduleRender(', '  private clearNodes(');
+ +take('  private scheduleRender(', '  private clearNodes(')
+ +take('  private refreshMediaReferences(', '  async addWorkspaceMedia(');
 class File {
  extension:string;basename:string;stat={mtime:1};parent={path:'Notes'};
  constructor(readonly path:string){this.extension=path.split('.').pop()!;this.basename=path.split('/').pop()!.replace(/\.[^.]+$/,'');}
@@ -43,7 +45,7 @@ function fixture(tab:Tab){
  const note=new File('Notes/Note.md'),unrelated=new File('Notes/Unrelated.md'),pdf=new File('Books/Book.pdf');files.push(note,unrelated,pdf);
  const window={setTimeout(fn:()=>void,delay:number){const id=++next;timers.set(id,{at:now+delay,fn});return id;},clearTimeout(id:number){timers.delete(id);},requestAnimationFrame(fn:()=>void){const id=++next;frames.set(id,fn);return id;},cancelAnimationFrame(id:number){frames.delete(id);}};
  const on=(surface:'vault'|'metadata',event:string,fn:(file:File)=>void)=>{const handlers=listeners[surface].get(event)||[];handlers.push(fn);listeners[surface].set(event,handlers);};
- const deps={mediaKind,mediaCard,window,TFile:File,EXT:'thoughtspace',isWorkspaceFile,libraryFiles,noteExcerpt,firstNoteReferences,outlineTree,taskSummary,visibleTasks,extractTasks,cardDisplayTitle,
+ const deps={resolveSourceLink,mediaKind,mediaCard,window,TFile:File,EXT:'thoughtspace',isWorkspaceFile,libraryFiles,noteExcerpt,firstNoteReferences,outlineTree,taskSummary,visibleTasks,extractTasks,cardDisplayTitle,
   act:(run:()=>unknown)=>{pending.push(Promise.resolve().then(run));},button:(host:Element,title:string,_icon:string,run:()=>unknown,cls='')=>{const button=host.createEl('button',{text:title,cls,attr:{'aria-label':title}});button.onclick=run;return button;},setIcon(){},getAllTags:()=>[],readingTitle};
  const View=new Function(...Object.keys(deps),transformSync(`class View{init(){${events}}${methods}};return View`,{loader:'ts'}).code)(...Object.values(deps));
  const Plugin=new Function('isWorkspaceFile','boardLinks','EXT',transformSync(`class Plugin{${take('  async boardGraph()', '  /** 所有由本插件创建')}};return Plugin`,{loader:'ts'}).code)(isWorkspaceFile,boardLinks,'thoughtspace');

@@ -277,3 +277,11 @@
 }
 .ts-root .ts-main.ts-short-canvas .ts-floating-formatbar > .ts-format-heading { flex-wrap:nowrap; }
 .ts-root .ts-main.ts-short-canvas .ts-floating-formatbar .ts-format-mode { flex:none; flex-wrap:nowrap; }
+
+/* Keep category names discoverable; their values open only on request. */
+.ts-root .ts-floating-formatbar > .ts-format-row:has(.ts-selection-tools.is-appearance-collapsed) { display:none; }
+.ts-root .ts-floating-formatbar:has(.is-appearance-collapsed) > .ts-format-heading { border-radius:9px; }
+.ts-root .ts-floating-formatbar .ts-format-mode-button[data-mode="markdown"] { color:var(--text-normal); }
+/* The selected object's edit command is already present in the top toolbar.
+   Other hovered cards retain their local edit action, including keyboard focus. */
+.ts-root .ts-main:has(.ts-format-mode-button[data-mode="markdown"]) .ts-node.is-selected > .ts-card-actions .ts-card-quick-edit:not(:focus) { display:none; }

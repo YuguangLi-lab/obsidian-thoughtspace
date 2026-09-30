@@ -307,3 +307,17 @@ test('service unload snapshots and pauses board-owned players before flushing re
  const unregister=f.service.playback.register(identity,handle);await f.service.dispose();
  assert.equal(pauses,1);assert.equal(JSON.parse(f.storage.get('plugin/media-state.json')!).entries[0].state.time,27.25);unregister();
 });
+
+test('board references resolve the saved block and current content without creating another note',async()=>{
+ const f=fixture(),saved=await f.service.saveMoment(f.source,draft('stable-block',15,'original'));
+ const before=f.counters.processes;f.update(saved.note,f.texts.get(saved.note)!.replace('original','edited at source'));
+ const reference=await f.service.referenceMoment(f.source,{id:'stable-block',notePath:saved.note.path});
+ assert.equal(reference.note,saved.note);assert.equal(reference.subpath,'#^thoughtspace-media-stable-block');assert.equal(reference.moment.text,'edited at source');assert.equal(reference.moment.time,15);assert.equal(f.counters.processes,before);assert.equal(f.counters.notes,1);
+});
+test('board references reject unsaved, missing, moved and mismatched note blocks without writes',async()=>{
+ for(const state of ['draft','missing','moved','foreign','anchor']){const f=fixture(),saved=await f.service.saveMoment(f.source,draft('stable-block')),before=f.counters.processes;
+  const request={id:state==='draft'?'unsaved':'stable-block',notePath:saved.note.path};
+  if(state==='missing')f.files.delete(saved.note.path);if(state==='moved'){f.files.delete(saved.note.path);saved.note.path='moved.md';f.files.set(saved.note.path,saved.note);}if(state==='foreign')f.update(saved.note,f.texts.get(saved.note)!.replaceAll('media/A.mp4','media/B.mp4'));if(state==='anchor')f.update(saved.note,f.texts.get(saved.note)!.replace('^thoughtspace-media-stable-block',''));
+  await assert.rejects(f.service.referenceMoment(f.source,request),state);assert.equal(f.counters.processes,before);
+ }
+});

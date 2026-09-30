@@ -1,3 +1,4 @@
+import {resolveSourceLink} from '../src/excerpt-sources';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -162,8 +163,8 @@ for(const phase of ['setup','reveal']as const)test(`an online draft started duri
 function board(){
  let id=0,changes=0;const media=new TFile('media/clip #[1].mp4'),files=new Map([[media.path,media]]),history=new History();
  const owner={board:{...emptyBoard(),version:3 as const,viewport:{x:33,y:44,zoom:.75}} as Board,blocked:false,change(fn:(board:Board)=>void){const before=structuredClone(this.board);fn(this.board);parseBoard(JSON.stringify(this.board));history.push(before);changes++;}};
- const deps={mediaKind,isWorkspaceFile,mediaTime,mediaCard,mediaClock,mediaPlayerUrl,uid:()=>`new-${++id}`};
- const View=new Function(...Object.keys(deps),transformSync(`class View{${method('  async addWorkspaceMedia(')}\n${method('  private requireOwner(')}};return View`,{loader:'ts'}).code)(...Object.values(deps));
+ const deps={resolveSourceLink,mediaKind,isWorkspaceFile,mediaTime,mediaCard,mediaClock,mediaPlayerUrl,uid:()=>`new-${++id}`};
+ const View=new Function(...Object.keys(deps),transformSync(`class View{${method('  private refreshMediaReferences(')}\n${method('  async addWorkspaceMedia(')}\n${method('  private requireOwner(')}};return View`,{loader:'ts'}).code)(...Object.values(deps));
  const view=new View();Object.assign(view,{session:owner,closed:false,selected:new Set(['old']),selectedEdge:'old-edge',point:()=>({x:400,y:250}),updateSelection:()=>{},app:{vault:{getName:()=> 'vault',getAbstractFileByPath:(path:string)=>files.get(path)}},plugin:{settings:{defaultCardWidth:320,defaultTextSize:18,defaultEdgeStyle:'curve'},mediaWorkspace:{identity:(file:TFile)=>file.path,playback:{get:()=>({time:8,rate:1,volume:1})}}}});
  return{view,owner,media,files,history,changes:()=>changes};
 }
@@ -200,4 +201,17 @@ test('opening another media does not inherit the previous file focused or collap
  const f=opening(),old=f.existing(f.a,'tab',44);const state=old.view.getState.bind(old.view);
  old.view.getState=()=>({...state(),compactPlayer:true,viewerRatio:64,focusPlayer:true});await f.plugin.openMediaWorkspace(f.b,'sidebar');
  const next=f.leaves.at(-1)!.view;assert.equal(next.states[0].compactPlayer,undefined);assert.equal(next.states[0].focusPlayer,undefined);assert.equal(next.time,0);
+});
+
+test('saved excerpt reference stores only a native embed and repeated insertion selects the same node',async()=>{
+ const f=board(),moment={id:'saved',time:12,text:'should not be copied',image:'![[frame.png]]',line:1},reference='![[notes/media.md#^thoughtspace-media-saved]]';
+ await f.view.addWorkspaceMedia(f.media,moment,reference);assert.equal(f.owner.board.nodes[1].text,reference);assert.equal(f.owner.board.nodes[1].text!.includes(moment.text),false);
+ const count=f.changes(),id=f.owner.board.nodes[1].id;await f.view.addWorkspaceMedia(f.media,moment,reference);assert.equal(f.changes(),count);assert.equal(f.owner.board.nodes.length,2);assert.deepEqual([...f.view.selected],[id]);
+});
+
+
+test('source metadata refresh invalidates only matching media block previews without board writes',()=>{
+ const f=board(),note=new TFile('notes/source.md');f.owner.board.nodes=[{id:'linked',kind:'text',text:'![[notes/source.md#^thoughtspace-media-record]]',x:0,y:0,width:300,height:180,color:'slate'},{id:'other',kind:'text',text:'![[notes/other.md#^thoughtspace-media-record]]',x:0,y:0,width:300,height:180,color:'slate'}];
+ f.view.file={path:'board.thoughtspace'};f.view.nodeKeys=new Map([['linked','old'],['other','keep']]);let renders=0;f.view.scheduleRender=()=>{renders++;};f.view.app.metadataCache={getFirstLinkpathDest:(path:string)=>path===note.path?note:undefined};
+ f.view.refreshMediaReferences(note);assert.equal(f.view.nodeKeys.has('linked'),false);assert.equal(f.view.nodeKeys.get('other'),'keep');assert.equal(renders,1);assert.equal(f.changes(),0);f.view.gesture={};f.view.nodeKeys.set('linked','old');f.view.refreshMediaReferences(note);assert.equal(f.view.nodeKeys.has('linked'),false);assert.equal(renders,1);
 });

@@ -1,0 +1,15 @@
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+(async()=>{const b=await chromium.connectOverCDP('http://127.0.0.1:9237'),p=b.contexts()[0].pages()[0],out='dist/media-draft-native';assert.equal(await p.evaluate(()=>app.vault.adapter.basePath),path.resolve('../thoughtspace-qa-vault'));
+ await p.getByRole('button',{name:'查看未保存的媒体摘录',exact:true}).click();
+ await p.getByRole('heading',{name:'恢复未保存的媒体摘录'}).waitFor();assert.equal(await p.getByRole('textbox',{name:'暂存摘录正文',exact:true}).inputValue(),'APP RESTART SENTINEL');
+ const notes=await p.evaluate(()=>app.vault.getMarkdownFiles().filter(f=>f.path.includes('/媒体笔记/')).map(f=>f.path));
+ await p.screenshot({path:path.join(out,'app-restart-light.png')});await p.evaluate(()=>{document.body.classList.remove('theme-light');document.body.classList.add('theme-dark');});await p.screenshot({path:path.join(out,'app-restart-dark.png')});
+ await p.getByRole('button',{name:'恢复草稿',exact:true}).click();await p.waitForFunction(()=>app.plugins.plugins.thoughtspace.mediaDrafts.pending().length===0);await p.keyboard.press('Escape');
+ await p.evaluate(()=>{window.qaMedia=app.workspace.getLeavesOfType('thoughtspace-media-player')[0].view;});assert.equal(await p.getByRole('textbox',{name:'摘录 Markdown 正文',exact:true}).inputValue(),'APP RESTART SENTINEL');
+ const restored=await p.evaluate(async()=>({id:qaMedia.memory.draft.id,text:qaMedia.memory.draft.text,time:qaMedia.memory.draft.time,source:qaMedia.memory.draft.source,image:[...new Uint8Array(await qaMedia.memory.draft.image.arrayBuffer())]}));assert.deepEqual(restored,JSON.parse(fs.readFileSync(path.join(out,'restart-expected.json'),'utf8')));
+ assert.deepEqual(await p.evaluate(()=>app.vault.getMarkdownFiles().filter(f=>f.path.includes('/媒体笔记/')).map(f=>f.path)),notes);
+ const geometry=[];
+ for(const width of [420,320,260]){await p.evaluate(width=>{qaMedia.contentEl.style.width=width+'px';qaMedia.contentEl.style.flex='none';},width);await p.waitForTimeout(100);geometry.push(await p.evaluate(()=>{const el=qaMedia.contentEl.querySelector('.ts-media-workspace__composer-actions'),r=el.getBoundingClientRect();return{width:qaMedia.contentEl.clientWidth,actions:r.toJSON(),buttons:[...el.querySelectorAll('button')].map(b=>({label:b.getAttribute('aria-label'),rect:b.getBoundingClientRect().toJSON(),inside:b.getBoundingClientRect().left>=r.left&&b.getBoundingClientRect().right<=r.right}))};}));await p.screenshot({path:path.join(out,`narrow-${width}.png`)});}
+ await p.evaluate(()=>{qaMedia.contentEl.style.removeProperty('width');qaMedia.contentEl.style.removeProperty('flex');});
+ fs.writeFileSync(path.join(out,'restart.json'),JSON.stringify({passed:['real isolated Obsidian process restart offers sentinel','explicit restore retains byte-identical PNG, text, time, source and id','restore creates no media Markdown'],geometry},null,2));console.log(JSON.stringify({restartPassed:true,geometry},null,2));await b.close();})().catch(e=>{console.error(e);process.exit(1)});

@@ -43,6 +43,8 @@ import {discloseBranches,makeChildConnection,makeChildConnections,childConnectio
 import {renderBranchControls} from './branch-controls';
 import {isVaultMediaPath,mediaCard,mediaKind,mediaClock,mediaTime,mediaSourceMarkdown,parseMediaSourceUrl,type MediaSource} from './media-source';
 import {mountMediaCard,type MediaCardState,type MediaCardHandle} from './media-card-player';
+import {IndexedMediaDraftStorage,MediaDraftStore,type MediaDraft} from './media-draft-store';
+import {MediaDraftRecoveryModal} from './media-draft-recovery';
 import {MEDIA_WORKSPACE,MediaWorkspaceView,type MediaPlacement,type MediaWorkspaceHost} from './media-workspace-view';
 import {MediaWorkspaceService} from './media-workspace-service';
 import {imageMarkup,mediaPlayerUrl,parseMediaPlayerUrl,mediaNoteSource,type MediaMoment} from './media-notes';
@@ -370,6 +372,8 @@ export default class ThoughtSpace extends Plugin {
   currentBoard?: BoardView;
   mediaWorkspace!:MediaWorkspaceService;
   private mediaWorkspaceHost!:MediaWorkspaceHost;
+  private mediaDrafts?:MediaDraftStore;
+  private mediaRecovery?:MediaDraftRecoveryModal;
   private mediaOpening:Promise<unknown>=Promise.resolve();
   private mediaClosed=false;
   private onlinePlatform!:OnlinePlatform;
@@ -414,7 +418,27 @@ export default class ThoughtSpace extends Plugin {
     this.register(()=>{for(const player of this.onlineBoardPlayers)player.dispose();this.onlineBoardPlayers.clear();this.onlinePlatform.dispose();this.onlineMedia.dispose();this.onlineListeners.clear();});
     this.addCommand({id:'open-online-video',name:'打开 B 站 / YouTube 在线视频',callback:()=>this.pickOnlineVideo('tab')});
     this.registerObsidianProtocolHandler('thoughtspace-online-player',params=>act(async()=>{const link=parseOnlinePlayerUrl(params);if(!link||link.vault!==this.app.vault.getName())throw Error('在线视频链接无效或属于其他仓库');await this.openOnlineWorkspace(link.source,'tab',link.time,link.note);}));
-    this.mediaWorkspaceHost={open:(file,placement,time)=>this.openMediaWorkspace(file,placement,time),pick:done=>this.pickMediaFile(done),pickExternal:done=>this.pickExternalMedia(done),pickOnline:placement=>this.pickOnlineVideo(placement),mount:(host,file,hooks)=>this.mediaWorkspace.mount(host,file,hooks),moments:file=>this.mediaWorkspace.moments(file),saveMoment:(file,data)=>this.mediaWorkspace.saveMoment(file,data),openNote:file=>this.openNoteInSidebar(file),sendToBoard:(file,moment)=>this.sendMediaToBoard(file,moment)};
+    try{
+      this.mediaDrafts=new MediaDraftStore(new IndexedMediaDraftStorage(window.indexedDB,`thoughtspace-media-drafts-v1:${this.yingjianVaultId()}`),()=>new Notice('本机媒体草稿暂存失败或记录无法读取，原始暂存未删除；请及时保存或复制文字。',10000));
+      await this.mediaDrafts.load();
+    }catch{new Notice('无法读取本机媒体草稿暂存，请勿依赖跨重启恢复；已有暂存未删除。',10000);}
+    const recover=()=>{this.mediaRecovery?.close();if(this.mediaDrafts){this.mediaRecovery=new MediaDraftRecoveryModal(this.app,this.mediaDrafts,draft=>this.restoreMediaDraft(draft));this.mediaRecovery.open();}};
+    this.addCommand({id:'recover-media-drafts',name:'恢复暂存的媒体摘录',callback:recover});
+    let recoveryNotice:Notice|undefined,recoveryTimer:number|undefined;
+    const showRecovery=()=>{
+      // Wait for startup layout changes to settle before offering the review.
+      if(!this.mediaDrafts?.pending().length)return;
+      const content=createFragment(),body=content.createDiv({cls:'ts-media-draft-startup'});
+      body.createDiv({text:`发现 ${this.mediaDrafts.pending().length} 条未保存的媒体摘录。请查看并选择恢复或丢弃，暂存不会自动写入笔记。`});
+      const button=body.createEl('button',{text:'查看暂存草稿',attr:{type:'button','aria-label':'查看未保存的媒体摘录'}});
+      button.onclick=()=>{recoveryNotice?.hide();recover();};recoveryNotice=new Notice(content,0);
+    };
+    const scheduleRecovery=()=>{if(recoveryNotice)return;if(recoveryTimer!==undefined)window.clearTimeout(recoveryTimer);recoveryTimer=window.setTimeout(()=>{recoveryTimer=undefined;showRecovery();},750);};
+    this.app.workspace.onLayoutReady(scheduleRecovery);this.registerEvent(this.app.workspace.on('layout-change',scheduleRecovery));
+    const unsubscribeRecovery=this.mediaDrafts?.subscribe(()=>{if(!this.mediaDrafts?.pending().length)recoveryNotice?.hide();});
+    this.register(()=>{if(recoveryTimer!==undefined)window.clearTimeout(recoveryTimer);recoveryNotice?.hide();unsubscribeRecovery?.();});
+    this.register(()=>{this.mediaRecovery?.close();void this.mediaDrafts?.dispose().catch(()=>new Notice('媒体草稿暂存失败，请勿关闭仍含草稿的窗口。',10000));});
+    this.mediaWorkspaceHost={drafts:this.mediaDrafts,recoverDrafts:recover,open:(file,placement,time)=>this.openMediaWorkspace(file,placement,time),pick:done=>this.pickMediaFile(done),pickExternal:done=>this.pickExternalMedia(done),pickOnline:placement=>this.pickOnlineVideo(placement),mount:(host,file,hooks)=>this.mediaWorkspace.mount(host,file,hooks),moments:file=>this.mediaWorkspace.moments(file),saveMoment:(file,data)=>this.mediaWorkspace.saveMoment(file,data),openNote:file=>this.openNoteInSidebar(file),sendToBoard:(file,moment)=>this.sendMediaToBoard(file,moment)};
     this.registerView(MEDIA_WORKSPACE,leaf=>new MediaWorkspaceView(leaf,this.mediaWorkspaceHost));
     this.register(()=>{this.mediaClosed=true;void this.mediaWorkspace.dispose().catch(report);});
     this.registerEvent(this.app.vault.on('rename',(file,oldPath)=>{if(file instanceof TFile)this.mediaWorkspace.playback.rename(oldPath,file.path);}));
@@ -1241,6 +1265,16 @@ export default class ThoughtSpace extends Plugin {
     }
     const picker=new Picker(app);picker.setPlaceholder('搜索音视频，或打开本地文件 / 在线视频');picker.open();
   }
+  private async restoreMediaDraft(draft:MediaDraft){
+    if(this.mediaClosed||!this.mediaDrafts)throw Error('插件已关闭');
+    const file=this.app.vault.getAbstractFileByPath(draft.source.path);if(!(file instanceof TFile)||!isVaultMediaPath(file.path))throw Error('找不到原媒体');
+    const existing=this.app.workspace.getLeavesOfType(MEDIA_WORKSPACE).find(leaf=>leaf.view instanceof MediaWorkspaceView&&leaf.view.currentFile()===file);
+    const leaf=existing||this.app.workspace.getLeaf('tab');
+    await leaf.setViewState({type:MEDIA_WORKSPACE,active:true,state:{file:file.path,placement:'tab',time:draft.time}});
+    if(!(leaf.view instanceof MediaWorkspaceView)||leaf.view.currentFile()!==file||file.path!==draft.source.path||this.app.vault.getAbstractFileByPath(draft.source.path)!==file)throw Error('媒体工作区或来源已变化，请重试');
+    this.mediaDrafts.activate(draft.id);
+    await this.app.workspace.revealLeaf(leaf);
+  }
   openMediaWorkspace(file?:TFile,placement:MediaPlacement='tab',time?:number):Promise<void>{
     const requestedPath=file?.path;
     const job=this.mediaOpening.catch(()=>undefined).then(async()=>{
@@ -1267,7 +1301,7 @@ export default class ThoughtSpace extends Plugin {
 
       const playing=previous?.containerEl.querySelector<HTMLMediaElement>('audio,video')?.paused===false;
       const sameSource=previous?.currentFile()===target,previousLayout=sameSource?previous?.getState():undefined;
-      const layout=previousLayout?{focusPlayer:previousLayout.focusPlayer,recordPanel:previousLayout.recordPanel,compactPlayer:previousLayout.compactPlayer,viewerRatio:previousLayout.viewerRatio,recordDensity:previousLayout.recordDensity}:{};
+      const layout=previousLayout?{focusPlayer:previousLayout.focusPlayer,recordPanel:previousLayout.recordPanel,compactPlayer:previousLayout.compactPlayer,viewerRatio:previousLayout.viewerRatio,recordDensity:previousLayout.recordDensity,composerRatio:previousLayout.composerRatio}:{};
       let leaf:WorkspaceLeaf|undefined;
       try{
         leaf=placement==='sidebar'?workspace.getRightLeaf(true)||undefined:workspace.getLeaf(placement==='window'?'window':'tab');
@@ -1285,8 +1319,8 @@ export default class ThoughtSpace extends Plugin {
       }catch(error){leaf?.detach();if(playing&&!this.mediaClosed)previous?.resumePlayback();throw error;}
     });this.mediaOpening=job;return job;
   }
-  async sendMediaToBoard(file:TFile,moment?:MediaMoment){
-    const path=file.path;const add=async(view:BoardView)=>{if(file.path!==path||this.app.vault.getAbstractFileByPath(path)!==file)throw Error('媒体已移动或删除');await view.addWorkspaceMedia(file,moment);new Notice(moment?'摘录已加入白板，可点击时间回看':'媒体已加入白板');};
+  async sendMediaToBoard(file:TFile,moment?:MediaMoment&{notePath?:string}){
+    const path=file.path;const add=async(view:BoardView)=>{if(file.path!==path||this.app.vault.getAbstractFileByPath(path)!==file)throw Error('媒体已移动或删除');const owner=view.session,target=view.file;const reference=moment?await this.mediaWorkspace.referenceMoment(file,moment):undefined;if(view.session!==owner||view.file!==target||view.closed)throw Error('目标白板已变化，请重新选择');const link=reference?this.app.fileManager.generateMarkdownLink(reference.note,view.file!.path,reference.subpath):undefined;await view.addWorkspaceMedia(file,reference?.moment,link?'!'+link:undefined);new Notice(moment?'已引用原笔记摘录，可点击时间回看':'媒体已加入白板');};
     const view=this.app.workspace.getActiveViewOfType(BoardView)||this.currentBoard;
     if(view?.session&&!view.closed){await add(view);return;}
     const picker=new BoardPicker(this.app,null,async board=>{await this.openBoard(board);const target=this.currentBoard;if(!target||target.closed||target.file!==board)throw Error('白板已变化，请重新选择');await add(target);});picker.setPlaceholder('选择接收媒体或摘录的白板…');picker.open();
@@ -1534,7 +1568,7 @@ class BoardView extends FileView {
   private tab: 'library' | 'boards' | 'tasks' | 'outline' = 'boards'; private query = '';private sidebarQueries=new Map<string,string>(); private tag = ''; private sidebarRun = 0;private sidebarContentKey='';
   private boardScope:'spaces'|'favorites'='spaces';private boardSort:'title'|'updated'='title';
   private taskFilter:TaskFilter='all';private outlineKind:OutlineKind='all';private outlineCollapsed=new Set<string>();private startScreen?:HTMLElement;private savedViewsModal?:SavedViewsModal;private dialogEpoch=0;private groupOrganizer?:GroupOrganizerModal;private layoutPlannerModal?:LayoutPlannerModal;
-  private favoriteButton?:HTMLElement;private mindmapButton?:HTMLElement;private mindmapTools?:HTMLElement;private inlineAppearance=false;private appearanceTab:'card'|'text'|'fill'|'border'='card';private canvasMenu?:Menu;
+  private favoriteButton?:HTMLElement;private mindmapButton?:HTMLElement;private mindmapTools?:HTMLElement;private inlineAppearance=false;private appearanceExpanded=false;private appearanceTab:'card'|'text'|'fill'|'border'='card';private canvasMenu?:Menu;
   private taskScope: 'board' | 'vault' = 'board'; private sidebarTimer?: number;
   private libraryScope: LibraryScope = 'vault'; private librarySort: LibrarySort = 'updated';
   private selectionTool = false; private selectionButton?: HTMLButtonElement;
@@ -1942,7 +1976,11 @@ class BoardView extends FileView {
     const next=button(formatRow,'后面的格式工具','chevron-right',()=>{},'ts-icon-button ts-format-scroll ts-format-scroll-next');next.hidden=true;
     for(const arrow of [previous,next])arrow.onmousedown=e=>e.preventDefault();
     this.registerDomEvent(formatbar,'focusout',()=>this.inline?.checkFocus());
-    this.registerDomEvent(formatbar,'keydown',e=>{if(e.key==='Escape'&&!e.isComposing&&this.inline&&!this.inline.saving){e.preventDefault();e.stopPropagation();this.inline.input.focus({preventScroll:true});}});
+    this.registerDomEvent(formatbar,'keydown',e=>{
+      if(e.key!=='Escape'||e.isComposing)return;
+      if(this.inline&&!this.inline.saving){e.preventDefault();e.stopPropagation();this.inline.input.focus({preventScroll:true});}
+      else if(this.appearanceExpanded){e.preventDefault();e.stopPropagation();this.appearanceExpanded=false;this.renderSelectionTools();this.selectionHeading?.querySelector<HTMLButtonElement>(`[data-mode="${this.appearanceTab}"]`)?.focus({preventScroll:true});}
+    });
     this.register(installToolbarOverflow(formatRow,commands,previous,next));
     this.crumbs = this.contentEl.ownerDocument.createDocumentFragment().createDiv();
     this.boardStats=this.contentEl.ownerDocument.createDocumentFragment().createDiv();
@@ -1957,7 +1995,7 @@ class BoardView extends FileView {
     const workspaceEntry=headerAction('工作区','panels-top-left',()=>this.headerWorkspaceMenu(workspaceEntry));workspaceEntry.addClass('ts-workspace-menu-entry');
     (nativeHeader?.querySelector('.view-actions') || fallbackActions)?.prepend(...extras);
     this.applyPreferences();
-    this.selectionTools=commands.createDiv({cls:'ts-selection-tools',attr:{'aria-label':'选中对象格式'}});
+    this.selectionTools=commands.createDiv({cls:'ts-selection-tools',attr:{id:`ts-format-${this.markerId}`,'aria-label':'选中对象格式'}});
     this.stage = main.createDiv({ cls: 'ts-stage', attr: { tabindex: '0', 'aria-label': '思维白板', 'aria-description': '鼠标与快捷键可在插件设置中自定义。Shift 加左键框选，空格加左键平移，右键单击打开菜单，双击空白新建文本，双击已有节点编辑。思维导图：Tab 子主题，Enter 同级，Shift+Tab 父主题' } });
     this.world = this.stage.createDiv('ts-world'); this.svg = this.world.createSvg('svg', { cls: 'ts-edges' });this.edgeLayer=new EdgeLayer(this.svg,this.markerId,id=>this.labelEdge(id));
     this.startScreen=this.stage.createDiv({cls:'ts-start-screen',attr:{'aria-label':'开始使用白板'}});this.startScreen.hidden=true;
@@ -2195,7 +2233,7 @@ class BoardView extends FileView {
     this.registerEvent(this.app.vault.on('create', () => {this.scheduleRender();this.renderSidebar();}));
     this.registerEvent(this.app.vault.on('delete', () => {this.scheduleRender();this.renderSidebar();}));
     this.registerEvent(this.app.vault.on('rename', () => {this.scheduleRender();this.renderSidebar();}));
-    this.registerEvent(this.app.metadataCache.on('changed', file => { if(this.tab==='library'||this.tab==='tasks')this.renderSidebar(); if (!this.gesture && !this.marquee && this.session?.board.nodes.some(n => n.file === file.path)) this.scheduleRender(); }));
+    this.registerEvent(this.app.metadataCache.on('changed', file => { this.refreshMediaReferences(file);if(this.tab==='library'||this.tab==='tasks')this.renderSidebar(); if (!this.gesture && !this.marquee && this.session?.board.nodes.some(n => n.file === file.path)) this.scheduleRender(); }));
     this.registerEvent(this.app.vault.on('modify', f => { if(f instanceof TFile&&mediaKind(f.path)&&this.session?.board.nodes.some(n=>n.file===f.path))this.scheduleRender();if (f instanceof TFile && f.extension === EXT && f !== this.file) { if (this.session?.board.nodes.some(n => n.kind === 'board' && n.file === f.path)) this.scheduleRender(); this.renderSidebar(); } }));
   }
   async onLoadFile(file: TFile) {
@@ -2415,7 +2453,17 @@ class BoardView extends FileView {
     }
     const images=files.filter(f=>isImage(f.name));if(images.length){this.requireOwner(owner);await this.importImages(images,{x:position.x+offset,y:position.y+offset});}
   }
-  async addWorkspaceMedia(file:TFile,moment?:MediaMoment){
+  private refreshMediaReferences(file:TFile){
+    if(!this.session||this.closed)return;let changed=false;
+    for(const node of this.session.board.nodes){
+      if(node.kind!=='text'||!node.text?.startsWith('!'))continue;
+      const source=resolveSourceLink(node.text.slice(1),path=>this.app.metadataCache.getFirstLinkpathDest(path,this.file!.path));
+      if(source.file!==file||!/^#\^thoughtspace-media-[-a-z0-9]+$/i.test(source.subpath))continue;
+      this.nodeKeys.delete(node.id);changed=true;
+    }
+    if(changed&&!this.gesture&&!this.marquee)this.scheduleRender();
+  }
+  async addWorkspaceMedia(file:TFile,moment?:MediaMoment,reference?:string){
     const owner=this.requireOwner(),path=file.path,stamp=file.stat.mtime,size=file.stat.size;
     const ensure=()=>{this.requireOwner(owner);if(file.path!==path||file.stat.mtime!==stamp||file.stat.size!==size||this.app.vault.getAbstractFileByPath(path)!==file||!isWorkspaceFile(file)||!mediaKind(path))throw Error('来源媒体已变化，请重试');};
     if(this.inline&&!await this.inline.commit())return;ensure();
@@ -2423,10 +2471,11 @@ class BoardView extends FileView {
     const time=mediaTime(moment?.time??saved?.time??0),existing=owner.board.nodes.find(n=>(n.kind==='audio'||n.kind==='video')&&n.file===path);
     if(!moment&&existing){this.selected=new Set([existing.id]);this.selectedEdge=undefined;this.updateSelection();return;}
     const media=existing||mediaCard(uid(),path,point.x,point.y,this.plugin.settings.defaultCardWidth,time),next=uid();
-    const text=moment?[moment.image,moment.text,`[${mediaClock(time)} · 回到媒体](${mediaPlayerUrl({vault:this.app.vault.getName(),file:path},time)})`].filter(Boolean).join('\n\n'):undefined;
-    let y=media.y;const x=media.x+media.width+48;
-    if(moment)for(const other of owner.board.nodes)if(other.x<x+300&&other.x+other.width>x&&other.y<y+180&&other.y+other.height>y)y=other.y+other.height+24;
-    owner.change(board=>{board.version=3;if(!existing)board.nodes.push(media);if(text){board.nodes.push({id:next,kind:'text',text,x,y,width:300,height:180,color:'slate',fontSize:this.plugin.settings.defaultTextSize,autoSize:false});board.edges.push({id:uid(),from:media.id,to:next,label:mediaClock(time),style:this.plugin.settings.defaultEdgeStyle,direction:'forward'});}});
+    const text=reference||(moment?[moment.image,moment.text,`[${mediaClock(time)} · 回到媒体](${mediaPlayerUrl({vault:this.app.vault.getName(),file:path},time)})`].filter(Boolean).join('\n\n'):undefined);
+    const linked=reference&&owner.board.nodes.find(n=>n.kind==='text'&&n.text===reference);if(linked){this.selected=new Set([linked.id]);this.selectedEdge=undefined;this.updateSelection();return;}
+    let y=media.y;const x=media.x+media.width+48,width=reference?360:300,height=reference?(moment?.image?400:240):180;
+    if(moment)for(const other of owner.board.nodes)if(other.x<x+width&&other.x+other.width>x&&other.y<y+height&&other.y+other.height>y)y=other.y+other.height+24;
+    owner.change(board=>{board.version=3;if(!existing)board.nodes.push(media);if(text){board.nodes.push({id:next,kind:'text',text,x,y,width,height,color:'slate',fontSize:this.plugin.settings.defaultTextSize,autoSize:false});board.edges.push({id:uid(),from:media.id,to:next,label:mediaClock(time),style:this.plugin.settings.defaultEdgeStyle,direction:'forward'});}});
     this.selected=new Set([text?next:media.id]);this.selectedEdge=undefined;this.updateSelection();
   }
   async insertMediaCard(position=this.point(),kind?:'audio'|'video'){
@@ -2918,6 +2967,7 @@ class BoardView extends FileView {
         const owner=this.session!;header.remove();renderWebCard(el,n,{open:()=>{this.requireOwner(owner);this.openWebCard(n.id);},edit:()=>{this.requireOwner(owner);this.editWebCard(n.id);},fold:()=>{this.requireOwner(owner);this.foldText(n.id,true);},copy:()=>{this.requireOwner(owner);this.copyWebCard(n.id);},disabled:owner.blocked||!!n.locked,register:dispose=>scope.register(dispose),online:parseOnlineSource(n.webUrl)?{open:()=>{this.requireOwner(owner);const state=this.onlineBoardStates.get(n.id);act(()=>this.plugin.openOnlineWorkspace(n.webUrl!,'sidebar',state&&state.source===parseOnlineSource(n.webUrl!)?.path?state.time:undefined));},mount:host=>this.mountOnlineBoardCard(n,host,owner)}:undefined});
       } else if(n.kind==='text'){
         header.remove();el.dataset.ink=n.textColor || 'default';
+        el.toggleClass('is-media-reference',/^!\[\[.*#\^thoughtspace-media-[A-Za-z0-9_-]+\]\]$|^!\[[^\]]*\]\([^\n]*#\^thoughtspace-media-[A-Za-z0-9_-]+\)$/.test((n.text||'').trim()));
         const presentation=textExcerptPresentation(n.text||'');el.toggleClass('has-excerpt-source',!!presentation.sources.length);
         const owner=this.session,actions=el.createDiv('ts-card-actions ts-text-actions');
         const current=()=>{this.requireOwner(owner);const node=owner.board.nodes.find(item=>item.id===n.id);if(!node||node.kind!=='text'||node.webUrl||node.locked)throw Error('文本已变化或锁定，请重新选择');return node;};
@@ -3512,7 +3562,7 @@ class BoardView extends FileView {
   private renderSelectionTools(){
     const host=this.selectionTools,owner=this.session;if(!host)return;
     const batch=owner&&!this.selectedEdge&&this.selected.size>1?{target:this.batchFormatTarget,scope:this.batchEdgeScope,edges:selectionEdges(owner.board,this.selected,this.batchEdgeScope)}:undefined;
-    const editor=this.inline,key=selectionFormatKey(owner?.board,this.selected,this.selectedEdge,owner?.blocked,batch)+'|'+JSON.stringify([this.inlineId,!!this.inlineAppearance,this.appearanceTab,!!this.plugin?.copiedNodeStyle]);
+    const editor=this.inline,key=selectionFormatKey(owner?.board,this.selected,this.selectedEdge,owner?.blocked,batch)+'|'+JSON.stringify([this.inlineId,!!this.inlineAppearance,!!this.appearanceExpanded,this.appearanceTab,!!this.plugin?.copiedNodeStyle]);
     const cached=this.selectionFormatCache;
     if(cached?.host===host&&cached.owner===owner&&cached.editor===editor&&cached.key===key)return;
     this.selectionFormatCache=undefined;
@@ -3521,7 +3571,7 @@ class BoardView extends FileView {
   }
   private buildSelectionTools(batchEdges?:Board['edges']){
     const host=this.selectionTools,owner=this.session;if(!host)return;const heading=this.selectionHeading||host,editorBefore=this.inline,restoreFocus=preserveToolbarFocus(host),restoreHeadingFocus=preserveToolbarFocus(heading);
-    try{this.inline?.replaceToolbar();host.empty();if(heading!==host)heading.empty();
+    try{this.inline?.replaceToolbar();host.empty();host.toggleClass('is-appearance-collapsed',false);if(heading!==host)heading.empty();
     if(owner&&this.selectedEdge){const edge=owner.board.edges.find(e=>e.id===this.selectedEdge);if(edge){host.addClass('is-visible');this.buildSingleEdgeTools(host,owner,edge);return;}}
     const nodes=owner?.board.nodes.filter(n=>this.selected.has(n.id)) || [];host.toggleClass('is-visible',nodes.length>0);if(!owner||!nodes.length)return;
     const ids=new Set(nodes.map(n=>n.id)),texts=nodes.filter(n=>(n.kind==='text'||n.kind==='card')&&!n.webUrl),borderNodes=nodes.filter(nodeHasBorder);
@@ -3553,18 +3603,21 @@ class BoardView extends FileView {
     if(texts.length)allowed.push('text');if(nodes.some(n=>!n.webUrl&&['card','text','section'].includes(n.kind)))allowed.push('fill');if(borderNodes.length)allowed.push('border');
     const active=allowed.includes(this.appearanceTab)?this.appearanceTab:allowed[0];
     const current=()=>!this.closed&&this.session===owner&&categories.isConnected&&this.selected.size===ids.size&&[...ids].every(id=>this.selected.has(id));
-    const selectedMode=editor&&!this.inlineAppearance?'markdown':active;
+    const expanded=!!this.appearanceExpanded||!!editor;
+    host.toggleClass('is-appearance-collapsed',!expanded);
+    const selectedMode=editor&&!this.inlineAppearance?'markdown':expanded?active:undefined;
     const modes:('markdown'|'card'|'text'|'fill'|'border')[]=node&&(node.kind==='card'||node.kind==='text')?['markdown',...allowed]:allowed;
     // Mode navigation is separate from formatting. Inspecting a locked object's
     // appearance stays possible; every actual edit still validates the live owner.
     const chooseMode=(value:typeof modes[number])=>{
-      if(!current()||value===selectedMode||this.inline?.snapshot().busy)return;
+      if(!current()||this.inline?.snapshot().busy)return;
+      if(value===selectedMode){if(value!=='markdown'&&!editor){this.appearanceExpanded=false;this.renderSelectionTools();}return;}
       if(value==='markdown'){
         if(!node||!['card','text'].includes(node.kind)||owner.blocked||owner.board.nodes.find(n=>n.id===node.id)?.locked)return;
         if(editor){if(this.inline!==editor)return;this.inlineAppearance=false;this.renderSelectionTools();editor.input.focus({preventScroll:true});}
         else return this.startInlineEdit(node.id);
       }else if(allowed.includes(value)){
-        this.appearanceTab=value;this.inlineAppearance=!!editor;this.renderSelectionTools();
+        this.appearanceExpanded=true;this.appearanceTab=value;this.inlineAppearance=!!editor;this.renderSelectionTools();
       }
     };
     const modeButtons=modes.map(value=>{
@@ -3572,6 +3625,7 @@ class BoardView extends FileView {
       const control=categories.createEl('button',{cls:'ts-button ts-format-mode-button',attr:{type:'button','aria-label':label,title:label,'data-mode':value,'aria-pressed':String(value===selectedMode)}});
       setIcon(control.createSpan({attr:{'aria-hidden':'true'}}),{markdown:'square-pen',card:'panels-top-left',text:'type',fill:'paint-bucket',border:'square-dashed'}[value]);
       control.createSpan({cls:'ts-format-mode-label',text:{markdown:'编辑',card:'卡片',text:'文字',fill:'背景',border:'边框'}[value]});
+      if(value!=='markdown'){control.setAttribute('aria-expanded',String(value===selectedMode));if(host.id)control.setAttribute('aria-controls',host.id);}
       control.toggleClass('is-active',value===selectedMode);control.disabled=value==='markdown'&&(owner.blocked||!!node?.locked);
       control.onmousedown=e=>e.preventDefault();
       control.onclick=()=>act(()=>{if(!control.disabled)return chooseMode(value);});return control;
