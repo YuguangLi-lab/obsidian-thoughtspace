@@ -1,8 +1,10 @@
 # 更新记录
 
-## 未发布
+## 1.3.24
 
 ### 纸张工作台与编辑体验（2026-09-30）
+
+这一版带来全新的暖色纸张工作台：卡片层次更清晰，常用工具集中在左侧，工作区入口融入 Obsidian 标题栏与侧栏，让白板有更充足的编辑空间。同时深入修复选择、拖动、编辑保存与文件同步中的边界问题。
 
 - 白板重新设计为暖色纸张工作台，统一卡片层次、选中状态、菜单和材料导航的视觉风格，适配浅色、深色、窄窗口与短窗口。
 - 主悬浮工具栏改为左侧竖向布局，格式工具栏在选中对象时显示；工作区操作沿用 Obsidian 标题栏，新建白板与材料入口保留在侧栏、功能区及命令菜单，画布获得更多编辑空间。
@@ -17,7 +19,7 @@
 - Redesigned the whiteboard as a warm paper workbench with a vertical left tool panel, contextual formatting and responsive light/dark layouts while preserving canvas space.
 - Fixed selection and drag handling, native-save conflicts, shared-session races, external viewport jumps, stale image/excerpt results, text-to-note reopening and unintended Linux middle-button paste.
 
-验证：4,437 项自动化回归、7 项 Python 脚本测试、720 项 Chromium 交互与布局检查、328 项官方 Obsidian 1.13.7 原生检查通过；完成浅色、深色、窄窗口和短窗口截图复核，以及原生编辑器与源码回退编辑验证。构建和 lint 通过，lint 为 0 错误、118 项既有警告；测试安装包与原生验收构建一致。详细场景与复验方法见 [深度调试记录](qa/deep-debug.md) 和 [UI 设计与视觉检查](qa/paper-workbench.md)。
+验证：4,437 项自动化回归、7 项 Python 脚本测试、720 项 Chromium 交互与布局检查、328 项官方 Obsidian 1.13.7 原生检查通过；完成浅色、深色、窄窗口和短窗口截图复核，以及原生编辑器与源码回退编辑验证。构建和 lint 通过，lint 为 0 错误、118 项既有警告；测试安装包与原生验收构建一致。详细场景与复验方法见 [深度调试记录](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.24/qa/deep-debug.md) 和 [UI 设计与视觉检查](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.24/qa/paper-workbench.md)。
 
 ## 1.3.23
 

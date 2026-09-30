@@ -100,6 +100,8 @@ flowchart LR
 
 升级时替换这三个运行文件即可，保留已有 `data.json`。建议先备份自己的仓库。社区目录的版本同步与 GitHub Release 分开发生，请以各自页面显示的版本为准。
 
+Release 还提供含教程的 `thoughtspace-版本号.zip` 安装包和 `SHA256SUMS.txt` 校验清单。使用安装包时，将其中三个运行文件解压到插件目录；GitHub 自动生成的 Source code 压缩包是源码，不能直接安装。
+
 ## 白板鼠标操作
 
 - 空白处按住**左键拖动**：平移画布。

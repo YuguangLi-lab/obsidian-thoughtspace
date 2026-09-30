@@ -2,7 +2,7 @@
 
 简体中文 · [English](USER-GUIDE.md) · [项目首页](../README.zh-CN.md) · [更新记录](../CHANGELOG.md)
 
-本教程介绍 **ThoughtSpace Whiteboard 1.3.23**，面向桌面版 Obsidian **1.13.7 或更新版本**。设置页支持简体中文和英文；其他菜单与工作区仍主要使用中文，不代表整个插件已完成英文化。
+本教程介绍 **ThoughtSpace Whiteboard 1.3.24**，面向桌面版 Obsidian **1.13.7 或更新版本**。设置页支持简体中文和英文；其他菜单与工作区仍主要使用中文，不代表整个插件已完成英文化。
 
 ThoughtSpace 将白板、Markdown 笔记、阅读材料、思维导图、写作和音视频摘录放在同一个仓库中。建议先用一个练习白板完成下面的入门流程，再整理自己的材料。
 

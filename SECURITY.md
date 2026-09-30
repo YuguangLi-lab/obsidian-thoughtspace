@@ -24,7 +24,7 @@ The project runs the official Obsidian ESLint rules, automated regressions, and 
 
 ## Build provenance
 
-The tag-triggered release workflow builds with the lockfile and creates GitHub artifact attestations for `main.js`, `manifest.json`, and `styles.css`. Verify downloaded assets using GitHub CLI:
+The release workflow runs from a version tag or a matching `release/<version>` branch, builds with the lockfile, and creates GitHub artifact attestations for `main.js`, `manifest.json`, `styles.css`, the installation ZIP, and `SHA256SUMS.txt`. Verify downloaded assets using GitHub CLI:
 
 ```sh
 gh attestation verify main.js --repo YuguangLi-lab/obsidian-thoughtspace

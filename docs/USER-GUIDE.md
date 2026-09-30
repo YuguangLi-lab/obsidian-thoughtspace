@@ -2,7 +2,7 @@
 
 [English](USER-GUIDE.md) · [中文完整教程](USER-GUIDE.zh-CN.md) · [Project home](../README.md)
 
-This guide covers **ThoughtSpace Whiteboard 1.3.23** for **Obsidian desktop 1.13.7 or newer**. Settings support Chinese and English; other plugin menus and workspaces remain mainly Chinese. English explanations below include Chinese labels where needed. Button labels may appear as icons in narrow panes; hover over an icon to read its tooltip.
+This guide covers **ThoughtSpace Whiteboard 1.3.24** for **Obsidian desktop 1.13.7 or newer**. Settings support Chinese and English; other plugin menus and workspaces remain mainly Chinese. English explanations below include Chinese labels where needed. Button labels may appear as icons in narrow panes; hover over an icon to read its tooltip.
 
 ## Contents
 

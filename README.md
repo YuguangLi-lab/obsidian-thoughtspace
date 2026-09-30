@@ -100,7 +100,7 @@ In Obsidian, open **Settings → Community plugins**, search for **ThoughtSpace 
 
 For manual installation, download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/latest). Put all three files in `<your-vault>/.obsidian/plugins/thoughtspace/`, then enable the plugin. When updating, replace only these three files and keep your existing `data.json` and snapshots. Back up your vault before upgrading.
 
-GitHub releases and the community directory update independently; check the version shown by each service. Release assets are limited to the three files installed by Obsidian. The source build can also generate an installation ZIP locally.
+GitHub releases and the community directory update independently; check the version shown by each service. Releases include the three files installed by Obsidian, an installation ZIP with documentation, and `SHA256SUMS.txt`. The installation ZIP is separate from GitHub's source-code archives; extract its three runtime files into the plugin folder.
 
 ## Whiteboard controls
 

@@ -19,8 +19,8 @@ Do not commit vaults, personal settings, private fixtures, backups, credentials,
 
 1. Update the version consistently in `manifest.json`, `package.json`, `package-lock.json`, and `versions.json`, and add a changelog entry.
 2. Complete regression and native UI checks, then commit the release source.
-3. Push a tag exactly matching the manifest version, for example `0.98.11`.
-4. The release workflow checks version consistency, runs lint/tests/build, attests the three runtime files, and publishes those files as the GitHub Release assets.
+3. Push a tag exactly matching the manifest version, for example `1.3.24`, or push the release source to `release/1.3.24`. The branch workflow creates the matching tag at that commit and refuses to overwrite a tag pointing elsewhere.
+4. The release workflow checks version consistency, runs lint/tests/build, and attests and publishes the three runtime files, the installation ZIP, and `SHA256SUMS.txt` as GitHub Release assets.
 5. Verify the release's attestations and check the community directory's new scan. Local lint results are not a substitute for that independent review.
 
-The local packaging script can produce a ZIP and checksums for testing. They are not uploaded as additional community-plugin release assets.
+The local packaging script produces a ZIP and checksums for testing. Published copies are built and attested by the release workflow; Obsidian installs only `main.js`, `manifest.json`, and `styles.css`.
