@@ -236,7 +236,7 @@ test('group, image and mixed selections expose only applicable editing modes',()
   const panels=f.view.selectionTools.children.filter((e:Element)=>e.attributes['data-appearance-panel']&&!e.hidden);
   assert.equal(panels.length,want.length?1:0);if(want.length)assert.equal(panels[0].attributes['data-appearance-panel'],want[0]);
   assert.deepEqual(f.modes().map(e=>e.dataset.mode),want);
-  assert.deepEqual(f.modes().filter(e=>e.getAttribute('aria-pressed')==='true').map(e=>e.dataset.mode),want.length?[want[0]]:[]);
+  assert.deepEqual(f.modes().filter(e=>e.getAttribute('aria-pressed')==='true').map(e=>e.dataset.mode),[]);
  }
 });
 test('stale or disabled mode buttons cannot change a new selection or closed board',()=>{
@@ -247,11 +247,23 @@ test('stale or disabled mode buttons cannot change a new selection or closed boa
   control.onclick!();assert.equal(f.view.appearanceTab,undefined,stale);assert.equal(f.calls.persist,0);
  }
 });
-test('choosing the already visible mode does not rebuild controls or alter focus',()=>{
- const f=fixture(),mode=f.mode('text'),host=f.view.selectionTools as Element;
- mode.focus();host.scrollLeft=51;mode.onclick!();
- assert.equal(f.mode('text'),mode);assert.equal(host.ownerDocument.activeElement,mode);assert.equal(host.scrollLeft,51);
- assert.equal(f.view.appearanceTab,undefined);assert.equal(f.calls.persist,0);
+test('appearance values start collapsed and repeated mode activation toggles without persisting',()=>{
+ const f=fixture(),host=f.view.selectionTools as Element,before=model.clone(f.owner.board);
+ assert.equal(host.classes.has('is-appearance-collapsed'),true);
+ assert.equal(f.mode('text').getAttribute('aria-expanded'),'false');
+ for(let i=0;i<4;i++){
+  const mode=f.mode('text');mode.focus();host.scrollLeft=51;mode.onclick!();
+  assert.equal(f.view.appearanceExpanded,i%2===0);
+  assert.equal(host.classes.has('is-appearance-collapsed'),i%2!==0);
+  assert.equal(f.mode('text').getAttribute('aria-expanded'),String(i%2===0));
+  assert.equal(host.ownerDocument.activeElement,f.mode('text'));assert.equal(host.scrollLeft,51);
+ }
+ assert.deepEqual(f.owner.board,before);assert.equal(f.calls.persist,0);
+});
+test('an expanded inline appearance mode remains stable on repeated activation',()=>{
+ const f=inlineFixture();f.chooseMode('text');const mode=f.mode('text'),before={...f.snapshot};
+ mode.focus();mode.onclick!();assert.equal(f.mode('text'),mode);assert.equal(f.view.selectionTools.ownerDocument.activeElement,mode);
+ assert.deepEqual(f.snapshot,before);assert.equal(f.commits(),0);
 });
 test('appearance mode replacement retains keyboard focus on the activated mode and toolbar scroll',()=>{
  const f=fixture(),mode=f.mode('fill'),host=f.view.selectionTools as Element;

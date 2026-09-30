@@ -139,6 +139,16 @@ export class MediaWorkspaceService {
   for(const entry of entries){entry.text=this.normalizeImages(entry.text,entry.notePath,warnings);if(entry.image){const image=this.normalizeImages(entry.image,entry.notePath,warnings);if(image.startsWith('!'))entry.image=image;else{delete entry.image;entry.text=[entry.text,image].filter(Boolean).join('\n');}}}
   return {note:result.notes[0]?.note,entries:entries.sort((a,b)=>a.time-b.time||a.notePath.localeCompare(b.notePath)||a.line-b.line),...(warnings.size?{warnings:[...warnings]}:{})};
  }
+ /** Resolve only an acknowledged, stable note block; never copy a draft into a board. */
+ async referenceMoment(file:TFile,requested:MediaMoment&{notePath?:string}){
+  this.ensure(file);const identity=this.identity(file),result=await this.readNotes(file,identity);this.ensure(file,identity.path,identity.mtime,identity.size);
+  const snapshot=result.notes.find(item=>item.identity.path===requested.notePath);
+  const moment=snapshot&&readMediaMoments(snapshot.raw,{vault:this.app.vault.getName(),file:file.path}).find(item=>item.id===requested.id);
+  if(!snapshot||!moment||!this.noteAlive(snapshot)||!/^[-a-z0-9]+$/i.test(moment.id))throw Error('找不到这条摘录的稳定笔记块，请刷新时间轴；旧格式摘录可先打开原笔记。');
+  const anchor='^thoughtspace-media-'+moment.id;
+  if(![...markdownRows(snapshot.raw)].some(row=>!row.code&&row.topLevel&&row.visible.trim()===anchor))throw Error('摘录块已变化，请刷新时间轴后重试');
+  return{note:snapshot.note,moment,subpath:'#'+anchor};
+ }
  saveMoment(file:TFile,draft:MediaMomentDraft):Promise<{note:TFile}>{
   this.ensure(file);const identity=this.identity(file),snapshot={...draft};mediaTime(snapshot.time);
   if(snapshot.source!==undefined){snapshot.source={...snapshot.source};if(snapshot.source.path!==identity.path||snapshot.source.mtime!==identity.mtime||snapshot.source.size!==identity.size)throw Error('这条草稿的媒体已变化，请重新摘录');}

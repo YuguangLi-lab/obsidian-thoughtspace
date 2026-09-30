@@ -13,6 +13,7 @@ class Element {
  createDiv(options:any={}):Element{return this.createEl('div',options);}
  createSpan(options:any={}):Element{return this.createEl('span',options);}
  addClass(){}
+ toggleClass(){}
  empty(){for(const child of this.children)child.attached=false;this.children=[];}
  all():Element[]{return[this,...this.children.flatMap(child=>child.all())];}
 }

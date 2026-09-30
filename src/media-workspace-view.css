@@ -48,7 +48,7 @@
 .ts-media-workspace__status:not(:empty) {padding-block: 4px 7px;}
 
 /* The viewer occupies the left column; writing and the timeline share the right. */
-.ts-media-workspace__layout {display:grid; grid-template-columns:minmax(0,1fr) minmax(280px,calc(100% - var(--ts-mw-viewer,56%))); grid-template-rows:clamp(200px,36%,300px) minmax(180px,1fr); grid-template-areas:"viewer composer" "viewer timeline"; flex:1 1 0; gap:12px 16px; min-width:0; min-height:0; padding:14px; overflow:hidden; background:var(--ts-mw-page);}
+.ts-media-workspace__layout {display:grid; grid-template-columns:minmax(0,1fr) minmax(280px,calc(100% - var(--ts-mw-viewer,56%))); grid-template-rows:minmax(260px,var(--ts-mw-composer,40%)) minmax(200px,1fr); grid-template-areas:"viewer composer" "viewer timeline"; flex:1 1 0; gap:12px 16px; min-width:0; min-height:0; padding:14px; overflow:hidden; background:var(--ts-mw-page);}
 .ts-media-workspace__main {display:flex; flex-direction:column; grid-area:viewer; min-width:0; min-height:0; padding:0; overflow:hidden; container:ts-media-viewer / size;}
 .ts-media-workspace__file-kind {flex:none; padding:3px 5px; border:0; border-radius:4px; color:var(--text-muted); background:var(--ts-mw-soft); font-family:var(--font-interface); font-size:9px; font-weight:500; letter-spacing:.04em; line-height:1;}
 .ts-media-workspace__player {display: flex; flex-direction: column; width: 100%; height: 100%; min-width: 0; min-height: 0;}
@@ -206,11 +206,11 @@
 
 /* Screenshot drafts reserve writing space as well as their attachment strip. */
 @container ts-media (min-width: 761px) and (min-height: 560px) {
-  .ts-media-workspace:not([data-compact-player="true"]):not([data-focus-player="true"]) .ts-media-workspace__layout:has(.ts-media-workspace__attachment:not([hidden])) {grid-template-rows:clamp(250px,43%,330px) minmax(180px,1fr);}
+  .ts-media-workspace:not([data-compact-player="true"]):not([data-focus-player="true"]) .ts-media-workspace__layout:has(.ts-media-workspace__attachment:not([hidden])) {grid-template-rows:minmax(300px,var(--ts-mw-composer,40%)) minmax(180px,1fr);}
 }
 
-@container ts-media (min-width:761px) and (max-height:460px) {
-  .ts-media-workspace__layout {overflow-y:auto; grid-template-rows:200px 220px;}
+@container ts-media (min-width:761px) and (max-height:560px) {
+  .ts-media-workspace__layout {overflow-y:auto; grid-template-rows:320px 220px;}
   .ts-media-workspace__main {position:sticky; top:0; align-self:start; height:max(180px,calc(100cqh - 90px));}
 }
 
@@ -296,7 +296,7 @@
   .ts-media-workspace[data-compact-player="true"] .ts-media-workspace__main {flex-basis: 110px; min-height: 110px;}
   .ts-media-workspace[data-compact-player="true"][data-media-kind="audio"] .ts-media-workspace__main {flex-basis: 166px; min-height: 166px;}
   .ts-media-workspace__panel-switcher {order: 1; flex: 0 0 34px; position: sticky; top: 0; z-index: 2;}
-  .ts-media-workspace .ts-media-workspace__composer {order: 2; flex: 0 0 220px; min-height: 220px;}
+  .ts-media-workspace .ts-media-workspace__composer {order: 2; flex: 0 0 320px; min-height: 320px;}
   .ts-media-workspace .ts-media-workspace__desk {order: 2; flex: 0 0 260px; min-height: 260px;}
   .ts-media-workspace[data-focus-player="true"] .ts-media-workspace__layout {display: grid; overflow: hidden;}
   .ts-media-workspace[data-focus-player="true"] .ts-media-workspace__main {min-height:0; height:100%; align-self:stretch;}
@@ -313,3 +313,89 @@
 .ts-media-image-modal__image {display: block; align-self: center; width: auto; max-width: 100%; height: auto; max-height: 74vh; object-fit: contain;}
 .ts-media-image-modal__caption {margin: 0; color: var(--text-muted); font-family: var(--font-interface); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; text-align: center;}
 @media (prefers-reduced-motion: reduce) {.ts-media-workspace :is(.ts-media-workspace__action,.ts-media-workspace__editor,.ts-media-workspace__moment,.ts-media-card__play) {transition: none;}}
+
+/* Stable player left; current draft and saved excerpts share the right. */
+.ts-media-workspace__header {min-height:44px; padding-block:6px;}
+.ts-media-workspace__names {flex-direction:row; align-items:center;}
+.ts-media-workspace__source {display:none;}
+.ts-media-workspace .ts-media-workspace__secondary-action {display:none;}
+.ts-media-workspace__layout-choice {display:flex; flex-direction:column; gap:6px; grid-column:1 / -1; min-width:0;}
+
+.ts-media-workspace__savebar {flex:none; min-width:0; border-top:1px solid var(--ts-mw-line); padding-top:7px;}
+.ts-media-workspace__save-meta {display:flex; align-items:baseline; flex-wrap:wrap; gap:3px 10px; min-width:0; color:var(--text-muted); font-size:10px; line-height:1.6;}
+.ts-media-workspace__save-target {flex:1 1 130px; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.ts-media-workspace__draft-status {flex:0 1 auto; overflow-wrap:anywhere; color:var(--text-muted);}
+.ts-media-workspace__draft-status[data-state="error"] {color:var(--text-error);}
+.ts-media-workspace__savebar .ts-media-workspace__composer-actions {border-top:0; padding-top:5px;}
+.ts-media-workspace__panel-count {font-size:10px; color:var(--text-muted); font-variant-numeric:tabular-nums;}
+.ts-media-workspace__player .ts-media-card__position::before {content:'播放 '; font-family:var(--font-interface); font-size:10px;}
+.ts-media-workspace__composer, .ts-media-workspace__desk, .ts-media-workspace__player .ts-av-player {border-radius:8px; box-shadow:none;}
+@container ts-media (max-width:760px) {
+  .ts-media-workspace__save-meta {font-size:10px;}
+  .ts-media-workspace__composer {gap:6px;}
+}
+@container ts-media (max-width:360px) {
+  .ts-media-workspace__save-hint {display:none;}
+  .ts-media-workspace__player .ts-media-card__position::before {content:'';}
+}
+/* Recovery uses the host modal and theme, with selectable text and bounded PNGs. */
+.ts-media-draft-recovery {padding-block:12px; border-top:1px solid var(--background-modifier-border);}
+.ts-media-draft-recovery h3 {overflow-wrap:anywhere; margin:0 0 6px; font-size:14px;}
+.ts-media-draft-recovery p {font-size:12px; color:var(--text-muted);}
+.ts-media-draft-recovery textarea {display:block; width:100%; min-height:96px; resize:vertical; margin-block:8px; font-family:var(--font-text);}
+.ts-media-draft-recovery img {display:block; max-width:100%; max-height:160px; object-fit:contain; margin-block:8px;}
+.ts-media-draft-recovery button {margin-right:8px;}
+
+/* Capture controls use the same quiet hierarchy as the workspace actions. */
+.ts-media-workspace__capture-actions {display:flex; align-items:center; gap:6px; flex:none; min-width:0;}
+.ts-media-workspace__capture-actions button {display:inline-flex; align-items:center; gap:6px; min-height:28px; height:auto; padding:5px 8px; border:1px solid var(--ts-mw-line); border-radius:5px; background:var(--background-primary); color:var(--text-muted); box-shadow:none; font:inherit; font-size:11px; cursor:pointer;}
+.ts-media-workspace__capture-actions button:not(:disabled):hover {color:var(--text-normal); background:var(--background-modifier-hover);}
+.ts-media-workspace__capture-actions button:disabled {opacity:.4; cursor:default;}
+.ts-media-workspace__capture-actions svg {width:14px; height:14px;}
+.ts-media-workspace__capture-actions .ts-media-card__button-icon {display:flex;}
+.ts-media-workspace__player .ts-media-card__capture-actions {border-top:0; padding:0;}
+.ts-media-workspace__savebar .ts-media-workspace__action.mod-cta:disabled {opacity:.45;}
+.ts-media-draft-startup button {display:block; margin-top:8px;}
+
+.ts-media-workspace__player .ts-av-player .ts-media-card__capture-actions:empty {display:none;}
+.ts-media-workspace__player .ts-media-card__transport {grid-column:1 / -1;}
+.ts-media-workspace__player .ts-media-card__transport .ts-media-card__more-toggle {margin-left:0; flex:none;}
+
+/* Reclaim chrome spacing without reducing the editor's allocated row. */
+.ts-media-workspace__layout {padding-top:8px; gap:6px 16px;}
+.ts-media-workspace__composer {padding-top:10px; padding-bottom:6px;}
+.ts-media-workspace__savebar {padding-top:4px;}
+.ts-media-workspace__savebar .ts-media-workspace__composer-actions {padding-top:3px;}
+.ts-media-workspace__records {padding-top:8px; padding-bottom:6px; gap:8px;}
+.ts-media-workspace__status:not(:empty) {padding-block:2px 3px;}
+@container ts-media (max-width:760px) {
+  .ts-media-workspace__layout {gap:6px; padding-top:6px;}
+  .ts-media-workspace__composer {padding-top:8px; padding-bottom:6px;}
+  .ts-media-workspace__records {padding-top:7px; gap:6px;}
+}
+
+.ts-media-workspace__composer {position:relative; container:ts-media-composer / inline-size;}
+.ts-media-workspace__composer-divider {position:absolute; left:0; right:0; bottom:0; height:6px; cursor:row-resize; touch-action:none;}
+.ts-media-workspace__composer-divider::after {content:''; position:absolute; bottom:1px; left:calc(50% - 18px); width:36px; height:2px; border-radius:2px; background:var(--background-modifier-border);}
+.ts-media-workspace__composer-divider:is(:hover,:focus-visible)::after {background:var(--interactive-accent);}
+@container ts-media-composer (min-width:380px) {
+  .ts-media-workspace__savebar {display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px;}
+  .ts-media-workspace__save-meta {display:flex; flex-direction:column; align-items:stretch; gap:0; line-height:1.5;}
+  .ts-media-workspace__save-target {flex:none;}
+  .ts-media-workspace__save-hint {display:none;}
+  .ts-media-workspace__savebar .ts-media-workspace__composer-actions {padding-top:0;}
+}
+@container ts-media (max-width:760px) {.ts-media-workspace__composer-divider {display:none;}}
+
+/* Put state in the source header, reclaiming the standalone status row. */
+.ts-media-workspace__identity {flex:0 1 auto; max-width:45%;}
+.ts-media-workspace__header-actions {order:2; margin-left:auto;}
+.ts-media-workspace__message-area {display:flex; align-items:center; gap:6px; flex:1 1 0; min-width:0; order:1;}
+.ts-media-workspace__message-area .ts-media-workspace__status {flex:1 1 0; min-width:0; padding:0; max-height:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.ts-media-workspace__message-area .ts-media-workspace__action {font-size:11px; color:var(--text-accent);}
+@container ts-media (max-width:760px) {
+  .ts-media-workspace__header {flex-wrap:wrap;}
+  .ts-media-workspace__identity {flex:1 1 0; max-width:none;}
+  .ts-media-workspace__message-area {order:3; flex:1 0 100%;}
+  .ts-media-workspace__message-area:has(.ts-media-workspace__status:empty):not(:has(button:not([hidden]))) {display:none;}
+}

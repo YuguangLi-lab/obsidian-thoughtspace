@@ -1,5 +1,19 @@
 # 更新记录
 
+## 1.3.25
+
+### 媒体草稿恢复、同源白板引用与紧凑操作栏（2026-09-30）
+
+- 本地媒体工作区将未保存文字、PNG 截图、来源身份及时间点独立暂存到本机 IndexedDB。插件重载或 Obsidian 重启后，明确选择恢复或丢弃；不会自动写入正式笔记。来源变化保留只读草稿，保存失败可重试，重复恢复与清理失败后的重试保留同一摘录 ID。
+- 媒体左侧保持播放器，右上记录、右下时间轴；记录区默认 40% 高度，支持拖动与方向键调整。收紧留白和保存栏，将待恢复提示移入来源顶栏；窄窗切换不重建播放器或草稿编辑器。
+- 已保存媒体摘录发送到白板时使用原 Markdown 块引用，包含截图和回播时间。重复加入复用引用节点，原笔记更新后白板刷新；没有稳定块锚点的旧摘录提示打开原笔记，不静默复制内容。
+- 白板顶部格式参数默认收起，点击分类展开，再次点击或 Esc 收起并保留键盘焦点；选中对象的编辑入口集中到顶部。减轻媒体引用内层边框和底色，区分悬停、选中与编辑状态，保留自定义边框、表格和 Obsidian 主题配色。
+- Local media drafts now survive plugin/app restarts through device-local staging with explicit recovery/discard. Formal notes still require Save. Saved excerpts use live Markdown block references on boards. Media layout is more compact; board formatting values open on demand with keyboard support.
+
+验证：4,458 项自动回归通过；原生 Obsidian 1.13.7 临时库验证完整进程重启后的文字/PNG/来源/时间/ID、失败重试、重复操作、同源引用更新及宽窄深浅色布局。lint 无错误（118 项既有警告），TypeScript 与构建通过。详细范围见 [本地验收](qa/media-draft-recovery.md) 和 [白板界面验收](qa/board-polish-release.md)。
+
+边界：暂存仅本机，不同步、不替代备份；突然终止可能损失最后 350 ms 输入或未完成写入。未验证断电、多进程同库、移动端及存储配额耗尽；本轮不扩展在线视频草稿恢复。媒体回源验证实际 URL 的插件处理器，未发送系统级 URL。1.3.24 原版性能数据为合成库基线，不代表本版性能优化，详见 [性能报告](qa/performance-results.md)。
+
 ## 1.3.24
 
 ### 恢复主题配色，保留编辑修复（2026-09-30，替换版）

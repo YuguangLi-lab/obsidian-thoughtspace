@@ -204,3 +204,26 @@
 .ts-root .ts-node.ts-section.is-compact-fold > .ts-compact-fold-row { pointer-events:auto; }
 
 .ts-root .ts-web-heading > .ts-web-actions { flex-wrap:nowrap; gap:3px; }
+
+/* Selection uses one ring; a saved/custom border remains the card's own edge. */
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text:not(.is-table-card)).is-selected {
+  outline:2px solid var(--ts-accent); outline-offset:2px; box-shadow:none;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-text.is-selected:not(.has-custom-border) {
+  border-color:var(--background-modifier-border);
+}
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text:not(.is-table-card)):not(.is-selected):not(.is-inline-editing):hover {
+  outline:1px solid var(--text-faint); outline-offset:2px;
+}
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text:not(.is-table-card)).is-inline-editing {
+  outline:2px dashed var(--ts-accent); outline-offset:2px; box-shadow:none;
+}
+/* Only ThoughtSpace's saved media block embeds: keep native links/content and
+   a quiet reference rule without an extra accent frame or selected fill. */
+.ts-root .ts-node.is-media-reference .ts-text-markdown .markdown-embed {
+  border:0; border-inline-start:1px solid var(--background-modifier-border);
+  background:transparent; box-shadow:none;
+}
+.ts-root .ts-node.is-media-reference .ts-text-markdown .markdown-embed .markdown-embed-content { background:transparent; }
+
+.ts-root .ts-node.is-media-reference .ts-text-markdown .markdown-embed .markdown-preview-view > .callout[data-callout="note"] { background:transparent; border:0; box-shadow:none; }
