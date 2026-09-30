@@ -390,16 +390,16 @@ const gallery=(f:ReturnType<typeof fixture>)=>(f.view.selectionTools as Element)
 const chooseCardStyle=(f:ReturnType<typeof fixture>,value:cardStyles.CardStyleChoice)=>{
  const control=gallery(f).find(option=>option.dataset.style===value);assert.ok(control,`Missing ${value} card style`);return control;
 };
-test('card gallery applies one reversible appearance change without changing source content or geometry',()=>{
+for(const style of ['band','paper','index','sticky'] as const)test(`${style} gallery applies one reversible appearance change without changing source content or geometry`,()=>{
  const f=fixture([note()]),before=model.clone(f.owner.board);
- assert.deepEqual(gallery(f).map(option=>option.dataset.style),['transparent','solid','band','paper']);
+ assert.deepEqual(gallery(f).map(option=>option.dataset.style),['transparent','solid','band','paper','index','sticky']);
  assert.equal(chooseCardStyle(f,'transparent').getAttribute('aria-pressed'),'true');
- chooseCardStyle(f,'paper').onclick!();
- assert.deepEqual(f.owner.board,{...before,version:3,nodes:[{...before.nodes[0],cardStyle:'paper'}]});
- assert.equal(f.calls.persist,1);assert.equal(chooseCardStyle(f,'paper').getAttribute('aria-pressed'),'true');
+ chooseCardStyle(f,style).onclick!();
+ assert.deepEqual(f.owner.board,{...before,version:3,nodes:[{...before.nodes[0],cardStyle:style}]});
+ assert.equal(f.calls.persist,1);assert.equal(chooseCardStyle(f,style).getAttribute('aria-pressed'),'true');
  const after=model.clone(f.owner.board);f.owner.undo();assert.deepEqual(f.owner.board,before);
- f.owner.undo(true);assert.deepEqual(f.owner.board,after);assert.equal(chooseCardStyle(f,'paper').getAttribute('aria-pressed'),'true');
- chooseCardStyle(f,'paper').onclick!();assert.equal(f.calls.persist,3,'same style is a no-op after redo');
+ f.owner.undo(true);assert.deepEqual(f.owner.board,after);assert.equal(chooseCardStyle(f,style).getAttribute('aria-pressed'),'true');
+ chooseCardStyle(f,style).onclick!();assert.equal(f.calls.persist,3,'same style is a no-op after redo');
 });
 test('mixed card gallery edits only eligible notes and keeps tables media and locked unrelated objects intact',()=>{
  const nodes=[note(),text('table',{text:'| A |\n| --- |\n| 1 |'}),text('image',{kind:'image',file:'image.png'}),section('group',{locked:true})],f=fixture(nodes),before=model.clone(f.owner.board);
@@ -418,17 +418,26 @@ test('card gallery callbacks revalidate locks owner selection attachment and bus
   assert.deepEqual(f.owner.board,before,state);assert.equal(f.calls.persist,0,state);
  }
 });
-test('switching card style during inline editing preserves the draft selection and has independent board undo',()=>{
+for(const style of ['band','paper','index','sticky'] as const)test(`switching to ${style} during inline editing preserves the draft selection and has independent board undo`,()=>{
  const f=inlineFixture([note()]),before={...f.snapshot},board=model.clone(f.owner.board);f.input.focus();f.chooseMode('card');
- const option=chooseCardStyle(f,'paper');let prevented=false;option.onmousedown?.({preventDefault(){prevented=true;}});assert.equal(prevented,true);
+ const option=chooseCardStyle(f,style);let prevented=false;option.onmousedown?.({preventDefault(){prevented=true;}});assert.equal(prevented,true);
  option.onclick!();assert.equal(f.view.inline,f.editor);assert.deepEqual(f.editor.snapshot(),before);assert.equal(f.commits(),0);
- assert.equal(f.input.ownerDocument.activeElement,f.input);assert.equal(f.owner.board.nodes[0].cardStyle,'paper');
+ assert.equal(f.input.ownerDocument.activeElement,f.input);assert.equal(f.owner.board.nodes[0].cardStyle,style);
  f.owner.undo();assert.deepEqual(f.owner.board,board);assert.equal(f.view.inline,f.editor);assert.deepEqual(f.editor.snapshot(),before);
 });
 test('busy inline notifications disable card gallery choices and enable them again after recovery',()=>{
- const f=inlineFixture([note()]);f.chooseMode('card');assert.equal(gallery(f).length,4);assert.ok(gallery(f).every(option=>!option.disabled));
+ const f=inlineFixture([note()]);f.chooseMode('card');assert.equal(gallery(f).length,6);assert.ok(gallery(f).every(option=>!option.disabled));
  f.snapshot.busy=true;f.input.dispatchEvent(new Event('select'));
  assert.ok(gallery(f).every(option=>option.disabled),'visible style choices should agree with the busy editor state');
  f.snapshot.busy=false;f.input.dispatchEvent(new Event('select'));assert.ok(gallery(f).every(option=>!option.disabled));
  assert.equal(f.calls.persist,0);assert.equal(f.commits(),0);
+});
+
+test('gallery previews use the shared card color and fall back for mixed colors',()=>{
+ for(const [fills,expected] of [[['#227766','#227766'],'#227766'],[['#227766','#cc4477'],'']] as const){
+  const f=fixture(fills.map((fillColor,i)=>note(`note-${i}`,{fillColor})));
+  const picker=(f.view.selectionTools as Element).querySelectorAll('.ts-card-style-picker')[0];
+  assert.equal(picker.style.getPropertyValue('--ts-card-heading-color'),expected);
+  assert.ok(gallery(f).every(option=>option.getAttribute('aria-pressed')==='true'||option.getAttribute('aria-pressed')==='false'));
+ }
 });

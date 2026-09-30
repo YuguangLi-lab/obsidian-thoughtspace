@@ -40,6 +40,8 @@ jobs:
       - run: npm run build
       - name: Verify generated styles are committed
         run: git diff --exit-code -- styles.css
+      - name: Package installer and checksums
+        run: python3 scripts/package.py
       - name: Attest runtime assets
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
@@ -47,11 +49,13 @@ jobs:
             main.js
             manifest.json
             styles.css
+            dist/thoughtspace-*.zip
+            dist/SHA256SUMS.txt
       - name: Publish standard Obsidian assets
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
-        run: gh release create "$RELEASE_TAG" main.js manifest.json styles.css --verify-tag --title "ThoughtSpace Whiteboard $RELEASE_TAG" --notes-file dist/release-notes.md
+        run: gh release create "$RELEASE_TAG" main.js manifest.json styles.css "dist/thoughtspace-$RELEASE_TAG.zip" dist/SHA256SUMS.txt --verify-tag --title "ThoughtSpace Whiteboard $RELEASE_TAG" --notes-file dist/release-notes.md
       - name: Verify public installer endpoints and asset contents
         env:
           RELEASE_TAG: ${{ github.ref_name }}

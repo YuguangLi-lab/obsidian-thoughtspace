@@ -516,8 +516,13 @@ for(const pending of [false,true])test(`fixed-note decorative style switching pr
  const f=fixture('card',{autoFit:false});if(!pending)await f.drain();
  const element=f.element(),scope=f.scope(),body=element.querySelector('.ts-card-preview')!,embedded=body.createEl('iframe');
  const previews=f.previewQueue.added,reads=f.calls.read,renders=f.calls.markdown;
- const styles=[{cardStyle:'band' as const},{cardStyle:'paper' as const},{cardStyle:undefined,transparent:false},{cardStyle:undefined,transparent:true},{cardStyle:'paper' as const}];
- for(const patch of styles){f.replace(patch);if(!pending)await f.drain();}
+ const styles=[{cardStyle:'band' as const},{cardStyle:'paper' as const},{cardStyle:'index' as const},{cardStyle:'sticky' as const},{cardStyle:undefined,transparent:false},{cardStyle:undefined,transparent:true},{cardStyle:'paper' as const}];
+ for(const patch of styles){
+  f.replace(patch);if(!pending)await f.drain();
+  assert.equal(element.dataset.cardStyle,patch.cardStyle);
+  assert.equal(element.querySelectorAll('.ts-card-paperclip').length,patch.cardStyle==='paper'?1:0);
+  assert.equal(f.element(),element);assert.equal(f.element().querySelector('.ts-card-preview'),body);
+ }
  t.diagnostic(JSON.stringify({pending,extraQueues:f.previewQueue.added-previews,extraReads:f.calls.read-reads,extraRenders:f.calls.markdown-renders,originalScopeUnloads:scope.unloaded}));
  assert.ok(f.element()===element,'decorative note surfaces must retain the mounted preview host');
  assert.equal(f.scope(),scope);assert.equal(scope.unloaded,0);assert.equal(f.element().querySelector('.ts-card-preview'),body);assert.equal(embedded.isConnected,true);

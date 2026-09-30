@@ -30,6 +30,7 @@ import {BlankDoubleClick} from './blank-double-click';
 import {createHash} from 'crypto';
 import {resolve as resolvePath} from 'path';
 import {cleanPluginSettings,type ThoughtSpacePreferences} from './plugin-settings';
+import {ThoughtSpaceSettings,settingsLanguage} from './settings-view';
 import {hostPlugin,fileExplorer,hostSettings,workspaceLeafId,hostCommands} from './host-capabilities';
 import {parseLayoutSnapshot} from './layout-snapshot-data';
 import {isRecord,isUnknownArray} from './value-guards';
@@ -66,7 +67,7 @@ import {mindmapNavigation,mindmapParent} from './mindmap-navigation';
 import {MindmapPresetsModal} from './mindmap-presets-view';
 import {MindmapStudioModal} from './mindmap-studio-view';
 import {mindmapSignature} from './mindmap-studio';
-import {uploadHostedImage,imageHostApi,remoteImageUrl} from './image-host';
+import {uploadHostedImage,remoteImageUrl} from './image-host';
 import {videoCaptureRequest,addVideoCaptureCard,addVideoCaptureObjects,videoCaptureContent} from './video-capture';
 import {yingjianNotePath,parseYingjianLink,isYingjianCaptureNote} from './yingjian';
 import {BoardReuseModal,ReuseDestination} from './board-reuse-view';
@@ -113,7 +114,7 @@ import {reviewLabels,readingTitle} from './reading-desk';
 import {BoardStudioModal} from './board-studio-view';
 import {studioDraft,nodeName,mergeTexts,splitParagraphs} from './board-studio';
 import {NodeStyle,ObjectFilter,ViewTrail,filterObjects,readNodeStyle,applyNodeStyle,stepLayers,fitSections,directionalNode,boardIssues,textBatch,constrainedDrag,resized} from './board-experience';
-import {BoardAction,BoardActionModal,boardPreferenceControls,mousePreferenceControls} from './board-experience-view';
+import {BoardAction,BoardActionModal} from './board-experience-view';
 import { boardOutline, measureNoteCard } from './workspace-tools';
 import { designTokens, themeSurface } from './ui-tokens';
 import { fitTextNode, inkLabels, textFontFamily } from './text-tools';
@@ -133,10 +134,10 @@ import { boardTemplates, cleanFavorites, remapFavorites,  OutlineKind, taskSumma
 import { Alignment, alignmentLabels, alignSelection, foldCards, visibleMarqueeSelection, moveSelection, selectionRect } from './board-tools';
 import { isOverdue, readProperties, statuses } from './database';
 import { DatabaseModal, PropertyStore } from './database-view';
-import { App, type CachedMetadata, Component, FileSystemAdapter, FileView, ItemView, Keymap, FuzzySuggestModal, MarkdownView, MarkdownRenderer, Menu, Modal, Notice, Plugin, PluginSettingTab, Setting, TAbstractFile, TFile, TFolder, WorkspaceLeaf, ViewStateResult, getAllTags, getFrontMatterInfo, loadPdfJs, normalizePath, parseLinktext, parseYaml, setIcon } from 'obsidian';
+import { App, type CachedMetadata, Component, FileSystemAdapter, FileView, ItemView, Keymap, FuzzySuggestModal, MarkdownView, MarkdownRenderer, Menu, Modal, Notice, Plugin, Setting, TAbstractFile, TFile, TFolder, WorkspaceLeaf, ViewStateResult, getAllTags, getFrontMatterInfo, loadPdfJs, normalizePath, parseLinktext, parseYaml, setIcon } from 'obsidian';
 import { assertBoardGeometry, Board, Card, cardFillHex, validCardFill, History, boardLinks, wouldCycle, expandedSelection, movableSelection, extractSubboard, tidyBoard, canvasExport, clone, colors, colorNames, contained, emptyBoard, extractTasks, parseBoard, removeNodes, safeName, toggleTask, uid } from './model';
-import { validateFolders, localDay, tagFolder } from './filing';
-import { AppearanceSettings, LibraryScope, LibrarySort, libraryFiles, noteExcerpt, isWorkspaceFile } from './workspace';
+import { localDay, tagFolder } from './filing';
+import { LibraryScope, LibrarySort, libraryFiles, noteExcerpt, isWorkspaceFile } from './workspace';
 
 const DOCK = 'thoughtspace-navigator',MATERIALS='thoughtspace-materials',MATERIAL_DRAG='text/x-thoughtspace-fragment';
 const VIEW = 'thoughtspace-board', EXT = 'thoughtspace', ROOT = 'ThoughtSpace';
@@ -731,31 +732,33 @@ export default class ThoughtSpace extends Plugin {
   backgroundImageResource(path:string){const clean=cleanBackgroundImagePreferences({backgroundImagePath:path}).backgroundImagePath;return clean?this.app.vault.adapter.getResourcePath(clean):'';}
   openBackgroundImageSettings(){
     if(this.backgroundImageModal?.modalEl.isConnected){this.backgroundImageModal.modalEl.querySelector<HTMLButtonElement>('button')?.focus();return this.backgroundImageModal;}
-    const modal=new BackgroundImageModal(this.app,{preferences:()=>cleanBackgroundImagePreferences(this.settings),resource:path=>this.backgroundImageResource(path),save:async(preferences,file)=>{
-      if(this.backgroundImagesClosed)throw Error('插件已关闭，请重新打开设置。');
+    const message=(zh:string,en:string)=>settingsLanguage(this.settings)==='en'?en:zh;
+    const modal=new BackgroundImageModal(this.app,{language:settingsLanguage(this.settings),preferences:()=>cleanBackgroundImagePreferences(this.settings),resource:path=>this.backgroundImageResource(path),save:async(preferences,file)=>{
+      if(this.backgroundImagesClosed)throw Error(message('插件已关闭，请重新打开设置。','The plugin is closed. Reopen settings.'));
       const previous={...cleanBackgroundImagePreferences(this.settings),canvasBackground:this.settings.canvasBackground},baseline=backgroundImageStamp(previous),next=cleanBackgroundImagePreferences(preferences);
       if(file){
-        if(file.size>MAX_BACKGROUND_IMAGE_BYTES)throw Error('请选择不超过 20 MB 的图片。');
-        const bytes=await file.arrayBuffer(),extension=validateBackgroundImageBytes(new Uint8Array(bytes));
+        if(file.size>MAX_BACKGROUND_IMAGE_BYTES)throw Error(message('请选择不超过 20 MB 的图片。','Choose an image no larger than 20 MB.'));
+        const bytes=await file.arrayBuffer();let extension:string;
+        try{extension=validateBackgroundImageBytes(new Uint8Array(bytes));}catch(error){if(settingsLanguage(this.settings)==='en')throw Error('Unsupported or invalid image data. Choose a PNG, JPEG, WebP or GIF image.');throw error;}
         const folder=normalizePath(`${this.app.vault.configDir}/plugins/${this.manifest.id}/backgrounds`),digest=createHash('sha256').update(new Uint8Array(bytes)).digest('hex');
         next.backgroundImagePath=`${folder}/${digest}.${extension}`;
         if(!await this.app.vault.adapter.exists(folder))await this.app.vault.adapter.mkdir(folder);
         if(await this.app.vault.adapter.exists(next.backgroundImagePath)){
           const cached=await this.app.vault.adapter.readBinary(next.backgroundImagePath);
-          if(createHash('sha256').update(new Uint8Array(cached)).digest('hex')!==digest)throw Error('已保存的背景图片内容发生变化，请先检查插件 backgrounds 文件夹。为保护原文件，本次未覆盖。');
+          if(createHash('sha256').update(new Uint8Array(cached)).digest('hex')!==digest)throw Error(message('已保存的背景图片内容发生变化，请先检查插件 backgrounds 文件夹。为保护原文件，本次未覆盖。','The stored image has changed. Check the plugin backgrounds folder. The original file was not overwritten.'));
         }else await this.app.vault.adapter.writeBinary(next.backgroundImagePath,bytes);
       }
-      if(this.backgroundImagesClosed)throw Error('插件已关闭，请重新打开设置。');
-      if(backgroundImageStamp(this.settings)!==baseline||this.settings.canvasBackground!==previous.canvasBackground)throw Error('背景已在其他窗口改变，请重新打开设置后应用。');
-      if(next.backgroundImagePath&&!await this.app.vault.adapter.exists(next.backgroundImagePath))throw Error('背景图片已不存在，请重新选择图片。');
-      if(this.backgroundImagesClosed||backgroundImageStamp(this.settings)!==baseline||this.settings.canvasBackground!==previous.canvasBackground)throw Error('背景已改变，请重新打开设置后应用。');
+      if(this.backgroundImagesClosed)throw Error(message('插件已关闭，请重新打开设置。','The plugin is closed. Reopen settings.'));
+      if(backgroundImageStamp(this.settings)!==baseline||this.settings.canvasBackground!==previous.canvasBackground)throw Error(message('背景已在其他窗口改变，请重新打开设置后应用。','The background changed in another window. Reopen settings before applying.'));
+      if(next.backgroundImagePath&&!await this.app.vault.adapter.exists(next.backgroundImagePath))throw Error(message('背景图片已不存在，请重新选择图片。','The background image no longer exists. Choose another image.'));
+      if(this.backgroundImagesClosed||backgroundImageStamp(this.settings)!==baseline||this.settings.canvasBackground!==previous.canvasBackground)throw Error(message('背景已改变，请重新打开设置后应用。','The background changed. Reopen settings before applying.'));
       const mode=next.backgroundImagePath?'image':'plain';Object.assign(this.settings,next,{canvasBackground:mode});
       try{await this.savePreferences();}catch(error){if(backgroundImageStamp(this.settings)===backgroundImageStamp(next)&&this.settings.canvasBackground===mode){Object.assign(this.settings,previous);for(const leaf of this.app.workspace.getLeavesOfType(VIEW))if(leaf.view instanceof BoardView)leaf.view.applyPreferences();}throw error;}
     }});this.backgroundImageModal=modal;modal.open();return modal;
   }
   openPaperSettings(){
     if(this.paperSettingsModal?.modalEl.isConnected){this.paperSettingsModal.modalEl.querySelector<HTMLButtonElement>('button[aria-pressed=true]')?.focus();return this.paperSettingsModal;}
-    const modal=new PaperSettingsModal(this.app,{preferences:()=>cleanPaperPreferences(this.settings),save:async preferences=>{
+    const modal=new PaperSettingsModal(this.app,{language:settingsLanguage(this.settings),preferences:()=>cleanPaperPreferences(this.settings),save:async preferences=>{
       const previous={...cleanPaperPreferences(this.settings),canvasBackground:this.settings.canvasBackground},next=cleanPaperPreferences(preferences);
       Object.assign(this.settings,next,{canvasBackground:'paper'});
       try{await this.savePreferences();}catch(error){if(paperAppearanceStamp(this.settings)===paperAppearanceStamp(next)&&this.settings.canvasBackground==='paper'){Object.assign(this.settings,previous);for(const leaf of this.app.workspace.getLeavesOfType(VIEW))if(leaf.view instanceof BoardView)leaf.view.applyPreferences();}throw error;}
@@ -3550,6 +3553,8 @@ class BoardView extends FileView {
     if(styledCards.length){
       fieldGroup('卡片版式');
       const picker=fieldHost.createDiv({cls:'ts-card-style-picker',attr:{role:'group','aria-label':'卡片样式'}});
+      const previewTone=cardHeadingColors(styledCards[0]).color;
+      if(styledCards.every(n=>cardHeadingColors(n).color===previewTone))picker.style.setProperty('--ts-card-heading-color',previewTone);
       for(const [value,label] of Object.entries(cardStyleChoices)){
         const chosen=styledCards.every(n=>cardStyleChoice(n)===value);
         const option=picker.createEl('button',{cls:'ts-card-style-option',attr:{type:'button','data-style':value,'aria-pressed':String(chosen),'aria-label':label,title:label}});
@@ -4325,61 +4330,6 @@ class BoardView extends FileView {
 
 class WorkspaceSettingsModal extends Modal {
   constructor(app:App,private plugin:ThoughtSpace){super(app);}
-  onOpen(){this.modalEl.addClass('ts-workspace-settings-modal');themeSurface(this.modalEl);this.titleEl.setText('工作台设置');const tab=new ThoughtSpaceSettings(this.app,this.plugin);tab.containerEl=this.contentEl;tab.display();}
+  onOpen(){this.modalEl.addClass('ts-workspace-settings-modal');themeSurface(this.modalEl);this.titleEl.setText(settingsLanguage(this.plugin.settings)==='en'?'Workspace settings':'工作台设置');const tab=new ThoughtSpaceSettings(this.app,this.plugin);tab.containerEl=this.contentEl;tab.display();}
   onClose(){this.contentEl.empty();}
-}
-
-class ThoughtSpaceSettings extends PluginSettingTab {
-  private page: 'appearance' | 'filing' | 'board' | 'input' | 'images' = 'appearance';
-  constructor(app: App, private plugin: ThoughtSpace) { super(app, plugin); }
-  display() {
-    const { containerEl } = this; containerEl.empty(); containerEl.addClass('ts-settings');containerEl.dataset.accent=this.plugin.settings.accent;
-    const hero = containerEl.createDiv('ts-settings-hero'); setIcon(hero.createDiv('ts-settings-logo'), 'network');
-    const intro = hero.createDiv(); new Setting(intro).setName('ThoughtSpace').setHeading(); intro.createEl('p', { text: '知识空间 · 让阅读、思考与整理保持顺手。' });
-    const tabs = containerEl.createDiv('ts-settings-tabs');
-    for (const [id, label, icon] of [['appearance', '界面与阅读', 'palette'], ['board','白板体验','sliders-horizontal'], ['input','鼠标与键盘','mouse'], ['filing', '文件与归档', 'folders'],['images','图片与图床','image']] as const) {
-      const tab = button(tabs, label, icon, () => { this.page = id; this.display(); }); tab.toggleClass('is-active', this.page === id);
-    }
-    const persist = () => this.plugin.savePreferences();
-    if(this.page==='images'){
-      const api=imageHostApi(this.app);
-      new Setting(containerEl).setName('极速图床').setDesc(api?(api.status().ready?'已连接 · COS 上传可用':'已连接 · 请在极速图床中选择并配置 COS'):'需要在同一笔记库安装并启用极速图床 0.9.0 或更新版本。').addButton(b=>b.setButtonText('图床设置').onClick(()=>{const settings=hostSettings(this.app);if(!settings){new Notice('当前 Obsidian 版本无法直接打开插件设置');return;}settings.open();settings.openTabById('fast-image-bed');}));
-      new Setting(containerEl).setName('新图片使用极速图床').setDesc('导入、粘贴或拖入白板时，使用极速图床的 COS、压缩和隐私设置上传。始终保留本地附件，失败或链接失效时回退本地。密钥由极速图床管理。').addToggle(t=>t.setValue(this.plugin.settings.imageHostEnabled===true).onChange(value=>{this.plugin.settings.imageHostEnabled=value;act(persist);}));
-      containerEl.createEl('p',{text:'已有图片可通过右键“上传到极速图床”上传。移出白板与白板撤销只改变引用，不删除云端图片。',cls:'ts-muted'});return;
-    }
-    if(this.page==='board'){boardPreferenceControls(containerEl.createDiv('ts-board-preferences'),this.plugin.settings,persist,{includeMouse:false});return;}
-    if(this.page==='input'){mousePreferenceControls(containerEl.createDiv('ts-board-preferences'),this.plugin.settings,persist,()=>{const settings=hostSettings(this.app);if(!settings){new Notice('请打开 Obsidian 设置中的快捷键，搜索 ThoughtSpace');return;}settings.open();settings.openTabById('hotkeys');});return;}
-    if (this.page === 'appearance') {
-      new Setting(containerEl).setName('白板原生搜索').setDesc('自动更新 ThoughtSpace/白板搜索 中的 Markdown 索引；支持原生搜索并定位节点。关闭后停止更新，已有索引保留。').addToggle(t=>t.setValue(this.plugin.settings.boardSearchEnabled!==false).onChange(value=>{this.plugin.settings.boardSearchEnabled=value;this.plugin.rebuildBoardSearch();act(persist);}));
-      new Setting(containerEl).setName('笔记 Markdown 工具栏').setDesc('在普通笔记和侧栏笔记的编辑模式显示格式工具；使用原生撤销与自动保存。').addToggle(t=>t.setValue(this.plugin.settings.noteMarkdownToolbar!==false).onChange(value=>{this.plugin.settings.noteMarkdownToolbar=value;this.plugin.noteToolbar?.refresh();act(persist);}));
-      new Setting(containerEl).setName('画布外观').setHeading().setClass('ts-settings-section');
-      new Setting(containerEl).setName('默认卡片样式').setDesc('用于之后新建或插入的 Markdown 卡片；选中卡片后，也可在顶部“卡片”中单独或批量更改。已有卡片保持原样。').addDropdown(d=>d.addOptions(cardStyleChoices).setValue(this.plugin.settings.defaultCardStyle).onChange(value=>{if(!Object.hasOwn(cardStyleChoices,value))return;this.plugin.settings.defaultCardStyle=value as CardStyleChoice;act(persist);}));
-      new Setting(containerEl).setName('界面材质').setDesc('柔光保留轻盈层次，纸感使用实色面板和更清晰的边界。').addDropdown(d=>d.addOptions({soft:'柔光',paper:'纸感'}).setValue(this.plugin.settings.surfaceStyle).onChange(value=>{this.plugin.settings.surfaceStyle=value as 'soft'|'paper';act(persist);}));
-      new Setting(containerEl).setName('阅读桌字号').setDesc('仅影响独立阅读桌，保留白板对象字号；重新打开阅读桌生效。').addDropdown(d=>d.addOptions({'14':'14 px','16':'16 px','18':'18 px','20':'20 px'}).setValue(String(this.plugin.settings.readingSize)).onChange(value=>{this.plugin.settings.readingSize=Number(value);act(persist);}));
-      new Setting(containerEl).setName('阅读桌行宽').setDesc('标准行宽适合长文，宽版适合表格。重新打开阅读桌生效。').addDropdown(d=>d.addOptions({standard:'标准 · 680 px',wide:'宽版 · 920 px'}).setValue(this.plugin.settings.readingWidth).onChange(value=>{this.plugin.settings.readingWidth=value as 'standard'|'wide';act(persist);}));
-      new Setting(containerEl).setName('强调色').setDesc('改变按钮、选中状态与导航的颜色；卡片自己的配色保留。').addDropdown(drop => drop.addOptions({forest:'森林绿',blue:'湖水蓝',amber:'暖琥珀',rose:'玫瑰色'}).setValue(this.plugin.settings.accent).onChange(value => { this.plugin.settings.accent = value as AppearanceSettings['accent'];containerEl.dataset.accent=value;act(persist); }));
-      new Setting(containerEl).setName('画布背景').setDesc('选择位置参照、纯色或细腻纸张纹理。').addDropdown(drop => drop.addOptions({dots:'点阵',grid:'网格',plain:'纯色',paper:'纸张纹理',image:'自定义图片'}).setValue(this.plugin.settings.canvasBackground).onChange(value => { if(value==='image'&&!this.plugin.settings.backgroundImagePath){drop.setValue(this.plugin.settings.canvasBackground);this.plugin.openBackgroundImageSettings();return;}this.plugin.settings.canvasBackground = value as AppearanceSettings['canvasBackground']; act(persist); }));
-      new Setting(containerEl).setName('纸张外观').setDesc('米黄、白色、暖白、牛皮纸、再生纸；可自定义纸色和纹理强度。').addButton(b=>b.setButtonText('自定义纸张').onClick(()=>{this.plugin.openPaperSettings();}));
-      new Setting(containerEl).setName('自定义背景图片').setDesc('选择本地图片，设置填满、完整显示或平铺，以及透明度。图片保存在本库插件目录中。').addButton(b=>b.setButtonText('设置背景图片').onClick(()=>{this.plugin.openBackgroundImageSettings();}));
-      new Setting(containerEl).setName('液态玻璃效果').setDesc('半透明磨砂、柔和高光和圆角层次；关闭后使用实色界面。').addToggle(toggle=>toggle.setValue(this.plugin.settings.glassEffects!==false).onChange(value=>{this.plugin.settings.glassEffects=value;act(persist);}));
-      new Setting(containerEl).setName('显示小地图').setDesc('显示当前位置和白板全貌；窄窗格会自动收起。').addToggle(toggle => toggle.setValue(this.plugin.settings.showMinimap).onChange(value => { this.plugin.settings.showMinimap = value; act(persist); }));
-      new Setting(containerEl).setName('阅读与空间').setHeading().setClass('ts-settings-section');
-      new Setting(containerEl).setName('界面密度').setDesc('舒适布局展示卡片摘要；紧凑布局节省侧栏空间。').addDropdown(drop => drop.addOptions({comfortable:'舒适',compact:'紧凑'}).setValue(this.plugin.settings.density).onChange(value => { this.plugin.settings.density = value as AppearanceSettings['density']; act(persist); }));
-      containerEl.createDiv({ cls: 'ts-settings-tip', text: '在左侧切换卡片、白板、任务与大纲。选中文本、笔记或分组后，在顶部调整适用的文字、背景和边框；右键打开更多操作。⌘ / Ctrl + F 查找白板内容，右键白板名称可重命名。外观选项实时应用。' });
-      return;
-    }
-    containerEl.createEl('p', { cls: 'ts-muted', text: '多标签默认使用 Obsidian 返回的第一个标签（属性标签优先）；单张卡片可通过右键选择归档标签。' });
-    new Setting(containerEl).setName('自动整理').setHeading().setClass('ts-settings-section');
-    new Setting(containerEl).setName('自动按标签归档').setDesc('仅自动管理卡片目录内的笔记。在原生编辑器或属性区修改标签后移动文件；删除最后一个标签时放入“未分类”。').addToggle(toggle => toggle.setValue(this.plugin.settings.autoFileCards).onChange(value => { this.plugin.settings.autoFileCards = value; act(persist); }));
-    new Setting(containerEl).setName('清理空标签文件夹').setDesc('归档后，原标签文件夹为空时放入回收站。含笔记、附件或其他文件的文件夹始终保留。').addToggle(toggle => toggle.setValue(this.plugin.settings.cleanupEmptyFolders).onChange(value => { this.plugin.settings.cleanupEmptyFolders = value; act(persist); }));
-    new Setting(containerEl).setName('保存位置').setHeading().setClass('ts-settings-section');
-    let cards = this.plugin.settings.cardFolder;const journals = this.plugin.journalRoot;
-    new Setting(containerEl).setName('卡片根目录').setDesc('标签 #研究/阅读 → 此目录/研究/阅读。没有标签 → 此目录/未分类。').addText(input => input.setValue(cards).onChange(value => { cards = value; }));
-    new Setting(containerEl).setName('日历与日记').setDesc('已独立为 ThoughtSpace 日历与日记。日记目录、任务和外观请在新插件的设置中管理。');
-    new Setting(containerEl).setName('保存目录设置').setDesc('修改目录只影响之后的新建和归档；不会批量移动旧根目录。').addButton(btn => btn.setButtonText('保存目录').setCta().onClick(() => act(async () => { Object.assign(this.plugin.settings, validateFolders(cards, journals)); await persist(); new Notice('目录设置已保存'); })));
-    new Setting(containerEl).setName('整理已有文件').setHeading().setClass('ts-settings-section');
-    new Setting(containerEl).setName('整理已有卡片').setDesc('仅整理卡片根目录内的 Markdown；每次移动前备份，同名文件自动加序号。').addButton(btn => btn.setButtonText('按标签整理').onClick(() => act(async () => { btn.setDisabled(true); try { await this.plugin.fileAllCards(); } finally { btn.setDisabled(false); } })));
-    new Setting(containerEl).setName('整理旧日记').setDesc('将日记根目录下的 YYYY-MM-DD.md 移到年/月目录。同日目标已存在时保留两个版本，不覆盖。').addButton(btn => btn.setButtonText('整理为年/月').onClick(() => act(async () => { btn.setDisabled(true); try { await this.plugin.fileOldJournals(); } finally { btn.setDisabled(false); } })));
-    containerEl.createEl('p', { cls: 'ts-muted', text: `归档前的笔记、白板引用备份和移动记录保存在 ${this.app.vault.configDir}/plugins/thoughtspace/filing-backups/。文件移动不属于白板布局撤销。Obsidian 原生文件列表与搜索保持可用。` });
-  }
 }

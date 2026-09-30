@@ -1,7 +1,7 @@
 /* Optional Markdown note surfaces. Load after card-surfaces and inline-editor.
    Document metrics, node geometry, connection ports and action docks stay owned
    by their existing rules. A stale transparent/fill class cannot erase a style. */
-.ts-root .ts-main .ts-world > .ts-node.ts-card:is([data-card-style="band"],[data-card-style="paper"]),
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style],
 .ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style]:not(.is-compact-fold),
 .ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style].is-compact-fold.has-card-fill:not(.is-transparent) {
   background:var(--ts-styled-surface,var(--background-primary))!important;
@@ -81,21 +81,58 @@
   top:-10px; left:12px; width:15px; height:18px;
 }
 .ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"].is-compact-fold > .ts-card-paperclip svg { width:15px; height:18px; }
-.ts-root .ts-main .ts-world > .ts-node.ts-card:is([data-card-style="band"],[data-card-style="paper"]) > .ts-summary-title {
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style] > .ts-summary-title {
   font-family:var(--ts-card-body-font,var(--font-text));
 }
 
-/* Four small choices, with two columns when their actual panel is narrow. */
+/* Index cards keep the accent at the edge, leaving the document itself quiet.
+   Painted rules never change bounds, cover content or intercept pointer input. */
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="index"] {
+  border-radius:6px!important;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="index"].has-card-fill {
+  --ts-styled-surface:color-mix(in srgb,var(--ts-card-fill) 12%,var(--background-primary));
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="index"]::before {
+  content:''; position:absolute; inset:0 auto 0 0; width:4px; z-index:1;
+  border-radius:5px 0 0 5px; background:var(--ts-card-heading-color,var(--ts-tone)); pointer-events:none;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="index"] > .ts-node-header {
+  display:flex; flex:none; min-width:0; margin:0 16px; padding:12px 0 10px!important;
+  border-bottom:1px solid var(--ts-card-surface-line)!important; background:transparent!important;
+  font-family:var(--ts-card-body-font,var(--font-text)); font-size:var(--ts-card-body-size,14px); font-weight:600;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="index"].is-folded > .ts-node-header { border-bottom:0!important; }
+
+/* Sticky notes use the selected card color in both themes. The fold sits inside
+   the existing 16px document inset, so the editor and preview keep their metrics. */
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="sticky"] {
+  --ts-styled-surface:color-mix(in srgb,var(--ts-card-heading-color,var(--ts-tone)) 16%,var(--background-primary));
+  --ts-sticky-fold:color-mix(in srgb,var(--ts-card-heading-color,var(--ts-tone)) 32%,var(--background-primary));
+  border-radius:2px 2px 6px 2px!important;
+}
+.theme-dark .ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="sticky"] {
+  --ts-styled-surface:color-mix(in srgb,var(--ts-card-heading-color,var(--ts-tone)) 24%,var(--background-primary));
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="sticky"]::before {
+  content:''; position:absolute; top:0; right:0; width:14px; height:14px; z-index:1;
+  background:var(--ts-sticky-fold); clip-path:polygon(0 0,100% 100%,0 100%);
+  pointer-events:none;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="sticky"] > .ts-node-header { padding-right:24px!important; }
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="sticky"].is-compact-fold::before { width:8px; height:8px; }
+
+/* Six previews fit in one desktop row, then three or two columns in a pane. */
 .ts-root .ts-card-style-picker {
-  container:ts-card-style-picker / inline-size; display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:6px; width:370px; min-width:0; max-width:100%; padding:2px;
+  container:ts-card-style-picker / inline-size; display:grid; grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:6px; width:480px; min-width:0; max-width:100%; padding:3px;
 }
 .ts-root .ts-floating-formatbar .ts-card-style-picker > button.ts-card-style-option {
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
-  width:auto; min-width:0; height:58px; min-height:58px; margin:0; padding:5px!important;
+  width:auto; min-width:0; height:62px; min-height:62px; margin:0; padding:5px!important;
   border:1px solid var(--background-modifier-border)!important; border-radius:7px!important;
   background:var(--background-primary)!important; color:var(--text-muted); box-shadow:none!important;
-  font:400 11px/1.25 var(--font-interface); white-space:nowrap;
+  font:400 11px/1.25 var(--font-interface); letter-spacing:0; white-space:nowrap;
 }
 .ts-root .ts-floating-formatbar .ts-card-style-picker > button.ts-card-style-option:hover:not(:disabled) {
   background:var(--background-modifier-hover)!important; color:var(--text-normal);
@@ -111,7 +148,7 @@
 .ts-root .ts-card-style-option > .ts-card-style-name { max-width:100%; overflow:hidden; text-overflow:ellipsis; }
 .ts-root .ts-card-style-swatch {
   position:relative; display:flex; flex-direction:column; justify-content:center; gap:3px; flex:none;
-  width:42px; height:26px; padding:7px; border:1px solid var(--background-modifier-border);
+  box-sizing:border-box; width:42px; height:26px; padding:7px; border:1px solid var(--background-modifier-border);
   border-radius:3px; background:var(--background-primary); pointer-events:none;
 }
 .ts-root .ts-card-style-swatch > i { display:block; width:100%; height:2px; flex:none; background:var(--text-faint); opacity:.6; }
@@ -130,6 +167,32 @@
   content:''; position:absolute; top:-4px; left:7px; width:4px; height:9px;
   border:1px solid var(--text-muted); border-radius:3px; background:var(--background-primary); transform:rotate(-12deg); pointer-events:none;
 }
-@container ts-card-style-picker (max-width:350px) {
+.ts-root .ts-card-style-option[data-style="index"] > .ts-card-style-swatch {
+  border-left:3px solid var(--ts-card-heading-color,var(--interactive-accent)); border-radius:2px;
+}
+.ts-root .ts-card-style-option[data-style="index"] > .ts-card-style-swatch > i:first-child {
+  height:3px; background:var(--ts-card-heading-color,var(--interactive-accent));
+}
+.ts-root .ts-card-style-option[data-style="sticky"] > .ts-card-style-swatch {
+  border-radius:1px 1px 4px 1px; background:color-mix(in srgb,var(--ts-card-heading-color,var(--interactive-accent)) 20%,var(--background-primary));
+}
+.ts-root .ts-card-style-option[data-style="sticky"] > .ts-card-style-swatch::after {
+  content:''; position:absolute; top:0; right:0; width:7px; height:7px;
+  background:var(--ts-card-heading-color,var(--interactive-accent)); opacity:.5; clip-path:polygon(0 0,100% 100%,0 100%);
+}
+@container ts-card-style-picker (max-width:440px) {
   .ts-root .ts-card-style-picker > .ts-card-style-option { grid-column:span 2; }
+}
+@container ts-card-style-picker (max-width:250px) {
+  .ts-root .ts-card-style-picker > .ts-card-style-option { grid-column:span 3; }
+}
+/* Appearance previews can wrap in narrow splits even when other formatting
+   fields use one scrollable row. Very short canvases keep the existing row. */
+@container ts-board-canvas (max-width:560px) and (min-height:360px) {
+  .ts-root .ts-floating-formatbar .ts-commandbar > .ts-selection-tools:has(> .ts-appearance-group[data-appearance-panel="card"]:not([hidden])) {
+    flex:1 1 auto; flex-wrap:wrap; width:auto; max-width:100%;
+  }
+  .ts-root .ts-floating-formatbar .ts-appearance-group[data-appearance-panel="card"] {
+    flex:1 1 auto; flex-wrap:wrap; max-width:100%;
+  }
 }
