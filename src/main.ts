@@ -101,7 +101,7 @@ import {excerptPresentation,textExcerptPresentation,ExcerptSource,sourceLinkTarg
 import {MaterialsModal,MaterialsWorkbench,MaterialAdapter} from './materials-view';
 import {Fragment,OutlineTopic,outlineBoard,rebaseFragment,createFragmentRebaser,selectionFragment,pdfLiteralText,pdfExcerptDocument,excerptNoteMarkdown,MaterialImportOptions,MaterialImportResult,excerptDocuments} from './materials';
 import {EdgeLayer} from './edge-layer';
-import {connectionTarget,duplicateConnection,reconnectEdge} from './connection-flow';
+import {connectionTarget,connectionSourceHit,duplicateConnection,reconnectEdge} from './connection-flow';
 import {sectionBounds,validSectionRect,SectionRect,foldSections,sectionDisplayNode} from './sections';
 import {gridLanding,gridSteps,visibleGridSize} from './canvas-controls';
 import {NativeBridgeModal} from './native-bridge-view';
@@ -328,12 +328,19 @@ class Session {
     if (this.blocked) return;
     const readId=++this.externalRead;await this.flush();
     if (readId!==this.externalRead||this.saving || this.blocked) return;
-    const baseline=this.baseline,board=this.board,pending=this.queue;
+    const baseline=this.baseline,board=this.board,pending=this.queue,viewport={...board.viewport};
     const raw = await this.plugin.app.vault.read(this.file);
     // A newer local transaction or another completed read owns the current state.
     if(readId!==this.externalRead||this.blocked||this.saving||pending!==this.queue||baseline!==this.baseline||board!==this.board)return;
     if (raw === this.baseline) return;
-    try { const b = parseBoard(raw); this.board = b; this.baseline = raw; this.history = new History(); this.status = '已同步外部修改'; this.emit(); }
+    try {
+      const b = parseBoard(raw),savedViewport=parseBoard(baseline).viewport;
+      // Panning changes the camera directly until pointer release. Accept external
+      // content while keeping an unsaved camera or one moved during this read; release saves
+      // against the actual external baseline instead of reporting a false conflict.
+      if([viewport,savedViewport].some(camera=>board.viewport.x!==camera.x||board.viewport.y!==camera.y||board.viewport.zoom!==camera.zoom))b.viewport={...board.viewport};
+      this.board = b; this.baseline = raw; this.history = new History(); this.status = '已同步外部修改'; this.emit();
+    }
     catch (e) { this.blocked = true; this.status = '外部文件格式错误 · 已暂停写入'; this.emit(); report(e); }
   }
 }
@@ -772,6 +779,9 @@ export default class ThoughtSpace extends Plugin {
   async session(file: TFile) {
     let result = this.sessions.get(file);
     if (!result) { result = this.app.vault.read(file).then(raw => new Session(this, file, raw)); this.sessions.set(file, result); }
+    // Acquiring the same session renews its cache identity before a new view can
+    // attach its listener, so an earlier asynchronous release cannot retire it.
+    else { result = result.then(session => session); this.sessions.set(file, result); }
     try { return await result; } catch (e) { if(this.sessions.get(file)===result)this.sessions.delete(file); throw e; }
   }
   async release(s: Session) {
@@ -1530,14 +1540,16 @@ class BoardView extends FileView {
   private selectionTool = false; private selectionButton?: HTMLButtonElement;
   private sectionTool=false; private sectionButton?:HTMLButtonElement; private sectionHint?:HTMLElement;
   private marquee?: {id:number;start:{x:number;y:number};base:Set<string>;baseEdge?:string;box:HTMLElement;section?:boolean;rect?:SectionRect;};
-  private rightMarquee?:{id:number;x:number;y:number;start:{x:number;y:number};event:PointerEvent;menu?:MouseEvent;owner:Session;moved:boolean;additive:boolean;action:'pan'|'select';viewport:Board['viewport']};
+  private rightMarquee?:{id:number;x:number;y:number;start:{x:number;y:number};event:PointerEvent;menu?:MouseEvent;owner:Session;moved:boolean;crossedThreshold?:boolean;additive:boolean;action:'pan'|'select';viewport:Board['viewport']};
   private suppressBoardContext=false;
+  private suppressMiddlePaste=false;
   private focusMode = false; private focusButton?: HTMLElement;
   private trail: TFile[] = []; private crumbs!: HTMLElement; private boardStats!: HTMLElement;
   private minimap!: HTMLElement; private collapsedBoards = new Set<string>();
   private navigationQueue: Promise<void> = Promise.resolve();
   private controlStageSize?:{width:number;height:number};
   private cardToolbarReserve=60;
+  private cardToolbarObstacles:{x:number;y:number;width:number;height:number}[]=[];
   private positions = new Map<string, HTMLElement>(); private space = false; private dragging = false;
   private endpointPorts=new Map<Element,string>();private edgeLayer?:EdgeLayer;private pointerFrame=0;private pendingPointer?:PointerEvent;
   private linkDrag?:{id:number;x:number;y:number;moved:boolean;owner:Session;topicClick?:boolean;edge?:{id:string;end:'from'|'to';expected:string;index?:number}};
@@ -1554,7 +1566,7 @@ class BoardView extends FileView {
   }
   private markerId = `ts-arrow-${uid()}`;
   private alignmentLines:HTMLElement[]=[];
-  private gesture?: { draft:Map<string,Card>;targets:DragTarget[];alignmentReady?:boolean;lockedAxis?:'x'|'y';alignment?:AlignmentIndex;guides?:Guide[];originals:Map<string,Card>;idSet:Set<string>; id: number; x: number; y: number; before: Board; ids: string[]; pan: boolean; clearSelectionOnClick?:boolean;resize?: string;resizeEdge?:SectionResizeEdge };
+  private gesture?: { draft:Map<string,Card>;targets:DragTarget[];alignmentReady?:boolean;lockedAxis?:'x'|'y';alignment?:AlignmentIndex;guides?:Guide[];originals:Map<string,Card>;idSet:Set<string>; id: number; x: number; y: number; before: Board; ids: string[]; pan: boolean; clearSelectionOnClick?:boolean;deselectOnClick?:string;crossedThreshold?:boolean;resize?: string;resizeEdge?:SectionResizeEdge };
   private inspectorChoiceState?:{title:string;choices:{label:string;checked?:boolean;swatch?:string;run:()=>unknown}[];grid:boolean;owner:Session|undefined;key:string};
   private selectionTools?:HTMLElement;
   private selectionHeading?:HTMLElement;
@@ -1607,10 +1619,10 @@ class BoardView extends FileView {
     const point=this.materialDropPoint(x,y),target=this.session.board.nodes.find(n=>n.id===point.targetId);hint.toggleClass('is-evidence',!!target);hint.toggleClass('is-blocked',!!target?.locked);hint.setText(target?(target.locked?'卡片已锁定':`＋ 追加证据 · ${target.title||target.file?.split('/').pop()||'笔记'}`):'松开创建摘录文本');Object.assign(hint.style,{left:(target?.x??point.x)+'px',top:(target?target.y+target.height-4:point.y)+'px',width:(target?.width??this.plugin.settings.defaultCardWidth)+'px',height:target?'4px':'160px'});
   }
   clearMaterialLanding(){this.contentEl.removeClass('ts-receiving-material');this.world?.querySelector('.ts-material-landing')?.remove();}
-  async appendCardEvidence(id:string,evidence:string,owner=this.requireOwner()):Promise<MaterialImportResult>{
+  async appendCardEvidence(id:string,evidence:string,owner=this.requireOwner(),validateSource=()=>{}):Promise<MaterialImportResult>{
     const node=owner.board.nodes.find(n=>n.id===id),path=node?.file,file=path&&this.app.vault.getAbstractFileByPath(path);
     if(!node||node.kind!=='card'||node.locked||!(file instanceof TFile))throw Error('目标卡片已锁定、移除或来源不存在');
-    const validate=()=>{this.requireOwner(owner);const current=owner.board.nodes.find(n=>n.id===id);if(!current||current.kind!=='card'||current.locked||current.file!==path||file.path!==path||this.app.vault.getAbstractFileByPath(path)!==file)throw Error('目标卡片已变化，未追加证据');};
+    const validate=()=>{this.requireOwner(owner);validateSource();const current=owner.board.nodes.find(n=>n.id===id);if(!current||current.kind!=='card'||current.locked||current.file!==path||file.path!==path||this.app.vault.getAbstractFileByPath(path)!==file)throw Error('目标卡片已变化，未追加证据');};
     for(const leaf of this.app.workspace.getLeavesOfType(VIEW))if(leaf.view instanceof BoardView)await leaf.view.prepareNoteOpen(file);
     validate();const before=await readCurrentNativeNote(this.app,file);validate();const after=appendEvidence(before,evidence);
     await writeNativeNoteDraft(this.app,file,before,after,validate);this.renderBoard();new Notice('证据已追加到卡片末尾，来源链接已保留');
@@ -1621,7 +1633,7 @@ class BoardView extends FileView {
     const ensure=()=>{this.requireOwner(owner);if(this.app.vault.getAbstractFileByPath(path)!==source||source.path!==path||source.stat.mtime!==stamp.mtime||source.stat.size!==stamp.size)throw Error('PDF 已移动或变化，请重新选择文字');};ensure();
     const link=`[[${source.path}#page=${page}]]`,document=pdfExcerptDocument(text,link,page,endPage);
     const citation=excerptPresentation(document.body).sources[0].citation;
-    ensure();if(position.targetId)return this.appendCardEvidence(position.targetId,pdfLiteralText(text.trim())+'\n\n'+citation,owner);return this.placeExcerptTexts([text.trim()+'\n\n> '+citation],position,owner,'purple');
+    ensure();if(position.targetId)return this.appendCardEvidence(position.targetId,pdfLiteralText(text.trim())+'\n\n'+citation,owner,ensure);return this.placeExcerptTexts([text.trim()+'\n\n> '+citation],position,owner,'purple');
   }
   private async placeExcerptTexts(texts:string[],position:{x:number;y:number},owner:Session,color:Card['color']='sand'):Promise<MaterialImportResult>{
     this.requireOwner(owner);let y=position.y;const nodes=texts.map(text=>{const n:Card={id:uid(),kind:'text',text,x:position.x,y,width:240,height:60,color,fontSize:this.plugin.settings.defaultTextSize,autoSize:true,review:'later'};fitTextNode(n,this.contentEl);y+=n.height+24;return n;});
@@ -1629,23 +1641,24 @@ class BoardView extends FileView {
   }
   async importExcerpts(source:TFile,raw:string,fragments:Fragment[],group=true,link=true,owner=this.session,options:MaterialImportOptions={}):Promise<MaterialImportResult>{
     this.requireOwner(owner);if(!fragments.length||fragments.length>200)throw Error('请选择 1–200 个片段');
-    if(this.app.vault.getAbstractFileByPath(source.path)!==source||(await this.app.vault.read(source)).replace(/\r\n?/g,'\n')!==raw.replace(/\r\n?/g,'\n'))throw Error('原文已变化，请刷新材料后重新选择');
+    const sourcePath=source.path,sourceStamp={mtime:source.stat.mtime,size:source.stat.size},validateSource=()=>{this.requireOwner(owner);if(source.path!==sourcePath||this.app.vault.getAbstractFileByPath(sourcePath)!==source||source.stat.mtime!==sourceStamp.mtime||source.stat.size!==sourceStamp.size)throw Error('原文已变化或移动，请刷新材料后重新选择');};
+    validateSource();const currentRaw=await this.app.vault.read(source);validateSource();if(currentRaw.replace(/\r\n?/g,'\n')!==raw.replace(/\r\n?/g,'\n'))throw Error('原文已变化，请刷新材料后重新选择');
     this.requireOwner(owner);const existingGroup=group&&options.groupId?owner!.board.nodes.find(n=>n.kind==='section'&&n.id===options.groupId):undefined;if(existingGroup?.locked)throw Error('摘录分组已锁定，请解锁或取消汇入分组');
-    const point=options.position?{...options.position}:this.materialPoint(),created:TFile[]=[],nodes:Card[]=[],sourcePath=source.path;const width=this.plugin.settings.defaultCardWidth;if(link&&!options.position&&!existingGroup&&!owner!.board.nodes.some(n=>n.kind==='card'&&n.file===source.path))point.x+=width+96;if(existingGroup&&!options.position){const members=owner!.board.nodes.filter(n=>contained(existingGroup,n));point.x=existingGroup.x+30;point.y=Math.max(existingGroup.y+60,...members.map(n=>n.y+n.height+40));}
+    const point=options.position?{...options.position}:this.materialPoint(),created:TFile[]=[],nodes:Card[]=[];const width=this.plugin.settings.defaultCardWidth;if(link&&!options.position&&!existingGroup&&!owner!.board.nodes.some(n=>n.kind==='card'&&n.file===source.path))point.x+=width+96;if(existingGroup&&!options.position){const members=owner!.board.nodes.filter(n=>contained(existingGroup,n));point.x=existingGroup.x+30;point.y=Math.max(existingGroup.y+60,...members.map(n=>n.y+n.height+40));}
     const targetNode=options.position?.targetId?owner!.board.nodes.find(n=>n.id===options.position!.targetId):undefined;const destination=targetNode?.file||`${this.plugin.settings.cardFolder}/摘录.md`;
     const cache=this.app.metadataCache.getFileCache(source);if(!cache)throw Error('笔记索引尚未就绪，请稍后刷新材料');
     const references=[...(cache.links||[]),...(cache.embeds||[])].flatMap(ref=>{const parts=parseLinktext(ref.link),target=parts.path?this.app.metadataCache.getFirstLinkpathDest(parts.path,source.path):source;if(!(target instanceof TFile))return [];let replacement=this.app.fileManager.generateMarkdownLink(target,destination,parts.subpath,ref.displayText);if(ref.original.startsWith('!')&&!replacement.startsWith('!'))replacement='!'+replacement;return [{original:ref.original,replacement,start:ref.position.start,end:ref.position.end}];});
     const rebase=createFragmentRebaser(raw,references),prepared=fragments.map(f=>({...f,body:rebase(f)}));
-    if(options.position?.targetId){const sourceLink=this.app.fileManager.generateMarkdownLink(source,destination);const documents=excerptDocuments(prepared,sourceLink,options);return this.appendCardEvidence(options.position.targetId,documents.map(d=>d.body.replace(/^# [^\n]*\n\n/,'')).join('\n\n'),this.requireOwner(owner));}
+    if(options.position?.targetId){const sourceLink=this.app.fileManager.generateMarkdownLink(source,destination);const documents=excerptDocuments(prepared,sourceLink,options);return this.appendCardEvidence(options.position.targetId,documents.map(d=>d.body.replace(/^# [^\n]*\n\n/,'')).join('\n\n'),this.requireOwner(owner),validateSource);}
     if(options.asText){const documents=excerptDocuments(prepared,`[[${source.path}]]`,options);return this.placeExcerptTexts(documents.map(d=>d.body.replace(/^# [^\n]*\n\n/,'')),point,this.requireOwner(owner));}
     const sourceLink=this.app.fileManager.generateMarkdownLink(source,`${this.plugin.settings.cardFolder}/摘录.md`),documents=excerptDocuments(prepared,sourceLink,options);let groupId:string|undefined;
     try{
       for(const [i,f]of documents.entries()){
-        this.requireOwner(owner);if(source.path!==sourcePath)throw Error('原文已移动，请重新读取材料');
+        validateSource();
         const file=await this.plugin.createUnique(this.plugin.settings.cardFolder,`${source.basename} · ${f.title}`, 'md',f.body);created.push(file);
         nodes.push(applyDefaultCardStyle({id:uid(),kind:'card',transparent:true,file:file.path,x:point.x+(i%3)*(width+32),y:point.y+Math.floor(i/3)*310,width,height:270,color:f.kind==='quote'?'purple':f.kind==='task'?'sand':'green',review:'later'},this.plugin.settings.defaultCardStyle));
       }
-      this.requireOwner(owner);if(source.path!==sourcePath||(await this.app.vault.read(source)).replace(/\r\n?/g,'\n')!==raw.replace(/\r\n?/g,'\n'))throw Error('原文在导入期间发生变化');this.requireOwner(owner);
+      validateSource();if((await this.app.vault.read(source)).replace(/\r\n?/g,'\n')!==raw.replace(/\r\n?/g,'\n'))throw Error('原文在导入期间发生变化');validateSource();
       owner!.change(b=>{b.version=3;if(group){const previous=existingGroup&&b.nodes.find(n=>n.id===existingGroup.id);if(existingGroup&&(!previous||previous.locked))throw Error('分组已变化，请刷新后继续');const frame=sectionBounds([...(previous?b.nodes.filter(n=>contained(previous,n)):[]),...nodes])!;if(previous){Object.assign(previous,frame);groupId=previous.id;}else{groupId=uid();b.nodes.push({id:groupId,kind:'section',title:`${source.basename} · 摘录`,color:'green',...frame});}}b.nodes.push(...nodes);
         if(link){let sourceNode=b.nodes.find(n=>n.kind==='card'&&n.file===source.path);if(!sourceNode){sourceNode=applyDefaultCardStyle({id:uid(),kind:'card',transparent:true,file:source.path,x:point.x-width-96,y:point.y,width,height:270,color:'slate'},this.plugin.settings.defaultCardStyle);b.nodes.push(sourceNode);}unfoldAncestors(b,sourceNode.id);for(const n of nodes)b.edges.push({id:uid(),from:sourceNode.id,to:n.id,label:'摘录',style:'curve',direction:'forward',color:'slate'});}
       });if(options.focus!==false)this.revealNode(nodes[0].id);else{if(!options.position)this.revealNode(nodes[0].id,false);this.selected=new Set(nodes.map(n=>n.id));this.updateSelection();this.renderBoard();}await owner!.flush();if(options.focus!==false)new Notice(`已创建 ${created.length} 篇摘录笔记；撤销白板操作时笔记文件仍会保留`);return {ids:nodes.map(n=>n.id),files:created.map(f=>f.path),boardPath:owner!.file.path,groupId};
@@ -1862,7 +1875,7 @@ class BoardView extends FileView {
     }).open();
   }
   async onOpen() {
-    const root = this.contentEl; root.empty(); root.addClass('ts-root');
+    const root = this.contentEl; root.empty(); root.addClass('ts-root');root.addClass('ts-paper-workbench');
     this.register(whenBoardStylesReady(root,()=>{this.previewMetricsReady=true;this.refreshFontMetrics();}));
     this.registerEvent(this.app.workspace.on('css-change',()=>this.refreshFontMetrics()));
     const fonts=root.ownerDocument.fonts,onFonts=()=>this.refreshFontMetrics();fonts.addEventListener('loadingdone',onFonts);this.register(()=>fonts.removeEventListener('loadingdone',onFonts));
@@ -1965,7 +1978,7 @@ class BoardView extends FileView {
     const organize=cluster(toolbar,'组织与整理'),workspace=cluster(toolbar,'阅读与工作区');
     this.selectionButton=button(interactionRail,'框选','scan',()=>this.toggleSelectionTool());this.selectionButton.title='开启后左键框选 · Shift 累加 · 空格加左键平移 · 鼠标操作可在设置中修改';
     this.connectButton=button(interactionRail,'连线','move-up-right',()=>this.toggleConnectionTool());
-    button(createRail,'新建卡片','plus',()=>this.newCard(),'ts-primary');
+    button(createRail,'新建卡片','plus',()=>this.newCard());
     button(createRail,'文本','type',()=>this.newText());
     const insertPanel=main.createDiv({cls:'ts-rail-popover ts-insert-palette',attr:{role:'dialog','aria-label':'插入内容'}});insertPanel.hidden=true;
     const insertHead=insertPanel.createDiv('ts-palette-heading');
@@ -2049,16 +2062,26 @@ class BoardView extends FileView {
     this.syncCanvasControls();
     this.filterBadge=main.createDiv({cls:'ts-object-filter-status',attr:{'aria-live':'polite'}});this.inspector = main.createDiv('ts-inspector');
     this.minimap = main.createDiv({ cls: 'ts-minimap', attr: { 'aria-label': '白板缩略图' } });
-    const resizeObserver=new ResizeObserver(()=>{this.retryDeferredCardFits();this.scheduleRender();});resizeObserver.observe(this.stage);this.register(()=>resizeObserver.disconnect());
+    const resizeObserver=new ResizeObserver(()=>{this.stage.parentElement?.toggleClass('ts-short-canvas',this.stage.clientHeight<360);this.retryDeferredCardFits();this.scheduleRender();});resizeObserver.observe(this.stage);this.register(()=>resizeObserver.disconnect());
     // View controls can grow with font scaling or a narrow split. Reserve their
     // actual screen height for the overview and editor actions, not a fixed row.
     const chromeObserver=new ResizeObserver(()=>{
-      for(const [name,size] of [['--ts-footer-reserve',footer.getBoundingClientRect().height+28],['--ts-format-reserve',formatbar.getBoundingClientRect().height+28]] as const){
+      const mainBounds=main.getBoundingClientRect(),mainTop=mainBounds.top;
+      const railBounds=rail.getClientRects().length?rail.getBoundingClientRect():undefined;
+      const obstacle=railBounds?{x:railBounds.left-mainBounds.left-6,y:railBounds.top-mainTop-6,width:railBounds.width+12,height:railBounds.height+12}:undefined;
+      const previous=this.cardToolbarObstacles[0];
+      if(previous?.x!==obstacle?.x||previous?.y!==obstacle?.y||previous?.width!==obstacle?.width||previous?.height!==obstacle?.height){this.cardToolbarObstacles=obstacle?[obstacle]:[];this.scheduleRender(true);}
+      const toolsEnd=railBounds&&rail.getAttribute('aria-orientation')==='horizontal'?railBounds.bottom-mainTop+12:12;
+      const toolsReserve=`${Math.ceil(toolsEnd)}px`;if(main.style.getPropertyValue('--ts-workbench-tools-end')!==toolsReserve)main.style.setProperty('--ts-workbench-tools-end',toolsReserve);
+      const formatEnd=formatbar.getClientRects().length?formatbar.getBoundingClientRect().bottom-mainTop+12:toolsEnd;
+      for(const [name,size] of [['--ts-footer-reserve',footer.getBoundingClientRect().height+28],['--ts-format-reserve',formatEnd]] as const){
         const reserve=`${Math.ceil(size)}px`;if(main.style.getPropertyValue(name)!==reserve)main.style.setProperty(name,reserve);
         if(name==='--ts-format-reserve'){const inset=Math.max(60,Math.ceil(size));if(this.cardToolbarReserve!==inset){this.cardToolbarReserve=inset;this.scheduleRender(true);}}
       }
-    });chromeObserver.observe(footer);chromeObserver.observe(formatbar);this.register(()=>chromeObserver.disconnect());
+    });chromeObserver.observe(footer);chromeObserver.observe(formatbar);chromeObserver.observe(rail);this.register(()=>chromeObserver.disconnect());
     this.registerDomEvent(this.stage,'pointerdown',e=>{
+      // Editors may stop bubbling; a new middle press still owns its default.
+      if(e.button===1)this.suppressMiddlePaste=false;
       if(this.blankClickOwner!==this.session){this.blankClicks.cancel();this.blankClickOwner=this.session;}
       this.blankClicks.down(e,this.canCreateBlankText(e),this.plugin.settings.dragThreshold??4);
     },{capture:true});
@@ -2073,7 +2096,8 @@ class BoardView extends FileView {
     this.registerDomEvent(this.stage, 'pointermove', e => this.pointerMove(e));
     this.registerDomEvent(this.stage, 'pointerup', e => this.pointerUp(e));
     this.registerDomEvent(this.stage, 'pointercancel', e => this.pointerUp(e, true));
-    // A floating panel may swallow the release after pointer capture is lost.
+    // Also finish a pending card gesture if it leaves the stage before capture.
+    // Floating panels can receive the release or stop its bubbling.
     this.registerDomEvent(this.contentEl.ownerDocument,'pointerup',e=>this.finishMarqueeFromDocument(e),{capture:true});
     this.registerDomEvent(this.contentEl.ownerDocument,'pointercancel',e=>this.finishMarqueeFromDocument(e,true),{capture:true});
     this.registerDomEvent(this.stage,'lostpointercapture',e=>this.pointerCaptureLost(e));
@@ -2130,7 +2154,13 @@ class BoardView extends FileView {
       }
     };
     this.registerDomEvent(this.stage,'click',openStageLink);
-    this.registerDomEvent(this.stage,'auxclick',e=>{if(e.button===1&&(e.target as Element).closest('a.internal-link'))openStageLink(e);});
+    this.registerDomEvent(this.stage,'auxclick',e=>{
+      if(e.button!==1)return;
+      // Chromium on Linux dispatches PRIMARY paste after a middle auxclick,
+      // even when the pan's pointerdown already prevented its default action.
+      if(this.suppressMiddlePaste){this.suppressMiddlePaste=false;e.preventDefault();return;}
+      if((e.target as Element).closest('a.internal-link'))openStageLink(e);
+    });
     this.registerDomEvent(root,'mouseover',e=>{
       const target=(e.target as Element).closest<HTMLElement>('a.internal-link,[data-ts-note-path]');
       if(!target||target.closest('.ts-inline-editor,.is-editing-title,.markdown-embed,.internal-embed')||(e.relatedTarget instanceof Node&&target.contains(e.relatedTarget)))return;
@@ -2572,7 +2602,10 @@ class BoardView extends FileView {
       if(this.plugin.settings.autoFileCards){try{const tags=await this.plugin.waitNoteTags(file);if(this.plugin.settings.autoFileCards&&tags.length)await this.plugin.fileCard(file,tags[0]);}catch(e){new Notice(String(e));}}
       const current=owner!.board.nodes.find(n=>n.id===id);
       if(this.session!==owner||this.closed||owner!.blocked||!current||current.locked||current.kind!=='text'||current.text!==original)throw new Error(`文本或白板已变化，文本框保留；笔记另存为 ${file.path}`);
-      owner!.change(b=>{const n=b.nodes.find(n=>n.id===id)!;n.kind='card';n.transparent=true;n.file=file.path;delete n.text;delete n.webUrl;delete n.textColor;delete n.fontSize;delete n.fontFamily;delete n.textAlign;delete n.autoSize;delete n.textAutoHeight;delete n.textMaxWidth;applyDefaultCardStyle(n,this.plugin.settings.defaultCardStyle);n.width=Math.max(280,n.width);n.height=Math.max(220,n.height);});await owner!.flush();
+      owner!.change(b=>{const n=b.nodes.find(n=>n.id===id)!;n.kind='card';n.transparent=true;n.file=file.path;delete n.text;delete n.webUrl;delete n.textColor;delete n.fontSize;delete n.fontFamily;delete n.textAlign;delete n.autoSize;delete n.textAutoHeight;delete n.textMaxWidth;delete n.videoCapture;applyDefaultCardStyle(n,this.plugin.settings.defaultCardStyle);n.width=Math.max(280,n.width);
+        // Keep the user's folded state; the expanded note owns the larger size.
+        if(n.collapsed){n.expandedHeight=Math.max(220,n.expandedHeight!);n.height=72;}else n.height=Math.max(220,n.height);
+      });await owner!.flush();
       if(owner!.blocked)throw new Error(`笔记已创建，但白板保存失败，请先处理保存冲突：${file.path}`);
       const saved=owner!.board.nodes.find(n=>n.id===id);
       if(this.session===owner&&!this.closed&&saved?.kind==='card'&&saved.file===file.path)await this.plugin.openNoteInSidebar(file);
@@ -2602,10 +2635,11 @@ class BoardView extends FileView {
     const owner=this.requireOwner(),node=owner.board.nodes.find(n=>n.id===nodeId);
     if(!node||node.kind!=='image'||this.hostedUploads.has(nodeId))return;if(node.locked)throw Error('请先解锁图片');
     const file=this.app.vault.getAbstractFileByPath(node.file!);if(!(file instanceof TFile))throw Error('本地图片不存在');
-    const originalPath=file.path,originalUrl=node.imageUrl,boardPath=this.file!.path;this.hostedUploads.add(nodeId);
-    try{const bytes=await this.app.vault.readBinary(file);this.requireOwner(owner);
+    const originalPath=file.path,originalUrl=node.imageUrl,originalStamp={mtime:file.stat.mtime,size:file.stat.size},boardPath=this.file!.path;this.hostedUploads.add(nodeId);
+    const validateSource=()=>{this.requireOwner(owner);if(file.path!==originalPath||this.app.vault.getAbstractFileByPath(originalPath)!==file||file.stat.mtime!==originalStamp.mtime||file.stat.size!==originalStamp.size)throw Error('图片来源已变化，云端结果未覆盖当前引用');};
+    try{const bytes=await this.app.vault.readBinary(file);validateSource();
       const url=await uploadHostedImage(this.app,bytes,file.name,boardPath);
-      this.requireOwner(owner);const current=owner.board.nodes.find(n=>n.id===nodeId);
+      validateSource();const current=owner.board.nodes.find(n=>n.id===nodeId);
       if(!current||current.locked||current.kind!=='image'||current.file!==originalPath||current.imageUrl!==originalUrl)throw Error('图片引用已变化，本地图片保留，云端结果未覆盖当前内容');
       owner.change(b=>{b.nodes.find(n=>n.id===nodeId)!.imageUrl=url;});new Notice('已上传到极速图床，本地图片已保留');
     }finally{this.hostedUploads.delete(nodeId);}
@@ -2676,9 +2710,11 @@ class BoardView extends FileView {
     const stage=this.stage,bounds=stage.getBoundingClientRect(),main=stage.parentElement;
     const rect=(selector:string)=>{const el=main?.querySelector<HTMLElement>(selector);return el?.getClientRects().length?el.getBoundingClientRect():undefined;};
     const format=rect('.ts-floating-formatbar'),rail=rect('.ts-board-rail'),footer=rect('.ts-footer');
+    const railDirection=main?.querySelector<HTMLElement>('.ts-board-rail')?.getAttribute('aria-orientation');
+    const horizontalRail=!!rail&&(railDirection?railDirection==='horizontal':rail.width>rail.height);
     return {
-      left:rail?Math.max(0,rail.right-bounds.left)+12:0,right:0,
-      top:format?Math.max(0,format.bottom-bounds.top)+12:0,
+      left:rail&&!horizontalRail?Math.max(0,rail.right-bounds.left)+12:0,right:0,
+      top:Math.max(0,format?format.bottom-bounds.top+12:0,horizontalRail&&rail?rail.bottom-bounds.top+12:0),
       bottom:footer?Math.max(0,bounds.bottom-footer.top)+12:0,
     };
   }
@@ -3163,6 +3199,10 @@ class BoardView extends FileView {
     this.cancelConnection();if(cancelled||this.session!==owner||owner.blocked||!from)return;
     if(target){if(drag.edge){const next=clone(owner.board);if(reconnectEdge(next,drag.edge.id,drag.edge.end,target.id,target.side,drag.edge.expected)){owner.change(b=>{b.version=next.version;b.edges=next.edges;});this.selectedEdge=drag.edge.id;this.selected.clear();}}else this.createConnection(from,target.id,side,target.side);this.updateSelection();}
     else if(drag.moved&&!drag.edge&&inside){
+      // The source is excluded from targets to prevent self-loops, but returning
+      // to its body or port is a cancelled connection, not a blank-canvas drop.
+      const source=owner.board.nodes.find(n=>n.id===from);
+      if(!source||connectionSourceHit(source,point,owner.board.viewport.zoom))return;
       if(drag.topicClick&&owner.board.mode==='mindmap'){act(()=>this.addTopic(false,from));return;}
       act(async()=>{if(this.inline&&!await this.inline.commit())return;this.requireOwner(owner);if(!owner.board.nodes.some(n=>n.id===from))throw Error('起点已不存在');const node:Card={id:uid(),kind:'text',text:'',x:point.x,y:point.y,width:280,height:140,color:'sand',fontSize:this.plugin.settings.defaultTextSize,autoSize:false};owner.change(b=>{b.version=3;b.nodes.push(node);b.edges.push({id:uid(),from,to:node.id,label:'',fromSide:side,style:this.plugin.settings.defaultEdgeStyle,direction:this.plugin.settings.defaultEdgeDirection});});this.selected=new Set([node.id]);this.updateSelection();await this.startInlineEdit(node.id,false,true);});
     }
@@ -3240,7 +3280,7 @@ class BoardView extends FileView {
     syncNodeGeometry(n,el,preserveDraftSize);
     if(this.controlStageSize&&this.session&&(n.kind==='card'||n.kind==='text'||n.kind==='image'||n.collapsed||n.branchFolded||n.sectionFolded)){
       const compact=!!(n.collapsed||n.branchFolded||n.sectionFolded),count=Number(el.dataset.controlCount)||(compact?(n.kind==='card'?2:1):n.kind==='card'?5:n.kind==='text'?3:2);
-      const control=cardControlLayout(n,this.session.board.viewport,this.controlStageSize.width,this.controlStageSize.height,count,{width:Number(el.dataset.controlWidth)||32*count+4,height:36,topReserve:this.cardToolbarReserve||60});
+      const control=cardControlLayout(n,this.session.board.viewport,this.controlStageSize.width,this.controlStageSize.height,count,{width:Number(el.dataset.controlWidth)||32*count+4,height:36,topReserve:this.cardToolbarReserve||60,avoid:this.cardToolbarObstacles});
       for(const [name,value] of [['scale',String(control.scale)],['top',`${control.top}px`],['right',`${control.right}px`]]){
         const key=`--ts-control-${name}`;if(el.style.getPropertyValue(key)!==value)el.style.setProperty(key,value);
       }
@@ -3853,7 +3893,7 @@ class BoardView extends FileView {
   private syncSelectionTool() { this.selectionButton?.toggleClass('is-active',this.selectionTool);this.selectionButton?.setAttribute('aria-pressed',String(this.selectionTool));this.stage?.toggleClass('ts-select-tool',this.selectionTool); }
   private toggleConnectionTool(){const active=this.mode!=='connect';this.clearCanvasGesture();this.selectionTool=false;this.syncSelectionTool();this.mode=active?'connect':'select';this.connectButton?.toggleClass('is-active',active);this.stage.focus();this.renderInspector();}
   toggleSelectionTool(){const active=!this.selectionTool;this.clearCanvasGesture();this.selectionTool=active;this.syncSelectionTool();this.stage.focus();}
-  private finishMarqueeFromDocument(e:PointerEvent,cancelled=false){if(this.marquee?.id===e.pointerId||this.rightMarquee?.id===e.pointerId)this.pointerUp(e,cancelled);}
+  private finishMarqueeFromDocument(e:PointerEvent,cancelled=false){const active=this.rightMarquee||this.linkDrag||this.marquee||this.gesture;if(active?.id===e.pointerId)this.pointerUp(e,cancelled);}
   private pointerCaptureLost(e:PointerEvent){if(this.rightMarquee?.id===e.pointerId){this.pointerUp(e,true);return;}if(this.linkDrag?.id===e.pointerId)this.finishLinkDrag(e,true);if(this.gesture?.id===e.pointerId)this.pointerUp(e,true);if(this.marquee?.id===e.pointerId)this.finishMarquee(true);}
   private cancelRightMarquee(){
     if(this.rightMarquee)this.pointerUp(this.rightMarquee.event,true);
@@ -3874,6 +3914,7 @@ class BoardView extends FileView {
     this.inspectorChoices('对齐与分布',Object.entries(alignmentLabels).map(([action,label])=>({label,run:()=>{this.requireOwner(owner);owner.change(b=>alignSelection(b,ids,action as Alignment));}})));
   }
   private pointerDown(e: PointerEvent) {
+    if(e.button===1)this.suppressMiddlePaste=false;
     // A new physical click must never inherit suppression from a previous drag.
     if(e.button===2||(e.button===0&&e.ctrlKey)||e.pointerType==='touch')this.suppressBoardContext=false;
     if (!this.session || this.session.blocked || e.button > 2 || this.gesture || this.marquee || this.rightMarquee || this.linkDrag) return;
@@ -3895,7 +3936,7 @@ class BoardView extends FileView {
     if(this.sectionTool&&!this.space&&e.button===0){
       const start=this.point(e.clientX,e.clientY),box=this.world.createDiv('ts-marquee ts-section-draft');
       Object.assign(box.style,{left:`${start.x}px`,top:`${start.y}px`,width:'0px',height:'0px'});
-      this.marquee={id:e.pointerId,start,base:new Set(this.selected),box,section:true};this.stage.setPointerCapture(e.pointerId);e.preventDefault();return;
+      this.marquee={id:e.pointerId,start,base:new Set(this.selected),baseEdge:this.selectedEdge,box,section:true};this.stage.setPointerCapture(e.pointerId);e.preventDefault();return;
     }
     const edge = target.closest('[data-edge]')?.getAttribute('data-edge');
     if (edge && !this.space && e.button === 0) { this.cancelConnection();this.selected.clear(); this.selectedEdge = edge; this.updateSelection(); return; }
@@ -3907,6 +3948,7 @@ class BoardView extends FileView {
     const blank=!id&&!edge,forcedPan=this.space&&e.button===0;
     const action=forcedPan?'pan':blank&&e.button===0&&this.mode!=='connect'&&(e.shiftKey||this.selectionTool)?'select':dragAction(e.button);
     if((blank&&action==='none')||(e.button===1&&!blank&&action!=='pan'))return;
+    if(e.button===1)this.suppressMiddlePaste=true;
     if (blank && action==='select') {
       this.cancelConnection();
       const baseEdge=this.selectedEdge;this.selectedEdge = undefined;
@@ -3919,16 +3961,27 @@ class BoardView extends FileView {
       box.dataset.additive = String(e.shiftKey);this.updateSelection();this.stage.setPointerCapture(e.pointerId);e.preventDefault();return;
     }
     const pan = forcedPan || e.button === 1 || blank;
-    if (!pan && id) { selectionChanged=selectionChanged||!!this.selectedEdge;this.selectedEdge=undefined;if (e.shiftKey) { if (this.selected.has(id)) this.selected.delete(id); else this.selected.add(id);selectionChanged=true; } else if (!this.selected.has(id)) {this.selected = new Set([id]);selectionChanged=true;} }
+    const resizeHandle=!pan?target.closest<HTMLElement>('.ts-resize'):null,resize=resizeHandle?id||undefined:undefined;
+    let deselectOnClick:string|undefined;
+    if (!pan && id) {
+      selectionChanged=selectionChanged||!!this.selectedEdge;this.selectedEdge=undefined;
+      if(resize){
+        // Handles change one object's size without dropping the current selection.
+        if(!this.selected.has(id)){this.selected.add(id);selectionChanged=true;}
+      }else if(e.shiftKey){
+        // Shift also constrains a drag. Remove a selected card only after a click.
+        if(this.selected.has(id))deselectOnClick=id;
+        else{this.selected.add(id);selectionChanged=true;}
+      }else if(!this.selected.has(id)){this.selected=new Set([id]);selectionChanged=true;}
+    }
     // Re-clicking an existing selection does not need to rebuild its inspector or node styles.
     if(selectionChanged)this.updateSelection();
     const board=this.session.board,ids=pan?new Set<string>():movableSelection(board,this.selected);
     // Panning only restores the viewport; do not clone note payloads or build target indexes.
     const before:Board=pan?{version:board.version,nodes:[],edges:[],viewport:{...board.viewport}}:dragStartSnapshot(board);
-    const resizeHandle=target.closest<HTMLElement>('.ts-resize'),resize=resizeHandle?id||undefined:undefined;
     const requestedEdge=resizeHandle?.dataset.resizeEdge;
     const resizeEdge=resize&&board.nodes.find(node=>node.id===resize)?.kind==='section'&&['top','right','bottom','left'].includes(requestedEdge||'')?requestedEdge as SectionResizeEdge:undefined;
-    this.gesture = { draft:new Map(before.nodes.filter(n=>!pan&&!n.locked&&(resize?n.id===resize:ids.has(n.id))).map(n=>[n.id,{...n}])), targets:pan?[]:dragTargets(this.session.board.nodes,ids,resize), originals:new Map(before.nodes.map(n=>[n.id,n])),idSet:ids, id: e.pointerId, x: e.clientX, y: e.clientY, before, ids: [...ids], pan, clearSelectionOnClick:pan&&!this.space&&e.button===0&&!id,resize,resizeEdge };
+    this.gesture = { draft:new Map(before.nodes.filter(n=>!pan&&!n.locked&&(resize?n.id===resize:ids.has(n.id))).map(n=>[n.id,{...n}])), targets:pan?[]:dragTargets(this.session.board.nodes,ids,resize), originals:new Map(before.nodes.map(n=>[n.id,n])),idSet:ids, id: e.pointerId, x: e.clientX, y: e.clientY, before, ids: [...ids], pan, clearSelectionOnClick:pan&&!this.space&&e.button===0&&!id,deselectOnClick,resize,resizeEdge };
     // 点击时不捕获指针，否则浏览器会把 dblclick 的目标改成画布。
     // 真正超过拖动阈值后再捕获，保留双击编辑与越界拖动两种行为。
     e.preventDefault();
@@ -3936,6 +3989,10 @@ class BoardView extends FileView {
   private pointerMove(e:PointerEvent){
     if(!this.gesture&&!this.marquee&&!this.rightMarquee&&this.mode!=='connect')return;
     const owner=this.rightMarquee||this.linkDrag||this.marquee||this.gesture;if(owner&&owner.id!==e.pointerId)return;
+    // Keep the gesture intent when a burst moves out and back before the frame.
+    const g=this.gesture;if(g&&!g.crossedThreshold&&Math.hypot(e.clientX-g.x,e.clientY-g.y)>=(g.resize?3:(this.plugin.settings.dragThreshold??4)))g.crossedThreshold=true;
+    const right=this.rightMarquee;if(right&&!right.crossedThreshold&&Math.hypot(e.clientX-right.x,e.clientY-right.y)>=(this.plugin.settings.dragThreshold??4))right.crossedThreshold=true;
+    const link=this.linkDrag;if(link&&!link.moved&&Math.hypot(e.clientX-link.x,e.clientY-link.y)>4)link.moved=true;
     this.pendingPointer=e;if(!this.pointerFrame)this.pointerFrame=(this.stage.ownerDocument?.defaultView||window).requestAnimationFrame(()=>{this.pointerFrame=0;this.flushPointer();});
   }
   private flushPointer(apply=true){if(this.pointerFrame)(this.stage.ownerDocument?.defaultView||window).cancelAnimationFrame(this.pointerFrame);this.pointerFrame=0;const e=this.pendingPointer;this.pendingPointer=undefined;if(apply&&e)this.applyPointerMove(e);}
@@ -3944,7 +4001,7 @@ class BoardView extends FileView {
     if(right){
       if(right.id!==e.pointerId||right.owner!==this.session)return;
       if(!right.moved){
-        if(!crossedThreshold&&Math.hypot(e.clientX-right.x,e.clientY-right.y)<(this.plugin.settings.dragThreshold??4))return;
+        if(!crossedThreshold&&!right.crossedThreshold&&Math.hypot(e.clientX-right.x,e.clientY-right.y)<(this.plugin.settings.dragThreshold??4))return;
         right.moved=true;this.cancelConnection();this.setSectionTool(false);this.objectMenu?.hide();this.contextOpen=false;this.contextPoint=undefined;this.inspectorChoiceState=undefined;
         if(right.action==='select'){
           const base=new Set(this.selected),baseEdge=this.selectedEdge,box=this.world.createDiv('ts-marquee');
@@ -3974,7 +4031,7 @@ class BoardView extends FileView {
       if(next.size!==this.selected.size||Array.from(next).some(id=>!this.selected.has(id))){this.selected=next;this.updateSelection();}return;
     }
     const g = this.gesture; if (!g || !this.session || e.pointerId !== g.id) return;
-    const dx = e.clientX - g.x, dy = e.clientY - g.y; if (!this.dragging && !crossedThreshold && Math.hypot(dx,dy) < (g.resize?3:(this.plugin.settings.dragThreshold??4))) return;
+    const dx = e.clientX - g.x, dy = e.clientY - g.y; if (!this.dragging && !crossedThreshold && !g.crossedThreshold && Math.hypot(dx,dy) < (g.resize?3:(this.plugin.settings.dragThreshold??4))) return;
     if (!this.dragging) this.stage.setPointerCapture(e.pointerId);
     this.dragging = true;
     const b = this.session.board;
@@ -3999,13 +4056,15 @@ class BoardView extends FileView {
     const display=base.edges.length||landingIds&&b.snapToGrid?this.displayBoard():base;this.previewGridLanding(landingIds,g.lockedAxis?new Set([g.lockedAxis]):undefined,display);this.renderEdges(undefined,display);
   }
   private pointerUp(e: PointerEvent, cancelled = false) {
+    // Linux PRIMARY paste follows pointerup even if auxclick is cancelled.
+    if(e.button===1&&this.suppressMiddlePaste)e.preventDefault();
     const active=this.rightMarquee||this.linkDrag||this.marquee||this.gesture;
     if(!active||active.id!==e.pointerId)return;
     // The release supersedes queued coordinates. Retain only their threshold
     // crossing, so a quick out-and-back drag cannot become a click or topic add.
     const pending=this.pendingPointer,start=this.rightMarquee||this.linkDrag||this.gesture;
     const distance=!cancelled&&pending?.pointerId===e.pointerId&&start?Math.hypot(pending.clientX-start.x,pending.clientY-start.y):0;
-    const crossedThreshold=distance>0&&(this.linkDrag?distance>4:distance>=(this.gesture?.resize?3:(this.plugin.settings.dragThreshold??4)));
+    const crossedThreshold=!!this.gesture?.crossedThreshold||!!this.rightMarquee?.crossedThreshold||distance>0&&(this.linkDrag?distance>4:distance>=(this.gesture?.resize?3:(this.plugin.settings.dragThreshold??4)));
     this.flushPointer(false);
     const right=this.rightMarquee;
     if(right){
@@ -4046,6 +4105,8 @@ class BoardView extends FileView {
           if(changes.size)this.session.change(b=>{for(const n of b.nodes){const patch=changes.get(n.id);if(patch)Object.assign(n,patch);}});
         }catch(error){new Notice(String(error).replace(/^Error: /,''));}
       }
+    } else if(g.deselectOnClick){
+      if(this.selected.delete(g.deselectOnClick))this.updateSelection();
     } else if(g.clearSelectionOnClick){
       this.selected.clear();this.selectedEdge=undefined;this.updateSelection();
     }

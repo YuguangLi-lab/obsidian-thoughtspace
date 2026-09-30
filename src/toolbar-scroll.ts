@@ -28,8 +28,18 @@ export function revealToolbarControl(control:HTMLElement,row:HTMLElement){
     const delta=target.left<left?target.left-left:target.right>right?target.right-right:0;
     if(delta)parent.scrollLeft+=delta/scale;
    }
-   return;
+   break;
   }
   if(parent===boundary)break;
  }
+ // Short board panes bound the contextual panel and vertical tool rail.
+ // Arrow-key focus uses preventScroll, so reveal only the nearest toolbar
+ // without moving the document, stage or editor that contains it.
+ const toolbar=control.closest<HTMLElement>('.ts-floating-formatbar,.ts-board-rail');
+ if(!toolbar||toolbar.clientHeight<=0||toolbar.scrollHeight<=toolbar.clientHeight+1||!/^(auto|scroll|hidden)$/.test(view?.getComputedStyle(toolbar).overflowY||''))return;
+ const viewport=toolbar.getBoundingClientRect(),target=control.getBoundingClientRect(),scale=toolbar.offsetHeight>0?viewport.height/toolbar.offsetHeight:1;
+ if(scale<=0)return;
+ const top=viewport.top+toolbar.clientTop*scale,bottom=top+toolbar.clientHeight*scale;
+ const delta=target.top<top?target.top-top:target.bottom>bottom?target.bottom-bottom:0;
+ if(delta)toolbar.scrollTop+=delta/scale;
 }

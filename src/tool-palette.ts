@@ -32,8 +32,7 @@ function adjacent(buttons:HTMLButtonElement[],index:number,key:string){
  return buttons[(index+(forward?1:-1)+buttons.length)%buttons.length];
 }
 
-/** Keep keyboard movement inside its local scroller, without scrolling the canvas or note. */
-function reveal(control:HTMLElement,area:HTMLElement){
+function revealViewport(control:HTMLElement,area:HTMLElement){
  if(area.scrollHeight<=area.clientHeight+1&&area.scrollWidth<=area.clientWidth+1)return;
  const viewport=area.getBoundingClientRect(),target=control.getBoundingClientRect();
  if(area.clientHeight>0&&area.scrollHeight>area.clientHeight+1){
@@ -46,6 +45,15 @@ function reveal(control:HTMLElement,area:HTMLElement){
  }
 }
 
+/** A short palette scrolls as one panel; never reveal through the board or note. */
+export function revealToolPaletteControl(control:HTMLElement,area:HTMLElement){
+ const boundary=area.closest<HTMLElement>('.ts-rail-popover')||area;
+ for(let viewport:HTMLElement|null=area;viewport;viewport=viewport.parentElement){
+  revealViewport(control,viewport);
+  if(viewport===boundary)break;
+ }
+}
+
 /** Section shortcuts reuse the actual command, never scroll a parent canvas. */
 export function focusToolSection(area:HTMLElement,section:HTMLElement){
  if(!area.contains(section)||section.hidden)return false;
@@ -54,7 +62,7 @@ export function focusToolSection(area:HTMLElement,section:HTMLElement){
  const viewport=area.getBoundingClientRect(),target=section.getBoundingClientRect();
  const scale=area.offsetHeight>0?viewport.height/area.offsetHeight:1;
  if(scale>0&&area.clientHeight>0)area.scrollTop+=(target.top-viewport.top)/scale-area.clientTop-8;
- reveal(first,area);return true;
+ revealToolPaletteControl(first,area);return true;
 }
 
 /** Mutually exclusive rail palettes, with local keyboard ownership and disposable outside listeners. */
@@ -66,14 +74,20 @@ export function installToolPalettes(main:HTMLElement,rail:HTMLElement,entries:To
  const close=(restoreFocus=false)=>{
   cancelFocus();const previous=active;active=undefined;if(!previous)return;
   previous.panel.hidden=true;previous.trigger.setAttribute('aria-expanded','false');
-  if(restoreFocus&&!disposed)previous.trigger.focus({preventScroll:true});
+  if(restoreFocus&&!disposed){
+   previous.trigger.focus({preventScroll:true});
+   // Closing a palette restores the footer, which can shorten the left rail.
+   // The user may also have scrolled that rail while its palette was open.
+   // Restore a visible trigger using the final local viewport only.
+   revealToolPaletteControl(previous.trigger,rail);
+  }
  };
  const open=(panel:HTMLElement)=>{
   if(disposed)return;const entry=entries.find(item=>item.panel===panel);if(!entry||active===entry)return;
   close();active=entry;entry.panel.hidden=false;entry.trigger.setAttribute('aria-expanded','true');
   if(entry.onOpen)entry.onOpen();else{
    entry.actions.scrollTop=0;const first=visibleButtons(entry.actions)[0];
-   if(first){first.focus({preventScroll:true});reveal(first,entry.actions);}
+   if(first){first.focus({preventScroll:true});revealToolPaletteControl(first,entry.actions);}
   }
  };
  const toggle=(panel:HTMLElement)=>{if(disposed)return;if(active?.panel===panel)close();else open(panel);};
@@ -89,11 +103,20 @@ export function installToolPalettes(main:HTMLElement,rail:HTMLElement,entries:To
   if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(event.key))return;
   const target=event.target as HTMLElement|null;if(target?.tagName!=='BUTTON'||target.isContentEditable)return;
   const buttons=visibleButtons(area),index=buttons.indexOf(target as HTMLButtonElement);if(index<0)return;
-  const next=adjacent(buttons,index,event.key);event.preventDefault();next.focus({preventScroll:true});reveal(next,area);
+  const next=adjacent(buttons,index,event.key);event.preventDefault();next.focus({preventScroll:true});revealToolPaletteControl(next,area);
  };
  const railKeys=(event:KeyboardEvent)=>keys(event,rail);
  rail.addEventListener('keydown',railKeys);rail.addEventListener('focusout',focusout);
  cleanup.push(()=>{rail.removeEventListener('keydown',railKeys);rail.removeEventListener('focusout',focusout);});
+ // Canvas chrome updates its footer reserve asynchronously when a palette
+ // opens or closes. Keep focus visible in the final local panel/rail viewport.
+ const chromeResize=view?.ResizeObserver?new view.ResizeObserver(()=>{
+  const focused=doc.activeElement;
+  if(disposed||!focused)return;
+  if(rail.contains(focused))revealToolPaletteControl(focused as HTMLElement,rail);
+  else if(active?.panel.contains(focused))revealToolPaletteControl(focused as HTMLElement,active.actions.contains(focused)?active.actions:active.panel);
+ }):undefined;
+ chromeResize?.observe(rail);for(const entry of entries)chromeResize?.observe(entry.panel);cleanup.push(()=>chromeResize?.disconnect());
  for(const entry of entries){
   let id=entry.panel.getAttribute('id');if(!id){do{id=`ts-tool-palette-${++paletteId}`;}while(doc.getElementById(id));entry.panel.setAttribute('id',id);}
   entry.panel.hidden=true;entry.trigger.setAttribute('aria-expanded','false');entry.trigger.setAttribute('aria-haspopup','dialog');entry.trigger.setAttribute('aria-controls',id);

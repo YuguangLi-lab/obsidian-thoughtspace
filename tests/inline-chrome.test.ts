@@ -80,6 +80,25 @@ function fixture(t:any,inCanvas=true){
 for(const modifier of ['ctrlKey','metaKey'])test(`host-scoped ${modifier} Enter saves before native commands consume it`,async t=>{
  const f=fixture(t);assert.equal(f.pressHosted(f.editor.input,'Enter',{[modifier]:true}).defaultPrevented,true);await Promise.resolve();assert.deepEqual(f.calls.save,['Draft']);
 });
+for(const modifier of ['ctrlKey','metaKey'])test(`host-scoped ${modifier} Enter saves from the draft's detached formatting controls`,async t=>{
+ const f=fixture(t),formatbar=f.main.createDiv('ts-floating-formatbar'),control=formatbar.createEl('select');
+ Object.assign(f.options,{focusWithin:(element:Element|null)=>formatbar.contains(element)});
+ control.focus();f.flushFocus();await Promise.resolve();
+ assert.equal(f.editor.ownsFocus(control),false,'formatting controls live outside both draft and action chrome');
+ assert.deepEqual(f.calls.save,[],'formatting focus keeps the draft open');
+ f.pressHosted(control,'Enter',{[modifier]:true});await Promise.resolve();assert.deepEqual(f.calls.save,['Draft']);
+});
+test('detached formatting save respects composition, a higher popup and unrelated controls',async t=>{
+ const f=fixture(t),formatbar=f.main.createDiv('ts-floating-formatbar'),control=formatbar.createEl('select'),other=f.main.createEl('select');
+ Object.assign(f.options,{focusWithin:(element:Element|null)=>formatbar.contains(element)});
+ f.pressHosted(other,'Enter',{ctrlKey:true});await Promise.resolve();assert.deepEqual(f.calls.save,[]);
+ control.focus();f.editor.input.dispatchEvent(new Event('compositionstart'));
+ f.pressHosted(control,'Enter',{metaKey:true});await Promise.resolve();assert.deepEqual(f.calls.save,[]);
+ f.editor.input.dispatchEvent(new Event('compositionend'));
+ const popup=new Scope(f.options.app.scope);let chosen=0;popup.register(['Meta'],'Enter',()=>{chosen++;return false;});f.options.app.keymap.pushScope(popup);
+ f.pressHosted(control,'Enter',{metaKey:true});await Promise.resolve();assert.equal(chosen,1);assert.deepEqual(f.calls.save,[]);
+ f.options.app.keymap.popScope(popup);f.pressHosted(control,'Enter',{metaKey:true});await Promise.resolve();assert.deepEqual(f.calls.save,['Draft']);
+});
 test('an upper popup owns Enter without saving the underlying draft',async t=>{
  const f=fixture(t),popup=new Scope(f.options.app.scope);let chosen=0;popup.register(['Meta'],'Enter',()=>{chosen++;return false;});f.options.app.keymap.pushScope(popup);
  f.pressHosted(f.editor.input,'Enter',{metaKey:true});await Promise.resolve();assert.equal(chosen,1);assert.deepEqual(f.calls.save,[]);

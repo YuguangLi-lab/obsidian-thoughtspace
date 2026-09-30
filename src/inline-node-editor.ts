@@ -81,7 +81,10 @@ export class InlineNodeEditor {
   // Native save-key bindings can consume Enter before DOM capture. Own only
   // the advertised save shortcuts; later modal/suggestion scopes keep priority.
   const scope=new Scope(options.app.scope),saveKey=(event:KeyboardEvent)=>{
-   if(!this.ownsFocus(event.target as Node|null))return;
+   const target=event.target as Element|null;
+   // The detached format bar already retains this draft on focusout; its
+   // keyboard save must use that same ownership boundary.
+   if(!this.ownsFocus(target)&&!options.focusWithin?.(target))return;
    keydown(event);if(event.defaultPrevented)return false;
   };
   scope.register(['Ctrl'],'Enter',saveKey);scope.register(['Meta'],'Enter',saveKey);

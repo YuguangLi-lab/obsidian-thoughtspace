@@ -1,8 +1,16 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';
-import {nearestSide,connectionTarget,duplicateConnection,reconnectEdge} from '../src/connection-flow';import {connectionAnchor,connectionPath} from '../src/connections';import {emptyBoard,Card,parseBoard} from '../src/model';
+import {nearestSide,connectionTarget,connectionSourceHit,duplicateConnection,reconnectEdge} from '../src/connection-flow';import {connectionAnchor,connectionPath} from '../src/connections';import {emptyBoard,Card,parseBoard} from '../src/model';
 const n=(id:string,x=0,y=0):Card=>({id,kind:'text',text:id,x,y,width:200,height:120,color:'blue'});
 test('target port follows nearest side and screen-space tolerance across zooms',()=>{const a=n('a'),b=n('b',400);assert.equal(nearestSide(a,{x:190,y:60}),'right');for(const zoom of [.15,.5,1,2.5]){assert.deepEqual(connectionTarget([a,b],{x:400-19/zoom,y:60},'a',zoom),{id:'b',side:'left'});assert.equal(connectionTarget([a,b],{x:400-21/zoom,y:60},'a',zoom),undefined);}});
 test('sections and source are excluded; topmost hit wins',()=>{assert.equal(connectionTarget([n('a'),{...n('section'),kind:'section'}],{x:30,y:30},'a',1),undefined);assert.equal(connectionTarget([n('a'),n('b')],{x:30,y:30},'source',1)?.id,'b');});
+test('source cancellation recognizes physical ports and folded display bounds while leaving group interiors blank',()=>{
+ const source=n('a');assert.equal(connectionSourceHit(source,{x:214,y:60},2),true);
+ assert.equal(connectionSourceHit(source,{x:214,y:74},2),false,'outside the circular port and snap halo is blank');
+ const folded={...source,width:500,height:300,collapsed:true};
+ assert.equal(connectionSourceHit(folded,{x:180,y:20},1),true);assert.equal(connectionSourceHit(folded,{x:350,y:200},1),false);
+ const group={...source,kind:'section' as const,width:300,height:300};
+ assert.equal(connectionSourceHit(group,{x:150,y:20},1),true);assert.equal(connectionSourceHit(group,{x:150,y:180},1),false);
+});
 test('automatic and explicit matching ports count as the same connection',()=>{const b={...emptyBoard(),nodes:[n('a'),n('b',400)],edges:[{id:'e',from:'a',to:'b',label:''}]};assert.ok(duplicateConnection(b,{from:'a',to:'b',fromSide:'right',toSide:'left'}));assert.equal(duplicateConnection(b,{from:'a',to:'b',fromSide:'top',toSide:'left'}),false);});
 test('reconnecting preserves edge id, label and styling, and serializes',()=>{const b={...emptyBoard(),version:3 as const,nodes:[n('a'),n('b',400),n('c',700)],edges:[{id:'e',from:'a',to:'b',label:'解释',color:'blue' as const,style:'elbow' as const,dashed:true}]};assert.ok(reconnectEdge(b,'e','to','c','top',JSON.stringify(b.edges[0])));assert.equal(b.edges[0].to,'c');assert.equal(b.edges[0].label,'解释');assert.equal(b.edges[0].color,'blue');assert.equal(parseBoard(JSON.stringify(b)).edges[0].toSide,'top');});
 test('stale, missing, duplicate and self-loop reconnects never mutate',()=>{const b={...emptyBoard(),nodes:[n('a'),n('b',400),n('c',700)],edges:[{id:'e',from:'a',to:'b',label:''},{id:'f',from:'a',to:'c',label:'',toSide:'left' as const}]},before=JSON.stringify(b),expected=JSON.stringify(b.edges[0]);for(const[id,target,revision]of [['e','a',expected],['e','missing',expected],['gone','b',expected],['e','c',expected],['e','b','stale']])assert.equal(reconnectEdge(b,id,'to',target,'left',revision),false);assert.equal(JSON.stringify(b),before);});

@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {cardControlLayout} from '../src/card-control-layout';
+import {cardControlLayout,type CardControlRect} from '../src/card-control-layout';
 
 const node={x:350,y:300,width:320,height:220};
 const close=(actual:number,expected:number)=>assert.ok(Math.abs(actual-expected)<1e-8,`${actual} != ${expected}`);
-function screen(rect:typeof node,viewport:{x:number;y:number;zoom:number},count:number,width=1200,height=900,dimensions?:{width:number;height:number;topReserve?:number}){
+function screen(rect:typeof node,viewport:{x:number;y:number;zoom:number},count:number,width=1200,height=900,dimensions?:{width:number;height:number;topReserve?:number;avoid?:ReadonlyArray<CardControlRect>}){
   const layout=cardControlLayout(rect,viewport,width,height,count,dimensions);
   const w=(dimensions?.width??32*count+4)*layout.scale*viewport.zoom,h=(dimensions?.height??36)*layout.scale*viewport.zoom;
   const right=(rect.x+rect.width-layout.right)*viewport.zoom+viewport.x;
@@ -213,4 +213,55 @@ test('an impossible body/viewport fit minimizes overlap while keeping the dock r
   assert.ok(box.left>=0&&box.screenRight<=240&&box.screenTop>=126&&box.bottom<=240);
   const overlapHeight=Math.max(0,Math.min(box.bottom,200)-Math.max(box.screenTop,100));
   assert.ok(overlapHeight>0&&overlapHeight<36,'only the unavoidable bottom strip covers the body');
+});
+
+for(const zoom of [.5,1,2])test(`a narrow note dock clears the screen-sized creation rail below it at zoom ${zoom}`,()=>{
+  const rect={x:80/zoom,y:100/zoom,width:160/zoom,height:120/zoom},viewport={x:0,y:0,zoom};
+  // The caller expands the measured rail by its 6 px interaction margin.
+  const rail={x:6,y:60,width:68,height:300},dimensions={width:236,height:36,topReserve:126};
+  const before=screen(rect,viewport,5,320,600,dimensions),box=screen(rect,viewport,5,320,600,{...dimensions,avoid:[rail]});
+  const obstacle={left:rail.x,right:rail.x+rail.width,top:rail.y,bottom:rail.y+rail.height};
+  assert.equal(intersects(before,obstacle),true,'without the chrome obstacle the dock covers the rail');
+  assert.ok(obstacle.right+box.w>308,'there is insufficient horizontal room beside the rail');
+  assert.equal(intersects(box,obstacle),false);assert.equal(intersects(box,{left:80,right:240,top:100,bottom:220}),false);
+  close(box.screenTop,obstacle.bottom);close(box.scale,1/zoom);
+  assert.ok(box.left>=12&&box.screenRight<=308&&box.screenTop>=126&&box.bottom<=588,'the complete dock remains reachable');
+});
+
+test('a creation rail that does not overlap a normal right-side dock leaves its placement unchanged',()=>{
+  const viewport={x:0,y:0,zoom:1},dimensions={width:236,height:36,topReserve:126};
+  const rail={x:6,y:60,width:68,height:300};
+  assert.deepEqual(cardControlLayout(node,viewport,1200,900,5,{...dimensions,avoid:[rail]}),cardControlLayout(node,viewport,1200,900,5,dimensions));
+  assert.deepEqual(cardControlLayout(node,viewport,1200,900,5,{...dimensions,avoid:[]}),cardControlLayout(node,viewport,1200,900,5,dimensions));
+});
+
+test('invalid avoidance rectangles are ignored without changing the supplied model or measurements',()=>{
+  const rect=Object.freeze({...node}),viewport=Object.freeze({x:0,y:0,zoom:1});
+  const avoid=Object.freeze([
+    {x:NaN,y:0,width:80,height:400},{x:0,y:Infinity,width:80,height:400},
+    {x:0,y:0,width:Infinity,height:400},{x:0,y:0,width:80,height:NaN},
+    {x:0,y:0,width:0,height:400},{x:0,y:0,width:80,height:-400},
+    {x:Number.MAX_VALUE,y:0,width:Number.MAX_VALUE,height:400},
+    {x:0,y:Number.MAX_VALUE,width:80,height:Number.MAX_VALUE},
+  ].map(obstacle=>Object.freeze(obstacle)));
+  const dimensions=Object.freeze({width:236,height:36,topReserve:126,avoid}),before=structuredClone({rect,viewport,dimensions});
+  const placement=cardControlLayout(rect,viewport,1200,900,5,dimensions);
+  assert.deepEqual(placement,cardControlLayout(rect,viewport,1200,900,5,{width:236,height:36,topReserve:126}));
+  assert.deepEqual({rect,viewport,dimensions},before);
+});
+
+test('unavoidable chrome overlap retains a finite minimum-overlap dock inside the stage',()=>{
+  const rect={x:20,y:100,width:200,height:100},viewport={x:0,y:0,zoom:1};
+  const avoid=[{x:0,y:0,width:240,height:240}];
+  const box=screen(rect,viewport,5,240,240,{width:236,height:36,topReserve:126,avoid});
+  assert.ok(Object.values(box).every(Number.isFinite));close(box.scale,1);
+  assert.ok(box.left>=0&&box.screenRight<=240&&box.screenTop>=126&&box.bottom<=240);
+  const overlapHeight=Math.max(0,Math.min(box.bottom,200)-Math.max(box.screenTop,100));
+  assert.ok(overlapHeight>0&&overlapHeight<36,'the additional unavoidable obstacle preserves the existing body-overlap fallback');
+});
+
+test('offscreen fallback stays local even when canvas chrome avoidance is supplied',()=>{
+  const rect={...node,y:-500},viewport={x:0,y:0,zoom:.5};
+  const dimensions={width:236,height:52,topReserve:126};
+  assert.deepEqual(cardControlLayout(rect,viewport,800,600,5,{...dimensions,avoid:[{x:0,y:0,width:800,height:600}]}),cardControlLayout(rect,viewport,800,600,5,dimensions));
 });

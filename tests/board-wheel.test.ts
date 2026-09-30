@@ -19,9 +19,17 @@ test('pan normalizes both axes independently for pixel, line and page deltas',()
  assert.deepEqual(boardWheelIntent(event({deltaX:2,deltaY:-3,deltaMode:2}),{wheelMode:'pan'},50,40),{kind:'pan',dx:200,dy:-300});
 });
 
-test('Shift pan sends the normalized vertical delta to X and leaves Y still',()=>{
+test('Shift pan sends vertical or already-horizontal input to X and leaves Y still',()=>{
  assert.deepEqual(boardWheelIntent(event({deltaX:9,deltaY:3,deltaMode:1,shiftKey:true}),{wheelMode:'pan'},1000,700),{kind:'pan',dx:48,dy:0});
- assert.deepEqual(boardWheelIntent(event({deltaX:20,deltaY:0,shiftKey:true}),{wheelMode:'pan'},1000,700),{kind:'pan',dx:0,dy:0});
+ assert.deepEqual(boardWheelIntent(event({deltaX:20,deltaY:0,shiftKey:true}),{wheelMode:'pan'},1000,700),{kind:'pan',dx:20,dy:0});
+});
+
+test('Shift horizontal trackpad input uses its axis dimension and retains speed and reversal',()=>{
+ for(const [deltaMode,deltaX,width,expected] of [[0,20,400,20],[1,2,400,32],[2,.5,400,200]] as const){
+  const e=event({deltaX,deltaY:0,deltaMode,shiftKey:true});
+  assert.deepEqual(boardWheelIntent(e,{wheelMode:'pan',panSpeed:1.5},width,800),{kind:'pan',dx:expected*1.5,dy:0});
+  assert.deepEqual(boardWheelIntent(e,{wheelMode:'pan',panSpeed:1.5,reverseWheelPan:true},width,800),{kind:'pan',dx:-expected*1.5,dy:0});
+ }
 });
 
 test('pan speed and reversal apply after delta normalization without altering zoom behavior',()=>{

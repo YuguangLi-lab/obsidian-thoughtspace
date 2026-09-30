@@ -6,7 +6,7 @@ function fixture(){
  const doc:any={activeElement:null,defaultView:{getComputedStyle:(element:Control)=>({overflowX:element.overflow,direction:element.direction})}};
  class Control{
   ownerDocument=doc;parentElement:Control|null=null;children:Control[]=[];listeners=new Map<string,Set<(event:any)=>void>>();
-  role='';disabled=false;hidden=false;overflow='visible';direction='ltr';clientWidth=200;scrollWidth=200;scrollLeft=0;scrollTop=23;clientLeft=0;offsetWidth=200;
+  role='';orientation='';disabled=false;hidden=false;overflow='visible';direction='ltr';clientWidth=200;scrollWidth=200;scrollLeft=0;scrollTop=23;clientLeft=0;offsetWidth=200;
   private rectangle={left:0,right:200,width:200};private initialScroll=new Map<Control,number>();
   rectReads=0;tabIndex?:number;focusCalls:unknown[]=[];
   constructor(public tagName='DIV',public name=''){}
@@ -20,6 +20,7 @@ function fixture(){
   contains(element:unknown):boolean{return this===element||this.children.some(child=>child.contains(element));}
   matches(selector:string){return selector.split(',').some(tag=>tag==='[tabindex]'?this.tabIndex!==undefined:tag.toUpperCase()===this.tagName);}
   getClientRects(){return this.hidden?[]:[this.rect];}
+  getAttribute(name:string){return name==='aria-orientation'?this.orientation:null;}
   getBoundingClientRect(){
    this.rectReads++;let delta=0;
    for(let p=this.parentElement;p;p=p.parentElement)delta+=(p.scrollLeft-(this.initialScroll.get(p)||0))*(p.offsetWidth?p.rect.width/p.offsetWidth:1);
@@ -77,6 +78,19 @@ test('RTL arrows follow visual direction while Home and End retain logical tool 
  f.press(f.c,'ArrowLeft');assert.equal(f.doc.activeElement,f.a,'wrap from the visual left edge');
  f.press(f.b,'Home');assert.equal(f.doc.activeElement,f.a);f.press(f.b,'End');assert.equal(f.doc.activeElement,f.c);
  f.row.direction='ltr';f.press(f.b,'ArrowRight');assert.equal(f.doc.activeElement,f.c,'direction changes take effect without reinstalling');dispose();
+});
+test('vertical rail arrows follow top-to-bottom order while horizontal toolbars and native controls keep Up/Down',()=>{
+ const f=fixture(),select=f.row.add(new f.Control('SELECT')),input=f.row.add(new f.Control('INPUT'));const dispose=f.install(f.row);
+ for(const key of ['ArrowUp','ArrowDown'])assert.equal(f.press(f.b,key).defaultPrevented,false,'horizontal toolbar leaves vertical arrows untouched');
+ f.row.orientation='vertical';f.row.direction='rtl';
+ assert.equal(f.press(f.b,'ArrowDown').defaultPrevented,true);assert.equal(f.doc.activeElement,f.c,'RTL does not reverse top-to-bottom order');
+ f.press(f.b,'ArrowUp');assert.equal(f.doc.activeElement,f.a);f.press(f.a,'ArrowUp');assert.equal(f.doc.activeElement,f.c,'up wraps to the last tool');
+ f.press(f.c,'ArrowDown');assert.equal(f.doc.activeElement,f.a,'down wraps to the first tool');
+ f.b.disabled=true;f.press(f.a,'ArrowDown');assert.equal(f.doc.activeElement,f.c,'disabled controls are skipped vertically');
+ for(const native of [select,input])for(const key of ['ArrowUp','ArrowDown'])assert.equal(f.press(native,key).defaultPrevented,false);
+ f.press(f.a,'ArrowLeft');assert.equal(f.doc.activeElement,f.c,'the existing RTL horizontal arrows remain compatible');
+ f.press(f.a,'End');assert.equal(f.doc.activeElement,f.c);f.press(f.c,'Home');assert.equal(f.doc.activeElement,f.a);
+ assert.equal(f.press(f.a,'ArrowDown',{ctrlKey:true}).defaultPrevented,false);dispose();
 });
 test('native selects, composition and host shortcuts keep their own key behavior',()=>{
  const f=fixture(),select=f.row.add(new f.Control('SELECT'));const dispose=f.install(f.row);

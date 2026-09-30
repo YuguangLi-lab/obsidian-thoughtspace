@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
-import {installToolPalettes} from '../src/tool-palette';
+import {installToolPalettes,revealToolPaletteControl} from '../src/tool-palette';
 
 type Listener={run:(event:any)=>void;capture:boolean};
 class Element{
@@ -47,7 +47,7 @@ function fixture(options:{hiddenGroup?:boolean;integration?:boolean}={}){
  const button=(parent:Element,label:string,title=label)=>parent.createEl('button',{attr:{'aria-label':label,title}});
  const overview=button(organize,'分组总览','查看所有分组'),move=button(organize,'移入已有分组'),topic=button(mindmap,'子主题 · Tab'),pdf=button(workspace,'插入 PDF 卡片','从本地文件插入'),read=button(workspace,'阅读 PDF'),hidden=button(workspace,'隐藏 PDF 工具');hidden.hidden=true;
  if(options.hiddenGroup)mindmap.hidden=true;
- const module={exports:{} as any};new Function('require','module','exports',transformSync(readFileSync('src/rail-tool-search.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>name==='obsidian'?{setIcon:()=>{}}:{},module,module.exports);
+ const module={exports:{} as any};new Function('require','module','exports',transformSync(readFileSync('src/rail-tool-search.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>name==='obsidian'?{setIcon:()=>{}}:{revealToolPaletteControl},module,module.exports);
  const changes:{section:Element|undefined;searching:boolean}[]=[];
  const binding=module.exports.installRailToolSearch(panel,tools,{onCategoryChange:(section:Element|undefined,searching=false)=>changes.push({section,searching})}),header=panel.children.find(child=>child.className==='ts-rail-search')!,field=header.children[0],input=field.children.find(child=>child.tagName==='INPUT')!,clear=field.children.find(child=>child.tagName==='BUTTON')!,status=header.children[1],empty=panel.children.find(child=>child.className==='ts-rail-empty')!;
  if(options.integration){
@@ -94,6 +94,17 @@ test('IME Escape and modified tool arrows keep their native behavior in the actu
 test('search arrows enter reachable results and reveal the last result; Up from first returns to search',()=>{
  const f=fixture();f.search('pdf');f.key(f.input,'ArrowUp');assert.equal(f.doc.activeElement,f.read);assert.equal(f.tools.scrollTop,f.tools.scrollHeight-f.tools.clientHeight);
  f.key(f.input,'ArrowDown');assert.equal(f.doc.activeElement,f.pdf);assert.equal(f.tools.scrollTop,0);f.key(f.pdf,'ArrowUp');assert.equal(f.doc.activeElement,f.input);f.binding.dispose();
+});
+test('short-panel search arrows reveal first and last commands and return to a visible search field',()=>{
+ const f=fixture();f.panel.className='ts-rail-popover';f.panel.clientHeight=80;f.panel.scrollHeight=900;
+ Object.assign(f.panel,{offsetHeight:82,clientTop:1});f.panel.getBoundingClientRect=()=>({left:20,top:20,right:122,bottom:102,width:102,height:82});
+ f.tools.clientHeight=600;f.tools.scrollHeight=600;
+ for(const [element,top,height] of [[f.input,80,30],[f.overview,180,36],[f.read,540,36]] as const){element.getBoundingClientRect=()=>({left:30,top:top-f.panel.scrollTop,right:100,bottom:top+height-f.panel.scrollTop,width:70,height});}
+ const visible=(element:Element)=>{const rect=element.getBoundingClientRect();assert.ok(rect.top>=21&&rect.bottom<=101);};
+ f.key(f.input,'ArrowUp');assert.equal(f.doc.activeElement,f.read);visible(f.read);
+ f.key(f.input,'ArrowDown');assert.equal(f.doc.activeElement,f.overview);visible(f.overview);
+ f.key(f.overview,'ArrowUp');assert.equal(f.doc.activeElement,f.input);visible(f.input);
+ f.panel.scrollTop=700;f.binding.open();assert.equal(f.doc.activeElement,f.input);visible(f.input);assert.ok(f.panel.scrollTop<30,'reopening restores the beginning of the panel');f.binding.dispose();
 });
 test('hidden original clusters never count as matches or leave a false nonempty result state',()=>{
  const f=fixture({hiddenGroup:true});f.search('子主题');assert.deepEqual(f.visible(),[]);assert.match(f.status.textContent,/0 项工具/);assert.equal(f.empty.hidden,false);f.key(f.input,'Enter');assert.equal(f.topic.clicks,0);f.binding.dispose();assert.equal(f.mindmap.hidden,true);

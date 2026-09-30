@@ -53,7 +53,7 @@ This exercise produces a small research board and a reusable Markdown draft.
 1. **Minute 0–1:** Run **新建白板** and name it `Reading project`.
 2. **Minute 1–2:** Double-click an empty area, type `What question am I trying to answer?`, and finish the edit with the editor's save control.
 3. **Minute 2–3:** Choose **插入内容 → 已有笔记** (Insert content → Existing note) and select a Markdown note from your vault.
-4. **Minute 3–4:** Click **新建卡片** (New card) and record your own interpretation. You can set its board title later with **修改卡片标题** in the card's context menu.
+4. **Minute 3–4:** Click **＋ 新建卡片** (New card) in the left floating toolbar and record your own interpretation. You can set its board title later with **修改卡片标题** in the card's context menu.
 5. **Minute 4–5:** Drag the three objects into position; use the lower-right handles to adjust their sizes.
 6. **Minute 5–6:** Click **连线** (Connect), then connect the source note to your interpretation. Double-click the line to add a relationship label.
 7. **Minute 6–7:** Select the objects with a right-button drag on empty space, then click **分组框** (Group frame) and name the group `Evidence`.
@@ -93,7 +93,7 @@ A note can appear on several boards or more than once on one board. Those cards 
 | **新建思维导图** command | Start a mind map with a preset |
 | **ThoughtSpace 音视频笔记** ribbon icon | Play and annotate media without opening a board |
 
-On a board, the left creation toolbar contains selection, connections, cards, text, insertion, grouping, and arrangement. The top floating toolbar changes with the selected object. The bottom controls handle background, grid snapping, zoom, fit, and overview. The board header includes undo/redo, search, saved views, focus mode, and **工作区** (Workspace).
+The paper workbench uses a warm canvas, layered cards, and separate tool panels. It retains Obsidian's existing title bar without adding a full workbench row. A compact vertical toolbar floats on the left of the canvas for selection, connections, **＋ 新建卡片** (New card), text, insertion, grouping, and arrangement. The top contextual formatting toolbar appears when an object is selected. View controls at the lower right handle background, grid snapping, zoom, fit, and overview; narrow panes allow horizontal scrolling in that dock. Open the material navigator through the **ThoughtSpace 侧边栏** ribbon icon, and create boards through its **新建** (New) menu or the command palette. The native board header includes undo/redo, search, saved views, focus mode, and **工作区** (Workspace). Fit and focus account for the canvas space beside the left toolbar and below any visible formatting panel.
 
 ### Keep large boards navigable
 
@@ -125,6 +125,8 @@ These are the defaults. Your settings under **Settings → ThoughtSpace → 鼠�
 | Drag its lower-right handle | Resize |
 | Double-click text or a note card | Edit its content |
 | Double-click empty space | Create and edit board text |
+
+Shift-click a card to add it to or remove it from the selection. Shift-drag a selected card keeps the selection together and moves horizontally or vertically when axis lock is enabled. A lower-right handle resizes only its own card while preserving the other selected cards; Shift-drag preserves its proportions when aspect lock is enabled. Releasing the pointer outside the board also ends the operation.
 
 Click **框选** (Selection) to make left-drag select objects. The mouse presets are **默认方案** (Default), **左键框选** (Left-button selection), and **触控板** (Trackpad). The trackpad preset changes the wheel to pan; in pan mode, Ctrl/Cmd + wheel zooms. Pinch zoom remains available. You can change each mouse button, wheel direction, speed, zoom anchor, and drag threshold independently.
 

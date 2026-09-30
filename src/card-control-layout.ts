@@ -18,7 +18,7 @@ function available(extent:number,size:number,start:number,end:number):[number,nu
  * Buttons are 28 px, gaps 4 px and outer padding/border totals 8 px: five actions
  * occupy 164 x 36 before scaling. Viewport translation is measured in screen px.
  */
-export function cardControlLayout(node:CardControlRect,viewport:CardControlViewport,stageWidth:number,stageHeight:number,actionCount:number,dimensions?:{width:number;height:number;topReserve?:number}):CardControlPlacement{
+export function cardControlLayout(node:CardControlRect,viewport:CardControlViewport,stageWidth:number,stageHeight:number,actionCount:number,dimensions?:{width:number;height:number;topReserve?:number;avoid?:ReadonlyArray<CardControlRect>}):CardControlPlacement{
   const zoom=Number.isFinite(viewport.zoom)&&viewport.zoom>0?viewport.zoom:1;
   const scale=clamp(1/zoom,.4,2),requestedHeight=Math.max(1,finite(dimensions?.height??36,36));
   // The early offscreen/overflow fallback must itself remain valid CSS geometry.
@@ -45,6 +45,12 @@ export function cardControlLayout(node:CardControlRect,viewport:CardControlViewp
     // branch-controls.css: left=right+24, height=32; 112 px covers a five-digit
     // count and its menu. Reserve it without reading DOM, plus a 5 px margin.
     [nodeRight+19*zoom,centerY-21*zoom,nodeRight+141*zoom,centerY+21*zoom]];
+  // Canvas chrome is already measured in stage screen pixels, including any
+  // caller-supplied safety margin. Keep this calculation independent of DOM.
+  for(const rect of dimensions?.avoid||[]){
+    const right=rect.x+rect.width,bottom=rect.y+rect.height;
+    if(rect.width>0&&rect.height>0&&[rect.x,rect.y,rect.width,rect.height,right,bottom].every(Number.isFinite))obstacles.push([rect.x,rect.y,right,bottom]);
+  }
   const overlap=([a,b]:readonly number[],[l,t,r,d]:readonly number[])=>{
     const w=Math.min(a+width,r)-Math.max(a,l),h=Math.min(b+height,d)-Math.max(b,t);
     return w>1e-8&&h>1e-8?w*h:0;

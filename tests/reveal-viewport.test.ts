@@ -23,10 +23,10 @@ function fixture({zoom=1,kind='text',width=280,height=80,selected=true}={}){
  const board={version:3,mode:'free',nodes:[node],edges:[],viewport:{x:0,y:0,zoom}};
  let selectedVisible=selected;
  const rect=(left:number,top:number,right:number,bottom:number)=>({left,top,right,bottom,width:right-left,height:bottom-top});
- const control=(bounds:ReturnType<typeof rect>,visible=()=>true)=>({getClientRects:()=>visible()?[bounds]:[],getBoundingClientRect:()=>bounds});
+ const control=(bounds:ReturnType<typeof rect>,visible=()=>true,orientation?:'vertical'|'horizontal')=>({getClientRects:()=>visible()?[bounds]:[],getBoundingClientRect:()=>bounds,getAttribute:(name:string)=>name==='aria-orientation'?orientation??null:null});
  const controls:Record<string,ReturnType<typeof control>>={
   '.ts-floating-formatbar':control(rect(216,14,784,109),()=>selectedVisible),
-  '.ts-board-rail':control(rect(14,120,66,260)),
+  '.ts-board-rail':control(rect(14,120,66,260),()=>true,'vertical'),
   '.ts-footer':control(rect(14,304,986,346)),
  };
  class BoardSearchModal{

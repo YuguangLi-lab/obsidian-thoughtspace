@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
-import {clone,emptyBoard,type Board,type Card,type Edge} from '../src/model';
+import {clone,emptyBoard,uid,type Board,type Card,type Edge} from '../src/model';
 import * as connections from '../src/connections';
 import * as flow from '../src/connection-flow';
 import * as sections from '../src/sections';
@@ -12,7 +12,7 @@ import * as sections from '../src/sections';
 const source=readFileSync(process.env.CONNECTION_PREVIEW_SOURCE||'src/main.ts','utf8');
 function take(start:string,end:string){const a=source.indexOf(start),b=source.indexOf(end,a);assert.ok(a>=0&&b>a,start);return source.slice(a,b);}
 const methods=take('  private connectionNodes(','  private markerId')+take('  private cancelConnection(','  private createConnection(');
-const deps={clone,...connections,...flow,...sections,act:(fn:()=>unknown)=>fn()};
+const deps={clone,uid,...connections,...flow,...sections,act:(fn:()=>unknown)=>fn()};
 const View=new Function(...Object.keys(deps),transformSync(`return class View{${methods}}`,{loader:'ts'}).code)(...Object.values(deps));
 class Element {
  isConnected=true;textContent='';classes=new Set<string>();attributes=new Map<string,string>();paths=0;
@@ -26,14 +26,16 @@ class Element {
 const node=(id:string,x:number,text=id):Card=>({id,kind:'text',text,x,y:0,width:150,height:100,color:'sand'});
 function fixture(size=3){
  const nodes=[node('a',0),node('b',400),node('c',700)],rawEdges:Edge[]=Array.from({length:size},(_,i)=>({id:'e'+i,from:'a',to:'b',label:'edge '+i,style:'curve'}));
- const stats={edgeReads:0,writes:0,updates:0},board:Board={...emptyBoard(),version:3,nodes,edges:[],viewport:{x:0,y:0,zoom:1},defaultEdgeStyle:'straight'};
+ const stats={edgeReads:0,writes:0,updates:0,topics:0,edits:0},board:Board={...emptyBoard(),version:3,nodes,edges:[],viewport:{x:0,y:0,zoom:1},defaultEdgeStyle:'straight'};
  const watchEdges=(edges:Edge[])=>{board.edges=new Proxy(edges,{get(target,key,receiver){if(typeof key==='string'&&/^\d+$/.test(key))stats.edgeReads++;return Reflect.get(target,key,receiver);}});};watchEdges(rawEdges);
  const view=new View(),capture=new Set<number>(),stage=Object.assign(new Element(),{focus(){},setPointerCapture:(id:number)=>capture.add(id),hasPointerCapture:(id:number)=>capture.has(id),releasePointerCapture:(id:number)=>capture.delete(id),getBoundingClientRect:()=>({left:0,top:0,right:1000,bottom:800})});
  const owner={board,blocked:false,change(fn:(board:Board)=>void){stats.writes++;fn(board);}};
  Object.assign(view,{session:owner,connectFrom:'a',connectSide:'right',connectionCandidates:nodes,positions:new Map(nodes.map(n=>[n.id,new Element()])),
-  plugin:{settings:{defaultEdgeStyle:'curve'}},stage,svg:{createSvg:()=>new Element()},flowHint:new Element(),selected:new Set(),
+  plugin:{settings:{defaultEdgeStyle:'curve',defaultEdgeDirection:'forward',defaultTextSize:16}},stage,svg:{createSvg:()=>new Element()},flowHint:new Element(),selected:new Set(),
   linkDrag:{id:1,x:150,y:50,moved:true,owner,edge:{id:'e'+(size-1),end:'to',expected:JSON.stringify(rawEdges[size-1])}},
-  setSectionTool(){},syncSelectionTool(){},updateSelection(){stats.updates++;},point:(x:number,y:number)=>({x,y})
+  setSectionTool(){},syncSelectionTool(){},updateSelection(){stats.updates++;},point:(x:number,y:number)=>({x,y}),
+  requireOwner(expected:typeof owner){assert.equal(view.session,expected);return expected;},
+  addTopic(){stats.topics++;},async startInlineEdit(){stats.edits++;}
  });
  const event=(x=410,y=50)=>({pointerId:1,clientX:x,clientY:y,button:0,preventDefault(){},stopPropagation(){}});
  const preview=(x=410,y=50)=>view.previewConnection(x,y);
@@ -121,4 +123,34 @@ test('ordinary new connection previews do not scan the board edge collection',()
  const f=fixture(1199);f.view.linkDrag.edge=undefined;
  for(let frame=0;frame<120;frame++)f.preview(410+frame/100);
  assert.equal(f.stats.edgeReads,0);assert.equal(f.view.linkPreview.paths,1);assert.equal(f.stats.writes,0);
+});
+
+test('returning a dragged connection to its source body or port cancels without creating text or a mindmap child',()=>{
+ for(const topicClick of [false,true])for(const zoom of [.5,1,2])for(const location of ['body','port','port halo','outer port edge']){
+  const f=fixture(),source=f.nodes[0];if(topicClick)f.board.mode='mindmap';
+  f.board.viewport={x:80,y:60,zoom};f.view.point=(x:number,y:number)=>({x:(x-80)/zoom,y:(y-60)/zoom});
+  f.view.mode='connect';f.view.linkDrag={id:1,x:80+source.width*zoom,y:60+50*zoom,moved:true,owner:f.owner,topicClick};
+  f.capture.add(1);const before=JSON.stringify(f.board);
+  const point={x:location==='body'?100:source.width+(location==='port halo'?12/zoom:location==='outer port edge'?14:0),y:50};
+  f.view.finishLinkDrag(f.event(80+point.x*zoom,60+point.y*zoom));
+  assert.equal(JSON.stringify(f.board),before,`${location}, zoom ${zoom}, mindmap ${topicClick}`);
+  assert.equal(f.stats.topics,0);assert.equal(f.stats.edits,0);assert.equal(f.stats.writes,0);
+  assert.equal(f.view.mode,'select');assert.equal(f.view.linkDrag,undefined);assert.equal(f.capture.size,0);
+ }
+});
+
+test('a dragged connection released over actual blank canvas still creates text or a mindmap child',async()=>{
+ for(const topicClick of [false,true]){
+  const f=fixture();if(topicClick)f.board.mode='mindmap';
+  f.view.mode='connect';f.view.linkDrag={id:1,x:150,y:50,moved:true,owner:f.owner,topicClick};
+  const count=f.board.nodes.length,edges=f.board.edges.length;
+  f.view.finishLinkDrag(f.event(300,300));await Promise.resolve();
+  if(topicClick){assert.equal(f.stats.topics,1);assert.equal(f.stats.writes,0);assert.equal(f.board.nodes.length,count);}
+  else{
+   assert.equal(f.board.nodes.length,count+1);assert.equal(f.board.edges.length,edges+1);assert.equal(f.stats.writes,1);assert.equal(f.stats.edits,1);
+   const created=f.board.nodes.at(-1)!;assert.deepEqual([created.kind,created.x,created.y],['text',300,300]);
+   assert.deepEqual([f.board.edges.at(-1)!.from,f.board.edges.at(-1)!.to],['a',created.id]);
+  }
+  assert.equal(f.view.mode,'select');assert.equal(f.view.linkDrag,undefined);
+ }
 });

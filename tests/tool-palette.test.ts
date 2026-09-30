@@ -11,7 +11,10 @@ class Surface{
 class Doc extends Surface{
  elements:Element[]=[];getElementById(id:string){return this.elements.find(element=>element.getAttribute('id')===id)||null;}
  activeElement:Element|null=null;timers=new Map<number,()=>void>();sequence=0;
- defaultView={setTimeout:(run:()=>void)=>{const id=++this.sequence;this.timers.set(id,run);return id;},clearTimeout:(id:number)=>{this.timers.delete(id);}};
+ observers:{run:()=>void;disconnected:boolean;targets:Element[]}[]=[];
+ defaultView={setTimeout:(run:()=>void)=>{const id=++this.sequence;this.timers.set(id,run);return id;},clearTimeout:(id:number)=>{this.timers.delete(id);},
+  ResizeObserver:(()=>{const doc=this;return class{disconnected=false;targets:Element[]=[];constructor(public run:()=>void){doc.observers.push(this);}observe(element:Element){this.targets.push(element);}disconnect(){this.disconnected=true;}};})(),
+ };
  flush(){for(const [id,run]of [...this.timers]){this.timers.delete(id);run();}}
 }
 class Element extends Surface{
@@ -22,7 +25,7 @@ class Element extends Surface{
  contains(element:Element|null):boolean{return !!element&&(element===this||this.children.some(child=>child.contains(element)));}
  getAttribute(name:string){return this.attributes.get(name)??null;}
  setAttribute(name:string,value:string){this.attributes.set(name,value);}
- closest(selector:string):Element|null{for(let element:Element|null=this;element;element=element.parentElement)if(selector==='button'&&element.tagName==='BUTTON')return element;return null;}
+ closest(selector:string):Element|null{for(let element:Element|null=this;element;element=element.parentElement)if(selector==='button'&&element.tagName==='BUTTON'||selector==='.ts-rail-popover'&&element.getAttribute('class')?.split(' ').includes('ts-rail-popover'))return element;return null;}
  querySelectorAll(selector:string):Element[]{return this.children.flatMap(child=>[...(selector.startsWith('button')&&child.tagName==='BUTTON'?[child]:[]),...child.querySelectorAll(selector)]);}
  getClientRects(){for(let element:Element|null=this;element;element=element.parentElement)if(element.hidden)return[];return[{}];}
  getBoundingClientRect(){return{...this.rect,right:this.rect.left+this.rect.width,bottom:this.rect.top+this.rect.height};}
@@ -61,6 +64,45 @@ test('disclosures identify their own dialog with distinct controls IDs',()=>{
 test('Escape closes only the active palette and restores its trigger without scrolling',()=>{
  const f=fixture();f.triggerA.click();const event=f.key(f.buttons[1],'Escape');assert.equal(event.defaultPrevented,true);assert.equal(event.stopped,true);assert.equal(f.panelA.hidden,true);assert.equal(f.doc.activeElement,f.triggerA);assert.deepEqual(f.triggerA.focuses.at(-1),{preventScroll:true});
  assert.equal(f.key(f.railAction,'Escape').defaultPrevented,false);f.binding.dispose();
+});
+test('closing a palette reveals its rail trigger after the footer returns or the rail was scrolled',()=>{
+ for(const changed of ['footer','wheel']){
+  const f=fixture();f.main.scrollTop=87;f.main.scrollLeft=23;
+  Object.defineProperty(f.rail,'clientHeight',{get:()=>f.panelB.hidden?100:200});
+  f.rail.scrollHeight=360;f.rail.offsetHeight=102;f.rail.clientTop=1;
+  f.rail.getBoundingClientRect=()=>({left:20,top:20,right:70,bottom:20+f.rail.clientHeight+2,width:50,height:f.rail.clientHeight+2});
+  f.triggerB.getBoundingClientRect=()=>({left:28,top:310-f.rail.scrollTop,right:60,bottom:342-f.rail.scrollTop,width:32,height:32});
+  f.triggerB.click();f.rail.scrollTop=changed==='footer'?180:0;
+  f.key(f.input,'Escape');
+  assert.equal(f.doc.activeElement,f.triggerB,changed);
+  assert.equal(f.rail.scrollTop,221,`${changed}: restore must reveal inside the final, shorter rail viewport`);
+  assert.equal(f.triggerB.getBoundingClientRect().bottom,121,changed);
+  assert.deepEqual(f.triggerB.focuses.at(-1),{preventScroll:true});
+  assert.deepEqual([f.main.scrollTop,f.main.scrollLeft],[87,23]);f.binding.dispose();
+ }
+});
+test('a later footer-reserve resize reveals restored rail focus without touching the editor or disposed bindings',()=>{
+ const f=fixture();let height=200;Object.defineProperty(f.rail,'clientHeight',{get:()=>height});
+ f.rail.scrollHeight=360;f.rail.clientTop=1;
+ f.rail.getBoundingClientRect=()=>({left:20,top:20,right:70,bottom:height+22,width:50,height:height+2});
+ Object.defineProperty(f.rail,'offsetHeight',{get:()=>height+2});
+ f.triggerB.getBoundingClientRect=()=>({left:28,top:310-f.rail.scrollTop,right:60,bottom:342-f.rail.scrollTop,width:32,height:32});
+ f.triggerB.click();f.rail.scrollTop=180;f.key(f.input,'Escape');assert.equal(f.rail.scrollTop,180,'the immediate viewport still has room');
+ const observer=f.doc.observers[0];assert.deepEqual(observer.targets,[f.rail,f.panelA,f.panelB]);
+ height=100;observer.run();assert.equal(f.rail.scrollTop,221,'the final footer reserve keeps the restored trigger visible');
+ f.editor.focus();f.rail.scrollTop=0;height=80;observer.run();assert.equal(f.rail.scrollTop,0,'editor focus never scrolls the rail');
+ f.binding.dispose();assert.equal(observer.disconnected,true);f.triggerB.focus();observer.run();assert.equal(f.rail.scrollTop,0,'late callbacks after disposal do nothing');
+});
+test('a palette growing after the footer hides re-reveals its initial action inside the final viewport',()=>{
+ const f=fixture();let height=30;f.panelA.setAttribute('class','ts-rail-popover');
+ Object.defineProperty(f.panelA,'clientHeight',{get:()=>height});Object.defineProperty(f.panelA,'offsetHeight',{get:()=>height+2});
+ f.panelA.scrollHeight=400;f.panelA.clientTop=1;f.actionsA.clientHeight=300;f.actionsA.scrollHeight=300;
+ f.panelA.getBoundingClientRect=()=>({left:100,top:20,right:202,bottom:height+22,width:102,height:height+2});
+ f.buttons[0].getBoundingClientRect=()=>({left:110,top:120-f.panelA.scrollTop,right:150,bottom:188-f.panelA.scrollTop,width:40,height:68});
+ f.triggerA.click();assert.equal(f.panelA.scrollTop,137,'opening first measures the old footer reserve');
+ height=100;f.doc.observers[0].run();assert.equal(f.panelA.scrollTop,99,'the new viewport exposes the complete initial action');
+ assert.equal(f.buttons[0].getBoundingClientRect().top,21);assert.equal(f.buttons[0].getBoundingClientRect().bottom,89);
+ f.editor.focus();f.panelA.scrollTop=0;f.doc.observers[0].run();assert.equal(f.panelA.scrollTop,0,'outside editor focus does not move a palette');f.binding.dispose();
 });
 test('outside pointer closes across workspace panes without taking editor focus',()=>{
  const f=fixture();f.triggerA.click();f.editor.focus();const event=f.editor.dispatch('pointerdown');assert.equal(f.panelA.hidden,true);assert.equal(f.doc.activeElement,f.editor);assert.equal(event.defaultPrevented,false);
@@ -113,6 +155,18 @@ test('switching palettes cancels a pending focusout check from the previous pane
 });
 test('keyboard reveal scrolls only the local actions viewport and never the canvas',()=>{
  const f=fixture();f.actionsA.rect={left:10,top:20,width:100,height:80};f.actionsA.clientHeight=80;f.actionsA.offsetHeight=80;f.actionsA.scrollHeight=300;f.main.scrollTop=42;f.triggerA.click();f.key(f.buttons[0],'End');assert.equal(f.doc.activeElement,f.buttons[3]);assert.equal(f.actionsA.scrollTop,20);assert.equal(f.main.scrollTop,42);f.binding.dispose();
+});
+test('opening and navigating a short palette reveal commands through its outer panel only',()=>{
+ const f=fixture();f.main.scrollTop=64;f.main.scrollLeft=17;f.main.scrollHeight=800;
+ f.panelA.setAttribute('class','ts-rail-popover');f.panelA.clientHeight=90;f.panelA.scrollHeight=400;f.panelA.offsetHeight=92;f.panelA.clientTop=1;
+ f.panelA.getBoundingClientRect=()=>({left:100,top:40,right:202,bottom:132,width:102,height:92});
+ f.actionsA.clientHeight=300;f.actionsA.scrollHeight=300;
+ f.buttons.forEach((button,i)=>{button.getBoundingClientRect=()=>({left:110,top:130+i*60-f.panelA.scrollTop,right:150,bottom:160+i*60-f.panelA.scrollTop,width:40,height:30});});
+ f.triggerA.click();assert.equal(f.panelA.scrollTop,29,'opening exposes the first command below the palette header');
+ f.key(f.buttons[0],'End');assert.equal(f.doc.activeElement,f.buttons[3]);assert.equal(f.panelA.scrollTop,209);
+ assert.equal(f.buttons[3].getBoundingClientRect().bottom,131);
+ assert.equal(f.actionsA.scrollTop,0,'the expanded action list has no nested scrolling');
+ assert.deepEqual([f.main.scrollTop,f.main.scrollLeft],[64,17]);f.binding.dispose();
 });
 test('disposing removes every owned listener, cancels timers and prevents stale operations',()=>{
  const f=fixture();f.triggerA.click();f.buttons[0].dispatch('focusout');f.editor.focus();f.binding.dispose();f.binding.dispose();assert.equal(f.doc.timers.size,0);assert.equal(f.panelA.hidden,true);assert.equal(f.triggerA.getAttribute('aria-expanded'),'false');assert.equal(f.doc.activeElement,f.editor);

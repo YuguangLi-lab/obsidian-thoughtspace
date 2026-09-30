@@ -15,7 +15,9 @@ export function boardWheelIntent(event:BoardWheelEvent,settings:Partial<BoardPre
  if(settings.wheelMode==='pan'&&!event.ctrlKey&&!event.metaKey){
   const scale=speed(settings.panSpeed,3)*(settings.reverseWheelPan===true?-1:1);
   const scaled=(value:number)=>value===0?0:value*scale;
-  return{kind:'pan',dx:scaled(event.shiftKey?dy:dx),dy:event.shiftKey?0:scaled(dy)};
+  // Some trackpads and system wheel translators already provide a horizontal
+  // delta while Shift is held. Keep that input instead of replacing it with 0.
+  return{kind:'pan',dx:scaled(event.shiftKey?(dy||dx):dx),dy:event.shiftKey?0:scaled(dy)};
  }
  const exponent=-dy*.002*speed(settings.zoomSpeed,2)*(settings.reverseWheelZoom===true?-1:1);
  // The final bound also protects zoom if input normalization changes later.

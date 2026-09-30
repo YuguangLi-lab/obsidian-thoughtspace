@@ -52,7 +52,7 @@ function fixture(options:{width?:number;content?:number;left?:number;reduced?:bo
   property(position:number,size=60){
    const field={parentElement:scroller,clientWidth:size,scrollWidth:size},control={tagName:'SELECT',ownerDocument:doc,parentElement:field,
     getBoundingClientRect:()=>{positionReads++;return{left:100+position-left,right:100+position+size-left,width:size};},
-    focus(){throw Error('resize must preserve focus without refocusing the native control');},scrollIntoView(){throw Error('resize must not scroll the canvas');},
+    closest(){return null;},focus(){throw Error('resize must preserve focus without refocusing the native control');},scrollIntoView(){throw Error('resize must not scroll the canvas');},
    };
    owned.add(field);owned.add(control);return control;
   },

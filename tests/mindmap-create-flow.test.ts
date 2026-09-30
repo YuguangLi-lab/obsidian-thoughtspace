@@ -34,6 +34,15 @@ test('queued out-and-back mindmap drag connects instead of accidentally adding a
  const f=queuedReleaseView();f.v.pointerMove(f.event(100,100));f.v.pointerUp(f.event(10,20));await Promise.all(f.tasks);
  assert.deepEqual(f.previews,[[10,20]]);assert.deepEqual(f.v.connected,{from:'parent',to:'target'});assert.equal(f.v.created,undefined);
 });
+test('two queued out-and-back port moves retain drag intent through an animation frame or immediate release',async()=>{
+ for(const topicClick of [false,true])for(const applyFrame of [false,true]){
+  const f=queuedReleaseView(topicClick);f.v.pointerMove(f.event(100,100));f.v.pointerMove(f.event(10,20));
+  if(applyFrame){const pending=[...f.frames.values()];f.frames.clear();pending.forEach(fn=>fn());}
+  f.v.pointerUp(f.event(10,20));await Promise.all(f.tasks);
+  assert.deepEqual(f.v.connected,{from:'parent',to:'target'},`mindmap plus: ${topicClick}, frame applied: ${applyFrame}`);
+  assert.equal(f.v.created,undefined);assert.equal(f.v.mode,'select');assert.equal(f.frames.size,0);
+ }
+});
 test('foreign pointer release cannot consume connection motion, and cancel never previews or creates',async()=>{
  const f=queuedReleaseView();f.v.pointerMove(f.event(100,100));const queued=f.v.pendingPointer;
  f.v.pointerUp(f.event(300,200,2));assert.equal(f.v.pendingPointer,queued);assert.equal(f.frames.size,1);assert.deepEqual(f.previews,[]);

@@ -22,6 +22,14 @@ const methods=take('  private finishMarqueeFromDocument(', '  private foldSelect
   +take('  private clearCanvasGesture(', '  private syncCanvasControls(')
   +take('  private contextMenu(', '  /** Compact native context menu;')
   +take('  private pointerDown(', '  private matches(');
+const auxclickStart=source.indexOf("    this.registerDomEvent(this.stage,'auxclick',");
+const auxclickEnd=source.indexOf("    this.registerDomEvent(root,'mouseover'",auxclickStart);
+assert.ok(auxclickStart>=0&&auxclickEnd>auxclickStart);
+const auxclickRegistration=transformSync(source.slice(auxclickStart,auxclickEnd),{loader:'ts'}).code;
+const captureStart=source.indexOf("    this.registerDomEvent(this.stage,'pointerdown',e=>{");
+const captureEnd=source.indexOf("    this.registerDomEvent(this.contentEl.ownerDocument,'pointermove'",captureStart);
+assert.ok(captureStart>=0&&captureEnd>captureStart);
+const captureRegistration=transformSync(source.slice(captureStart,captureEnd),{loader:'ts'}).code;
 
 class Element {
   style:Record<string,string>={};dataset:Record<string,string>={};removed=false;
@@ -58,16 +66,24 @@ function fixture(nodes:model.Card[]=[node('a',20),node('b',150),node('old',500)]
     selected:new Set(['old']),selectionTool:true,space:false,mode:'select',pointerFrame:0,dragging:false,
     stage,world:{createDiv(){const box=new Element();boxes.push(box);return box;}},svg:new Element(),
     positions:new Map(nodes.map(n=>[n.id,new Element()])),pendingFits:new Map(),nodeFitQueue:{schedule(){}},
-    plugin:{settings:{axisLock:true,alignmentGuides:false,gridStep:24}},viewTrail:{remember(){calls.history++;}},
+    plugin:{settings:{axisLock:true,aspectLock:true,alignmentGuides:false,gridStep:24}},viewTrail:{remember(){calls.history++;}},
     point(x:number,y:number){const v=board.viewport;return {x:(x-v.x)/v.zoom,y:(y-v.y)/v.zoom};},
-    syncCanvasControls(){calls.controls++;},renderInspector(){calls.inspector++;},renderBoard(){calls.render++;},scheduleRender(){calls.schedule++;},
+    syncCanvasControls(){calls.controls++;},renderInspector(){calls.inspector++;},renderBoard(){calls.render++;},scheduleRender(){calls.schedule++;},positionNode(){},renderEdges(){},
     cancelConnection(){view.mode='select';view.connectFrom=undefined;},previewGridLanding(){},drawAlignmentGuides(){},setSectionTool(){},
     renderObjectActions(_menu:Menu,n?:model.Card,e?:model.Edge,position?:{x:number;y:number}){menus.push({node:n?.id,edge:e?.id,position});}});
   function event(x=0,y=0,extra:Record<string,unknown>={}){return {pointerId:1,button:0,clientX:x,clientY:y,target:new Element(),shiftKey:false,ctrlKey:false,metaKey:false,altKey:false,preventDefault(){},stopPropagation(){},...extra};}
   function flush(){const pending=[...frames.values()];frames.clear();pending.forEach(fn=>fn());}
-  return {view,board,calls,capture,boxes,frames,menus,event,flush,advance(ms:number){now+=ms;}};
+  let auxclick!:(input:ReturnType<typeof event>)=>void;const openedLinks:unknown[]=[];
+  view.registerDomEvent=(_target:unknown,_type:string,listener:typeof auxclick)=>{auxclick=listener;};
+  new Function('openStageLink',auxclickRegistration).call(view,(event:unknown)=>openedLinks.push(event));
+  let pointerdownCapture!:(input:ReturnType<typeof event>)=>void;
+  view.blankClicks={cancel(){},down(){}};view.canCreateBlankText=()=>false;
+  view.registerDomEvent=(_target:unknown,_type:string,listener:typeof pointerdownCapture,options:{capture?:boolean})=>{assert.equal(options.capture,true);pointerdownCapture=listener;};
+  new Function(captureRegistration).call(view);
+  return {view,board,calls,capture,boxes,frames,menus,event,flush,auxclick,pointerdownCapture,openedLinks,advance(ms:number){now+=ms;}};
 }
 const ids=(view:any)=>[...view.selected].sort();
+function cardTarget(id:string,resize=false){const card=new Element();card.dataset.id=id;return new Element({'[data-id]':card,...(resize?{'.ts-resize':card}:{})});}
 
 test('blank-canvas left drag pans without modifiers, retaining selection and leaving object geometry unchanged',()=>{
   const f=fixture();f.view.selectionTool=false;f.view.selectedEdge='selected-edge';const before=structuredClone(f.board.nodes);f.view.pointerDown(f.event());
@@ -98,6 +114,101 @@ test('Space-left-drag and middle-drag remain panning gestures and preserve selec
     assert.deepEqual(ids(f.view),['old']);assert.deepEqual(f.board.viewport,{x:50,y:70,zoom:1});
     assert.equal(f.calls.persist,1);assert.equal(f.calls.writes,0);
   }
+});
+
+// Canvas-owned middle clicks also cancel auxclick while native editor and link
+// interactions retain their own default behavior. Linux PRIMARY paste requires
+// cancelling pointerup separately; see the release regressions below.
+for(const middleDrag of ['pan','select'])test(`middle ${middleDrag} cancels canvas auxclick after release`,()=>{
+ const f=fixture();f.view.selectionTool=false;f.view.plugin.settings.middleDrag=middleDrag;
+ const before=structuredClone(f.board.nodes);f.view.pointerDown(f.event(0,0,{button:1}));
+ f.view.pointerMove(f.event(240,100,{button:1,buttons:4}));f.flush();f.view.pointerUp(f.event(240,100,{button:1,buttons:0}));
+ let prevented=false;f.auxclick(f.event(240,100,{button:1,preventDefault(){prevented=true;}}));
+ assert.deepEqual(f.board.nodes,before);assert.equal(prevented,true);
+ assert.deepEqual(f.board.viewport,middleDrag==='pan'?{x:240,y:100,zoom:1}:{x:0,y:0,zoom:1});
+});
+
+test('middle pan on a card consumes paste without moving or duplicating the card',()=>{
+ const f=fixture(),target=cardTarget('a');const before=structuredClone(f.board.nodes);
+ f.view.pointerDown(f.event(30,30,{button:1,target}));f.view.pointerUp(f.event(70,60,{button:1,target}));
+ let prevented=false;f.auxclick(f.event(70,60,{button:1,target,preventDefault(){prevented=true;}}));
+ assert.equal(prevented,true);assert.deepEqual(f.board.nodes,before);assert.deepEqual(f.board.viewport,{x:40,y:30,zoom:1});
+});
+
+test('a middle click on canvas consumes paste before crossing a drag threshold',()=>{
+ const f=fixture();f.view.pointerDown(f.event(30,30,{button:1}));f.view.pointerUp(f.event(30,30,{button:1}));
+ let prevented=false;f.auxclick(f.event(30,30,{button:1,preventDefault(){prevented=true;}}));
+ assert.equal(prevented,true);assert.equal(f.calls.persist,0);
+});
+
+test('disabled middle mapping keeps native handling when the board does not own the gesture',()=>{
+ const f=fixture();f.view.plugin.settings.middleDrag='none';f.view.pointerDown(f.event(30,30,{button:1}));
+ f.view.pointerUp(f.event(70,60,{button:1}));let prevented=false;
+ f.auxclick(f.event(70,60,{button:1,preventDefault(){prevented=true;}}));assert.equal(prevented,false);
+});
+
+for(const boundary of ['input','textarea','select','button','video','audio','.ts-av-player','[contenteditable=true]','.ts-inline-editor','a'])test(`middle native ${boundary} interaction is not blocked by an earlier canvas gesture`,()=>{
+ const f=fixture();f.view.pointerDown(f.event(0,0,{button:1}));f.view.pointerUp(f.event(50,40,{button:1}));
+ // A previous drag may have ended outside the stage and produced no auxclick.
+ const target=new Element({[boundary]:new Element()});f.view.pointerDown(f.event(0,0,{button:1,target}));
+ let prevented=false;f.auxclick(f.event(0,0,{button:1,target,preventDefault(){prevented=true;}}));
+ assert.equal(prevented,false);assert.equal(f.view.gesture,undefined);
+});
+
+test('middle internal links still use the native pane route after an earlier canvas gesture',()=>{
+ const f=fixture();f.view.pointerDown(f.event(0,0,{button:1}));f.view.pointerUp(f.event(50,40,{button:1}));
+ const link=new Element(),target=new Element({'a':link,'a.internal-link':link});
+ f.view.pointerDown(f.event(0,0,{button:1,target}));const event=f.event(0,0,{button:1,target});f.auxclick(event);
+ assert.deepEqual(f.openedLinks,[event]);assert.equal(f.view.gesture,undefined);
+});
+
+test('capture clears stale middle ownership before the native editor stops pointerdown bubbling',()=>{
+ const f=fixture();f.view.pointerDown(f.event(0,0,{button:1}));f.view.pointerUp(f.event(50,40,{button:1}));
+ const target=new Element({'.ts-inline-editor':new Element()}),down=f.event(0,0,{button:1,target});
+ f.pointerdownCapture(down);
+ // InlineNodeEditor deliberately stops pointerdown before the board's bubble
+ // handler. Its middle auxclick must retain the OS's editor paste action.
+ let prevented=false;f.auxclick(f.event(0,0,{button:1,target,preventDefault(){prevented=true;}}));
+ assert.equal(prevented,false);assert.equal(f.view.gesture,undefined);
+});
+
+test('non-middle auxclicks cannot consume a pending canvas middle default',()=>{
+ const f=fixture();f.view.pointerDown(f.event(0,0,{button:1}));f.view.pointerUp(f.event(50,40,{button:1}));
+ let prevented=false;f.auxclick(f.event(0,0,{button:2,preventDefault(){prevented=true;}}));assert.equal(prevented,false);
+ f.auxclick(f.event(0,0,{button:1,preventDefault(){prevented=true;}}));assert.equal(prevented,true);
+});
+
+for(const middleDrag of ['pan','select'])test(`middle ${middleDrag} cancels PRIMARY paste at pointer release, before auxclick`,()=>{
+ const f=fixture();f.view.selectionTool=false;f.view.plugin.settings.middleDrag=middleDrag;
+ const before=structuredClone(f.board.nodes);f.view.pointerDown(f.event(0,0,{button:1}));
+ let releasePrevented=false;const release=f.event(240,100,{button:1,buttons:0,preventDefault(){releasePrevented=true;}});
+ // The document capture handler finishes before stage's bubble handler.
+ f.view.finishMarqueeFromDocument(release);const after={...f.calls};f.view.pointerUp(release);
+ let auxPrevented=false;f.auxclick(f.event(240,100,{button:1,preventDefault(){auxPrevented=true;}}));
+ // The native Linux probe establishes that cancelling auxclick alone still
+ // dispatches PRIMARY paste. Its default action follows pointerup instead.
+ if(!releasePrevented)f.board.nodes.push(node('unwanted-primary-paste',240,100));
+ assert.deepEqual(f.board.nodes,before);assert.equal(releasePrevented,true);assert.equal(auxPrevented,true);
+ assert.deepEqual(f.calls,after);assert.equal(f.calls.persist,middleDrag==='pan'?1:0);
+ assert.deepEqual(f.board.viewport,middleDrag==='pan'?{x:240,y:100,zoom:1}:{x:0,y:0,zoom:1});
+});
+
+test('document release outside canvas cancels owned middle paste once without a stage bubble handler',()=>{
+ const f=fixture();f.view.pointerDown(f.event(0,0,{button:1}));
+ let prevented=false;const event=f.event(600,400,{button:1,buttons:0,target:new Element(),preventDefault(){prevented=true;}});
+ f.view.finishMarqueeFromDocument(event);assert.equal(prevented,true);assert.deepEqual(f.board.viewport,{x:600,y:400,zoom:1});
+ const after={...f.calls};f.view.finishMarqueeFromDocument(event);f.view.pointerUp(event);assert.deepEqual(f.calls,after);
+});
+
+test('unowned middle releases keep native paste for disabled mapping and editor or link interactions',()=>{
+ for(const boundary of [undefined,'input','textarea','[contenteditable=true]','.ts-inline-editor','a']){
+  const f=fixture();if(!boundary)f.view.plugin.settings.middleDrag='none';
+  const target=new Element(boundary?{[boundary]:new Element()}:{});
+  f.view.pointerDown(f.event(0,0,{button:1,target}));
+  let prevented=false;const release=f.event(40,30,{button:1,target,preventDefault(){prevented=true;}});
+  f.view.finishMarqueeFromDocument(release);f.view.pointerUp(release);assert.equal(prevented,false,boundary||'none');
+  assert.equal(f.view.gesture,undefined);assert.equal(f.calls.persist,0);
+ }
 });
 
 test('single clicking empty canvas clears selection without moving or saving the board',()=>{
@@ -282,6 +393,119 @@ test('clicking an already selected card still starts an object drag without disc
   assert.equal(f.capture.size,0,'do not capture clicks before drag threshold; double-click editing needs its original target');
 });
 
+test('Shift-clicking a selected card keeps the selection until release, then removes only that card',()=>{
+  const f=fixture(),target=cardTarget('a'),before=structuredClone(f.board.nodes);f.view.selected=new Set(['a','b']);
+  f.view.pointerDown(f.event(25,25,{target,shiftKey:true}));
+  assert.deepEqual(ids(f.view),['a','b']);assert.equal(f.capture.size,0);
+  f.view.pointerMove(f.event(27,26,{target,shiftKey:true,buttons:1}));f.flush();
+  assert.deepEqual(ids(f.view),['a','b']);assert.equal(f.calls.writes,0);
+  f.view.pointerUp(f.event(27,26,{target,shiftKey:true,buttons:0}));
+  assert.deepEqual(ids(f.view),['b']);assert.deepEqual(f.board.nodes,before);assert.equal(f.calls.writes,0);assert.equal(f.calls.persist,0);
+});
+
+test('Shift-dragging a selected card moves every movable selected card with axis lock and keeps locked members selected',()=>{
+  const f=fixture([node('a',20),node('b',150),node('locked',500,20,{locked:true})]),target=cardTarget('a');
+  f.view.selected=new Set(['a','b','locked']);const locked=structuredClone(f.board.nodes[2]);
+  f.view.pointerDown(f.event(25,25,{target,shiftKey:true}));
+  assert.deepEqual(ids(f.view),['a','b','locked']);
+  f.view.pointerMove(f.event(65,37,{target,shiftKey:true,buttons:1}));f.flush();
+  assert.deepEqual(ids(f.view),['a','b','locked']);assert.equal(f.capture.size,1);
+  assert.deepEqual(f.board.nodes.map(n=>[n.x,n.y]),[[20,20],[150,20],[500,20]],'the draft does not write the board before release');
+  f.view.pointerUp(f.event(65,37,{target,shiftKey:true,buttons:0}));
+  assert.deepEqual(f.board.nodes.map(n=>[n.x,n.y]),[[60,20],[190,20],[500,20]]);
+  assert.deepEqual(f.board.nodes[2],locked);assert.deepEqual(ids(f.view),['a','b','locked']);assert.equal(f.calls.writes,1);assert.equal(f.capture.size,0);
+});
+
+test('Shift-clicking an unselected card adds it immediately and retains it after release',()=>{
+  const f=fixture(),target=cardTarget('a');f.view.selected=new Set(['b']);
+  f.view.pointerDown(f.event(25,25,{target,shiftKey:true}));assert.deepEqual(ids(f.view),['a','b']);
+  f.view.pointerUp(f.event(25,25,{target,shiftKey:true,buttons:0}));
+  assert.deepEqual(ids(f.view),['a','b']);assert.equal(f.calls.writes,0);assert.equal(f.calls.persist,0);
+});
+
+test('Escape, document cancellation and lost capture preserve a selected card whose Shift toggle is still pending',()=>{
+  for(const cancellation of ['escape','document','capture']){
+    const f=fixture(),target=cardTarget('a');f.view.selected=new Set(['a','b']);
+    const before=structuredClone(f.board.nodes);f.view.pointerDown(f.event(25,25,{target,shiftKey:true}));
+    if(cancellation==='escape')f.view.key({key:'Escape',target:new Element(),preventDefault(){}});
+    else if(cancellation==='document')f.view.finishMarqueeFromDocument(f.event(25,25,{shiftKey:true}),true);
+    else f.view.pointerCaptureLost(f.event(25,25,{shiftKey:true}));
+    const after={...f.calls};f.view.pointerUp(f.event(25,25,{shiftKey:true,buttons:0}));
+    assert.deepEqual(ids(f.view),['a','b'],cancellation);assert.equal(f.view.gesture,undefined,cancellation);
+    assert.deepEqual(f.board.nodes,before);assert.deepEqual(f.calls,after);assert.equal(f.calls.writes,0);assert.equal(f.frames.size,0);
+  }
+});
+
+test('a queued Shift-drag that returns near its press remains a group drag instead of deselecting the pressed card',()=>{
+  for(const queuedReturn of [false,true]){
+    const f=fixture(),target=cardTarget('a');f.view.selected=new Set(['a','b']);
+    f.view.pointerDown(f.event(25,25,{target,shiftKey:true}));
+    f.view.pointerMove(f.event(65,37,{target,shiftKey:true,buttons:1}));
+    if(queuedReturn)f.view.pointerMove(f.event(26,25,{target,shiftKey:true,buttons:1}));
+    f.view.pointerUp(f.event(26,25,{target,shiftKey:true,buttons:0}));
+    assert.deepEqual(ids(f.view),['a','b'],`queued return: ${queuedReturn}`);
+    assert.deepEqual(f.board.nodes.slice(0,2).map(n=>[n.x,n.y]),[[21,20],[151,20]],'commit final coordinates only');
+    assert.equal(f.calls.writes,1);assert.equal(f.frames.size,0);assert.equal(f.capture.size,0);
+  }
+});
+
+test('Shift-resizing preserves selected peers, adds an unselected handle owner and locks aspect at different zoom levels',()=>{
+  for(const zoom of [.5,2])for(const selectedOwner of [false,true]){
+    const f=fixture([node('a',20,20,{width:240,height:180,autoFit:true}),node('b',350,20,{width:240,height:180})]),target=cardTarget('a',true);
+    f.board.viewport.zoom=zoom;f.view.selected=new Set(selectedOwner?['a','b']:['b']);const peer=structuredClone(f.board.nodes[1]);
+    f.view.pointerDown(f.event(25,25,{target,shiftKey:true}));
+    assert.deepEqual(ids(f.view),['a','b'],`zoom ${zoom}, selected handle owner: ${selectedOwner}`);
+    assert.equal(f.view.gesture.resize,'a');assert.deepEqual([...f.view.gesture.draft.keys()],['a']);
+    f.view.pointerMove(f.event(25+60*zoom,25+12*zoom,{target,shiftKey:true,buttons:1}));f.flush();
+    assert.deepEqual(ids(f.view),['a','b']);assert.deepEqual(f.board.nodes[1],peer);
+    f.view.pointerUp(f.event(25+60*zoom,25+12*zoom,{target,shiftKey:true,buttons:0}));
+    const owner=f.board.nodes[0];assert.deepEqual([owner.x,owner.y,owner.width,owner.height,owner.autoFit],[20,20,300,225,false]);
+    assert.deepEqual(f.board.nodes[1],peer);assert.deepEqual(ids(f.view),['a','b']);assert.equal(f.calls.writes,1);assert.equal(f.capture.size,0);
+  }
+});
+
+test('Shift-clicking a selected resize handle without dragging keeps every selected card',()=>{
+  const f=fixture(),target=cardTarget('a',true),before=structuredClone(f.board.nodes);f.view.selected=new Set(['a','b']);
+  f.view.pointerDown(f.event(25,25,{target,shiftKey:true}));f.view.pointerUp(f.event(25,25,{target,shiftKey:true,buttons:0}));
+  assert.deepEqual(ids(f.view),['a','b']);assert.deepEqual(f.board.nodes,before);assert.equal(f.calls.writes,0);
+});
+
+test('middle-button and Space panning over a resize handle ignore resizing and selection modifiers',()=>{
+  for(const button of [0,1]){
+    const f=fixture(),target=cardTarget('a',true),before=structuredClone(f.board.nodes);f.view.space=button===0;f.view.selected=new Set(['b']);
+    f.view.pointerDown(f.event(25,25,{button,target,shiftKey:true}));
+    assert.equal(f.view.gesture.pan,true);assert.equal(f.view.gesture.resize,undefined);assert.deepEqual(ids(f.view),['b']);
+    f.view.pointerUp(f.event(65,55,{button,target,shiftKey:true,buttons:0}));
+    assert.deepEqual(f.board.viewport,{x:40,y:30,zoom:1});assert.deepEqual(f.board.nodes,before);assert.deepEqual(ids(f.view),['b']);
+    assert.equal(f.calls.writes,0);assert.equal(f.calls.persist,1);assert.equal(f.capture.size,0);
+  }
+});
+
+test('document release completes an ordinary card move or resize before capture starts and commits only once',()=>{
+  for(const resize of [false,true]){
+    const f=fixture([node('a',20,20,{width:240,height:180}),node('b',350)]),target=cardTarget('a',resize);
+    const peer=structuredClone(f.board.nodes[1]);f.view.pointerDown(f.event(25,25,{target}));assert.equal(f.capture.size,0);
+    const release=f.event(85,55,{buttons:0});f.view.finishMarqueeFromDocument(release);
+    assert.equal(f.view.gesture,undefined);assert.equal(f.calls.writes,1);assert.equal(f.capture.size,0);assert.equal(f.frames.size,0);
+    const owner=f.board.nodes[0];assert.deepEqual([owner.x,owner.y,owner.width,owner.height],resize?[20,20,300,210]:[80,50,240,180]);
+    assert.deepEqual(f.board.nodes[1],peer);const after={...f.calls};f.view.pointerUp(release);f.view.finishMarqueeFromDocument(release);
+    assert.deepEqual(f.calls,after);assert.equal(f.calls.writes,1);
+  }
+});
+
+test('document cancellation discards queued or active object move and resize drafts without duplicate edits',()=>{
+  for(const resize of [false,true])for(const applied of [false,true]){
+    const f=fixture([node('a',20,20,{width:240,height:180}),node('b',350)]),target=cardTarget('a',resize),before=structuredClone(f.board.nodes);
+    let paints=0;f.view.positionNode=()=>paints++;
+    f.view.pointerDown(f.event(25,25,{target}));f.view.pointerMove(f.event(55,40,{target,buttons:1}));if(applied)f.flush();
+    f.view.finishMarqueeFromDocument(f.event(85,55,{buttons:0}),true);
+    assert.equal(f.view.gesture,undefined);assert.deepEqual(f.board.nodes,before);assert.equal(f.calls.writes,0);assert.equal(f.calls.persist,0);
+    assert.equal(paints,applied?1:0,'cancelled release must not apply queued or final geometry');assert.equal(f.frames.size,0);assert.equal(f.capture.size,0);
+    const after={...f.calls};f.view.pointerUp(f.event(85,55,{buttons:0}));f.view.finishMarqueeFromDocument(f.event(85,55,{buttons:0}),true);
+    assert.deepEqual(f.calls,after);assert.deepEqual(f.board.nodes,before);
+  }
+});
+
 test('releasing over a document overlay finishes the marquee even after pointer capture was lost',()=>{
   const f=fixture();f.view.pointerDown(f.event());f.view.pointerMove(f.event(110,100));f.flush();
   f.capture.clear();
@@ -307,14 +531,14 @@ test('document cancellation restores selection and a later stage release cannot 
   assert.deepEqual(ids(f.view),['old']);assert.deepEqual(f.calls,after);assert.equal(f.view.marquee,undefined);
 });
 
-test('the document fallback ignores other pointers and does not take over an ordinary pan',()=>{
+test('the document fallback ignores other pointers and completes an ordinary pan exactly once',()=>{
   const f=fixture();f.view.pointerDown(f.event());f.view.pointerMove(f.event(110,100));f.flush();const before={...f.calls};
   f.view.finishMarqueeFromDocument(f.event(240,100,{pointerId:2}));
   assert.ok(f.view.marquee);assert.deepEqual(ids(f.view),['a']);assert.deepEqual(f.calls,before);
   f.view.finishMarqueeFromDocument(f.event(110,100));
   const pan=fixture();pan.view.space=true;pan.view.pointerDown(pan.event());pan.view.pointerMove(pan.event(100,80));pan.flush();
-  pan.view.finishMarqueeFromDocument(pan.event(100,80));assert.ok(pan.view.gesture);assert.equal(pan.calls.persist,0);
-  pan.view.pointerUp(pan.event(100,80));assert.equal(pan.view.gesture,undefined);assert.equal(pan.calls.persist,1);
+  pan.view.finishMarqueeFromDocument(pan.event(100,80));assert.equal(pan.view.gesture,undefined);assert.equal(pan.calls.persist,1);
+  const after={...pan.calls};pan.view.pointerUp(pan.event(100,80));assert.deepEqual(pan.calls,after);assert.equal(pan.calls.persist,1);
 });
 
 test('a section draft released through document and stage creates at most one section, and cancellation creates none',()=>{
@@ -325,6 +549,18 @@ test('a section draft released through document and stage creates at most one se
     assert.deepEqual(created,cancelled?[]:[{x:0,y:0,width:240,height:180}]);
     assert.equal(f.view.marquee,undefined);assert.equal(f.calls.inspector,1);
   }
+});
+
+test('cancelling a section draft restores an existing selected connection as well as card selection',()=>{
+ for(const cancellation of ['escape','document','capture']){
+  const f=fixture();f.view.sectionTool=true;f.view.selectedEdge='selected-relationship';
+  f.view.pointerDown(f.event());f.view.pointerMove(f.event(240,180));f.flush();
+  if(cancellation==='escape')f.view.key({key:'Escape',target:new Element(),preventDefault(){}});
+  else if(cancellation==='document')f.view.finishMarqueeFromDocument(f.event(240,180),true);
+  else f.view.pointerCaptureLost(f.event(240,180));
+  assert.deepEqual(ids(f.view),['old']);assert.equal(f.view.selectedEdge,'selected-relationship',cancellation);
+  assert.equal(f.view.marquee,undefined);assert.equal(f.capture.size,0);assert.equal(f.calls.writes,0);
+ }
 });
 
 for(const [button,key] of [[0,'leftDrag'],[1,'middleDrag'],[2,'rightDrag']] as const){
@@ -463,6 +699,22 @@ test('returning near the press before release remains a drag when queued motion 
   assert.deepEqual(ids(f.view),action==='pan'?['old']:[],'a completed drag must not become a click');
   assert.deepEqual(f.board.viewport,action==='pan'?{x:1,y:1,zoom:1}:{x:0,y:0,zoom:1});
   assert.equal(f.calls.menus,0);assert.equal(f.frames.size,0);
+ }
+});
+
+test('same-frame right out-and-back motion never becomes a context click, with either pan or selection binding',()=>{
+ for(const action of ['pan','select'])for(const flush of [false,true]){
+  const f=fixture();f.view.selectionTool=false;f.view.plugin.settings.rightDrag=action;
+  f.view.pointerDown(f.event(0,0,{button:2}));
+  f.view.pointerMove(f.event(110,100,{button:2,buttons:2}));
+  f.view.pointerMove(f.event(1,1,{button:2,buttons:2}));
+  if(flush)f.flush();
+  f.view.pointerUp(f.event(1,1,{button:2,buttons:0}));
+  f.view.contextMenu(f.event(1,1,{button:2}));
+  assert.equal(f.calls.menus,0,`${action}, animation frame applied: ${flush}`);
+  assert.deepEqual(ids(f.view),action==='pan'?['old']:[]);
+  assert.deepEqual(f.board.viewport,action==='pan'?{x:1,y:1,zoom:1}:{x:0,y:0,zoom:1});
+  assert.equal(f.calls.persist,action==='pan'?1:0);assert.equal(f.frames.size,0);assert.equal(f.capture.size,0);
  }
 });
 

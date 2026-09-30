@@ -1,4 +1,5 @@
 import {setIcon} from 'obsidian';
+import {revealToolPaletteControl} from './tool-palette';
 
 type RailToolSearch={open:()=>void;setCategory:(section?:HTMLElement)=>void;dispose:()=>void};
 interface RailToolSearchOptions {onCategoryChange?:(section?:HTMLElement,searching?:boolean)=>void}
@@ -54,12 +55,13 @@ export function installRailToolSearch(panel:HTMLElement,tools:HTMLElement,option
   if(!entries.some(entry=>entry.element===target)||!eligible(target))return;
   history=[target,...history.filter(element=>element!==target)].slice(0,3);renderRecent();
  };
- const reset=()=>{if(disposed)return;input.value='';refresh();input.focus({preventScroll:true});};
+ const focusSearch=()=>{input.focus({preventScroll:true});revealToolPaletteControl(input,panel);};
+ const reset=()=>{if(disposed)return;input.value='';refresh();panel.scrollTop=0;focusSearch();};
  const setCategory=(section?:HTMLElement)=>{
   if(disposed||section&&!groups.some(group=>group.element===section&&tools.contains(section)))return;
   const focused=panel.ownerDocument.activeElement,focusedTool=!!focused&&tools.contains(focused);
   category=section;input.value='';refresh();
-  if(focusedTool&&focused&&(!tools.contains(focused)||!focused.getClientRects().length))input.focus({preventScroll:true});
+  if(focusedTool&&focused&&(!tools.contains(focused)||!focused.getClientRects().length))focusSearch();
  };
  const onInput=()=>{if(!composing)refresh();},onStart=()=>{composing=true;},onEnd=()=>{composing=false;refresh();};
  const keys=(event:KeyboardEvent)=>{
@@ -68,8 +70,8 @@ export function installRailToolSearch(panel:HTMLElement,tools:HTMLElement,option
    if(event.key==='Escape'&&input.value){event.preventDefault();event.stopPropagation();reset();return;}
    if(!['ArrowDown','ArrowUp','Enter'].includes(event.key))return;
    const items=visible(),item=event.key==='ArrowUp'?items.at(-1):items[0];event.preventDefault();event.stopPropagation();
-   if(event.key==='Enter'){if(!event.repeat)item?.click();}else if(item){item.focus({preventScroll:true});tools.scrollTop=event.key==='ArrowUp'?tools.scrollHeight:0;}
-  }else if(event.key==='ArrowUp'&&event.target===visible()[0]){event.preventDefault();event.stopPropagation();input.focus({preventScroll:true});}
+   if(event.key==='Enter'){if(!event.repeat)item?.click();}else if(item){item.focus({preventScroll:true});tools.scrollTop=event.key==='ArrowUp'?tools.scrollHeight:0;revealToolPaletteControl(item,tools);}
+  }else if(event.key==='ArrowUp'&&event.target===visible()[0]){event.preventDefault();event.stopPropagation();focusSearch();}
  };
  // Search is installed before the palette binding: resolve visible recent
  // shortcuts here, before palette capture restores the canvas for the action.

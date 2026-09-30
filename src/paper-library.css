@@ -1,0 +1,204 @@
+/* A paper index for the native knowledge sidebar. The existing tab, tree,
+   search and note actions keep their DOM order and keyboard behavior. */
+.ts-root.ts-dock,
+.ts-root .ts-sidebar {
+  --ts-nav-surface: var(--ts-paper-surface, #fffdf7);
+  --ts-nav-subtle: var(--ts-paper-surface-muted, #f2eddf);
+  --ts-nav-line: var(--ts-paper-line, #ddd6c8);
+  --ts-nav-hover: color-mix(in srgb, var(--ts-paper-accent, #416954) 7%, var(--ts-nav-surface));
+  --ts-nav-accent: var(--ts-paper-accent, #416954);
+  --ts-nav-active: var(--ts-paper-accent-soft, #e7eddf);
+  --ts-nav-gutter: 12px;
+  --ts-nav-rail-width: 56px;
+  --ts-nav-row-height: 38px;
+  --ts-nav-radius: 9px;
+  color: var(--ts-paper-ink, #3f4539);
+  font-family: var(--font-interface);
+}
+.ts-root.ts-dock { background: var(--ts-paper-canvas, #eee8dc) !important; }
+.ts-root.ts-dock .ts-dock-body { gap: 0; }
+.ts-root.ts-dock .ts-dock-launchpad {
+  margin: 12px 10px 8px;
+  padding: 12px;
+  border: 1px solid var(--ts-nav-line);
+  border-radius: 14px;
+  background: var(--ts-nav-surface);
+  box-shadow: var(--ts-paper-shadow, 0 2px 4px #3f45390b, 0 8px 22px #3f453908);
+}
+.ts-root.ts-dock .ts-dock-quick { grid-template-columns: minmax(0, 1fr) auto; gap: 6px; padding: 0 !important; }
+.ts-root.ts-dock .ts-dock-quick > .ts-button { height: 38px !important; min-height: 38px; padding-inline: 10px !important; border-radius: 9px !important; }
+.ts-root.ts-dock .ts-dock-quick > .ts-primary {
+  background: var(--ts-nav-accent) !important;
+  color: var(--ts-nav-surface) !important;
+  border: 1px solid transparent !important;
+  box-shadow: 0 2px 5px color-mix(in srgb, var(--ts-nav-accent) 16%, transparent) !important;
+}
+.ts-root.ts-dock .ts-dock-quick > .ts-primary:hover { background: color-mix(in srgb, var(--ts-nav-accent) 90%, var(--ts-paper-ink, #3f4539)) !important; color: var(--ts-nav-surface) !important; }
+.ts-root.ts-dock .ts-dock-quick > .ts-dock-create { background: var(--ts-nav-subtle) !important; color: var(--ts-paper-ink, #3f4539) !important; border-color: var(--ts-nav-line) !important; }
+.ts-root.ts-dock .ts-dock-quick > .ts-dock-create:is(:hover, [aria-expanded='true']) { background: var(--ts-nav-active) !important; border-color: var(--ts-nav-accent) !important; }
+.ts-root.ts-dock .ts-dock-shortcuts { margin: 9px 0 0; gap: 4px; padding: 0; }
+.ts-root.ts-dock .ts-dock-shortcuts > .ts-button { height: 31px; min-height: 31px; padding-inline: 6px !important; color: var(--ts-paper-muted, #79796b) !important; font-size: 11px !important; }
+.ts-root.ts-dock .ts-dock-shortcuts > .ts-button:hover { color: var(--ts-nav-accent) !important; background: var(--ts-nav-active) !important; }
+.ts-root.ts-dock .ts-dock-host { padding: 0 !important; }
+.ts-root.ts-dock .ts-sidebar {
+  grid-template-columns: var(--ts-nav-rail-width) minmax(0, 1fr);
+  grid-template-rows: 60px minmax(0, 1fr);
+  grid-template-areas: 'destinations search' 'destinations content';
+  background: transparent;
+}
+.ts-root.ts-dock .ts-sidebar > .ts-tabs {
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: 52px;
+  gap: 6px !important;
+  padding: 10px 5px !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+.ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'] {
+  flex-direction: column;
+  height: 52px;
+  min-height: 52px !important;
+  gap: 5px !important;
+  border: 1px solid transparent !important;
+  border-radius: 10px !important;
+  color: var(--ts-paper-muted, #79796b) !important;
+  font-size: 11px !important;
+}
+.ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab']:hover { color: var(--ts-nav-accent) !important; background: var(--ts-nav-hover) !important; }
+.ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'].is-active {
+  color: var(--ts-nav-accent) !important;
+  background: var(--ts-nav-surface) !important;
+  border-color: var(--ts-nav-line) !important;
+  box-shadow: 0 2px 5px #3f45390a !important;
+}
+.ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'].is-active::before { content: none; }
+.ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'] svg { width: 18px; height: 18px; }
+.ts-root .ts-sidebar .ts-sidebar-search,
+.ts-root.ts-dock .ts-sidebar-search {
+  height: 38px;
+  min-width: 0;
+  margin: 10px 12px 12px;
+  border: 1px solid var(--ts-nav-line);
+  border-radius: 10px;
+  background: var(--ts-nav-surface);
+  box-shadow: 0 1px 2px #3f453904;
+}
+.ts-root .ts-sidebar .ts-sidebar-search > .ts-search,
+.ts-root.ts-dock .ts-sidebar-search > .ts-search { height: 36px !important; color: var(--ts-paper-ink, #3f4539); background: transparent !important; font-size: 12px !important; }
+.ts-root .ts-sidebar .ts-sidebar-search > .ts-search::placeholder,
+.ts-root.ts-dock .ts-sidebar-search > .ts-search::placeholder { color: var(--ts-paper-muted, #79796b); opacity: 1; }
+.ts-root .ts-sidebar .ts-sidebar-search-icon,
+.ts-root.ts-dock .ts-sidebar-search-icon { color: var(--ts-paper-muted, #79796b); }
+.ts-root .ts-sidebar .ts-sidebar-search:focus-within,
+.ts-root.ts-dock .ts-sidebar-search:focus-within { background: var(--ts-nav-surface); border-color: var(--ts-nav-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ts-nav-accent) 14%, transparent); }
+.ts-root.ts-dock .ts-sidebar-search > .ts-search:focus { outline: none !important; border: 0 !important; box-shadow: none !important; }
+.ts-root.ts-dock .ts-library { padding: 0 12px 16px; background: transparent; scroll-padding-block: 10px; }
+.ts-root.ts-dock :is(.ts-library-controls, .ts-outline-controls) { gap: 6px; margin-bottom: 8px; }
+.ts-root.ts-dock .ts-library :is(.ts-tag-select, .ts-library-controls select, .ts-outline-controls select) {
+  height: 32px;
+  padding-inline: 8px;
+  border-color: var(--ts-nav-line);
+  border-radius: 8px !important;
+  background-color: var(--ts-nav-surface) !important;
+  color: var(--ts-paper-muted, #79796b);
+  font-size: 11px !important;
+}
+.ts-root.ts-dock .ts-list-heading { margin: 12px 2px 8px; min-height: 24px; color: var(--ts-paper-muted, #79796b); font-size: 11px !important; font-weight: 500; }
+.ts-root.ts-dock .ts-board-browser-head { margin-bottom: 10px; padding-bottom: 9px; border-bottom-color: var(--ts-nav-line); }
+.ts-root.ts-dock :is(.ts-board-switch, .ts-task-filters) { gap: 2px; padding: 3px !important; border-radius: 9px !important; background: var(--ts-nav-subtle) !important; }
+.ts-root.ts-dock :is(.ts-board-switch, .ts-task-filters) > .ts-button { border: 0 !important; border-radius: 7px !important; color: var(--ts-paper-muted, #79796b) !important; font-size: 11px !important; }
+.ts-root.ts-dock :is(.ts-board-switch, .ts-task-filters) > .ts-button.is-active { background: var(--ts-nav-surface) !important; color: var(--ts-nav-accent) !important; box-shadow: 0 1px 3px #3f45390c !important; }
+.ts-root.ts-dock .ts-board-list-controls > select { color: var(--ts-paper-muted, #79796b); }
+.ts-root.ts-dock :is(.ts-tree-row, .ts-favorite-row, .ts-outline-row) { min-height: 38px !important; margin-block: 3px !important; border-radius: 8px !important; color: var(--ts-paper-ink, #3f4539); }
+.ts-root.ts-dock :is(.ts-tree-title, .ts-outline-title) { color: var(--ts-paper-ink, #3f4539) !important; font-size: 12px !important; }
+.ts-root.ts-dock :is(.ts-tree-title, .ts-outline-title) svg { color: var(--ts-paper-muted, #79796b); }
+.ts-root.ts-dock :is(.ts-tree-row.is-current, .ts-outline-row.is-selected),
+.ts-root.ts-dock .ts-board-tree[role='tree'] > .ts-tree-row[aria-current='page'] { background: var(--ts-nav-active) !important; border-color: color-mix(in srgb, var(--ts-nav-accent) 20%, var(--ts-nav-line)); }
+.ts-root.ts-dock :is(.ts-tree-row.is-current > .ts-tree-title, .ts-outline-row.is-selected > .ts-outline-title) { color: var(--ts-nav-accent) !important; }
+.ts-root.ts-dock :is(.ts-tree-row.is-current, .ts-outline-row.is-selected) :is(.ts-tree-title, .ts-outline-title) svg { color: var(--ts-nav-accent); }
+.ts-root.ts-dock :is(.ts-tree-count, .ts-outline-children-count, .ts-outline-kind) { color: var(--ts-paper-muted, #79796b); }
+.ts-root.ts-dock :is(.ts-tree-help, .ts-favorite-hint) { border-color: var(--ts-nav-line); color: var(--ts-paper-muted, #79796b); }
+
+/* The note index is a stack of separate, draggable paper cards. Action columns
+   remain visible and retain fixed widths when the title wraps. */
+.ts-root.ts-dock .ts-library[role='tabpanel'] > .ts-library-card {
+  margin: 0 0 9px;
+  padding: 12px;
+  border: 1px solid var(--ts-nav-line) !important;
+  border-radius: 11px !important;
+  background: var(--ts-nav-surface) !important;
+  box-shadow: 0 2px 3px #3f453906, 0 5px 12px #3f453905 !important;
+}
+.ts-root.ts-dock .ts-library[role='tabpanel'] > .ts-library-card:is(:hover, :focus-within) { border-color: color-mix(in srgb, var(--ts-nav-accent) 46%, var(--ts-nav-line)) !important; background: var(--ts-nav-surface) !important; box-shadow: 0 3px 6px #3f453908, 0 7px 16px #3f453909 !important; }
+.ts-root.ts-dock .ts-library[role='tabpanel'] > .ts-library-card.is-on-board { border-left: 3px solid var(--ts-nav-accent) !important; padding-left: 10px; }
+.ts-root.ts-dock .ts-library-card-head { grid-template-columns: 16px minmax(0, 1fr) 25px 25px; align-items: start; gap: 4px; }
+.ts-root.ts-dock .ts-library-title { color: var(--ts-paper-ink, #3f4539); font-size: 12px; line-height: 1.55; }
+.ts-root.ts-dock .ts-library-note-icon { color: var(--ts-nav-accent); }
+.ts-root.ts-dock .ts-library-excerpt { margin-top: 8px; color: var(--ts-paper-muted, #79796b); font-size: 12px; line-height: 1.7; }
+.ts-root.ts-dock .ts-library-card-meta { margin-top: 10px; padding-top: 8px; border-top: 1px solid color-mix(in srgb, var(--ts-nav-line) 65%, transparent); gap: 5px; }
+.ts-root.ts-dock .ts-library-card-meta .ts-library-path { color: var(--ts-paper-muted, #79796b); font-size: 10px; }
+.ts-root.ts-dock .ts-library-tags { color: var(--ts-nav-accent); font-size: 10px; line-height: 1.6; }
+.ts-root.ts-dock .ts-on-board { color: var(--ts-nav-accent); background: var(--ts-nav-active); border-radius: 5px; font-size: 9px; }
+.ts-root.ts-dock :is(.ts-library-preview, .ts-library-open) { color: var(--ts-paper-muted, #79796b) !important; border-radius: 6px !important; opacity: 1; }
+.ts-root.ts-dock :is(.ts-library-preview, .ts-library-open):hover { background: var(--ts-nav-active) !important; color: var(--ts-nav-accent) !important; }
+.ts-root.ts-dock .ts-task-group { margin: 9px 0; padding: 9px 10px; border: 1px solid var(--ts-nav-line); border-radius: 10px; background: var(--ts-nav-surface); }
+.ts-root.ts-dock .ts-task-group > .ts-button { color: var(--ts-paper-ink, #3f4539); font-size: 12px !important; }
+.ts-root.ts-dock .ts-task { color: var(--ts-paper-ink, #3f4539); font-size: 12px; }
+.ts-root.ts-dock .ts-task .is-done,
+.ts-root.ts-dock .ts-task-progress { color: var(--ts-paper-muted, #79796b); }
+.ts-root.ts-dock .ts-sidebar-empty { margin: 8px 0; padding: 22px 12px; border: 1px dashed var(--ts-nav-line); border-radius: 11px; background: color-mix(in srgb, var(--ts-nav-surface) 60%, transparent); color: var(--ts-paper-muted, #79796b); font-size: 12px; }
+.ts-root.ts-dock .ts-sidebar-empty-actions > button { border-color: var(--ts-nav-line) !important; background: var(--ts-nav-surface) !important; color: var(--ts-nav-accent) !important; }
+.ts-root.ts-dock .ts-dock-welcome { padding: 10px 12px 16px; }
+.ts-root.ts-dock .ts-dock-welcome h3 { margin: 6px 2px 8px; color: var(--ts-paper-ink, #3f4539); font-size: 14px; }
+.ts-root.ts-dock .ts-dock-welcome p { margin: 0 2px 14px; color: var(--ts-paper-muted, #79796b); font-size: 12px; }
+.ts-root.ts-dock .ts-dock-board-link { margin-block: 6px; border: 1px solid var(--ts-nav-line) !important; border-radius: 9px !important; background: var(--ts-nav-surface) !important; color: var(--ts-paper-ink, #3f4539) !important; }
+.ts-root.ts-dock .ts-dock-workspace-tools { gap: 6px; padding: 10px; border-top-color: var(--ts-nav-line); background: var(--ts-nav-subtle); }
+.ts-root.ts-dock .ts-dock-workspace-tools > .ts-button { height: 35px; min-height: 35px; border: 1px solid var(--ts-nav-line) !important; border-radius: 8px !important; background: var(--ts-nav-surface) !important; color: var(--ts-paper-muted, #79796b) !important; font-size: 11px !important; }
+.ts-root.ts-dock .ts-dock-workspace-tools > .ts-button:hover { border-color: var(--ts-nav-accent) !important; background: var(--ts-nav-active) !important; color: var(--ts-nav-accent) !important; }
+.ts-root.ts-dock .ts-dock-workspace-tools > .ts-button > span:first-child { color: inherit; }
+.ts-root.ts-dock :is(button, .ts-library-card, select, input[type='checkbox']):focus-visible { outline: 2px solid var(--ts-nav-accent) !important; outline-offset: -2px !important; }
+.ts-root.ts-dock .ts-dock-quick > .ts-primary:focus-visible { outline-color: var(--ts-nav-surface) !important; outline-offset: -4px !important; }
+
+@container ts-sidebar-shell (max-width: 299px) {
+  .ts-root.ts-dock .ts-sidebar { grid-template-columns: minmax(0, 1fr); grid-template-rows: 47px 57px minmax(0, 1fr); grid-template-areas: 'destinations' 'search' 'content'; }
+  .ts-root.ts-dock .ts-sidebar > .ts-tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: 33px; gap: 3px !important; margin: 0 10px !important; padding: 5px 0 !important; border: 0 !important; background: transparent !important; }
+  .ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'] { flex-direction: row; height: 33px; min-height: 33px !important; gap: 4px !important; padding: 3px 2px !important; border-radius: 8px !important; }
+  .ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'] svg { width: 15px; height: 15px; }
+  .ts-root.ts-dock .ts-sidebar-search { margin: 5px 12px 14px; }
+}
+@container ts-sidebar-shell (max-width: 260px) {
+  .ts-root.ts-dock .ts-dock-launchpad { margin: 9px 8px 7px; padding: 10px; }
+  .ts-root.ts-dock .ts-dock-quick > .ts-button { gap: 5px; padding-inline: 7px !important; }
+  .ts-root.ts-dock .ts-dock-shortcuts > .ts-button { gap: 4px; padding-inline: 2px !important; }
+  .ts-root.ts-dock .ts-sidebar { grid-template-rows: 57px 54px minmax(0, 1fr); }
+  .ts-root.ts-dock .ts-sidebar > .ts-tabs { grid-auto-rows: 45px; margin-inline: 8px !important; padding-block: 4px !important; }
+  .ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'] { flex-direction: column; height: 45px; min-height: 45px !important; gap: 3px !important; font-size: 10px !important; }
+  .ts-root.ts-dock .ts-sidebar-search { margin-inline: 10px; }
+  .ts-root.ts-dock .ts-library { padding-inline: 10px; }
+  .ts-root.ts-dock .ts-dock-workspace-tools { padding: 8px; gap: 4px; }
+  .ts-root.ts-dock .ts-dock-workspace-tools > .ts-button { gap: 4px; padding-inline: 5px !important; }
+}
+@container ts-sidebar-content (max-width: 230px) {
+  .ts-root.ts-dock .ts-library[role='tabpanel'] > .ts-library-card { padding: 10px 8px; }
+  .ts-root.ts-dock .ts-library[role='tabpanel'] > .ts-library-card.is-on-board { padding-left: 6px; }
+  .ts-root.ts-dock .ts-library-card-head { grid-template-columns: 14px minmax(0, 1fr) 23px 23px; gap: 3px; }
+  .ts-root.ts-dock .ts-library-title { font-size: 11px; }
+  .ts-root.ts-dock .ts-library-excerpt { font-size: 11px; }
+}
+@container ts-sidebar-shell (min-width: 360px) {
+  .ts-root.ts-dock .ts-dock-launchpad { margin-inline: 12px; padding: 14px; }
+  .ts-root.ts-dock .ts-library[role='tabpanel'] > .ts-library-card { padding-block: 14px; }
+}
+@container ts-sidebar-shell (max-height: 480px) {
+  .ts-root.ts-dock .ts-dock-launchpad { margin-top: 8px; padding-block: 8px; }
+  .ts-root.ts-dock .ts-dock-quick > .ts-button { height: 32px !important; min-height: 32px; }
+  .ts-root.ts-dock .ts-dock-shortcuts { margin-top: 4px; }
+  .ts-root.ts-dock .ts-dock-shortcuts > .ts-button { height: 26px; min-height: 26px; }
+  .ts-root.ts-dock .ts-dock-workspace-tools { padding-block: 7px; }
+  .ts-root.ts-dock .ts-dock-workspace-tools > .ts-button { height: 32px; min-height: 32px; }
+}
+@media (prefers-reduced-motion: reduce) { .ts-root.ts-dock *, .ts-root .ts-sidebar * { transition: none !important; animation: none !important; } }
+@media (prefers-contrast: more) {
+  .ts-root.ts-dock, .ts-root .ts-sidebar { --ts-nav-line: var(--ts-paper-muted, #79796b); }
+  .ts-root.ts-dock .ts-library[role='tabpanel'] > .ts-library-card { box-shadow: none !important; }
+}
