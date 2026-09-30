@@ -6397,12 +6397,12 @@
   z-index:8; display:flex; align-items:center; gap:4px; width:max-content; box-sizing:border-box;
   margin:0; padding:3px; border:1px solid var(--ts-object-line); border-radius:9px;
   background:var(--background-primary); box-shadow:var(--ts-object-shadow);
-  opacity:0; visibility:hidden; pointer-events:auto;
+  opacity:0; visibility:hidden; pointer-events:none;
   transition:opacity 120ms ease,visibility 0s linear 120ms;
 }
 /* The pointer lifecycle keeps the dock visible across its geometric corridor.
    Focus and selection remain CSS-owned; no hit layer covers connection ports. */
-.ts-root .ts-node:is(.ts-card,.ts-text):is(:hover,:focus-within,.is-selected,.is-folded,.is-control-hover) > .ts-card-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { opacity:1; visibility:visible; transition-delay:0s; }
+.ts-root .ts-node:is(.ts-card,.ts-text):is(:hover,:focus-within,.is-selected,.is-folded,.is-control-hover) > .ts-card-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { opacity:1; visibility:visible; pointer-events:auto; transition-delay:0s; }
 .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-icon-button:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
   display:inline-flex; align-items:center; justify-content:center; flex:none;
   width:28px; min-width:28px; height:28px; min-height:28px; padding:5px!important;
@@ -6536,7 +6536,7 @@
 .ts-root .ts-node.ts-image > .ts-image-actions .ts-icon-button:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { width:28px; height:28px; padding:5px!important; border:0; box-shadow:none; background:transparent; }
 @media (hover:none) {
   .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),
-  .ts-root .ts-node.ts-image > .ts-image-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { opacity:1; visibility:visible; transition:none; }
+  .ts-root .ts-node.ts-image > .ts-image-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { opacity:1; visibility:visible; pointer-events:auto; transition:none; }
   .ts-root .ts-node > .ts-resize:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { opacity:1; pointer-events:auto; }
 }
 @media (prefers-reduced-motion:reduce) {
@@ -8033,12 +8033,13 @@
 }
 .ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"]:not(.has-custom-border):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { border-color:transparent!important; }
 .ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"].has-custom-border:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { --ts-paper-line:var(--ts-tone); }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::after {
+/* Keep ::after available for the shared locked-card status. */
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::before {
   content:''; position:absolute; inset:4px; z-index:1; border:1px solid var(--ts-paper-line);
   border-radius:1px; pointer-events:none;
   box-shadow:0 0 0 3px var(--ts-styled-surface,var(--background-primary)),0 0 0 4px var(--ts-paper-line);
 }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"].has-custom-border:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::after { box-shadow:none; }
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"].has-custom-border:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::before { box-shadow:none; }
 .ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"] > .ts-card-paperclip:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
   position:absolute; top:-12px; left:20px; z-index:2; display:flex; align-items:center; justify-content:center;
   width:22px; height:28px; color:var(--ts-paper-clip); pointer-events:none; user-select:none;
