@@ -2,14 +2,14 @@
 
 [English](USER-GUIDE.md) · [中文完整教程](USER-GUIDE.zh-CN.md) · [Project home](../README.md)
 
-This guide describes **ThoughtSpace Whiteboard 1.3.18**, for **Obsidian desktop 1.13.7 or newer**. The current interface is mainly Chinese. English explanations below include the actual Chinese labels so you can find each action. Button labels may appear as icons in narrow panes; hover over an icon to read its tooltip.
+This guide covers **ThoughtSpace Whiteboard 1.3.23** for **Obsidian desktop 1.13.7 or newer**. Settings support Chinese and English; other plugin menus and workspaces remain mainly Chinese. English explanations below include Chinese labels where needed. Button labels may appear as icons in narrow panes; hover over an icon to read its tooltip.
 
 ## Contents
 
 - **Start:** [Install](#installation) · [Ten-minute tutorial](#quick-start) · [Workspace](#workspace) · [Mouse and keyboard](#controls)
 - **Build:** [Cards and Markdown](#cards) · [Import material](#media-import) · [Connections](#connections) · [Groups](#groups) · [Mind maps](#mind-maps) · [Appearance](#appearance)
 - **Work:** [Read](#reading) · [Write](#writing) · [Audio/video](#audio-video) · [Properties and search](#obsidian) · [Calendar](#calendar)
-- **Maintain:** [Save and export](#data) · [Troubleshooting](#troubleshooting)
+- **Maintain:** [Settings](#settings) · [Save and export](#data) · [Troubleshooting](#troubleshooting)
 
 <a id="installation"></a>
 
@@ -201,11 +201,13 @@ Tables fit their content by default. Manual resizing or disabling auto-fit prese
 For a fresh table, use **插入内容 → 表格**, right-click empty space and choose **在此添加表格**, or use the editing toolbar's table button. The first header is selected for replacement, without moving your camera. Wide tables can scroll horizontally after you narrow their text frame. Text automatically fits rendered content when auto height is enabled; right-click **关闭自动适应高度** to keep the current size. For linked notes, **自动适应笔记大小** adjusts the card preview to its content.
 
 
-### Card styles (1.3.21)
+### Card styles
 
-Select one or more Markdown cards and open **卡片** (Card) in the top toolbar to choose **Transparent / Solid / Color title band / Double-line paper**. The title band displays the board-specific card title. Use **背景 → 卡片颜色** (Background → Card color) for a preset or custom band color. Double-click the title to edit the card label without renaming the note. Leaving the title unchanged creates no fixed alias. The paper style adds a fine double frame and a decorative paperclip; its background color also tints the paper and the gap between the frame lines. Fixed-size cards keep their reading position when switching styles.
+Select one or more Markdown cards and open **卡片** (Card) in the top toolbar to choose **Transparent / Solid / Color title band / Double-line paper / Index / Sticky**. The title band displays the board-specific card title. Use **背景 → 卡片颜色** (Background → Card color) for a preset or custom band color. Double-click the title to edit the card label without renaming the note. Leaving the title unchanged creates no fixed alias. The paper style adds a fine double frame and a decorative paperclip; its background color also tints the paper and the gap between the frame lines. Fixed-size cards keep their reading position when switching styles.
 
-Under **Settings → ThoughtSpace → 外观 → 默认卡片样式**, choose the default for new Markdown cards, including notes dragged or inserted onto a board. Existing cards keep their appearance; images, PDFs, web cards, text and tables are unchanged. Styles support board undo, style copy/paste and persistence, while retaining the Markdown draft, fold state and Obsidian body font.
+**Index** adds a colored spine and a separate title for structured notes. **Sticky** keeps the content-first layout with a softly tinted surface and a small folded corner. Both follow the background color, preserve custom borders and support dark themes. Previews reflect the selected color when it is shared by all selected cards, and wrap in narrow panels. Mixed-color selections use the theme accent for previews without changing the cards' colors.
+
+Under **Settings → ThoughtSpace → Cards & notes → Default card style** (**卡片与笔记 → 默认卡片样式**), choose the default for new Markdown cards, including notes dragged or inserted onto a board. Existing cards keep their appearance; images, PDFs, web cards, text and tables are unchanged. Styles support board undo, style copy/paste and persistence, while retaining the Markdown draft, fold state and Obsidian body font.
 
 <a id="media-import"></a>
 
@@ -348,7 +350,21 @@ Loose-object scopes preserve content already inside groups. Locked objects and n
 
 Select a card or text frame and switch the top toolbar between **编辑 / 文字 / 背景 / 边框** (Edit / Text / Fill / Border). Adjust the available font, size, alignment, color, transparent fill, and border options. Switching toolbar modes preserves the current draft and text selection. Use the style copy/paste controls when several items should match. Border controls apply to text frames, note cards, and groups, including mixed selections and pasted styles. Borderless objects do not offer border editing; groups retain background, border, and divider settings.
 
-Open **白板背景** in the bottom controls and choose **点阵 / 网格 / 纯色 / 纸张纹理 / 背景图片**. For paper, choose **自定义纸张…** to set paper color and texture strength; presets include cream, white, ivory, kraft, and recycled paper. For an image, choose **设置背景图片…**, import PNG/JPEG/WebP/GIF, and set cover, contain, tile, and opacity. Imported backgrounds are copied into the current vault's plugin folder without a network upload. General density, accent, surface, and reading preferences are under **界面与阅读**; object defaults are under **白板体验**.
+Open **白板背景** in the bottom controls and choose **点阵 / 网格 / 纯色 / 纸张纹理 / 背景图片**, or use **Settings → ThoughtSpace → Canvas → Canvas background**. For paper, choose **Customize paper** to set paper color and texture strength; presets include cream, white, ivory, kraft, and recycled paper. For an image, choose **Choose image**, import PNG/JPEG/WebP/GIF, and set cover, contain, tile, and opacity. Imported backgrounds are copied into the current vault's plugin folder without a network upload. Panel finish, accent and density are under **Interface**; reading preferences are under **Reading**; new object defaults are under **Cards & notes**.
+
+<a id="settings"></a>
+
+### Settings and preference profiles
+
+Open **Settings → ThoughtSpace Whiteboard** or the workspace settings dialog. The eight categories are **Interface**, **Cards & notes**, **Canvas**, **Mouse & keyboard**, **Reading**, **Files & filing**, **Images & hosting**, and **Preference profiles**. Card style, width, text size and connection defaults are together in **Cards & notes**. Canvas background, minimap, grid spacing, alignment guides and preview controls are in **Canvas**.
+
+Use the language selector at the top to choose **Follow Obsidian**, **简体中文**, or **English**. Automatic mode uses Chinese for a Chinese Obsidian language and English otherwise. This selection covers the settings pages and their paper/background dialogs, not the rest of the plugin's menus or toolbars. It does not translate notes, filenames or paths.
+
+The search field searches all categories. Clear it or select a category to return to the category view. **Interface**, **Cards & notes**, **Canvas**, **Mouse & keyboard**, and **Reading** each have a **Reset this category** control. Confirming resets only that category's preferences, not other categories, existing card styles, notes or files. File-filing actions have a separate confirmation because they move real files.
+
+In **Preference profiles → Export preferences → View & copy**, inspect and copy the JSON. To reuse it, open **Import preferences**, paste the JSON or choose its `.json` file, select **Validate**, then explicitly select **Apply profile**. Editing the JSON requires validation again; merely opening or checking a profile does not apply it.
+
+Profiles contain supported appearance, reading and interaction preferences, not a vault backup. They exclude folder and image paths, favorites, filing and upload settings, credentials, language, and custom paper color/texture values. Custom background images do not travel with a profile: an export using an image omits the background-mode choice, leaving the destination's background unchanged on import. Other omitted settings also stay unchanged. Configure paper details or choose a local background image separately in the destination vault.
 
 <a id="obsidian"></a>
 

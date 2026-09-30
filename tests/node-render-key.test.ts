@@ -142,8 +142,11 @@ test('serialized undo and redo snapshots rebuild the same long-text keys without
 test('decorative note styles preserve fixed previews but still invalidate automatic measurement',()=>{
  for(const autoFit of [undefined,false,true]){
   const card:Card={...node,kind:'card',file:'note.md',autoFit},context=[0,0,true,false,null],plain=nodeRenderKey(card,context);
-  const band=nodeRenderKey({...card,cardStyle:'band'},context),paper=nodeRenderKey({...card,cardStyle:'paper'},context);
-  if(autoFit){assert.notEqual(band,plain);assert.notEqual(paper,band);assert.notEqual(paper,plain);}
-  else{assert.equal(band,plain);assert.equal(paper,plain);assert.equal(nodeRenderKey({...card,cardStyle:'paper',width:500,height:350},context),plain);}
+  const keys=new Set([plain]);
+  for(const cardStyle of ['band','paper','index','sticky'] as const){
+   const styled=nodeRenderKey({...card,cardStyle},context);
+   if(autoFit){assert.equal(keys.has(styled),false,cardStyle);keys.add(styled);}
+   else{assert.equal(styled,plain);assert.equal(nodeRenderKey({...card,cardStyle,width:500,height:350},context),plain);}
+  }
  }
 });

@@ -1,5 +1,20 @@
 # 更新记录
 
+## 1.3.23
+
+- 设置页重排为界面、卡片与笔记、白板、鼠标与键盘、阅读、文件与归档、图片与图床、偏好配置八个分类；增加跨分类搜索和需确认的分类恢复默认，窄窗保持控件可访问。
+- 设置页及纸张、背景图片弹窗支持跟随 Obsidian、简体中文和 English；本次仅覆盖设置，不改变白板工具栏、菜单与其他工作区的界面语言。
+- 新建卡片样式、宽度、字号和连线默认值集中到“卡片与笔记”，背景和显示性能集中到“白板”。增加外观与操作偏好的 JSON 查看、复制与导入，先校验再明确应用；不携带目录、收藏、归档、图床或语言设置，自定义背景图片不会随配置迁移。
+- 去掉表格卡片在选中、原位编辑时继承的外层矩形轮廓，只保留单元格网格线和操作控件；修复原生表格编辑区域向左偏移导致第一列文字被裁切的问题，取消不必要的滚动栏预留，避免挤窄最后一列。不改变普通笔记外框、手动尺寸或原生编辑器的光标空行。
+- 新增 Markdown 笔记“索引卡”和“便签卡”：索引卡使用侧边色条和标题分割线，便签卡使用跟随卡片颜色的柔和底色与小折角；支持浅色、深色、折叠及低缩放视图，保留锁定标记和自定义边框。
+- 顶部“卡片”提供六种外观预览，窄面板自动改为三列或两列；单选或同色多选时，缩略图显示当前卡片颜色。
+- 新样式支持默认设置、批量切换、样式复制与撤销重做；样式仅保存到白板，不修改源笔记。已有卡片不自动换样式，固定尺寸笔记切换时保留阅读位置与嵌入内容。
+
+- Settings now have eight responsive categories, Chinese/English/Obsidian language selection, cross-category search, confirmed category resets and strictly validated preference profiles. English covers settings and appearance dialogs, not the whole plugin.
+- Added Index and Sticky note card styles with responsive previews. Table cards no longer inherit an outer selection frame; native table column clipping is fixed without removing grid lines or editing controls.
+
+验证：4,267 项自动化测试、7 项发布脚本测试、309 项 Obsidian 原生设置交互与布局检查通过；设置页完成中英文、浅色与深色、桌面及 640 / 420 px 窄面板检查。此前卡片样式和表格修复分别通过 69 和 166 项原生检查。
+
 ## 1.3.22
 
 - 固定尺寸笔记卡片切换透明、实色、彩色标题栏和纸笺时原地更新外观，保留正文滚动位置及嵌入内容，不再重复读取笔记和重新渲染 Markdown。自适应卡片继续使用原有尺寸测量流程。

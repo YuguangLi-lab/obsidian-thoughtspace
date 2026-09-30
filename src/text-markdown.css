@@ -146,9 +146,11 @@
   box-shadow:none!important;
 }
 
-/* A table card is just its grid. Selection/resize affordances remain temporary. */
+/* A table card is just its grid, even while selected or editing. Keep the
+   connection/resize controls without outlining the larger editor container. */
 .ts-root .ts-main .ts-world > .ts-node.ts-text.is-table-card:not(.is-compact-fold) {
   border:0!important; border-radius:0!important; box-shadow:none!important;
+  outline:none!important; outline-offset:0!important;
 }
 .ts-root .ts-node.ts-text.is-table-card:not(.is-compact-fold) > .ts-text-body,
 .ts-root .ts-node.ts-text.is-table-card .ts-inline-editor > :is(.ts-inline-input,.ts-inline-native) { padding:0!important; }
@@ -156,4 +158,8 @@
 /* Wide tables wrap within the measured frame. Truly oversized column sets keep
    their own reachable scrollbar instead of overflowing a clipped Markdown root. */
 .ts-root .ts-node.is-table-card .ts-text-markdown { overflow-x:auto; scrollbar-width:thin; }
-.ts-root .ts-node.is-table-card .ts-inline-native .cm-table-widget { padding:0; }
+/* A fitted grid should not lose a column-width slice to an unused native gutter. */
+.ts-root .ts-node.is-table-card .ts-inline-native .cm-scroller { scrollbar-gutter:auto; }
+/* Native embeds normally bleed into note padding. Table cards have no padding,
+   so that negative margin would clip the first column inside the editor. */
+.ts-root .ts-node.is-table-card .ts-inline-native .cm-table-widget { padding:0; margin-inline:0!important; }
