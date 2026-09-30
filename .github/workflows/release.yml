@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - '[0-9]*'
+    branches:
+      - 'release/[0-9]*'
 
 permissions:
   contents: read
@@ -29,9 +31,17 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - name: Check release metadata and extract notes
+      - name: Resolve release version
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_REF_NAME: ${{ github.ref_name }}
+          RELEASE_REF_TYPE: ${{ github.ref_type }}
+        run: |
+          if [ "$RELEASE_REF_TYPE" = branch ]; then
+            echo "RELEASE_TAG=${RELEASE_REF_NAME#release/}" >> "$GITHUB_ENV"
+          else
+            echo "RELEASE_TAG=$RELEASE_REF_NAME" >> "$GITHUB_ENV"
+          fi
+      - name: Check release metadata and extract notes
         run: python3 scripts/check-release.py
       - run: npm ci
       - run: npm run lint
@@ -51,12 +61,19 @@ jobs:
             styles.css
             dist/thoughtspace-*.zip
             dist/SHA256SUMS.txt
+      - name: Create verified release tag from release branch
+        if: github.ref_type == 'branch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if existing=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq '.object.sha' 2>/dev/null); then
+            test "$existing" = "$GITHUB_SHA" || { echo 'Release tag already points to another commit; refusing to overwrite.'; exit 1; }
+          else
+            gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$RELEASE_TAG" -f sha="$GITHUB_SHA"
+          fi
       - name: Publish standard Obsidian assets
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
         run: gh release create "$RELEASE_TAG" main.js manifest.json styles.css "dist/thoughtspace-$RELEASE_TAG.zip" dist/SHA256SUMS.txt --verify-tag --title "ThoughtSpace Whiteboard $RELEASE_TAG" --notes-file dist/release-notes.md
       - name: Verify public installer endpoints and asset contents
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
         run: python3 scripts/verify-release.py
