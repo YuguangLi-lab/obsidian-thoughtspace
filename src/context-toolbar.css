@@ -262,3 +262,18 @@
 .ts-root .ts-floating-formatbar:has(.ts-format-context[data-kind="section"]) .ts-commandbar .ts-format-field > .ts-format-label-icon { display:none; }
 .ts-root .ts-floating-formatbar:has(.ts-format-context[data-kind="section"]) .ts-commandbar .ts-format-field { gap:6px; padding-inline:6px; }
 .ts-root .ts-floating-formatbar .ts-appearance-group > .ts-format-label { flex:none; margin-inline:6px; padding:3px 6px; border-radius:4px; background:var(--ts-format-wash); color:var(--text-muted); font:400 10px/1.4 var(--font-interface); }
+
+/* In a short native split, keep a full rail button available beside a locally
+   scrollable formatter. Normal panes retain the centered 1.3.23 layout. */
+.ts-root .ts-main.ts-short-canvas > .ts-floating-formatbar {
+  left:calc(50% + 30px); max-width:min(600px,calc(100% - 96px));
+  top:var(--ts-workbench-tools-end,12px);
+  max-height:max(36px,calc(100% - var(--ts-workbench-tools-end,12px) - var(--ts-footer-reserve,68px) - 12px));
+  overflow-y:auto; overscroll-behavior:contain;
+}
+.ts-root .ts-main.ts-short-canvas > .ts-board-rail {
+  top:8px; bottom:var(--ts-footer-reserve,68px);
+  max-height:max(36px,calc(100% - var(--ts-footer-reserve,68px) - 16px));
+}
+.ts-root .ts-main.ts-short-canvas .ts-floating-formatbar > .ts-format-heading { flex-wrap:nowrap; }
+.ts-root .ts-main.ts-short-canvas .ts-floating-formatbar .ts-format-mode { flex:none; flex-wrap:nowrap; }

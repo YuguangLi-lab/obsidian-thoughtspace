@@ -2,24 +2,20 @@
 
 ## 1.3.24
 
-### 纸张工作台与编辑体验（2026-09-30）
+### 恢复主题配色，保留编辑修复（2026-09-30，替换版）
 
-这一版带来全新的暖色纸张工作台：卡片层次更清晰，常用工具集中在左侧，工作区入口融入 Obsidian 标题栏与侧栏，让白板有更充足的编辑空间。同时深入修复选择、拖动、编辑保存与文件同步中的边界问题。
+本安装包替换此前发布的 1.3.24，恢复 1.3.23 的界面观感。**已经安装原 1.3.24 的用户需重新下载安装本包，同版本不会自动提示更新。**
 
-- 白板重新设计为暖色纸张工作台，统一卡片层次、选中状态、菜单和材料导航的视觉风格，适配浅色、深色、窄窗口与短窗口。
-- 主悬浮工具栏改为左侧竖向布局，格式工具栏在选中对象时显示；工作区操作沿用 Obsidian 标题栏，新建白板与材料入口保留在侧栏、功能区及命令菜单，画布获得更多编辑空间。
-- Shift 单击可加入或移出选区；Shift 拖动已选卡片保留多选，调整单张卡片大小时保留其他选中对象，在画布外松开鼠标也会正确结束操作。
-- 修复快速拖动后返回起点误触菜单、连线拖回来源对象意外新建内容、取消分组框选丢失连线选区，以及 Shift 水平滚轮不移动的问题；短窗口菜单中的首尾操作和键盘焦点保持可访问。
-- 修复格式工具栏获得焦点后 Ctrl / Command + Enter 无法保存，以及原生笔记自动保存中打开卡片编辑误报冲突；保存等待期间关闭原生笔记弹出窗口也能正确结束等待。
-- 修复白板快速关闭、重开导致多个视图的数据会话分叉；外部修改同步时保留尚未保存的本地视口，拖动画布期间不会突然跳到外部视口，外部对象仍正常同步。
-- 图片上传、Markdown / PDF 摘录导入期间，来源被删除、替换、改名或修改时拒绝写入旧结果；追加证据在实际写入前再次确认来源，保留当前笔记与本地图片。
-- 修复折叠文本和视频截取文本转换为笔记后无法重新打开白板的问题，保留折叠尺寸、来源引用及撤销重做。
-- 修复 Linux 下中键拖动画布后意外粘贴主选区并生成额外卡片的问题，保留普通粘贴快捷键和原生编辑器的中键行为。
+- 恢复跟随 Obsidian 主题的配色、左侧居中工具栏、顶部紧凑格式栏和底部居中视图操作；移除强制覆盖主题的米黄、灰绿色背景。纸张纹理、自定义背景与六种卡片样式仍可单独选择。
+- 左侧材料导航统一使用紧凑的横向分类栏，卡片、白板、任务和大纲在搜索框上方排列，列表使用完整宽度；保留整理白板与分组预览入口。
+- 保留 1.3.24 的编辑、保存、同步与操作修复：Shift 多选拖动、连线拖回来源处理、Ctrl / Command + Enter 保存、原生笔记保存等待、共享会话与外部视口同步、异步图床和摘录来源校验、折叠文本转笔记、中键拖动误粘贴保护。
+- 修复顶部格式栏高度变化后侧边工具栏位置未更新，导致窄窗口卡片“编辑”按钮被挡住的问题。
+- 保留悬浮按钮命中区、纸笺锁定标记、工具栏键盘导航及滚动改进；短窗口菜单完整滚动，格式栏与工具按钮保持可访问。
 
-- Redesigned the whiteboard as a warm paper workbench with a vertical left tool panel, contextual formatting and responsive light/dark layouts while preserving canvas space.
-- Fixed selection and drag handling, native-save conflicts, shared-session races, external viewport jumps, stale image/excerpt results, text-to-note reopening and unintended Linux middle-button paste.
+- This replacement **1.3.24** restores the 1.3.23 layout and Obsidian theme colors, removing the forced warm/green palette. Existing 1.3.24 users must download and reinstall this replacement because the version number is unchanged.
+- Retains the editing, saving, synchronization, selection, connection, hover, keyboard-navigation and short-pane accessibility fixes from 1.3.24. Optional paper backgrounds and card styles remain available.
 
-验证：4,437 项自动化回归、7 项 Python 脚本测试、720 项 Chromium 交互与布局检查、328 项官方 Obsidian 1.13.7 原生检查通过；完成浅色、深色、窄窗口和短窗口截图复核，以及原生编辑器与源码回退编辑验证。构建和 lint 通过，lint 为 0 错误、118 项既有警告；测试安装包与原生验收构建一致。详细场景与复验方法见 [深度调试记录](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.24/qa/deep-debug.md) 和 [UI 设计与视觉检查](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.24/qa/paper-workbench.md)。
+验证：4,437 项回归测试、7 项 Python 发布脚本测试、914 项 Chromium 交互与布局检查、101 项 Obsidian 原生检查通过；构建通过，lint 无错误（118 项既有警告）。详见 [UI 恢复与回归检查](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.24/qa/ui-restoration.md)。
 
 ## 1.3.23
 

@@ -1875,7 +1875,7 @@ class BoardView extends FileView {
     }).open();
   }
   async onOpen() {
-    const root = this.contentEl; root.empty(); root.addClass('ts-root');root.addClass('ts-paper-workbench');
+    const root = this.contentEl; root.empty(); root.addClass('ts-root');
     this.register(whenBoardStylesReady(root,()=>{this.previewMetricsReady=true;this.refreshFontMetrics();}));
     this.registerEvent(this.app.workspace.on('css-change',()=>this.refreshFontMetrics()));
     const fonts=root.ownerDocument.fonts,onFonts=()=>this.refreshFontMetrics();fonts.addEventListener('loadingdone',onFonts);this.register(()=>fonts.removeEventListener('loadingdone',onFonts));
@@ -1978,7 +1978,7 @@ class BoardView extends FileView {
     const organize=cluster(toolbar,'组织与整理'),workspace=cluster(toolbar,'阅读与工作区');
     this.selectionButton=button(interactionRail,'框选','scan',()=>this.toggleSelectionTool());this.selectionButton.title='开启后左键框选 · Shift 累加 · 空格加左键平移 · 鼠标操作可在设置中修改';
     this.connectButton=button(interactionRail,'连线','move-up-right',()=>this.toggleConnectionTool());
-    button(createRail,'新建卡片','plus',()=>this.newCard());
+    button(createRail,'新建卡片','plus',()=>this.newCard(),'ts-primary');
     button(createRail,'文本','type',()=>this.newText());
     const insertPanel=main.createDiv({cls:'ts-rail-popover ts-insert-palette',attr:{role:'dialog','aria-label':'插入内容'}});insertPanel.hidden=true;
     const insertHead=insertPanel.createDiv('ts-palette-heading');
@@ -2062,15 +2062,21 @@ class BoardView extends FileView {
     this.syncCanvasControls();
     this.filterBadge=main.createDiv({cls:'ts-object-filter-status',attr:{'aria-live':'polite'}});this.inspector = main.createDiv('ts-inspector');
     this.minimap = main.createDiv({ cls: 'ts-minimap', attr: { 'aria-label': '白板缩略图' } });
-    const resizeObserver=new ResizeObserver(()=>{this.stage.parentElement?.toggleClass('ts-short-canvas',this.stage.clientHeight<360);this.retryDeferredCardFits();this.scheduleRender();});resizeObserver.observe(this.stage);this.register(()=>resizeObserver.disconnect());
+    const chromeWindow=root.ownerDocument.defaultView||window;let resizeFrame=0,chromeFrame=0,railFrame=0;
+    const resizeObserver=new ResizeObserver(()=>{if(resizeFrame)return;resizeFrame=chromeWindow.requestAnimationFrame(()=>{resizeFrame=0;this.stage.parentElement?.toggleClass('ts-short-canvas',this.stage.clientHeight<360);this.retryDeferredCardFits();this.scheduleRender();});});resizeObserver.observe(this.stage);this.register(()=>{resizeObserver.disconnect();chromeWindow.cancelAnimationFrame(resizeFrame);});
     // View controls can grow with font scaling or a narrow split. Reserve their
     // actual screen height for the overview and editor actions, not a fixed row.
-    const chromeObserver=new ResizeObserver(()=>{
-      const mainBounds=main.getBoundingClientRect(),mainTop=mainBounds.top;
-      const railBounds=rail.getClientRects().length?rail.getBoundingClientRect():undefined;
-      const obstacle=railBounds?{x:railBounds.left-mainBounds.left-6,y:railBounds.top-mainTop-6,width:railBounds.width+12,height:railBounds.height+12}:undefined;
+    const refreshRailObstacle=()=>{
+      const mainBounds=main.getBoundingClientRect(),railBounds=rail.getClientRects().length?rail.getBoundingClientRect():undefined;
+      const obstacle=railBounds?{x:railBounds.left-mainBounds.left-6,y:railBounds.top-mainBounds.top-6,width:railBounds.width+12,height:railBounds.height+12}:undefined;
       const previous=this.cardToolbarObstacles[0];
       if(previous?.x!==obstacle?.x||previous?.y!==obstacle?.y||previous?.width!==obstacle?.width||previous?.height!==obstacle?.height){this.cardToolbarObstacles=obstacle?[obstacle]:[];this.scheduleRender(true);}
+    };
+    const refreshChrome=()=>{
+      chromeFrame=0;
+      const mainBounds=main.getBoundingClientRect(),mainTop=mainBounds.top;
+      const railBounds=rail.getClientRects().length?rail.getBoundingClientRect():undefined;
+      refreshRailObstacle();
       const toolsEnd=railBounds&&rail.getAttribute('aria-orientation')==='horizontal'?railBounds.bottom-mainTop+12:12;
       const toolsReserve=`${Math.ceil(toolsEnd)}px`;if(main.style.getPropertyValue('--ts-workbench-tools-end')!==toolsReserve)main.style.setProperty('--ts-workbench-tools-end',toolsReserve);
       const formatEnd=formatbar.getClientRects().length?formatbar.getBoundingClientRect().bottom-mainTop+12:toolsEnd;
@@ -2078,7 +2084,13 @@ class BoardView extends FileView {
         const reserve=`${Math.ceil(size)}px`;if(main.style.getPropertyValue(name)!==reserve)main.style.setProperty(name,reserve);
         if(name==='--ts-format-reserve'){const inset=Math.max(60,Math.ceil(size));if(this.cardToolbarReserve!==inset){this.cardToolbarReserve=inset;this.scheduleRender(true);}}
       }
-    });chromeObserver.observe(footer);chromeObserver.observe(formatbar);chromeObserver.observe(rail);this.register(()=>chromeObserver.disconnect());
+      // Changing the reserved bands re-centers the rail without necessarily
+      // resizing it. Measure that settled position before placing card actions.
+      chromeWindow.cancelAnimationFrame(railFrame);railFrame=chromeWindow.requestAnimationFrame(()=>{railFrame=0;refreshRailObstacle();});
+    };
+    // Writes that change observed sizes belong to the next frame, not inside
+    // ResizeObserver delivery; this also coalesces split/theme changes.
+    const chromeObserver=new ResizeObserver(()=>{if(!chromeFrame)chromeFrame=chromeWindow.requestAnimationFrame(refreshChrome);});chromeObserver.observe(footer);chromeObserver.observe(formatbar);chromeObserver.observe(rail);this.register(()=>{chromeObserver.disconnect();chromeWindow.cancelAnimationFrame(chromeFrame);chromeWindow.cancelAnimationFrame(railFrame);});
     this.registerDomEvent(this.stage,'pointerdown',e=>{
       // Editors may stop bubbling; a new middle press still owns its default.
       if(e.button===1)this.suppressMiddlePaste=false;

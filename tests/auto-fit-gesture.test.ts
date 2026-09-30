@@ -24,13 +24,17 @@ test('a hidden connected card defers measuring until the actual stage resize cal
  const {v,node,preview,measurements,counts}=fixture();preview.offsetWidth=0;measurements.set('a',{width:2,height:150});
  v.queueCardFit(node,preview);v.flushNodeFits();
  assert.equal(counts().measured,0);assert.equal(counts().saves,0);assert.deepEqual([...v.deferredCardFits],['a']);
- const source=readFileSync('src/main.ts','utf8'),start=source.indexOf('    const resizeObserver=new ResizeObserver('),end=source.indexOf('\n',start);
- let notify!:()=>void;v.register=()=>{};
- new Function('ResizeObserver',source.slice(start,end)).call(v,class{constructor(callback:()=>void){notify=callback;}observe(){}disconnect(){}});
- v.stage.clientWidth=0;notify();assert.equal(counts().measured,0,'hidden resize must not probe');
- preview.offsetWidth=300;v.stage.clientWidth=1000;measurements.set('a',{width:360,height:420});notify();v.flushNodeFits();
+ const source=readFileSync('src/main.ts','utf8'),start=source.indexOf('    const chromeWindow=root.ownerDocument.defaultView||window;'),observer=source.indexOf('    const resizeObserver=new ResizeObserver(',start),end=source.indexOf('\n',observer);
+ const frames=new Map<number,()=>void>(),cleanups:(()=>void)[]=[];let nextFrame=0,notify!:()=>void;
+ const clock={requestAnimationFrame(fn:()=>void){frames.set(++nextFrame,fn);return nextFrame;},cancelAnimationFrame(id:number){frames.delete(id);}};
+ const flush=()=>{const pending=[...frames.values()];frames.clear();pending.forEach(fn=>fn());};v.register=(fn:()=>void)=>cleanups.push(fn);
+ new Function('root','ResizeObserver',source.slice(start,end)).call(v,{ownerDocument:{defaultView:clock}},class{constructor(callback:()=>void){notify=callback;}observe(){}disconnect(){}});
+ v.stage.clientWidth=0;notify();flush();assert.equal(counts().measured,0,'hidden resize must not probe');
+ preview.offsetWidth=300;v.stage.clientWidth=1000;measurements.set('a',{width:360,height:420});notify();notify();notify();
+ assert.equal(counts().measured,0,'defer size-changing work beyond observer delivery');assert.equal(frames.size,1,'coalesce repeated notifications in the owning window');flush();v.flushNodeFits();
  assert.equal(counts().measured,1);assert.equal(counts().saves,1);assert.equal(v.deferredCardFits.size,0);assert.deepEqual([node.width,node.height],[360,420]);
- notify();assert.equal(counts().measured,1,'ordinary resizes do not repeat a completed fit');
+ notify();flush();assert.equal(counts().measured,1,'ordinary resizes do not repeat a completed fit');
+ notify();cleanups.forEach(fn=>fn());assert.equal(frames.size,0,'closing the view cancels pending resize work');
 });
 
 test('deferred card fitting uses current eligibility after deletion, locking or entering an editor',()=>{

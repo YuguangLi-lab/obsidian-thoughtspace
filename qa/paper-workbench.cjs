@@ -41,7 +41,7 @@ function check(name, actual, expected = true) {
 
 function contrastRatio(foreground,background){
   const luminance=color=>{
-    const channels=color.match(/[\d.]+/g).slice(0,3).map(value=>Number(value)/255).map(value=>value<=.04045?value/12.92:((value+.055)/1.055)**2.4);
+    const channels=color.match(/[\d.]+/g).slice(0,3).map(value=>Number(value)/(color.startsWith('color(srgb')?1:255)).map(value=>value<=.04045?value/12.92:((value+.055)/1.055)**2.4);
     return .2126*channels[0]+.7152*channels[1]+.0722*channels[2];
   };
   const a=luminance(foreground),b=luminance(background);return(Math.max(a,b)+.05)/(Math.min(a,b)+.05);
@@ -259,15 +259,22 @@ function overlap(a,b){return Math.max(0,Math.min(a.x+a.width,b.x+b.width)-Math.m
       await page.addScriptTag({content:script});await page.evaluate(()=>paperFixture.mount());await page.waitForTimeout(120);
       await page.screenshot({path:path.join(output,theme+'-'+size.name+'.png')});
       if(process.env.QA_ONLY_SCREENSHOTS==='1'){await page.evaluate(()=>paperFixture.select(['a']));await page.waitForTimeout(80);await page.screenshot({path:path.join(output,theme+'-'+size.name+'-selected.png')});await page.evaluate(()=>paperFixture.empty());await page.waitForTimeout(50);await page.screenshot({path:path.join(output,theme+'-'+size.name+'-empty.png')});await page.evaluate(()=>paperFixture.cleanup.forEach(fn=>fn()));continue;}
+      // Host theme variables must flow through both board and navigator. Test the
+      // actual computed values, so a hard-coded descendant palette fails here.
+      const inherited=await page.evaluate(()=>{
+        const names=['--background-primary','--background-secondary','--text-normal','--text-muted','--font-text'];
+        return [...document.querySelectorAll('.ts-root')].flatMap(root=>names.map(name=>({root:root.id,name,host:getComputedStyle(document.body).getPropertyValue(name).trim(),actual:getComputedStyle(root).getPropertyValue(name).trim()})));
+      });
+      for(const item of inherited)check(label+': '+item.root+' inherits '+item.name,item.actual,item.host);
       const accentColors=await page.evaluate(()=>{
         const roots=[...document.querySelectorAll('.ts-root')],controls=[document.querySelector('#board .ts-start-actions .ts-primary'),document.querySelector('#dock .ts-dock-quick .ts-primary')].filter(Boolean);
-        const previous=roots.map(root=>({root,accent:root.getAttribute('data-accent'),ink:root.style.getPropertyValue('--text-on-accent')})),transitions=controls.map(el=>({el,value:el.style.transition}));
+        const previous=roots.map(root=>({root,accent:root.getAttribute('data-accent'),ink:root.style.getPropertyValue('--text-on-accent'),hostAccent:root.style.getPropertyValue('--interactive-accent')})),transitions=controls.map(el=>({el,value:el.style.transition}));
         const results=[];for(const el of controls)el.style.transition='none';
         for(const accent of ['forest','blue','amber','rose'])for(const hostInk of ['#fff','#000']){
-          for(const root of roots){root.dataset.accent=accent;root.style.setProperty('--text-on-accent',hostInk);}
+          for(const root of roots){root.dataset.accent=accent;root.style.setProperty('--text-on-accent',hostInk);root.style.setProperty('--interactive-accent',hostInk==='#fff'?'#416954':'#94b39b');}
           for(const el of controls){const text=el.lastElementChild||el;results.push({accent,hostInk,label:el.getAttribute('aria-label')||el.textContent.trim(),foreground:getComputedStyle(text).color,background:getComputedStyle(el).backgroundColor});}
         }
-        for(const {root,accent,ink}of previous){if(accent===null)root.removeAttribute('data-accent');else root.setAttribute('data-accent',accent);if(ink)root.style.setProperty('--text-on-accent',ink);else root.style.removeProperty('--text-on-accent');}
+        for(const {root,accent,ink,hostAccent}of previous){if(accent===null)root.removeAttribute('data-accent');else root.setAttribute('data-accent',accent);if(ink)root.style.setProperty('--text-on-accent',ink);else root.style.removeProperty('--text-on-accent');if(hostAccent)root.style.setProperty('--interactive-accent',hostAccent);else root.style.removeProperty('--interactive-accent');}
         for(const {el,value}of transitions){if(value)el.style.transition=value;else el.style.removeProperty('transition');}return results;
       });
       for(const colors of accentColors){const ratio=contrastRatio(colors.foreground,colors.background);check(label+': '+colors.label+' text contrast for '+colors.accent+' with host ink '+colors.hostInk,ratio>=4.5);report.checks[report.checks.length-1].contrast=Number(ratio.toFixed(2));report.checks[report.checks.length-1].colors=colors;}
@@ -299,7 +306,11 @@ function overlap(a,b){return Math.max(0,Math.min(a.x+a.width,b.x+b.width)-Math.m
       const format=await page.locator('#board .ts-floating-formatbar').boundingBox();
       check(label+': selected formatting stays within viewport',!!format&&format.x>=-1&&format.x+format.width<=size.width+1);
       if(rail&&format)check(label+': selection formatting does not overlap tool dock',overlap(rail,format)<1);
-      check(label+': selected card edit action receives a pointer hit',await page.locator('[data-id="a"] .ts-card-quick-edit').evaluate(el=>{const r=el.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('button')===el;}));
+      check(label+': card actions avoid the settled rail position after formatting appears',await page.evaluate(()=>{
+        const main=document.querySelector('.ts-main').getBoundingClientRect(),rail=document.querySelector('.ts-board-rail').getBoundingClientRect(),obstacle=paperFixture.view.cardToolbarObstacles[0];
+        return !!obstacle&&Math.abs(obstacle.x-(rail.left-main.left-6))<1&&Math.abs(obstacle.y-(rail.top-main.top-6))<1;
+      }));
+      check(label+': selected card edit action receives a pointer hit',await page.locator('[data-id="a"] .ts-card-quick-edit').evaluate(el=>{const r=el.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.closest('button')===el;}));report.checks[report.checks.length-1].hit=await page.locator('[data-id="a"] .ts-card-quick-edit').evaluate(el=>{const r=el.getBoundingClientRect();return{bounds:r.toJSON(),hit:document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.outerHTML,rail:document.querySelector('.ts-board-rail').getBoundingClientRect().toJSON()};});
       await page.screenshot({path:path.join(output,theme+'-'+size.name+'-selected.png')});
       if(size.name==='desktop'){
         const card=await page.locator('[data-id="a"]').boundingBox();const start={x:card.x+card.width/2,y:card.y+100};
@@ -418,6 +429,30 @@ function overlap(a,b){return Math.max(0,Math.min(a.x+a.width,b.x+b.width)-Math.m
       check(label+': close button returns focus to the insert trigger',await activeLabel(),'插入内容');check(label+': returned insert trigger remains visible after footer restoration',await focusedButtonVisible());
       check(label+': popup keyboard and wheel preserve the canvas viewport',await canvasState(),before);
       check(label+': fixture catches no palette command errors',await page.evaluate(()=>paperFixture.calls.errors),[]);await page.evaluate(()=>paperFixture.cleanup.forEach(fn=>fn()));
+    }
+    // Production sidebar DOM, including real keyboard handlers, at widths on
+    // both sides of the former 299px vertical-navigation breakpoint.
+    for(const theme of ['light','dark'])for(const width of [200,280,304,420])for(const height of [800,320]){
+      const label=theme+'/sidebar-'+width+'x'+height;
+      await page.setViewportSize({width:1200,height});await page.setContent(content);
+      await page.locator('body').evaluate((el,theme)=>el.className='theme-'+theme,theme);
+      await page.addStyleTag({content:hostCSS});await page.addStyleTag({content:fs.readFileSync(stylesheet,'utf8')});
+      await page.addStyleTag({content:'.qa-dock-host{flex-basis:'+width+'px}'});
+      await page.addScriptTag({content:script});await page.evaluate(()=>paperFixture.mount());await page.waitForTimeout(100);
+      const geometry=await page.evaluate(()=>{
+        const sidebar=document.querySelector('#dock .ts-sidebar'),tabs=[...sidebar.querySelectorAll('[role=tab]')],list=sidebar.querySelector('.ts-library'),search=sidebar.querySelector('.ts-sidebar-search');
+        return{sidebar:sidebar.getBoundingClientRect().toJSON(),list:list.getBoundingClientRect().toJSON(),search:search.getBoundingClientRect().toJSON(),tabs:tabs.map(el=>el.getBoundingClientRect().toJSON()),orientation:sidebar.querySelector('[role=tablist]').getAttribute('aria-orientation'),overflow:sidebar.scrollWidth>sidebar.clientWidth+1};
+      });
+      check(label+': all four categories in one horizontal row',geometry.tabs.length===4&&geometry.tabs.every((t,i,all)=>Math.abs(t.top-all[0].top)<1&&(!i||t.left>=all[i-1].right)));
+      check(label+': navigation exposes horizontal keyboard orientation',geometry.orientation,'horizontal');
+      check(label+': list uses the complete sidebar width',Math.abs(geometry.list.width-geometry.sidebar.width)<1&&Math.abs(geometry.list.left-geometry.sidebar.left)<1);
+      check(label+': search stays below category tabs',geometry.search.top>=geometry.tabs[0].bottom);
+      check(label+': sidebar has no horizontal overflow',geometry.overflow,false);
+      const tabs=page.locator('#dock [role=tab]');await tabs.first().focus();await page.keyboard.press('ArrowRight');
+      check(label+': Right activates Boards',await page.evaluate(()=>document.activeElement?.textContent),'白板');
+      await page.keyboard.press('End');check(label+': End activates Outline',await tabs.last().getAttribute('aria-selected'),'true');
+      await page.keyboard.press('Home');check(label+': Home activates Cards',await tabs.first().getAttribute('aria-selected'),'true');
+      await page.evaluate(()=>paperFixture.cleanup.forEach(fn=>fn()));
     }
     check('browser reports no uncaught errors',errors,[]);
   }finally{await browser.close();}

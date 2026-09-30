@@ -1,7 +1,7 @@
 # Whiteboard interaction and persistence debugging
 
-This pass preserves the paper workbench, the vertical tool panel on the left,
-and the canvas space gained by removing the added header row. The first pass
+These interaction repairs are retained in the replacement 1.3.24 release,
+which restores the 1.3.23 theme colors and layout. The first pass
 repairs eleven confirmed interaction issues. The follow-up covers six additional
 classes of saving, source-validation and synchronization races; it does not claim
 every plugin feature has been exhaustively tested.

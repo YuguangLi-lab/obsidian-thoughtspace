@@ -233,3 +233,12 @@
   .ts-root .ts-rail-search-status { display: none; }
   .ts-root .ts-palette-sections { padding-bottom: 6px; }
 }
+
+/* Retain the 1.3.24 short-pane navigation fix without overriding host colors.
+   The whole menu scrolls when its search/category header would consume the pane. */
+.ts-root .ts-main.ts-short-canvas > .ts-rail-popover {
+  top:8px; bottom:8px; max-height:calc(100% - 16px);
+  overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin;
+}
+.ts-root .ts-main.ts-short-canvas:has(> .ts-rail-popover:not([hidden])) > :is(.ts-footer,.ts-minimap) { display:none!important; }
+.ts-root .ts-main.ts-short-canvas .ts-rail-popover > .ts-rail-actions { flex:0 0 auto; overflow-y:visible; }

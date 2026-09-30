@@ -1,4 +1,6 @@
-# Paper workbench design and visual checks
+# Historical paper-workbench design and visual checks
+
+> This records the original 1.3.24 design, which was withdrawn at the user’s request. The replacement 1.3.24 restores 1.3.23 visuals and retains the interaction fixes. See [UI restoration checks](ui-restoration.md) for the replacement build.
 
 The redesign gives the board a warm paper workbench while preserving space for
 the canvas. It retains Obsidian's existing title bar and adds no full-width
