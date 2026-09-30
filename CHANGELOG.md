@@ -1,5 +1,24 @@
 # 更新记录
 
+## 未发布
+
+### 纸张工作台与编辑体验（2026-09-30）
+
+- 白板重新设计为暖色纸张工作台，统一卡片层次、选中状态、菜单和材料导航的视觉风格，适配浅色、深色、窄窗口与短窗口。
+- 主悬浮工具栏改为左侧竖向布局，格式工具栏在选中对象时显示；工作区操作沿用 Obsidian 标题栏，新建白板与材料入口保留在侧栏、功能区及命令菜单，画布获得更多编辑空间。
+- Shift 单击可加入或移出选区；Shift 拖动已选卡片保留多选，调整单张卡片大小时保留其他选中对象，在画布外松开鼠标也会正确结束操作。
+- 修复快速拖动后返回起点误触菜单、连线拖回来源对象意外新建内容、取消分组框选丢失连线选区，以及 Shift 水平滚轮不移动的问题；短窗口菜单中的首尾操作和键盘焦点保持可访问。
+- 修复格式工具栏获得焦点后 Ctrl / Command + Enter 无法保存，以及原生笔记自动保存中打开卡片编辑误报冲突；保存等待期间关闭原生笔记弹出窗口也能正确结束等待。
+- 修复白板快速关闭、重开导致多个视图的数据会话分叉；外部修改同步时保留尚未保存的本地视口，拖动画布期间不会突然跳到外部视口，外部对象仍正常同步。
+- 图片上传、Markdown / PDF 摘录导入期间，来源被删除、替换、改名或修改时拒绝写入旧结果；追加证据在实际写入前再次确认来源，保留当前笔记与本地图片。
+- 修复折叠文本和视频截取文本转换为笔记后无法重新打开白板的问题，保留折叠尺寸、来源引用及撤销重做。
+- 修复 Linux 下中键拖动画布后意外粘贴主选区并生成额外卡片的问题，保留普通粘贴快捷键和原生编辑器的中键行为。
+
+- Redesigned the whiteboard as a warm paper workbench with a vertical left tool panel, contextual formatting and responsive light/dark layouts while preserving canvas space.
+- Fixed selection and drag handling, native-save conflicts, shared-session races, external viewport jumps, stale image/excerpt results, text-to-note reopening and unintended Linux middle-button paste.
+
+验证：4,437 项自动化回归、7 项 Python 脚本测试、720 项 Chromium 交互与布局检查、328 项官方 Obsidian 1.13.7 原生检查通过；完成浅色、深色、窄窗口和短窗口截图复核，以及原生编辑器与源码回退编辑验证。构建和 lint 通过，lint 为 0 错误、118 项既有警告；测试安装包与原生验收构建一致。详细场景与复验方法见 [深度调试记录](qa/deep-debug.md) 和 [UI 设计与视觉检查](qa/paper-workbench.md)。
+
 ## 1.3.23
 
 - 设置页重排为界面、卡片与笔记、白板、鼠标与键盘、阅读、文件与归档、图片与图床、偏好配置八个分类；增加跨分类搜索和需确认的分类恢复默认，窄窗保持控件可访问。
