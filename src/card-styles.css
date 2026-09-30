@@ -64,12 +64,13 @@
 }
 .ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"]:not(.has-custom-border) { border-color:transparent!important; }
 .ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"].has-custom-border { --ts-paper-line:var(--ts-tone); }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"]::after {
+/* Keep ::after available for the shared locked-card status. */
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"]::before {
   content:''; position:absolute; inset:4px; z-index:1; border:1px solid var(--ts-paper-line);
   border-radius:1px; pointer-events:none;
   box-shadow:0 0 0 3px var(--ts-styled-surface,var(--background-primary)),0 0 0 4px var(--ts-paper-line);
 }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"].has-custom-border::after { box-shadow:none; }
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"].has-custom-border::before { box-shadow:none; }
 .ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"] > .ts-card-paperclip {
   position:absolute; top:-12px; left:20px; z-index:2; display:flex; align-items:center; justify-content:center;
   width:22px; height:28px; color:var(--ts-paper-clip); pointer-events:none; user-select:none;

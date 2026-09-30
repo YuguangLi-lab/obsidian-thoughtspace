@@ -18,18 +18,25 @@ type Row={group:SVGGElement;path:SVGPathElement;hit:SVGPathElement;label?:Captio
 /** Stable keyed SVG rows: pointer motion changes paths, not entire DOM subtrees. */
 export class EdgeLayer{
  private rows=new Map<string,Row>();private markers=new Set<string>();private defs:SVGDefsElement;
+ private nodeHints=new Map<string,number>();private nodeHintCount=-1;
  constructor(readonly root:SVGSVGElement,private prefix:string,private edit:(id:string)=>void){this.defs=svg(root,'defs','');}
- clear(){for(const row of this.rows.values())row.group.remove();this.rows.clear();this.defs.remove();this.markers.clear();this.defs=svg(this.root,'defs','');}
+ clear(){for(const row of this.rows.values())row.group.remove();this.rows.clear();this.nodeHints.clear();this.nodeHintCount=-1;this.defs.remove();this.markers.clear();this.defs=svg(this.root,'defs','');}
  render(board:Board,width:number,height:number,selected?:string,focus?:ReadonlySet<string>,batchSelected?:ReadonlySet<string>){
   // With no visible connections there is nothing to index or cull. Preserve
   // marker definitions for reuse, just as normal row eviction does.
-  if(!board.edges.length){for(const row of this.rows.values())row.group.remove();this.rows.clear();return;}
-  const nodes=new Map<string,Card>();for(const node of board.nodes)nodes.set(node.id,node);
+  if(!board.edges.length){for(const row of this.rows.values())row.group.remove();this.rows.clear();this.nodeHints.clear();this.nodeHintCount=-1;return;}
+  // Sparse boards need only their current endpoints. Hints retain indices, never
+  // node objects; validate each against the live array and rebuild once on a miss.
+  // Dense graphs keep their single linear index rather than doubling ID checks.
+  const sparse=board.edges.length*2<board.nodes.length;let nodes:Map<string,Card>|undefined;
+  const indexNodes=()=>{nodes=new Map();this.nodeHints.clear();for(let i=0;i<board.nodes.length;i++){const node=board.nodes[i],id=node.id;nodes.set(id,node);if(sparse)this.nodeHints.set(id,i);}this.nodeHintCount=sparse?board.nodes.length:-1;};
+  if(!sparse||this.nodeHintCount!==board.nodes.length)indexNodes();
+  const endpoint=(id:string)=>{if(nodes)return nodes.get(id);const hint=this.nodeHints.get(id),node=hint===undefined?undefined:board.nodes[hint];if(node?.id===id)return node;indexNodes();return nodes!.get(id);};
   // Existing rows carry liveness; do not rebuild a visible-edge-sized Set on
   // every pan/drag frame. A unique scalar token needs no counter reset/overflow.
   const view=viewportRect(board.viewport,width,height),frame=Symbol();
   let order=0,reorder=false;
-  for(const edge of board.edges){const index=order++,a=nodes.get(edge.from),b=nodes.get(edge.to);if(!a||!b||!edgeInView(a,b,view))continue;
+  for(const edge of board.edges){const index=order++,a=endpoint(edge.from),b=endpoint(edge.to);if(!a||!b||!edgeInView(a,b,view))continue;
    let row=this.rows.get(edge.id);if(!row){const group=svg(this.root,'g','ts-edge-group');group.dataset.edge=edge.id;group.ondblclick=e=>{e.stopPropagation();this.edit(edge.id);};row={group,path:svg(group,'path','ts-edge'),hit:svg(group,'path','ts-edge-hit')};for(const el of [row.path,row.hit]){el.dataset.edge=edge.id;el.setAttribute('vector-effect','non-scaling-stroke');}this.rows.set(edge.id,row);}
    row.frame=frame;if(row.order!==index){row.order=index;reorder=true;}
    const geometryMatches=sameGeometry(row.geometry,a,b,edge);

@@ -43,9 +43,20 @@ class Element {
  setSelectionRange(start:number,end:number){this.selectionStart=start;this.selectionEnd=end;}
 }
 
+class Scope {
+ handlers:{modifiers:string[]|null;key:string|null;run:(event:any)=>unknown}[]=[];
+ constructor(public parent?:Scope){}
+ register(modifiers:string[]|null,key:string|null,run:(event:any)=>unknown){this.handlers.push({modifiers,key,run});}
+ handle(event:any):unknown{
+  const mods=[...(event.ctrlKey?['Ctrl']:[]),...(event.metaKey?['Meta']:[]),...(event.altKey?['Alt']:[]),...(event.shiftKey?['Shift']:[])];
+  for(const h of this.handlers)if((h.key===null||h.key===event.key)&&(h.modifiers===null||h.modifiers.length===mods.length&&h.modifiers.every(m=>mods.includes(m))))if(h.run(event)===false){event.preventDefault();return false;}
+  return this.parent?.handle(event);
+ }
+}
+
 const module={exports:{} as any};
 new Function('require','module','exports',transformSync(readFileSync('src/inline-node-editor.ts','utf8'),{loader:'ts',format:'cjs'}).code)(
- (name:string)=>name==='obsidian'?{setIcon(){},Notice:class{}}:name==='./editor-cleanup'?{releaseEditorResource}:name==='./toolbar-navigation'?{toolbarNavigation}:name==='./inline-editor-keys'?{allowsReadOnlyKey,isSimpleTopicContinuation}:{},module,module.exports);
+ (name:string)=>name==='obsidian'?{setIcon(){},Notice:class{},Scope}:name==='./editor-cleanup'?{releaseEditorResource}:name==='./toolbar-navigation'?{toolbarNavigation}:name==='./inline-editor-keys'?{allowsReadOnlyKey,isSimpleTopicContinuation}:{},module,module.exports);
 
 function fixture(t:any,inCanvas=true){
  const timers=new Map<number,()=>void>(),frames=new Map<number,()=>void>();let id=0,disconnected=0;
@@ -54,14 +65,36 @@ function fixture(t:any,inCanvas=true){
  const previousStyle=globalThis.getComputedStyle,previousObserver=globalThis.ResizeObserver;
  Object.assign(globalThis,{getComputedStyle:()=>({direction:'ltr',overflowX:'visible',fontFamily:'Host font',fontSize:'16px',fontWeight:'400',lineHeight:'24px',letterSpacing:'0px',textAlign:'left',paddingTop:'8px',paddingRight:'8px',paddingBottom:'8px',paddingLeft:'8px'}),ResizeObserver:class{observe(){}disconnect(){disconnected++;}}});
  doc.defaultView.getComputedStyle=globalThis.getComputedStyle;
- const calls={save:[] as string[],cancel:0,topic:0},options={app:{},value:'Draft',nodeKind:'text',label:'编辑草稿',placeholder:'',markdown:false,resize(){},save:async(value:string)=>{calls.save.push(value);},cancel:()=>{calls.cancel++;},continueTopic:async()=>{calls.topic++;}};
+ const scopes:Scope[]=[],app={scope:new Scope(),keymap:{pushScope:(scope:Scope)=>scopes.push(scope),popScope:(scope:Scope)=>{const i=scopes.indexOf(scope);if(i>=0)scopes.splice(i,1);}}};
+ app.scope.register(['Ctrl'],'Enter',()=>false);app.scope.register(['Meta'],'Enter',()=>false);
+ const calls={save:[] as string[],cancel:0,topic:0},options={app,value:'Draft',nodeKind:'text',label:'编辑草稿',placeholder:'',markdown:false,resize(){},save:async(value:string)=>{calls.save.push(value);},cancel:()=>{calls.cancel++;},continueTopic:async()=>{calls.topic++;}};
  const editor=new module.exports.InlineNodeEditor(node,options);
  t.after(()=>{editor.dispose();Object.assign(globalThis,{getComputedStyle:previousStyle,ResizeObserver:previousObserver});});
  const flushFocus=()=>{const batch=[...timers.values()];timers.clear();for(const run of batch)run();};
  const chrome=()=>main.querySelector('.ts-inline-chrome'),bar=()=>main.querySelector('.ts-inline-editor-bar');
  const press=(target:Element,key:string,extra:Record<string,unknown>={})=>{const event={type:'keydown',bubbles:true,key,isComposing:false,keyCode:0,defaultPrevented:false,ctrlKey:false,metaKey:false,altKey:false,shiftKey:false,preventDefault(){this.defaultPrevented=true;},stopPropagation(){},...extra};target.dispatchEvent(event);return event;};
- return{editor,options,calls,root,main,world,node,doc,chrome,bar,press,flushFocus,timers,frames,disconnected:()=>disconnected};
+ const pressHosted=(target:Element,key:string,extra:Record<string,unknown>={})=>{const event={type:'keydown',bubbles:true,key,target,isComposing:false,keyCode:0,defaultPrevented:false,ctrlKey:false,metaKey:false,altKey:false,shiftKey:false,preventDefault(){this.defaultPrevented=true;},stopPropagation(){},...extra};(scopes.at(-1)||app.scope).handle(event);target.dispatchEvent(event);return event;};
+ return{editor,options,calls,root,main,world,node,doc,chrome,bar,press,pressHosted,scopes,flushFocus,timers,frames,disconnected:()=>disconnected};
 }
+
+for(const modifier of ['ctrlKey','metaKey'])test(`host-scoped ${modifier} Enter saves before native commands consume it`,async t=>{
+ const f=fixture(t);assert.equal(f.pressHosted(f.editor.input,'Enter',{[modifier]:true}).defaultPrevented,true);await Promise.resolve();assert.deepEqual(f.calls.save,['Draft']);
+});
+test('an upper popup owns Enter without saving the underlying draft',async t=>{
+ const f=fixture(t),popup=new Scope(f.options.app.scope);let chosen=0;popup.register(['Meta'],'Enter',()=>{chosen++;return false;});f.options.app.keymap.pushScope(popup);
+ f.pressHosted(f.editor.input,'Enter',{metaKey:true});await Promise.resolve();assert.equal(chosen,1);assert.deepEqual(f.calls.save,[]);
+ f.options.app.keymap.popScope(popup);f.pressHosted(f.editor.input,'Enter',{metaKey:true});await Promise.resolve();assert.deepEqual(f.calls.save,['Draft']);
+});
+test('save scope ignores another surface, composition and repeated pending writes',async t=>{
+ const f=fixture(t),other=f.main.createEl('input');f.pressHosted(other,'Enter',{metaKey:true});assert.deepEqual(f.calls.save,[]);
+ f.editor.input.dispatchEvent(new Event('compositionstart'));f.pressHosted(f.editor.input,'Enter',{metaKey:true});assert.deepEqual(f.calls.save,[]);
+ f.editor.input.dispatchEvent(new Event('compositionend'));let release!:()=>void;const gate=new Promise<void>(resolve=>release=resolve);f.options.save=async(value:string)=>{f.calls.save.push(value);await gate;};
+ f.pressHosted(f.editor.input,'Enter',{metaKey:true});await Promise.resolve();f.pressHosted(f.editor.input,'Enter',{ctrlKey:true});await Promise.resolve();assert.deepEqual(f.calls.save,['Draft']);release();await f.editor.pending;
+});
+test('save scope registers no Escape or formatting shortcut and releases only itself',t=>{
+ const f=fixture(t);assert.equal(f.scopes.length,1);assert.deepEqual(f.scopes[0].handlers.map(h=>[h.modifiers,h.key]),[[['Ctrl'],'Enter'],[['Meta'],'Enter']]);
+ f.pressHosted(f.editor.input,'Escape');assert.equal(f.calls.cancel,1);const popup=new Scope();f.options.app.keymap.pushScope(popup);f.editor.dispose();assert.deepEqual(f.scopes,[popup]);f.editor.dispose();assert.deepEqual(f.scopes,[popup]);
+});
 
 test('editing actions and status leave the transformed world while the draft remains inside its node',t=>{
  const f=fixture(t),chrome=f.chrome();assert.ok(chrome,'screen-space chrome is attached to the owning canvas');

@@ -1,7 +1,7 @@
 import {EditorSearchModal} from './editor-search-view';
 import {SelectionNoteModal,CreateLinkedNote} from './selection-note-view';
 import {sameNoteSelection} from './selection-note';
-import {App,TFile,setIcon,Notice} from 'obsidian';
+import {App,TFile,setIcon,Notice,Scope} from 'obsidian';
 import {releaseEditorResource} from './editor-cleanup';
 import {toolbarNavigation} from './toolbar-navigation';
 import {allowsReadOnlyKey,isSimpleTopicContinuation} from './inline-editor-keys';
@@ -15,7 +15,7 @@ export interface InlineEditorOptions {
 }
 /** One inline draft owns its content until an atomic save succeeds. */
 export class InlineNodeEditor {
- readonly el:HTMLElement;readonly input:DraftInput;private native?:NativeMarkdownDraft;private chrome?:HTMLElement;private status:HTMLElement;private pending?:Promise<boolean>;private backingUp=false;private disposed=false;private observer:ResizeObserver;private body:HTMLElement;private composing=false;private toolbarDispose?:()=>void;private actionNavigationDispose?:()=>void;
+ readonly el:HTMLElement;readonly input:DraftInput;private native?:NativeMarkdownDraft;private chrome?:HTMLElement;private status:HTMLElement;private pending?:Promise<boolean>;private backingUp=false;private disposed=false;private observer:ResizeObserver;private body:HTMLElement;private composing=false;private toolbarDispose?:()=>void;private actionNavigationDispose?:()=>void;private saveScopeDispose?:()=>void;
  private layoutFrame?:number;private focusTimer?:number;private lastLayoutValue?:string;private geometry='';private appearanceChanged=false;private badge:HTMLElement;private actions:HTMLButtonElement[]=[];private fallback=false;private headerKey='';private saveError?:string;private layoutFailures=new Set<'size'|'geometry'|'native'>();private nativeHeight=0;private layoutHint:HTMLElement;private commandHint?:HTMLElement;private selectionCount=1;private textSelected=false;private retryIcon=false;private saveIcon?:HTMLElement;private saveCaption?:HTMLElement;
  constructor(private node:HTMLElement,private options:InlineEditorOptions){
   this.body=node.querySelector<HTMLElement>('.ts-text-body,.ts-card-preview')!;
@@ -78,6 +78,14 @@ export class InlineNodeEditor {
    surface.addEventListener('focusout',()=>this.checkFocus());
   }
   this.flushLayout();this.updateState();this.input.focus({preventScroll:true});this.input.setSelectionRange(options.selectAll?0:this.input.value.length,this.input.value.length);
+  // Native save-key bindings can consume Enter before DOM capture. Own only
+  // the advertised save shortcuts; later modal/suggestion scopes keep priority.
+  const scope=new Scope(options.app.scope),saveKey=(event:KeyboardEvent)=>{
+   if(!this.ownsFocus(event.target as Node|null))return;
+   keydown(event);if(event.defaultPrevented)return false;
+  };
+  scope.register(['Ctrl'],'Enter',saveKey);scope.register(['Meta'],'Enter',saveKey);
+  options.app.keymap.pushScope(scope);this.saveScopeDispose=()=>options.app.keymap.popScope(scope);
  }
  private get win(){return this.el.ownerDocument.defaultView!;}
  ownsFocus(element:Node|null){return this.el.contains(element)||!!this.chrome?.contains(element);}
@@ -221,8 +229,9 @@ export class InlineNodeEditor {
  dispose(){
   if(this.disposed)return;this.disposed=true;
   const search=this.searchDialog,link=this.linkDialog;this.searchDialog=undefined;this.linkDialog=undefined;
-  const frame=this.layoutFrame,timer=this.focusTimer,native=this.native,navigation=this.actionNavigationDispose,measurement=this.options.dispose,chrome=this.chrome;
-  this.layoutFrame=undefined;this.focusTimer=undefined;this.native=undefined;this.chrome=undefined;this.actionNavigationDispose=undefined;this.options.dispose=undefined;
+  const frame=this.layoutFrame,timer=this.focusTimer,native=this.native,navigation=this.actionNavigationDispose,saveScope=this.saveScopeDispose,measurement=this.options.dispose,chrome=this.chrome;
+  this.layoutFrame=undefined;this.focusTimer=undefined;this.native=undefined;this.chrome=undefined;this.actionNavigationDispose=undefined;this.saveScopeDispose=undefined;this.options.dispose=undefined;
+  releaseEditorResource('editor save shortcut scope',saveScope);
   releaseEditorResource('draft search dialog',()=>search?.close());
   releaseEditorResource('draft link dialog',()=>link?.close());
   releaseEditorResource('layout frame',()=>{if(frame!==undefined)this.win.cancelAnimationFrame(frame);});

@@ -24,12 +24,12 @@
   z-index:8; display:flex; align-items:center; gap:4px; width:max-content; box-sizing:border-box;
   margin:0; padding:3px; border:1px solid var(--ts-object-line); border-radius:9px;
   background:var(--background-primary); box-shadow:var(--ts-object-shadow);
-  opacity:0; visibility:hidden; pointer-events:auto;
+  opacity:0; visibility:hidden; pointer-events:none;
   transition:opacity 120ms ease,visibility 0s linear 120ms;
 }
 /* The pointer lifecycle keeps the dock visible across its geometric corridor.
    Focus and selection remain CSS-owned; no hit layer covers connection ports. */
-.ts-root .ts-node:is(.ts-card,.ts-text):is(:hover,:focus-within,.is-selected,.is-folded,.is-control-hover) > .ts-card-actions { opacity:1; visibility:visible; transition-delay:0s; }
+.ts-root .ts-node:is(.ts-card,.ts-text):is(:hover,:focus-within,.is-selected,.is-folded,.is-control-hover) > .ts-card-actions { opacity:1; visibility:visible; pointer-events:auto; transition-delay:0s; }
 .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-icon-button {
   display:inline-flex; align-items:center; justify-content:center; flex:none;
   width:28px; min-width:28px; height:28px; min-height:28px; padding:5px!important;
@@ -163,7 +163,7 @@
 .ts-root .ts-node.ts-image > .ts-image-actions .ts-icon-button { width:28px; height:28px; padding:5px!important; border:0; box-shadow:none; background:transparent; }
 @media (hover:none) {
   .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions,
-  .ts-root .ts-node.ts-image > .ts-image-actions { opacity:1; visibility:visible; transition:none; }
+  .ts-root .ts-node.ts-image > .ts-image-actions { opacity:1; visibility:visible; pointer-events:auto; transition:none; }
   .ts-root .ts-node > .ts-resize { opacity:1; pointer-events:auto; }
 }
 @media (prefers-reduced-motion:reduce) {
