@@ -5,6 +5,7 @@ function take(start,end){const from=source.indexOf(start),to=source.indexOf(end,
 // are supplied below; control rendering, eligibility and cache behavior stay real.
 const helperCode=buildSync({stdin:{contents:`
  export {nodeHasBorder} from './src/text-sizing';
+ export {supportsCardStyle,cardStyleChoice,cardStyleChoices,applyCardStyle} from './src/card-style';
  export {selectionFormatKey} from './src/selection-format';
  export {selectionEdges,patchSelectionEdges} from './src/selection-edges';
  export {renderEdgeFormatControls} from './src/edge-format-controls';
@@ -34,6 +35,7 @@ function createHarness(){
   createEl(tag,options={}){counts.created++;const child=new El(tag);child.parentElement=this;child.value=options.value??'';child.text=options.text??'';for(const[key,value]of Object.entries(options.attr||{}))child.setAttribute(key,value);if(options.type)child.setAttribute('type',options.type);if(options.cls)child.addClass(...options.cls.split(' '));this.children.push(child);return child;}
   createSpan(options={}){return this.createEl('span',typeof options==='string'?{cls:options}:options);}
   createDiv(options={}){return this.createEl('div',typeof options==='string'?{cls:options}:options);}
+  remove(){this.attached=false;if(this.parentElement)this.parentElement.children=this.parentElement.children.filter(child=>child!==this);this.parentElement=null;}
   empty(){counts.emptied++;for(const child of this.children)child.attached=false;this.children=[];}
   addClass(...names){this.classList.add(...names);}
   toggleClass(name,on){this.classList.toggle(name,on);}

@@ -8,6 +8,9 @@ interface Unit {root:Card;members:Card[];visible:Card[];original:Rect;fixed:bool
 export interface ExpansionReflowOptions {forcedSources?:ReadonlySet<string>;ownershipReference?:Board}
 const intersects=(a:Rect,b:Rect)=>a.x<b.x+b.width&&a.x+a.width>b.x&&a.y<b.y+b.height&&a.y+a.height>b.y;
 const unfolds=(node:Card,old:Card)=>!!(old.collapsed&&!node.collapsed||old.branchFolded&&!node.branchFolded||old.sectionFolded&&!node.sectionFolded);
+// A manually tightened frame may enclose a folded card's visible title without
+// enclosing its retained reading width/height. Frames themselves keep full bounds.
+const containsReadingNode=(group:Card,node:Card)=>sectionContains(group,node)||node.kind!=='section'&&sectionContains(group,sectionDisplayNode(node));
 function bounds(nodes:readonly Card[]):Rect {
  let x=Infinity,y=Infinity,right=-Infinity,bottom=-Infinity;
  for(const node of nodes){const n=sectionDisplayNode(node);x=Math.min(x,n.x);y=Math.min(y,n.y);right=Math.max(right,n.x+n.width);bottom=Math.max(bottom,n.y+n.height);}
@@ -47,7 +50,7 @@ export function reflowExpandedContent(board:Board,before:Board,options:Expansion
  const owner=new Map<string,string>(),members=new Map(groups.map(g=>[g.id,new Set<string>()])),ambiguous=new Set<string>();
  const originalGroup=(g:Card)=>frozen.get(g.id)!;
  for(const n of board.nodes){
-  const owners=groups.filter(g=>sectionContains(originalGroup(g),frozen.get(n.id)!)).sort((a,b)=>originalGroup(a).width*originalGroup(a).height-originalGroup(b).width*originalGroup(b).height||a.id.localeCompare(b.id));
+  const owners=groups.filter(g=>containsReadingNode(originalGroup(g),frozen.get(n.id)!)).sort((a,b)=>originalGroup(a).width*originalGroup(a).height-originalGroup(b).width*originalGroup(b).height||a.id.localeCompare(b.id));
   if(owners.length)owner.set(n.id,owners[0].id);
   for(const group of owners)members.get(group.id)!.add(n.id);
   for(let i=0;i<owners.length;i++)for(let j=i+1;j<owners.length;j++)if(!sectionContains(originalGroup(owners[i]),originalGroup(owners[j]))&&!sectionContains(originalGroup(owners[j]),originalGroup(owners[i]))){ambiguous.add(n.id);ambiguous.add(owners[i].id);ambiguous.add(owners[j].id);}
@@ -143,10 +146,14 @@ export function reflowExpandedContent(board:Board,before:Board,options:Expansion
    const group=nodes.get(scope)!,old=frozen.get(scope)!,inside=[...(members.get(scope)||[])].map(id=>nodes.get(id)!).filter(Boolean);
    if(inside.some(n=>n.x<group.x||n.y<group.y))throw Error('展开后的内容超出分组上方或左侧，无法在保留布局时自动让位');
    if(inside.length){
-    const original=inside.map(n=>frozen.get(n.id)!);
+    // Keep the user's compact frame as the recovery baseline. Only members
+    // admitted by their folded title use that footprint until they are opened.
+    const compact=new Set(inside.filter(n=>!sectionContains(old,frozen.get(n.id)!)).map(n=>n.id));
+    const fitting=(n:Card)=>compact.has(n.id)?sectionDisplayNode(n):n;
+    const original=inside.map(n=>fitting(frozen.get(n.id)!)),required=inside.map(fitting);
     const oldRight=Math.max(...original.map(n=>n.x+n.width)),oldBottom=Math.max(...original.map(n=>n.y+n.height));
     const paddingX=Math.min(30,Math.max(0,old.x+old.width-oldRight)),paddingY=Math.min(30,Math.max(0,old.y+old.height-oldBottom));
-    const width=Math.max(group.width,Math.max(...inside.map(n=>n.x+n.width))+paddingX-group.x),height=Math.max(group.height,Math.max(...inside.map(n=>n.y+n.height))+paddingY-group.y);
+    const width=Math.max(group.width,Math.max(...required.map(n=>n.x+n.width))+paddingX-group.x),height=Math.max(group.height,Math.max(...required.map(n=>n.y+n.height))+paddingY-group.y);
     if(width>group.width||height>group.height){
      ensure(makeUnit(group,material(group)));
      if(group.locked)throw Error('锁定分组没有足够空间容纳展开内容，请先扩大或解锁分组');
@@ -159,6 +166,6 @@ export function reflowExpandedContent(board:Board,before:Board,options:Expansion
  // move or frame expansion silently acquire external content or lose a member.
  for(const group of groups){
   const expected=members.get(group.id)!;
-  for(const node of board.nodes)if(node.id!==group.id&&sectionContains(group,node)!==expected.has(node.id))throw Error('自动让位会改变分组归属，布局未保存；请先腾出分组周围空间');
+  for(const node of board.nodes)if(node.id!==group.id&&containsReadingNode(group,node)!==expected.has(node.id))throw Error('自动让位会改变分组归属，布局未保存；请先腾出分组周围空间');
  }
 }

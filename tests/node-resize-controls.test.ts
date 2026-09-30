@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
+import {mountCardControlHover} from '../src/card-control-hover';
 import type {Card} from '../src/model';
 
 // Run the production rendering branch including its low-detail early return.
@@ -13,9 +14,10 @@ assert.ok(start>=0&&optionsEnd>start&&controlsStart>optionsEnd&&end>controlsStar
 const branchModule={exports:{} as typeof import('../src/branch-controls')};
 new Function('require','module','exports',transformSync(readFileSync('src/branch-controls.ts','utf8'),{loader:'ts',format:'cjs'}).code)(
  (name:string)=>{assert.equal(name,'obsidian');return{setIcon:()=>{}};},branchModule,branchModule.exports);
-const render=new Function('n','el','detail','branches','button','TFile','cardDisplayTitle','childCandidates','renderBranchControls','setIcon','textExcerptPresentation',
- transformSync(`const fileInfo=undefined;for(const node of [n]){${source.slice(start,optionsEnd)}${source.slice(controlsStart,end)}}`,{loader:'ts'}).code);
+const render=new Function('n','el','detail','branches','button','TFile','cardDisplayTitle','childCandidates','renderBranchControls','setIcon','textExcerptPresentation','mountCardControlHover',
+ transformSync(`const fileInfo=undefined,scope={register:()=>{}};for(const node of [n]){${source.slice(start,optionsEnd)}${source.slice(controlsStart,end)}}`,{loader:'ts'}).code);
 class El{
+ ownerDocument={defaultView:null};
  children:El[]=[];classes=new Set<string>();attrs:Record<string,string>={};classList={toggle:()=>{}};
  constructor(public cls=''){}
  createEl(_tag:string,options:any={}){const el=new El(typeof options==='string'?options:options.cls);el.attrs={...options.attr};this.children.push(el);return el;}
@@ -30,7 +32,7 @@ function controls(kind:Card['kind'],detail:boolean,extra:Partial<Card>={}){
  const n:Card={id:'node',kind,width:280,height:100,x:0,y:0,color:'green',...extra},el=new El();
  const view={session:{blocked:false},addPorts:()=>{},foldBranches:()=>{}};
  const button=(parent:El,_label:string,_icon:string,_run:()=>void,cls:string)=>parent.createDiv(cls);
- render.call(view,n,el,detail,{children:new Map([['node',['child']]])},button,class{},()=> 'Note',new Map(),branchModule.exports.renderBranchControls,()=>{},(body:string)=>({body}));
+ render.call(view,n,el,detail,{children:new Map([['node',['child']]])},button,class{},()=> 'Note',new Map(),branchModule.exports.renderBranchControls,()=>{},(body:string)=>({body}),mountCardControlHover);
  return el;
 }
 test('low-detail cards retain one resize handle without mounting a detailed preview',()=>{

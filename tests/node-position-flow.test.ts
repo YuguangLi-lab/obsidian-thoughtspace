@@ -1,3 +1,5 @@
+import {effectiveCardStyle} from '../src/card-style';
+import {cardHeadingColors} from '../src/card-style-color';
 import {nodeHasBorder,textBlockPadding} from '../src/text-sizing';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -11,7 +13,7 @@ import {cardControlLayout} from '../src/card-control-layout';
 
 const source=readFileSync(process.env.POSITION_SOURCE||'src/main.ts','utf8'),start=source.indexOf('  private positionNode('),end=source.indexOf('  private applyInlineSize(',start);
 assert.ok(start>0&&end>start);
-const deps={nodeHasBorder,textBlockPadding,cardFillHex,colors,sectionDisplayNode,textFontFamily,syncNodeGeometry,cardControlLayout};
+const deps={effectiveCardStyle,cardHeadingColors,nodeHasBorder,textBlockPadding,cardFillHex,colors,sectionDisplayNode,textFontFamily,syncNodeGeometry,cardControlLayout};
 const View=new Function(...Object.keys(deps),transformSync(`class View{${source.slice(start,end)}};return View`,{loader:'ts'}).code)(...Object.values(deps));
 const node=(patch:Partial<Card>={}):Card=>({id:'node',kind:'card',file:'note.md',x:20,y:30,width:300,height:180,color:'blue',transparent:true,fillColor:'blue',...patch});
 function surface(){

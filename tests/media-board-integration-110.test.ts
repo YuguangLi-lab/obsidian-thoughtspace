@@ -1,3 +1,4 @@
+import {applyDefaultCardStyle} from '../src/card-style';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -33,7 +34,7 @@ function fixture(){
  let sequence=0;const files=new Map<string,TFile>(),history=new History(),mounts:{options:MediaCardOptions;disposed:number;pauses:number;seeks:number[]}[]=[],notices:string[]=[];
  const calls={changes:0,writes:0,selected:0,focus:0,render:0,revealed:[] as string[],edited:[] as unknown[][]};
  let measure=async()=>new Map<string,{width:number;height:number}>();
- const deps={TFile,mediaCard,mediaKind,mediaClock,mediaTime,mediaSourceMarkdown,foldCards,isWorkspaceFile,isPdfFile,pdfCard,pdfPage,isImage,clone:structuredClone,
+ const deps={applyDefaultCardStyle,TFile,mediaCard,mediaKind,mediaClock,mediaTime,mediaSourceMarkdown,foldCards,isWorkspaceFile,isPdfFile,pdfCard,pdfPage,isImage,clone:structuredClone,
   uid:()=>`generated-${++sequence}`,measureDroppedImages:()=>measure(),setIcon:()=>{},hostPlugin:()=>undefined,yingjianPlayerConnection:()=>({nativePlayback:false}),
   button:()=>new Element(),Notice:class{constructor(message:string){notices.push(message);}},
   mountMediaCard:(_host:unknown,options:MediaCardOptions)=>{const mounted={options,disposed:0,pauses:0,seeks:[] as number[]};let state:MediaCardState={time:options.initialTime||0,rate:1,volume:1,...options.state};mounts.push(mounted);return{dispose:()=>mounted.disposed++,pause:()=>mounted.pauses++,seek:(time:number)=>{mounted.seeks.push(time);state={...state,time};},getState:()=>({...state}),play:()=>options.onPlay?.()};}

@@ -1,3 +1,4 @@
+import {applyDefaultCardStyle} from '../src/card-style';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -37,7 +38,7 @@ async function fixture(t:{after:(fn:()=>Promise<void>)=>void}){
  const files=new Map([[file.path,file]]),binaries:{path:string;bytes:ArrayBuffer}[]=[],notes:{file:TFile;body:string}[]=[],notices:string[]=[];
  const noteStarted=deferred(),noteGate=deferred();let changes=0,sequence=0;
  const node=mediaSource.mediaCard('source',file.path,200,200),owner={file:new TFile('Boards/board.thoughtspace'),blocked:false,board:{...emptyBoard(),version:3 as const,nodes:[node]} as Board,change(fn:(board:Board)=>void){changes++;fn(this.board);}};
- const deps={TFile,mediaTime:mediaSource.mediaTime,mediaClock:mediaSource.mediaClock,mediaSourceMarkdown:mediaSource.mediaSourceMarkdown,uid:()=>`new-${++sequence}`,Notice:class{constructor(text:string){notices.push(text);}}};
+ const deps={applyDefaultCardStyle,TFile,mediaTime:mediaSource.mediaTime,mediaClock:mediaSource.mediaClock,mediaSourceMarkdown:mediaSource.mediaSourceMarkdown,uid:()=>`new-${++sequence}`,Notice:class{constructor(text:string){notices.push(text);}}};
  const View=new Function(...Object.keys(deps),transformSync(`class View{${methods}};return View`,{loader:'ts'}).code)(...Object.values(deps));
  const app={vault:{getAbstractFileByPath:(path:string)=>files.get(path),getName:()=> 'test-vault',read:async()=>descriptor.content,createBinary:async(path:string,bytes:ArrayBuffer)=>{binaries.push({path,bytes});const image=new TFile(path);files.set(path,image);return image;}},fileManager:{getAvailablePathForAttachment:async()=> 'Attachments/frame.png',generateMarkdownLink:()=> '[frame](Attachments/frame.png)'}};
  const view=new View();Object.assign(view,{session:owner,closed:false,app,updateSelection:()=>{},plugin:{settings:{defaultEdgeStyle:'curve'},mediaWorkspace:{validateResource:async(source:TFile)=>{await external.resolveMediaResource(app as any,source as any);}},createUnique:async(_folder:string,_title:string,_ext:string,body:string)=>{

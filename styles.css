@@ -2293,7 +2293,7 @@
  display:flex;
  flex:0 0 auto;
  flex-wrap:nowrap;
- justify-content:center;
+ justify-content:flex-start;
  gap:5px;
  min-width:0;
  min-height:0;
@@ -2321,6 +2321,12 @@
  min-height:32px;
  padding:7px;
 }
+/* The primary action is readable; secondary actions retain compact icons. */
+.ts-root .ts-inline-editor-bar .ts-inline-save:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {display:inline-flex;align-items:center;justify-content:center;gap:5px;background:var(--ts-soft);color:var(--ts-accent);font:600 12px/1 var(--font-interface);}
+.ts-root .ts-inline-chrome .ts-inline-editor-bar .ts-inline-save:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {flex:0 0 auto;width:auto;min-width:62px;padding-inline:9px;}
+.ts-root .ts-inline-save-icon:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {display:inline-flex;flex:0 0 auto;}
+.ts-root .ts-inline-save-caption:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {white-space:nowrap;}
+.ts-root .ts-inline-editor-bar .ts-inline-save:hover:not(:disabled):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {background:color-mix(in srgb,var(--ts-accent) 16%,var(--background-primary));}
 .ts-root .ts-inline-chrome .ts-inline-editor-label:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {flex:0 1 auto;min-width:0;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .ts-root .ts-inline-chrome .ts-inline-editor-badge:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {margin-inline-end:2px;}
 .ts-root .ts-inline-chrome > .ts-inline-editor-status:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
@@ -2346,9 +2352,14 @@
 .ts-root .ts-text .ts-inline-native .cm-content > .HyperMD-header:first-child:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {padding-block-start:0;}
 
 /* Keep every edit action on one row when the view dock uses two rows.
-   Optional state labels yield space before save/cancel/search actions do. */
+   The redundant editor title yields space before state and recovery hints do. */
 @container ts-board-canvas (max-width:460px) {
- .ts-root .ts-inline-chrome .ts-inline-editor-bar :is(.ts-inline-editor-badge,.ts-inline-layout-hint,.ts-inline-command-hint):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {display:none;}
+ .ts-root .ts-inline-chrome .ts-inline-editor-label:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {display:none;}
+}
+
+@container ts-board-canvas (max-width:360px) {
+ .ts-root .ts-inline-chrome .ts-inline-save-caption:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {display:none;}
+ .ts-root .ts-inline-chrome .ts-inline-editor-bar .ts-inline-save:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {flex-basis:32px;width:32px;min-width:32px;padding:7px;}
 }
 
 /* Short editing splits keep formatting, draft actions and camera tools in
@@ -5230,6 +5241,42 @@
   display: inline;
 }
 
+/* Frame resizing is available on all four borders after selection. Split each
+   border around its centre so connection ports retain their own hit area. */
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  position:absolute; z-index:9; inset:auto; width:auto; height:auto;
+  margin:0; padding:0; border:0; background:none; box-shadow:none;
+  transform:none; opacity:0; pointer-events:none; touch-action:none;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-section.is-selected > .ts-section-resize-edge:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  opacity:1; pointer-events:auto;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::before {
+  content:''; position:absolute; border:0; border-radius:2px;
+  background:var(--ts-accent); box-shadow:none; opacity:.28; pointer-events:none;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge:hover:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::before { opacity:.9; }
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge:is([data-resize-edge=top],[data-resize-edge=bottom]):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  height:var(--ts-section-edge-hit,12px); width:calc(50% - 34px); cursor:ns-resize;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge:is([data-resize-edge=top],[data-resize-edge=bottom]):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::before {
+  inset:calc(50% - 1px) 0; height:2px;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge[data-resize-edge=top]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { top:calc(var(--ts-section-edge-hit,12px) / -2); }
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge[data-resize-edge=bottom]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { bottom:calc(var(--ts-section-edge-hit,12px) / -2); }
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge:is([data-resize-edge=top],[data-resize-edge=bottom])[data-edge-part=start]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { left:12px; }
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge:is([data-resize-edge=top],[data-resize-edge=bottom])[data-edge-part=end]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { right:12px; }
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge:is([data-resize-edge=left],[data-resize-edge=right]):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  width:var(--ts-section-edge-hit,12px); height:calc(50% - 34px); cursor:ew-resize;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge:is([data-resize-edge=left],[data-resize-edge=right]):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::before {
+  inset:0 calc(50% - 1px); width:2px;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge[data-resize-edge=left]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { left:calc(var(--ts-section-edge-hit,12px) / -2); }
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge[data-resize-edge=right]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { right:calc(var(--ts-section-edge-hit,12px) / -2); }
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge:is([data-resize-edge=left],[data-resize-edge=right])[data-edge-part=start]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { top:12px; }
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge:is([data-resize-edge=left],[data-resize-edge=right])[data-edge-part=end]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { bottom:12px; }
+
 /* END section-appearance generated */
 
 /* BEGIN context-toolbar generated */
@@ -6345,11 +6392,11 @@
   margin:0; padding:3px; border:1px solid var(--ts-object-line); border-radius:9px;
   background:var(--background-primary); box-shadow:var(--ts-object-shadow);
   opacity:0; visibility:hidden; pointer-events:auto;
-  transition:opacity 120ms ease 750ms,visibility 0s linear 870ms;
+  transition:opacity 120ms ease,visibility 0s linear 120ms;
 }
-/* Leaving the card must not remove the controls while the pointer crosses the
-   gap. Hovering the dock cancels the delay, without a bridge over link ports. */
-.ts-root .ts-node:is(.ts-card,.ts-text):is(:hover,:focus-within,.is-selected,.is-folded) > .ts-card-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { opacity:1; visibility:visible; transition-delay:0s; }
+/* The pointer lifecycle keeps the dock visible across its geometric corridor.
+   Focus and selection remain CSS-owned; no hit layer covers connection ports. */
+.ts-root .ts-node:is(.ts-card,.ts-text):is(:hover,:focus-within,.is-selected,.is-folded,.is-control-hover) > .ts-card-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { opacity:1; visibility:visible; transition-delay:0s; }
 .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-icon-button:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
   display:inline-flex; align-items:center; justify-content:center; flex:none;
   width:28px; min-width:28px; height:28px; min-height:28px; padding:5px!important;
@@ -6477,9 +6524,9 @@
   transform:scale(var(--ts-control-scale,1)); transform-origin:top right;
   border:1px solid var(--background-modifier-border); border-radius:8px; background:var(--background-primary);
   opacity:0; visibility:hidden; pointer-events:auto;
-  transition:opacity 120ms ease 750ms,visibility 0s linear 870ms;
+  transition:opacity 120ms ease,visibility 0s linear 120ms;
 }
-.ts-root .ts-node.ts-image:is(:hover,:focus-within,.is-selected) > .ts-image-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { opacity:1; visibility:visible; transition-delay:0s; }
+.ts-root .ts-node.ts-image:is(:hover,:focus-within,.is-selected,.is-control-hover) > .ts-image-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { opacity:1; visibility:visible; transition-delay:0s; }
 .ts-root .ts-node.ts-image > .ts-image-actions .ts-icon-button:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { width:28px; height:28px; padding:5px!important; border:0; box-shadow:none; background:transparent; }
 @media (hover:none) {
   .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),
@@ -7866,9 +7913,9 @@
 }
 .ts-root .ts-node.ts-document-compact .ts-compact-inline-unfold:disabled:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { opacity:.35; }
 .ts-root .ts-node.ts-document-compact .ts-compact-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
-  opacity:0; visibility:hidden; transition:opacity 120ms ease 750ms,visibility 0s linear 870ms;
+  opacity:0; visibility:hidden; transition:opacity 120ms ease,visibility 0s linear 120ms;
 }
-.ts-root .ts-node.ts-document-compact:is(:hover,:focus-within,.is-selected) .ts-compact-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+.ts-root .ts-node.ts-document-compact:is(:hover,:focus-within,.is-selected,.is-control-hover) .ts-compact-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
   opacity:1; visibility:visible; transition-delay:0s;
 }
 .ts-root .ts-node.ts-document-compact .ts-compact-actions:empty:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { display:none; }
@@ -7912,3 +7959,142 @@
 .ts-root .ts-node.ts-card > .ts-card-preview.is-empty-document:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { overflow:hidden; }
 
 /* END card-surfaces generated */
+
+/* BEGIN card-styles generated */
+/* Optional Markdown note surfaces. Load after card-surfaces and inline-editor.
+   Document metrics, node geometry, connection ports and action docks stay owned
+   by their existing rules. A stale transparent/fill class cannot erase a style. */
+.ts-root .ts-main .ts-world > .ts-node.ts-card:is([data-card-style="band"],[data-card-style="paper"]):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style]:not(.is-compact-fold):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style].is-compact-fold.has-card-fill:not(.is-transparent):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background:var(--ts-styled-surface,var(--background-primary))!important;
+  box-shadow:none!important; backdrop-filter:none!important;
+}
+
+/* The title is ordinary flow content: preview and live editor share its offset. */
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] > .ts-node-header:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  display:flex; flex:none; align-items:flex-start; gap:8px; min-width:0;
+  padding:10px 16px!important; border:0!important; border-radius:10px 10px 0 0!important;
+  background:var(--ts-card-heading-color,var(--ts-tone))!important;
+  color:var(--ts-card-heading-ink,var(--text-on-accent)); box-shadow:none!important;
+  font-family:var(--ts-card-body-font,var(--font-text)); font-size:var(--ts-card-body-size,14px);
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] > .ts-node-header > span:first-child:not(.ts-card-note-title):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  display:inline-flex; flex:none; margin-top:2px; color:inherit;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] > .ts-node-header :is(svg,.ts-card-note-title):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { color:inherit; }
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] .ts-card-note-title:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  min-width:0; overflow-wrap:anywhere; white-space:normal;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] .ts-card-note-title:focus-visible:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  outline:2px solid currentColor; outline-offset:2px; box-shadow:none;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] input.ts-card-title-input:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color:var(--text-normal); background:var(--background-primary); caret-color:var(--text-normal);
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] .ts-card-title-error:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  padding:2px 4px; border-radius:3px; background:var(--background-primary); color:var(--text-error);
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"].is-folded > .ts-node-header:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { border-radius:10px!important; }
+
+/* Compact and low-detail cards use the same band, without introducing a header
+   or changing their display-projected width and height. */
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"]:is(.is-compact-fold,.ts-node-summary):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  --ts-styled-surface:var(--ts-card-heading-color,var(--ts-tone));
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] > :is(.ts-compact-fold-row,.ts-summary-title):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] .ts-compact-fold-row > :is(.ts-compact-fold-icon,.ts-compact-inline-unfold):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color:var(--ts-card-heading-ink,var(--text-on-accent));
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] .ts-compact-inline-unfold:is(:hover,:focus-visible):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background:color-mix(in srgb,var(--ts-card-heading-ink,var(--text-on-accent)) 14%,transparent);
+}
+
+/* Paper keeps the normal content-first layout. The inner rule and clip paint
+   only; custom outer border width/style/color and selection outlines still win. */
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  --ts-paper-line:color-mix(in srgb,var(--text-normal) 58%,var(--ts-styled-surface,var(--background-primary)));
+  --ts-paper-clip:color-mix(in srgb,var(--text-muted) 75%,var(--ts-tone));
+  border-radius:2px!important;
+}
+/* The Background control tints paper just as it tints a regular note. Keep the
+   gap between the two rules on the same surface, including in the dark theme. */
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"].has-card-fill:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  --ts-styled-surface:color-mix(in srgb,var(--ts-card-fill) 38%,var(--background-primary));
+}
+.theme-dark .ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"].has-card-fill:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  --ts-styled-surface:color-mix(in srgb,var(--ts-card-fill) 20%,var(--background-primary));
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"]:not(.has-custom-border):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { border-color:transparent!important; }
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"].has-custom-border:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { --ts-paper-line:var(--ts-tone); }
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::after {
+  content:''; position:absolute; inset:4px; z-index:1; border:1px solid var(--ts-paper-line);
+  border-radius:1px; pointer-events:none;
+  box-shadow:0 0 0 3px var(--ts-styled-surface,var(--background-primary)),0 0 0 4px var(--ts-paper-line);
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"].has-custom-border:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::after { box-shadow:none; }
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"] > .ts-card-paperclip:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  position:absolute; top:-12px; left:20px; z-index:2; display:flex; align-items:center; justify-content:center;
+  width:22px; height:28px; color:var(--ts-paper-clip); pointer-events:none; user-select:none;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"] > .ts-card-paperclip svg:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  width:22px; height:28px; stroke-width:1.35; transform:rotate(-12deg); pointer-events:none;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"].is-compact-fold > .ts-card-paperclip:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  top:-10px; left:12px; width:15px; height:18px;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"].is-compact-fold > .ts-card-paperclip svg:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { width:15px; height:18px; }
+.ts-root .ts-main .ts-world > .ts-node.ts-card:is([data-card-style="band"],[data-card-style="paper"]) > .ts-summary-title:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  font-family:var(--ts-card-body-font,var(--font-text));
+}
+
+/* Four small choices, with two columns when their actual panel is narrow. */
+.ts-root .ts-card-style-picker:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  container:ts-card-style-picker / inline-size; display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:6px; width:370px; min-width:0; max-width:100%; padding:2px;
+}
+.ts-root .ts-floating-formatbar .ts-card-style-picker > button.ts-card-style-option:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+  width:auto; min-width:0; height:58px; min-height:58px; margin:0; padding:5px!important;
+  border:1px solid var(--background-modifier-border)!important; border-radius:7px!important;
+  background:var(--background-primary)!important; color:var(--text-muted); box-shadow:none!important;
+  font:400 11px/1.25 var(--font-interface); white-space:nowrap;
+}
+.ts-root .ts-floating-formatbar .ts-card-style-picker > button.ts-card-style-option:hover:not(:disabled):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background:var(--background-modifier-hover)!important; color:var(--text-normal);
+}
+.ts-root .ts-floating-formatbar .ts-card-style-picker > button.ts-card-style-option[aria-pressed="true"]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color:var(--interactive-accent)!important; color:var(--text-accent);
+  background:color-mix(in srgb,var(--interactive-accent) 7%,var(--background-primary))!important;
+}
+.ts-root .ts-floating-formatbar .ts-card-style-picker > button.ts-card-style-option:focus-visible:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  outline:2px solid var(--interactive-accent); outline-offset:1px;
+}
+.ts-root .ts-floating-formatbar .ts-card-style-picker > button.ts-card-style-option:disabled:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { opacity:.4; cursor:not-allowed; }
+.ts-root .ts-card-style-option > .ts-card-style-name:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { max-width:100%; overflow:hidden; text-overflow:ellipsis; }
+.ts-root .ts-card-style-swatch:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  position:relative; display:flex; flex-direction:column; justify-content:center; gap:3px; flex:none;
+  width:42px; height:26px; padding:7px; border:1px solid var(--background-modifier-border);
+  border-radius:3px; background:var(--background-primary); pointer-events:none;
+}
+.ts-root .ts-card-style-swatch > i:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { display:block; width:100%; height:2px; flex:none; background:var(--text-faint); opacity:.6; }
+.ts-root .ts-card-style-swatch > i:last-child:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { width:70%; }
+.ts-root .ts-card-style-option[data-style="transparent"] > .ts-card-style-swatch:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-style:dashed; background:repeating-linear-gradient(135deg,transparent 0 4px,color-mix(in srgb,var(--text-faint) 9%,transparent) 4px 5px);
+}
+.ts-root .ts-card-style-option[data-style="band"] > .ts-card-style-swatch:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  padding-top:12px; background:linear-gradient(var(--ts-card-heading-color,var(--interactive-accent)) 0 7px,var(--background-primary) 7px);
+}
+.ts-root .ts-card-style-option[data-style="paper"] > .ts-card-style-swatch:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { border-color:var(--text-muted); border-radius:0; }
+.ts-root .ts-card-style-option[data-style="paper"] > .ts-card-style-swatch:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::before {
+  content:''; position:absolute; inset:2px; border:1px solid var(--text-muted); pointer-events:none;
+}
+.ts-root .ts-card-style-option[data-style="paper"] > .ts-card-style-swatch:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::after {
+  content:''; position:absolute; top:-4px; left:7px; width:4px; height:9px;
+  border:1px solid var(--text-muted); border-radius:3px; background:var(--background-primary); transform:rotate(-12deg); pointer-events:none;
+}
+@container ts-card-style-picker (max-width:350px) {
+  .ts-root .ts-card-style-picker > .ts-card-style-option:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { grid-column:span 2; }
+}
+
+/* END card-styles generated */

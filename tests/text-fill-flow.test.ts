@@ -1,3 +1,5 @@
+import * as cardStyles from '../src/card-style';
+import {cardHeadingColors} from '../src/card-style-color';
 import {nodeHasBorder,textBlockPadding,textFitsContent} from '../src/text-sizing';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -59,9 +61,10 @@ class Element extends EventTarget {
     return this.children.flatMap(el=>[...(el.matches(selector)?[el]:[]),...el.querySelectorAll(selector)]);
   }
   disconnect(){if(this.contains(this.ownerDocument.activeElement))this.ownerDocument.activeElement=this.ownerDocument.body;this.isConnected=false;this.children.forEach(el=>el.disconnect());}
+  remove(){this.disconnect();if(this.parentElement)this.parentElement.children=this.parentElement.children.filter(child=>child!==this);this.parentElement=null;}
   empty(){this.children.forEach(el=>el.disconnect());this.children=[];}
 }
-const deps={nodeHasBorder,textBlockPadding,textFitsContent,...model,reflowAutomaticMindmaps,reflowReadingContent,validateBranches,sectionDisplayNode,selectionEdges,selectionFormatKey,inkLabels,textFontFamily,syncNodeGeometry,cardControlLayout,
+const deps={...cardStyles,cardHeadingColors,nodeHasBorder,textBlockPadding,textFitsContent,...model,reflowAutomaticMindmaps,reflowReadingContent,validateBranches,sectionDisplayNode,selectionEdges,selectionFormatKey,inkLabels,textFontFamily,syncNodeGeometry,cardControlLayout,
   preserveToolbarFocus,setIcon:()=>{},Notice:class {},act:(fn:()=>unknown)=>fn(),
   markdownToolbar:(host:Element,editor:{replaceToolbar(dispose?:()=>void):void},disposeOuter?:()=>void)=>{host.createDiv({cls:'ts-markdown-tools'});editor.replaceToolbar(disposeOuter);},
   button:(parent:Element,label:string,_icon:string,callback:()=>unknown,cls?:string)=>{
@@ -272,11 +275,11 @@ test('locked or blocked nodes keep appearance inspectable and Markdown unavailab
   f.chooseMode('border');assert.equal(f.mode('border').getAttribute('aria-pressed'),'true');assert.equal(f.control('边框粗细').disabled,true);assert.equal(f.calls.persist,0);
  }
 });
-function inlineFixture(){
- const f=fixture(),input=new Element('textarea',f.view.selectionTools.ownerDocument),snapshot={text:'alpha beta gamma',start:6,end:10,busy:false};
+function inlineFixture(nodes:model.Card[]=[text()]){
+ const f=fixture(nodes),input=new Element('textarea',f.view.selectionTools.ownerDocument),snapshot={text:'alpha beta gamma',start:6,end:10,busy:false};
  let dispose:(()=>void)|undefined,commits=0,reads=0;
  const editor={input,snapshot:()=>{reads++;return {...snapshot};},replaceToolbar(next?:()=>void){dispose?.();dispose=next;},commit(){commits++;}};
- Object.assign(f.view,{inline:editor,inlineId:'text',inlineAppearance:false});f.view.renderSelectionTools();
+ Object.assign(f.view,{inline:editor,inlineId:nodes[0].id,inlineAppearance:false});f.view.renderSelectionTools();
  return{...f,input,snapshot,editor,commits:()=>commits,reads:()=>reads};
 }
 test('inline keyboard mode changes preserve the draft selection and return to editor only for Markdown',()=>{
@@ -380,4 +383,52 @@ test('table cards have no outer-frame controls and mixed border changes skip the
  const table=text('table',{text:'| A | B |\n| --- | --- |\n| 1 | 2 |'}),f=fixture([table]);
  assert.ok(!f.modes().some(m=>m.dataset.mode==='border'));const el=new Element();f.view.positionNode(table,el);assert.equal((el.style as any).borderWidth,'0px');assert.equal(el.classes.has('is-table-card'),true);
  const mixed=fixture([table,text('regular')]),before=model.clone(table);mixed.choose('边框粗细','3');assert.deepEqual(mixed.owner.board.nodes[0],before);assert.equal(mixed.owner.board.nodes[1].borderWidth,3);
+});
+
+const note=(id='note',patch:Partial<model.Card>={})=>text(id,{kind:'card',file:`${id}.md`,transparent:true,...patch});
+const gallery=(f:ReturnType<typeof fixture>)=>(f.view.selectionTools as Element).querySelectorAll('.ts-card-style-option');
+const chooseCardStyle=(f:ReturnType<typeof fixture>,value:cardStyles.CardStyleChoice)=>{
+ const control=gallery(f).find(option=>option.dataset.style===value);assert.ok(control,`Missing ${value} card style`);return control;
+};
+test('card gallery applies one reversible appearance change without changing source content or geometry',()=>{
+ const f=fixture([note()]),before=model.clone(f.owner.board);
+ assert.deepEqual(gallery(f).map(option=>option.dataset.style),['transparent','solid','band','paper']);
+ assert.equal(chooseCardStyle(f,'transparent').getAttribute('aria-pressed'),'true');
+ chooseCardStyle(f,'paper').onclick!();
+ assert.deepEqual(f.owner.board,{...before,version:3,nodes:[{...before.nodes[0],cardStyle:'paper'}]});
+ assert.equal(f.calls.persist,1);assert.equal(chooseCardStyle(f,'paper').getAttribute('aria-pressed'),'true');
+ const after=model.clone(f.owner.board);f.owner.undo();assert.deepEqual(f.owner.board,before);
+ f.owner.undo(true);assert.deepEqual(f.owner.board,after);assert.equal(chooseCardStyle(f,'paper').getAttribute('aria-pressed'),'true');
+ chooseCardStyle(f,'paper').onclick!();assert.equal(f.calls.persist,3,'same style is a no-op after redo');
+});
+test('mixed card gallery edits only eligible notes and keeps tables media and locked unrelated objects intact',()=>{
+ const nodes=[note(),text('table',{text:'| A |\n| --- |\n| 1 |'}),text('image',{kind:'image',file:'image.png'}),section('group',{locked:true})],f=fixture(nodes),before=model.clone(f.owner.board);
+ chooseCardStyle(f,'band').onclick!();
+ assert.equal(f.owner.board.nodes[0].cardStyle,'band');assert.deepEqual(model.clone(f.owner.board).nodes.slice(1),before.nodes.slice(1));
+ assert.equal(f.calls.persist,1);
+});
+test('card gallery callbacks revalidate locks owner selection attachment and busy drafts',()=>{
+ for(const state of ['initial-lock','live-lock','blocked','selection','owner','closed','detached','busy'] as const){
+  const f=fixture([note('note',state==='initial-lock'?{locked:true}:{})]),control=chooseCardStyle(f,'band');
+  if(state==='live-lock')f.owner.board.nodes[0].locked=true;if(state==='blocked')f.owner.blocked=true;
+  if(state==='selection')f.view.selected.clear();if(state==='owner')f.view.session={};if(state==='closed')f.view.closed=true;
+  if(state==='detached')f.view.selectionTools.empty();if(state==='busy')f.view.inline={snapshot:()=>({busy:true})};
+  const before=model.clone(f.owner.board);
+  if(state==='blocked')assert.throws(()=>control.onclick!(),/暂停写入/);else control.onclick!();
+  assert.deepEqual(f.owner.board,before,state);assert.equal(f.calls.persist,0,state);
+ }
+});
+test('switching card style during inline editing preserves the draft selection and has independent board undo',()=>{
+ const f=inlineFixture([note()]),before={...f.snapshot},board=model.clone(f.owner.board);f.input.focus();f.chooseMode('card');
+ const option=chooseCardStyle(f,'paper');let prevented=false;option.onmousedown?.({preventDefault(){prevented=true;}});assert.equal(prevented,true);
+ option.onclick!();assert.equal(f.view.inline,f.editor);assert.deepEqual(f.editor.snapshot(),before);assert.equal(f.commits(),0);
+ assert.equal(f.input.ownerDocument.activeElement,f.input);assert.equal(f.owner.board.nodes[0].cardStyle,'paper');
+ f.owner.undo();assert.deepEqual(f.owner.board,board);assert.equal(f.view.inline,f.editor);assert.deepEqual(f.editor.snapshot(),before);
+});
+test('busy inline notifications disable card gallery choices and enable them again after recovery',()=>{
+ const f=inlineFixture([note()]);f.chooseMode('card');assert.equal(gallery(f).length,4);assert.ok(gallery(f).every(option=>!option.disabled));
+ f.snapshot.busy=true;f.input.dispatchEvent(new Event('select'));
+ assert.ok(gallery(f).every(option=>option.disabled),'visible style choices should agree with the busy editor state');
+ f.snapshot.busy=false;f.input.dispatchEvent(new Event('select'));assert.ok(gallery(f).every(option=>!option.disabled));
+ assert.equal(f.calls.persist,0);assert.equal(f.commits(),0);
 });

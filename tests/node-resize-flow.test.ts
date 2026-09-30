@@ -9,6 +9,7 @@ import * as boardTools from '../src/board-tools';
 import * as dragDraft from '../src/drag-draft';
 import * as dragTargets from '../src/drag-targets';
 import * as experience from '../src/board-experience';
+import {resizedSection} from '../src/section-resize';
 
 // Run the real gesture, commit, and history methods. The DOM/frame clock and vault
 // boundary are substitutes; browser hit-testing of the handle is checked natively.
@@ -36,7 +37,7 @@ function fixture(nodes:model.Card[]=[card()],zoom=.54,edges:model.Edge[]=[]){
   const frames=new Map<number,()=>void>(),capture=new Set<number>(),notices:string[]=[];
   let frameId=0;
   const calls={persist:0,emit:0,render:0,edges:0,textMeasure:0};
-  const deps={...model,...mindmap,reflowReadingContent,...boardTools,...dragDraft,...dragTargets,...experience,
+  const deps={resizedSection,...model,...mindmap,reflowReadingContent,...boardTools,...dragDraft,...dragTargets,...experience,
     Notice:class {constructor(message:string){notices.push(message);}},
     requestAnimationFrame:(fn:()=>void)=>{frames.set(++frameId,fn);return frameId;},
     cancelAnimationFrame:(id:number)=>frames.delete(id),
@@ -217,4 +218,23 @@ test('changing automatic text height in another view cancels an in-flight resize
  const f=fixture([card('text',{kind:'text',file:'',autoSize:false,textAutoHeight:false})]);
  f.view.pointerDown(f.event());f.view.pointerMove(f.event(40,70));f.flush();f.current().textAutoHeight=true;
  const before=model.clone(f.session.board);f.view.pointerUp(f.event(40,70));assert.deepEqual(f.session.board,before);assert.equal(f.calls.persist,0);assert.equal(f.notices.length,1);
+});
+
+for(const edge of ['top','right','bottom','left'])test(`section ${edge} edge resize fixes the opposite edge and leaves members in place`,()=>{
+ const section=card('group',{kind:'section',file:undefined,title:'Group',width:400,height:300,autoFit:undefined}),child=card('child',{x:60,y:120,width:180,height:100});
+ const f=fixture([section,child],.5),before=model.clone(f.session.board);
+ const e=f.event(40,30),handle=e.target.closest('.ts-resize')!;handle.dataset.resizeEdge=edge;
+ f.view.pointerDown(e);f.view.pointerUp(f.event(80,60));
+ const next=f.current();
+ assert.deepEqual({x:next.x,y:next.y,width:next.width,height:next.height},edge==='left'?{x:70,y:50,width:360,height:300}:edge==='top'?{x:30,y:80,width:400,height:270}:edge==='right'?{x:30,y:50,width:440,height:300}:{x:30,y:50,width:400,height:330});
+ assert.deepEqual(f.session.board.nodes[1],before.nodes[1]);assert.equal(f.calls.persist,1);
+ f.session.undo();assert.deepEqual(f.session.board,before);
+});
+
+for(const edge of ['top','left'])for(const mode of ['cancel','concurrent','locked'])test(`section ${edge} edge respects ${mode} and preserves children`,()=>{
+ const group=card('group',{kind:'section',file:undefined,width:400,height:300,autoFit:undefined,...(mode==='locked'?{locked:true}:{})}),child=card('child',{x:100,y:150}),f=fixture([group,child],1),before=model.clone(f.session.board);
+ const down=f.event(),handle=down.target.closest('.ts-resize')!;handle.dataset.resizeEdge=edge;f.view.pointerDown(down);f.view.pointerMove(f.event(40,30));f.flush();
+ if(mode==='concurrent')f.current().x=45;const expected=model.clone(f.session.board);
+ f.view.pointerUp(f.event(40,30),mode==='cancel');assert.deepEqual(model.clone(f.session.board),expected);assert.deepEqual(f.session.board.nodes[1],before.nodes[1]);assert.equal(f.calls.persist,0);
+ if(mode==='concurrent')assert.equal(f.notices.length,1);
 });

@@ -114,9 +114,9 @@
 }
 .ts-root .ts-node.ts-document-compact .ts-compact-inline-unfold:disabled { opacity:.35; }
 .ts-root .ts-node.ts-document-compact .ts-compact-actions {
-  opacity:0; visibility:hidden; transition:opacity 120ms ease 750ms,visibility 0s linear 870ms;
+  opacity:0; visibility:hidden; transition:opacity 120ms ease,visibility 0s linear 120ms;
 }
-.ts-root .ts-node.ts-document-compact:is(:hover,:focus-within,.is-selected) .ts-compact-actions {
+.ts-root .ts-node.ts-document-compact:is(:hover,:focus-within,.is-selected,.is-control-hover) .ts-compact-actions {
   opacity:1; visibility:visible; transition-delay:0s;
 }
 .ts-root .ts-node.ts-document-compact .ts-compact-actions:empty { display:none; }

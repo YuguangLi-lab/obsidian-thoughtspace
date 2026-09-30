@@ -1,0 +1,135 @@
+/* Optional Markdown note surfaces. Load after card-surfaces and inline-editor.
+   Document metrics, node geometry, connection ports and action docks stay owned
+   by their existing rules. A stale transparent/fill class cannot erase a style. */
+.ts-root .ts-main .ts-world > .ts-node.ts-card:is([data-card-style="band"],[data-card-style="paper"]),
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style]:not(.is-compact-fold),
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style].is-compact-fold.has-card-fill:not(.is-transparent) {
+  background:var(--ts-styled-surface,var(--background-primary))!important;
+  box-shadow:none!important; backdrop-filter:none!important;
+}
+
+/* The title is ordinary flow content: preview and live editor share its offset. */
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] > .ts-node-header {
+  display:flex; flex:none; align-items:flex-start; gap:8px; min-width:0;
+  padding:10px 16px!important; border:0!important; border-radius:10px 10px 0 0!important;
+  background:var(--ts-card-heading-color,var(--ts-tone))!important;
+  color:var(--ts-card-heading-ink,var(--text-on-accent)); box-shadow:none!important;
+  font-family:var(--ts-card-body-font,var(--font-text)); font-size:var(--ts-card-body-size,14px);
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] > .ts-node-header > span:first-child:not(.ts-card-note-title) {
+  display:inline-flex; flex:none; margin-top:2px; color:inherit;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] > .ts-node-header :is(svg,.ts-card-note-title) { color:inherit; }
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] .ts-card-note-title {
+  min-width:0; overflow-wrap:anywhere; white-space:normal;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] .ts-card-note-title:focus-visible {
+  outline:2px solid currentColor; outline-offset:2px; box-shadow:none;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] input.ts-card-title-input {
+  color:var(--text-normal); background:var(--background-primary); caret-color:var(--text-normal);
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] .ts-card-title-error {
+  padding:2px 4px; border-radius:3px; background:var(--background-primary); color:var(--text-error);
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"].is-folded > .ts-node-header { border-radius:10px!important; }
+
+/* Compact and low-detail cards use the same band, without introducing a header
+   or changing their display-projected width and height. */
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"]:is(.is-compact-fold,.ts-node-summary) {
+  --ts-styled-surface:var(--ts-card-heading-color,var(--ts-tone));
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] > :is(.ts-compact-fold-row,.ts-summary-title),
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] .ts-compact-fold-row > :is(.ts-compact-fold-icon,.ts-compact-inline-unfold) {
+  color:var(--ts-card-heading-ink,var(--text-on-accent));
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] .ts-compact-inline-unfold:is(:hover,:focus-visible) {
+  background:color-mix(in srgb,var(--ts-card-heading-ink,var(--text-on-accent)) 14%,transparent);
+}
+
+/* Paper keeps the normal content-first layout. The inner rule and clip paint
+   only; custom outer border width/style/color and selection outlines still win. */
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"] {
+  --ts-paper-line:color-mix(in srgb,var(--text-normal) 58%,var(--ts-styled-surface,var(--background-primary)));
+  --ts-paper-clip:color-mix(in srgb,var(--text-muted) 75%,var(--ts-tone));
+  border-radius:2px!important;
+}
+/* The Background control tints paper just as it tints a regular note. Keep the
+   gap between the two rules on the same surface, including in the dark theme. */
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"].has-card-fill {
+  --ts-styled-surface:color-mix(in srgb,var(--ts-card-fill) 38%,var(--background-primary));
+}
+.theme-dark .ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"].has-card-fill {
+  --ts-styled-surface:color-mix(in srgb,var(--ts-card-fill) 20%,var(--background-primary));
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"]:not(.has-custom-border) { border-color:transparent!important; }
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"].has-custom-border { --ts-paper-line:var(--ts-tone); }
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"]::after {
+  content:''; position:absolute; inset:4px; z-index:1; border:1px solid var(--ts-paper-line);
+  border-radius:1px; pointer-events:none;
+  box-shadow:0 0 0 3px var(--ts-styled-surface,var(--background-primary)),0 0 0 4px var(--ts-paper-line);
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"].has-custom-border::after { box-shadow:none; }
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"] > .ts-card-paperclip {
+  position:absolute; top:-12px; left:20px; z-index:2; display:flex; align-items:center; justify-content:center;
+  width:22px; height:28px; color:var(--ts-paper-clip); pointer-events:none; user-select:none;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"] > .ts-card-paperclip svg {
+  width:22px; height:28px; stroke-width:1.35; transform:rotate(-12deg); pointer-events:none;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"].is-compact-fold > .ts-card-paperclip {
+  top:-10px; left:12px; width:15px; height:18px;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"].is-compact-fold > .ts-card-paperclip svg { width:15px; height:18px; }
+.ts-root .ts-main .ts-world > .ts-node.ts-card:is([data-card-style="band"],[data-card-style="paper"]) > .ts-summary-title {
+  font-family:var(--ts-card-body-font,var(--font-text));
+}
+
+/* Four small choices, with two columns when their actual panel is narrow. */
+.ts-root .ts-card-style-picker {
+  container:ts-card-style-picker / inline-size; display:grid; grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:6px; width:370px; min-width:0; max-width:100%; padding:2px;
+}
+.ts-root .ts-floating-formatbar .ts-card-style-picker > button.ts-card-style-option {
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+  width:auto; min-width:0; height:58px; min-height:58px; margin:0; padding:5px!important;
+  border:1px solid var(--background-modifier-border)!important; border-radius:7px!important;
+  background:var(--background-primary)!important; color:var(--text-muted); box-shadow:none!important;
+  font:400 11px/1.25 var(--font-interface); white-space:nowrap;
+}
+.ts-root .ts-floating-formatbar .ts-card-style-picker > button.ts-card-style-option:hover:not(:disabled) {
+  background:var(--background-modifier-hover)!important; color:var(--text-normal);
+}
+.ts-root .ts-floating-formatbar .ts-card-style-picker > button.ts-card-style-option[aria-pressed="true"] {
+  border-color:var(--interactive-accent)!important; color:var(--text-accent);
+  background:color-mix(in srgb,var(--interactive-accent) 7%,var(--background-primary))!important;
+}
+.ts-root .ts-floating-formatbar .ts-card-style-picker > button.ts-card-style-option:focus-visible {
+  outline:2px solid var(--interactive-accent); outline-offset:1px;
+}
+.ts-root .ts-floating-formatbar .ts-card-style-picker > button.ts-card-style-option:disabled { opacity:.4; cursor:not-allowed; }
+.ts-root .ts-card-style-option > .ts-card-style-name { max-width:100%; overflow:hidden; text-overflow:ellipsis; }
+.ts-root .ts-card-style-swatch {
+  position:relative; display:flex; flex-direction:column; justify-content:center; gap:3px; flex:none;
+  width:42px; height:26px; padding:7px; border:1px solid var(--background-modifier-border);
+  border-radius:3px; background:var(--background-primary); pointer-events:none;
+}
+.ts-root .ts-card-style-swatch > i { display:block; width:100%; height:2px; flex:none; background:var(--text-faint); opacity:.6; }
+.ts-root .ts-card-style-swatch > i:last-child { width:70%; }
+.ts-root .ts-card-style-option[data-style="transparent"] > .ts-card-style-swatch {
+  border-style:dashed; background:repeating-linear-gradient(135deg,transparent 0 4px,color-mix(in srgb,var(--text-faint) 9%,transparent) 4px 5px);
+}
+.ts-root .ts-card-style-option[data-style="band"] > .ts-card-style-swatch {
+  padding-top:12px; background:linear-gradient(var(--ts-card-heading-color,var(--interactive-accent)) 0 7px,var(--background-primary) 7px);
+}
+.ts-root .ts-card-style-option[data-style="paper"] > .ts-card-style-swatch { border-color:var(--text-muted); border-radius:0; }
+.ts-root .ts-card-style-option[data-style="paper"] > .ts-card-style-swatch::before {
+  content:''; position:absolute; inset:2px; border:1px solid var(--text-muted); pointer-events:none;
+}
+.ts-root .ts-card-style-option[data-style="paper"] > .ts-card-style-swatch::after {
+  content:''; position:absolute; top:-4px; left:7px; width:4px; height:9px;
+  border:1px solid var(--text-muted); border-radius:3px; background:var(--background-primary); transform:rotate(-12deg); pointer-events:none;
+}
+@container ts-card-style-picker (max-width:350px) {
+  .ts-root .ts-card-style-picker > .ts-card-style-option { grid-column:span 2; }
+}

@@ -4,9 +4,10 @@ import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import {emptyBoard,parseBoard} from '../src/model';
 import {excerptNoteMarkdown} from '../src/materials';
+import {applyDefaultCardStyle} from '../src/card-style';
 const source=readFileSync(process.env.CONVERSION_SOURCE||'src/main.ts','utf8');
 const start=source.indexOf('  async textToNote('),end=source.indexOf('  async addTopic(',start);
-const View=new Function('excerptNoteMarkdown','Notice',transformSync('class View{'+source.slice(start,end)+'}\nreturn View',{loader:'ts'}).code)(excerptNoteMarkdown,class{});
+const View=new Function('excerptNoteMarkdown','applyDefaultCardStyle','Notice',transformSync('class View{'+source.slice(start,end)+'}\nreturn View',{loader:'ts'}).code)(excerptNoteMarkdown,applyDefaultCardStyle,class{});
 function setup(){
  const board=emptyBoard();board.version=3;board.nodes=[{id:'text',kind:'text',text:'saved text',x:20,y:30,width:240,height:80,color:'sand'}];
  const created:{path:string;content:string}[]=[],opened:unknown[]=[];const view=new View();view.convertingTexts=new Set();

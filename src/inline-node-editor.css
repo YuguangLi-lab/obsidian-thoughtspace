@@ -275,7 +275,7 @@
  display:flex;
  flex:0 0 auto;
  flex-wrap:nowrap;
- justify-content:center;
+ justify-content:flex-start;
  gap:5px;
  min-width:0;
  min-height:0;
@@ -303,6 +303,12 @@
  min-height:32px;
  padding:7px;
 }
+/* The primary action is readable; secondary actions retain compact icons. */
+.ts-root .ts-inline-editor-bar .ts-inline-save {display:inline-flex;align-items:center;justify-content:center;gap:5px;background:var(--ts-soft);color:var(--ts-accent);font:600 12px/1 var(--font-interface);}
+.ts-root .ts-inline-chrome .ts-inline-editor-bar .ts-inline-save {flex:0 0 auto;width:auto;min-width:62px;padding-inline:9px;}
+.ts-root .ts-inline-save-icon {display:inline-flex;flex:0 0 auto;}
+.ts-root .ts-inline-save-caption {white-space:nowrap;}
+.ts-root .ts-inline-editor-bar .ts-inline-save:hover:not(:disabled) {background:color-mix(in srgb,var(--ts-accent) 16%,var(--background-primary));}
 .ts-root .ts-inline-chrome .ts-inline-editor-label {flex:0 1 auto;min-width:0;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .ts-root .ts-inline-chrome .ts-inline-editor-badge {margin-inline-end:2px;}
 .ts-root .ts-inline-chrome > .ts-inline-editor-status {
@@ -328,9 +334,14 @@
 .ts-root .ts-text .ts-inline-native .cm-content > .HyperMD-header:first-child {padding-block-start:0;}
 
 /* Keep every edit action on one row when the view dock uses two rows.
-   Optional state labels yield space before save/cancel/search actions do. */
+   The redundant editor title yields space before state and recovery hints do. */
 @container ts-board-canvas (max-width:460px) {
- .ts-root .ts-inline-chrome .ts-inline-editor-bar :is(.ts-inline-editor-badge,.ts-inline-layout-hint,.ts-inline-command-hint) {display:none;}
+ .ts-root .ts-inline-chrome .ts-inline-editor-label {display:none;}
+}
+
+@container ts-board-canvas (max-width:360px) {
+ .ts-root .ts-inline-chrome .ts-inline-save-caption {display:none;}
+ .ts-root .ts-inline-chrome .ts-inline-editor-bar .ts-inline-save {flex-basis:32px;width:32px;min-width:32px;padding:7px;}
 }
 
 /* Short editing splits keep formatting, draft actions and camera tools in

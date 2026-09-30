@@ -2,10 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
+import {sectionAtPoint} from '../src/section-resize';
+import {visibleBranchBoard} from '../src/mindmap';
 function fixture(){
  const source=readFileSync('src/main.ts','utf8'),take=(a:string,b:string)=>source.slice(source.indexOf(a),source.indexOf(b,source.indexOf(a)));
  const code=take('  private requireOwner(', '  editText(')+take('  private point(', '  private mutate(');
- let seq=0;const View=new Function('uid','fitTextNode',transformSync('class View{'+code+'};return View',{loader:'ts'}).code)(()=>`new-${++seq}`,()=>{});
+ let seq=0;const View=new Function('sectionAtPoint','visibleBranchBoard','Notice','uid','fitTextNode',transformSync('class View{'+code+'};return View',{loader:'ts'}).code)(sectionAtPoint,visibleBranchBoard,class Notice{},()=>`new-${++seq}`,()=>{});
  const v=new View(),board={version:3,mode:'mindmap',viewport:{x:120,y:-40,zoom:2},nodes:[],edges:[]},owner={board,blocked:false,change:(op:any)=>op(board)},edits:any[]=[];
  Object.assign(v,{session:owner,blankClickOwner:owner,blankClicks:{consume:()=>true},stage:{getBoundingClientRect:()=>({left:100,top:50,width:900,height:700})},world:{},svg:{},mode:'select',plugin:{settings:{defaultTextSize:18}},updateSelection(){},startInlineEdit:async(id:string,selectAll:boolean)=>edits.push({id,selectAll})});
  const event=(patch:any={})=>({target:v.stage,button:0,clientX:420,clientY:330,preventDefault(){},stopPropagation(){},...patch});
@@ -30,4 +32,10 @@ test('rapid repeated double-click cannot duplicate creation while a draft saves'
 });
 test('board switching during draft save cannot add to the old or new board',async()=>{
  const {v,board,event}=fixture();let release!:(value:boolean)=>void;v.inline={commit:()=>new Promise<boolean>(r=>release=r)};const first=v.blankDoubleClick(event());const next={board:{nodes:[]}};v.session=next;release(true);await assert.rejects(first,/白板已切换/);assert.equal(board.nodes.length,0);assert.equal(next.board.nodes.length,0);assert.equal(v.blankTextCreating,false);
+});
+
+test('double-click empty space inside a group selects its frame instead of creating text',async()=>{
+ const {v,board,edits,event}=fixture();const section={id:'group',kind:'section',title:'Group',x:0,y:0,width:400,height:400,color:'green'};
+ (board.nodes as any[]).push(section);await v.blankDoubleClick(event());
+ assert.equal(board.nodes.length,1);assert.deepEqual([...v.selected],['group']);assert.equal(edits.length,0);
 });

@@ -1,3 +1,4 @@
+import {applyDefaultCardStyle} from '../src/card-style';
 import {webUrl} from '../src/web-card';
 import {mediaKind,mediaCard} from '../src/media-source';
 import test from 'node:test';
@@ -30,7 +31,7 @@ function fixture(){
  const calls={changes:0,sourceWrites:0,selection:0,focus:0,materials:[] as unknown[][],attachments:[] as unknown[][],boards:[] as unknown[][],pdfs:[] as unknown[][],files:[] as unknown[][]};
  const imageSizes=new Map<string,{width:number;height:number}>();
  let measure=async(entries:NativeNoteReference<TFile>[],width:number)=>new Map(entries.filter(ref=>isImage(ref.path)).map(ref=>[ref.path,imageSizes.get(ref.path)||{width,height:width*.75}] as const));
- const deps={webUrl,mediaKind,mediaCard,isImage,measureDroppedImages:(...args:Parameters<typeof measure>)=>measure(...args),resolveNativeNoteDrop,isWorkspaceFile,isPdfFile,pdfCard,pdfDropReference,pdfPage,TFile,MATERIAL_DRAG,EXT,
+ const deps={applyDefaultCardStyle,webUrl,mediaKind,mediaCard,isImage,measureDroppedImages:(...args:Parameters<typeof measure>)=>measure(...args),resolveNativeNoteDrop,isWorkspaceFile,isPdfFile,pdfCard,pdfDropReference,pdfPage,TFile,MATERIAL_DRAG,EXT,
   parseLinktext:(link:string)=>{const hash=link.indexOf('#');return{path:hash<0?link:link.slice(0,hash),subpath:hash<0?'':link.slice(hash)};},
   uid:()=>`drop-${++sequence}`,clone:structuredClone,
   act:(run:()=>unknown)=>{try{const pending=Promise.resolve(run());tasks.push(pending);void pending.catch(error=>errors.push(error));}catch(error){errors.push(error);}},

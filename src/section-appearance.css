@@ -75,3 +75,39 @@
 .ts-root[data-toolbar-density="comfortable"] .ts-floating-formatbar .ts-appearance-group .ts-fill-custom:has(input[aria-label="自定义分组背景"]) > span {
   display: inline;
 }
+
+/* Frame resizing is available on all four borders after selection. Split each
+   border around its centre so connection ports retain their own hit area. */
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge {
+  position:absolute; z-index:9; inset:auto; width:auto; height:auto;
+  margin:0; padding:0; border:0; background:none; box-shadow:none;
+  transform:none; opacity:0; pointer-events:none; touch-action:none;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-section.is-selected > .ts-section-resize-edge {
+  opacity:1; pointer-events:auto;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge::before {
+  content:''; position:absolute; border:0; border-radius:2px;
+  background:var(--ts-accent); box-shadow:none; opacity:.28; pointer-events:none;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge:hover::before { opacity:.9; }
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge:is([data-resize-edge=top],[data-resize-edge=bottom]) {
+  height:var(--ts-section-edge-hit,12px); width:calc(50% - 34px); cursor:ns-resize;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge:is([data-resize-edge=top],[data-resize-edge=bottom])::before {
+  inset:calc(50% - 1px) 0; height:2px;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge[data-resize-edge=top] { top:calc(var(--ts-section-edge-hit,12px) / -2); }
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge[data-resize-edge=bottom] { bottom:calc(var(--ts-section-edge-hit,12px) / -2); }
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge:is([data-resize-edge=top],[data-resize-edge=bottom])[data-edge-part=start] { left:12px; }
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge:is([data-resize-edge=top],[data-resize-edge=bottom])[data-edge-part=end] { right:12px; }
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge:is([data-resize-edge=left],[data-resize-edge=right]) {
+  width:var(--ts-section-edge-hit,12px); height:calc(50% - 34px); cursor:ew-resize;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge:is([data-resize-edge=left],[data-resize-edge=right])::before {
+  inset:0 calc(50% - 1px); width:2px;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge[data-resize-edge=left] { left:calc(var(--ts-section-edge-hit,12px) / -2); }
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge[data-resize-edge=right] { right:calc(var(--ts-section-edge-hit,12px) / -2); }
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge:is([data-resize-edge=left],[data-resize-edge=right])[data-edge-part=start] { top:12px; }
+.ts-root .ts-main .ts-world > .ts-node.ts-section > .ts-section-resize-edge:is([data-resize-edge=left],[data-resize-edge=right])[data-edge-part=end] { bottom:12px; }

@@ -25,11 +25,11 @@
   margin:0; padding:3px; border:1px solid var(--ts-object-line); border-radius:9px;
   background:var(--background-primary); box-shadow:var(--ts-object-shadow);
   opacity:0; visibility:hidden; pointer-events:auto;
-  transition:opacity 120ms ease 750ms,visibility 0s linear 870ms;
+  transition:opacity 120ms ease,visibility 0s linear 120ms;
 }
-/* Leaving the card must not remove the controls while the pointer crosses the
-   gap. Hovering the dock cancels the delay, without a bridge over link ports. */
-.ts-root .ts-node:is(.ts-card,.ts-text):is(:hover,:focus-within,.is-selected,.is-folded) > .ts-card-actions { opacity:1; visibility:visible; transition-delay:0s; }
+/* The pointer lifecycle keeps the dock visible across its geometric corridor.
+   Focus and selection remain CSS-owned; no hit layer covers connection ports. */
+.ts-root .ts-node:is(.ts-card,.ts-text):is(:hover,:focus-within,.is-selected,.is-folded,.is-control-hover) > .ts-card-actions { opacity:1; visibility:visible; transition-delay:0s; }
 .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-icon-button {
   display:inline-flex; align-items:center; justify-content:center; flex:none;
   width:28px; min-width:28px; height:28px; min-height:28px; padding:5px!important;
@@ -157,9 +157,9 @@
   transform:scale(var(--ts-control-scale,1)); transform-origin:top right;
   border:1px solid var(--background-modifier-border); border-radius:8px; background:var(--background-primary);
   opacity:0; visibility:hidden; pointer-events:auto;
-  transition:opacity 120ms ease 750ms,visibility 0s linear 870ms;
+  transition:opacity 120ms ease,visibility 0s linear 120ms;
 }
-.ts-root .ts-node.ts-image:is(:hover,:focus-within,.is-selected) > .ts-image-actions { opacity:1; visibility:visible; transition-delay:0s; }
+.ts-root .ts-node.ts-image:is(:hover,:focus-within,.is-selected,.is-control-hover) > .ts-image-actions { opacity:1; visibility:visible; transition-delay:0s; }
 .ts-root .ts-node.ts-image > .ts-image-actions .ts-icon-button { width:28px; height:28px; padding:5px!important; border:0; box-shadow:none; background:transparent; }
 @media (hover:none) {
   .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions,

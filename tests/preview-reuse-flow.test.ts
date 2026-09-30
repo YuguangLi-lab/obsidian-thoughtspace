@@ -1,3 +1,5 @@
+import {effectiveCardStyle} from '../src/card-style';
+import {cardHeadingColors} from '../src/card-style-color';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -14,6 +16,7 @@ import {visibleGridSize} from '../src/canvas-controls';
 import {textFontFamily} from '../src/text-tools';
 import {nodeHasBorder,textFitsContent,textBlockPadding} from '../src/text-sizing';
 import {cardDisplayTitle} from '../src/card-title-model';
+import {mountCardControlHover} from '../src/card-control-hover';
 import {mountCardQuickActions} from '../src/card-quick-actions';
 import {mountCardReadingAffordance} from '../src/card-reading-affordance';
 import {cardControlLayout} from '../src/card-control-layout';
@@ -110,7 +113,7 @@ function fixture(kind:model.Card['kind']='card',patch:Partial<model.Card>={}){
  const world=new Dom();world.root=true;const svg=world.createEl('svg'),previewQueue=new Queue(),pdfPreviewQueue=new Queue();
  const mediaMounts:{options:MediaCardOptions;body:Dom;paused:number;disposed:number}[]=[];
  const session={board,blocked:false,file:new File('board.thoughtspace')};
- const deps={nodeHasBorder,textBlockPadding,...model,...keys,mountCardQuickActions,mountCardReadingAffordance,cardControlLayout,renderBranchControls:branchModule.exports.renderBranchControls,branchState,branchRenderSnapshot,childConnectionCandidates:(board:model.Board,roots?:ReadonlySet<string>)=>{calls.childCandidates++;return childConnectionCandidates(board,roots);},sectionDisplayNode,visibleNodes,viewportRect,markdownPreview,visibleGridSize,textFontFamily,textFitsContent,cardDisplayTitle,mediaDimensions,
+ const deps={effectiveCardStyle,cardHeadingColors,mountCardControlHover,nodeHasBorder,textBlockPadding,...model,...keys,mountCardQuickActions,mountCardReadingAffordance,cardControlLayout,renderBranchControls:branchModule.exports.renderBranchControls,branchState,branchRenderSnapshot,childConnectionCandidates:(board:model.Board,roots?:ReadonlySet<string>)=>{calls.childCandidates++;return childConnectionCandidates(board,roots);},sectionDisplayNode,visibleNodes,viewportRect,markdownPreview,visibleGridSize,textFontFamily,textFitsContent,cardDisplayTitle,mediaDimensions,
   TFile:File,Component:Scope,Element:Dom,getAllTags:(cache:{tags?:string[]})=>{calls.tags++;return cache.tags||null;},setIcon:()=>{},
   button:(host:Dom,label:string,_icon:string,fn:()=>void,cls='')=>{const el=host.createEl('button',{cls,attr:{'aria-label':label}});el.createSpan();el.createSpan({text:label});el.onclick=fn;return el;},
   bindCardTitle:()=>()=>{},readProperties:(fm:Record<string,unknown>)=>({status:fm.thoughtspace_status}),statuses:{done:'完成'},isOverdue:()=>false,localDay:()=>'',
@@ -505,4 +508,19 @@ test('production card jobs release shared queue slots when their nodes are remov
  assert.equal(queue.active,4);for(const f of cards){f.element().remove();f.scope().unload();}queue.clear();let next=0;queue.add(()=>true,async()=>{next++;});await new Promise(resolve=>setImmediate(resolve));
  assert.equal(next,1);assert.equal(queue.active,0);assert.equal(queue.pending,0);for(const resolve of resolves)resolve('late Markdown');await new Promise(resolve=>setImmediate(resolve));
  assert.ok(cards.every(f=>f.calls.markdown===0));assert.ok(cards.every(f=>f.calls.cardFit===0));
+});
+
+// Fixed notes patch both dimensions and decorative surfaces in place. Auto-fit
+// notes keep style in their renderer key so a changed header is remeasured.
+for(const pending of [false,true])test(`fixed-note decorative style switching preserves ${pending?'queued':'rendered'} previews and embedded children`,async t=>{
+ const f=fixture('card',{autoFit:false});if(!pending)await f.drain();
+ const element=f.element(),scope=f.scope(),body=element.querySelector('.ts-card-preview')!,embedded=body.createEl('iframe');
+ const previews=f.previewQueue.added,reads=f.calls.read,renders=f.calls.markdown;
+ const styles=[{cardStyle:'band' as const},{cardStyle:'paper' as const},{cardStyle:undefined,transparent:false},{cardStyle:undefined,transparent:true},{cardStyle:'paper' as const}];
+ for(const patch of styles){f.replace(patch);if(!pending)await f.drain();}
+ t.diagnostic(JSON.stringify({pending,extraQueues:f.previewQueue.added-previews,extraReads:f.calls.read-reads,extraRenders:f.calls.markdown-renders,originalScopeUnloads:scope.unloaded}));
+ assert.ok(f.element()===element,'decorative note surfaces must retain the mounted preview host');
+ assert.equal(f.scope(),scope);assert.equal(scope.unloaded,0);assert.equal(f.element().querySelector('.ts-card-preview'),body);assert.equal(embedded.isConnected,true);
+ assert.equal(f.previewQueue.added,previews);assert.equal(element.dataset.cardStyle,'paper');assert.equal(element.querySelectorAll('.ts-card-paperclip').length,1);
+ await f.drain();assert.equal(f.calls.read,1);assert.equal(f.calls.markdown,1);assert.equal(f.calls.cardFit,0);
 });

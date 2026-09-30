@@ -42,3 +42,108 @@ test('webpage resizing preserves browser state, while URL and fold changes rebui
  assert.notEqual(nodeRenderKey({...n,webUrl:'https://example.org/'},[]),key);
  assert.notEqual(nodeRenderKey({...n,collapsed:true,expandedHeight:600},[]),key);
 });
+
+test('unchanged long text is serialized only once across neighboring-node redraws',()=>{
+ const body='Large unchanged markdown.\n'.repeat(5000),n:Card={...node,text:body};
+ const original=JSON.stringify;let fullBodySerializations=0;
+ JSON.stringify=((value:unknown,...args:unknown[])=>{
+  if(Array.isArray(value)&&value[0]?.text===body)fullBodySerializations++;
+  return Reflect.apply(original,JSON,[value,...args]);
+ }) as typeof JSON.stringify;
+ try{
+  const first=nodeRenderKey(n,[0,0,true,false,null]);
+  for(let i=0;i<120;i++){n.x=i;n.color=i%2?'blue':'green';assert.equal(nodeRenderKey(n,[0,0,true,false,null]),first);}
+  assert.equal(fullBodySerializations,1,'unrelated redraws must not repeatedly copy the unchanged long body');
+ }finally{JSON.stringify=original;}
+});
+
+test('long-text reuse still detects in-place behavior, nested source and metadata mutations',()=>{
+ const n:Card={...node,text:'Unchanged body\n'.repeat(5000),mindmapRules:{layout:'right',density:'standard',automatic:false},videoCapture:{id:'capture',note:'source.md'}};
+ const metadata={tags:['#old'],frontmatter:{title:'Old'}},context=[0,0,true,false,metadata];
+ let previous=nodeRenderKey(n,context);
+ const edits=[()=>{n.mindmapRules!.automatic=true;},()=>{n.videoCapture!.note='updated.md';},()=>{metadata.tags.push('#new');},()=>{metadata.frontmatter.title='New';},()=>{n.locked=true;},()=>{n.text+='Actual edit';},()=>{n.height=250;}];
+ for(const edit of edits){edit();const current=nodeRenderKey(n,context);assert.notEqual(current,previous);assert.equal(nodeRenderKey(n,context),current);previous=current;}
+});
+
+test('long-text keys preserve exact JSON shape, escaping and object own-key order',()=>{
+ const body='"Quoted"\\line\n\u0000😀'.repeat(1000),n:Card={...node,text:body};
+ const expected=()=>{const {x:_x,y:_y,color:_color,...content}=n;return JSON.stringify([content,1,null]);};
+ assert.equal(nodeRenderKey(n,[1,null]),expected());assert.equal(nodeRenderKey(n,[1,null]),expected());
+ delete n.text;n.text=body;assert.equal(nodeRenderKey(n,[1,null]),expected(),'moving the text property must not reuse a differently ordered JSON key');
+ const fresh=structuredClone(n);assert.equal(nodeRenderKey(fresh,[1,null]),expected(),'replacement objects and undo snapshots retain the same render identity');
+});
+
+test('long-text stamps retain unknown own properties and observe their nested mutations',()=>{
+ const n=Object.assign({...node,text:'Long body\n'.repeat(1000)},{properties:{labels:['old']}});
+ Object.defineProperty(n,'__proto__',{value:{note:'Own data'},enumerable:true});
+ const first=nodeRenderKey(n,[]);assert.equal(nodeRenderKey(n,[]),first);
+ n.properties.labels.push('new');const changed=nodeRenderKey(n,[]);assert.notEqual(changed,first);
+ const content=JSON.parse(changed)[0];assert.deepEqual(content.properties,{labels:['old','new']});
+ assert.deepEqual(content.__proto__,{note:'Own data'});assert.equal(Object.hasOwn(content,'__proto__'),true);
+});
+
+test('a custom root JSON serializer retains uncached behavior for long text',()=>{
+ let count=0;const n=Object.assign({...node,text:'Body\n'.repeat(1000)},{toJSON(){return{version:++count};}});
+ assert.equal(nodeRenderKey(n,[]),'[{"version":1}]');assert.equal(nodeRenderKey(n,[]),'[{"version":2}]');
+});
+
+test('context and nested metadata custom serializers keep their original call count and array key',()=>{
+ const n:Card={...node,text:'Body\n'.repeat(1000)};
+ for(const nested of [false,true]){
+  let calls=0;const metadata={toJSON(key:string){return{key,call:++calls};}};
+  const context=nested?[{metadata}]:[metadata];
+  for(let i=1;i<=3;i++){
+   const result=JSON.parse(nodeRenderKey(n,context));
+   assert.equal(calls,i,'one full render must invoke each metadata serializer only once');
+   assert.deepEqual(nested?result[1].metadata:result[1],{key:nested?'metadata':'1',call:i});
+  }
+ }
+});
+
+test('plain metadata dates preserve their exact JSON output through in-place changes',()=>{
+ const n:Card={...node,text:'Body\n'.repeat(1000)},date=new Date('2026-01-01T00:00:00.000Z');
+ for(const stamp of [date.getTime(),date.getTime()+86400000]){
+  date.setTime(stamp);
+  const {x:_x,y:_y,color:_color,...content}=n;
+  assert.equal(nodeRenderKey(n,[{date}]),JSON.stringify([content,{date}]));
+ }
+});
+
+test('long-text key reuse is bounded across many live nodes in a large board',()=>{
+ const first:Card={...node,id:'first-budgeted',text:'First large body\n'.repeat(1000)},others=Array.from({length:128},(_,i)=>({...node,id:'budget-'+i,text:('Large body '+i+'\n').repeat(1000)}));
+ const original=JSON.stringify;let firstSerializations=0;
+ JSON.stringify=((value:unknown,...args:unknown[])=>{
+  if(Array.isArray(value)&&value[0]?.text===first.text)firstSerializations++;
+  return Reflect.apply(original,JSON,[value,...args]);
+ }) as typeof JSON.stringify;
+ try{
+  const key=nodeRenderKey(first,[]);for(const other of others)nodeRenderKey(other,[]);
+  assert.equal(nodeRenderKey(first,[]),key);
+  assert.equal(firstSerializations,2,'old entries should expire instead of retaining a large key for every visited board node');
+ }finally{JSON.stringify=original;}
+});
+
+test('context array accessors are evaluated once before either cached or uncached JSON serialization',()=>{
+ const n:Card={...node,text:'Body\n'.repeat(1000)};let reads=0;
+ const context:unknown[]=[];Object.defineProperty(context,0,{get:()=>++reads,enumerable:true});
+ assert.equal(JSON.parse(nodeRenderKey(n,context))[1],1);assert.equal(reads,1);
+ assert.equal(JSON.parse(nodeRenderKey(n,context))[1],2);assert.equal(reads,2);
+});
+
+test('serialized undo and redo snapshots rebuild the same long-text keys without relying on object identity',async()=>{
+ const {History,emptyBoard}=await import('../src/model'),history=new History(),board={...emptyBoard(),nodes:[{...node,text:'Original long body\n'.repeat(1000)}]};
+ const originalKey=nodeRenderKey(board.nodes[0],[]);history.push(board);
+ board.nodes[0].text='Edited long body\n'.repeat(1000);const editedKey=nodeRenderKey(board.nodes[0],[]);
+ assert.notEqual(editedKey,originalKey);assert.equal(typeof history.undoStack[0],'string');
+ const restored=history.undo(board)!;assert.notEqual(restored.nodes[0],board.nodes[0]);assert.equal(nodeRenderKey(restored.nodes[0],[]),originalKey);
+ const redone=history.redo(restored)!;assert.equal(nodeRenderKey(redone.nodes[0],[]),editedKey);
+});
+
+test('decorative note styles preserve fixed previews but still invalidate automatic measurement',()=>{
+ for(const autoFit of [undefined,false,true]){
+  const card:Card={...node,kind:'card',file:'note.md',autoFit},context=[0,0,true,false,null],plain=nodeRenderKey(card,context);
+  const band=nodeRenderKey({...card,cardStyle:'band'},context),paper=nodeRenderKey({...card,cardStyle:'paper'},context);
+  if(autoFit){assert.notEqual(band,plain);assert.notEqual(paper,band);assert.notEqual(paper,plain);}
+  else{assert.equal(band,plain);assert.equal(paper,plain);assert.equal(nodeRenderKey({...card,cardStyle:'paper',width:500,height:350},context),plain);}
+ }
+});

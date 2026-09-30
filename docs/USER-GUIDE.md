@@ -165,7 +165,7 @@ Use **新建卡片** for an idea that should become a real note, searchable and 
 
 1. Double-click a card or text frame to edit.
 2. Write Markdown with the native live-preview editor and formatting toolbar.
-3. Click **保存并退出编辑** (Save and exit), or Ctrl/Cmd + Enter. Use **取消本次编辑** or Esc to abandon the current edit.
+3. Click **保存** (Save) in the bottom editing bar, or Ctrl/Cmd + Enter. Use **取消本次编辑** or Esc to abandon the current edit. If saving fails, the draft remains editable and the Save action becomes **重试** (Retry); Copy stays available. Narrow panes retain the save status and icon tooltips.
 4. For a note card, choose **右侧打开笔记** (Open note on the right) to inspect its actual source file.
 
 Right-click a card and choose **修改卡片标题** (Change card title) to give that board instance its own label. This is separate from renaming the Markdown file. Right-click local text and choose **转换为笔记** (Convert to note) when it becomes worth reusing.
@@ -199,6 +199,13 @@ Headings, lists, links, code, callouts, inline/display math, and tables render i
 Tables fit their content by default. Manual resizing or disabling auto-fit preserves manual dimensions. Table cards display the grid directly, without an outer text frame. Transparent fills and fine cell grid lines distinguish rows and columns in both preview and native editing.
 
 For a fresh table, use **插入内容 → 表格**, right-click empty space and choose **在此添加表格**, or use the editing toolbar's table button. The first header is selected for replacement, without moving your camera. Wide tables can scroll horizontally after you narrow their text frame. Text automatically fits rendered content when auto height is enabled; right-click **关闭自动适应高度** to keep the current size. For linked notes, **自动适应笔记大小** adjusts the card preview to its content.
+
+
+### Card styles (1.3.21)
+
+Select one or more Markdown cards and open **卡片** (Card) in the top toolbar to choose **Transparent / Solid / Color title band / Double-line paper**. The title band displays the board-specific card title. Use **背景 → 卡片颜色** (Background → Card color) for a preset or custom band color. Double-click the title to edit the card label without renaming the note. Leaving the title unchanged creates no fixed alias. The paper style adds a fine double frame and a decorative paperclip; its background color also tints the paper and the gap between the frame lines. Fixed-size cards keep their reading position when switching styles.
+
+Under **Settings → ThoughtSpace → 外观 → 默认卡片样式**, choose the default for new Markdown cards, including notes dragged or inserted onto a board. Existing cards keep their appearance; images, PDFs, web cards, text and tables are unchanged. Styles support board undo, style copy/paste and persistence, while retaining the Markdown draft, fold state and Obsidian body font.
 
 <a id="media-import"></a>
 
@@ -276,6 +283,12 @@ Manually moving, resizing, adding or removing objects, or changing relationships
 3. Right-click the frame to rename it, select its contents, or choose **分组框贴合内容** (Fit frame to content).
 4. Use **折叠分组 / 展开分组** to reduce or reveal the group's content.
 5. Use **工作区 → 分组预览** or **更多白板工具 → 分组总览** to locate groups on a large board.
+
+Double-click empty space inside a group to select its frame, then drag its top, bottom, left or right edge to resize it without moving the contents. The center of each edge remains available for connections, and the bottom-right resize handle is retained. Double-clicking the title still renames the group; double-clicking outside groups still creates text. Unlock a locked frame before resizing.
+
+You can fold the cards, shrink the frame around their visible headers, then open them one at a time. The frame grows as needed and returns to your manually adjusted size when the cards are folded again.
+
+Floating card actions stay visible while you move the pointer across the gap from the card to its toolbar. They close after you leave that area; selection and keyboard focus keep them accessible.
 
 Group membership follows spatial containment. Keep the intended members within the frame. To transfer a selection, use **移入已有分组…** (Move into an existing group), inspect the destination preview, then apply. This preserves relative positions and connections and can enlarge the destination boundary. **移除分组框（保留内容）** removes the frame while keeping its contents.
 

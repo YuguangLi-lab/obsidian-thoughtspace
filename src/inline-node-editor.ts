@@ -16,7 +16,7 @@ export interface InlineEditorOptions {
 /** One inline draft owns its content until an atomic save succeeds. */
 export class InlineNodeEditor {
  readonly el:HTMLElement;readonly input:DraftInput;private native?:NativeMarkdownDraft;private chrome?:HTMLElement;private status:HTMLElement;private pending?:Promise<boolean>;private backingUp=false;private disposed=false;private observer:ResizeObserver;private body:HTMLElement;private composing=false;private toolbarDispose?:()=>void;private actionNavigationDispose?:()=>void;
- private layoutFrame?:number;private focusTimer?:number;private lastLayoutValue?:string;private geometry='';private appearanceChanged=false;private badge:HTMLElement;private actions:HTMLButtonElement[]=[];private fallback=false;private headerKey='';private saveError?:string;private layoutFailures=new Set<'size'|'geometry'|'native'>();private nativeHeight=0;private layoutHint:HTMLElement;private commandHint?:HTMLElement;private selectionCount=1;private textSelected=false;private retryIcon=false;
+ private layoutFrame?:number;private focusTimer?:number;private lastLayoutValue?:string;private geometry='';private appearanceChanged=false;private badge:HTMLElement;private actions:HTMLButtonElement[]=[];private fallback=false;private headerKey='';private saveError?:string;private layoutFailures=new Set<'size'|'geometry'|'native'>();private nativeHeight=0;private layoutHint:HTMLElement;private commandHint?:HTMLElement;private selectionCount=1;private textSelected=false;private retryIcon=false;private saveIcon?:HTMLElement;private saveCaption?:HTMLElement;
  constructor(private node:HTMLElement,private options:InlineEditorOptions){
   this.body=node.querySelector<HTMLElement>('.ts-text-body,.ts-card-preview')!;
   node.addClass('is-inline-editing');this.el=node.createDiv('ts-inline-editor');
@@ -29,8 +29,8 @@ export class InlineNodeEditor {
   this.layoutHint=bar.createSpan({cls:'ts-inline-layout-hint',attr:{title:layoutLabel,'aria-label':layoutLabel,role:'img',tabindex:'0'}});setIcon(this.layoutHint,'scan-line');this.layoutHint.hidden=true;
   const commandLabel='内容或选区已变化，本次操作未执行。请确认后重试。';
   this.commandHint=bar.createSpan({cls:'ts-inline-command-hint',attr:{title:commandLabel,'aria-label':commandLabel,role:'status','aria-live':'polite',tabindex:'0'}});setIcon(this.commandHint,'mouse-pointer-2');this.commandHint.hidden=true;
-  const button=(label:string,icon:string,run:()=>unknown)=>{const b=bar.createEl('button',{attr:{'aria-label':label,title:label}});setIcon(b,icon);b.onmousedown=e=>e.preventDefault();b.onclick=()=>{if(!this.disposed&&!b.disabled)run();};this.actions.push(b);return b;};
-  button('保存并退出编辑 · Ctrl / ⌘ + Enter','check',()=>this.commit());button('取消本次编辑 · Esc','x',()=>this.cancel());button('复制编辑草稿','copy',()=>{void this.copyDraft();});
+  const button=(label:string,icon:string,run:()=>unknown,caption?:string)=>{const b=bar.createEl('button',{attr:{'aria-label':label,title:label}});if(caption){b.addClass('ts-inline-save');this.saveIcon=b.createSpan({cls:'ts-inline-save-icon',attr:{'aria-hidden':'true'}});setIcon(this.saveIcon,icon);this.saveCaption=b.createSpan({cls:'ts-inline-save-caption',text:caption,attr:{'aria-hidden':'true'}});}else setIcon(b,icon);b.onmousedown=e=>e.preventDefault();b.onclick=()=>{if(!this.disposed&&!b.disabled)run();};this.actions.push(b);return b;};
+  button('保存并退出编辑 · Ctrl / ⌘ + Enter','check',()=>this.commit(),'保存');button('取消本次编辑 · Esc','x',()=>this.cancel());button('复制编辑草稿','copy',()=>{void this.copyDraft();});
   if(kind==='text')button('查找与替换','search',()=>{try{this.findText();}catch(e){new Notice(String(e));}});
   this.actionNavigationDispose=toolbarNavigation(bar);
   let fallback=false;
@@ -108,7 +108,7 @@ export class InlineNodeEditor {
    this.badge.title=saving?'正在'+(this.backingUp?'备份':'保存')+'，可用快捷键选择和复制草稿':state==='multiselect'?'多光标编辑中，请保留一个选区后设置格式':label;
    for(const b of [...this.actions.slice(0,2),...this.actions.slice(3)])b.disabled=busy;
    this.actions[0].setAttribute('aria-label',saveLabel);this.actions[0].title=saveLabel;
-   const retry=!!this.saveError;if(retry!==this.retryIcon){this.retryIcon=retry;setIcon(this.actions[0],retry?'rotate-ccw':'check');}
+   const retry=!!this.saveError;if(retry!==this.retryIcon){this.retryIcon=retry;setIcon(this.saveIcon??this.actions[0],retry?'rotate-ccw':'check');}if(this.saveCaption){const caption=retry?'重试':'保存';if(this.saveCaption.textContent!==caption)this.saveCaption.setText(caption);}
    const copyLabel=this.saveError?'复制保留的草稿':'复制编辑草稿';this.actions[2].title=copyLabel;this.actions[2].setAttribute('aria-label',copyLabel);
   }
   // Content and status changes notify the toolbar. An existing selection event

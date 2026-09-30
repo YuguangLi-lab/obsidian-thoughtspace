@@ -8,7 +8,7 @@ import type {WritingState} from './writing';
 import {markdownRows} from './markdown-context';
 import {yingjianNotePath} from './yingjian';
 /** Capture provenance survives independent text/image editing and safe note renames. */
-export interface Card { videoCapture?:{id:string;note:string}; sectionFolded?:boolean; sectionDivider?:'none'|'solid'|'dashed'|'dotted' }
+export interface Card { videoCapture?:{id:string;note:string}; sectionFolded?:boolean; sectionDivider?:'none'|'solid'|'dashed'|'dotted'; cardStyle?:'band'|'paper' }
 export interface Board {readingLayout?:ReadingLayoutCheckpoint}
 import { connectionSides, Side } from './connections';
 import { branchState, branchTopology, validateBranches } from './mindmap';
@@ -38,7 +38,7 @@ function assertBoardData(b:unknown):asserts b is Board {
   for (const n of b.nodes) {
     if (!isRecord(n) || typeof n.id !== 'string' || !n.id.trim() || ids.has(n.id) || !isOneOf(n.kind,b.version === 3 ? ['card','section','board','text','image','pdf','audio','video'] : b.version === 2 ? ['card','section','board'] : ['card','section']) ||
       ![n.x,n.y].every(isFiniteNumber) || !isFiniteNumber(n.width) || !isFiniteNumber(n.height) || n.width < 80 || n.height < nodeMinimumHeight(n.kind) ||
-      !isOneOf(n.color,colors) || (isOneOf(n.kind,['card','board','image','pdf','audio','video']) && (typeof n.file !== 'string' || !((n.kind==='audio'||n.kind==='video') ? isVaultMediaPath(n.file)&&mediaKind(n.file)===n.kind : n.kind === 'pdf' ? /\.pdf$/i.test(n.file) : n.kind === 'image' ? /\.(png|jpe?g|gif|webp|avif|bmp)$/i.test(n.file) : n.file.endsWith(n.kind === 'board' ? '.thoughtspace' : '.md')) || /(^\/|(^|\/)\.\.?(\/|$)|\\)/.test(n.file))) ||
+      !isOneOf(n.color,colors) || (isOneOf(n.kind,['card','board','image','pdf','audio','video']) && (typeof n.file !== 'string' || !((n.kind==='audio'||n.kind==='video') ? isVaultMediaPath(n.file)&&mediaKind(n.file)===n.kind : n.kind === 'pdf' ? /\.pdf$/i.test(n.file) : n.kind === 'image' ? /\.(png|jpe?g|gif|webp|avif|bmp)$/i.test(n.file) : n.kind === 'board' ? n.file.endsWith('.thoughtspace') : /\.md$/i.test(n.file)) || /(^\/|(^|\/)\.\.?(\/|$)|\\)/.test(n.file))) ||
       (n.kind === 'section' && typeof n.title !== 'string')) throw new Error('白板节点数据不完整');
     if(['file','title','text'].some(key=>n[key]!==undefined&&typeof n[key]!=='string'))throw new Error('白板节点数据不完整');
     if ((n.collapsed !== undefined && typeof n.collapsed !== 'boolean') ||
@@ -59,6 +59,7 @@ function assertBoardData(b:unknown):asserts b is Board {
     if(n.imageUrl!==undefined&&(n.kind!=='image'||!remoteImageUrl(n.imageUrl)))throw Error('图床图片地址无效');
     if(n.videoCapture!==undefined&&(!isOneOf(n.kind,['text','image'])||!isRecord(n.videoCapture)||typeof n.videoCapture.id!=='string'||!/^[a-f0-9-]{36}$/.test(n.videoCapture.id)||!yingjianNotePath(n.videoCapture.note)))throw Error('视频记录来源无效');
     if(n.transparent!==undefined&&(!isOneOf(n.kind,['card','text','section'])||typeof n.transparent!=='boolean'))throw Error('对象透明样式无效');
+    if(n.cardStyle!==undefined&&(n.kind!=='card'||typeof n.file!=='string'||!/\.md$/i.test(n.file)||!!n.webUrl||!isOneOf(n.cardStyle,['band','paper'])))throw Error('笔记卡片样式无效');
     if(n.fillColor!==undefined&&(!isOneOf(n.kind,['card','text','section'])||!validCardFill(n.fillColor)))throw Error('对象背景颜色无效');
     if(n.sectionDivider!==undefined&&(n.kind!=='section'||!isOneOf(n.sectionDivider,['none','solid','dashed','dotted'])))throw Error('分组标题分隔线样式无效');
     if(n.preferredWidth!==undefined&&(n.kind!=='card'||!isFiniteNumber(n.preferredWidth)||n.preferredWidth<220||n.preferredWidth>520))throw Error('卡片默认宽度无效');
