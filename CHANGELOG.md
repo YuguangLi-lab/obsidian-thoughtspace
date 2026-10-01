@@ -1,5 +1,19 @@
 # 更新记录
 
+## 1.3.27
+
+### 媒体摘录一致性、白板交互与小地图复用（2026-10-01）
+
+- 白板播放器的文字/截图摘录与独立播放器送入的笔记引用共用时间戳、来源与截图层级；保留原 Markdown、图片和引用关系。
+- 两种摘录的时间戳优先定位来源匹配的白板播放器；旧链接可复用已打开的来源白板。多个匹配按明确节点或摘录连线关系判定，无法确定或没有匹配时复用/打开独立播放器，不自动新增白板播放器。保留精确小数时间、延迟加载、既有暂停策略与未保存草稿保护。
+- 搜索关闭重开保留关键词、筛选、正文搜索开关与选中结果，按白板会话隔离；等待全文索引时也能恢复选择。
+- 低缩放下普通连线起点保持至少 30 屏幕像素热区。拖动新增横向/纵向等间距提示与吸附，继续优先原有边缘/中心对齐，并保留轴锁定、Alt 绕过和撤销重做。
+- 普通连线拖空白仍直接写文本；Alt/Option 松手或聚焦起点后 Shift+F10 可选择文本、表格、已有 Markdown/PDF 引用。菜单及文件选择取消不留节点，重复确认不重复创建。
+- 小地图在结构与样式不变时复用 SVG、只更新变化几何；不删减保存校验、完整历史、冲突保护或原子写入。合成 10k 节点交替对照中，小地图阶段 p50 354.6 → 5.5 ms，整次保存 p50 2378.3 → 2170.0 ms；p95 未改善，1k 未观察到端到端收益，**不宣称所有规模或尾延迟提速**。
+- Media cards share timestamp/source presentation and source-aware board-first playback routing. Search state stays within its board session. Connection ports remain usable at low zoom; equal-gap guides and optional connected-content choices retain existing shortcuts. Minimap geometry reuse reduces repeated SVG work without weakening persistence safeguards.
+
+验证、原生交互范围及已知限制见 [1.3.27 验收](qa/RELEASE-1.3.27.md)；完整性能方法、样本数和不利结果见 [保存实验](qa/experience-performance.md)。仅在独立测试库验证；未覆盖移动端、所有第三方主题或线上平台实际网络播放。旧版装饰文本兼容边界与本机媒体暂存边界继续适用。
+
 ## 1.3.26
 
 ### 外置折叠控件、阅读层级与文本卡片类型（2026-10-01）

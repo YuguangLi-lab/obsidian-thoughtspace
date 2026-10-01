@@ -22,7 +22,7 @@ const deps={branchState,visibleBranchBoard,branchRenderSnapshot,sectionDisplayNo
 const View=new Function(...Object.keys(deps),transformSync(`return class View{${methods}}`,{loader:'ts'}).code)(...Object.values(deps));
 type Stats={nodeIds:number;positionGets:number;titleQueries:number;edgeKinds:number;edgeFrames:number;positioned:number;mapFrames:number;unloads:number;inlineSyncs:number;};
 class Element {
- parent?:Element;children:Element[]=[];titleInput?:Element;classes=new Set<string>();style:Record<string,string>={};
+ parent?:Element;children:Element[]=[];titleInput?:Element;classes=new Set<string>();style:Record<string,string|((key:string,value:string)=>void)>={setProperty:(key:string,value:string)=>{this.style[key]=value;}};
  constructor(readonly stats:Stats){}
  classList={contains:(name:string)=>this.classes.has(name)};
  querySelector(selector:string){assert.equal(selector,'.ts-card-title-input');this.stats.titleQueries++;return this.titleInput||null;}

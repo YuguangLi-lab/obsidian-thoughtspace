@@ -8,3 +8,15 @@ test('locked axis stays fixed while other axis can snap',()=>{const i=alignmentI
 test('offscreen objects and container frames do not attract a drag',()=>{const i=alignmentIndex([n('a',0,0),n('far',2000,0),{...n('s',200,0),kind:'section',title:'s'}],new Set(['a']),{x:0,y:0,width:500,height:500})!;assert.equal(i.x.length,0);assert.equal(alignDrag(i,197,0,1).guides.length,0);});
 test('locked objects can guide but cannot be included in moving bounds',()=>{const i=alignmentIndex([n('a',0,0),{...n('locked',200,200),locked:true}],new Set(['a']))!;assert.equal(alignDrag(i,197,0,1).dx,200);assert.equal(alignmentIndex([{...n('a',0,0),locked:true}],new Set(['a'])),undefined);});
 test('alignment does not modify source geometry and returns deterministic nearest result',()=>{const nodes=[n('a',0,0),n('b',200,200),n('c',204,300)],before=JSON.stringify(nodes),i=alignmentIndex(nodes,new Set(['a']))!;assert.deepEqual(alignDrag(i,203,0,1),alignDrag(i,203,0,1));assert.equal(alignDrag(i,203,0,1).dx,204);assert.equal(JSON.stringify(nodes),before);});
+test('third card extends equal horizontal spacing and exposes both measured gaps',()=>{
+ const i=alignmentIndex([n('moving',0,0),n('a',200,0),n('b',350,0)],new Set(['moving']))!,r=alignDrag(i,497,0,1);
+ assert.equal(r.dx,500);assert.deepEqual(r.guides.filter(g=>g.spacing!==undefined).map(g=>[g.start,g.end,g.spacing]),[[300,350,50],[450,500,50]]);
+});
+test('equal spacing supports insertion, vertical rows, locked axes and screen tolerance',()=>{
+ const i=alignmentIndex([n('moving',0,0),n('a',200,0),n('b',500,0)],new Set(['moving']))!;
+ assert.equal(alignDrag(i,347,0,1).dx,350);assert.equal(alignDrag(i,347,0,1,'x').dx,347);assert.equal(alignDrag(i,340,0,1).dx,340);assert.equal(alignDrag(i,340,0,.5).dx,350);
+ const v=alignmentIndex([n('moving',0,0),n('a',0,200),n('b',0,330)],new Set(['moving']))!;assert.equal(alignDrag(v,0,456,1).dy,460);
+});
+test('unrelated rows and overlapping reference cards cannot supply equal gaps',()=>{
+ for(const nodes of [[n('a',200,300),n('b',350,300)],[n('a',200,0),n('b',250,0)]]){const i=alignmentIndex([n('moving',0,0),...nodes],new Set(['moving']))!;assert.equal(alignDrag(i,497,0,1).guides.some(g=>g.spacing!==undefined),false);}
+});

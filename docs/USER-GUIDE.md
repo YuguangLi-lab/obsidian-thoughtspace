@@ -509,3 +509,13 @@ If the status says **写入暂停 · 已另存恢复草稿**, keep the recovery 
 Large boards deliberately simplify distant previews and limit simultaneously detailed content. The reading desk previews at most 80,000 characters of a note and directs notes larger than 2 MB to the original; writing references preview up to 60,000 characters. Always open the original when you need complete source content. Avoid concurrent external edits to the same board while reorganizing it, and let vault sync settle before reopening a conflicting version.
 
 See the [README](../README.md), [changelog](../CHANGELOG.md), and [data access and security notes](../SECURITY.md) for release and compatibility details.
+
+### Connection choices, spacing, and media timestamps (1.3.27)
+
+Board search remembers its query, filters, full-text option, and active result within the current board session. Other boards have separate state; closing that session releases it.
+
+Drag a connection port to blank space to immediately create text. Hold Alt/Option when releasing to choose text, a table, or an existing Markdown/PDF reference. Keyboard users can focus a port, press Shift+F10, then use arrow keys, Enter, or Escape. Canceling the menu or file picker leaves no node or edge. Mind-map quick-child behavior is unchanged.
+
+Alignment guides can show and snap equal gaps between neighboring cards on a shared row or column. Existing edge/center alignment takes priority; Alt temporarily bypasses drag snapping. Normal connection ports remain at least 30 screen pixels across at low zoom.
+
+Media excerpt cards share timestamp/source headers. Timestamps prefer a matching player on the current board, or an explicitly linked source board that is already open. Explicit node identity or excerpt relationships resolve multiple matches; ambiguous or absent matches fall back to the existing standalone workspace without creating a board player. Unloaded local media retains the requested time and waits for an explicit Play action. Existing draft protection remains in effect.

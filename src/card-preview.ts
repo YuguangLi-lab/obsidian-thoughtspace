@@ -3,6 +3,7 @@ import {releaseEditorResource} from './editor-cleanup';
 import {PreviewRenderScope} from './preview-render-scope';
 import {excerptPresentation,type ExcerptSource} from './excerpt-sources';
 import {markdownPreview} from './rendering';
+import {mountMediaReferencePresentation} from './media-reference-presentation';
 
 interface CardPreviewOptions {
  app:App;file:TFile;preview:HTMLElement;scope:Component;
@@ -38,6 +39,7 @@ export function renderCardPreview({app,file,preview,scope,enqueue,sources,ready,
    if(rendered.querySelector('.math')||rendered.querySelector('mjx-container'))await Promise.race([finishRenderMath(),cancelled,budget]);if(!alive())return;
    rendered.querySelectorAll('input').forEach(input=>{input.disabled=true;});
    rendered.querySelectorAll('p').forEach(p=>{if(Array.from(p.childNodes).every(node=>node.nodeType===3?!node.textContent?.trim():node.nodeType===1&&(node as Element).matches('a.tag')))p.remove();});
+   mountMediaReferencePresentation(rendered,app,file.path,dispose=>child.register(dispose));
    // Textless markup and processors awaiting later output are still real content.
    finishLoading();complete=true;ready(!body.trim());
   }catch{release();if(alive())error();}

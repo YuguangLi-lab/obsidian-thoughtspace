@@ -65,6 +65,23 @@ function key(el:Element,key:string,options:Record<string,unknown>={}){const even
 const current=(list:Element)=>list.querySelector('.is-active')?.getAttribute('data-search-node');
 const tick=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
 
+test('reopening the same board restores query filters selection and pagination without retaining note bodies',()=>{
+ const f=fixture(Array.from({length:90},(_,i)=>node(`n${i}`)));
+ f.input.value='正文';f.input.oninput?.();f.modal.clock.flush();
+ f.modal.kind.value='text';f.modal.color.value='green';f.modal.reset();f.modal.setActive(51);f.modal.list.scrollTop=190;f.modal.close();
+ const reopened=new BoardSearchModal(f.modal.app,f.host);reopened.onOpen();
+ assert.equal(reopened.input.value,'正文');assert.equal(reopened.kind.value,'text');assert.equal(reopened.color.value,'green');assert.equal(reopened.results[reopened.active].id,'n51');assert.equal(reopened.limit,80);assert.equal(reopened.list.scrollTop,190);assert.equal(reopened.bodies.size,0);
+ const other=fixture();assert.equal(other.input.value,'');assert.equal(other.modal.active,0);
+});
+test('closing before debounce retains the latest query and missing group filters fall back safely',()=>{
+ const f=fixture([node('alpha'),{...node('group','section'),title:'group'}]);f.modal.group.value='group';f.input.value='alpha';f.input.oninput?.();f.modal.close();f.board.nodes=f.board.nodes.filter(n=>n.id!=='group');
+ const reopened=new BoardSearchModal(f.modal.app,f.host);reopened.onOpen();assert.equal(reopened.input.value,'alpha');assert.equal(reopened.group.value,'');assert.deepEqual(reopened.results.map((n:any)=>n.id),['alpha']);
+});
+test('full-text selection restores after asynchronous body indexing, including session board replacement',async()=>{
+ const f=fixture([node('alpha','card'),node('beta','card')]);Object.assign(f.host,{context:{}});f.modal.full=true;const indexing=f.modal.refresh();await drain(f.clock);await indexing;f.input.value='完整正文';f.modal.reset();f.modal.setActive(1);f.modal.close();
+ const reopened=new BoardSearchModal(f.modal.app,{...f.host,board:()=>({...f.board,nodes:f.board.nodes.map(n=>({...n}))})});reopened.onOpen();await drain(reopened.clock);await reopened.indexTask;assert.equal(reopened.full,true);assert.equal(reopened.results[reopened.active].id,'beta');
+});
+
 test('ordinary arrow navigation updates only two existing rows without searching or rebuilding',()=>{
  const {input,list}=fixture(Array.from({length:400},(_,i)=>node(`n${i}`)));const before=list.children.slice(),emptyCalls=list.emptyCalls,searchCount=searches;
  for(const row of before)row.classWrites=0;key(input,'ArrowDown');

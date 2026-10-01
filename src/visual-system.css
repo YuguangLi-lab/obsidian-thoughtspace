@@ -61,6 +61,7 @@
 @media(prefers-reduced-motion:reduce){:is(.ts-root,.ts-journal,.ts-writing,.ts-settings) :is(button,select){transition:none!important;}}
 
 .ts-root .ts-alignment-guide{position:absolute;pointer-events:none;z-index:8;background:var(--interactive-accent);box-shadow:0 0 0 1px color-mix(in srgb,var(--background-primary) 45%,transparent);}
+.ts-root .ts-alignment-guide[data-spacing]:not([data-spacing=""])::after {content:attr(data-spacing);position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:1px 4px;background:var(--background-primary);color:var(--interactive-accent);font:11px/1.3 var(--font-interface);white-space:nowrap;border-radius:3px;}
 
 /* Content titles and zoom summaries follow Obsidian body typography. */
 .ts-root .ts-node {font-family:var(--font-text);}

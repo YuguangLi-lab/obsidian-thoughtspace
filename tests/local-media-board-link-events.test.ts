@@ -1,3 +1,5 @@
+import {mediaTimestampNode} from '../src/media-timestamp-target';
+import {parseOnlinePlayerUrl} from '../src/online-media-notes';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -33,13 +35,13 @@ function fixture(options:Options={}){
  const event={defaultPrevented:!!options.prevented,button:options.button??0,stopped:false,target:{closest:()=>options.missingLink?null:link},
   preventDefault(){this.defaultPrevented=true;},stopPropagation(){this.stopped=true;calls.stop++;}};
  const boardFile=new TFile(board),mediaFile=new TFile(file),files=new Map([[board,boardFile],[file,mediaFile]]);if(options.missingFile)files.delete(file);
- const deps={parseMediaSourceUrl,parseMediaPlayerUrl,TFile,isWorkspaceFile};
- const methods=method('  async openMediaSource(')+(source.includes('  async openMediaPlayerSource(')?method('  async openMediaPlayerSource('):'');
+ const deps={mediaTimestampNode,parseOnlinePlayerUrl,parseMediaSourceUrl,parseMediaPlayerUrl,TFile,isWorkspaceFile,BoardView:class{},VIEW:'board'};
+ const methods=method('  async openBoardMediaTimestamp(')+method('  async openMediaSource(')+(source.includes('  async openMediaPlayerSource(')?method('  async openMediaPlayerSource('):'');
  const Plugin=new Function(...Object.keys(deps),transformSync(`class Plugin{${methods}};return Plugin;`,{loader:'ts'}).code)(...Object.values(deps));
- const plugin=new Plugin(),app={vault:{getName:()=>vault,getAbstractFileByPath:(path:string)=>files.get(path)}};
+ const plugin=new Plugin(),app={workspace:{getLeavesOfType:()=>[]},vault:{getName:()=>vault,getAbstractFileByPath:(path:string)=>files.get(path)}};
  Object.assign(plugin,{app,openBoard:async()=>{},currentBoard:{file:boardFile,closed:false,seekMediaSource:(data:unknown)=>calls.seeks.push(data)},openMediaWorkspace:async(...args:unknown[])=>calls.players.push(args)});
  const act=(run:()=>unknown)=>pending.push(Promise.resolve().then(run).catch(error=>calls.errors.push(error.message)));
- new Function('Keymap','parseMediaSourceUrl','parseMediaPlayerUrl','act',compiled).call({stage:{},app,plugin,registerDomEvent:(_target:unknown,_type:string,handle:(e:unknown)=>void,settings?:{capture?:boolean})=>listeners.push({handle,capture:!!settings?.capture})},
+ new Function('Keymap','parseMediaSourceUrl','parseMediaPlayerUrl','act',compiled).call({stage:{},app,plugin,file:boardFile,session:{file:boardFile,board:{nodes:[{id:'video',kind:'video',file}],edges:[]}},seekMediaSource:(data:unknown)=>{if(options.missingFile)throw Error('来源媒体已移动或删除');calls.seeks.push(data);},registerDomEvent:(_target:unknown,_type:string,handle:(e:unknown)=>void,settings?:{capture?:boolean})=>listeners.push({handle,capture:!!settings?.capture})},
   {isModEvent:()=>!!options.modifier},parseMediaSourceUrl,parseMediaPlayerUrl,act);
  async function dispatch(){
   listeners.filter(listener=>listener.capture).forEach(listener=>listener.handle(event));
@@ -57,9 +59,9 @@ test('legacy external-video backlink is read before Obsidian loses spaces and li
  const f=fixture();await f.dispatch();assert.deepEqual(f.calls.errors,[]);assert.equal(f.calls.native,0);
  assert.deepEqual(f.calls.seeks,[{vault,board,node:'video',file,time}]);
 });
-test('legacy standalone external-video timestamp opens the exact reference at its recorded time',async()=>{
+test('legacy standalone external-video timestamp reuses the exact matching board source',async()=>{
  const f=fixture({href:legacyUrl(true)});await f.dispatch();assert.deepEqual(f.calls.errors,[]);assert.equal(f.calls.native,0);
- assert.deepEqual(f.calls.players,[[f.mediaFile,'tab',time]]);
+ assert.deepEqual(f.calls.seeks,[{vault,board,node:'video',file,time}]);assert.deepEqual(f.calls.players,[]);
 });
 for(const boundary of ['.markdown-embed','.internal-embed'])test(`local media links in ${boundary} preserve raw source identity`,async()=>{
  const f=fixture({boundary});await f.dispatch();assert.deepEqual(f.calls.errors,[]);assert.equal(f.calls.native,0);assert.equal(f.calls.seeks.length,1);

@@ -133,7 +133,7 @@ test('unconnected drag frames skip unused overlays while still positioning live 
 test('drag projections follow current grid and edge consumers and still clear stale endpoint ports',()=>{
  const f=fixture([node('a'),node('b',300)],new Set(['a']),false),oldPort={removed:0,title:'',removeClass(){this.removed++;},setAttribute(_name:string,value:string){this.title=value;}};
  f.view.selectedEdge='deleted';f.view.endpointPorts.set(oldPort,'拖动重接起点');f.move(20,30);
- assert.equal(f.stats.displayBuilds,0);assert.equal(oldPort.removed,1);assert.equal(oldPort.title,'拖动到目标建立连线，也可依次点击两端');assert.equal(f.view.endpointPorts.size,0);
+ assert.equal(f.stats.displayBuilds,0);assert.equal(oldPort.removed,1);assert.equal(oldPort.title,'拖动到目标连线；空白处松手添加文本，按住 alt 松手选择类型');assert.equal(f.view.endpointPorts.size,0);
  f.board.snapToGrid=true;f.move(30,40);assert.equal(f.stats.displayBuilds,1);assert.equal(f.snapBoards.at(-1)?.nodes[0].x,30);
  f.board.snapToGrid=false;f.board.edges.push({id:'ab',from:'a',to:'b',label:''});f.move(40,50);assert.equal(f.stats.displayBuilds,2);assert.equal(f.rendered.at(-1)?.nodes[0].x,40);assert.equal(f.view.snapTarget.classList.contains('is-visible'),false);
  f.board.edges=[];f.move(50,60);assert.equal(f.stats.displayBuilds,2);assert.equal(f.rendered.at(-1)?.edges.length,0);assert.equal(f.stats.edgeFrames,4);

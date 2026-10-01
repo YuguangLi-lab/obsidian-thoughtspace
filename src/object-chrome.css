@@ -47,6 +47,7 @@
 /* The 30 px connection target stays at the edge's exact anchor. Its idle mark
    is only 7 px; the larger plus appears on hover, focus or a connection target. */
 .ts-root .ts-node > .ts-connect-port:not(.ts-endpoint-port) {
+  transform:scale(var(--ts-port-scale,1)); transform-origin:center;
   color:transparent!important; background:transparent!important; box-shadow:none!important;
 }
 .ts-root .ts-node > .ts-connect-port:not(.ts-endpoint-port)::before {

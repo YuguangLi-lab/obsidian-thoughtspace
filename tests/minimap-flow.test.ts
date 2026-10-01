@@ -51,6 +51,17 @@ test('unchanged camera frames and cached full refreshes do not rewrite viewport 
  assert.equal(f.writes.length,0);assert.equal(f.svg(),svg);assert.equal(f.frame(),frame);assert.equal(f.calls.width,130);assert.equal(f.calls.height,130,'stage size remains live');
 });
 
+test('editing one interior card geometry reuses the miniature and updates only its changed rectangle',()=>{
+ const f=fixture([card('bounds',{x:0,y:0,width:1000,height:1000}),card('edited',{x:200,y:200})]),svg=f.svg(),rects=f.host.descendants('ts-map-node');
+ f.board.nodes[1].height+=10;f.render();assert.equal(f.svg(),svg);assert.deepEqual(f.host.descendants('ts-map-node'),rects);assert.deepEqual(f.writes.map(w=>[w.element,w.name]),[[rects[1],'height']]);
+ f.writes.length=0;f.board.nodes=f.board.nodes.map(n=>({...n}));f.board.nodes[1].height-=10;f.render();assert.equal(f.svg(),svg);assert.equal(f.writes.length,1,'undo replacement objects update existing geometry');
+});
+test('changed miniature bounds update all geometry edges and camera mapping without rebuilding',()=>{
+ const f=fixture([card('a'),card('b',{x:500})],[{id:'edge',from:'a',to:'b',label:''}]),svg=f.svg();f.board.nodes[1].x=900;f.render();assert.equal(f.svg(),svg);
+ const reference=fixture(structuredClone(f.board.nodes),structuredClone(f.board.edges));assert.deepEqual(f.host.descendants('ts-map-node').map(values),reference.host.descendants('ts-map-node').map(values));assert.deepEqual([...f.host.descendants('ts-map-edge')[0].attrs],[...reference.host.descendants('ts-map-edge')[0].attrs]);assert.deepEqual(values(f.frame()),values(reference.frame()));
+ f.svg().onclick!({clientX:400,clientY:216});reference.svg().onclick!({clientX:400,clientY:216});assert.deepEqual(f.board.viewport,reference.board.viewport);
+});
+
 test('horizontal and vertical camera movement update only the corresponding frame position',()=>{
  const f=fixture(),frame=f.frame(),before=values(frame),scale=Number(f.host.descendants('ts-map-node')[0].getAttribute('width'))/f.board.nodes[0].width;
  for(let i=1;i<=120;i++){f.board.viewport.x=i;f.camera();}

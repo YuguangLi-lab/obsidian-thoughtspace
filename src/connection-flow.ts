@@ -30,13 +30,13 @@ export function connectionTarget(nodes:readonly Card[],point:Point,exclude:strin
  const target=best&&bestDistance<=groupDistance?best:group;
  return target?{id:target.id,side:nearestSide(target,point)}:undefined;
 }
-/** A return to the source cancels a drag. Ports are thirty world pixels wide,
+/** A return to the source cancels a drag. Ports stay at least thirty screen pixels wide,
  * so their visible hit area can extend beyond the snap halo at higher zoom. */
 export function connectionSourceHit(source:Card,point:Point,zoom:number):boolean{
  if(!Number.isFinite(zoom)||zoom<=0||!Number.isFinite(point.x)||!Number.isFinite(point.y))return false;
  const displayed=sectionDisplayNode(source);
  if(connectionTarget([displayed],point,'',zoom,undefined,true))return true;
- for(const side of ['top','right','bottom','left'] as const){const port=connectionAnchor(displayed,side);if(Math.hypot(point.x-port.x,point.y-port.y)<=15+1e-7)return true;}
+ for(const side of ['top','right','bottom','left'] as const){const port=connectionAnchor(displayed,side);if(Math.hypot(point.x-port.x,point.y-port.y)<=15/Math.min(1,zoom)+1e-7)return true;}
  return false;
 }
 export function duplicateConnection(board:Board,edge:Pick<Edge,'from'|'to'|'fromSide'|'toSide'>,ignore?:string){

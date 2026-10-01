@@ -27,7 +27,7 @@
 .ts-root .ts-node.is-media-reference.is-fixed-reading .markdown-preview-view > .callout[data-callout="note"] {
   margin:0; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none;
 }
-.ts-root .ts-node.is-media-reference.is-fixed-reading .markdown-preview-view > .callout > .callout-title {
+.ts-root .ts-node.is-media-reference .ts-media-reference-header {
   display:flex; flex-wrap:nowrap; align-items:center; gap:10px; min-width:0;
   margin:0 0 12px; padding:0 0 10px; border-bottom:1px solid var(--background-modifier-border);
 }
@@ -51,14 +51,14 @@
 .ts-root .ts-node.is-media-reference :is(.ts-media-reference-time,.ts-media-reference-source):focus-visible {
   outline:2px solid var(--interactive-accent); outline-offset:2px; border-radius:4px;
 }
-.ts-root .ts-node.is-media-reference.is-fixed-reading .callout-content > p { margin-block:.65em; }
-.ts-root .ts-node.is-media-reference.is-fixed-reading .callout-content > :first-child { margin-top:0; }
-.ts-root .ts-node.is-media-reference.is-fixed-reading .callout-content > :last-child { margin-bottom:0; }
-.ts-root .ts-node.is-media-reference.is-fixed-reading .callout-content > p > .image-embed {
+.ts-root .ts-node.is-media-reference .ts-media-excerpt-content > p { margin-block:.65em; }
+.ts-root .ts-node.is-media-reference .ts-media-excerpt-content > :first-child { margin-top:0; }
+.ts-root .ts-node.is-media-reference .ts-media-excerpt-content > :last-child { margin-bottom:0; }
+.ts-root .ts-node.is-media-reference .ts-media-excerpt-content > p > .image-embed {
   display:flex; align-items:center; justify-content:center; width:100%; margin:0;
   background:color-mix(in srgb,var(--background-secondary) 55%,transparent); border-radius:6px;
 }
-.ts-root .ts-node.is-media-reference.is-fixed-reading .callout-content > p > .image-embed > img {
+.ts-root .ts-node.is-media-reference .ts-media-excerpt-content > p > .image-embed > img {
   display:block; width:auto; height:auto; max-width:100%; max-height:240px;
   margin:0 auto; border:0; border-radius:5px; object-fit:contain;
 }

@@ -46,7 +46,7 @@ function fixture(count=3){
  const port=(id:string,side:string)=>ports.get(id+':'+side)!;
  return{board,view,stats,renders,positions,ports,port,watchEdges,render:()=>view.renderEdges()};
 }
-function expectNeutral(port:Port){assert.equal(port.classes.has('ts-endpoint-port'),false);assert.equal(port.attributes.get('title'),'拖动到目标建立连线，也可依次点击两端');}
+function expectNeutral(port:Port){assert.equal(port.classes.has('ts-endpoint-port'),false);assert.equal(port.attributes.get('title'),'拖动到目标连线；空白处松手添加文本，按住 alt 松手选择类型');}
 
 test('camera frames without a direct edge selection skip every endpoint lookup',t=>{
  const f=fixture(1200);

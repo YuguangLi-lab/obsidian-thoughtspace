@@ -129,6 +129,7 @@ function fixture(kind:model.Card['kind']='card',patch:Partial<model.Card>={}){
  };
  const cardPreviewModule={exports:{} as typeof import('../src/card-preview')};
  const previewImports:Record<string,unknown>={obsidian:{Component:Scope,MarkdownRenderer:deps.MarkdownRenderer},'./editor-cleanup':{releaseEditorResource},'./excerpt-sources':{excerptPresentation},'./rendering':{markdownPreview}};
+ previewImports['./media-reference-presentation']={mountMediaReferencePresentation:()=>{}};
  const scopeModule={exports:{}};new Function('require','module','exports',transformSync(readFileSync('src/preview-render-scope.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>previewImports[name],scopeModule,scopeModule.exports);previewImports['./preview-render-scope']=scopeModule.exports;
  new Function('require','module','exports',transformSync(readFileSync('src/card-preview.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>previewImports[name],cardPreviewModule,cardPreviewModule.exports);
  const allDeps={...deps,...cardPreviewModule.exports};
