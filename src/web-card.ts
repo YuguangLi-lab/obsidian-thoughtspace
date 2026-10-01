@@ -44,7 +44,7 @@ export function renderWebCard(host:HTMLElement,node:Card,options:{open:()=>void;
  const preview=action(actions,'在卡片内预览网页','预览',togglePreview);
  if(options.online)action(actions,'打开在线视频笔记','笔记',()=>{if(iframe)togglePreview();options.online!.open();});
  action(actions,'复制网页链接','⧉',options.copy);action(actions,'修改网页链接','修改',options.edit).disabled=options.disabled;
- action(actions,'折叠网页','⌃',options.fold).disabled=options.disabled;
+ const fold=action(actions,'折叠网页','⌃',options.fold);fold.disabled=options.disabled;fold.classList.add('ts-icon-button','ts-content-fold');fold.setAttribute('aria-expanded','true');
  togglePreview();
  options.register(()=>{disposed=true;releaseVideo?.();releaseVideo=undefined;iframe?.remove();iframe=undefined;});
  host.ondblclick=e=>{if((e.target as Element).closest('button,iframe'))return;e.stopPropagation();options.open();};

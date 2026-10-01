@@ -1,6 +1,6 @@
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
-(async()=>{const b=await chromium.connectOverCDP('http://127.0.0.1:9237'),p=b.contexts()[0].pages()[0],out='dist/media-draft-native';assert.equal(await p.evaluate(()=>app.vault.adapter.basePath),path.resolve('../thoughtspace-qa-vault'));
+(async()=>{const b=await chromium.connectOverCDP('http://127.0.0.1:9237'),p=b.contexts()[0].pages().find(page=>page.url()==='app://obsidian.md/index.html'),out='dist/media-draft-native';assert.equal(await p.evaluate(()=>app.vault.adapter.basePath),path.resolve('../thoughtspace-qa-vault'));
  await p.getByRole('button',{name:'查看未保存的媒体摘录',exact:true}).click();
  await p.getByRole('heading',{name:'恢复未保存的媒体摘录'}).waitFor();assert.equal(await p.getByRole('textbox',{name:'暂存摘录正文',exact:true}).inputValue(),'APP RESTART SENTINEL');
  const notes=await p.evaluate(()=>app.vault.getMarkdownFiles().filter(f=>f.path.includes('/媒体笔记/')).map(f=>f.path));

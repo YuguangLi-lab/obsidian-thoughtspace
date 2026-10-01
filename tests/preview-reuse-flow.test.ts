@@ -20,6 +20,7 @@ import {mountCardControlHover} from '../src/card-control-hover';
 import {mountCardQuickActions} from '../src/card-quick-actions';
 import {mountCardReadingAffordance} from '../src/card-reading-affordance';
 import {cardControlLayout} from '../src/card-control-layout';
+import {foldControlObstacles} from '../src/fold-control-obstacles';
 import {mediaDimensions} from '../src/media-geometry';
 import {foldCards} from '../src/board-tools';
 import {releaseEditorResource} from '../src/editor-cleanup';
@@ -53,11 +54,12 @@ type Options=string|{cls?:string;text?:string;attr?:Record<string,string>;href?:
 class Dom {
  parent?:Dom;children:Dom[]=[];classes=new Set<string>();attrs=new Map<string,string>();dataset:Record<string,string>={};
  textContent='';root=false;clientWidth=1000;clientHeight=700;naturalWidth=640;naturalHeight=320;complete=false;
+ focused=false;focus(){this.focused=true;}
  disabled=false;onclick?:()=>void;onload:(()=>void)|null=null;onerror:(()=>void)|null=null;
  readonly style=Object.assign({left:'',top:'',width:'',height:'',borderStyle:'',borderWidth:'',fontFamily:'',fontSize:'',textAlign:'',transform:'',backgroundSize:'',backgroundPosition:''},{
   getPropertyValue:(key:string)=>this.css.get(key)||'',setProperty:(key:string,value:string)=>this.css.set(key,value),removeProperty:(key:string)=>this.css.delete(key)});
  readonly css=new Map<string,string>();
- readonly ownerDocument={win:{setTimeout:()=>0,clearTimeout:()=>{},createDiv:()=>new Dom()}};
+ readonly ownerDocument:{activeElement?:Dom;win:any}={win:{setTimeout:()=>0,clearTimeout:()=>{},createDiv:()=>new Dom()}};
  readonly classList={contains:(name:string)=>this.classes.has(name),add:(...names:string[])=>names.forEach(n=>this.classes.add(n)),remove:(...names:string[])=>names.forEach(n=>this.classes.delete(n)),toggle:(name:string,on?:boolean)=>{const active=on??!this.classes.has(name);this.toggleClass(name,active);return active;}};
  constructor(readonly tag='div',options:Options={}){const o=typeof options==='string'?{cls:options}:options;for(const cls of (o.cls||'').split(' ').filter(Boolean))this.classes.add(cls);this.textContent=o.text||'';for(const[k,v]of Object.entries(o.attr||{}))this.setAttribute(k,v);}
  get isConnected():boolean{return this.root||!!this.parent?.isConnected;}
@@ -78,10 +80,12 @@ class Dom {
  createEl(tag:string,options:Options={}){const child=new Dom(tag,options);child.parent=this;this.children.push(child);return child;}
  createDiv(options:Options={}){return this.createEl('div',options);}
  createSpan(options:Options={}){return this.createEl('span',options);}
+ append(...children:Dom[]){for(const child of children){child.remove();child.parent=this;this.children.push(child);}}
  remove(){if(this.parent)this.parent.children.splice(this.parent.children.indexOf(this),1);this.parent=undefined;}
  empty(){for(const c of [...this.children])c.remove();this.textContent='';}
  replaceChildren(...children:Dom[]){this.empty();for(const child of children){child.remove();child.parent=this;this.children.push(child);}}
  insertBefore(child:Dom,before:Dom|null){child.remove();const index=before?this.children.indexOf(before):-1;this.children.splice(index<0?this.children.length:index,0,child);child.parent=this;}
+ closest(selector:string):Dom|null{return this.matches(selector)?this:this.parent?.closest(selector)||null;}
  matches(selector:string){return selector.split(',').some(s=>s.startsWith('.')?s.slice(1).split('.').every(c=>this.classes.has(c)):s===this.tag);}
  querySelectorAll(selector:string):Dom[]{if(selector.startsWith(':scope > '))return this.children.filter(c=>c.matches(selector.slice(9)));return this.children.flatMap(c=>[...(c.matches(selector)?[c]:[]),...c.querySelectorAll(selector)]);}
  querySelector(selector:string){return this.querySelectorAll(selector)[0]||null;}
@@ -113,8 +117,8 @@ function fixture(kind:model.Card['kind']='card',patch:Partial<model.Card>={}){
  const world=new Dom();world.root=true;const svg=world.createEl('svg'),previewQueue=new Queue(),pdfPreviewQueue=new Queue();
  const mediaMounts:{options:MediaCardOptions;body:Dom;paused:number;disposed:number}[]=[];
  const session={board,blocked:false,file:new File('board.thoughtspace')};
- const deps={effectiveCardStyle,cardHeadingColors,mountCardControlHover,nodeHasBorder,textBlockPadding,...model,...keys,mountCardQuickActions,mountCardReadingAffordance,cardControlLayout,renderBranchControls:branchModule.exports.renderBranchControls,branchState,branchRenderSnapshot,childConnectionCandidates:(board:model.Board,roots?:ReadonlySet<string>)=>{calls.childCandidates++;return childConnectionCandidates(board,roots);},sectionDisplayNode,visibleNodes,viewportRect,markdownPreview,visibleGridSize,textFontFamily,textFitsContent,cardDisplayTitle,mediaDimensions,
-  TFile:File,Component:Scope,Element:Dom,getAllTags:(cache:{tags?:string[]})=>{calls.tags++;return cache.tags||null;},setIcon:()=>{},
+ const deps={foldControlObstacles,effectiveCardStyle,cardHeadingColors,mountCardControlHover,nodeHasBorder,textBlockPadding,...model,...keys,mountCardQuickActions,mountCardReadingAffordance,cardControlLayout,renderBranchControls:branchModule.exports.renderBranchControls,branchState,branchRenderSnapshot,childConnectionCandidates:(board:model.Board,roots?:ReadonlySet<string>)=>{calls.childCandidates++;return childConnectionCandidates(board,roots);},sectionDisplayNode,visibleNodes,viewportRect,markdownPreview,visibleGridSize,textFontFamily,textFitsContent,cardDisplayTitle,mediaDimensions,
+  act:()=>{},TFile:File,Component:Scope,Element:Dom,getAllTags:(cache:{tags?:string[]})=>{calls.tags++;return cache.tags||null;},setIcon:()=>{},
   button:(host:Dom,label:string,_icon:string,fn:()=>void,cls='')=>{const el=host.createEl('button',{cls,attr:{'aria-label':label}});el.createSpan();el.createSpan({text:label});el.onclick=fn;return el;},
   bindCardTitle:()=>()=>{},readProperties:(fm:Record<string,unknown>)=>({status:fm.thoughtspace_status}),statuses:{done:'完成'},isOverdue:()=>false,localDay:()=>'',
   textExcerptPresentation:(body:string)=>({body,sources:[]}),excerptPresentation:(body:string)=>({body,sources:[]}),renderTextPreview:(body:Dom,text:string)=>{body.appendText(text);body.dataset.mathStatus='none';},fitTextNode:(node:model.Card)=>{node.height=420;},remoteImageUrl:()=>undefined,
@@ -129,7 +133,7 @@ function fixture(kind:model.Card['kind']='card',patch:Partial<model.Card>={}){
  new Function('require','module','exports',transformSync(readFileSync('src/card-preview.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>previewImports[name],cardPreviewModule,cardPreviewModule.exports);
  const allDeps={...deps,...cardPreviewModule.exports};
  const View=new Function(...Object.keys(allDeps),transformSync(`class View{${methods}};return View`,{loader:'ts'}).code)(...Object.values(allDeps));
- const view=new View();view.hostedUploads=new Set();Object.assign(view,{session,world,svg,stage:new Dom(),contentEl:new Dom(),zoomLabel:new Dom(),selected:new Set(),positions:new Map(),nodeScopes:new Map(),nodeKeys:new Map(),mediaStates:new Map(),mediaPlayers:new Map(),mediaIdentities:new Map(),onlineBoardPlayers:new Map(),onlineBoardStates:new Map(),pdfTotals:new Map(),previewQueue,pdfPreviewQueue,
+ const view=new View();view.hostedUploads=new Set();Object.assign(view,{cardToolbarObstacles:[],session,world,svg,stage:new Dom(),contentEl:new Dom(),zoomLabel:new Dom(),selected:new Set(),positions:new Map(),nodeScopes:new Map(),nodeKeys:new Map(),mediaStates:new Map(),mediaPlayers:new Map(),mediaIdentities:new Map(),onlineBoardPlayers:new Map(),onlineBoardStates:new Map(),pdfTotals:new Map(),previewQueue,pdfPreviewQueue,
   plugin:{settings:{gridStep:24,previewLimit:20,detailZoom:.4},pauseOnlineBoardPlayers(){},mediaWorkspace:{playback:new MediaPlayback(),identity:(file:any)=>({path:file.path,mtime:file.stat.mtime,size:file.stat.size})}},
   app:{vault:{getAbstractFileByPath:(path:string)=>files.get(path),getResourcePath:(file:File)=>file.path,async cachedRead(){calls.read++;return 'Rendered **note**';}},metadataCache:{getFileCache:()=>{calls.metadata++;return metadata;}}},
   displayBoard:()=>board,updateBackToContent(){},syncCanvasControls(){},updateObjectFilter(){},renderSaveStatus(){},renderNavigation(){},renderEdges(){},renderInspector(){},renderMinimap(){},addPorts(){},
@@ -226,7 +230,7 @@ test('missing-source expanded single-button docks stay inside a narrow stage',()
   const el=f.element(),display=sectionDisplayNode(f.board.nodes[0]),viewport=f.board.viewport;
   const scale=Number(el.css.get('--ts-control-scale')),right=parseFloat(el.css.get('--ts-control-right')!);
   assert.equal(el.dataset.controlCount,'1');assert.ok(Number.isFinite(scale)&&Number.isFinite(right));
-  const expected=cardControlLayout(display,viewport,48,320,1);
+  const expected=cardControlLayout(display,viewport,48,320,1,{width:36,height:36,screenGap:24});
   assert.equal(scale,expected.scale);assert.equal(right,expected.right);
   // Reconstruct screen bounds from the published CSS variables. No DOM rect
   // measurement is claimed by this fixture; a single action occupies 36 px.
@@ -528,4 +532,22 @@ for(const pending of [false,true])test(`fixed-note decorative style switching pr
  assert.equal(f.scope(),scope);assert.equal(scope.unloaded,0);assert.equal(f.element().querySelector('.ts-card-preview'),body);assert.equal(embedded.isConnected,true);
  assert.equal(f.previewQueue.added,previews);assert.equal(element.dataset.cardStyle,'paper');assert.equal(element.querySelectorAll('.ts-card-paperclip').length,1);
  await f.drain();assert.equal(f.calls.read,1);assert.equal(f.calls.markdown,1);assert.equal(f.calls.cardFit,0);
+});
+
+for(const kind of ['pdf','audio','video','board','section'] as const)test(`${kind}: exterior content fold preserves accessible state and keyboard focus across remount`,()=>{
+ const f=fixture(kind);const dock=f.element().querySelector('.ts-fold-actions'),button=dock?.querySelector('.ts-content-fold');
+ assert.ok(dock&&button);assert.equal(dock.parent,f.element());assert.equal(button.getAttribute('aria-expanded'),'true');
+ assert.equal(f.element().querySelector('.ts-node-header')?.contains(button),false);
+ f.element().ownerDocument.activeElement=button;
+ f.replace(kind==='section'?{sectionFolded:true}:{collapsed:true});
+ const unfold=f.element().querySelector('.ts-compact-unfold');assert.ok(unfold?.focused,'keyboard activation keeps focus on the inverse action');
+ f.element().ownerDocument.activeElement=unfold;
+ f.replace(kind==='section'?{sectionFolded:false}:{collapsed:false});
+ assert.ok(f.element().querySelector('.ts-content-fold')?.focused);
+ f.replace({locked:true});assert.equal(f.element().querySelector('.ts-content-fold')?.disabled,true);
+});
+
+for(const style of ['band','paper','index','sticky'] as const)test(`text ${style} changes paint without replacing rendered content or queueing a new preview`,async()=>{
+ const f=fixture('text',{autoSize:false,text:'# Existing Markdown\n\n**Keep this content**'});await f.drain();const el=f.element(),scope=f.scope(),body=el.querySelector('.ts-text-body'),before=f.previewQueue.added;
+ f.replace({cardStyle:style});assert.equal(f.element(),el);assert.equal(f.element().querySelector('.ts-text-body'),body);assert.equal(el.dataset.cardStyle,style);assert.equal(f.scope(),scope);assert.equal(scope.unloaded,0);assert.equal(f.previewQueue.added,before);
 });

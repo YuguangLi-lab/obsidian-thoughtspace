@@ -15,9 +15,10 @@ const branchModule={exports:{} as typeof import('../src/branch-controls')};
 new Function('require','module','exports',transformSync(readFileSync('src/branch-controls.ts','utf8'),{loader:'ts',format:'cjs'}).code)(
  (name:string)=>{assert.equal(name,'obsidian');return{setIcon:()=>{}};},branchModule,branchModule.exports);
 const render=new Function('n','el','detail','branches','button','TFile','cardDisplayTitle','childCandidates','renderBranchControls','setIcon','textExcerptPresentation','mountCardControlHover',
- transformSync(`const fileInfo=undefined,scope={register:()=>{}};for(const node of [n]){${source.slice(start,optionsEnd)}${source.slice(controlsStart,end)}}`,{loader:'ts'}).code);
+ transformSync(`const fileInfo=undefined,restoreFoldFocus=false,scope={register:()=>{}};for(const node of [n]){${source.slice(start,optionsEnd)}${source.slice(controlsStart,end)}}`,{loader:'ts'}).code);
 class El{
  ownerDocument={defaultView:null};
+ addEventListener(){}removeEventListener(){}
  children:El[]=[];classes=new Set<string>();attrs:Record<string,string>={};classList={toggle:()=>{}};
  constructor(public cls=''){}
  createEl(_tag:string,options:any={}){const el=new El(typeof options==='string'?options:options.cls);el.attrs={...options.attr};this.children.push(el);return el;}

@@ -1,127 +1,127 @@
 /* Optional Markdown note surfaces. Load after card-surfaces and inline-editor.
    Document metrics, node geometry, connection ports and action docks stay owned
    by their existing rules. A stale transparent/fill class cannot erase a style. */
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style],
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style]:not(.is-compact-fold),
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style].is-compact-fold.has-card-fill:not(.is-transparent) {
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style],
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style]:not(.is-compact-fold),
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style].is-compact-fold.has-card-fill:not(.is-transparent) {
   background:var(--ts-styled-surface,var(--background-primary))!important;
   box-shadow:none!important; backdrop-filter:none!important;
 }
 
 /* The title is ordinary flow content: preview and live editor share its offset. */
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] > .ts-node-header {
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="band"] > .ts-node-header {
   display:flex; flex:none; align-items:flex-start; gap:8px; min-width:0;
   padding:10px 16px!important; border:0!important; border-radius:10px 10px 0 0!important;
   background:var(--ts-card-heading-color,var(--ts-tone))!important;
   color:var(--ts-card-heading-ink,var(--text-on-accent)); box-shadow:none!important;
   font-family:var(--ts-card-body-font,var(--font-text)); font-size:var(--ts-card-body-size,14px);
 }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] > .ts-node-header > span:first-child:not(.ts-card-note-title) {
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="band"] > .ts-node-header > span:first-child:not(.ts-card-note-title) {
   display:inline-flex; flex:none; margin-top:2px; color:inherit;
 }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] > .ts-node-header :is(svg,.ts-card-note-title) { color:inherit; }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] .ts-card-note-title {
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="band"] > .ts-node-header :is(svg,.ts-card-note-title) { color:inherit; }
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="band"] .ts-card-note-title {
   min-width:0; overflow-wrap:anywhere; white-space:normal;
 }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] .ts-card-note-title:focus-visible {
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="band"] .ts-card-note-title:focus-visible {
   outline:2px solid currentColor; outline-offset:2px; box-shadow:none;
 }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] input.ts-card-title-input {
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="band"] input.ts-card-title-input {
   color:var(--text-normal); background:var(--background-primary); caret-color:var(--text-normal);
 }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] .ts-card-title-error {
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="band"] .ts-card-title-error {
   padding:2px 4px; border-radius:3px; background:var(--background-primary); color:var(--text-error);
 }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"].is-folded > .ts-node-header { border-radius:10px!important; }
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="band"].is-folded > .ts-node-header { border-radius:10px!important; }
 
 /* Compact and low-detail cards use the same band, without introducing a header
    or changing their display-projected width and height. */
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"]:is(.is-compact-fold,.ts-node-summary) {
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="band"]:is(.is-compact-fold,.ts-node-summary) {
   --ts-styled-surface:var(--ts-card-heading-color,var(--ts-tone));
 }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] > :is(.ts-compact-fold-row,.ts-summary-title),
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] .ts-compact-fold-row > :is(.ts-compact-fold-icon,.ts-compact-inline-unfold) {
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="band"] > :is(.ts-compact-fold-row,.ts-summary-title),
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="band"] .ts-compact-fold-row > :is(.ts-compact-fold-icon,.ts-compact-inline-unfold) {
   color:var(--ts-card-heading-ink,var(--text-on-accent));
 }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="band"] .ts-compact-inline-unfold:is(:hover,:focus-visible) {
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="band"] .ts-compact-inline-unfold:is(:hover,:focus-visible) {
   background:color-mix(in srgb,var(--ts-card-heading-ink,var(--text-on-accent)) 14%,transparent);
 }
 
 /* Paper keeps the normal content-first layout. The inner rule and clip paint
    only; custom outer border width/style/color and selection outlines still win. */
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"] {
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="paper"] {
   --ts-paper-line:color-mix(in srgb,var(--text-normal) 58%,var(--ts-styled-surface,var(--background-primary)));
   --ts-paper-clip:color-mix(in srgb,var(--text-muted) 75%,var(--ts-tone));
   border-radius:2px!important;
 }
 /* The Background control tints paper just as it tints a regular note. Keep the
    gap between the two rules on the same surface, including in the dark theme. */
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"].has-card-fill {
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="paper"].has-card-fill {
   --ts-styled-surface:color-mix(in srgb,var(--ts-card-fill) 38%,var(--background-primary));
 }
-.theme-dark .ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"].has-card-fill {
+.theme-dark .ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="paper"].has-card-fill {
   --ts-styled-surface:color-mix(in srgb,var(--ts-card-fill) 20%,var(--background-primary));
 }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"]:not(.has-custom-border) { border-color:transparent!important; }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"].has-custom-border { --ts-paper-line:var(--ts-tone); }
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="paper"]:not(.has-custom-border) { border-color:transparent!important; }
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="paper"].has-custom-border { --ts-paper-line:var(--ts-tone); }
 /* Keep ::after available for the shared locked-card status. */
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"]::before {
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="paper"]::before {
   content:''; position:absolute; inset:4px; z-index:1; border:1px solid var(--ts-paper-line);
   border-radius:1px; pointer-events:none;
   box-shadow:0 0 0 3px var(--ts-styled-surface,var(--background-primary)),0 0 0 4px var(--ts-paper-line);
 }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"].has-custom-border::before { box-shadow:none; }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"] > .ts-card-paperclip {
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="paper"].has-custom-border::before { box-shadow:none; }
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="paper"] > .ts-card-paperclip {
   position:absolute; top:-12px; left:20px; z-index:2; display:flex; align-items:center; justify-content:center;
   width:22px; height:28px; color:var(--ts-paper-clip); pointer-events:none; user-select:none;
 }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"] > .ts-card-paperclip svg {
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="paper"] > .ts-card-paperclip svg {
   width:22px; height:28px; stroke-width:1.35; transform:rotate(-12deg); pointer-events:none;
 }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"].is-compact-fold > .ts-card-paperclip {
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="paper"].is-compact-fold > .ts-card-paperclip {
   top:-10px; left:12px; width:15px; height:18px;
 }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="paper"].is-compact-fold > .ts-card-paperclip svg { width:15px; height:18px; }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style] > .ts-summary-title {
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="paper"].is-compact-fold > .ts-card-paperclip svg { width:15px; height:18px; }
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style] > .ts-summary-title {
   font-family:var(--ts-card-body-font,var(--font-text));
 }
 
 /* Index cards keep the accent at the edge, leaving the document itself quiet.
    Painted rules never change bounds, cover content or intercept pointer input. */
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="index"] {
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="index"] {
   border-radius:6px!important;
 }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="index"].has-card-fill {
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="index"].has-card-fill {
   --ts-styled-surface:color-mix(in srgb,var(--ts-card-fill) 12%,var(--background-primary));
 }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="index"]::before {
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="index"]::before {
   content:''; position:absolute; inset:0 auto 0 0; width:4px; z-index:1;
   border-radius:5px 0 0 5px; background:var(--ts-card-heading-color,var(--ts-tone)); pointer-events:none;
 }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="index"] > .ts-node-header {
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="index"] > .ts-node-header {
   display:flex; flex:none; min-width:0; margin:0 16px; padding:12px 0 10px!important;
   border-bottom:1px solid var(--ts-card-surface-line)!important; background:transparent!important;
   font-family:var(--ts-card-body-font,var(--font-text)); font-size:var(--ts-card-body-size,14px); font-weight:600;
 }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="index"].is-folded > .ts-node-header { border-bottom:0!important; }
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="index"].is-folded > .ts-node-header { border-bottom:0!important; }
 
 /* Sticky notes use the selected card color in both themes. The fold sits inside
    the existing 16px document inset, so the editor and preview keep their metrics. */
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="sticky"] {
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="sticky"] {
   --ts-styled-surface:color-mix(in srgb,var(--ts-card-heading-color,var(--ts-tone)) 16%,var(--background-primary));
   --ts-sticky-fold:color-mix(in srgb,var(--ts-card-heading-color,var(--ts-tone)) 32%,var(--background-primary));
   border-radius:2px 2px 6px 2px!important;
 }
-.theme-dark .ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="sticky"] {
+.theme-dark .ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="sticky"] {
   --ts-styled-surface:color-mix(in srgb,var(--ts-card-heading-color,var(--ts-tone)) 24%,var(--background-primary));
 }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="sticky"]::before {
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="sticky"]::before {
   content:''; position:absolute; top:0; right:0; width:14px; height:14px; z-index:1;
   background:var(--ts-sticky-fold); clip-path:polygon(0 0,100% 100%,0 100%);
   pointer-events:none;
 }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="sticky"] > .ts-node-header { padding-right:24px!important; }
-.ts-root .ts-main .ts-world > .ts-node.ts-card[data-card-style="sticky"].is-compact-fold::before { width:8px; height:8px; }
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="sticky"] > .ts-node-header { padding-right:24px!important; }
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="sticky"].is-compact-fold::before { width:8px; height:8px; }
 
 /* Six previews fit in one desktop row, then three or two columns in a pane. */
 .ts-root .ts-card-style-picker {
@@ -196,4 +196,11 @@
   .ts-root .ts-floating-formatbar .ts-appearance-group[data-appearance-panel="card"] {
     flex:1 1 auto; flex-wrap:wrap; max-width:100%;
   }
+}
+
+/* Text has no separate filename heading. A painted top band uses the same
+   palette without adding a title or changing content/editor measurements. */
+.ts-root .ts-main .ts-world > .ts-node.ts-text[data-card-style="band"]:not(.is-compact-fold):not(.ts-node-summary)::before {
+  content:''; position:absolute; inset:0 0 auto; height:6px; z-index:1; pointer-events:none;
+  border-radius:5px 5px 0 0; background:var(--ts-card-heading-color,var(--ts-tone));
 }

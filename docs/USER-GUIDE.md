@@ -205,11 +205,15 @@ For a fresh table, use **插入内容 → 表格**, right-click empty space and 
 
 ### Card styles
 
-Select one or more Markdown cards and open **卡片** (Card) in the top toolbar to choose **Transparent / Solid / Color title band / Double-line paper / Index / Sticky**. The title band displays the board-specific card title. Use **背景 → 卡片颜色** (Background → Card color) for a preset or custom band color. Double-click the title to edit the card label without renaming the note. Leaving the title unchanged creates no fixed alias. The paper style adds a fine double frame and a decorative paperclip; its background color also tints the paper and the gap between the frame lines. Fixed-size cards keep their reading position when switching styles.
+Select one or more Markdown cards or text boxes and open **卡片** (Card) in the top toolbar to choose **Transparent / Solid / Color title band / Double-line paper / Index / Sticky**. The title band displays the board-specific card title. Use **背景 → 卡片颜色** (Background → Card color) for a preset or custom band color. Double-click the title to edit the card label without renaming the note. Leaving the title unchanged creates no fixed alias. The paper style adds a fine double frame and a decorative paperclip; its background color also tints the paper and the gap between the frame lines. Fixed-size cards keep their reading position when switching styles.
 
 **Index** adds a colored spine and a separate title for structured notes. **Sticky** keeps the content-first layout with a softly tinted surface and a small folded corner. Both follow the background color, preserve custom borders and support dark themes. Previews reflect the selected color when it is shared by all selected cards, and wrap in narrow panels. Mixed-color selections use the theme accent for previews without changing the cards' colors.
 
-Under **Settings → ThoughtSpace → Cards & notes → Default card style** (**卡片与笔记 → 默认卡片样式**), choose the default for new Markdown cards, including notes dragged or inserted onto a board. Existing cards keep their appearance; images, PDFs, web cards, text and tables are unchanged. Styles support board undo, style copy/paste and persistence, while retaining the Markdown draft, fold state and Obsidian body font.
+Under **Settings → ThoughtSpace → Cards & notes → Default card style** (**卡片与笔记 → 默认卡片样式**), choose the default for new Markdown cards, including notes dragged or inserted onto a board. Existing cards keep their appearance; images, PDFs, web cards and newly created text keep their existing defaults. Styles support board undo, style copy/paste and persistence, while retaining the Markdown draft, fold state and Obsidian body font.
+
+Text boxes can use all six styles without becoming note files. Their color band has no file title. Mixed note/text selections share the picker; locked objects cannot change styles.
+
+**Downgrade compatibility:** Decorative text styles (band, paper, index and sticky) require ThoughtSpace 1.3.26 or later. Version 1.3.25 reports a read error and refuses to open boards containing them; it does not convert them. Before downgrading, use the newer version to switch these text boxes to Transparent or Solid and save. Keep a board backup.
 
 <a id="media-import"></a>
 

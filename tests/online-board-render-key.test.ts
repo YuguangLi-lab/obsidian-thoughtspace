@@ -22,7 +22,7 @@ const reuseMounted=new Function('n','childCount','branchOptions','detail','fileI
 const detailIds=new Function('visible','b','viewportOnly',code(allocation+'return detailIds;'));
 function fixture(url=bili){
  const video=webCard(url,'video',{x:100,y:100}),player={time:43.125,paused:false,disposed:false},calls={unloads:0,removed:0,branches:0,created:0};
- const mounted={dataset:{mediaBranches:''},classList:{toggle(){}},querySelector:()=>({remove:()=>{calls.branches++;}}),toggleClass(){},remove(){calls.removed++;}};
+ const mounted={ownerDocument:{activeElement:null},dataset:{mediaBranches:''},classList:{toggle(){}},querySelector:()=>({remove:()=>{calls.branches++;}}),toggleClass(){},remove(){calls.removed++;}};
  const TFile=class{},Component=class{constructor(){calls.created++;}load(){}};
  const view={session:{blocked:false},selected:new Set(['video']),relatedFocus:undefined,filterMatches:undefined,
   positions:new Map([['video',mounted]]),nodeKeys:new Map<string,string>(),mediaPlayers:new Map(),

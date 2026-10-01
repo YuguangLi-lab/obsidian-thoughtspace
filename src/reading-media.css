@@ -1,0 +1,64 @@
+/* Reading hierarchy inside existing geometry. Automatic sizing retains its
+   established text metrics; optional surfaces and user colors keep ownership. */
+.ts-root .ts-node.is-fixed-reading > .ts-card-preview .ts-card-preview-content > p {
+  margin-block:.85em;
+}
+.ts-root .ts-node.is-fixed-reading > .ts-card-preview .ts-card-preview-content > :first-child { margin-top:0; }
+.ts-root .ts-node.is-fixed-reading > .ts-card-preview .ts-card-preview-content > :last-child { margin-bottom:0; }
+.ts-root .ts-node.is-fixed-reading > .ts-card-preview :is(h1,h2,h3,h4,h5,h6),
+.ts-root .ts-node.is-fixed-reading > .ts-text-body > .ts-text-markdown > :is(h1,h2,h3,h4,h5,h6) {
+  margin-block:1em .45em; letter-spacing:-.015em;
+}
+.ts-root .ts-node.is-fixed-reading > .ts-card-preview :is(h1,h2,h3,h4,h5,h6):first-child,
+.ts-root .ts-node.is-fixed-reading > .ts-text-body > .ts-text-markdown > :is(h1,h2,h3,h4,h5,h6):first-child { margin-top:0; }
+.ts-root .ts-node.is-fixed-reading > .ts-card-meta { gap:6px; }
+.ts-root .ts-node.is-fixed-reading > .ts-card-meta > :is(.ts-tag,.ts-state-pill) {
+  font-size:11px!important; line-height:1.45; border-color:transparent; background:transparent; padding:2px 5px;
+}
+.ts-root .ts-node.is-fixed-reading > .ts-card-meta > .ts-tag:is(:hover,:focus-visible) { background:var(--background-modifier-hover); }
+
+/* A saved media block is one reference surface, not nested quote cards. */
+.ts-root .ts-node.is-media-reference.is-fixed-reading .ts-text-markdown > p > .markdown-embed {
+  border:0; padding:0; margin:0; min-width:0;
+}
+.ts-root .ts-node.is-media-reference.is-fixed-reading .markdown-embed-content > .markdown-preview-view {
+  padding:0; margin:0; min-width:0; font:inherit; color:inherit;
+}
+.ts-root .ts-node.is-media-reference.is-fixed-reading .markdown-preview-view > .callout[data-callout="note"] {
+  margin:0; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none;
+}
+.ts-root .ts-node.is-media-reference.is-fixed-reading .markdown-preview-view > .callout > .callout-title {
+  display:flex; flex-wrap:nowrap; align-items:center; gap:10px; min-width:0;
+  margin:0 0 12px; padding:0 0 10px; border-bottom:1px solid var(--background-modifier-border);
+}
+.ts-root .ts-node.is-media-reference.is-fixed-reading .markdown-preview-view > .callout > .callout-title > .callout-icon { display:none; }
+.ts-root .ts-node.is-media-reference .callout-title:has(> .ts-media-reference-source) > .callout-title-inner { flex:0 0 auto; min-width:0; }
+.ts-root .ts-node.is-media-reference .ts-media-reference-time {
+  display:inline-flex; align-items:center; gap:5px; padding:3px 7px; border-radius:5px;
+  background:color-mix(in srgb,var(--ts-accent) 9%,transparent); color:var(--ts-accent);
+  font:600 12px/1.5 var(--font-interface); font-variant-numeric:tabular-nums; white-space:nowrap;
+  text-decoration:none; background-image:none;
+}
+.ts-root .ts-node.is-media-reference .ts-media-reference-time::before { content:'↗'; font-weight:400; }
+.ts-root .ts-node.is-media-reference .ts-media-reference-source {
+  display:block; flex:1 1 auto; min-width:0; max-width:100%; padding:3px 0;
+  font:400 11px/1.5 var(--font-interface); color:var(--text-muted); text-decoration:none;
+  text-align:end; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+}
+.ts-root .ts-node.is-media-reference :is(.ts-media-reference-time,.ts-media-reference-source):hover {
+  color:var(--text-accent); text-decoration:underline; text-underline-offset:3px;
+}
+.ts-root .ts-node.is-media-reference :is(.ts-media-reference-time,.ts-media-reference-source):focus-visible {
+  outline:2px solid var(--interactive-accent); outline-offset:2px; border-radius:4px;
+}
+.ts-root .ts-node.is-media-reference.is-fixed-reading .callout-content > p { margin-block:.65em; }
+.ts-root .ts-node.is-media-reference.is-fixed-reading .callout-content > :first-child { margin-top:0; }
+.ts-root .ts-node.is-media-reference.is-fixed-reading .callout-content > :last-child { margin-bottom:0; }
+.ts-root .ts-node.is-media-reference.is-fixed-reading .callout-content > p > .image-embed {
+  display:flex; align-items:center; justify-content:center; width:100%; margin:0;
+  background:color-mix(in srgb,var(--background-secondary) 55%,transparent); border-radius:6px;
+}
+.ts-root .ts-node.is-media-reference.is-fixed-reading .callout-content > p > .image-embed > img {
+  display:block; width:auto; height:auto; max-width:100%; max-height:240px;
+  margin:0 auto; border:0; border-radius:5px; object-fit:contain;
+}

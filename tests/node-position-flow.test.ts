@@ -10,10 +10,11 @@ import {sectionDisplayNode} from '../src/sections';
 import {textFontFamily} from '../src/text-tools';
 import {syncNodeGeometry} from '../src/node-render-key';
 import {cardControlLayout} from '../src/card-control-layout';
+import {foldControlObstacles} from '../src/fold-control-obstacles';
 
 const source=readFileSync(process.env.POSITION_SOURCE||'src/main.ts','utf8'),start=source.indexOf('  private positionNode('),end=source.indexOf('  private applyInlineSize(',start);
 assert.ok(start>0&&end>start);
-const deps={effectiveCardStyle,cardHeadingColors,nodeHasBorder,textBlockPadding,cardFillHex,colors,sectionDisplayNode,textFontFamily,syncNodeGeometry,cardControlLayout};
+const deps={foldControlObstacles,effectiveCardStyle,cardHeadingColors,nodeHasBorder,textBlockPadding,cardFillHex,colors,sectionDisplayNode,textFontFamily,syncNodeGeometry,cardControlLayout};
 const View=new Function(...Object.keys(deps),transformSync(`class View{${source.slice(start,end)}};return View`,{loader:'ts'}).code)(...Object.values(deps));
 const node=(patch:Partial<Card>={}):Card=>({id:'node',kind:'card',file:'note.md',x:20,y:30,width:300,height:180,color:'blue',transparent:true,fillColor:'blue',...patch});
 function surface(){
@@ -44,12 +45,12 @@ test('120 horizontal drag frames only update the changed coordinate',()=>{
 
 test('control placement uses cached stage dimensions while tracking the current viewport without DOM reads',()=>{
  const view=new View(),f=surface(),n=node({x:360,y:90}),viewport={x:0,y:0,zoom:1};
- view.session={board:{viewport}};view.controlStageSize={width:480,height:320};f.element.dataset.controlCount='1';
+ view.cardToolbarObstacles=[];view.session={board:{viewport}};view.controlStageSize={width:480,height:320};f.element.dataset.controlCount='1';
  view.stage={get clientWidth(){throw Error('positionNode must not read stage width');},get clientHeight(){throw Error('positionNode must not read stage height');}};
  const placements:{scale:string|undefined;top:string|undefined;right:string|undefined}[]=[];
  for(const next of [{x:0,y:0,zoom:1},{x:-120,y:30,zoom:.5},{x:-400,y:-50,zoom:1.5}]){
   Object.assign(viewport,next);view.positionNode(n,f.element);
-  const expected=cardControlLayout(n,viewport,480,320,1);
+  const expected=cardControlLayout(n,viewport,480,320,1,{width:36,height:36,screenGap:24});
   const placement={scale:f.properties.get('--ts-control-scale'),top:f.properties.get('--ts-control-top'),right:f.properties.get('--ts-control-right')};
   assert.deepEqual(placement,{scale:String(expected.scale),top:`${expected.top}px`,right:`${expected.right}px`});
   placements.push(placement);
@@ -62,10 +63,10 @@ test('control placement uses cached stage dimensions while tracking the current 
 test('positioned docks honor cached label-button widths for notes and text',()=>{
  for(const [kind,count,width] of [['card',5,236],['text',3,136]] as const){
   const view=new View(),f=surface(),n=node({kind,x:20,y:150,width:100}),viewport={x:0,y:0,zoom:1};
-  view.session={board:{viewport}};view.controlStageSize={width:480,height:320};
+  view.cardToolbarObstacles=[];view.session={board:{viewport}};view.controlStageSize={width:480,height:320};
   f.element.dataset.controlCount=String(count);f.element.dataset.controlWidth=String(width);
   view.positionNode(n,f.element);
-  const expected=cardControlLayout(n,viewport,480,320,count,{width,height:36,topReserve:60});
+  const expected=cardControlLayout(n,viewport,480,320,count,{width,height:36,topReserve:60,screenGap:24});
   assert.equal(f.properties.get('--ts-control-right'),`${expected.right}px`);
   assert.equal(f.properties.get('--ts-control-top'),`${expected.top}px`);
   assert.notEqual(expected.right,cardControlLayout(n,viewport,480,320,count).right,'labelled actions need more width than icon-only defaults');

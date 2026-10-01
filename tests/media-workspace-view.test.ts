@@ -136,6 +136,18 @@ test('an unsaved draft blocks media and placement changes and keeps the old deco
  assert.equal(v.currentFile(),f.a);assert.equal(v.getState().placement,'tab');assert.equal(f.mounts[0].disposed,0);assert.equal(f.opens.length,0);assert.match(notices.at(-1)!,/先保存或清空/);await v.onClose();
 });
 
+test('Save button preserves the specific failure message and retries the same screenshot draft',async()=>{
+ const f=fixture(),v=f.view(),image=new Blob(['PNG'],{type:'image/png'});await v.setState({file:f.a.path});await frame(f.mounts[0].hooks,image,8.75);
+ v.input.value='截图说明';v.input.oninput();const draft=v.memory.draft;f.setWrite(async()=>{throw Error('disk failure');});v.saveButton.click();await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(v.status.textContent,'保存未完成，文字、截图与记录时间已保留，可重试。');assert.equal(v.memory.draft,draft);assert.equal(draft.image,image);assert.equal(draft.text,'截图说明');assert.equal(v.input.readOnly,true);
+ const first=f.saves[0].data;f.setWrite(async()=>({note:f.noteA}));v.saveButton.click();await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(f.saves[1].data,first);assert.equal(v.hasPendingDraft(),false);await v.onClose();
+});
+
+test('Save button preserves source-change guidance without writing the note',async()=>{
+ const f=fixture(),v=f.view();await v.setState({file:f.a.path});v.input.value='source-bound draft';v.input.oninput();const draft=v.memory.draft;f.a.stat.mtime++;
+ v.saveButton.click();await new Promise(resolve=>setImmediate(resolve));assert.equal(v.status.textContent,'媒体来源已更新，摘录未保存；文字和截图仍保留。');assert.equal(v.memory.draft,draft);assert.equal(f.saves.length,0);await v.onClose();
+});
+
 test('failed screenshot saves retain exact id, frame and text through close and reopen',async()=>{
  const f=fixture(),v=f.view(),image=new Blob(['PNG'],{type:'image/png'});await v.setState({file:f.a.path});await frame(f.mounts[0].hooks,image,8.75);
  v.input.value='截图说明';v.input.oninput();f.setWrite(async()=>{throw Error('disk failure');});await assert.rejects(v.saveDraft());

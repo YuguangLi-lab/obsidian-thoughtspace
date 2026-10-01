@@ -1,5 +1,19 @@
 # 更新记录
 
+## 1.3.26
+
+### 外置折叠控件、阅读层级与文本卡片类型（2026-10-01）
+
+- PDF、音视频、网页、子白板和分组的内容折叠入口统一到卡片外侧，选中、悬停及键盘聚焦时避让附近已挂载对象；保留独立的子节点折叠行为。修复折叠后 DOM 排序导致的按钮键盘焦点丢失。
+- 固定尺寸阅读卡片收紧段落与次要信息间距。媒体引用将时间戳和来源整理为紧凑信息行，截图保持原比例，继续引用原笔记并支持回看；不复制第二份笔记、不改变卡片位置或原文。
+- 文本框可在顶部“卡片”中选择透明、实色、彩色顶栏、双线纸笺、索引卡和便签卡。切换仍保留文本身份、自定义格式、位置尺寸、连线、子节点及折叠状态；支持撤销重做、混选锁定、保存重开，并保留原生和源码编辑器中的草稿与选区。
+- 修复鼠标保存媒体摘录失败后，具体的草稿保留／来源变化提示被通用错误覆盖的问题；与快捷键入口保持一致，原 ID 和文字、截图、时间继续保留用于重试。
+- Text boxes now share six card surfaces with note cards. Reading and media references have clearer, denser hierarchy. External content-fold controls avoid nearby objects and retain keyboard focus, while connected-child folding remains independent.
+
+**降级兼容：** 文本的四种装饰样式需要 1.3.26 或更新版本。1.3.25 会明确报错并拒绝打开含这些样式的白板；实际验证文件不会被覆盖。降级前请在新版中将相关文本切回透明或实色并保存，保留备份。Decorative text styles require 1.3.26+. Before downgrading, switch them to Transparent or Solid and save in the newer version.
+
+验证与范围见 [本轮验收](qa/RELEASE-1.3.26.md)、[阅读与文本样式](qa/READING-MEDIA.md) 和 [折叠控件](qa/FOLD-CONTROLS.md)。未更改真实库，未宣称移动端、任意第三方主题或大白板性能提升；媒体回看验证实际链接的插件处理器，不调用系统级 URL。
+
 ## 1.3.25
 
 ### 媒体草稿恢复、同源白板引用与紧凑操作栏（2026-09-30）

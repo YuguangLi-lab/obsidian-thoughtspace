@@ -370,7 +370,8 @@ export class MediaWorkspaceView extends ItemView {
   actions.createSpan({cls:'ts-media-workspace__save-hint',text:'Ctrl / ⌘ + Enter 保存'});
   if(this.host.recoverDrafts)this.action(actions,'处理暂存草稿','history',()=>this.host.recoverDrafts?.(),true);
   this.clearButton=this.action(actions,'清空草稿','x',()=>this.clearDraft(),true);
-  this.saveButton=this.action(actions,'保存摘录','check',()=>this.saveDraft());this.saveButton.addClass('mod-cta');
+  // saveDraft reports its specific retention/source error, as for the keyboard entry.
+  this.saveButton=this.action(actions,'保存摘录','check',()=>this.saveDraft().catch(()=>{}));this.saveButton.addClass('mod-cta');
   const aside=desk.createDiv('ts-media-workspace__records'),recordHeader=aside.createDiv('ts-media-workspace__records-heading');
   const recordName=recordHeader.createDiv('ts-media-workspace__section-title');setIcon(recordName.createSpan(),'list-video');recordName.createEl('strong',{text:'时间轴'});
   this.timelineCount=recordName.createSpan('ts-media-workspace__timeline-count');

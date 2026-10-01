@@ -75,7 +75,7 @@ const deps={...cardStyles,cardHeadingColors,nodeHasBorder,textBlockPadding,textF
 function compile(body:string){return new Function(...Object.keys(deps),transformSync(body,{loader:'ts'}).code)(...Object.values(deps));}
 const View=compile(`class View{${methods}};return View`),Session=compile(`class Session{${sessionMethods}};return Session`);
 const text=(id='text',patch:Partial<model.Card>={}):model.Card=>({id,kind:'text',text:'中文 text\nkeeps its content',x:40,y:60,width:300,height:140,color:'rose',fontSize:24,textColor:'slate',borderWidth:2,customBorder:true,...patch});
-const labels=['卡片样式','卡片颜色','自定义卡片颜色'] as const;
+const labels=['卡片颜色','自定义卡片颜色'] as const;
 function fixture(nodes:model.Card[]=[text()],selected=nodes.map(n=>n.id)){
   const view=new View(),owner=new Session(),calls={persist:0,emit:0};
   Object.assign(owner,{board:{...model.emptyBoard(),nodes},history:new model.History(),blocked:false,
@@ -101,7 +101,7 @@ for(const [label,value] of [['卡片颜色','green'],['自定义卡片颜色','#
     const expected={...before.nodes[0],fillColor:value};delete expected.transparent;
     assert.deepEqual(f.owner.board.nodes[0],expected);assert.equal(f.calls.persist,1);assert.equal(f.calls.emit,1);
     const after=model.clone(f.owner.board);assert.deepEqual(model.parseBoard(JSON.stringify(after)),after);
-    assert.equal(f.control('卡片颜色').value,value);assert.equal(f.control('卡片样式').value,'solid');
+    assert.equal(f.control('卡片颜色').value,value);assert.equal(chooseCardStyle(f,'solid').getAttribute('aria-pressed'),'true');
     f.owner.undo();assert.deepEqual(f.owner.board,before);
     f.owner.undo(true);assert.deepEqual(f.owner.board,after);
     assert.equal(f.calls.persist,3);
@@ -111,10 +111,10 @@ for(const [label,value] of [['卡片颜色','green'],['自定义卡片颜色','#
 test('text transparency toggles retain the chosen custom fill and restore it on undo',()=>{
   const f=fixture([text('text',{fillColor:'#42a0ef'})]),before=model.clone(f.owner.board);
   assert.equal(f.control('自定义卡片颜色').value,'#42a0ef');
-  f.choose('卡片样式','transparent');
+  chooseCardStyle(f,'transparent').onclick!();
   assert.deepEqual(f.owner.board.nodes[0],{...before.nodes[0],transparent:true});
   assert.equal(f.control('卡片颜色').value,'#42a0ef');
-  f.choose('卡片样式','solid');assert.deepEqual(f.owner.board,{...before,version:3});
+  chooseCardStyle(f,'solid').onclick!();assert.deepEqual(f.owner.board,{...before,version:3,nodes:[{...before.nodes[0],transparent:false}]});
   f.owner.undo();assert.equal(f.owner.board.nodes[0].transparent,true);assert.equal(f.owner.board.nodes[0].fillColor,'#42a0ef');
 });
 
@@ -134,7 +134,7 @@ test('mixed card/text selection updates both fills, leaving other selected kinds
 
 test('default text exposes background controls without inventing a saved fill',()=>{
   const f=fixture(),before=model.clone(f.owner.board);
-  assert.equal(f.control('卡片颜色').value,'none');assert.equal(f.control('卡片样式').value,'solid');
+  assert.equal(f.control('卡片颜色').value,'none');assert.equal(chooseCardStyle(f,'solid').getAttribute('aria-pressed'),'true');
   assert.deepEqual(f.owner.board,before);assert.equal(f.calls.persist,0);
 });
 
@@ -146,7 +146,7 @@ for(const state of ['locked','blocked','busy','detached','switched','closed'])te
     if(state==='detached')f.view.selectionTools.empty();
     if(state==='switched')f.view.session={};
     if(state==='closed')f.view.closed=true;
-    const before=model.clone(f.owner.board);control.value=label==='卡片样式'?'transparent':label==='卡片颜色'?'blue':'#112233';
+    const before=model.clone(f.owner.board);control.value=label==='卡片颜色'?'blue':'#112233';
     if(['blocked','switched','closed'].includes(state))assert.throws(()=>control.onchange!(),/白板已切换或暂停写入/);
     else assert.doesNotThrow(()=>control.onchange!());
     assert.deepEqual(f.owner.board,before);assert.equal(f.calls.persist,0,label);
@@ -156,7 +156,7 @@ for(const state of ['locked','blocked','busy','detached','switched','closed'])te
 test('a text locked after toolbar creation cannot acquire a fill or transparency',()=>{
   for(const label of labels){
     const f=fixture(),control=f.control(label);f.owner.board.nodes[0].locked=true;
-    const before=model.clone(f.owner.board);control.value=label==='卡片样式'?'transparent':label==='卡片颜色'?'blue':'#112233';
+    const before=model.clone(f.owner.board);control.value=label==='卡片颜色'?'blue':'#112233';
     control.onchange!();assert.deepEqual(model.clone(f.owner.board).nodes,before.nodes);
   }
 });
@@ -220,9 +220,9 @@ test('section fill and divider remain present in folded display geometry and cle
 test('direct editing modes show one applicable panel and never persist a view-only change',()=>{
  const f=fixture(),before=model.clone(f.owner.board);
  const panels=()=>f.view.selectionTools.children.filter((e:Element)=>e.attributes['data-appearance-panel']);
- assert.deepEqual(panels().filter((e:Element)=>!e.hidden).map((e:Element)=>e.attributes['data-appearance-panel']),['text']);
- assert.deepEqual(f.modes().map(e=>e.dataset.mode),['markdown','text','fill','border']);
- assert.deepEqual(f.modes().map(e=>e.ariaLabel),['编辑 Markdown','文字样式','背景样式','边框样式']);
+ assert.deepEqual(panels().filter((e:Element)=>!e.hidden).map((e:Element)=>e.attributes['data-appearance-panel']),['card']);
+ assert.deepEqual(f.modes().map(e=>e.dataset.mode),['markdown','card','text','fill','border']);
+ assert.deepEqual(f.modes().map(e=>e.ariaLabel),['编辑 Markdown','卡片样式','文字样式','背景样式','边框样式']);
  for(const tab of ['fill','border','text']){
   f.chooseMode(tab);assert.equal(f.view.appearanceTab,tab);
   assert.deepEqual(f.modes().filter(e=>e.getAttribute('aria-pressed')==='true').map(e=>e.dataset.mode),[tab]);
@@ -231,7 +231,7 @@ test('direct editing modes show one applicable panel and never persist a view-on
  assert.deepEqual(f.owner.board,before);assert.equal(f.calls.persist,0);
 });
 test('group, image and mixed selections expose only applicable editing modes',()=>{
- for(const [nodes,want] of [[[section()],['fill','border']],[[text('image',{kind:'image',file:'photo.png'})],[]],[[text(),section()],['text','fill','border']]] as [model.Card[],string[]][]){
+ for(const [nodes,want] of [[[section()],['fill','border']],[[text('image',{kind:'image',file:'photo.png'})],[]],[[text(),section()],['card','text','fill','border']]] as [model.Card[],string[]][]){
   const f=fixture(nodes);
   const panels=f.view.selectionTools.children.filter((e:Element)=>e.attributes['data-appearance-panel']&&!e.hidden);
   assert.equal(panels.length,want.length?1:0);if(want.length)assert.equal(panels[0].attributes['data-appearance-panel'],want[0]);
@@ -334,7 +334,7 @@ test('draft notifications block busy modes and locked edits while keeping appear
   const f=inlineFixture();if(current==='fill')f.chooseMode(current);const before={...f.snapshot};
   if(reason==='busy')f.snapshot.busy=true;if(reason==='blocked')f.owner.blocked=true;if(reason==='locked')f.owner.board.nodes[0].locked=true;
   f.input.dispatchEvent(new Event('select'));
-  assert.deepEqual(f.modes().filter(mode=>mode.disabled).map(mode=>mode.dataset.mode),reason==='busy'?['markdown','text','fill','border']:['markdown'],`${current} ${reason}`);
+  assert.deepEqual(f.modes().filter(mode=>mode.disabled).map(mode=>mode.dataset.mode),reason==='busy'?['markdown','card','text','fill','border']:['markdown'],`${current} ${reason}`);
   if(current==='fill')assert.ok((f.view.selectionTools as Element).querySelectorAll('select,input').every(control=>control.disabled),`${reason} blocks property edits`);
   if(reason==='busy')f.snapshot.busy=false;if(reason==='blocked')f.owner.blocked=false;if(reason==='locked')delete f.owner.board.nodes[0].locked;
   f.input.dispatchEvent(new Event('select'));assert.ok(f.modes().every(mode=>!mode.disabled),`${current} ${reason} recovered`);
@@ -413,10 +413,10 @@ for(const style of ['band','paper','index','sticky'] as const)test(`${style} gal
  f.owner.undo(true);assert.deepEqual(f.owner.board,after);assert.equal(chooseCardStyle(f,style).getAttribute('aria-pressed'),'true');
  chooseCardStyle(f,style).onclick!();assert.equal(f.calls.persist,3,'same style is a no-op after redo');
 });
-test('mixed card gallery edits only eligible notes and keeps tables media and locked unrelated objects intact',()=>{
+test('mixed card gallery edits notes and text tables while retaining media and locked unrelated objects',()=>{
  const nodes=[note(),text('table',{text:'| A |\n| --- |\n| 1 |'}),text('image',{kind:'image',file:'image.png'}),section('group',{locked:true})],f=fixture(nodes),before=model.clone(f.owner.board);
  chooseCardStyle(f,'band').onclick!();
- assert.equal(f.owner.board.nodes[0].cardStyle,'band');assert.deepEqual(model.clone(f.owner.board).nodes.slice(1),before.nodes.slice(1));
+ assert.equal(f.owner.board.nodes[0].cardStyle,'band');assert.deepEqual(f.owner.board.nodes[1],{...before.nodes[1],cardStyle:'band'});assert.deepEqual(model.clone(f.owner.board).nodes.slice(2),before.nodes.slice(2));
  assert.equal(f.calls.persist,1);
 });
 test('card gallery callbacks revalidate locks owner selection attachment and busy drafts',()=>{

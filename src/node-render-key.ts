@@ -21,7 +21,7 @@ export function nodeRenderKey(node:Card,context:readonly unknown[]):string{
  // Build the final shape directly instead of cloning and deleting 8–10 fields
  // for every mounted card. Own-key order and unknown content fields stay intact.
  for(const key of Object.keys(node)){
-  if(key==='x'||key==='y'||fixed&&(key==='width'||key==='height'||node.kind==='card'&&key==='cardStyle')||paint&&(key==='color'||key==='fillColor'||key==='transparent'||key==='textColor'||key==='customBorder'||key==='borderStyle'))continue;
+  if(key==='x'||key==='y'||node.kind==='text'&&!node.webUrl&&key==='cardStyle'||fixed&&(key==='width'||key==='height'||node.kind==='card'&&key==='cardStyle')||paint&&(key==='color'||key==='fillColor'||key==='transparent'||key==='textColor'||key==='customBorder'||key==='borderStyle'))continue;
   const value=node[key as keyof Card];
   if(key==='__proto__')Object.defineProperty(content,key,{value,enumerable:true});else content[key]=value;
  }

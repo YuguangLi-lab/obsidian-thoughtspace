@@ -227,3 +227,35 @@
 .ts-root .ts-node.is-media-reference .ts-text-markdown .markdown-embed .markdown-embed-content { background:transparent; }
 
 .ts-root .ts-node.is-media-reference .ts-text-markdown .markdown-embed .markdown-preview-view > .callout[data-callout="note"] { background:transparent; border:0; box-shadow:none; }
+
+/* PDF, media, portal and group content folding shares the card's external dock.
+   It never changes the distinct connected-child disclosure control. */
+.ts-root .ts-node > .ts-fold-actions {
+  position:absolute; inset:var(--ts-control-top,-60px) var(--ts-control-right,0px) auto auto;
+  transform:scale(var(--ts-control-scale,1)); transform-origin:top right;
+  z-index:8; display:flex; align-items:center; width:max-content; gap:4px; margin:0; padding:3px;
+  border:1px solid var(--ts-object-line); border-radius:9px; background:var(--background-primary);
+  box-shadow:var(--ts-object-shadow); opacity:0; visibility:hidden; pointer-events:none;
+}
+.ts-root .ts-node:is(:hover,:focus-within,.is-selected,.is-control-hover) > .ts-fold-actions {
+  opacity:1; visibility:visible; pointer-events:auto;
+}
+.ts-root .ts-node > .ts-fold-actions > .ts-content-fold {
+  position:static; display:inline-flex; align-items:center; justify-content:center;
+  width:28px; min-width:28px; height:28px; min-height:28px; margin:0; padding:5px!important;
+  border:0; border-radius:5px; background:transparent; box-shadow:none; color:var(--text-muted); opacity:1;
+}
+.ts-root .ts-node > .ts-fold-actions > .ts-content-fold > span:last-child { display:none; }
+.ts-root .ts-node > .ts-fold-actions > .ts-content-fold svg { width:15px; height:15px; }
+.ts-root .ts-node > .ts-fold-actions > .ts-content-fold:is(:hover,:focus-visible):not(:disabled) {
+  color:var(--text-normal); background:var(--background-modifier-hover);
+}
+.ts-root .ts-node > .ts-fold-actions > .ts-content-fold:focus-visible { outline:2px solid var(--ts-accent); outline-offset:-1px; }
+.ts-root .ts-node > .ts-fold-actions > .ts-content-fold:disabled { opacity:.35; cursor:not-allowed; }
+@media (hover:none) {
+  .ts-root .ts-node > .ts-fold-actions { opacity:1; visibility:visible; pointer-events:auto; }
+}
+
+.ts-root .ts-main .ts-world > .ts-node.is-control-focus > .ts-card-actions {
+  opacity:1; visibility:visible; pointer-events:auto;
+}

@@ -8,7 +8,6 @@ import {selectionFormatKey} from '../src/selection-format';
 const note=(patch:Partial<Card>={}):Card=>({id:'note',kind:'card',file:'notes/例子.md',title:'Alias',x:20,y:40,width:300,height:200,color:'blue',...patch});
 const decorativeStyles=['band','paper','index','sticky'] as const;
 const unsupported=():Card[]=>[
- note({id:'table',kind:'text',file:undefined,text:'| A | B |\n| - | - |\n| 1 | 2 |'}),
  note({id:'web',kind:'text',file:undefined,text:'Example',webUrl:'https://example.com'}),
  note({id:'image',kind:'image',file:'image.png'}),
  note({id:'pdf',kind:'pdf',file:'document.pdf'}),
@@ -18,7 +17,7 @@ const unsupported=():Card[]=>[
  note({id:'section',kind:'section',file:undefined,title:'Group'}),
 ];
 
-test('card style choices have six named options and only Markdown note cards are eligible',()=>{
+test('card style choices have six named options and Markdown notes and local text are eligible',()=>{
  assert.deepEqual(Object.keys(cardStyleChoices),['transparent','solid','band','paper','index','sticky']);
  assert.ok(Object.values(cardStyleChoices).every(label=>label.length>0));
  assert.equal(supportsCardStyle(note()),true);
@@ -64,7 +63,7 @@ test('unsupported and locked nodes are unchanged by direct style changes and def
   assert.deepEqual(clone(node),before,node.id);
  }
  for(const style of decorativeStyles){
-  const invalid=note({kind:'text',text:'table',cardStyle:style});
+  const invalid=note({kind:'text',text:'web',webUrl:'https://example.com',cardStyle:style});
   assert.equal(effectiveCardStyle(invalid),undefined,'a stray unsupported field must not enable rendering');
  }
 });
@@ -116,7 +115,7 @@ test('copying legacy appearance clears note decoration and never reads a stray u
  const board=emptyBoard();board.nodes=[note({cardStyle:'paper',transparent:false})];
  applyNodeStyle(board,new Set(['note']),readNodeStyle(note({transparent:true})));
  assert.equal(board.nodes[0].cardStyle,undefined);assert.equal(cardStyleChoice(board.nodes[0]),'transparent');
- const table=note({kind:'text',file:undefined,text:'| Table |',cardStyle:'band'});
+ const table=note({kind:'text',file:undefined,text:'web',webUrl:'https://example.com',cardStyle:'band'});
  assert.equal(readNodeStyle(table).cardStyle,undefined);
 });
 

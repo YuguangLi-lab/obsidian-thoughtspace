@@ -18,7 +18,7 @@ function available(extent:number,size:number,start:number,end:number):[number,nu
  * Buttons are 28 px, gaps 4 px and outer padding/border totals 8 px: five actions
  * occupy 164 x 36 before scaling. Viewport translation is measured in screen px.
  */
-export function cardControlLayout(node:CardControlRect,viewport:CardControlViewport,stageWidth:number,stageHeight:number,actionCount:number,dimensions?:{width:number;height:number;topReserve?:number;avoid?:ReadonlyArray<CardControlRect>}):CardControlPlacement{
+export function cardControlLayout(node:CardControlRect,viewport:CardControlViewport,stageWidth:number,stageHeight:number,actionCount:number,dimensions?:{width:number;height:number;topReserve?:number;screenGap?:number;avoid?:ReadonlyArray<CardControlRect>}):CardControlPlacement{
   const zoom=Number.isFinite(viewport.zoom)&&viewport.zoom>0?viewport.zoom:1;
   const scale=clamp(1/zoom,.4,2),requestedHeight=Math.max(1,finite(dimensions?.height??36,36));
   // The early offscreen/overflow fallback must itself remain valid CSS geometry.
@@ -28,7 +28,7 @@ export function cardControlLayout(node:CardControlRect,viewport:CardControlViewp
   const width=Math.max(1,finite(dimensions?.width??32*count+4,36))*scale*zoom,height=dockHeight*scale*zoom;
   const x=finite(node.x)*zoom+finite(viewport.x),y=finite(node.y)*zoom+finite(viewport.y);
   const nodeWidth=Math.max(0,finite(node.width))*zoom,nodeHeight=Math.max(0,finite(node.height))*zoom;
-  const nodeRight=x+nodeWidth,nodeBottom=y+nodeHeight,gap=20*zoom;
+  const nodeRight=x+nodeWidth,nodeBottom=y+nodeHeight,gap=Math.max(20*zoom,finite(dimensions?.screenGap??0));
   if(![x,y,nodeRight,nodeBottom,width,height,gap].every(Number.isFinite))return fallback;
   const stageW=Math.max(0,finite(stageWidth)),stageH=Math.max(0,finite(stageHeight));
   // Overscan nodes still own DOM. Do not pull their always-visible compact dock

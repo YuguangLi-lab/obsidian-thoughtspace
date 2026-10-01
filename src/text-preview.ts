@@ -1,3 +1,4 @@
+import {mountMediaReferencePresentation} from './media-reference-presentation';
 import {type App,type Component,MarkdownRenderer,finishRenderMath} from 'obsidian';
 import {releaseEditorResource} from './editor-cleanup';
 import {PreviewRenderScope} from './preview-render-scope';
@@ -46,6 +47,7 @@ export function renderTextPreview(body:HTMLElement,text:string,scope:Component,o
    body.dataset.markdownStatus='ready';body.dataset.mathStatus='ready';body.setAttribute('aria-busy','false');
    for(const image of Array.from(native.querySelectorAll<HTMLImageElement>('img'))){if(image.complete)continue;image.addEventListener('load',notify,{once:true});image.addEventListener('error',notify,{once:true});child.register(()=>{image.removeEventListener('load',notify);image.removeEventListener('error',notify);});}
    const fonts=doc.fonts;if(fonts&&fonts.status==='loading')void fonts.ready.then(notify,()=>{});
+   mountMediaReferencePresentation(native,context.app,context.sourcePath,dispose=>child.register(dispose));
    complete=true;notify();
   }catch{release();if(!alive())return;body.dataset.markdownStatus='error';body.dataset.mathStatus='error';body.setAttribute('aria-busy','false');notify();}
   finally{close();if(deadline!==undefined)win.clearTimeout(deadline);if(!complete)release();}
