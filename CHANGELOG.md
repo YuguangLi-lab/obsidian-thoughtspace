@@ -1,5 +1,17 @@
 # 更新记录
 
+## 1.3.28
+
+### 写作选段引用、正文目录与编排保护（2026-10-01）
+
+- 固定参考支持选段静态引用、已有唯一标题/块的动态嵌入和仅来源链接；静态引文保留来源行号。相对链接按草稿目录解析，文本卡片按字面引用并回到白板原节点；不修改来源、不自动创建锚点。
+- 正文目录支持真实 ATX 和单行 Setext 标题、重复标题的精确定位、本节字词估计与完成状态。不变章节重排保留状态，内容或标题变化后重置；完全相同章节数量变化时保守清除相关标记。
+- 编排变化只提示，不自动覆盖改写后的正文。显式重建先备份；备份失败、正文或编排并发变化时拒绝覆盖。旧稿缺少基线时明确说明未知状态。
+- 修复并发打开选段窗口可能叠加、多行下划线段落被误识别为标题，以及重复插入、非末尾插入或异步编排变化可能误清除未同步提示的问题。保留来源变化检查、输入法组字保护、原生撤销重做和源码编辑后备。
+- Writing now supports source-safe excerpt citations, existing-anchor embeds, a manuscript heading directory with section progress, and non-destructive outline-change notices. Rebuilding remains explicit and requires a successful backup; no automatic merge or source mutation is introduced.
+
+验证和限制见 [写作验收](qa/WRITING-ROUND1.md)。仅在独立桌面测试库验证；未覆盖移动端、所有主题、物理中文输入法候选窗、断电或多进程同库。写作持久化仍使用现有白板保存机制；目录不展开嵌入来源的内部标题，编排提示不自动追踪来源笔记全文变化。保留此前媒体本机暂存及恢复的既有边界。
+
 ## 1.3.27
 
 ### 媒体摘录一致性、白板交互与小地图复用（2026-10-01）

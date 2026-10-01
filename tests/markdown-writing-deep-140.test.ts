@@ -50,8 +50,8 @@ test('citation source links decode escaped local Markdown destinations',()=>{
 class Input extends EventTarget{value='Draft';selectionStart=0;selectionEnd=0;setRangeText(text:string,start:number,end:number){this.value=this.value.slice(0,start)+text+this.value.slice(end);this.selectionStart=this.selectionEnd=start+text.length;}setSelectionRange(start:number,end:number){this.selectionStart=start;this.selectionEnd=end;}focus(){}}
 for(const mode of ['newChapter','insertMaterial'])test(`writing fallback ${mode} persists its programmatic textarea edit`,async()=>{
  const start=mode==='newChapter'?' private newChapter()':' private async insertMaterial(',end=mode==='newChapter'?'\n private dragRow(':'\n private async rebuildManuscript(';
- const proto=method(start,end),input=new Input();let persisted='Draft';input.addEventListener('input',()=>{persisted=input.value;});
- const view=Object.assign(Object.create(proto),{mode:'write',manuscriptInput:input,manuscriptNative:undefined,openManuscript:async()=>{},compose:async()=>({text:'# Draft\n\n白板：[[board]]\n\n## Evidence\n\nBody'}),flushFields(){}});
+ const proto=method(start,end,{writingAssemblyStamp:()=>''}),input=new Input();let persisted='Draft';input.addEventListener('input',()=>{persisted=input.value;});
+ const view=Object.assign(Object.create(proto),{mode:'write',ensure:()=>({board:{}}),manuscriptInput:input,manuscriptNative:undefined,openManuscript:async()=>{},compose:async()=>({text:'# Draft\n\n白板：[[board]]\n\n## Evidence\n\nBody'}),flushFields(){}});
  await view[mode](['material']);assert.notEqual(input.value,'Draft');assert.equal(persisted,input.value);
 });
 

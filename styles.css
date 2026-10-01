@@ -2557,6 +2557,26 @@
 .ts-db-table td>input:not([type=checkbox]):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){min-width:110px;max-width:180px;}
 .ts-db-field-definition span:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){flex:1;}
 
+/* Writing assistance stays collapsed and scoped to the manuscript. */
+.ts-writing-navigator:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){margin:8px 0;color:var(--text-muted);font-size:12px;}
+.ts-writing-navigator>summary:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){cursor:pointer;padding:6px 0;}
+.ts-writing-nav-rows:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){max-height:220px;overflow:auto;border-top:1px solid var(--background-modifier-border);}
+.ts-writing-nav-row:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){display:flex;align-items:center;gap:8px;padding-left:calc(min(var(--writing-depth),3)*10px);}
+.ts-writing .ts-writing-nav-jump:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){flex:1;display:block;text-align:left;overflow:hidden;text-overflow:ellipsis;}
+.ts-writing .ts-writing-nav-jump.is-current:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){color:var(--text-accent);background:var(--background-modifier-hover);}
+.ts-writing-nav-row>small:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){flex:none;font-size:10px;}.ts-writing-nav-row>input:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){flex:none;}
+.ts-writing-assembly:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;font-size:11px;color:var(--text-muted);border-top:1px solid var(--background-modifier-border);padding:6px 0;}
+.ts-writing-reference-picker:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){width:min(760px,94vw);max-height:90vh;}
+.ts-writing-reference-picker .modal-content:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){display:flex;flex-direction:column;gap:10px;min-height:0;}
+.ts-writing-reference-picker small:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){overflow-wrap:anywhere;color:var(--text-muted);}
+.ts-writing-reference-picker label:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){display:flex;align-items:center;gap:12px;min-width:0;font-size:12px;}
+.ts-writing-reference-picker select:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){flex:1;min-width:0;max-width:100%;}
+.ts-writing-reference-picker textarea:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){width:100%;height:clamp(140px,38vh,400px);min-height:100px;resize:vertical;font-family:var(--font-monospace);font-size:13px;white-space:pre-wrap;}
+.ts-writing-reference-hint:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){font-size:12px;color:var(--text-muted);margin:0;}
+.ts-writing-reference-buttons:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){display:flex;gap:8px;flex-wrap:wrap;}.ts-writing-reference-picker [role=alert]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){color:var(--text-error);font-size:12px;}
+.ts-writing-context:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){flex:none;min-width:0;padding:0 14px;border-bottom:1px solid var(--background-modifier-border);}
+.ts-writing-context .ts-writing-navigator:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){margin:0;}.ts-writing-context .ts-writing-nav-rows:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){max-height:min(180px,24vh);}
+
 /* END workflow generated */
 
 /* BEGIN visual-system generated */

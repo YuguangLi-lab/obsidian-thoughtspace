@@ -1,10 +1,14 @@
+import {boardLink} from './deeplinks';
+import {manuscriptSections,writingAssemblyStamp,pruneWritingCompleted} from './writing-progress';
+import {writingReferenceRanges,writingReferenceMarkdown} from './writing-reference';
+import {WritingReferenceModal} from './writing-reference-view';
 import type {SessionUpdate} from './session-events';
 import {imageMarkdown,remoteImageUrl} from './image-host';
 import {Component,ItemView,MarkdownRenderer,Menu,Notice,TFile,WorkspaceLeaf,parseLinktext,setIcon} from 'obsidian';
 import {Board,Card,clone} from './model';
 import {WritingState,WritingOption,moveWriting,writingItems,writingOrder,writingParts,writingName,writingMarkdown,writingSignature,writingWordCount} from './writing';
-import {rebaseFragment,excerptNoteMarkdown} from './materials';
-import {readCurrentNativeNote} from './native-note-state';
+import {rebaseFragment,excerptNoteMarkdown,selectionFragment,pdfLiteralText} from './materials';
+import {assertNativeNoteUnchanged,readCurrentNativeNote} from './native-note-state';
 import {writingFormatToolbar} from './writing-format-toolbar';
 import {DraftInput,NativeMarkdownDraft} from './native-markdown-editor';
 import {themeSurface} from './ui-tokens';
@@ -15,6 +19,7 @@ const kinds:Record<Card['kind'],string>={section:'分组',card:'笔记',image:'�
 const icons:Record<Card['kind'],string>={section:'folder-open',card:'file-text',image:'image',text:'type',pdf:'file-text',board:'panels-top-left',audio:'audio-lines',video:'video'};
 export class WritingView<S extends WritingSession=WritingSession> extends ItemView {
  private file?:TFile;
+ private navigator?:HTMLDetailsElement;private navSummary?:HTMLElement;private navRows?:HTMLElement;private assemblyHint?:HTMLElement;private referencePicker?:WritingReferenceModal;private composing=false;private navText?:string;private manuscriptContext?:TFile;private navLimit=200;private sectionText?:string;private sections:ReturnType<typeof manuscriptSections>=[];
  private owner?:S;
  private list!:HTMLElement;
  private outline!:HTMLElement;
@@ -71,7 +76,7 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
  async setState(state:{board?:string;resourceMode?:string;dockOpen?:boolean;dockWidth?:number}) {
   if(this.closed)return;
   // Commit while the old editor and owner are still paired. A failed commit keeps both intact.
-  this.flushFields();const run=++this.generation;
+  this.flushFields();this.referencePicker?.close();const run=++this.generation;
   this.resourceMode=state.resourceMode==='reference'?'reference':'library';this.dockOpen=state.dockOpen!==false;this.compactDockRequested=false;this.dockWidth=Number.isFinite(state.dockWidth)?Math.max(240,Math.min(520,state.dockWidth!)):320;
   const previous=this.owner;this.owner=undefined;
   this.disposeEditors();this.revision++;this.articleRun++;this.stop?.();this.stop=undefined;
@@ -118,7 +123,7 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   const stack=redo?this.future:this.history,next=stack[stack.length-1];if(!next)return;
   const current=clone(this.state());
   // Reference navigation and the last exported file are not part of article undo.
-  const restored={...clone(next),manuscript:current.manuscript,referenceId:current.referenceId,referenceIds:current.referenceIds,draftPath:current.draftPath};
+  const restored={...clone(next),manuscript:current.manuscript,assemblyStamp:current.assemblyStamp,completedSections:current.completedSections,referenceId:current.referenceId,referenceIds:current.referenceIds,draftPath:current.draftPath};
   this.changing=true;try{this.ensure().change(b=>b.writing=restored);}finally{this.changing=false;}
   stack.pop();(redo?this.history:this.future).push(current);this.renderStatus();
  }
@@ -162,6 +167,7 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   this.titleInput=intro.createEl('textarea',{value:this.state().title,attr:{rows:'1',placeholder:'为文章命名','aria-label':'文章标题',maxlength:'160'}});
   this.titleInput.oninput=()=>{this.fitTitle();const title=this.titleInput.value;this.queueField('title',()=>this.update(s=>s.title=title.trim()||this.file!.basename));};this.titleInput.onchange=()=>this.flushFields();
   this.totals=intro.createDiv('ts-writing-totals');
+  const context=middle.createDiv('ts-writing-context');middle.insertBefore(context,scroll);this.navigator=context.createEl('details',{cls:'ts-writing-navigator'});this.navSummary=this.navigator.createEl('summary',{text:'正文目录与进度'});this.navRows=this.navigator.createDiv('ts-writing-nav-rows');this.assemblyHint=context.createDiv({cls:'ts-writing-assembly',attr:{role:'status'}});this.navText=undefined;
   this.outline=scroll.createDiv({cls:'ts-writing-outline',attr:{'aria-label':'文章顺序'}});
   this.outline.ondragover=e=>{if(this.dragged)e.preventDefault();};
   this.outline.ondrop=e=>{if(!this.dragged)return;e.preventDefault();const id=this.dragged;this.dragged=undefined;this.add(id,writingOrder(this.ensure().board).length);};
@@ -211,8 +217,8 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   const chapters=new Set(this.state().chapters?.map(c=>c.id));
   return writingItems(board).filter(n=>(this.filter==='all'||this.filter==='unused'&&!used.has(n.id)||this.filter===n.kind||this.filter==='chapter'&&chapters.has(n.id))&&(writingName(n)+' '+(n.text||'')).toLocaleLowerCase().includes(this.query.toLocaleLowerCase()));
  }
- private addVisible(){const ids=this.matching().map(n=>n.id);if(!ids.length)return;this.update(s=>{s.order=[...new Set([...writingOrder(this.ensure().board),...ids])];for(const id of ids)if(s.options?.[id]?.excluded)s.options={...s.options,[id]:{...s.options[id],excluded:false}};});if(this.mode==='write')void this.insertMaterial(ids).catch(e=>new Notice(String(e)));}
- private add(id:string,index:number,include=false){if(!writingItems(this.ensure().board).some(n=>n.id===id))throw Error('材料已移除');this.update(s=>{s.order=moveWriting(writingOrder(this.ensure().board),id,index);if(include&&s.options?.[id]?.excluded)s.options={...s.options,[id]:{...s.options[id],excluded:false}};});if(include&&this.mode==='write')void this.insertMaterial([id]).catch(e=>new Notice(String(e)));}
+ private addVisible(){const board=this.ensure().board,ids=this.matching().map(n=>n.id);if(!ids.length)return;const included=new Set(writingParts(board).map(p=>p.node.id)),baseline=this.state().assemblyStamp===writingAssemblyStamp(board)&&writingParts(board,ids).every(p=>!included.has(p.node.id));this.update(s=>{s.order=[...new Set([...writingOrder(this.ensure().board),...ids])];for(const id of ids)if(s.options?.[id]?.excluded)s.options={...s.options,[id]:{...s.options[id],excluded:false}};});if(this.mode==='write')void this.insertMaterial(ids,baseline).catch(e=>new Notice(String(e)));}
+ private add(id:string,index:number,include=false){const board=this.ensure().board,included=new Set(writingParts(board).map(p=>p.node.id)),baseline=this.state().assemblyStamp===writingAssemblyStamp(board)&&index>=writingOrder(board).length&&writingParts(board,[id]).every(p=>!included.has(p.node.id));if(!writingItems(this.ensure().board).some(n=>n.id===id))throw Error('材料已移除');this.update(s=>{s.order=moveWriting(writingOrder(this.ensure().board),id,index);if(include&&s.options?.[id]?.excluded)s.options={...s.options,[id]:{...s.options[id],excluded:false}};});if(include&&this.mode==='write')void this.insertMaterial([id],baseline).catch(e=>new Notice(String(e)));}
  private newChapter(){if(this.mode==='write'&&this.manuscriptInput){const input=this.manuscriptInput,start=input.selectionStart;input.setRangeText('\n\n## 新章节\n\n',start,input.selectionEnd,'end');if(!this.manuscriptNative)input.dispatchEvent(new Event('input'));input.setSelectionRange(start+5,start+8);input.focus();return;}const id='writing-'+crypto.randomUUID();if((this.state().chapters?.length||0)>=500)throw Error('最多 500 个自建章节');this.selected=id;this.mode='outline';this.update(s=>{s.chapters??=[];s.chapters.push({id,title:'新章节',body:''});s.order.push(id);});this.render();const input=this.outline.querySelector<HTMLInputElement>('.ts-writing-editor input');input?.focus();input?.select();}
  private option(id:string,patch:Partial<WritingOption>){this.update(s=>{s.options={...s.options,[id]:{...s.options?.[id],...patch}};});}
  private dragRow(el:HTMLElement,id:string,index?:number){
@@ -287,12 +293,61 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
  private renderStatus(onlySave=false){
   if(!this.status||!this.owner)return;const saveLabel=this.owner.blocked?'写入暂停 · 请返回白板检查':this.owner.status||'编排自动保存';
   if(onlySave){const label=this.status.querySelector<HTMLElement>('.ts-writing-save-label');if(label){if(label.textContent!==saveLabel)label.setText(saveLabel);return;}}
-  this.status.empty();
+  this.refreshWritingContext();this.status.empty();
   const left=this.status.createDiv('ts-writing-status-text');setIcon(left.createSpan(),this.owner.blocked?'triangle-alert':'cloud-check');left.createSpan({cls:'ts-writing-save-label',text:saveLabel});
   if(this.mode==='preview'&&this.previewSignature!==this.articleSignature())this.action(this.status,'更新预览',()=>this.refreshArticle(),'refresh-cw');
   if(this.mode==='outline'){this.action(this.status,'撤销编排',()=>this.undo(),'undo-2',true).disabled=!this.history.length;this.action(this.status,'重做编排',()=>this.undo(true),'redo-2',true).disabled=!this.future.length;}
   this.status.createSpan({cls:'ts-writing-status-mode',text:this.mode==='write'?'Markdown · 实时预览':this.mode==='outline'?'拖动调整文章顺序':'Markdown · 阅读预览'});
   const open=this.contentEl.querySelector<HTMLButtonElement>('.ts-writing-open-draft');if(open)open.disabled=!this.state().draftPath;
+ }
+ private refreshWritingContext(){
+  if(!this.navigator||!this.owner||this.composing)return;
+  const state=this.state(),text=this.manuscriptInput?.value??state.manuscript??'',sections=this.currentSections(text),done=new Set(state.completedSections||[]);
+  const context=text+'\0'+JSON.stringify(state.completedSections||[]);if(this.navText!==context){
+   const active=this.navRows!.contains(this.contentEl.ownerDocument.activeElement)?(this.contentEl.ownerDocument.activeElement as HTMLElement).dataset.sectionKey:undefined;
+   this.navText=context;this.navRows!.empty();
+   if(!sections.length)this.navRows!.createEl('small',{text:'在正文中添加 Markdown 标题后显示目录。'});
+   for(const [index,section]of sections.slice(0,this.navLimit).entries()){
+    const row=this.navRows!.createDiv('ts-writing-nav-row');row.style.setProperty('--writing-depth',String(section.level-1));
+    const jump=this.action(row,section.title,()=>{this.setArticleMode('write');const input=this.manuscriptInput;if(!input||input.value!==text)return;input.focus();input.setSelectionRange(section.from,section.from);},undefined,false,'ts-writing-nav-jump');jump.dataset.sectionIndex=String(index);jump.title=section.title;
+    row.createEl('small',{text:section.words+' 字/词'});
+    const check=row.createEl('input',{type:'checkbox',attr:{'aria-label':'完成章节 '+section.title,'data-section-key':section.key,title:'章节改写后回到待完成；重复内容增删也需重新确认'}});check.checked=done.has(section.key);check.disabled=this.owner.blocked;
+    check.onchange=()=>{try{this.flushFields();if((this.manuscriptInput?.value??this.state().manuscript)!==text){this.navText=undefined;this.refreshWritingContext();return;}this.update(s=>{const keys=new Set(pruneWritingCompleted(text,s.completedSections));check.checked?keys.add(section.key):keys.delete(section.key);s.completedSections=[...keys];},false);}catch(error){new Notice(String(error));this.navText=undefined;this.refreshWritingContext();}};
+   }
+   if(sections.length>this.navLimit)this.action(this.navRows!,'加载更多章节',()=>{this.navLimit+=200;this.navText=undefined;this.refreshWritingContext();},'chevrons-down');
+   if(active)this.navRows!.querySelector<HTMLInputElement>('[data-section-key="'+active+'"]')?.focus({preventScroll:true});
+  }
+  this.navSummary!.setText('正文目录 · '+sections.length+' 节 · '+sections.filter(s=>done.has(s.key)).length+' 已完成');this.updateNavigatorCurrent();
+  const stamp=writingAssemblyStamp(this.owner.board),message=state.assemblyStamp===undefined?'尚无编排对照；现有正文保留。':state.assemblyStamp!==stamp?'编排已变化，正文未同步；你的改写仍保留。':'';
+  if(this.assemblyHint!.dataset.message!==message){this.assemblyHint!.dataset.message=message;this.assemblyHint!.empty();this.assemblyHint!.hidden=!message;if(message){this.assemblyHint!.createSpan({text:message});this.action(this.assemblyHint!,'备份并从编排重建',()=>this.rebuildManuscript(),'files');}}
+ }
+ private currentSections(text:string){if(text!==this.sectionText){this.sectionText=text;this.sections=manuscriptSections(text);}return this.sections;}
+ private updateNavigatorCurrent(){
+  const input=this.manuscriptInput;if(!input||!this.navRows||this.composing)return;const sections=this.currentSections(input.value);let active=-1;for(let i=0;i<sections.length;i++)if(sections[i].from<=input.selectionStart)active=i;
+  this.navRows.querySelectorAll<HTMLButtonElement>('[data-section-index]').forEach(b=>{const current=Number(b.dataset.sectionIndex)===active;b.toggleClass('is-current',current);if(current)b.setAttribute('aria-current','location');else b.removeAttribute('aria-current');});
+ }
+ private referencePickerOpening=false;
+ private async openReferencePicker(id:string){
+  if(this.referencePickerOpening||this.referencePicker?.isCurrent())return;this.referencePickerOpening=true;
+  try{this.flushFields();await this.openManuscript();
+  const owner=this.ensure(),node=writingItems(owner.board).find(n=>n.id===id),input=this.manuscriptInput;if(!node||!input)return;
+  if(this.composing)throw Error('请先完成输入法组字');const before=input.value,start=input.selectionStart,end=input.selectionEnd,file=node.file?this.app.vault.getAbstractFileByPath(node.file):undefined,path=file instanceof TFile?file.path:this.file!.path,nodeText=node.text,nodePath=node.file;
+  if(node.kind==='card'&&(!(file instanceof TFile)||file.extension!=='md'))throw Error('来源笔记不可用');
+  const raw=file instanceof TFile?await this.app.vault.read(file):node.text||'';if(raw.length>500000)throw Error('材料超过 500,000 字符，请先在原文中摘录到白板');
+  if(file instanceof TFile)assertNativeNoteUnchanged(this.app,file,raw);
+  if(this.closed||this.owner!==owner||this.manuscriptInput!==input||input.value!==before)throw Error('正文已变化，请重新选择插入位置');
+  const cache=file instanceof TFile?this.app.metadataCache.getFileCache(file):undefined,ranges=writingReferenceRanges(raw,cache);
+  const picker=new WritingReferenceModal(this.app,path,raw,ranges,async(mode,range)=>{
+   const validate=()=>{if(!picker.isCurrent()||this.closed||this.ensure()!==owner||this.manuscriptInput!==input||input.value!==before||this.state().manuscript!==before||input.selectionStart!==start||input.selectionEnd!==end||this.composing)throw Error('正文已变化，未插入；请重新选择位置');const current=writingItems(owner.board).find(n=>n.id===id);if(!current||current.file!==nodePath||current.text!==nodeText)throw Error('材料已变化，请重新选择');if(file instanceof TFile&&(file.path!==path||this.app.vault.getAbstractFileByPath(path)!==file))throw Error('来源已移动或删除');};
+   validate();if(file instanceof TFile){if(await this.app.vault.read(file)!==raw)throw Error('来源内容已变化，请关闭并重新选段');assertNativeNoteUnchanged(this.app,file,raw);}validate();
+   if(range.subpath&&!writingReferenceRanges(raw,file instanceof TFile?this.app.metadataCache.getFileCache(file):undefined).some(r=>r.subpath===range.subpath&&r.from===range.from&&r.to===range.to))throw Error('来源索引已变化，请重新选择');
+   const destination='ThoughtSpace/草稿/草稿.md',sourceFile=file instanceof TFile?file:this.file!,link=file instanceof TFile?this.app.fileManager.generateMarkdownLink(sourceFile,destination,range.subpath):'[白板原卡片]('+boardLink(this.app.vault.getName(),this.file!.path,id)+')';
+   const fragment=selectionFragment(raw,range.from,range.to),references=[...(cache?.links||[]),...(cache?.embeds||[])].flatMap(ref=>{const parsed=parseLinktext(ref.link),target=parsed.path?this.app.metadataCache.getFirstLinkpathDest(parsed.path,path):sourceFile;if(!target)return[];let replacement=this.app.fileManager.generateMarkdownLink(target,destination,parsed.subpath,ref.displayText);if(ref.original.startsWith('!')&&!replacement.startsWith('!'))replacement='!'+replacement;return[{original:ref.original,replacement,start:ref.position.start,end:ref.position.end}];});
+   const body=file instanceof TFile?rebaseFragment(raw,fragment,references):pdfLiteralText(fragment.body),markdown=writingReferenceMarkdown(mode,raw,range,link,body);validate();
+   if(before.length-(end-start)+markdown.length+4>1000000)throw Error('插入后正文超过 1,000,000 字符');
+   input.setRangeText('\n\n'+markdown+'\n\n',start,end,'end');if(!this.manuscriptNative)input.dispatchEvent(new Event('input'));this.flushFields();
+  },()=>{if(this.referencePicker===picker)this.referencePicker=undefined;if(!this.closed&&this.manuscriptInput===input)input.focus();},!(file instanceof TFile));this.referencePicker=picker;picker.open();
+  }finally{this.referencePickerOpening=false;}
  }
  private renderReferenceTabs(){
   if(!this.tabs)return;this.tabs.empty();const nodes=new Map(writingItems(this.ensure().board).map(n=>[n.id,n]));
@@ -311,6 +366,7 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   identity.createEl('h4',{text:writingName(n),attr:{title:writingName(n)}});
   const actions=head.createDiv('ts-writing-reference-actions'),pinned=this.state().referenceIds?.includes(id);
   this.action(actions,pinned?'取消固定':'固定参考',()=>{this.update(s=>{const pins=s.referenceIds||[];if(!pinned&&pins.length>=12)throw Error('最多固定 12 份参考材料');s.referenceIds=pinned?pins.filter(x=>x!==id):[...pins,id];},false);return this.showReference(id);},pinned?'pin-off':'pin',true).setAttribute('aria-pressed',String(!!pinned));
+  if(n.kind==='card'||n.kind==='text')this.action(actions,'选段引用',()=>this.openReferencePicker(id),'text-quote',true);
   this.action(actions,'加入文章',()=>this.add(id,writingOrder(owner.board).length,true),'list-plus',true);
   const f=n.file&&this.app.vault.getAbstractFileByPath(n.file);
   if(f instanceof TFile)this.action(actions,'右侧打开原文',async()=>{const leaf=await this.host.openNoteInSidebar(f);leaf.setPinned(true);},'external-link',true);
@@ -329,10 +385,11 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
  private queueField(key:string,fn:()=>void){this.pendingFields.set(key,fn);if(this.fieldTimer)this.containerEl.win.clearTimeout(this.fieldTimer);this.fieldTimer=this.containerEl.win.setTimeout(()=>{try{this.flushFields();}catch(e){new Notice(String(e));}},250);}
  private flushFields(){if(this.flushing||!this.pendingFields.size)return;if(this.fieldTimer)this.containerEl.win.clearTimeout(this.fieldTimer);this.fieldTimer=undefined;const pending=[...this.pendingFields];this.flushing=true;try{for(const [key,fn] of pending){fn();if(this.pendingFields.get(key)===fn)this.pendingFields.delete(key);}}finally{this.flushing=false;}}
  private commitFields(){this.flushFields();const active=this.contentEl.ownerDocument.activeElement;if(active instanceof HTMLElement&&this.contentEl.contains(active))active.blur();const title=this.titleInput.value.trim()||this.file!.basename;if(this.state().title!==title)this.update(s=>s.title=title);}
- private disposeEditors(){this.manuscriptRun++;this.manuscriptToolbar?.();this.manuscriptToolbar=undefined;this.entryToolbars.forEach(dispose=>dispose());this.entryToolbars=[];this.manuscriptNative?.dispose();this.manuscriptNative=undefined;this.manuscriptInput=undefined;this.entryEditors.forEach(editor=>editor.dispose());this.entryEditors=[];}
+ private disposeEditors(){this.referencePicker?.close();this.referencePicker=undefined;this.composing=false;this.manuscriptContext=undefined;this.manuscriptRun++;this.manuscriptToolbar?.();this.manuscriptToolbar=undefined;this.entryToolbars.forEach(dispose=>dispose());this.entryToolbars=[];this.manuscriptNative?.dispose();this.manuscriptNative=undefined;this.manuscriptInput=undefined;this.entryEditors.forEach(editor=>editor.dispose());this.entryEditors=[];}
+ // A detached file-shaped context aligns native preview with the export folder; never register or save it.
  private markdownInput(parent:HTMLElement,value:string,whole:boolean):DraftInput{
-  try{const native=new NativeMarkdownDraft(this.app,parent,value,this.file);native.host.querySelector('.cm-content')?.setAttribute('aria-label',whole?'文章 Markdown 正文':'章节 Markdown 正文');if(whole)this.manuscriptNative=native;else this.entryEditors.push(native);for(const type of ['dragstart','keydown','paste'])parent.addEventListener(type,e=>e.stopPropagation());this.attachFormatToolbar(parent,native,native,whole);return native;}
-  catch{parent.createDiv({cls:'ts-writing-small-empty',text:'实时预览暂不可用，已切换为 Markdown 源码编辑。'});const input=parent.createEl('textarea',{value,cls:'ts-writing-source-editor',attr:{'aria-label':'Markdown 源码'}});this.attachFormatToolbar(parent,input,undefined,whole);return input;}
+  try{if(whole&&!this.manuscriptContext){const context:unknown=Object.create(this.file!);if(!(context instanceof TFile))throw Error('正文链接上下文不可用');this.manuscriptContext=Object.assign(context,{path:'ThoughtSpace/草稿/草稿.md',name:'草稿.md',basename:'草稿',extension:'md'});}const native=new NativeMarkdownDraft(this.app,parent,value,whole?this.manuscriptContext:this.file);native.host.querySelector('.cm-content')?.setAttribute('aria-label',whole?'文章 Markdown 正文':'章节 Markdown 正文');if(whole)this.manuscriptNative=native;else this.entryEditors.push(native);for(const type of ['dragstart','keydown','paste'])parent.addEventListener(type,e=>e.stopPropagation());this.attachFormatToolbar(parent,native,native,whole);return native;}
+  catch{parent.createDiv({cls:'ts-writing-small-empty',text:'实时预览暂不可用，已切换为 Markdown 源码编辑。'});const input=parent.createEl('textarea',{value,cls:'ts-writing-source-editor',attr:{'aria-label':'Markdown 源码'}});input.value=value;this.attachFormatToolbar(parent,input,undefined,whole);return input;}
  }
  private attachFormatToolbar(parent:HTMLElement,input:DraftInput,native:NativeMarkdownDraft|undefined,whole:boolean){const dispose=writingFormatToolbar(parent,input,native,()=>!this.owner||this.owner.blocked,message=>new Notice(message));if(whole){this.manuscriptToolbar?.();this.manuscriptToolbar=dispose;}else this.entryToolbars.push(dispose);}
  private articleSignature(){return this.state().manuscript!==undefined?'manuscript:'+this.state().manuscript:writingSignature(this.ensure().board);}
@@ -342,26 +399,27 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   this.manuscriptHost.setText('正在打开 Markdown 正文…');
   try{
    let value=this.state().manuscript;
-   if(value===undefined){value=writingParts(owner.board).length?(await this.compose()).text:'# '+this.state().title+'\n\n';if(run!==this.manuscriptRun||owner!==this.owner)return;this.update(s=>s.manuscript=value,false);}
+   if(value===undefined){value=writingParts(owner.board).length?(await this.compose()).text:'# '+this.state().title+'\n\n';if(run!==this.manuscriptRun||owner!==this.owner)return;this.update(s=>{s.manuscript=value;s.assemblyStamp=writingAssemblyStamp(owner.board);},false);}
    if(run!==this.manuscriptRun||owner!==this.owner)return;
    this.manuscriptHost.empty();this.manuscriptBaseline=value;const input=this.manuscriptInput=this.markdownInput(this.manuscriptHost,value,true);
-   input.addEventListener('input',()=>{if(this.syncingManuscript)return;const text=input.value;if(text.length>1000000){this.queueField('manuscript',()=>{throw Error('正文超过 1,000,000 字符，请分篇写作；关闭时会另存当前输入。');});return;}this.queueField('manuscript',()=>{if(this.state().manuscript!==this.manuscriptBaseline&&this.state().manuscript!==text)throw Error('其他窗口已修改正文；当前输入未覆盖它，请先复制当前正文。');this.update(s=>s.manuscript=text,false);this.manuscriptBaseline=text;});});
+   input.addEventListener('input',()=>{if(this.syncingManuscript)return;const text=input.value;if(text.length>1000000){this.queueField('manuscript',()=>{throw Error('正文超过 1,000,000 字符，请分篇写作；关闭时会另存当前输入。');});return;}this.queueField('manuscript',()=>{if(this.state().manuscript!==this.manuscriptBaseline&&this.state().manuscript!==text)throw Error('其他窗口已修改正文；当前输入未覆盖它，请先复制当前正文。');this.update(s=>{s.manuscript=text;s.completedSections=pruneWritingCompleted(text,s.completedSections);},false);this.manuscriptBaseline=text;});});
    this.manuscriptHost.addEventListener('focusout',()=>this.flushFields(),{once:true});
-   this.manuscriptNative?.resize();
+   input.addEventListener('select',()=>this.updateNavigatorCurrent());input.addEventListener('compositionstart',()=>this.composing=true);input.addEventListener('compositionend',()=>{this.composing=false;this.refreshWritingContext();});
+   this.refreshWritingContext();this.manuscriptNative?.resize();
   }catch(e){if(run===this.manuscriptRun)this.manuscriptHost.setText('无法打开正文：'+String(e));}
  }
  private syncManuscript(){const input=this.manuscriptInput,value=this.state().manuscript;if(this.changing||!input||value===undefined||value===this.manuscriptBaseline||input.value!==this.manuscriptBaseline)return;this.syncingManuscript=true;try{const start=input.selectionStart,end=input.selectionEnd;input.value=value;input.setSelectionRange(Math.min(start,value.length),Math.min(end,value.length));this.manuscriptBaseline=value;}finally{this.syncingManuscript=false;}}
- private async insertMaterial(ids:string[]){
-  await this.openManuscript();const input=this.manuscriptInput;if(!input)return;const old=input.value,start=input.selectionStart,end=input.selectionEnd;
+ private async insertMaterial(ids:string[],advanceBaseline=false){
+  const assembly=writingAssemblyStamp(this.ensure().board);await this.openManuscript();const input=this.manuscriptInput;if(!input)return;const old=input.value,start=input.selectionStart,end=input.selectionEnd;
   const result=await this.compose(ids);const fragment=result.text.split('\n\n').slice(2).join('\n\n').trim();
-  if(this.manuscriptInput!==input||input.value!==old)throw Error('正文已变化，请重新插入材料');
-  input.setRangeText('\n\n'+fragment+'\n\n',start,end,'end');if(!this.manuscriptNative)input.dispatchEvent(new Event('input'));input.focus();this.flushFields();
+  if(this.manuscriptInput!==input||input.value!==old||input.selectionStart!==start||input.selectionEnd!==end)throw Error('正文已变化，请重新插入材料');
+  input.setRangeText('\n\n'+fragment+'\n\n',start,end,'end');if(!this.manuscriptNative)input.dispatchEvent(new Event('input'));input.focus();this.flushFields();if(advanceBaseline&&start===old.length&&end===old.length&&assembly===writingAssemblyStamp(this.ensure().board))this.update(s=>s.assemblyStamp=assembly,false);
  }
  private async rebuildManuscript(){
   this.commitFields();const owner=this.ensure(),old=this.state().manuscript,result=await this.compose();
   if(old!==undefined){const backup=await this.host.createUnique('ThoughtSpace/草稿',this.state().title+'-正文备份','md',old);new Notice('原正文已另存：'+backup.path);}
-  this.commitFields();if(this.owner!==owner||this.state().manuscript!==old)throw Error('正文已变化，未覆盖当前编辑');
-  this.manuscriptToolbar?.();this.manuscriptToolbar=undefined;this.manuscriptNative?.dispose();this.manuscriptInput=undefined;this.manuscriptNative=undefined;this.update(s=>s.manuscript=result.text,false);this.setArticleMode('write');
+  this.commitFields();if(this.owner!==owner||this.state().manuscript!==old||writingSignature(owner.board)!==result.signature)throw Error('正文或编排已变化，未覆盖当前编辑');
+  this.manuscriptToolbar?.();this.manuscriptToolbar=undefined;this.manuscriptNative?.dispose();this.manuscriptInput=undefined;this.manuscriptNative=undefined;this.update(s=>{s.manuscript=result.text;s.completedSections=[];s.assemblyStamp=writingAssemblyStamp(owner.board);},false);this.setArticleMode('write');
  }
  /** Read a consistent snapshot, preserving native-editor saves and rebasing file links. */
  private async compose(order?:string[]){
@@ -421,7 +479,7 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   }finally{this.saving=false;this.contentEl.removeClass('is-generating');}
  }
  async onClose(){
-  if(this.closed)return;this.closed=true;this.generation++;this.revision++;this.articleRun++;
+  if(this.closed)return;this.closed=true;this.referencePicker?.close();this.generation++;this.revision++;this.articleRun++;
   this.containerEl.removeClass('ts-writing-leaf');
   let recovery:{text:string;name:string}|undefined;
   try{this.flushFields();}

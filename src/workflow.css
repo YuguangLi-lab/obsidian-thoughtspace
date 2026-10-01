@@ -171,3 +171,23 @@
 .ts-db-condition input{width:145px;}.ts-db-custom-property{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;}
 .ts-db-table td>input:not([type=checkbox]){min-width:110px;max-width:180px;}
 .ts-db-field-definition span{flex:1;}
+
+/* Writing assistance stays collapsed and scoped to the manuscript. */
+.ts-writing-navigator{margin:8px 0;color:var(--text-muted);font-size:12px;}
+.ts-writing-navigator>summary{cursor:pointer;padding:6px 0;}
+.ts-writing-nav-rows{max-height:220px;overflow:auto;border-top:1px solid var(--background-modifier-border);}
+.ts-writing-nav-row{display:flex;align-items:center;gap:8px;padding-left:calc(min(var(--writing-depth),3)*10px);}
+.ts-writing .ts-writing-nav-jump{flex:1;display:block;text-align:left;overflow:hidden;text-overflow:ellipsis;}
+.ts-writing .ts-writing-nav-jump.is-current{color:var(--text-accent);background:var(--background-modifier-hover);}
+.ts-writing-nav-row>small{flex:none;font-size:10px;}.ts-writing-nav-row>input{flex:none;}
+.ts-writing-assembly{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;font-size:11px;color:var(--text-muted);border-top:1px solid var(--background-modifier-border);padding:6px 0;}
+.ts-writing-reference-picker{width:min(760px,94vw);max-height:90vh;}
+.ts-writing-reference-picker .modal-content{display:flex;flex-direction:column;gap:10px;min-height:0;}
+.ts-writing-reference-picker small{overflow-wrap:anywhere;color:var(--text-muted);}
+.ts-writing-reference-picker label{display:flex;align-items:center;gap:12px;min-width:0;font-size:12px;}
+.ts-writing-reference-picker select{flex:1;min-width:0;max-width:100%;}
+.ts-writing-reference-picker textarea{width:100%;height:clamp(140px,38vh,400px);min-height:100px;resize:vertical;font-family:var(--font-monospace);font-size:13px;white-space:pre-wrap;}
+.ts-writing-reference-hint{font-size:12px;color:var(--text-muted);margin:0;}
+.ts-writing-reference-buttons{display:flex;gap:8px;flex-wrap:wrap;}.ts-writing-reference-picker [role=alert]{color:var(--text-error);font-size:12px;}
+.ts-writing-context{flex:none;min-width:0;padding:0 14px;border-bottom:1px solid var(--background-modifier-border);}
+.ts-writing-context .ts-writing-navigator{margin:0;}.ts-writing-context .ts-writing-nav-rows{max-height:min(180px,24vh);}

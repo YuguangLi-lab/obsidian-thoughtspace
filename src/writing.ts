@@ -5,6 +5,7 @@ export interface WritingChapter {id:string;title:string;body:string}
 export interface WritingOption {title?:string;level?:number;note?:string;excluded?:boolean}
 export interface WritingState {
  manuscript?:string;
+ assemblyStamp?:string;completedSections?:string[];
  title:string;order:string[];referenceId?:string;draftPath?:string;
  chapters?:WritingChapter[];options?:Record<string,WritingOption>;
  referenceIds?:string[];includeSources?:boolean;
