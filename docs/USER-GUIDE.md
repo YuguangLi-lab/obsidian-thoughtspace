@@ -246,6 +246,12 @@ The cloud button above an image uploads it through your configured **极速图�
 
 PDF cards are page previews. A scanned PDF needs an existing text layer for text selection; ThoughtSpace does not perform OCR. Folded and offscreen cards release rendering work. Large or complex PDFs can still take time to load initially.
 
+### Paste PDF / PDF++ references
+
+Search **粘贴 PDF / PDF++ 引用** in **白板操作** (Board actions). Paste copied wiki/Markdown links, quoted passages, or rectangular embeds, review the resolved source, and choose **加入白板** (Add to board). One import creates one editable card and one undo step. Repeating identical content focuses the existing card. For relative links copied from a Markdown note, enter that note's full vault path; ambiguous PDF filenames require a path or explicit source-note context.
+
+The source menu offers the original copied text, the full PDF location, and **仅打开 PDF 页** (Open PDF page only). PDF fragments and note block references remain separate. PDF++ is optional: enhanced selections, annotations and rectangular embeds depend on the reader/plugin; page-only navigation remains available. ThoughtSpace uses Obsidian's public link-opening API, never invokes PDF++ copy commands, and does not edit PDFs or source notes. It does not register automatic PDF++ backlinks to board cards. The original clipboard text is retained as provenance in the board, independently of subsequent card edits. Different original clipboard syntax is retained separately; only identical original text, context and content deduplicate. Obsidian renames update rendered links and rectangular embeds while leaving code examples and the original snapshot unchanged. Imported cards initially fit their content height.
+
 ### Extract passages from notes
 
 Run **在右侧打开笔记，选字拖入白板**, select a Markdown note, and drag selected text onto empty canvas. The destination preview distinguishes a new excerpt from **追加证据** (Append evidence) when hovering over an eligible note card. Drop on empty space when you want a separate excerpt rather than appending to a target.

@@ -149,7 +149,7 @@ export class ThoughtSpaceSettings extends PluginSettingTab {
    this.select(el,'surfaceStyle',['界面材质','Panel finish'],['柔光使用半透明面板；纸感使用实色面板。','Soft uses translucent panels; paper uses solid surfaces.'],{soft:['柔光','Soft'],paper:['纸感','Paper']});
    this.select(el,'accent',['强调色','Accent color'],['影响按钮与导航，不改变卡片自己的配色。','Changes buttons and navigation, not individual card colors.'],{forest:['森林绿','Forest'],blue:['湖水蓝','Lake'],amber:['暖琥珀','Amber'],rose:['玫瑰色','Rose']});
    this.toggle(el,'glassEffects',['玻璃效果','Glass effects'],['关闭后使用实色界面。','Turn off to use solid interface surfaces.']);
-   this.select(el,'density',['界面密度','Interface density'],['控制侧栏摘要与条目间距。','Controls sidebar excerpts and item spacing.'],{comfortable:['舒适','Comfortable'],compact:['紧凑','Compact']});return;
+   this.select(el,'density',['界面密度','Interface density'],['统一侧栏、材料库、写作与媒体摘录的控件和条目间距；正文及格式栏密度保持独立。','Controls spacing in sidebars, materials, writing and media excerpts; reading text and formatting toolbar density remain independent.'],{comfortable:['舒适','Comfortable'],compact:['紧凑','Compact']});return;
   }
   if(page==='cards'){
    this.select(el,'defaultCardStyle',['默认卡片样式','Default card style'],['仅用于之后新建或插入的 Markdown 卡片，已有卡片保持原样。','Applies to newly created or inserted Markdown cards. Existing cards stay unchanged.'],{transparent:['透明','Transparent'],solid:['实色','Solid'],band:['色带','Color band'],paper:['纸张','Paper'],index:['索引卡','Index'],sticky:['便签卡','Sticky note']});

@@ -1,14 +1,15 @@
+import type {PdfQuoteOrigin} from './pdf-quote';
 import {webUrl} from './web-card';
 import {validReadingCheckpoint,type ReadingLayoutCheckpoint} from './expansion-checkpoint';
 import {externalMediaMarkdown} from './media-export';
-import {isRecord,isUnknownArray,isFiniteNumber,isOneOf} from './value-guards';
+import {isRecord,isUnknownArray,isFiniteNumber,isOneOf,hasAsciiControl} from './value-guards';
 import {remoteImageUrl} from './image-host';
 import {isVaultMediaPath,mediaKind,validMediaTime} from './media-source';
 import type {WritingState} from './writing';
 import {markdownRows} from './markdown-context';
 import {yingjianNotePath} from './yingjian';
 /** Capture provenance survives independent text/image editing and safe note renames. */
-export interface Card { videoCapture?:{id:string;note:string}; sectionFolded?:boolean; sectionDivider?:'none'|'solid'|'dashed'|'dotted'; cardStyle?:'band'|'paper'|'index'|'sticky' }
+export interface Card { pdfQuote?:PdfQuoteOrigin; videoCapture?:{id:string;note:string}; sectionFolded?:boolean; sectionDivider?:'none'|'solid'|'dashed'|'dotted'; cardStyle?:'band'|'paper'|'index'|'sticky' }
 export interface Board {readingLayout?:ReadingLayoutCheckpoint}
 import { connectionSides, Side } from './connections';
 import { branchState, branchTopology, validateBranches } from './mindmap';
@@ -55,6 +56,7 @@ function assertBoardData(b:unknown):asserts b is Board {
     if(n.textMaxWidth!==undefined&&(n.kind!=='text'||!isFiniteNumber(n.textMaxWidth)||n.textMaxWidth<160||n.textMaxWidth>720))throw Error('主题换行宽度无效');
     if(n.mediaStart!==undefined&&(!isOneOf(n.kind,['audio','video'])||!validMediaTime(n.mediaStart)))throw Error('媒体起始时间无效');
     if(n.pdfPage!==undefined&&(n.kind!=='pdf'||!isFiniteNumber(n.pdfPage)||!Number.isSafeInteger(n.pdfPage)||n.pdfPage<1))throw Error('PDF 页码无效');
+    if(n.pdfQuote!==undefined&&(n.kind!=='text'||!isRecord(n.pdfQuote)||typeof n.pdfQuote.original!=='string'||n.pdfQuote.original.length>100000||typeof n.pdfQuote.sourcePath!=='string'||n.pdfQuote.sourcePath.length>2048||hasAsciiControl(n.pdfQuote.sourcePath)))throw Error('PDF 引用原文无效');
     if(n.webUrl!==undefined&&(n.kind!=='text'||!webUrl(n.webUrl)))throw Error('网页链接无效');
     if(n.imageUrl!==undefined&&(n.kind!=='image'||!remoteImageUrl(n.imageUrl)))throw Error('图床图片地址无效');
     if(n.videoCapture!==undefined&&(!isOneOf(n.kind,['text','image'])||!isRecord(n.videoCapture)||typeof n.videoCapture.id!=='string'||!/^[a-f0-9-]{36}$/.test(n.videoCapture.id)||!yingjianNotePath(n.videoCapture.note)))throw Error('视频记录来源无效');

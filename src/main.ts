@@ -1,3 +1,7 @@
+import {PdfQuoteModal} from './pdf-quote-view';
+import {planPdfQuote,resolvePdfQuotePath,pdfQuoteFragment,samePdfQuote,type PdfQuotePlan} from './pdf-quote';
+import {MinimapAvoidance,minimapInsets,overlapsMinimap,type ScreenBox} from './minimap-avoidance';
+import {applyWorkspaceDensity} from './workspace-density';
 import {mediaTimestampNode} from './media-timestamp-target';
 import {webUrl,webCard,updateWebCard,renderWebCard} from './web-card';
 import {OnlinePlatform,parseOnlineSource,resolveOnlineSource,type OnlineState} from './online-platform';
@@ -440,7 +444,7 @@ export default class ThoughtSpace extends Plugin {
     const unsubscribeRecovery=this.mediaDrafts?.subscribe(()=>{if(!this.mediaDrafts?.pending().length)recoveryNotice?.hide();});
     this.register(()=>{if(recoveryTimer!==undefined)window.clearTimeout(recoveryTimer);recoveryNotice?.hide();unsubscribeRecovery?.();});
     this.register(()=>{this.mediaRecovery?.close();void this.mediaDrafts?.dispose().catch(()=>new Notice('媒体草稿暂存失败，请勿关闭仍含草稿的窗口。',10000));});
-    this.mediaWorkspaceHost={drafts:this.mediaDrafts,recoverDrafts:recover,open:(file,placement,time)=>this.openMediaWorkspace(file,placement,time),pick:done=>this.pickMediaFile(done),pickExternal:done=>this.pickExternalMedia(done),pickOnline:placement=>this.pickOnlineVideo(placement),mount:(host,file,hooks)=>this.mediaWorkspace.mount(host,file,hooks),moments:file=>this.mediaWorkspace.moments(file),saveMoment:(file,data)=>this.mediaWorkspace.saveMoment(file,data),openNote:file=>this.openNoteInSidebar(file),sendToBoard:(file,moment)=>this.sendMediaToBoard(file,moment)};
+    this.mediaWorkspaceHost={density:()=>this.settings.density,drafts:this.mediaDrafts,recoverDrafts:recover,open:(file,placement,time)=>this.openMediaWorkspace(file,placement,time),pick:done=>this.pickMediaFile(done),pickExternal:done=>this.pickExternalMedia(done),pickOnline:placement=>this.pickOnlineVideo(placement),mount:(host,file,hooks)=>this.mediaWorkspace.mount(host,file,hooks),moments:file=>this.mediaWorkspace.moments(file),saveMoment:(file,data)=>this.mediaWorkspace.saveMoment(file,data),openNote:file=>this.openNoteInSidebar(file),sendToBoard:(file,moment)=>this.sendMediaToBoard(file,moment)};
     this.registerView(MEDIA_WORKSPACE,leaf=>new MediaWorkspaceView(leaf,this.mediaWorkspaceHost));
     this.register(()=>{this.mediaClosed=true;void this.mediaWorkspace.dispose().catch(report);});
     this.registerEvent(this.app.vault.on('rename',(file,oldPath)=>{if(file instanceof TFile)this.mediaWorkspace.playback.rename(oldPath,file.path);}));
@@ -800,6 +804,7 @@ export default class ThoughtSpace extends Plugin {
   async savePreferences() {
     await this.saveData(this.settings);
     for (const leaf of this.app.workspace.getLeavesOfType(VIEW)) if (leaf.view instanceof BoardView) leaf.view.applyPreferences();
+    for(const type of [WRITING,MEDIA_WORKSPACE,MATERIALS])for(const leaf of this.app.workspace.getLeavesOfType(type)){const view=leaf.view;if(view instanceof WritingView||view instanceof MediaWorkspaceView||view instanceof MaterialsView)view.applyPreferences();}
     this.refreshDock();
   }
   async session(file: TFile) {
@@ -1565,7 +1570,8 @@ class MaterialsView extends ItemView {
  workbench?:MaterialsWorkbench;
  constructor(leaf:WorkspaceLeaf,private plugin:ThoughtSpace){super(leaf);}
  getViewType(){return MATERIALS;}getDisplayText(){return '材料工作台';}getIcon(){return 'notebook-pen';}
- async onOpen(){this.contentEl.empty();const title=this.contentEl.createEl('h2',{cls:'ts-materials-panel-title'}),body=this.contentEl.createDiv('ts-materials-panel-content');this.workbench=new MaterialsWorkbench(this.app,this.plugin.materialAdapter(),this.contentEl,body,title,()=>this.leaf.detach());this.workbench.onOpen();}
+ applyPreferences(){applyWorkspaceDensity(this.contentEl,this.plugin.settings.density);}
+ async onOpen(){this.applyPreferences();this.contentEl.empty();const title=this.contentEl.createEl('h2',{cls:'ts-materials-panel-title'}),body=this.contentEl.createDiv('ts-materials-panel-content');this.workbench=new MaterialsWorkbench(this.app,this.plugin.materialAdapter(),this.contentEl,body,title,()=>this.leaf.detach());this.workbench.onOpen();this.applyPreferences();}
  async onClose(){this.plugin.clearMaterialDrag();this.workbench?.onClose();this.workbench=undefined;this.contentEl.empty();}
 }
 
@@ -1596,6 +1602,7 @@ class BoardView extends FileView {
   private suppressMiddlePaste=false;
   private focusMode = false; private focusButton?: HTMLElement;
   private trail: TFile[] = []; private crumbs!: HTMLElement; private boardStats!: HTMLElement;
+  private minimapAvoidance=new MinimapAvoidance();private minimapObstacle?:ScreenBox;
   private minimap!: HTMLElement; private collapsedBoards = new Set<string>();
   private navigationQueue: Promise<void> = Promise.resolve();
   private controlStageSize?:{width:number;height:number};
@@ -1647,6 +1654,17 @@ class BoardView extends FileView {
     button(m.contentEl,'应用筛选','filter',()=>{this.requireOwner(owner);this.objectFilter=draft;this.renderBoard();m.close();});button(m.contentEl,'清除筛选','x',()=>{this.requireOwner(owner);this.objectFilter={kind:'',color:'',query:''};this.renderBoard();m.close();});m.open();}
   private updateObjectFilter(){if(!this.session)return;const active=Object.values(this.objectFilter).some(Boolean);this.filterMatches=active?filterObjects(this.session.board.nodes,this.objectFilter):undefined;this.filterBadge?.toggleClass('is-visible',active);if(this.filterBadge){this.filterBadge.empty();if(active){this.filterBadge.createSpan({text:`匹配 ${this.filterMatches!.size} / ${this.session.board.nodes.length}`});button(this.filterBadge,'选择匹配','check-check',()=>{this.selected=new Set(this.filterMatches);this.contextOpen=false;this.updateSelection();});button(this.filterBadge,'清除对象筛选','x',()=>{this.objectFilter={kind:'',color:'',query:''};this.renderBoard();});}}for(const[id,el]of this.positions)el.toggleClass('is-filtered-out',!!this.filterMatches&&!this.filterMatches.has(id));}
   pasteTexts(text:string,split=true){const owner=this.requireOwner(),position=this.point(),lines=split?textBatch(text):[text];if(!text.trim())return;if(text.length>100000)throw Error('一次最多粘贴 100,000 个字符');const nodes=lines.map((text,i)=>{const n:Card={id:uid(),kind:'text',text,x:position.x,y:position.y,width:240,height:60,color:'sand',fontSize:this.plugin.settings.defaultTextSize};fitTextNode(n,this.contentEl);return n;});let y=position.y;for(const n of nodes){n.y=y;y+=n.height+24;}owner.change(b=>{b.version=3;b.nodes.push(...nodes);});this.selected=new Set(nodes.map(n=>n.id));this.updateSelection();}
+  private pdfQuotePrompt(initial=''){
+    const owner=this.requireOwner();
+    const plan=(text:string,source:string)=>{this.requireOwner(owner);if(source&&!(this.app.vault.getAbstractFileByPath(source) instanceof TFile&&/\.md$/i.test(source)))throw Error('来源笔记不存在，请填写完整的仓库内 Markdown 路径');const files=this.app.vault.getFiles().map(file=>file.path);return planPdfQuote(text,source,(path,context)=>resolvePdfQuotePath(path,context,files,(value,from)=>this.app.metadataCache.getFirstLinkpathDest(value,from)?.path));};
+    new PdfQuoteModal(this.app,initial,plan,value=>{this.requireOwner(owner);this.importPdfQuote(value);}).open();
+  }
+  private importPdfQuote(plan:PdfQuotePlan){
+    const owner=this.requireOwner(),existing=owner.board.nodes.find(node=>node.kind==='text'&&samePdfQuote(node,plan));
+    if(existing){this.selected=new Set([existing.id]);this.updateSelection();this.focusSelection();new Notice('这条摘录已在白板中，已定位到原卡片');return;}
+    const position=this.point(),node:Card={id:uid(),kind:'text',text:plan.text,pdfQuote:plan.origin,textAutoHeight:true,x:position.x,y:position.y,width:320,height:180,color:'sand',fontSize:this.plugin.settings.defaultTextSize};fitTextNode(node,this.contentEl);
+    owner.change(board=>{board.version=3;board.nodes.push(node);});this.selected=new Set([node.id]);this.updateSelection();
+  }
   private textBatchPrompt(){const owner=this.session;new TextModal(this.app,'逐行创建文本框','',text=>{this.requireOwner(owner);this.pasteTexts(text);}).open();}
   private async linkedText(){const owner=this.requireOwner();if(this.inline&&!await this.inline.commit())return;this.requireOwner(owner);const parent=owner.board.nodes.find(n=>this.selected.has(n.id)&&n.kind!=='section');if(!parent)return;const id=uid();owner.change(b=>{b.version=3;const n:Card={id,kind:'text',text:'',x:parent.x+parent.width+90,y:parent.y,width:280,height:140,color:parent.color,fontSize:this.plugin.settings.defaultTextSize};b.nodes.push(n);b.edges.push({id:uid(),from:parent.id,to:id,label:'',style:this.plugin.settings.defaultEdgeStyle,direction:this.plugin.settings.defaultEdgeDirection});});await this.startInlineEdit(id,false,true);}
   private checkBoard(){const owner=this.session;if(!owner)return;const issues=boardIssues(owner.board,path=>this.app.vault.getAbstractFileByPath(path) instanceof TFile),m=new Modal(this.app);themeSurface(m.modalEl);m.modalEl.addClass('ts-board-check-modal');m.titleEl.setText('白板检查');for(const [key,label]of [['missing','缺失引用'],['isolated','未连接对象'],['locked','已锁定对象']] as const){m.contentEl.createEl('h3',{text:`${label} · ${issues[key].length}`});for(const n of issues[key].slice(0,100))button(m.contentEl,n.title||n.file?.split('/').pop()||n.text?.slice(0,55)||n.id,'locate-fixed',()=>{if(this.session===owner){m.close();this.revealNode(n.id);}});if(issues[key].length>100)m.contentEl.createDiv({text:'显示前 100 项，请结合对象筛选继续定位。'});}m.open();}
@@ -1823,7 +1841,7 @@ class BoardView extends FileView {
     add('折叠导图分支','导图','list-collapse',()=>this.foldBranches(ids,true),!has);add('展开下一层','导图','list-tree',()=>this.foldBranches(ids,false,'level'),!has);add('展开全部导图分支','导图','unfold-vertical',()=>this.foldBranches(new Set(owner.board.nodes.map(n=>n.id)),false));
     add('打开阅读桌','内容','book-open',()=>this.openReadingDesk());
     add('白板工作台','内容','sliders-horizontal',()=>this.openStudio());
-    add('筛选对象','查找与选择','filter',()=>this.chooseObjects());add('白板检查','查找与选择','scan-search',()=>this.checkBoard());add('逐行创建文本框','内容','list-plus',()=>this.textBatchPrompt());add('向右添加关联文本','内容','corner-down-right',()=>this.linkedText(),!has||one?.kind==='section');
+    add('筛选对象','查找与选择','filter',()=>this.chooseObjects());add('白板检查','查找与选择','scan-search',()=>this.checkBoard());add('粘贴 PDF / PDF++ 引用','内容','quote',()=>this.pdfQuotePrompt());add('逐行创建文本框','内容','list-plus',()=>this.textBatchPrompt());add('向右添加关联文本','内容','corner-down-right',()=>this.linkedText(),!has||one?.kind==='section');
     add('复制对象样式','样式与排列','pipette',()=>this.copyObjectStyle(ids,owner),ids.size!==1);add('粘贴对象样式','样式与排列','paintbrush',()=>this.pasteObjectStyle(ids,owner),!has||!this.plugin.copiedNodeStyle);
     add('上移一层','样式与排列','bring-to-front',()=>owner.change(b=>stepLayers(b,ids,true)),!has);add('下移一层','样式与排列','send-to-back',()=>owner.change(b=>stepLayers(b,ids,false)),!has);add('分组贴合内容','样式与排列','group',()=>owner.change(b=>fitSections(b,ids)),!section);
     add('返回上一视角','视角','arrow-left',()=>this.travelViewport(),false,'Alt + ←');add('前进到下一视角','视角','arrow-right',()=>this.travelViewport(true),false,'Alt + →');add('适应全部内容','视角','maximize',()=>this.fit(),false,'F');add('聚焦所选','视角','focus',()=>this.focusSelection(),!has,'Shift + F');add('搜索白板','查找与选择','search',()=>this.findOnBoard(),false,'⌘ / Ctrl + F');
@@ -2109,7 +2127,7 @@ class BoardView extends FileView {
     viewDock.append(this.canvasSummary);
     const camera=viewDock.createDiv({cls:'ts-camera-controls',attr:{role:'group','aria-label':'视图导航'}});
     const zoom=camera.createDiv({cls:'ts-zoom',attr:{role:'group','aria-label':'视图缩放'}});this.focusSelectedButton=button(zoom,'聚焦所选','focus',()=>this.focusSelection(),'ts-focus-selected ts-icon-button');this.focusSelectedButton.hidden=true;this.focusSelectedButton.onmousedown=e=>e.preventDefault();button(zoom,'−','minus',()=>this.zoom(.85));this.zoomLabel=zoom.createSpan({attr:{role:'button',tabindex:'0','aria-label':'缩放比例与视图定位',title:'缩放比例 · 聚焦所选 · 适应全部'}});this.zoomLabel.onclick=()=>this.zoomPresets();this.zoomLabel.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();this.zoomPresets();}};button(zoom,'+','plus',()=>this.zoom(1.18));button(zoom,'适应','scan',()=>this.fit());
-    this.overviewToggle=button(camera,'白板总览','map',async()=>{this.plugin.settings.showMinimap=!this.plugin.settings.showMinimap;await this.plugin.savePreferences();},'ts-overview-toggle ts-icon-button');
+    this.overviewToggle=button(camera,'白板总览','map',async()=>{if(this.minimapAvoidance.hidden){this.minimapAvoidance.reveal();this.syncMinimapAvoidance();return;}this.plugin.settings.showMinimap=!this.plugin.settings.showMinimap;await this.plugin.savePreferences();},'ts-overview-toggle ts-icon-button');this.overviewToggle.onmousedown=e=>e.preventDefault();
     this.snapTarget=this.stage.createDiv({cls:'ts-snap-target',attr:{'aria-hidden':'true'}});this.snapReadout=this.stage.createDiv({cls:'ts-snap-readout',attr:{'aria-hidden':'true'}});
     this.flowHint=this.stage.createDiv({cls:'ts-flow-hint',attr:{role:'status','aria-live':'polite'}});
     this.backToContent=button(this.stage,'返回内容','scan',()=>this.fit(),'ts-back-content');
@@ -2129,6 +2147,7 @@ class BoardView extends FileView {
     };
     const refreshChrome=()=>{
       chromeFrame=0;
+      this.measureMinimap();
       const mainBounds=main.getBoundingClientRect(),mainTop=mainBounds.top;
       const railBounds=rail.getClientRects().length?rail.getBoundingClientRect():undefined;
       refreshRailObstacle();
@@ -2145,7 +2164,7 @@ class BoardView extends FileView {
     };
     // Writes that change observed sizes belong to the next frame, not inside
     // ResizeObserver delivery; this also coalesces split/theme changes.
-    const chromeObserver=new ResizeObserver(()=>{if(!chromeFrame)chromeFrame=chromeWindow.requestAnimationFrame(refreshChrome);});chromeObserver.observe(footer);chromeObserver.observe(formatbar);chromeObserver.observe(rail);this.register(()=>{chromeObserver.disconnect();chromeWindow.cancelAnimationFrame(chromeFrame);chromeWindow.cancelAnimationFrame(railFrame);});
+    const chromeObserver=new ResizeObserver(()=>{if(!chromeFrame)chromeFrame=chromeWindow.requestAnimationFrame(refreshChrome);});chromeObserver.observe(footer);chromeObserver.observe(formatbar);chromeObserver.observe(rail);chromeObserver.observe(this.minimap);chromeObserver.observe(this.stage);this.register(()=>{chromeObserver.disconnect();chromeWindow.cancelAnimationFrame(chromeFrame);chromeWindow.cancelAnimationFrame(railFrame);});
     this.registerDomEvent(this.stage,'pointerdown',e=>{
       // Editors may stop bubbling; a new middle press still owns its default.
       if(e.button===1)this.suppressMiddlePaste=false;
@@ -2793,6 +2812,19 @@ class BoardView extends FileView {
     const next = Math.min(2.5, Math.max(.15, v.zoom * factor)); v.x += p.x * (v.zoom - next); v.y += p.y * (v.zoom - next); v.zoom = next;
     this.transform(); this.session.persist();
   }
+  private measureMinimap(){
+    const map=this.minimap,stage=this.stage;if(!map||!stage)return;const r=map.getBoundingClientRect(),s=stage.getBoundingClientRect();
+    this.minimapObstacle=this.plugin.settings.showMinimap&&r.width>0&&r.height>0?{x:r.left-s.left,y:r.top-s.top,width:r.width,height:r.height}:undefined;this.syncMinimapAvoidance();
+  }
+  private syncMinimapAvoidance(){
+    if(!this.minimap||!this.session)return;const g=this.dragging&&!this.gesture?.pan?this.gesture:undefined,focused=this.contentEl.ownerDocument.activeElement,title=focused&&this.contentEl.contains(focused)?focused.closest<HTMLElement>('.is-editing-title'):undefined;
+    const interaction=g||this.inline||this.inlineTarget||title||undefined,board=this.inlineLayout||this.session.board,viewport=this.session.board.viewport;
+    const targets=!interaction?[]:g?[...g.draft.values()].filter(n=>g.idSet.has(n.id)||g.resize===n.id):board.nodes.filter(n=>n.id===this.inlineId||n.id===this.inlineTarget||title?.dataset.id===n.id);
+    const overlap=!!this.minimapObstacle&&targets.some(n=>overlapsMinimap({x:n.x*viewport.zoom+viewport.x,y:n.y*viewport.zoom+viewport.y,width:n.width*viewport.zoom,height:n.height*viewport.zoom},this.minimapObstacle!));
+    const hidden=this.minimapAvoidance.update(this.plugin.settings.showMinimap?interaction:undefined,overlap);
+    if(this.minimap.classList.contains('is-avoiding')!==hidden){this.minimap.toggleClass('is-avoiding',hidden);this.minimap.setAttribute('aria-hidden',String(hidden));}
+    if(this.overviewToggle){const label=hidden?'总览暂时避让 · 点击临时展开':this.plugin.settings.showMinimap?'收起白板总览':'显示白板总览';if(this.overviewToggle.title!==label){this.overviewToggle.title=label;this.overviewToggle.setAttribute('aria-label',label);}const expanded=String(!!this.minimapObstacle&&!hidden);if(this.overviewToggle.getAttribute('aria-expanded')!==expanded)this.overviewToggle.setAttribute('aria-expanded',expanded);}
+  }
   private fitContent(nodes:Card[]){
     return fitViewportInSafeArea(nodes,this.stage.clientWidth,this.stage.clientHeight,this.viewportInsets());
   }
@@ -2803,11 +2835,11 @@ class BoardView extends FileView {
     const format=rect('.ts-floating-formatbar'),rail=rect('.ts-board-rail'),footer=rect('.ts-footer');
     const railDirection=main?.querySelector<HTMLElement>('.ts-board-rail')?.getAttribute('aria-orientation');
     const horizontalRail=!!rail&&(railDirection?railDirection==='horizontal':rail.width>rail.height);
-    return {
+    this.measureMinimap();return minimapInsets(bounds.width,bounds.height,{
       left:rail&&!horizontalRail?Math.max(0,rail.right-bounds.left)+12:0,right:0,
       top:Math.max(0,format?format.bottom-bounds.top+12:0,horizontalRail&&rail?rail.bottom-bounds.top+12:0),
       bottom:footer?Math.max(0,bounds.bottom-footer.top)+12:0,
-    };
+    },this.minimapObstacle);
   }
   fit() { if (!this.session || this.session.blocked || !this.stage.clientWidth || !this.stage.clientHeight) return; this.rememberViewport();this.session.board.viewport = this.fitContent(visibleBranchBoard(this.session.board).nodes); this.transform(); this.session.persist(); }
   private updateBackToContent(branches?:BranchRenderSnapshot){
@@ -2826,20 +2858,22 @@ class BoardView extends FileView {
   }
   private sourcePopover?:HTMLElement;private sourcePopoverClose?:()=>void;
   private sourceFile(note:TFile,source:ExcerptSource){return resolveSourceLink(source.link,path=>this.app.metadataCache.getFirstLinkpathDest(path,note.path));}
-  async openExcerptSource(note:TFile,source:ExcerptSource){
+  async openExcerptSource(note:TFile,source:ExcerptSource,pageOnly=false,pdfBridge=false){
     const target=this.sourceFile(note,source);if(!(target.file instanceof TFile))throw Error('找不到来源文件，原始引用仍保留在摘录笔记中');
+    if(isPdfFile(target.file.path)&&(pageOnly||pdfBridge)){await this.app.workspace.openLinkText(target.file.path+(pageOnly?pdfSubpath(source.page||1):(pdfQuoteFragment(source.link)??target.subpath)),note.path,'tab');return;}
     const leaf=await this.plugin.openNoteInSidebar(target.file,target.subpath);
     if(source.line&&leaf.view instanceof MarkdownView){const editor=leaf.view.editor,pos={line:Math.min(editor.lineCount()-1,source.line-1),ch:0};editor.setCursor(pos);editor.scrollIntoView({from:pos,to:pos},true);}
   }
-  private addSourceBadge(footer:HTMLElement,note:TFile,sources:ExcerptSource[],scope:Component){
+  private addSourceBadge(footer:HTMLElement,note:TFile,sources:ExcerptSource[],scope:Component,original?:string){
     const trigger=button(footer,`摘录来源（${sources.length}）`,'link',()=>{if(popover?.isConnected)close();else show();},'ts-source-trigger');trigger.setAttribute('aria-haspopup','dialog');trigger.setAttribute('aria-expanded','false');trigger.title=sources.map(s=>`${this.sourceFile(note,s).file?.basename||sourceLinkTarget(s.link)} · ${s.location}`).join('\n');
     let popover:HTMLElement|undefined,timer:number|undefined;const cancel=()=>{if(timer!==undefined)(footer.ownerDocument.defaultView||window).clearTimeout(timer);timer=undefined;};
     const close=()=>{cancel();footer.ownerDocument.removeEventListener('keydown',onEscape,true);footer.ownerDocument.removeEventListener('pointerdown',onOutside,true);popover?.remove();if(this.sourcePopover===popover){this.sourcePopover=undefined;this.sourcePopoverClose=undefined;}popover=undefined;trigger.setAttribute('aria-expanded','false');};
     const later=()=>{cancel();timer=(footer.ownerDocument.defaultView||window).setTimeout(close,180);};
     const show=()=>{cancel();if(popover?.isConnected)return;this.sourcePopoverClose?.();const doc=footer.ownerDocument,win=doc.defaultView!;popover=doc.body.createDiv({cls:'ts-source-popover',attr:{role:'dialog','aria-label':'摘录来源'}});this.sourcePopover=popover;this.sourcePopoverClose=close;themeSurface(popover);trigger.setAttribute('aria-expanded','true');doc.addEventListener('keydown',onEscape,true);doc.addEventListener('pointerdown',onOutside,true);
       const header=popover.createDiv('ts-source-popover-title');header.createSpan({text:`${sources.length} 条摘录来源`});button(header,'关闭来源','x',close,'ts-icon-button');
-      const list=popover.createDiv('ts-source-list');for(const source of sources){const target=this.sourceFile(note,source),row=list.createDiv('ts-source-row');button(row,`${target.file?.basename||sourceLinkTarget(source.link)} · ${source.location}`,'arrow-up-right',()=>this.openExcerptSource(note,source),'ts-source-open');
-        const actions=row.createDiv('ts-source-actions');button(actions,'同源摘录','layers',()=>{close();return this.selectSourceExcerpts(note,source);});button(actions,'复制来源','copy',async()=>{await win.navigator.clipboard.writeText(source.citation);new Notice('已复制来源引用');});}
+      if(original)button(header,'复制原始 PDF 引用','copy',()=>win.navigator.clipboard.writeText(original),'ts-icon-button');
+      const list=popover.createDiv('ts-source-list');for(const source of sources){const target=this.sourceFile(note,source),row=list.createDiv('ts-source-row');button(row,`${target.file?.basename||sourceLinkTarget(source.link)} · ${source.location}`,'arrow-up-right',()=>this.openExcerptSource(note,source,false,!!original),'ts-source-open');
+        const actions=row.createDiv('ts-source-actions');if(target.file&&isPdfFile(target.file.path))button(actions,'仅打开 PDF 页','file',()=>this.openExcerptSource(note,source,true));button(actions,'同源摘录','layers',()=>{close();return this.selectSourceExcerpts(note,source);});button(actions,'复制来源','copy',async()=>{await win.navigator.clipboard.writeText(source.citation);new Notice('已复制来源引用');});}
       popover.onpointerenter=cancel;popover.onpointerleave=later;popover.addEventListener('focusin',cancel);popover.addEventListener('focusout',e=>{if(!popover?.contains(e.relatedTarget as Node)&&e.relatedTarget!==trigger)later();});
       const r=trigger.getBoundingClientRect(),w=Math.min(340,win.innerWidth-24);popover.style.width=w+'px';popover.style.maxHeight=Math.max(100,win.innerHeight-24)+'px';const h=popover.getBoundingClientRect().height;popover.style.left=Math.max(12,Math.min(win.innerWidth-w-12,r.left))+'px';popover.style.top=Math.max(12,r.top-h-8)+'px';
     };
@@ -3026,7 +3060,7 @@ class BoardView extends FileView {
         if(n.collapsed){textBody.setText(presentation.body.split(/\r?\n/).find(line=>line.trim())?.trim()||'空文本');}
         else{
           renderTextPreview(textBody,presentation.sources.length?presentation.body.trimEnd():presentation.body,scope,()=>{if(textBody.isConnected)this.queueTextFit(n);},(alive,run)=>this.previewQueue.add(alive,run),{app:this.app,sourcePath:this.session.file.path});
-          if(presentation.sources.length){textBody.appendText('\u2060');this.addSourceBadge(textBody,this.session.file,presentation.sources,scope);}
+          if(presentation.sources.length){textBody.appendText('\u2060');this.addSourceBadge(textBody,this.session.file,presentation.sources,scope,n.pdfQuote?.original);}
           this.queueTextFit(n);
         }
         el.ondblclick=e=>{if((e.target as Element).closest('button,a'))return;e.stopPropagation();this.editText(n.id);};
@@ -3105,7 +3139,7 @@ class BoardView extends FileView {
     // Moving a mounted element during the stable ordering pass blurs focus.
     // Restore only after that pass, and reveal hidden docks before focusing.
     if(pendingFoldFocus){pendingFoldFocus.closest('.ts-node')?.classList.add('is-control-focus');pendingFoldFocus.focus({preventScroll:true});}
-    this.renderEdges(branchRender,b);if(!viewportOnly)this.renderInspector();if(!viewportOnly||!this.mapKey)this.renderMinimap(branchRender);else this.mapViewport?.();
+    this.renderEdges(branchRender,b);if(!viewportOnly)this.renderInspector();if(!viewportOnly||!this.mapKey)this.renderMinimap(branchRender);else this.mapViewport?.();this.syncMinimapAvoidance();
   }
   private mountOnlineBoardCard(node:Card,host:HTMLElement,owner=this.session){
     const source=parseOnlineSource(node.webUrl!);if(!source)throw Error('在线视频来源无效');
@@ -4195,6 +4229,7 @@ class BoardView extends FileView {
       else if (!g.resize && g.idSet.has(n.id)) { n.x = original.x + delta.dx; n.y = original.y + delta.dy; }
       if(g.resize===n.id||(!g.resize&&g.idSet.has(n.id))){const el = this.positions.get(n.id); if (el) this.positionNode({...live,...dragGeometry(n,!!g.resize)}, el);}
     }
+    this.syncMinimapAvoidance();
     // Only connections and a visible grid landing consume projected drag geometry.
     // Keep edge rendering active even without an overlay so stale rows/ports clear.
     const base=this.inlineLayout&&this.inlineTarget?{...this.inlineLayout,viewport:b.viewport}:b,landingIds=g.resize||g.guides?.length||e.altKey?undefined:g.idSet;

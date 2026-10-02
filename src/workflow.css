@@ -5,11 +5,11 @@
 /* A quiet, scoped writing workspace. Obsidian owns fonts, colors and Markdown. */
 .ts-writing-leaf>.view-header{display:none;}
 .ts-writing{border:0!important;border-radius:0!important;box-shadow:none!important;padding:0!important;height:100%;min-height:0;display:flex;flex-direction:column;background:var(--background-primary);container-type:inline-size;--writing-accent:var(--ts-accent,var(--text-accent));}
-.ts-writing .ts-writing-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-width:0;height:30px;padding:0 9px;border:0;border-radius:7px;box-shadow:none;background:transparent;color:var(--text-muted);font-size:12px;line-height:1.4;font-weight:500;white-space:nowrap;cursor:pointer;}
+.ts-writing .ts-writing-button{display:inline-flex;align-items:center;justify-content:center;gap:var(--ts-ui-gap);min-width:0;height:var(--ts-ui-control);padding:0 9px;border:0;border-radius:var(--ts-ui-radius);box-shadow:none;background:transparent;color:var(--text-muted);font-size:12px;line-height:1.4;font-weight:500;white-space:nowrap;cursor:pointer;}
 .ts-writing .ts-writing-button:hover{background:var(--background-modifier-hover);color:var(--text-normal);}
 .ts-writing .ts-writing-button:focus-visible{outline:2px solid var(--interactive-accent);outline-offset:2px;}
 .ts-writing .ts-writing-button:disabled{opacity:.32;cursor:default;}
-.ts-writing .ts-writing-button.is-icon{width:30px;min-width:30px;padding:6px;flex:none;}
+.ts-writing .ts-writing-button.is-icon{width:var(--ts-ui-control);min-width:var(--ts-ui-control);padding:6px;flex:none;}
 .ts-writing-icon{display:inline-flex;align-items:center;flex:none;}.ts-writing-icon svg{width:16px;height:16px;stroke-width:1.65;}
 .ts-writing-header{display:grid;grid-template-columns:minmax(100px,1fr) auto minmax(0,1fr);align-items:center;gap:14px;min-height:56px;padding:7px 18px;border-bottom:1px solid var(--writing-line);background:var(--background-primary);flex:none;}
 .ts-writing-heading{display:flex;align-items:center;gap:8px;min-width:0;}.ts-writing-header-actions{display:flex;align-items:center;justify-content:flex-end;gap:4px;min-width:0;}

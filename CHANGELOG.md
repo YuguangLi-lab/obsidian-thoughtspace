@@ -1,5 +1,20 @@
 # 更新记录
 
+## 1.3.29
+
+### 统一紧凑尺度、小地图避让与 PDF / PDF++ 引用桥接（2026-10-02）
+
+- 材料、写作与媒体工作区共用舒适/紧凑间距，切换时保留编辑器、播放器和草稿。正文排版、纸张设置、格式工具栏及媒体记录密度仍可独立设置。
+- 小地图在拖动或编辑确实与它重叠时临时避让，同次操作保持状态以减少闪烁；结束或取消后恢复。保留手动隐藏和临时展开，适应全部/聚焦选区考虑实际占用面积，不增加空闲时的全节点扫描。
+- 白板操作新增“粘贴 PDF / PDF++ 引用”：手动确认后创建可编辑卡片，保留原始复制文本、来源上下文与完整定位参数。支持 wiki/Markdown 链接、选段、高亮/评论批注和矩形嵌入；同名文件需消歧，缺失来源和非法定位会阻止导入。相同原文重复导入定位已有卡片，一步撤销/重做。
+- 使用 Obsidian 公共接口回源；未启用 PDF++ 时仍可仅打开 PDF 页，不调用 PDF++ 内部 API，不修改 PDF 或来源笔记。原始文本是快照，不创建自动反向链接。
+- 原生联动测试中修复不同复制语法被误去重、PDF 改名后正文裁剪链接未更新，以及动态裁剪卡片遮住来源按钮的问题；保留原始快照及代码/注释中的字面链接。
+- Shared compact spacing now covers materials, writing and media without rebuilding editors or players. The minimap temporarily avoids active interactions. Explicit PDF/PDF++ quote import preserves original provenance and precise links, with duplicate protection, undo/redo, rename-safe embeds and a native page fallback.
+
+验证：4,598 项自动回归、7 项发布脚本测试通过；lint 0 错误、118 条既有警告，TypeScript 与构建通过。独立 Obsidian 1.13.7 测试库完成 24 项密度/避让检查，以及官方 PDF++ 0.40.31 启用/禁用的 24 项联动检查；后者 297 个 PDF/Markdown 文件在测试操作期间保持 SHA-256 一致。详见 [紧凑与避让验收](qa/DENSITY-MINIMAP-PDF-QUOTE.md) 和 [PDF++ 原生验收](qa/PDF-PLUS-INTEGRATION.md)。
+
+限制：矩形定位/裁剪已验证，未覆盖 PDF++ 矩形拖拽复制手势；复杂字体、多栏/旋转 PDF、扫描 OCR、移动端和所有第三方主题未验证。不宣称本轮提升大白板保存性能。此前媒体本机暂存及恢复边界继续适用。仅更新独立发布分支，不合并 main，不安装到实际资料库。
+
 ## 1.3.28
 
 ### 写作选段引用、正文目录与编排保护（2026-10-01）

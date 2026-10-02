@@ -42,7 +42,7 @@ function fixture(size=1200,mounted=12){
  const mount=(id:string,title=false)=>{const el=new Element(stats);if(title)el.titleInput=new Element(stats);positions.set(id,el);world.insertBefore(el,null);nodeScopes.set(id,{unload(){stats.unloads++;}});return el;};
  for(let i=0;i<mounted;i++)mount('n'+i);
  const classes=new Set<string>();
- Object.assign(view,{session:{board,blocked:false},world,svg,stage:{clientWidth:1000,clientHeight:700,style:{}},contentEl:{toggleClass(){}},zoomLabel:{setText(){}},
+ Object.assign(view,{syncMinimapAvoidance(){},session:{board,blocked:false},world,svg,stage:{clientWidth:1000,clientHeight:700,style:{}},contentEl:{toggleClass(){}},zoomLabel:{setText(){}},
   selected:new Set(),positions,nodeScopes,nodeKeys:new Map(),mediaStates:new Map(),mediaPlayers:new Map(),mediaIdentities:new Map(),onlineBoardPlayers:new Map(),onlineBoardStates:new Map(),endpointPorts:new Map(),plugin:{settings:{gridStep:24,previewLimit:20,detailZoom:.4,showMinimap:true}},
   backToContent:{classList:{contains:(name:string)=>classes.has(name)},toggleClass(name:string,on:boolean){if(on)classes.add(name);else classes.delete(name);}},
   edgeLayer:{root:svg,render(display:Board){stats.edgeFrames++;edgeBoards.push(display);}},displayBoard:()=>view.session.board,

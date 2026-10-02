@@ -1,3 +1,4 @@
+import {minimapInsets} from '../src/minimap-avoidance';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -10,10 +11,10 @@ import type {Card} from '../src/model';
 const source=readFileSync('src/main.ts','utf8');
 const start=source.indexOf('  private viewportInsets()'),end=source.indexOf('  fit() ',start);
 assert.ok(start>=0&&end>start);
-const View=new Function(transformSync(`return class View{${source.slice(start,end)}}`,{loader:'ts'}).code)();
+const View=new Function('minimapInsets',transformSync(`return class View{${source.slice(start,end)}}`,{loader:'ts'}).code)(minimapInsets);
 const rect=(left:number,top:number,width:number,height:number)=>({left,top,width,height,right:left+width,bottom:top+height});
 function fixture(chrome:Record<string,ReturnType<typeof rect>>){
-  const view=new View();
+  const view=new View();view.measureMinimap=()=>{};
   view.stage={clientWidth:1000,clientHeight:800,getBoundingClientRect:()=>rect(100,40,1000,800),
     parentElement:{querySelector:(selector:string)=>chrome[selector]?{getClientRects:()=>[chrome[selector]],getBoundingClientRect:()=>chrome[selector],getAttribute:(name:string)=>selector==='.ts-board-rail'&&name==='aria-orientation'?'vertical':null}:null}};
   return view;

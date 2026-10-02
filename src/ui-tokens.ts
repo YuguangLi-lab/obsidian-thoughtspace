@@ -1,3 +1,4 @@
+import {applyWorkspaceDensity} from './workspace-density';
 import { sage, sageDark } from '@radix-ui/colors';
 /** Official Radix Colors, scoped to this plugin. No global CSS reset. */
 export function designTokens(doc:Document){const el=doc.createElement('style');el.dataset.thoughtspaceTokens='true';
@@ -8,5 +9,5 @@ export function designTokens(doc:Document){const el=doc.createElement('style');e
 /** Carry the active workspace's appearance into plugin-owned dialogs only. */
 export function themeSurface(el:HTMLElement,appearance?:{accent?:string;glassEffects?:boolean}) {
   const source=el.ownerDocument.querySelector<HTMLElement>('.workspace-leaf.mod-active .ts-root')||el.ownerDocument.querySelector<HTMLElement>('.ts-root');
-  el.addClass('ts-ui-modal');el.dataset.surface=source?.dataset.surface||'soft';el.dataset.accent=appearance?.accent||source?.dataset.accent||'forest';el.dataset.glass=String(appearance?.glassEffects??(source?.dataset.glass!=='false'));
+  applyWorkspaceDensity(el,source?.dataset.density);el.addClass('ts-ui-modal');el.dataset.surface=source?.dataset.surface||'soft';el.dataset.accent=appearance?.accent||source?.dataset.accent||'forest';el.dataset.glass=String(appearance?.glassEffects??(source?.dataset.glass!=='false'));
 }

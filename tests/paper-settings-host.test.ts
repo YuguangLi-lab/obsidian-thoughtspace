@@ -16,10 +16,10 @@ function fixture(raw:Record<string,unknown>={}){
   constructor(_app:unknown,readonly host:{language:'zh-CN'|'en';preferences:()=>PaperPreferences;save:(prefs:PaperPreferences)=>Promise<void>}){calls.created++;}
   open(){this.modalEl.isConnected=true;calls.opened++;}close(){this.modalEl.isConnected=false;}
  }
- const deps={PaperSettingsModal,BoardView,VIEW:'board',cleanPaperPreferences,paperAppearanceStamp,settingsLanguage:(preferences:ReturnType<typeof cleanPluginSettings>)=>resolveSettingsLanguage(preferences.settingsLanguage,'zh-CN')};
+ const deps={PaperSettingsModal,BoardView,VIEW:'board',WRITING:'writing',MEDIA_WORKSPACE:'media',MATERIALS:'materials',WritingView:class{},MediaWorkspaceView:class{},MaterialsView:class{},cleanPaperPreferences,paperAppearanceStamp,settingsLanguage:(preferences:ReturnType<typeof cleanPluginSettings>)=>resolveSettingsLanguage(preferences.settingsLanguage,'zh-CN')};
  const Plugin=new Function(...Object.keys(deps),transformSync(`class Plugin{${source.slice(start,end)}}return Plugin;`,{loader:'ts'}).code)(...Object.values(deps)),plugin=new Plugin(),save=deferred();
  const settings=cleanPluginSettings({canvasBackground:'grid',paperPreset:'cream',paperColor:'#abcdef',paperTexture:55,accent:'forest',...raw});
- Object.assign(plugin,{settings,app:{workspace:{getLeavesOfType:(type:string)=>{assert.equal(type,'board');return[{view:new BoardView()},{view:{applyPreferences:()=>{throw Error('unrelated view must not render');}}},{view:new BoardView()}];}}},saveData:async(value:unknown)=>{calls.writes.push(JSON.parse(JSON.stringify(value)));await save.promise;},refreshDock:()=>calls.dock++});
+ Object.assign(plugin,{settings,app:{workspace:{getLeavesOfType:(type:string)=>{if(type!=='board')return[];return[{view:new BoardView()},{view:{applyPreferences:()=>{throw Error('unrelated view must not render');}}},{view:new BoardView()}];}}},saveData:async(value:unknown)=>{calls.writes.push(JSON.parse(JSON.stringify(value)));await save.promise;},refreshDock:()=>calls.dock++});
  return{plugin,calls,save,settings};
 }
 const next:PaperPreferences={paperPreset:'white',paperColor:'#123456',paperTexture:0};

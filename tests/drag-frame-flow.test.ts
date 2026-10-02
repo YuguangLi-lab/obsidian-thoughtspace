@@ -45,7 +45,7 @@ function fixture(nodes:Card[],ids:ReadonlySet<string>,snapToGrid=true){
   };
  };
  const board:Board={...emptyBoard(),version:3,snapToGrid,nodes},before=draft.dragStartSnapshot(board),svg={},view=new View();
- Object.assign(view,{session:{board},stage:{clientWidth:1000,clientHeight:800,setPointerCapture(){}},
+ Object.assign(view,{syncMinimapAvoidance(){},session:{board},stage:{clientWidth:1000,clientHeight:800,setPointerCapture(){}},
   plugin:{settings:{dragThreshold:4,axisLock:true,alignmentGuides:false,gridStep:16}},snapTarget:element(),snapReadout:element(),svg,
   edgeLayer:{root:svg,render(display:Board){stats.edgeFrames++;rendered.push(display);}},endpointPorts:new Map(),positions:new Map(),selected:ids,drawAlignmentGuides(){},
   gesture:{id:1,x:0,y:0,before,originals:new Map(before.nodes.map(n=>[n.id,n])),

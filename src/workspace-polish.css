@@ -39,13 +39,13 @@
    Primer ActionList leading/trailing visuals and shadcn Sidebar composition. */
 /* Reading and material workspaces: quiet navigation beside an open document. */
 :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-tabs {gap:4px;padding:3px;border:0;border-radius:8px;background:var(--background-secondary);}
-:is(.ts-materials-modal,.ts-materials-panel) .ts-materials-tabs button {flex:1;min-height:30px;padding:6px;font-size:12px;border-radius:6px;}
+:is(.ts-materials-modal,.ts-materials-panel) .ts-materials-tabs button {flex:1;min-height:var(--ts-ui-control,32px);padding:6px;font-size:12px;border-radius:var(--ts-ui-radius,8px);}
 :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-tabs button[aria-selected=true] {background:var(--background-primary);color:var(--text-normal);box-shadow:0 1px 3px #00000009;}
 :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-tabs button::after {display:none;}
 :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-body {border:0;border-top:1px solid var(--ts-work-line);border-radius:0;}
-:is(.ts-materials-modal,.ts-materials-panel) .ts-materials-library {padding:12px 8px;background:var(--background-primary);border-right-color:var(--ts-work-line);}
+:is(.ts-materials-modal,.ts-materials-panel) .ts-materials-library {padding:var(--ts-ui-panel-pad,12px) 8px;background:var(--background-primary);border-right-color:var(--ts-work-line);}
 :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-detail {background:var(--background-primary);}
-:is(.ts-materials-modal,.ts-materials-panel) .ts-materials-fragment {border-color:var(--ts-work-line);border-radius:8px;background:transparent;box-shadow:none;}
+:is(.ts-materials-modal,.ts-materials-panel) .ts-materials-fragment {gap:var(--ts-ui-gap,8px);padding:var(--ts-ui-row-pad,8px) 9px;min-height:var(--ts-ui-control,32px);border-color:transparent;border-radius:var(--ts-ui-radius,8px);background:transparent;box-shadow:none;}
 
 /* 0.54.1 — A slim canvas rail; typography and border controls keep their top position. */
 .ts-root .ts-board-rail {position:absolute;transform:translateY(-50%);z-index:55;border:1px solid;overflow-y:auto;scrollbar-width:none;overscroll-behavior:contain;}
@@ -84,3 +84,13 @@
 /* Small control feedback only; the board-polish module owns final surfaces. */
 .ts-root .ts-board-rail .ts-button {transition:background-color 120ms ease,color 120ms ease;}
 @media(prefers-reduced-motion:reduce){.ts-root .ts-board-rail .ts-button {transition:none;}}
+
+:is(.ts-materials-modal,.ts-materials-panel) .ts-materials-source {padding-block:var(--ts-ui-panel-pad,12px);gap:var(--ts-ui-gap,8px);}
+:is(.ts-materials-modal,.ts-materials-panel) .ts-materials-quick {min-width:var(--ts-ui-control,32px);min-height:var(--ts-ui-control,32px);}
+
+/* Explicit PDF quote import uses native modal controls and the shared density. */
+.ts-pdf-quote-modal label{display:block;margin-bottom:var(--size-4-3)}
+.ts-pdf-quote-modal input{display:block;width:100%;margin-top:var(--size-4-1)}
+.ts-pdf-quote-modal textarea{display:block;width:100%;min-height:160px;resize:vertical}
+.ts-pdf-quote-status{white-space:pre-wrap;overflow-wrap:anywhere;max-height:160px;overflow:auto;margin:var(--size-4-3) 0;font-size:var(--font-ui-small)}
+.ts-pdf-quote-actions{display:flex;justify-content:flex-end;gap:var(--size-4-2)}

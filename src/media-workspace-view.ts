@@ -1,3 +1,4 @@
+import {applyWorkspaceDensity} from './workspace-density';
 import {ItemView,Menu,Modal,Notice,TFile,WorkspaceLeaf,setIcon,type App,type ViewStateResult} from 'obsidian';
 import type {MediaCardHandle,MediaCardState} from './media-card-player';
 import type {MediaDraft,MediaDraftStore} from './media-draft-store';
@@ -9,6 +10,7 @@ import {isVaultMediaPath,mediaClock,mediaKind,validMediaTime} from './media-sour
 export const MEDIA_WORKSPACE='thoughtspace-media-player';
 export type MediaPlacement='tab'|'sidebar'|'window';
 export interface MediaWorkspaceHost {
+ density?():string;
  drafts?:MediaDraftStore;
  recoverDrafts?():void;
  open(file:TFile|undefined,placement:MediaPlacement,time?:number):Promise<unknown>;
@@ -293,9 +295,10 @@ export class MediaWorkspaceView extends ItemView {
   for(const[itemKey,item]of this.renderedMoments){const current=String(itemKey===key);if(item.row.dataset.current!==current)item.row.dataset.current=current;}
  }
 
+ applyPreferences(){applyWorkspaceDensity(this.contentEl,this.host.density?.());}
  private render(){
   this.contextMenu?.hide();this.contextMenu=undefined;
-  const el=this.contentEl;el.empty();el.addClass('ts-media-workspace');el.dataset.placement=this.placement;this.containerEl.addClass('ts-media-workspace-leaf');
+  const el=this.contentEl;el.empty();el.addClass('ts-media-workspace');this.applyPreferences();el.dataset.placement=this.placement;this.containerEl.addClass('ts-media-workspace-leaf');
   this.panelButtons.clear();this.filterButtons.clear();
   el.dataset.mediaKind=this.file?mediaKind(this.file.path)||'video':'empty';
   const header=el.createDiv('ts-media-workspace__header');

@@ -1,3 +1,4 @@
+import {rebasePdfQuoteLinks} from './pdf-quote';
 import type {Board} from './model';
 import {rebaseReuseSources} from './board-reuse';
 import {hasAsciiControl} from './value-guards';
@@ -74,7 +75,8 @@ export function createBoardReferenceRenamer(oldPath:string,newPath:string,curren
   const oldBoard=previous(boardPath);let changed=false;
   const nodes=board.nodes.map(node=>{
    const file=node.file?move(node.file):undefined,note=node.videoCapture?move(node.videoCapture.note):undefined;
-   const text=node.kind==='text'&&node.text?rebaseReuseSources(node.text,link=>{
+   const rebase:typeof rebaseReuseSources=node.pdfQuote?(text,link)=>rebaseReuseSources(rebasePdfQuoteLinks(text,link),link):rebaseReuseSources;
+   const text=node.kind==='text'&&node.text?rebase(node.text,link=>{
     for(const target of sourceTargets(link)){
      const destination=resolve(target.path,oldBoard);if(!destination)continue;
      // A board move can also change the meaning of a relative source link.

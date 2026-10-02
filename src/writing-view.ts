@@ -1,3 +1,4 @@
+import {applyWorkspaceDensity} from './workspace-density';
 import {boardLink} from './deeplinks';
 import {manuscriptSections,writingAssemblyStamp,pruneWritingCompleted} from './writing-progress';
 import {writingReferenceRanges,writingReferenceMarkdown} from './writing-reference';
@@ -14,7 +15,7 @@ import {DraftInput,NativeMarkdownDraft} from './native-markdown-editor';
 import {themeSurface} from './ui-tokens';
 export const WRITING='thoughtspace-writing';
 interface WritingSession {board:Board;file:TFile;blocked:boolean;status?:string;listeners:Set<(kind:SessionUpdate)=>void>;change:(f:(b:Board)=>void,before?:Board,allowLocked?:boolean,recordHistory?:boolean)=>void;flush:()=>Promise<void>}
-export interface WritingHost<S extends WritingSession=WritingSession> {session:(file:TFile)=>Promise<S>;release:(session:S)=>Promise<void>;openBoard:(file:TFile)=>Promise<unknown>;createUnique:(folder:string,name:string,ext:string,text:string)=>Promise<TFile>;openNoteInSidebar:(file:TFile)=>Promise<WorkspaceLeaf>}
+export interface WritingHost<S extends WritingSession=WritingSession> {settings?:{density?:string};session:(file:TFile)=>Promise<S>;release:(session:S)=>Promise<void>;openBoard:(file:TFile)=>Promise<unknown>;createUnique:(folder:string,name:string,ext:string,text:string)=>Promise<TFile>;openNoteInSidebar:(file:TFile)=>Promise<WorkspaceLeaf>}
 const kinds:Record<Card['kind'],string>={section:'分组',card:'笔记',image:'图片',text:'文本',pdf:'PDF',board:'子白板',audio:'音频',video:'视频'};
 const icons:Record<Card['kind'],string>={section:'folder-open',card:'file-text',image:'image',text:'type',pdf:'file-text',board:'panels-top-left',audio:'audio-lines',video:'video'};
 export class WritingView<S extends WritingSession=WritingSession> extends ItemView {
@@ -97,13 +98,14 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   }catch(error){if(this.closed||run!==this.generation)return;this.showTransition('error','暂时无法打开写作空间，请重新打开重试');throw error;}
  }
  private showTransition(state:'loading'|'error',message:string){
-  const el=this.contentEl;el.empty();themeSurface(el);el.addClass('ts-writing');this.containerEl.addClass('ts-writing-leaf');
+  const el=this.contentEl;el.empty();themeSurface(el);el.addClass('ts-writing');this.applyPreferences();this.containerEl.addClass('ts-writing-leaf');
   el.setAttribute('aria-busy',String(state==='loading'));
   const status=el.createDiv({cls:'ts-writing-transition',attr:{role:state==='error'?'alert':'status','aria-live':'polite'}});
   setIcon(status.createSpan('ts-writing-transition-icon'),state==='error'?'file-warning':'notebook-pen');
   const text=status.createDiv();text.createEl('strong',{text:this.file?.basename||'白板写作'});text.createSpan({text:message});
  }
 
+ applyPreferences(){applyWorkspaceDensity(this.contentEl,this.host.settings?.density);}
  private action(el:HTMLElement,label:string,fn:()=>unknown,icon?:string,iconOnly=false,cls='') {
   const b=el.createEl('button',{cls:('ts-writing-button '+cls+(iconOnly?' is-icon':'')).trim(),attr:{'aria-label':label,title:label,type:'button'}});
   if(icon)setIcon(b.createSpan('ts-writing-icon'),icon);
@@ -128,7 +130,7 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   stack.pop();(redo?this.history:this.future).push(current);this.renderStatus();
  }
  private render() {
-  this.flushFields();this.revision++;this.articleRun++;this.preview?.unload();this.article?.unload();this.disposeEditors();const el=this.contentEl;el.empty();themeSurface(el);el.addClass('ts-writing');this.containerEl.addClass('ts-writing-leaf');
+  this.flushFields();this.revision++;this.articleRun++;this.preview?.unload();this.article?.unload();this.disposeEditors();const el=this.contentEl;el.empty();themeSurface(el);el.addClass('ts-writing');this.applyPreferences();this.containerEl.addClass('ts-writing-leaf');
   const header=el.createDiv('ts-writing-header');
   const leading=header.createDiv('ts-writing-heading');
   this.action(leading,'返回白板',()=>this.host.openBoard(this.file!),'arrow-left',true);

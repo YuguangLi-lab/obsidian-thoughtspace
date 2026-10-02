@@ -140,6 +140,8 @@ Native search integration writes Markdown indexes to `ThoughtSpace/白板搜索/
 
 Select a PDF card to use **PageUp / PageDown** or **Home / End**. Page navigation and folding are also available on the card. Rendering uses bounded thumbnail sizes, cancels work for folded or offscreen cards, and limits retained PDF documents. First load still depends on document size and complexity.
 
+The board action **粘贴 PDF / PDF++ 引用** explicitly imports copied PDF links or excerpts into an editable card. It preserves full location parameters and the original copied text, requires disambiguation for duplicate filenames, and offers page-only navigation when enhanced PDF++ behavior is unavailable. PDF++ is optional; this bridge does not invoke its copy commands or modify PDF/source-note contents. See the [guide](docs/USER-GUIDE.md#paste-pdf--pdf-references).
+
 ## Data access and compatibility
 
 ThoughtSpace reads vault files for search, linked cards, and optional integrations, and writes board files, edited notes, generated indexes, and settings. Copy commands write to the clipboard only when invoked. Remote images and the optional image-host integration can contact external services; the image-host option is off by default. See [data access and security](SECURITY.md) for details.

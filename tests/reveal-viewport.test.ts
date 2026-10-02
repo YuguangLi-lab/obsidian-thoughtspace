@@ -1,3 +1,4 @@
+import {minimapInsets} from '../src/minimap-avoidance';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -34,10 +35,10 @@ function fixture({zoom=1,kind='text',width=280,height=80,selected=true}={}){
   constructor(_app:unknown,readonly host:any){}
   open(){}
  }
- const deps={...viewportFit,branchState,unfoldAncestors,visibleBranchBoard,BoardSearchModal};
+ const deps={minimapInsets,...viewportFit,branchState,unfoldAncestors,visibleBranchBoard,BoardSearchModal};
  const View=new Function(...Object.keys(deps),transformSync(`class View{${methods}};return View`,{loader:'ts'}).code)(...Object.values(deps));
  const view=new View(),owner={board,file:{basename:'QA board'},blocked:false,change:(fn:(board:any)=>void)=>fn(board),persist:()=>calls.persist++};
- Object.assign(view,{session:owner,selected:new Set(selected?[node.id]:[]),selectedEdge:'edge',mode:'connect',connectFrom:'other',connectSide:'right',
+ Object.assign(view,{measureMinimap(){},session:owner,selected:new Set(selected?[node.id]:[]),selectedEdge:'edge',mode:'connect',connectFrom:'other',connectSide:'right',
   stage:{clientWidth:1000,clientHeight:360,getBoundingClientRect:()=>rect(0,0,1000,360),parentElement:{querySelector:(selector:string)=>controls[selector]},removeClass(){},focus:()=>calls.focus++},
   app:{workspace:{setActiveLeaf:()=>calls.active++}},leaf:{},requireOwner:()=>owner,clearCanvasGesture(){},
   rememberViewport:()=>calls.remember++,transform:()=>calls.transform++,updateSelection:()=>{calls.selection++;selectedVisible=true;},

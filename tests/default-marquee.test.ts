@@ -62,7 +62,7 @@ function fixture(nodes:model.Card[]=[node('a',20),node('b',150),node('old',500)]
   const capture=new Set<number>(),boxes:Element[]=[];
   const stage=Object.assign(new Element(),{ownerDocument:{defaultView:deps},clientWidth:1000,clientHeight:700,focus(){calls.focus++;},
     setPointerCapture:(id:number)=>capture.add(id),hasPointerCapture:(id:number)=>capture.has(id),releasePointerCapture:(id:number)=>capture.delete(id)});
-  Object.assign(view,{session:{board,blocked:false,persist(){calls.persist++;},change(fn:(b:model.Board)=>void){calls.writes++;fn(board);}},
+  Object.assign(view,{syncMinimapAvoidance(){},session:{board,blocked:false,persist(){calls.persist++;},change(fn:(b:model.Board)=>void){calls.writes++;fn(board);}},
     selected:new Set(['old']),selectionTool:true,space:false,mode:'select',pointerFrame:0,dragging:false,
     stage,world:{createDiv(){const box=new Element();boxes.push(box);return box;}},svg:new Element(),
     positions:new Map(nodes.map(n=>[n.id,new Element()])),pendingFits:new Map(),nodeFitQueue:{schedule(){}},

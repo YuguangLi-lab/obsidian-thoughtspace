@@ -181,3 +181,6 @@
 }
 @media (prefers-reduced-motion: reduce) { .ts-root .ts-board-rail *, .ts-root .ts-footer *, .ts-native-header * { transition: none !important; animation: none !important; } }
 @media (prefers-contrast: more) { .ts-root .ts-main { --ts-canvas-chrome-line: var(--text-muted); } }
+
+/* Retain geometry and the cached SVG while an active edit or drag needs this corner. */
+.ts-root .ts-main > .ts-minimap.is-avoiding {visibility:hidden;pointer-events:none;}

@@ -51,7 +51,7 @@ function fixture(nodes:model.Card[]=[card()],zoom=.54,edges:model.Edge[]=[]){
   function position(n:model.Card,el:Element){Object.assign(el.style,{left:`${n.x}px`,top:`${n.y}px`,width:`${n.width}px`,height:`${n.height}px`});}
   const stage=Object.assign(new Element(),{ownerDocument:{defaultView:deps},clientWidth:1000,clientHeight:700,focus(){},
     setPointerCapture:(id:number)=>capture.add(id),hasPointerCapture:(id:number)=>capture.has(id),releasePointerCapture:(id:number)=>capture.delete(id)});
-  Object.assign(view,{session,selected:new Set([nodes[0].id]),selectionTool:false,space:false,mode:'select',pointerFrame:0,dragging:false,
+  Object.assign(view,{syncMinimapAvoidance(){},session,selected:new Set([nodes[0].id]),selectionTool:false,space:false,mode:'select',pointerFrame:0,dragging:false,
     stage,positions,svg:new Element(),contentEl:{},pendingFits:new Map(),nodeFitQueue:{schedule(){}},
     plugin:{settings:{axisLock:true,aspectLock:true,alignmentGuides:false,gridStep:24}},
     syncCanvasControls(){},renderInspector(){},scheduleRender(){},positionNode:position,

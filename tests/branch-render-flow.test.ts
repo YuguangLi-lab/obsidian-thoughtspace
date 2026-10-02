@@ -26,7 +26,7 @@ function fixture(size=4){
  const counts={edgeKinds:0,displayBoards:0};
  board.edges=board.nodes.slice(1).map((node,i)=>({id:'e'+i,from:String(i),to:node.id,label:'',get kind(){counts.edgeKinds++;return 'branch' as const;}}));
  const classes=new Set<string>(),svg={},edgeBoards:Board[]=[],mapBoards:Board[]=[],view=new View();
- Object.assign(view,{session:{board,blocked:false},world:{style:{setProperty(){}}},svg,stage:{clientWidth:1000,clientHeight:700,style:{}},contentEl:{toggleClass(){}},zoomLabel:{setText(){}},
+ Object.assign(view,{syncMinimapAvoidance(){},session:{board,blocked:false},world:{style:{setProperty(){}}},svg,stage:{clientWidth:1000,clientHeight:700,style:{}},contentEl:{toggleClass(){}},zoomLabel:{setText(){}},
   selected:new Set(),positions:new Map(),nodeScopes:new Map(),nodeKeys:new Map(),mediaStates:new Map(),mediaPlayers:new Map(),mediaIdentities:new Map(),onlineBoardPlayers:new Map(),onlineBoardStates:new Map(),endpointPorts:new Map(),
   plugin:{settings:{gridStep:24,previewLimit:20,detailZoom:.4,showMinimap:true}},
   backToContent:{classList:{contains:(key:string)=>classes.has(key)},toggleClass(key:string,on:boolean){if(on)classes.add(key);else classes.delete(key);}},
