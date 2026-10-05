@@ -5,20 +5,20 @@ import {transformSync} from 'esbuild';
 import * as model from '../src/model';
 import * as cardStyles from '../src/card-style';
 import {excerptNoteMarkdown} from '../src/materials';
-import {validateBranches} from '../src/mindmap';
+import {branchState,validateBranches} from '../src/mindmap';
 import {reflowReadingContent} from '../src/expansion-reading-state';
 
 // Execute production conversion and Session history; substitute only vault I/O.
 const source=readFileSync('src/main.ts','utf8');
 function take(start:string,end:string){const a=source.indexOf(start),b=source.indexOf(end,a);assert.ok(a>=0&&b>a);return source.slice(a,b);}
-const dependencies={...model,...cardStyles,excerptNoteMarkdown,validateBranches,reflowReadingContent,Notice:class{}};
+const dependencies={...model,...cardStyles,excerptNoteMarkdown,branchState,validateBranches,reflowReadingContent,Notice:class{}};
 function compile(code:string){return new Function(...Object.keys(dependencies),transformSync(code,{loader:'ts'}).code)(...Object.values(dependencies));}
 const View=compile(`class View{${take('  async textToNote(','  async addTopic(')}${take('  private requireOwner(','  private canCreateBlankText(')}}return View;`);
 const Session=compile(`class Session{${take('  change(fn:','  persist() {')}}return Session;`);
 function fixture(choice:cardStyles.CardStyleChoice,web=false){
  const node:model.Card={id:'text',kind:'text',text:'Source **Markdown**',x:20,y:30,width:300,height:100,color:'green',...(web?{webUrl:'https://example.com'}:{})};
  const created:{path:string;body:string}[]=[],opened:unknown[]=[];let saved=0;
- const owner=new Session();Object.assign(owner,{board:{...model.emptyBoard(),version:3,nodes:[node]},history:new model.History(),blocked:false,convertingTexts:new Set(),persist(){saved++;model.parseBoard(JSON.stringify(this.board));},emit(){},async flush(){}});
+ const owner=new Session();Object.assign(owner,{board:{...model.emptyBoard(),version:3,nodes:[node]},history:new model.History(),relationGeometry:new Map(),blocked:false,convertingTexts:new Set(),persist(){saved++;model.parseBoard(JSON.stringify(this.board));},emit(){},async flush(){}});
  const view=new View();Object.assign(view,{session:owner,closed:false,plugin:{settings:{defaultCardStyle:choice,cardFolder:'Notes',autoFileCards:false},
   async createUnique(_folder:string,_name:string,_extension:string,body:string){const file={path:'Notes/converted.md',body};created.push(file);return file;},
   async openNoteInSidebar(file:unknown){opened.push(file);}

@@ -1,3 +1,4 @@
+import {isBrainBoard} from '../src/brain-board';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -8,7 +9,7 @@ import {mindmapParent} from '../src/mindmap-navigation';
 import type {BoardInputAction} from '../src/board-input-commands';
 const source=readFileSync(process.env.INPUT_COMMAND_SOURCE||'src/main.ts','utf8'),start=source.indexOf('  inputCommandTarget():'),end=source.indexOf('  private setSelectionFold(',start);
 let topology=0;
-const deps={...mindmap,branchTopology:(b:Board)=>{topology++;return mindmap.branchTopology(b);},branchState:(b:Board)=>{topology++;return mindmap.branchState(b);},mindmapParent,act:(fn:()=>unknown)=>fn()};
+const deps={isBrainBoard,...mindmap,branchTopology:(b:Board)=>{topology++;return mindmap.branchTopology(b);},branchState:(b:Board)=>{topology++;return mindmap.branchState(b);},mindmapParent,act:(fn:()=>unknown)=>fn()};
 const View=new Function(...Object.keys(deps),transformSync(`return class View{${source.slice(start,end)}}`,{loader:'ts'}).code)(...Object.values(deps));
 function fixture(kind:Card['kind']='text'){const b=emptyBoard();b.version=3;const nodes:Card[]=Array.from({length:1200},(_,i)=>({id:'n'+i,kind,text:'Topic',x:i*350,y:0,width:300,height:180,color:'sand'}));let reads=0;b.nodes=new Proxy(nodes,{get(target,key,receiver){if(typeof key==='string'&&/^\d+$/.test(key))reads++;return Reflect.get(target,key,receiver);}});const v=new View();Object.assign(v,{session:{board:b,blocked:false},selected:new Set(['n0','n1']),closed:false,contentEl:{ownerDocument:{activeElement:null},contains:()=>false}});topology=0;return{v,b,nodes,reads:()=>reads};}
 test('global keyboard command checks skip unrelated selected-node scans',()=>{

@@ -167,3 +167,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for testing and release conventions. CI r
 ## License
 
 [MIT](LICENSE). Third-party components and licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+### Brain boards
+
+Create a dedicated brain board from the New menu. Ideas stay in the board until you explicitly turn them into notes. Parent/child branches and left/right associations support 1–5 relation hops, with bounded pages for large graphs. Node menus group creation, relationships and inherited file actions; rename and native whiteboard creation retain their existing sources. See [the verification and scope report](qa/BRAIN-MENU-RELATIONS.md).

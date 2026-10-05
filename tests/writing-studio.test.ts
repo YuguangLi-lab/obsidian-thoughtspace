@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {emptyBoard,parseBoard,Card} from '../src/model';
 import {writingItems,writingOrder,writingParts,writingSignature,writingWordCount,writingMarkdown} from '../src/writing';
+import {createBoardMindmapState} from '../src/board-mindmap';
 const card=(id:string,x=20):Card=>({id,kind:'text',text:'原始文本',x,y:20,width:120,height:80,color:'sand'});
 function fixture(){const b=emptyBoard();b.version=3;b.nodes=[{...card('g',0),kind:'section',title:'分组',width:500,height:400},card('a'),card('b',200)];b.writing={title:'文章',order:['intro','g'],chapters:[{id:'intro',title:'开场',body:'**核心问题**'}]};return b;}
 test('custom chapters live in writing state, not board geometry',()=>{const b=fixture();assert.deepEqual(writingOrder(b),['intro','g']);assert.equal(writingItems(b).length,4);assert.equal(b.nodes.length,3);assert.equal(writingParts(b)[0].node.text,'**核心问题**');assert.equal(writingParts(b)[0].node.title,'开场');assert.deepEqual(parseBoard(JSON.stringify(b)).writing,b.writing);});
@@ -20,3 +21,7 @@ test('rendered draft supports custom chapter body and no per-material sources',(
 test('handwritten manuscript round trips without touching Markdown syntax',()=>{const b=fixture();const markdown='# 自己的文章\n\n> 引用 ^ref\n\n- [ ] 任务\n  1. 嵌套\n\n```ts\nconst file_name = `a_b`;\n```\n\n[[原文#标题]]\n';b.writing!.manuscript=markdown;assert.equal(parseBoard(JSON.stringify(b)).writing!.manuscript,markdown);});
 test('manuscript validates type and bounded length',()=>{const b=fixture();b.writing!.manuscript=42 as any;assert.throws(()=>parseBoard(JSON.stringify(b)));b.writing!.manuscript='x'.repeat(1000001);assert.throws(()=>parseBoard(JSON.stringify(b)));b.writing!.manuscript='';assert.equal(parseBoard(JSON.stringify(b)).writing!.manuscript,'');});
 test('writing Markdown does not invalidate an unrelated outline snapshot',()=>{const b=fixture(),before=writingSignature(b);b.writing!.manuscript='# 手写文章';assert.equal(writingSignature(b),before);});
+test('mindmap containers are excluded from writing while their real note materials remain selectable',()=>{
+ const b=fixture();b.nodes.push({...card('map',60),kind:'mindmap',text:undefined,title:'脑图容器',mindmap:createBoardMindmapState('a')});b.writing!.order.push('map');const before=JSON.stringify(b);
+ assert.equal(writingItems(b).some(n=>n.id==='map'),false);assert.equal(writingOrder(b).includes('map'),false);assert.equal(writingParts(b).some(p=>p.node.id==='map'),false);assert.ok(writingParts(b).some(p=>p.node.id==='a'));assert.deepEqual(writingParts(b,['map']),[]);assert.equal(JSON.stringify(b),before);
+});

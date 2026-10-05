@@ -1,6 +1,10 @@
+import {cleanBoardBackground,type BoardBackground} from './board-background';
+import {validParagraphOrigin,type ParagraphOrigin} from './paragraph-card';
 import type {PdfQuoteOrigin} from './pdf-quote';
 import {webUrl} from './web-card';
 import {validReadingCheckpoint,type ReadingLayoutCheckpoint} from './expansion-checkpoint';
+import {validRelationGeometryCheckpoint,type RelationGeometryCheckpoint} from './relation-geometry-checkpoint';
+import {boardMindmapSummary,validBoardMindmapState,type BoardMindmapState} from './board-mindmap';
 import {externalMediaMarkdown} from './media-export';
 import {isRecord,isUnknownArray,isFiniteNumber,isOneOf,hasAsciiControl} from './value-guards';
 import {remoteImageUrl} from './image-host';
@@ -9,8 +13,10 @@ import type {WritingState} from './writing';
 import {markdownRows} from './markdown-context';
 import {yingjianNotePath} from './yingjian';
 /** Capture provenance survives independent text/image editing and safe note renames. */
-export interface Card { pdfQuote?:PdfQuoteOrigin; videoCapture?:{id:string;note:string}; sectionFolded?:boolean; sectionDivider?:'none'|'solid'|'dashed'|'dotted'; cardStyle?:'band'|'paper'|'index'|'sticky' }
-export interface Board {readingLayout?:ReadingLayoutCheckpoint}
+export interface Card { brainIdea?:true; mindmap?:BoardMindmapState;paragraphQuote?:ParagraphOrigin; pdfQuote?:PdfQuoteOrigin; videoCapture?:{id:string;note:string}; sectionFolded?:boolean; sectionDivider?:'none'|'solid'|'dashed'|'dotted'; cardStyle?:'band'|'paper'|'index'|'sticky' }
+export interface Board {background?:BoardBackground;readingLayout?:ReadingLayoutCheckpoint;relationGeometry?:RelationGeometryCheckpoint}
+/** Dedicated relation boards keep their view state separate from ordinary card geometry. */
+export interface Board {presentation?:'brain';brain?:BoardMindmapState;brainViewport?:{x:number;y:number;zoom:number}}
 import { connectionSides, Side } from './connections';
 import { branchState, branchTopology, validateBranches } from './mindmap';
 import {sectionMemberQuery,sectionMovementPinned,sectionContains} from './sections';
@@ -21,7 +27,7 @@ export const colorNames:Record<Color,string>={sand:'米黄',blue:'蓝色',green:
 export type CardFill = Color | 'none' | `#${string}`;
 export const validCardFill=(value:unknown):value is CardFill=>typeof value==='string'&&(value==='none'||colors.includes(value as Color)||/^#[0-9a-fA-F]{6}$/.test(value));
 export const cardFillHex:Record<Color,string>={sand:'#e8d8a8',blue:'#bbd5e7',green:'#bedbca',rose:'#eac6cc',purple:'#d6cbe8',orange:'#edc49a',red:'#e7b1ae',teal:'#a9d4c9',cyan:'#a9d8e4',lime:'#cad9a3',slate:'#bdc8d2',brown:'#d2bca9'};
-export interface Card { mindmapRules?:{layout:'right'|'left'|'down'|'up'|'bilateral';density:'compact'|'standard'|'relaxed';automatic:boolean};textMaxWidth?:number; webUrl?:string; imageUrl?:string; transparent?:boolean; fillColor?:CardFill; branchFolded?:boolean; review?:'later'|'reading'|'done'; id: string; kind: 'card' | 'section' | 'board' | 'text' | 'image' | 'pdf' | 'audio' | 'video'; pdfPage?:number; mediaStart?:number; x: number; y: number; width: number; height: number; color: Color; file?: string; title?: string; collapsed?: boolean; expandedHeight?: number; text?: string; topic?: boolean; textColor?: Color | 'default'; fontSize?: number; fontFamily?: 'default' | 'serif' | 'mono'; textAlign?: 'left' | 'center' | 'right'; autoSize?: boolean; textAutoHeight?: boolean; autoFit?:boolean; preferredWidth?:number; locked?:boolean; customBorder?:boolean; borderStyle?:'solid'|'dashed'|'dotted'; borderWidth?:number }
+export interface Card { mindmapRules?:{layout:'right'|'left'|'down'|'up'|'bilateral';density:'compact'|'standard'|'relaxed';automatic:boolean};textMaxWidth?:number; webUrl?:string; imageUrl?:string; transparent?:boolean; fillColor?:CardFill; branchFolded?:boolean; review?:'later'|'reading'|'done'; id: string; kind: 'card' | 'section' | 'board' | 'mindmap' | 'text' | 'image' | 'pdf' | 'audio' | 'video'; pdfPage?:number; mediaStart?:number; x: number; y: number; width: number; height: number; color: Color; file?: string; title?: string; collapsed?: boolean; expandedHeight?: number; text?: string; topic?: boolean; textColor?: Color | 'default'; fontSize?: number; fontFamily?: 'default' | 'serif' | 'mono'; textAlign?: 'left' | 'center' | 'right'; autoSize?: boolean; textAutoHeight?: boolean; autoFit?:boolean; preferredWidth?:number; locked?:boolean; customBorder?:boolean; borderStyle?:'solid'|'dashed'|'dotted'; borderWidth?:number }
 export interface Edge { id: string; from: string; to: string; label: string; style?: 'curve'|'straight'|'elbow'; direction?: 'forward'|'both'|'none'; dashed?: boolean; color?: Color; fromSide?: Side; toSide?: Side; kind?: 'branch' }
 export interface Board { defaultEdgeStyle?:Edge['style']; mindmapLayout?:'right'|'left'|'down'|'up'|'bilateral'; mindmapDensity?:'compact'|'standard'|'relaxed'; writing?:WritingState; selectionSets?:{id:string;name:string;ids:string[]}[]; spaceId?:string; snapToGrid?:boolean; savedViews?:{id:string;name:string;viewport:{x:number;y:number;zoom:number}}[]; version: 1 | 2 | 3; mode?: 'free'|'mindmap'; mindmapDirection?: 'right'|'down'|'up'; nodes: Card[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }
 export const emptyBoard = (): Board => ({ version: 1, nodes: [], edges: [], viewport: { x: 60, y: 60, zoom: 1 } });
@@ -30,20 +36,22 @@ export const uid = () => crypto.randomUUID();
 export const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 export function parseBoard(text: string): Board {
   const b:unknown = JSON.parse(text);
-  assertBoardData(b);validateBranches(b);if(b.readingLayout!==undefined&&!validReadingCheckpoint(b.readingLayout,b.nodes))delete b.readingLayout;return b;
+  assertBoardData(b);if(b.background!==undefined)b.background=cleanBoardBackground(b.background);validateBranches(b);if(b.readingLayout!==undefined&&!validReadingCheckpoint(b.readingLayout,b.nodes))delete b.readingLayout;if(b.relationGeometry!==undefined&&!validRelationGeometryCheckpoint(b.relationGeometry,b.nodes))delete b.relationGeometry;return b;
 }
 function assertBoardData(b:unknown):asserts b is Board {
   if (!isRecord(b) || !isOneOf(b.version,[1,2,3]) || !isUnknownArray(b.nodes) || !isUnknownArray(b.edges)) throw new Error('不支持的白板格式或版本');
   if(b.defaultEdgeStyle!==undefined&&(!isOneOf(b.defaultEdgeStyle,['curve','straight','elbow'])||b.version!==3))throw Error('白板默认连线路径无效');
   const ids = new Set<string>();
   for (const n of b.nodes) {
-    if (!isRecord(n) || typeof n.id !== 'string' || !n.id.trim() || ids.has(n.id) || !isOneOf(n.kind,b.version === 3 ? ['card','section','board','text','image','pdf','audio','video'] : b.version === 2 ? ['card','section','board'] : ['card','section']) ||
+    if (!isRecord(n) || typeof n.id !== 'string' || !n.id.trim() || ids.has(n.id) || !isOneOf(n.kind,b.version === 3 ? ['card','section','board','mindmap','text','image','pdf','audio','video'] : b.version === 2 ? ['card','section','board'] : ['card','section']) ||
       ![n.x,n.y].every(isFiniteNumber) || !isFiniteNumber(n.width) || !isFiniteNumber(n.height) || n.width < 80 || n.height < nodeMinimumHeight(n.kind) ||
       !isOneOf(n.color,colors) || (isOneOf(n.kind,['card','board','image','pdf','audio','video']) && (typeof n.file !== 'string' || !((n.kind==='audio'||n.kind==='video') ? isVaultMediaPath(n.file)&&mediaKind(n.file)===n.kind : n.kind === 'pdf' ? /\.pdf$/i.test(n.file) : n.kind === 'image' ? /\.(png|jpe?g|gif|webp|avif|bmp)$/i.test(n.file) : n.kind === 'board' ? n.file.endsWith('.thoughtspace') : /\.md$/i.test(n.file)) || /(^\/|(^|\/)\.\.?(\/|$)|\\)/.test(n.file))) ||
       (n.kind === 'section' && typeof n.title !== 'string')) throw new Error('白板节点数据不完整');
     if(['file','title','text'].some(key=>n[key]!==undefined&&typeof n[key]!=='string'))throw new Error('白板节点数据不完整');
+    if(n.brainIdea!==undefined&&(b.version!==3||n.kind!=='text'||n.brainIdea!==true||typeof n.title!=='string'||!n.title.trim()||n.title.length>160||n.file!==undefined))throw Error('脑图想法节点无效');
+    if(n.kind==='mindmap'?!validBoardMindmapState(n.mindmap):n.mindmap!==undefined)throw Error('脑图容器状态无效');
     if ((n.collapsed !== undefined && typeof n.collapsed !== 'boolean') ||
-      (n.collapsed && (!isOneOf(n.kind,['card','pdf','board','text','audio','video','image']) || n.height !== 72 || !isFiniteNumber(n.expandedHeight) || n.expandedHeight < nodeMinimumHeight(n.kind))) ||
+      (n.collapsed && (!isOneOf(n.kind,['card','pdf','board','mindmap','text','audio','video','image']) || n.height !== 72 || !isFiniteNumber(n.expandedHeight) || n.expandedHeight < nodeMinimumHeight(n.kind))) ||
       (!n.collapsed && n.expandedHeight !== undefined)) throw new Error('卡片折叠数据不完整');
     if ((n.kind === 'text' && typeof n.text !== 'string') || (n.topic !== undefined && (b.version !== 3 || typeof n.topic !== 'boolean'))) throw new Error('文本或主题数据不完整');
     if ((n.textColor !== undefined && !isOneOf(n.textColor,['default',...colors])) ||
@@ -56,6 +64,7 @@ function assertBoardData(b:unknown):asserts b is Board {
     if(n.textMaxWidth!==undefined&&(n.kind!=='text'||!isFiniteNumber(n.textMaxWidth)||n.textMaxWidth<160||n.textMaxWidth>720))throw Error('主题换行宽度无效');
     if(n.mediaStart!==undefined&&(!isOneOf(n.kind,['audio','video'])||!validMediaTime(n.mediaStart)))throw Error('媒体起始时间无效');
     if(n.pdfPage!==undefined&&(n.kind!=='pdf'||!isFiniteNumber(n.pdfPage)||!Number.isSafeInteger(n.pdfPage)||n.pdfPage<1))throw Error('PDF 页码无效');
+    if(n.paragraphQuote!==undefined&&(n.kind!=='text'||!validParagraphOrigin(n.paragraphQuote)))throw Error('段落来源无效');
     if(n.pdfQuote!==undefined&&(n.kind!=='text'||!isRecord(n.pdfQuote)||typeof n.pdfQuote.original!=='string'||n.pdfQuote.original.length>100000||typeof n.pdfQuote.sourcePath!=='string'||n.pdfQuote.sourcePath.length>2048||hasAsciiControl(n.pdfQuote.sourcePath)))throw Error('PDF 引用原文无效');
     if(n.webUrl!==undefined&&(n.kind!=='text'||!webUrl(n.webUrl)))throw Error('网页链接无效');
     if(n.imageUrl!==undefined&&(n.kind!=='image'||!remoteImageUrl(n.imageUrl)))throw Error('图床图片地址无效');
@@ -80,6 +89,9 @@ function assertBoardData(b:unknown):asserts b is Board {
     edgeIds.add(e.id);
   }
   if (!isRecord(b.viewport) || ![b.viewport.x,b.viewport.y].every(isFiniteNumber) || !isFiniteNumber(b.viewport.zoom) || b.viewport.zoom < .15 || b.viewport.zoom > 2.5) throw new Error('白板视口数据不完整');
+  if(b.presentation!==undefined&&(b.version!==3||b.presentation!=='brain'))throw Error('白板展示模式无效');
+  if(b.presentation==='brain'?!validBoardMindmapState(b.brain):b.brain!==undefined)throw Error('脑图白板状态无效');
+  if(b.brainViewport!==undefined&&(b.presentation!=='brain'||!validBrainViewport(b.brainViewport)))throw Error('脑图白板视口无效');
   if((b.mode !== undefined && (b.version !== 3 || !isOneOf(b.mode,['free','mindmap']))) || (b.mindmapDirection !== undefined && (b.version !== 3 || !isOneOf(b.mindmapDirection,['right','down','up'])))) throw new Error('导图设置不完整');
   if((b.mindmapLayout!==undefined&&(b.version!==3||!isOneOf(b.mindmapLayout,['right','left','down','up','bilateral'])))||(b.mindmapDensity!==undefined&&(b.version!==3||!isOneOf(b.mindmapDensity,['compact','standard','relaxed']))))throw Error('思维导图布局设置无效');
   if(b.spaceId!==undefined&&(typeof b.spaceId!=='string'||!/^[a-zA-Z0-9-]{1,80}$/.test(b.spaceId)))throw Error('空间标识无效');
@@ -108,6 +120,10 @@ export function contained(section: Card, node: Card): boolean {
 export function assertBoardGeometry(board:Board):void {
  for(const n of board.nodes)if(!Number.isFinite(n.x)||!Number.isFinite(n.y)||!Number.isFinite(n.width)||!Number.isFinite(n.height)||n.width<80||n.height<nodeMinimumHeight(n.kind))throw Error('白板尺寸无效，已阻止写入');
  const v=board.viewport;if(!v||!Number.isFinite(v.x)||!Number.isFinite(v.y)||!Number.isFinite(v.zoom)||v.zoom<.15||v.zoom>2.5)throw Error('白板视口无效，已阻止写入');
+ if(board.brainViewport!==undefined&&(board.presentation!=='brain'||!validBrainViewport(board.brainViewport)))throw Error('脑图白板视口无效，已阻止写入');
+}
+function validBrainViewport(value:unknown):boolean {
+ return isRecord(value)&&Object.keys(value).every(key=>['x','y','zoom'].includes(key))&&[value.x,value.y].every(isFiniteNumber)&&isFiniteNumber(value.zoom)&&value.zoom>=.15&&value.zoom<=2.5;
 }
 /** Persist compact text frames without lowering other object kinds' size floor. */
 export function nodeMinimumHeight(kind:Card['kind']):number{return kind==='text'?40:60;}
@@ -143,7 +159,7 @@ export function canvasExport(b: Board,vaultName?:string) {
   const nodes=new Map<string,Card>();let next=0;
   const nodeById=(id:string)=>{while(!nodes.has(id)&&next<b.nodes.length){const node=b.nodes[next++],key=node.id;if(!nodes.has(key))nodes.set(key,node);}return nodes.get(id)!;};
   const palette: Record<Color, string> = { sand: '3', blue: '5', green: '4', rose: '1', purple: '6', orange:'#edab6d',red:'#df8580',teal:'#87c8bb',cyan:'#8fcbdc',lime:'#b9cd82',slate:'#aab4c2',brown:'#c2a18c' };
-  return { nodes: b.nodes.map(n => {const mediaLink=externalMediaMarkdown(n,vaultName);return ({ id:n.id, type:n.webUrl?'link':n.kind==='section'?'group':n.kind==='text'||mediaLink?'text':'file', x:n.x,y:n.y,width:n.width,height:n.height,color:palette[n.color], ...(n.webUrl?{url:n.webUrl}:n.kind==='section'?{label:n.title}:mediaLink?{text:mediaLink}:n.kind==='text'?{text:n.text}:{file:n.file,...(n.kind==='pdf'?{subpath:`#page=${n.pdfPage||1}`}:(n.kind==='audio'||n.kind==='video')&&n.mediaStart?{subpath:`#t=${n.mediaStart}`}:{})}) });}),
+  return { nodes: b.nodes.map(n => {const mediaLink=n.kind==='mindmap'?boardMindmapSummary(n,b.nodes):externalMediaMarkdown(n,vaultName);return ({ id:n.id, type:n.webUrl?'link':n.kind==='section'?'group':n.kind==='text'||mediaLink?'text':'file', x:n.x,y:n.y,width:n.width,height:n.height,color:palette[n.color], ...(n.webUrl?{url:n.webUrl}:n.kind==='section'?{label:n.title}:mediaLink?{text:mediaLink}:n.kind==='text'?{text:n.text}:{file:n.file,...(n.kind==='pdf'?{subpath:`#page=${n.pdfPage||1}`}:(n.kind==='audio'||n.kind==='video')&&n.mediaStart?{subpath:`#t=${n.mediaStart}`}:{})}) });}),
     edges:b.edges.map(e=>({id:e.id,fromNode:e.from,toNode:e.to,...connectionSides(nodeById(e.from),nodeById(e.to),e),fromEnd:e.direction==='both'?'arrow':'none',toEnd:e.direction==='none'?'none':'arrow',label:e.label,...(e.color?{color:palette[e.color]}:{})})) };
 }
 export interface Task { line: number; text: string; checked: boolean; source: string; checkboxOffset?:number }

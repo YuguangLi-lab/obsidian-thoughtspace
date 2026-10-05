@@ -1,3 +1,4 @@
+import {boardBackground} from '../src/board-background';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -33,13 +34,13 @@ class Anchor {
   setAttribute(name:string,value:string){this.attributes[name]=value;}
   getBoundingClientRect(){return this.rect;}
 }
-const View=new Function('Menu','act',transformSync(`class View{${method}}\nreturn View;`,{loader:'ts'}).code)(Menu,(run:()=>unknown)=>run());
+const View=new Function('Menu','act','boardBackground',transformSync(`class View{${method}}\nreturn View;`,{loader:'ts'}).code)(Menu,(run:()=>unknown)=>run(),boardBackground);
 const kinds={dots:'点阵',grid:'网格',plain:'纯色',paper:'纸张纹理',image:'背景图片'} as const;
 type Kind=keyof typeof kinds;
 function fixture(kind:Kind='dots',imagePath=''){
   Menu.created=[];
   const view=new View(),anchor=new Anchor(),saved:string[]=[],opened:string[]=[];
-  view.closed=false;view.session={board:{id:'original'}};
+  view.closed=false;view.session={file:{path:'Board.thoughtspace'},board:{id:'original'},change(fn:any){fn(this.board);},async flush(){saved.push(this.board.background?.canvasBackground||'default');}};view.openBoardBackgroundSettings=(kind:string)=>opened.push(kind);
   view.plugin={settings:{canvasBackground:kind,backgroundImagePath:imagePath},
     async savePreferences(){saved.push(view.plugin.settings.canvasBackground);},
     openPaperSettings(){opened.push('paper');},openBackgroundImageSettings(){opened.push('image');}};
@@ -58,7 +59,7 @@ for(const kind of Object.keys(kinds) as Kind[])test(`background menu identifies 
 
 test('selecting a different background persists the chosen mode exactly once',async()=>{
   const f=fixture(),menu=f.open();await f.item(menu,'纸张纹理').run();
-  assert.equal(f.view.plugin.settings.canvasBackground,'paper');assert.deepEqual(f.saved,['paper']);
+  assert.equal(f.view.session.board.background.canvasBackground,'paper');assert.deepEqual(f.saved,['paper']);
   assert.deepEqual(f.opened,[]);
 });
 test('selecting the current background does not write preferences again',async()=>{
@@ -67,12 +68,12 @@ test('selecting the current background does not write preferences again',async()
 });
 test('choosing an image without a saved image opens its settings and preserves the current mode',async()=>{
   const f=fixture('paper'),menu=f.open();await f.item(menu,'背景图片').run();
-  assert.equal(f.view.plugin.settings.canvasBackground,'paper');assert.deepEqual(f.saved,[]);assert.deepEqual(f.opened,['image']);
+  assert.equal(f.view.plugin.settings.canvasBackground,'paper');assert.equal(f.view.session.board.background,undefined);assert.deepEqual(f.saved,[]);assert.deepEqual(f.opened,['image']);
 });
 test('choosing a previously configured image reuses its path and persists image mode',async()=>{
   const f=fixture('grid','ThoughtSpace/背景/paper.png'),menu=f.open();await f.item(menu,'背景图片').run();
   assert.equal(f.view.plugin.settings.backgroundImagePath,'ThoughtSpace/背景/paper.png');
-  assert.equal(f.view.plugin.settings.canvasBackground,'image');assert.deepEqual(f.saved,['image']);assert.deepEqual(f.opened,[]);
+  assert.equal(f.view.session.board.background.canvasBackground,'image');assert.deepEqual(f.saved,['image']);assert.deepEqual(f.opened,[]);
 });
 test('paper and image customization remain separate, directly reachable actions',async()=>{
   const f=fixture(),menu=f.open();await f.item(menu,'自定义纸张…').run();await f.item(menu,'设置背景图片…').run();
@@ -109,4 +110,11 @@ test('reopening closes the previous menu and preserves the new anchor expanded s
 test('closing a menu after its anchor is detached does not leave stale expanded state on that anchor',()=>{
   const f=fixture(),menu=f.open();f.anchor.isConnected=false;menu.hide();
   assert.equal(f.view.canvasMenu,undefined);assert.equal(f.anchor.attributes['aria-expanded'],'false');
+});
+
+test('board background override participates in board history and leaves global defaults unchanged',async()=>{
+ const f=fixture('grid'),before=JSON.stringify(f.view.plugin.settings),menu=f.open();await f.item(menu,'纸张纹理').run();
+ assert.equal(f.view.session.board.background.canvasBackground,'paper');assert.equal(JSON.stringify(f.view.plugin.settings),before);
+ const next=f.open();assert(next.items.find(value=>value.title==='纸张纹理')?.checked);await f.item(next,'跟随默认背景').run();
+ assert.equal(f.view.session.board.background,undefined);assert.equal(JSON.stringify(f.view.plugin.settings),before);
 });

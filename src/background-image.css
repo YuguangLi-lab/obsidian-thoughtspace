@@ -1,12 +1,12 @@
 /* Image backgrounds remain in stage pixels rather than following its world transform. */
-.ts-root[data-background=image] .ts-main > .ts-stage,
+.ts-root[data-background=image] :is(.ts-main > .ts-stage,.ts-brain-stage),
 .ts-background-preview {
  position:relative;
  isolation:isolate;
  background-color:var(--background-primary);
  background-image:none;
 }
-.ts-root[data-background=image] .ts-main > .ts-stage::before,
+.ts-root[data-background=image] :is(.ts-main > .ts-stage,.ts-brain-stage)::before,
 .ts-background-preview::before {
  content:'';
  position:absolute;
@@ -57,4 +57,4 @@
 .ts-background-reload {margin-right:auto;font-size:12px}
 .ts-background-settings :is(button,input):focus-visible {outline:2px solid var(--interactive-accent);outline-offset:2px}
 @media(max-width:600px){.ts-background-settings-body{grid-template-columns:1fr;gap:22px}.ts-background-settings .ts-background-preview{min-height:220px}.ts-background-preview-note{margin-top:25px}.ts-background-file-hint{margin-bottom:16px}.ts-background-opacity-control{margin-top:19px}}
-@media(prefers-contrast:more){.ts-root[data-background=image] .ts-main > .ts-stage::before,.ts-background-preview::before{display:none}}
+@media(prefers-contrast:more){.ts-root[data-background=image] :is(.ts-main > .ts-stage,.ts-brain-stage)::before,.ts-background-preview::before{display:none}}

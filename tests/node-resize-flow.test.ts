@@ -45,7 +45,7 @@ function fixture(nodes:model.Card[]=[card()],zoom=.54,edges:model.Edge[]=[]){
     fitTextNode:(node:model.Card)=>{calls.textMeasure++;node.height=86;}};
   const compile=(body:string)=>new Function(...Object.keys(deps),transformSync(body,{loader:'ts'}).code)(...Object.values(deps));
   const View=compile(`class View{${methods}};return View`),Session=compile(`class Session{${sessionMethods}};return Session`);
-  const session=new Session();Object.assign(session,{board:{...model.emptyBoard(),nodes,edges,viewport:{x:125,y:75,zoom}},history:new model.History(),blocked:false,
+  const session=new Session();Object.assign(session,{board:{...model.emptyBoard(),nodes,edges,viewport:{x:125,y:75,zoom}},history:new model.History(),relationGeometry:new Map(),blocked:false,
     persist(){calls.persist++;},emit(){calls.emit++;}});
   const view=new View(),positions=new Map(nodes.map(n=>[n.id,new Element()]));
   function position(n:model.Card,el:Element){Object.assign(el.style,{left:`${n.x}px`,top:`${n.y}px`,width:`${n.width}px`,height:`${n.height}px`});}

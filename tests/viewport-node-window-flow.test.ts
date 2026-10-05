@@ -1,3 +1,4 @@
+import {isBrainBoard} from '../src/brain-board';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -18,7 +19,7 @@ function take(start:string,end:string){const a=source.indexOf(start),b=source.in
 const methods=take('  private renderBoard(','  private pdfTotals=')
  +take('  private updateBackToContent(','  private transform()')
  +take('  private renderEdges(','  private labelEdge(');
-const deps={branchState,visibleBranchBoard,branchRenderSnapshot,sectionDisplayNode,visibleNodes,viewportRect,intersects,visibleGridSize,inlineDisplayBoard};
+const deps={isBrainBoard,branchState,visibleBranchBoard,branchRenderSnapshot,sectionDisplayNode,visibleNodes,viewportRect,intersects,visibleGridSize,inlineDisplayBoard};
 const View=new Function(...Object.keys(deps),transformSync(`return class View{${methods}}`,{loader:'ts'}).code)(...Object.values(deps));
 type Stats={nodeIds:number;positionGets:number;titleQueries:number;edgeKinds:number;edgeFrames:number;positioned:number;mapFrames:number;unloads:number;inlineSyncs:number;};
 class Element {
@@ -62,6 +63,13 @@ test('120 camera frames inspect only mounted DOM and skip unused branch topology
  assert.equal(f.stats.positionGets,12*3*120);assert.equal(f.stats.titleQueries,12*120);assert.equal(f.stats.edgeKinds,0);
  assert.equal(f.stats.positioned,12*120);assert.equal(f.stats.edgeFrames,120);assert.equal(f.stats.mapFrames,120);assert.equal(f.stats.unloads,0);
  assert.deepEqual([...f.positions.values()],elements);f.board.viewport.x=0;assert.equal(JSON.stringify(f.board),saved);
+});
+test('120 camera frames preserve embedded mindmap DOM without recomputing its relationships or previews',()=>{
+ const f=fixture();f.nodes[0].kind='mindmap';let refreshes=0,resizes=0;const element=f.positions.get('n0')!;Object.assign(element,{toggleClass(){}});
+ Object.assign(f.view,{boardMindmaps:new Map([['n0',{refresh(){refreshes++;}}]]),syncMindmapResize(node:Card,el:Element){assert.equal(node.id,'n0');assert.equal(el,element);resizes++;}});
+ const before={x:f.nodes[0].x,y:f.nodes[0].y,width:f.nodes[0].width,height:f.nodes[0].height};
+ for(let frame=0;frame<120;frame++){f.board.viewport.x=frame/100;f.render();}
+ assert.equal(resizes,120);assert.equal(refreshes,0);assert.equal(f.positions.get('n0'),element);assert.equal(f.stats.unloads,0);assert.deepEqual({x:f.nodes[0].x,y:f.nodes[0].y,width:f.nodes[0].width,height:f.nodes[0].height},before);
 });
 
 test('an entirely offscreen camera frame does not search undefined editor IDs or build unused topology',()=>{

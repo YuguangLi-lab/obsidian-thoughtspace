@@ -1,3 +1,4 @@
+import {isBrainBoard} from '../src/brain-board';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -16,7 +17,7 @@ function fixture(){
  const calls={created:0,opened:0,closed:0,committed:0,restored:[] as string[]},modals:Modal[]=[];
  class Modal{constructor(_app:unknown,readonly host:{board:()=>Board;ids?:Set<string>;commit:(edit:(board:Board)=>void)=>void;restore?:(id:string)=>void}){calls.created++;modals.push(this);}open(){calls.opened++;}close(){calls.closed++;}}
  const hostWindow={cancelAnimationFrame(){},clearTimeout(){}};
- const deps={GroupOrganizerModal:Modal,SavedViewsModal:Modal,LayoutPlannerModal:Modal,studioDraft,BoardView:class{},window:hostWindow,act:(fn:()=>unknown)=>fn(),report:(error:unknown)=>{throw error;},fitTextNode(){}};
+ const deps={isBrainBoard,GroupOrganizerModal:Modal,SavedViewsModal:Modal,LayoutPlannerModal:Modal,studioDraft,BoardView:class{},window:hostWindow,act:(fn:()=>unknown)=>fn(),report:(error:unknown)=>{throw error;},fitTextNode(){}};
  const View=new Function(...Object.keys(deps),transformSync(`class View{${methods}}return View;`,{loader:'ts'}).code)(...Object.values(deps));
  const commit=deferred<boolean>(),navigation=deferred<void>(),acquisition=deferred<ReturnType<typeof session>>(),view=new View();
  function session(){const value={board:{...emptyBoard(),version:3 as const},blocked:false,listeners:new Set(),flush:async()=>{},change:(edit:(board:Board)=>void)=>{calls.committed++;edit(value.board);}};return value;}
@@ -24,8 +25,8 @@ function fixture(){
  Object.assign(view,{dialogEpoch:0,session:owner,closed:false,selected:new Set(['chosen']),outlineCollapsed:new Set(),renderFrame:0,sidebarRun:0,inline:{commit:()=>commit.promise},
   blankClicks:{cancel(){}},viewTrail:{clear(){}},svg:{isConnected:true},stage:{removeClass(){}},
   contentEl:{ownerDocument:{defaultView:hostWindow},querySelectorAll:()=>[]},app:{workspace:{getActiveViewOfType:()=>undefined}},
-  plugin:{session:()=>acquisition.promise,ensureDock:async()=>{},refreshDock(){},release:async()=>{}},
-  finishInlineForNavigation:()=>navigation.promise,finishMarquee(){},setSectionTool(){},syncSelectionTool(){},clearNodes(){},clearCanvasGesture(){},paint(){},restoreView:(id:string)=>calls.restored.push(id),
+  plugin:{provisionalBoardGeometry:new WeakMap(),session:()=>acquisition.promise,ensureDock:async()=>{},refreshDock(){},release:async()=>{}},
+  finishInlineForNavigation:()=>navigation.promise,finishMarquee(){},setSectionTool(){},syncSelectionTool(){},clearNodes(){},clearBrainBoard(){},clearCanvasGesture(){},paint(){},restoreView:(id:string)=>calls.restored.push(id),
  });
  return{view,owner,next,calls,modals,commit,navigation,acquisition};
 }

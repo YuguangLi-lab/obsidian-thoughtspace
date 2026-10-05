@@ -2,7 +2,7 @@ import {App,Modal,Notice,setIcon} from 'obsidian';
 import {PaperPreferences,cleanPaperPreferences,paperAppearanceStamp,paperBaseColor,paperPresets} from './paper-appearance';
 import {themeSurface} from './ui-tokens';
 
-export interface PaperSettingsHost {language?:'zh-CN'|'en';preferences:()=>PaperPreferences;save:(preferences:PaperPreferences)=>Promise<void>;}
+export interface PaperSettingsHost {stamp?:()=>string;language?:'zh-CN'|'en';preferences:()=>PaperPreferences;save:(preferences:PaperPreferences)=>Promise<void>;}
 const paperPresetEnglish:Record<PaperPreferences['paperPreset'],string>={cream:'Cream paper',white:'White paper',ivory:'Ivory paper',kraft:'Kraft paper',recycled:'Recycled paper',custom:'Custom'};
 const previewInk=(color:string)=>{const channels=[1,3,5].map(at=>parseInt(color.slice(at,at+2),16)/255).map(value=>value<=.04045?value/12.92:Math.pow((value+.055)/1.055,2.4));return channels[0]*.2126+channels[1]*.7152+channels[2]*.0722>.179?'#403b32':'#f4f0e6';};
 /** Changes stay in this dialog until Apply; native Modal selection state is untouched. */
@@ -26,13 +26,14 @@ export class PaperSettingsModal extends Modal {
   this.contentEl.onkeydown=event=>{if(event.key==='Enter'&&(event.metaKey||event.ctrlKey)&&!event.altKey&&!event.shiftKey&&!event.isComposing&&event.keyCode!==229){event.preventDefault();if(!this.paperApply.disabled)void this.paperSave();}};
   this.paperLoad();
  }
- private paperLoad(){if(this.paperClosed||this.paperBusy)return;try{this.paperDraft=cleanPaperPreferences(this.paperHost.preferences());this.paperBaseline=paperAppearanceStamp(this.paperDraft);this.paperConflict=false;this.paperLoadFailed=false;this.paperInvalidColor=false;this.paperHex.value=this.paperDraft.paperColor;this.paperStatus.setText('');this.paperSync();}catch(error){this.paperLoadFailed=true;this.paperStatus.setText(String(error).replace(/^Error: /,''));this.paperSync();}}
+ private paperStamp(preferences:PaperPreferences){return paperAppearanceStamp(preferences)+(this.paperHost.stamp?'|'+this.paperHost.stamp():'');}
+ private paperLoad(){if(this.paperClosed||this.paperBusy)return;try{this.paperDraft=cleanPaperPreferences(this.paperHost.preferences());this.paperBaseline=this.paperStamp(this.paperDraft);this.paperConflict=false;this.paperLoadFailed=false;this.paperInvalidColor=false;this.paperHex.value=this.paperDraft.paperColor;this.paperStatus.setText('');this.paperSync();}catch(error){this.paperLoadFailed=true;this.paperStatus.setText(String(error).replace(/^Error: /,''));this.paperSync();}}
  private paperSync(){if(this.paperClosed)return;for(const[preset,button]of this.paperSwatches){button.setAttribute('aria-pressed',String(this.paperDraft.paperPreset===preset));button.disabled=this.paperBusy||this.paperLoadFailed;}this.paperCustom.setAttribute('aria-pressed',String(this.paperDraft.paperPreset==='custom'));this.paperCustom.disabled=this.paperPicker.disabled=this.paperHex.disabled=this.paperSlider.disabled=this.paperBusy||this.paperLoadFailed;
   this.paperPicker.value=this.paperDraft.paperColor;this.paperHex.setAttribute('aria-invalid',String(this.paperInvalidColor));this.paperSlider.value=String(this.paperDraft.paperTexture);this.paperStrength.setText(`${this.paperDraft.paperTexture}%`);const color=paperBaseColor(this.paperDraft);this.paperPreview.style.setProperty('--ts-paper-color',color);this.paperPreview.style.setProperty('--ts-paper-texture',String(this.paperDraft.paperTexture/100));this.paperPreview.style.setProperty('--ts-paper-preview-ink',previewInk(color));
   this.paperApply.disabled=this.paperBusy||this.paperInvalidColor||this.paperConflict||this.paperLoadFailed;this.paperApply.setText(this.paperBusy?this.paperText('正在应用…','Applying...'):this.paperText('应用','Apply'));this.paperReload.hidden=!this.paperConflict&&!this.paperLoadFailed;this.paperReload.disabled=this.paperBusy;
  }
  private async paperSave(){if(this.paperClosed||this.paperBusy||this.paperApply.disabled)return;
-  try{const current=cleanPaperPreferences(this.paperHost.preferences());if(paperAppearanceStamp(current)!==this.paperBaseline){this.paperConflict=true;this.paperStatus.setText(this.paperText('纸张设置已在其他窗口改变。请载入当前设置后重新调整。','Paper settings changed in another window. Reload current settings before making changes.'));this.paperSync();return;}}
+  try{const current=cleanPaperPreferences(this.paperHost.preferences());if(this.paperStamp(current)!==this.paperBaseline){this.paperConflict=true;this.paperStatus.setText(this.paperText('纸张设置已在其他窗口改变。请载入当前设置后重新调整。','Paper settings changed in another window. Reload current settings before making changes.'));this.paperSync();return;}}
   catch(error){this.paperStatus.setText(String(error).replace(/^Error: /,''));return;}
   const next=cleanPaperPreferences(this.paperDraft),run=this.paperRun;this.paperBusy=true;this.paperStatus.setText(this.paperText('正在保存纸张设置…','Saving paper settings...'));this.paperSync();
   try{await this.paperHost.save(next);if(this.paperClosed||run!==this.paperRun)return;this.paperBusy=false;this.close();}

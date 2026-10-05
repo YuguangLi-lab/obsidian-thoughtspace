@@ -1,3 +1,4 @@
+import {isBrainBoard} from '../src/brain-board';
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {transformSync} from 'esbuild';
 const source=readFileSync(process.env.SESSION_CACHE_SOURCE||'src/main.ts','utf8'),start=source.indexOf('  async session(file:'),end=source.indexOf('\n  async readBoard(',start);
 class Session{listeners=new Set();board={nodes:[]};blocked=false;flush=async()=>{};constructor(_host:unknown,public file:unknown,public raw:string){}}
@@ -54,12 +55,12 @@ test('a rejected shared read cleans its renewed cache entry and all concurrent c
 });
 
 const loadStart=source.indexOf('  async onLoadFile(file:'),loadEnd=source.indexOf('\n  private point(',loadStart);
-const View=new Function('act','report','fitTextNode',transformSync('class BoardView{'+source.slice(loadStart,loadEnd)+'};return BoardView',{loader:'ts'}).code)((run:()=>unknown)=>{void run();},()=>{},()=>{});
+const View=new Function('isBrainBoard','act','report','fitTextNode',transformSync('class BoardView{'+source.slice(loadStart,loadEnd)+'};return BoardView',{loader:'ts'}).code)(isBrainBoard,(run:()=>unknown)=>{void run();},()=>{},()=>{});
 test('production onLoadFile attaches to the cached session after a previous view starts releasing it',async()=>{
  const f=fixture(),original=await f.host.session(f.file),view=new View();let releaseDock!:()=>void;
  const dock=new Promise<void>(resolve=>releaseDock=resolve);
- Object.assign(f.host,{ensureDock:()=>dock,refreshDock(){},clearMaterialDrag(){}});
- Object.assign(view,{plugin:f.host,closed:false,file:f.file,dialogEpoch:0,sidebarRun:0,renderFrame:0,blankClicks:{cancel(){}},finishMarquee(){},setSectionTool(){},syncSelectionTool(){},viewTrail:{clear(){}},outlineCollapsed:new Set(),clearNodes(){},selected:new Set(),stage:{removeClass(){}},svg:{isConnected:true},contentEl:{querySelectorAll:()=>[],ownerDocument:{defaultView:{cancelAnimationFrame(){}}}},app:{workspace:{getActiveViewOfType:()=>view}},paint(){},finishInlineForNavigation:async()=>{},clearCanvasGesture(){}});
+ Object.assign(f.host,{provisionalBoardGeometry:new WeakMap(),ensureDock:()=>dock,refreshDock(){},clearMaterialDrag(){}});
+ Object.assign(view,{plugin:f.host,closed:false,file:f.file,dialogEpoch:0,sidebarRun:0,renderFrame:0,blankClicks:{cancel(){}},finishMarquee(){},setSectionTool(){},syncSelectionTool(){},viewTrail:{clear(){}},outlineCollapsed:new Set(),clearNodes(){},selected:new Set(),stage:{removeClass(){}},svg:{isConnected:true},contentEl:{querySelectorAll:()=>[],ownerDocument:{defaultView:{cancelAnimationFrame(){}}}},app:{workspace:{getActiveViewOfType:()=>view}},paint(){},finishInlineForNavigation:async()=>{},clearBrainBoard(){},clearCanvasGesture(){}});
  const releasing=f.host.release(original);await Promise.resolve();const loading=view.onLoadFile(f.file);
  await releasing;releaseDock();await loading;
  assert.equal(view.session,original);assert.equal(original.listeners.size,1);

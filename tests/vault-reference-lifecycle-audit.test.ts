@@ -7,10 +7,11 @@ import {isWorkspaceFile} from '../src/workspace';
 import {textExcerptPresentation,sourceLinkTarget} from '../src/excerpt-sources';
 import {createBoardReferenceRenamer,captureBoardReferenceRename} from '../src/board-reference-rename';
 import {remapFavorites} from '../src/navigation';
+import {remapLocalRelationsPreferences} from '../src/local-relations-state';
 
 const main=readFileSync('src/main.ts','utf8'),start=main.indexOf('  async renameReferences('),end=main.indexOf('\n  async databaseDemo(',start);
 const registrationStart=main.indexOf("    this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {"),registrationEnd=main.indexOf('\n    }));',registrationStart)+'\n    }));'.length;
-const Rename=new Function('parseBoard','History','isWorkspaceFile','report','EXT','createBoardReferenceRenamer','captureBoardReferenceRename','remapFavorites','remapHubPaths','act',transformSync(`class Rename{install(){${main.slice(registrationStart,registrationEnd)}}${main.slice(start,end)}};return Rename;`,{loader:'ts'}).code)(parseBoard,History,isWorkspaceFile,(error:unknown)=>{throw error;},'thoughtspace',createBoardReferenceRenamer,captureBoardReferenceRename,remapFavorites,(hub:unknown)=>hub,(run:()=>unknown)=>{try{void Promise.resolve(run()).catch(()=>{});}catch{}});
+const Rename=new Function('remapLocalRelationsPreferences','parseBoard','History','isWorkspaceFile','report','EXT','createBoardReferenceRenamer','captureBoardReferenceRename','remapFavorites','remapHubPaths','act',transformSync(`class Rename{install(){${main.slice(registrationStart,registrationEnd)}}${main.slice(start,end)}};return Rename;`,{loader:'ts'}).code)(remapLocalRelationsPreferences,parseBoard,History,isWorkspaceFile,(error:unknown)=>{throw error;},'thoughtspace',createBoardReferenceRenamer,captureBoardReferenceRename,remapFavorites,(hub:unknown)=>hub,(run:()=>unknown)=>{try{void Promise.resolve(run()).catch(()=>{});}catch{}});
 class TFile {constructor(public path:string){}get extension(){return this.path.split('.').at(-1)!;}}
 const writing=readFileSync('src/writing-view.ts','utf8'),openStart=writing.indexOf(' async openDraft()'),openEnd=writing.indexOf('\n async generate()',openStart);
 const Writer=new Function('TFile',transformSync(`class Writer{${writing.slice(openStart,openEnd)}};return Writer;`,{loader:'ts'}).code)(TFile);

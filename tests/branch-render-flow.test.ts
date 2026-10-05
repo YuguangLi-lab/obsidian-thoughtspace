@@ -1,3 +1,4 @@
+import {isBrainBoard} from '../src/brain-board';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -18,7 +19,7 @@ const methods=take('  private renderBoard(', '  private pdfTotals=')
  +take('  private updateBackToContent(', '  private transform()')
  +take('  private renderEdges(', '  private labelEdge(')
  +take('  private renderMinimap(', '  private async importBoardAttachments(');
-const deps={branchState,branchRenderSnapshot,visibleBranchBoard,sectionDisplayNode,visibleNodes,viewportRect,intersects,visibleGridSize,inlineDisplayBoard};
+const deps={isBrainBoard,branchState,branchRenderSnapshot,visibleBranchBoard,sectionDisplayNode,visibleNodes,viewportRect,intersects,visibleGridSize,inlineDisplayBoard};
 const View=new Function(...Object.keys(deps),transformSync(`class View{${methods}};return View`,{loader:'ts'}).code)(...Object.values(deps));
 const card=(id:string,patch:Partial<Card>={}):Card=>({id,kind:'text',text:'node',x:10000+Number(id)*250,y:10000,width:200,height:100,color:'sand',...patch});
 function fixture(size=4){

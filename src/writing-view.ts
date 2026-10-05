@@ -16,8 +16,8 @@ import {themeSurface} from './ui-tokens';
 export const WRITING='thoughtspace-writing';
 interface WritingSession {board:Board;file:TFile;blocked:boolean;status?:string;listeners:Set<(kind:SessionUpdate)=>void>;change:(f:(b:Board)=>void,before?:Board,allowLocked?:boolean,recordHistory?:boolean)=>void;flush:()=>Promise<void>}
 export interface WritingHost<S extends WritingSession=WritingSession> {settings?:{density?:string};session:(file:TFile)=>Promise<S>;release:(session:S)=>Promise<void>;openBoard:(file:TFile)=>Promise<unknown>;createUnique:(folder:string,name:string,ext:string,text:string)=>Promise<TFile>;openNoteInSidebar:(file:TFile)=>Promise<WorkspaceLeaf>}
-const kinds:Record<Card['kind'],string>={section:'分组',card:'笔记',image:'图片',text:'文本',pdf:'PDF',board:'子白板',audio:'音频',video:'视频'};
-const icons:Record<Card['kind'],string>={section:'folder-open',card:'file-text',image:'image',text:'type',pdf:'file-text',board:'panels-top-left',audio:'audio-lines',video:'video'};
+const kinds:Record<Card['kind'],string>={section:'分组',card:'笔记',image:'图片',text:'文本',pdf:'PDF',board:'子白板',audio:'音频',video:'视频',mindmap:'脑图'};
+const icons:Record<Card['kind'],string>={section:'folder-open',card:'file-text',image:'image',text:'type',pdf:'file-text',board:'panels-top-left',audio:'audio-lines',video:'video',mindmap:'git-fork'};
 export class WritingView<S extends WritingSession=WritingSession> extends ItemView {
  private file?:TFile;
  private navigator?:HTMLDetailsElement;private navSummary?:HTMLElement;private navRows?:HTMLElement;private assemblyHint?:HTMLElement;private referencePicker?:WritingReferenceModal;private composing=false;private navText?:string;private manuscriptContext?:TFile;private navLimit=200;private sectionText?:string;private sections:ReturnType<typeof manuscriptSections>=[];
@@ -238,6 +238,7 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   const focused=this.contentEl.ownerDocument.activeElement;if(focused!==this.titleInput)this.titleInput.value=this.state().title;this.fitTitle();
   this.entryToolbars.forEach(dispose=>dispose());this.entryToolbars=[];this.entryEditors.forEach(editor=>editor.dispose());this.entryEditors=[];this.entryInputs=[];this.list.empty();this.outline.empty();
   const matches=this.matching();
+  if(board.nodes.some(n=>n.kind==='mindmap'))this.list.createDiv({cls:'ts-writing-small-empty',text:'脑图用于组织白板关系；写作时请选择其中的原笔记材料。'});
   for(const n of matches.slice(0,this.limit)){
    const row=this.list.createDiv({cls:'ts-writing-material',attr:{'data-writing-node':n.id}});this.dragRow(row,n.id);row.toggleClass('is-current-reference',this.state().referenceId===n.id);
    setIcon(row.createDiv('ts-writing-material-icon'),icons[n.kind]);

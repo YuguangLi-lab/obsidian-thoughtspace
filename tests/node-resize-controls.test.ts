@@ -8,7 +8,7 @@ import type {Card} from '../src/model';
 // Run the production rendering branch including its low-detail early return.
 const source=readFileSync(process.env.RESIZE_SOURCE||'src/main.ts','utf8');
 const start=source.indexOf('      const childCount=branches.children.get(n.id)');
-const optionsEnd=source.indexOf('\n',start),controlsStart=source.indexOf("      if(n.kind!=='section')renderBranchControls(el,branchOptions)",optionsEnd);
+const optionsEnd=source.indexOf('\n',start),controlsStart=source.indexOf("      if(n.kind!=='section'",optionsEnd);
 const end=source.indexOf("      const header = el.createDiv('ts-node-header')",controlsStart);
 assert.ok(start>=0&&optionsEnd>start&&controlsStart>optionsEnd&&end>controlsStart);
 const branchModule={exports:{} as typeof import('../src/branch-controls')};
@@ -17,6 +17,7 @@ new Function('require','module','exports',transformSync(readFileSync('src/branch
 const render=new Function('n','el','detail','branches','button','TFile','cardDisplayTitle','childCandidates','renderBranchControls','setIcon','textExcerptPresentation','mountCardControlHover',
  transformSync(`const fileInfo=undefined,restoreFoldFocus=false,scope={register:()=>{}};for(const node of [n]){${source.slice(start,optionsEnd)}${source.slice(controlsStart,end)}}`,{loader:'ts'}).code);
 class El{
+ mindmapMounts=0;
  ownerDocument={defaultView:null};
  addEventListener(){}removeEventListener(){}
  children:El[]=[];classes=new Set<string>();attrs:Record<string,string>={};classList={toggle:()=>{}};
@@ -31,7 +32,7 @@ class El{
 }
 function controls(kind:Card['kind'],detail:boolean,extra:Partial<Card>={}){
  const n:Card={id:'node',kind,width:280,height:100,x:0,y:0,color:'green',...extra},el=new El();
- const view={session:{blocked:false},addPorts:()=>{},foldBranches:()=>{}};
+ const view={session:{blocked:false},addPorts:()=>{},foldBranches:()=>{},mountBoardMindmap:(node:Card,element:El)=>{assert.equal(node,n);assert.equal(element,el);element.mindmapMounts++;}};
  const button=(parent:El,_label:string,_icon:string,_run:()=>void,cls:string)=>parent.createDiv(cls);
  render.call(view,n,el,detail,{children:new Map([['node',['child']]])},button,class{},()=> 'Note',new Map(),branchModule.exports.renderBranchControls,()=>{},(body:string)=>({body}),mountCardControlHover);
  return el;
@@ -54,5 +55,10 @@ test('compact branch fold suspends resizing and expansion restores the parent re
  for(const detail of [false,true])for(const branchFolded of [false,true]){
   const el=controls('card',detail,{branchFolded});
   assert.equal(el.children.filter(c=>c.cls==='ts-resize').length,branchFolded?0:1);
+ }
+});
+test('mindmap retains its component at every zoom instead of entering the title-only summary branch',()=>{
+ for(const detail of [false,true])for(const state of [{},{locked:true},{collapsed:true}]){
+  const el=controls('mindmap',detail,state);assert.equal(el.mindmapMounts,1);assert.equal(el.classes.has('ts-node-summary'),false);assert.equal(el.querySelectorAll('.ts-branch-toggle').length,0);assert.equal(el.children.filter(c=>c.cls==='ts-resize').length,('locked'in state||'collapsed'in state)?0:1);
  }
 });

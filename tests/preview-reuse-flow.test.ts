@@ -1,3 +1,5 @@
+import {isBrainBoard} from '../src/brain-board';
+import {parseOnlineSource} from '../src/online-platform';
 import {effectiveCardStyle} from '../src/card-style';
 import {cardHeadingColors} from '../src/card-style-color';
 import test from 'node:test';
@@ -27,6 +29,7 @@ import {releaseEditorResource} from '../src/editor-cleanup';
 import {excerptPresentation} from '../src/excerpt-sources';
 import {MediaPlayback} from '../src/media-playback';
 import type {MediaCardOptions} from '../src/media-card-player';
+import {createBoardMindmapState} from '../src/board-mindmap';
 
 // Exercise the production BoardView render path. Only the vault, Obsidian DOM,
 // renderer boundaries and queue clock are substituted; cached nodes and their
@@ -39,7 +42,7 @@ const methods=take('  private renderBoard(', '  private pdfTotals=')
  +take('  private positionNode(', '  private applyInlineSize(')
  +take('  async setTextAutoHeight(', '  fitCards(')
  +take('  private requireOwner(', '  private canCreateBlankText(');
-const sessionDeps={...model,reflowAutomaticMindmaps,reflowReadingContent,validateBranches,Notice:class{}};
+const sessionDeps={...model,branchState,reflowAutomaticMindmaps,reflowReadingContent,validateBranches,Notice:class{}};
 const Session=new Function(...Object.keys(sessionDeps),transformSync(`class Session{${take('  change(fn:', '  persist() {')}};return Session`,{loader:'ts'}).code)(...Object.values(sessionDeps));
 const branchModule={exports:{} as typeof import('../src/branch-controls')};
 new Function('require','module','exports',transformSync(readFileSync('src/branch-controls.ts','utf8'),{loader:'ts',format:'cjs'}).code)(
@@ -109,7 +112,7 @@ class Queue {
  add(alive:()=>boolean,run:()=>Promise<void>){this.added++;this.jobs.push({alive,run});}
  async drain(){for(const job of this.jobs.splice(0))if(job.alive())await job.run();}
 }
-const node=(kind:model.Card['kind'],patch:Partial<model.Card>={}):model.Card=>({id:'node',kind,x:10,y:20,width:300,height:180,color:'sand',...({card:{file:'note.md'},text:{text:'Visible text'},image:{file:'photo.png'},pdf:{file:'book.pdf'},audio:{file:'recording.mp3'},video:{file:'recording.mp4'},board:{file:'child.thoughtspace'},section:{title:'Group'}}[kind]),...patch});
+const node=(kind:model.Card['kind'],patch:Partial<model.Card>={}):model.Card=>({id:'node',kind,x:10,y:20,width:300,height:180,color:'sand',...({card:{file:'note.md'},text:{text:'Visible text'},image:{file:'photo.png'},pdf:{file:'book.pdf'},audio:{file:'recording.mp3'},video:{file:'recording.mp4'},board:{file:'child.thoughtspace'},section:{title:'Group'},mindmap:{title:'脑图',mindmap:createBoardMindmapState()}}[kind]),...patch});
 function fixture(kind:model.Card['kind']='card',patch:Partial<model.Card>={}){
  const n=node(kind,patch),board={...model.emptyBoard(),version:3 as const,nodes:[n]},files=new Map<string,File>(),metadata={frontmatter:{} as Record<string,unknown>,tags:[] as string[]};
  if(n.file)files.set(n.file,new File(n.file));
@@ -117,7 +120,7 @@ function fixture(kind:model.Card['kind']='card',patch:Partial<model.Card>={}){
  const world=new Dom();world.root=true;const svg=world.createEl('svg'),previewQueue=new Queue(),pdfPreviewQueue=new Queue();
  const mediaMounts:{options:MediaCardOptions;body:Dom;paused:number;disposed:number}[]=[];
  const session={board,blocked:false,file:new File('board.thoughtspace')};
- const deps={foldControlObstacles,effectiveCardStyle,cardHeadingColors,mountCardControlHover,nodeHasBorder,textBlockPadding,...model,...keys,mountCardQuickActions,mountCardReadingAffordance,cardControlLayout,renderBranchControls:branchModule.exports.renderBranchControls,branchState,branchRenderSnapshot,childConnectionCandidates:(board:model.Board,roots?:ReadonlySet<string>)=>{calls.childCandidates++;return childConnectionCandidates(board,roots);},sectionDisplayNode,visibleNodes,viewportRect,markdownPreview,visibleGridSize,textFontFamily,textFitsContent,cardDisplayTitle,mediaDimensions,
+ const deps={isBrainBoard,parseOnlineSource,foldControlObstacles,effectiveCardStyle,cardHeadingColors,mountCardControlHover,nodeHasBorder,textBlockPadding,...model,...keys,mountCardQuickActions,mountCardReadingAffordance,cardControlLayout,renderBranchControls:branchModule.exports.renderBranchControls,branchState,branchRenderSnapshot,childConnectionCandidates:(board:model.Board,roots?:ReadonlySet<string>)=>{calls.childCandidates++;return childConnectionCandidates(board,roots);},sectionDisplayNode,visibleNodes,viewportRect,markdownPreview,visibleGridSize,textFontFamily,textFitsContent,cardDisplayTitle,mediaDimensions,
   act:()=>{},TFile:File,Component:Scope,Element:Dom,getAllTags:(cache:{tags?:string[]})=>{calls.tags++;return cache.tags||null;},setIcon:()=>{},
   button:(host:Dom,label:string,_icon:string,fn:()=>void,cls='')=>{const el=host.createEl('button',{cls,attr:{'aria-label':label}});el.createSpan();el.createSpan({text:label});el.onclick=fn;return el;},
   bindCardTitle:()=>()=>{},readProperties:(fm:Record<string,unknown>)=>({status:fm.thoughtspace_status}),statuses:{done:'完成'},isOverdue:()=>false,localDay:()=>'',
@@ -134,7 +137,7 @@ function fixture(kind:model.Card['kind']='card',patch:Partial<model.Card>={}){
  new Function('require','module','exports',transformSync(readFileSync('src/card-preview.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>previewImports[name],cardPreviewModule,cardPreviewModule.exports);
  const allDeps={...deps,...cardPreviewModule.exports};
  const View=new Function(...Object.keys(allDeps),transformSync(`class View{${methods}};return View`,{loader:'ts'}).code)(...Object.values(allDeps));
- const view=new View();view.hostedUploads=new Set();Object.assign(view,{syncMinimapAvoidance(){},cardToolbarObstacles:[],session,world,svg,stage:new Dom(),contentEl:new Dom(),zoomLabel:new Dom(),selected:new Set(),positions:new Map(),nodeScopes:new Map(),nodeKeys:new Map(),mediaStates:new Map(),mediaPlayers:new Map(),mediaIdentities:new Map(),onlineBoardPlayers:new Map(),onlineBoardStates:new Map(),pdfTotals:new Map(),previewQueue,pdfPreviewQueue,
+ const view=new View();view.hostedUploads=new Set();Object.assign(view,{syncMinimapAvoidance(){},cardToolbarObstacles:[],session,world,svg,stage:new Dom(),contentEl:new Dom(),zoomLabel:new Dom(),selected:new Set(),positions:new Map(),nodeScopes:new Map(),nodeKeys:new Map(),boardMindmaps:new Map(),mediaStates:new Map(),mediaPlayers:new Map(),mediaIdentities:new Map(),onlineBoardPlayers:new Map(),onlineBoardStates:new Map(),pdfTotals:new Map(),previewQueue,pdfPreviewQueue,
   plugin:{settings:{gridStep:24,previewLimit:20,detailZoom:.4},pauseOnlineBoardPlayers(){},mediaWorkspace:{playback:new MediaPlayback(),identity:(file:any)=>({path:file.path,mtime:file.stat.mtime,size:file.stat.size})}},
   app:{vault:{getAbstractFileByPath:(path:string)=>files.get(path),getResourcePath:(file:File)=>file.path,async cachedRead(){calls.read++;return 'Rendered **note**';}},metadataCache:{getFileCache:()=>{calls.metadata++;return metadata;}}},
   displayBoard:()=>board,updateBackToContent(){},syncCanvasControls(){},updateObjectFilter(){},renderSaveStatus(){},renderNavigation(){},renderEdges(){},renderInspector(){},renderMinimap(){},addPorts(){},
@@ -496,7 +499,7 @@ test('text sizing button preserves topic defaults and respects locked or blocked
 
 test('the same mounted height button performs two real transactions before repaint and remains undoable',async()=>{
  const f=fixture('text',{textAutoHeight:false}),owner=f.session as typeof f.session&{history:model.History;undo:(redo?:boolean)=>void};let writes=0,paints=0;
- Object.setPrototypeOf(owner,Session.prototype);Object.assign(owner,{history:new model.History(),persist(){writes++;},emit(){paints++;}});
+ Object.setPrototypeOf(owner,Session.prototype);Object.assign(owner,{history:new model.History(),relationGeometry:new Map(),persist(){writes++;},emit(){paints++;}});
  f.view.pendingFits=new Map();const before=model.clone(f.board),button=f.element().querySelector('.ts-text-auto-height')!;
  const first=button.onclick?.();assert.equal(f.board.nodes[0].textAutoHeight,true);assert.equal(f.element().querySelector('.ts-text-auto-height'),button,'the original callback is still mounted before paint');
  const second=button.onclick?.();await Promise.all([first,second]);assert.equal(f.board.nodes[0].textAutoHeight,false);assert.equal(owner.history.undoStack.length,2);assert.equal(writes,2);assert.equal(paints,2);

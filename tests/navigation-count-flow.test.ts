@@ -27,3 +27,8 @@ test('navigation counts stay current after object and board replacement, reorder
  const current:Board={...f.board,nodes:f.board.nodes.filter(n=>n.kind==='section'),edges:[]};f.view.session.board=current;f.render();assert.equal(f.text,'0 张卡片  ·  0 个子白板  ·  0 文本  ·  0 图片  ·  0 PDF  ·  0 条关系');
  current.nodes=[];f.render();assert.equal(f.text,'0 张卡片  ·  0 个子白板  ·  0 文本  ·  0 图片  ·  0 PDF  ·  0 条关系');
 });
+test('mindmap navigation count appears only while a board contains containers and retains a single node scan',()=>{
+ const f=fixture(6);let mapReads=0;f.board.nodes.push({id:'map',get kind(){mapReads++;return 'mindmap' as const;},x:0,y:0,width:780,height:520,color:'slate'});f.render();
+ assert.equal(f.reads,6);assert.equal(mapReads,1);assert.equal(f.text,'1 张卡片  ·  1 个脑图  ·  1 个子白板  ·  1 文本  ·  1 图片  ·  1 PDF  ·  0 条关系');
+ f.board.nodes.pop();f.render();assert.equal(f.reads,12);assert.equal(f.text,'1 张卡片  ·  1 个子白板  ·  1 文本  ·  1 图片  ·  1 PDF  ·  0 条关系');
+});

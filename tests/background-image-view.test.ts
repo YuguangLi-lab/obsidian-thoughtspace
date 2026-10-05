@@ -47,3 +47,8 @@ test('read failures disable all mutation controls while keeping an explicit relo
 test('reopening the same modal replaces its key handler and closing removes it',async t=>{const f=fixture(t),old=f.root.onkeydown;assert.ok(old);f.modal.close();assert.equal(f.root.onkeydown,null);f.modal.onOpen();assert.notEqual(f.root.onkeydown,old);(f.root as Element).onkeydown?.({key:'Enter',metaKey:true,ctrlKey:false,altKey:false,shiftKey:false,isComposing:false,keyCode:0,preventDefault(){}});await tick();assert.equal(f.writes.length,1);assert.equal(f.root.onkeydown,null);});
 test('large decoded images are rejected before becoming the active preview',async t=>{const f=fixture(t),picking=f.pick();f.image().image.naturalWidth=10000;f.image().image.naturalHeight=5000;f.image().pending.resolve();await picking;assert.match(f.status().textContent,/4000 万像素/);assert.match(f.preview().styles['--ts-background-image'],/Images\/paper.png/);assert.deepEqual(f.revoked,f.created);});
 test('stored hashed asset names stay out of the user-facing picker',t=>{const hash='a'.repeat(64),f=fixture(t,{backgroundImagePath:`ThoughtSpace/背景/${hash}.png`});assert.match(f.root.textContent,/已保存的背景图片/);assert.doesNotMatch(f.root.textContent,new RegExp(hash));});
+
+test('a board context change with identical image values rejects stale Apply until Reload',async t=>{
+ const f=fixture(t);let stamp='image';(f.host as any).stamp=()=>stamp;f.modal.imageLoad();stamp='grid';f.button('应用').click();await tick();
+ assert.equal(f.writes.length,0);assert.match(f.status().textContent,/其他窗口改变/);f.button('载入当前设置').click();f.button('应用').click();await tick();assert.equal(f.writes.length,1);
+});

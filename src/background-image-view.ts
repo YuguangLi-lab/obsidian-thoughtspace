@@ -3,6 +3,7 @@ import {BackgroundImagePreferences,cleanBackgroundImagePreferences,backgroundIma
 import {themeSurface} from './ui-tokens';
 
 export interface BackgroundImageHost {
+ stamp?:()=>string;
  language?:'zh-CN'|'en';
  preferences:()=>BackgroundImagePreferences;
  resource:(path:string)=>string;
@@ -37,7 +38,8 @@ export class BackgroundImageModal extends Modal {
  }
  private imageRevoke(url:string){if(url&&this.imageUrls.delete(url))URL.revokeObjectURL(url);}
  private imageDiscard(){this.imageLoadRun++;for(const url of this.imageUrls)this.imageRevoke(url);this.imageObjectUrl='';this.imageFile=undefined;this.imageLoading=false;}
- private imageLoad(){if(this.imageClosed||this.imageBusy)return;try{const current=cleanBackgroundImagePreferences(this.imageHost.preferences());this.imageDiscard();this.imageDraft=current;this.imageBaseline=backgroundImageStamp(current);this.imageHadSource=!!current.backgroundImagePath;this.imageConflict=false;this.imageReadFailed=false;this.imageStatus.setText('');this.imageSync();}catch(error){this.imageReadFailed=true;this.imageStatus.setText(`${this.imageText('无法读取背景设置：','Could not read background settings: ')}${String(error).replace(/^Error: /,'')}${this.imageText('。请重新载入。','. Please reload.')}`);this.imageSync();}}
+ private imageStamp(preferences:BackgroundImagePreferences){return backgroundImageStamp(preferences)+(this.imageHost.stamp?'|'+this.imageHost.stamp():'');}
+ private imageLoad(){if(this.imageClosed||this.imageBusy)return;try{const current=cleanBackgroundImagePreferences(this.imageHost.preferences());this.imageDiscard();this.imageDraft=current;this.imageBaseline=this.imageStamp(current);this.imageHadSource=!!current.backgroundImagePath;this.imageConflict=false;this.imageReadFailed=false;this.imageStatus.setText('');this.imageSync();}catch(error){this.imageReadFailed=true;this.imageStatus.setText(`${this.imageText('无法读取背景设置：','Could not read background settings: ')}${String(error).replace(/^Error: /,'')}${this.imageText('。请重新载入。','. Please reload.')}`);this.imageSync();}}
  private imageClear(){if(this.imageClosed||this.imageBusy||this.imageReadFailed)return;this.imageDiscard();this.imageDraft.backgroundImagePath='';this.imageStatus.setText('');this.imageSync();}
  private async imagePick(file:File){if(this.imageClosed||this.imageBusy||this.imageReadFailed)return;
   if(!imageExtensions.test(file.name)||file.type&&!imageTypes.has(file.type)){this.imageStatus.setText(this.imageText('请选择 PNG、JPG、WebP 或 GIF 图片。','Choose a PNG, JPG, WebP or GIF image.'));return;}
@@ -55,7 +57,7 @@ export class BackgroundImageModal extends Modal {
   this.imageApply.disabled=this.imageBusy||this.imageLoading||this.imageConflict||this.imageReadFailed||!hasImage&&!this.imageHadSource;this.imageApply.setText(this.imageBusy?this.imageText('正在应用…','Applying...'):this.imageText('应用','Apply'));this.imageReload.hidden=!this.imageConflict&&!this.imageReadFailed;this.imageReload.disabled=this.imageBusy;
  }
  private async imageSave(){if(this.imageClosed||this.imageBusy||this.imageApply.disabled)return;
-  try{if(backgroundImageStamp(this.imageHost.preferences())!==this.imageBaseline){this.imageConflict=true;this.imageStatus.setText(this.imageText('背景图片已在其他窗口改变。请载入当前设置后重新调整。','The background image changed in another window. Reload current settings before making changes.'));this.imageSync();return;}}catch(error){this.imageStatus.setText(String(error).replace(/^Error: /,''));return;}
+  try{if(this.imageStamp(this.imageHost.preferences())!==this.imageBaseline){this.imageConflict=true;this.imageStatus.setText(this.imageText('背景图片已在其他窗口改变。请载入当前设置后重新调整。','The background image changed in another window. Reload current settings before making changes.'));this.imageSync();return;}}catch(error){this.imageStatus.setText(String(error).replace(/^Error: /,''));return;}
   const next=cleanBackgroundImagePreferences(this.imageDraft),file=this.imageFile,run=this.imageRun;this.imageBusy=true;this.imageStatus.setText(this.imageText('正在保存背景图片…','Saving background image...'));this.imageSync();
   try{await this.imageHost.save(next,file);if(this.imageClosed||run!==this.imageRun)return;this.imageBusy=false;this.close();}
   catch(error){const message=`${this.imageText('背景图片保存失败：','Could not save background image: ')}${String(error).replace(/^Error: /,'')}`;if(this.imageClosed||run!==this.imageRun){new Notice(message);return;}this.imageBusy=false;this.imageStatus.setText(`${message}${this.imageText('。可以重试。','. You can retry.')}`);this.imageSync();}

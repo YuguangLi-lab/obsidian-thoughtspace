@@ -1,0 +1,1204 @@
+{
+  "version": "1.3.30",
+  "publicBase": "0063b63cc70db5b8bebecff392a9de93df061c46",
+  "runtimeSha256": {
+    "main.js": "ef16479f0f88b6a26ae65de7c62d8a0a1b60784c3b38e53de236f4c219da4edb",
+    "styles.css": "cf5c16ff5827267881eb7acbef4f0602f802343ee22ae22554274fcd5c9cbd41",
+    "manifest.json": "bc9057847c4e386a5e8f6ba13712f09d714fdc5227a3e75f9cf1c2b26bffce5b"
+  },
+  "automatic": {
+    "node": "22.20.0",
+    "tests": 6235,
+    "failures": 0,
+    "skipped": 0,
+    "lintErrors": 0,
+    "lintWarnings": 118,
+    "pythonTests": 7,
+    "build": true,
+    "package": true,
+    "releaseMetadata": true,
+    "diffCheck": true
+  },
+  "nativeMethod": "Playwright real pointer/keyboard in Obsidian 1.13.7, one task-owned synthetic vault/profile. Final scoped assets explicitly reloaded and SHA-256 verified. No user vault installation.",
+  "nativeRuns": {
+    "menu": {
+      "started": "2026-10-05T16:35:09.524Z",
+      "checks": [
+        {
+          "name": "Exact disposable task-4 vault and profile",
+          "pass": true
+        },
+        {
+          "name": "Current native assets match frozen build",
+          "pass": true
+        },
+        {
+          "name": "Common rename is on first level and root menu stays bounded",
+          "pass": true
+        },
+        {
+          "name": "Four directional creation actions and direct whiteboard all remain reachable",
+          "pass": true
+        },
+        {
+          "name": "Original relation and pin controls remain reachable",
+          "pass": true
+        },
+        {
+          "name": "Native and external file actions are nested without being dropped",
+          "pass": true
+        },
+        {
+          "name": "Inherited native submenu callback executes",
+          "pass": true
+        },
+        {
+          "name": "Source rename cancel leaves graph and source exact",
+          "pass": true
+        },
+        {
+          "name": "Empty source name disables confirmation",
+          "pass": true
+        },
+        {
+          "name": "Source collision remains visible, editable and non-destructive",
+          "pass": true
+        },
+        {
+          "name": "Source filename and node reference rename through native fileManager",
+          "pass": true
+        },
+        {
+          "name": "Native source rename survives reopening",
+          "pass": true
+        },
+        {
+          "name": "Existing note still opens its renamed native source",
+          "pass": true
+        },
+        {
+          "name": "Idea rename changes only title and creates no native note",
+          "pass": true
+        },
+        {
+          "name": "Idea rename undo restores exact node",
+          "pass": true
+        },
+        {
+          "name": "Idea rename redo and save/reopen retain new title",
+          "pass": true
+        },
+        {
+          "name": "Failed idea rename remains visible and retries saved name",
+          "pass": true
+        },
+        {
+          "name": "Idea rename retry saves once with same ID",
+          "pass": true
+        },
+        {
+          "name": "Direct new-board entry selects whiteboard without a second picker",
+          "pass": true
+        },
+        {
+          "name": "Cancel new whiteboard creates no file or graph node",
+          "pass": true
+        },
+        {
+          "name": "Direct new-board entry selects whiteboard without a second picker",
+          "pass": true
+        },
+        {
+          "name": "Ordinary whiteboard uses native ThoughtSpace format and links from clicked center",
+          "pass": true
+        },
+        {
+          "name": "Direct new-board entry selects whiteboard without a second picker",
+          "pass": true
+        },
+        {
+          "name": "Duplicate board name is numbered, and brain type follows existing creation choice",
+          "pass": true
+        },
+        {
+          "name": "Whiteboard creation undo retains original native file",
+          "pass": true
+        },
+        {
+          "name": "Whiteboard reference and relation survive redo/reopen",
+          "pass": true
+        },
+        {
+          "name": "Board source rename preserves node ID and relation",
+          "pass": true
+        },
+        {
+          "name": "Created whiteboard native source opens",
+          "pass": true
+        },
+        {
+          "name": "Direct new-board entry selects whiteboard without a second picker",
+          "pass": true
+        },
+        {
+          "name": "Board create error remains visible with chosen name",
+          "pass": true
+        },
+        {
+          "name": "Create retry links one board reference",
+          "pass": true
+        },
+        {
+          "name": "Direct new-board entry selects whiteboard without a second picker",
+          "pass": true
+        },
+        {
+          "name": "Board save error offers persistence retry with target frozen",
+          "pass": true
+        },
+        {
+          "name": "Persistence retry creates no second whiteboard",
+          "pass": true
+        },
+        {
+          "name": "Associated chain visible hop 1",
+          "pass": true
+        },
+        {
+          "name": "Associated chain visible hop 2",
+          "pass": true
+        },
+        {
+          "name": "Associated chain visible hop 3",
+          "pass": true
+        },
+        {
+          "name": "Associated chain visible hop 4",
+          "pass": true
+        },
+        {
+          "name": "Associated chain visible hop 5",
+          "pass": true
+        },
+        {
+          "name": "Associated depth undo restores five hops",
+          "pass": true
+        },
+        {
+          "name": "Associated depth survives saved reopen",
+          "pass": true
+        },
+        {
+          "name": "Mixed graph draws each shared/cyclic node once and keeps original edge kinds",
+          "pass": true
+        },
+        {
+          "name": "100 association first projection obeys 48-node batch",
+          "pass": true
+        },
+        {
+          "name": "100 association sources all remain reachable over bounded pages",
+          "pass": true
+        },
+        {
+          "name": "100 association metrics are finite and correctly report projected vs total",
+          "pass": true
+        },
+        {
+          "name": "500 association first projection obeys 48-node batch",
+          "pass": true
+        },
+        {
+          "name": "500 association sources all remain reachable over bounded pages",
+          "pass": true
+        },
+        {
+          "name": "500 association metrics are finite and correctly report projected vs total",
+          "pass": true
+        },
+        {
+          "name": "1000 association first projection obeys 48-node batch",
+          "pass": true
+        },
+        {
+          "name": "1000 association sources all remain reachable over bounded pages",
+          "pass": true
+        },
+        {
+          "name": "1000 association metrics are finite and correctly report projected vs total",
+          "pass": true
+        },
+        {
+          "name": "Narrow root and file submenus remain inside actual viewport",
+          "pass": true
+        },
+        {
+          "name": "Narrow first-level rename is actually clickable",
+          "pass": true
+        },
+        {
+          "name": "Ordinary board remains ordinary with native card source reference",
+          "pass": true
+        },
+        {
+          "name": "Ordinary right-click retains its native menu and original edit action",
+          "pass": true
+        },
+        {
+          "name": "No new runtime or renderer errors",
+          "pass": true
+        }
+      ],
+      "errors": []
+    },
+    "boundaries": {
+      "started": "2026-10-05T16:35:55.074Z",
+      "checks": [
+        {
+          "name": "top native board is linked to the clicked node with original relation semantics",
+          "pass": true
+        },
+        {
+          "name": "top whiteboard undo preserves node/edge baseline and native source",
+          "pass": true
+        },
+        {
+          "name": "bottom native board is linked to the clicked node with original relation semantics",
+          "pass": true
+        },
+        {
+          "name": "bottom whiteboard undo preserves node/edge baseline and native source",
+          "pass": true
+        },
+        {
+          "name": "left native board is linked to the clicked node with original relation semantics",
+          "pass": true
+        },
+        {
+          "name": "left whiteboard undo preserves node/edge baseline and native source",
+          "pass": true
+        },
+        {
+          "name": "right native board is linked to the clicked node with original relation semantics",
+          "pass": true
+        },
+        {
+          "name": "right whiteboard undo preserves node/edge baseline and native source",
+          "pass": true
+        },
+        {
+          "name": "Empty idea name disables confirmation",
+          "pass": true
+        },
+        {
+          "name": "Idea rename cancel preserves body, node and edges exact",
+          "pass": true
+        },
+        {
+          "name": "Native rename error leaves old source and an editable retry",
+          "pass": true
+        },
+        {
+          "name": "Native source retry renames one file and remaps its existing board node",
+          "pass": true
+        },
+        {
+          "name": "No new runtime errors in boundary interactions",
+          "pass": true
+        }
+      ],
+      "errors": []
+    },
+    "core": {
+      "started": "2026-10-05T16:36:34.666Z",
+      "checks": [
+        {
+          "name": "Exact self-authored isolated vault and profile",
+          "pass": true
+        },
+        {
+          "name": "Fresh isolated process loads matching candidate assets",
+          "pass": true
+        },
+        {
+          "name": "Actually selected cancel mode idea",
+          "pass": true
+        },
+        {
+          "name": "Search 12 native add and cancel preserve bytes/files idea",
+          "pass": true
+        },
+        {
+          "name": "First dialog defaults to idea idea",
+          "pass": true
+        },
+        {
+          "name": "Confirmed first path idea",
+          "pass": true
+        },
+        {
+          "name": "Default idea creates no Markdown file",
+          "pass": true
+        },
+        {
+          "name": "Actually selected cancel mode new",
+          "pass": true
+        },
+        {
+          "name": "Search 12 native add and cancel preserve bytes/files new",
+          "pass": true
+        },
+        {
+          "name": "First dialog defaults to idea new",
+          "pass": true
+        },
+        {
+          "name": "Confirmed first path new",
+          "pass": true
+        },
+        {
+          "name": "Actually selected cancel mode existing",
+          "pass": true
+        },
+        {
+          "name": "Search 12 native add and cancel preserve bytes/files existing",
+          "pass": true
+        },
+        {
+          "name": "First dialog defaults to idea existing",
+          "pass": true
+        },
+        {
+          "name": "Confirmed first path existing",
+          "pass": true
+        },
+        {
+          "name": "Nonempty conversion cancel leaves full graph exact",
+          "pass": true
+        },
+        {
+          "name": "Conversion keeps ID, all geometry, relations and preferences",
+          "pass": true
+        },
+        {
+          "name": "Converted native note retains exact nonempty body",
+          "pass": true
+        },
+        {
+          "name": "Native undo restores nonempty idea and retains generated note",
+          "pass": true
+        },
+        {
+          "name": "Native redo restores same ID/file",
+          "pass": true
+        },
+        {
+          "name": "Conversion save/reopen restores converted graph",
+          "pass": true
+        },
+        {
+          "name": "Actual node IDs and SVG lines at depth 1",
+          "pass": true
+        },
+        {
+          "name": "Actual node IDs and SVG lines at depth 2",
+          "pass": true
+        },
+        {
+          "name": "Actual node IDs and SVG lines at depth 3",
+          "pass": true
+        },
+        {
+          "name": "Actual node IDs and SVG lines at depth 4",
+          "pass": true
+        },
+        {
+          "name": "Actual node IDs and SVG lines at depth 5",
+          "pass": true
+        },
+        {
+          "name": "Trusted ratio reset sets 100 percent",
+          "pass": true
+        },
+        {
+          "name": "Trusted minus decreases zoom",
+          "pass": true
+        },
+        {
+          "name": "Trusted plus increases zoom",
+          "pass": true
+        },
+        {
+          "name": "Trusted fit changes camera",
+          "pass": true
+        },
+        {
+          "name": "Native background option plain",
+          "pass": true
+        },
+        {
+          "name": "Native background option dots",
+          "pass": true
+        },
+        {
+          "name": "Native background option grid",
+          "pass": true
+        },
+        {
+          "name": "Native background option paper",
+          "pass": true
+        },
+        {
+          "name": "Bottom toolbar remains within narrow viewport 600",
+          "pass": true
+        },
+        {
+          "name": "Bottom toolbar remains within narrow viewport 360",
+          "pass": true
+        },
+        {
+          "name": "Toolbar depth/background/camera persist after reopen",
+          "pass": true
+        },
+        {
+          "name": "1000-node star is bounded to 48 projection nodes",
+          "pass": true
+        },
+        {
+          "name": "All 1000 star nodes reachable over more than 16 pages",
+          "pass": true
+        },
+        {
+          "name": "Previous stops at bounded retained history",
+          "pass": true
+        },
+        {
+          "name": "Native return to first page recovers evicted node 1",
+          "pass": true
+        },
+        {
+          "name": "Native search finds node outside retained pages",
+          "pass": true
+        },
+        {
+          "name": "History back returns to original center after evicted-page search",
+          "pass": true
+        },
+        {
+          "name": "100 camera really moves during drag, wheel, and zoom",
+          "pass": true
+        },
+        {
+          "name": "100 renderer frame/heap data finite",
+          "pass": true
+        },
+        {
+          "name": "100 normal 480ms center animation retained",
+          "pass": true
+        },
+        {
+          "name": "500 camera really moves during drag, wheel, and zoom",
+          "pass": true
+        },
+        {
+          "name": "500 renderer frame/heap data finite",
+          "pass": true
+        },
+        {
+          "name": "500 normal 480ms center animation retained",
+          "pass": true
+        },
+        {
+          "name": "1000 camera really moves during drag, wheel, and zoom",
+          "pass": true
+        },
+        {
+          "name": "1000 renderer frame/heap data finite",
+          "pass": true
+        },
+        {
+          "name": "1000 normal 480ms center animation retained",
+          "pass": true
+        },
+        {
+          "name": "Write failure retains nonempty idea, original disk, relationships and generated note",
+          "pass": true
+        },
+        {
+          "name": "No new renderer exceptions",
+          "pass": true
+        }
+      ],
+      "errors": []
+    },
+    "retry": {
+      "started": "2026-10-05T16:37:40.913Z",
+      "checks": [
+        {
+          "name": "Exact owned cold-loaded vault/profile",
+          "pass": true
+        },
+        {
+          "name": "Loaded files match new candidate hashes",
+          "pass": true
+        },
+        {
+          "name": "ConvertRetry visible error preserves name/folder and cancellation",
+          "pass": true
+        },
+        {
+          "name": "ConvertRetry original idea, disk and note body survive failed write",
+          "pass": true
+        },
+        {
+          "name": "ConvertRetry retry saves same native note with one undo transaction",
+          "pass": true
+        },
+        {
+          "name": "Successful conversion retry creates no second Markdown",
+          "pass": true
+        },
+        {
+          "name": "Retry undo restores full nonempty idea and preserves its note",
+          "pass": true
+        },
+        {
+          "name": "Retry redo and save/reopen retain exact native reference",
+          "pass": true
+        },
+        {
+          "name": "ConvertCancel visible error preserves name/folder and cancellation",
+          "pass": true
+        },
+        {
+          "name": "ConvertCancel original idea, disk and note body survive failed write",
+          "pass": true
+        },
+        {
+          "name": "Native cancel retains idea, disk and note without another write",
+          "pass": true
+        },
+        {
+          "name": "RepeatedFail visible error preserves name/folder and cancellation",
+          "pass": true
+        },
+        {
+          "name": "RepeatedFail original idea, disk and note body survive failed write",
+          "pass": true
+        },
+        {
+          "name": "Second failure preserves inputs, nonempty idea and one Markdown",
+          "pass": true
+        },
+        {
+          "name": "RepeatedFail retry saves same native note with one undo transaction",
+          "pass": true
+        },
+        {
+          "name": "Third save uses the original generated note",
+          "pass": true
+        },
+        {
+          "name": "ExternalBoard visible error preserves name/folder and cancellation",
+          "pass": true
+        },
+        {
+          "name": "ExternalBoard original idea, disk and note body survive failed write",
+          "pass": true
+        },
+        {
+          "name": "External Board edit is never overwritten and modal input remains",
+          "pass": true
+        },
+        {
+          "name": "ExternalNote visible error preserves name/folder and cancellation",
+          "pass": true
+        },
+        {
+          "name": "ExternalNote original idea, disk and note body survive failed write",
+          "pass": true
+        },
+        {
+          "name": "External Note edit is never overwritten and modal input remains",
+          "pass": true
+        },
+        {
+          "name": "EmptyIdea failed save exposes retry and retained user target",
+          "pass": true
+        },
+        {
+          "name": "EmptyIdea retry preserves IDs/edges without another creation",
+          "pass": true
+        },
+        {
+          "name": "DirectionalIdea failed save exposes retry and retained user target",
+          "pass": true
+        },
+        {
+          "name": "DirectionalIdea retry preserves IDs/edges without another creation",
+          "pass": true
+        },
+        {
+          "name": "EmptyNew failed save exposes retry and retained user target",
+          "pass": true
+        },
+        {
+          "name": "EmptyNew retry preserves IDs/edges without another creation",
+          "pass": true
+        },
+        {
+          "name": "DirectionalNew failed save exposes retry and retained user target",
+          "pass": true
+        },
+        {
+          "name": "DirectionalNew retry preserves IDs/edges without another creation",
+          "pass": true
+        },
+        {
+          "name": "EmptyExisting failed save exposes retry and retained user target",
+          "pass": true
+        },
+        {
+          "name": "EmptyExisting retry preserves IDs/edges without another creation",
+          "pass": true
+        },
+        {
+          "name": "DirectionalExisting failed save exposes retry and retained user target",
+          "pass": true
+        },
+        {
+          "name": "DirectionalExisting retry preserves IDs/edges without another creation",
+          "pass": true
+        },
+        {
+          "name": "No new renderer/Runtime errors during native retries",
+          "pass": true
+        }
+      ],
+      "errors": []
+    },
+    "workflows": {
+      "started": "2026-10-05T16:44:09.729Z",
+      "checks": [
+        {
+          "name": "Exact owned vault and profile",
+          "pass": true
+        },
+        {
+          "name": "Runtime files match final scoped source",
+          "pass": true
+        },
+        {
+          "name": "Relation picker cancel leaves entire graph unchanged",
+          "pass": true
+        },
+        {
+          "name": "Child picker adds native parent-to-child branch",
+          "pass": true
+        },
+        {
+          "name": "Parent picker adds native parent above current center",
+          "pass": true
+        },
+        {
+          "name": "Association picker retains both-direction ordinary edge",
+          "pass": true
+        },
+        {
+          "name": "Relation edits preserve all original node geometry and source paths",
+          "pass": true
+        },
+        {
+          "name": "Pin in nested menu persists original node ID",
+          "pass": true
+        },
+        {
+          "name": "Unpin remains reachable in same submenu",
+          "pass": true
+        },
+        {
+          "name": "First-level center action and history retain target ID",
+          "pass": true
+        },
+        {
+          "name": "Keyboard history returns to earlier center",
+          "pass": true
+        },
+        {
+          "name": "Expanded source body reads existing native note",
+          "pass": true
+        },
+        {
+          "name": "Native editor actually saves owned note",
+          "pass": true
+        },
+        {
+          "name": "Clicking brain node returns focus and preserves editor leaf and edited source",
+          "pass": true
+        },
+        {
+          "name": "Removal only drops selected ordinary edge and retains all source nodes",
+          "pass": true
+        },
+        {
+          "name": "Native undo restores removed relationship",
+          "pass": true
+        },
+        {
+          "name": "Relation edits survive native saved reopen",
+          "pass": true
+        },
+        {
+          "name": "Ordinary board adds one embedded mindmap and retains source card",
+          "pass": true
+        },
+        {
+          "name": "Embedded mindmap native collapse persists node state",
+          "pass": true
+        },
+        {
+          "name": "Embedded mindmap unfolds through its own header",
+          "pass": true
+        },
+        {
+          "name": "Embedded mindmap and ordinary source survive reopen",
+          "pass": true
+        },
+        {
+          "name": "No new renderer errors in baseline workflows",
+          "pass": true
+        }
+      ],
+      "errors": []
+    }
+  },
+  "nativeChecks": 180,
+  "rootMenu": [
+    "设为中心",
+    "展开正文",
+    "打开笔记",
+    "重命名来源笔记",
+    "编辑实际笔记",
+    "新建节点",
+    "关系与固定",
+    "文件操作"
+  ],
+  "associationPerformance": [
+    {
+      "frames": 93,
+      "p50": 8.300000000279397,
+      "p95": 10.199999999720603,
+      "max": 16.799999999813735,
+      "longTasks": [],
+      "projection": 48,
+      "physicalVisible": 41,
+      "camera": {
+        "x": -60,
+        "y": 226.2078125,
+        "zoom": 0.27265625
+      },
+      "total": 100,
+      "notProjected": 52,
+      "heapDelta": 14865516
+    },
+    {
+      "frames": 100,
+      "p50": 8.300000000279397,
+      "p95": 10.199999999720603,
+      "max": 16.699999999720603,
+      "longTasks": [],
+      "projection": 48,
+      "physicalVisible": 41,
+      "camera": {
+        "x": -60,
+        "y": 226.2078125,
+        "zoom": 0.27265625
+      },
+      "total": 500,
+      "notProjected": 452,
+      "heapDelta": 15716860
+    },
+    {
+      "frames": 95,
+      "p50": 8.300000000279397,
+      "p95": 10.199999999720603,
+      "max": 16.699999999720603,
+      "longTasks": [],
+      "projection": 48,
+      "physicalVisible": 41,
+      "camera": {
+        "x": -60,
+        "y": 226.2078125,
+        "zoom": 0.27265625
+      },
+      "total": 1000,
+      "notProjected": 952,
+      "heapDelta": 20934376
+    }
+  ],
+  "branchPerformance": [
+    {
+      "totalNodes": 100,
+      "eligibleFiveLayers": 100,
+      "projectionNodes": 48,
+      "domNodes": 48,
+      "viewportVisible": 48,
+      "notInProjection": 52,
+      "samples": [
+        {
+          "label": "idle",
+          "beforeCamera": {
+            "x": 173.85211080290298,
+            "y": -5.684341886080802e-14,
+            "zoom": 0.5517346202074705
+          },
+          "afterCamera": {
+            "x": 173.85211080290298,
+            "y": -5.684341886080802e-14,
+            "zoom": 0.5517346202074705
+          },
+          "cameraChanged": false,
+          "frameCount": 135,
+          "p50ms": 8.300000000279397,
+          "p95ms": 9.899999999906868,
+          "maxMs": 10.299999999813735,
+          "framesAbove50ms": 0,
+          "longTasks": [],
+          "trusted": {},
+          "heapBefore": 85577116,
+          "heapAfter": 91004636,
+          "heapDelta": 5427520,
+          "dom": 48,
+          "viewportVisible": 48
+        },
+        {
+          "label": "drag",
+          "beforeCamera": {
+            "x": 173.85211080290298,
+            "y": -5.684341886080802e-14,
+            "zoom": 0.5517346202074705
+          },
+          "afterCamera": {
+            "x": 263.852110802903,
+            "y": 44.99999999999994,
+            "zoom": 0.5517346202074705
+          },
+          "cameraChanged": true,
+          "frameCount": 150,
+          "p50ms": 8.299999999813735,
+          "p95ms": 9.299999999813735,
+          "maxMs": 10.400000000372529,
+          "framesAbove50ms": 0,
+          "longTasks": [],
+          "trusted": {
+            "pointermove": 46
+          },
+          "heapBefore": 91197744,
+          "heapAfter": 74932216,
+          "heapDelta": -16265528,
+          "dom": 48,
+          "viewportVisible": 48
+        },
+        {
+          "label": "wheel-pan",
+          "beforeCamera": {
+            "x": 263.852110802903,
+            "y": 44.99999999999994,
+            "zoom": 0.5517346202074705
+          },
+          "afterCamera": {
+            "x": 88.85211080290298,
+            "y": -60.00000000000006,
+            "zoom": 0.5517346202074705
+          },
+          "cameraChanged": true,
+          "frameCount": 156,
+          "p50ms": 8.300000000279397,
+          "p95ms": 9.800000000279397,
+          "maxMs": 16.600000000093132,
+          "framesAbove50ms": 0,
+          "longTasks": [],
+          "trusted": {
+            "pointermove": 1,
+            "wheel": 35
+          },
+          "heapBefore": 74967248,
+          "heapAfter": 87776376,
+          "heapDelta": 12809128,
+          "dom": 48,
+          "viewportVisible": 48
+        },
+        {
+          "label": "control-wheel-zoom",
+          "beforeCamera": {
+            "x": 88.85211080290298,
+            "y": -60.00000000000006,
+            "zoom": 0.5517346202074705
+          },
+          "afterCamera": {
+            "x": 101.28941395676104,
+            "y": -71.65206547643659,
+            "zoom": 0.6410241746557241
+          },
+          "cameraChanged": true,
+          "frameCount": 114,
+          "p50ms": 8.300000000279397,
+          "p95ms": 8.899999999906868,
+          "maxMs": 25.100000000093132,
+          "framesAbove50ms": 0,
+          "longTasks": [],
+          "trusted": {
+            "wheel": 25
+          },
+          "heapBefore": 87809156,
+          "heapAfter": 75544420,
+          "heapDelta": -12264736,
+          "dom": 48,
+          "viewportVisible": 48
+        }
+      ]
+    },
+    {
+      "totalNodes": 500,
+      "eligibleFiveLayers": 500,
+      "projectionNodes": 48,
+      "domNodes": 48,
+      "viewportVisible": 48,
+      "notInProjection": 452,
+      "samples": [
+        {
+          "label": "idle",
+          "beforeCamera": {
+            "x": 173.85211080290298,
+            "y": -5.684341886080802e-14,
+            "zoom": 0.5517346202074705
+          },
+          "afterCamera": {
+            "x": 173.85211080290298,
+            "y": -5.684341886080802e-14,
+            "zoom": 0.5517346202074705
+          },
+          "cameraChanged": false,
+          "frameCount": 135,
+          "p50ms": 8.300000000279397,
+          "p95ms": 10.299999999813735,
+          "maxMs": 10.300000000279397,
+          "framesAbove50ms": 0,
+          "longTasks": [],
+          "trusted": {},
+          "heapBefore": 86093204,
+          "heapAfter": 88602860,
+          "heapDelta": 2509656,
+          "dom": 48,
+          "viewportVisible": 48
+        },
+        {
+          "label": "drag",
+          "beforeCamera": {
+            "x": 173.85211080290298,
+            "y": -5.684341886080802e-14,
+            "zoom": 0.5517346202074705
+          },
+          "afterCamera": {
+            "x": 263.852110802903,
+            "y": 44.99999999999994,
+            "zoom": 0.5517346202074705
+          },
+          "cameraChanged": true,
+          "frameCount": 154,
+          "p50ms": 8.300000000279397,
+          "p95ms": 9.200000000186265,
+          "maxMs": 10.300000000279397,
+          "framesAbove50ms": 0,
+          "longTasks": [],
+          "trusted": {
+            "pointermove": 46
+          },
+          "heapBefore": 88788624,
+          "heapAfter": 90751604,
+          "heapDelta": 1962980,
+          "dom": 48,
+          "viewportVisible": 48
+        },
+        {
+          "label": "wheel-pan",
+          "beforeCamera": {
+            "x": 263.852110802903,
+            "y": 44.99999999999994,
+            "zoom": 0.5517346202074705
+          },
+          "afterCamera": {
+            "x": 88.85211080290298,
+            "y": -60.00000000000006,
+            "zoom": 0.5517346202074705
+          },
+          "cameraChanged": true,
+          "frameCount": 157,
+          "p50ms": 8.300000000279397,
+          "p95ms": 9.399999999906868,
+          "maxMs": 16.299999999813735,
+          "framesAbove50ms": 0,
+          "longTasks": [],
+          "trusted": {
+            "pointermove": 1,
+            "wheel": 35
+          },
+          "heapBefore": 90787360,
+          "heapAfter": 81320436,
+          "heapDelta": -9466924,
+          "dom": 48,
+          "viewportVisible": 48
+        },
+        {
+          "label": "control-wheel-zoom",
+          "beforeCamera": {
+            "x": 88.85211080290298,
+            "y": -60.00000000000006,
+            "zoom": 0.5517346202074705
+          },
+          "afterCamera": {
+            "x": 101.28941395676104,
+            "y": -71.65206547643659,
+            "zoom": 0.6410241746557241
+          },
+          "cameraChanged": true,
+          "frameCount": 113,
+          "p50ms": 8.300000000279397,
+          "p95ms": 8.400000000372529,
+          "maxMs": 33.299999999813735,
+          "framesAbove50ms": 0,
+          "longTasks": [],
+          "trusted": {
+            "wheel": 25
+          },
+          "heapBefore": 81351384,
+          "heapAfter": 74634868,
+          "heapDelta": -6716516,
+          "dom": 48,
+          "viewportVisible": 48
+        }
+      ]
+    },
+    {
+      "totalNodes": 1000,
+      "eligibleFiveLayers": 1000,
+      "projectionNodes": 48,
+      "domNodes": 48,
+      "viewportVisible": 48,
+      "notInProjection": 952,
+      "samples": [
+        {
+          "label": "idle",
+          "beforeCamera": {
+            "x": 173.85211080290298,
+            "y": -5.684341886080802e-14,
+            "zoom": 0.5517346202074705
+          },
+          "afterCamera": {
+            "x": 173.85211080290298,
+            "y": -5.684341886080802e-14,
+            "zoom": 0.5517346202074705
+          },
+          "cameraChanged": false,
+          "frameCount": 135,
+          "p50ms": 8.300000000279397,
+          "p95ms": 9.699999999720603,
+          "maxMs": 10.300000000279397,
+          "framesAbove50ms": 0,
+          "longTasks": [],
+          "trusted": {},
+          "heapBefore": 93995576,
+          "heapAfter": 100193220,
+          "heapDelta": 6197644,
+          "dom": 48,
+          "viewportVisible": 48
+        },
+        {
+          "label": "drag",
+          "beforeCamera": {
+            "x": 173.85211080290298,
+            "y": -5.684341886080802e-14,
+            "zoom": 0.5517346202074705
+          },
+          "afterCamera": {
+            "x": 263.852110802903,
+            "y": 44.99999999999994,
+            "zoom": 0.5517346202074705
+          },
+          "cameraChanged": true,
+          "frameCount": 152,
+          "p50ms": 8.300000000279397,
+          "p95ms": 9.199999999720603,
+          "maxMs": 10.199999999720603,
+          "framesAbove50ms": 0,
+          "longTasks": [],
+          "trusted": {
+            "pointermove": 46
+          },
+          "heapBefore": 100375432,
+          "heapAfter": 102462316,
+          "heapDelta": 2086884,
+          "dom": 48,
+          "viewportVisible": 48
+        },
+        {
+          "label": "wheel-pan",
+          "beforeCamera": {
+            "x": 263.852110802903,
+            "y": 44.99999999999994,
+            "zoom": 0.5517346202074705
+          },
+          "afterCamera": {
+            "x": 88.85211080290298,
+            "y": -60.00000000000006,
+            "zoom": 0.5517346202074705
+          },
+          "cameraChanged": true,
+          "frameCount": 156,
+          "p50ms": 8.300000000279397,
+          "p95ms": 10.100000000093132,
+          "maxMs": 16.700000000186265,
+          "framesAbove50ms": 0,
+          "longTasks": [],
+          "trusted": {
+            "pointermove": 1,
+            "wheel": 35
+          },
+          "heapBefore": 102497784,
+          "heapAfter": 117287496,
+          "heapDelta": 14789712,
+          "dom": 48,
+          "viewportVisible": 48
+        },
+        {
+          "label": "control-wheel-zoom",
+          "beforeCamera": {
+            "x": 88.85211080290298,
+            "y": -60.00000000000006,
+            "zoom": 0.5517346202074705
+          },
+          "afterCamera": {
+            "x": 101.28941395676104,
+            "y": -71.65206547643659,
+            "zoom": 0.6410241746557241
+          },
+          "cameraChanged": true,
+          "frameCount": 114,
+          "p50ms": 8.300000000279397,
+          "p95ms": 8.399999999906868,
+          "maxMs": 25,
+          "framesAbove50ms": 0,
+          "longTasks": [],
+          "trusted": {
+            "wheel": 25
+          },
+          "heapBefore": 117318872,
+          "heapAfter": 76526120,
+          "heapDelta": -40792752,
+          "dom": 48,
+          "viewportVisible": 48
+        }
+      ]
+    }
+  ]
+}

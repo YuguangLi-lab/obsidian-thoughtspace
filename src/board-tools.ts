@@ -25,7 +25,7 @@ export function visibleMarqueeSelection(board:Board,r:Rect):Set<string>{
   const {hidden}=branchState(board);for(const id of hits)if(hidden.has(id))hits.delete(id);return hits;
 }
 export function foldCards(board:Board,ids:ReadonlySet<string>,fold:boolean){
-  for(const n of board.nodes)if((n.kind==='card'||n.kind==='pdf'||n.kind==='board'||n.kind==='text'||n.kind==='audio'||n.kind==='video'||n.kind==='image')&&!n.locked&&ids.has(n.id)){
+  for(const n of board.nodes)if((n.kind==='card'||n.kind==='pdf'||n.kind==='board'||n.kind==='mindmap'||n.kind==='text'||n.kind==='audio'||n.kind==='video'||n.kind==='image')&&!n.locked&&ids.has(n.id)){
     if(fold&&!n.collapsed){n.expandedHeight=n.height;n.height=72;n.collapsed=true;}
     else if(!fold&&n.collapsed){n.height=n.expandedHeight!;delete n.expandedHeight;delete n.collapsed;}
   }

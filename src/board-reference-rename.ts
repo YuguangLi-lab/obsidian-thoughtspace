@@ -75,7 +75,7 @@ export function createBoardReferenceRenamer(oldPath:string,newPath:string,curren
   const oldBoard=previous(boardPath);let changed=false;
   const nodes=board.nodes.map(node=>{
    const file=node.file?move(node.file):undefined,note=node.videoCapture?move(node.videoCapture.note):undefined;
-   const rebase:typeof rebaseReuseSources=node.pdfQuote?(text,link)=>rebaseReuseSources(rebasePdfQuoteLinks(text,link),link):rebaseReuseSources;
+   const rebase:typeof rebaseReuseSources=node.pdfQuote||node.paragraphQuote?(text,link)=>rebaseReuseSources(rebasePdfQuoteLinks(text,link),link):rebaseReuseSources;
    const text=node.kind==='text'&&node.text?rebase(node.text,link=>{
     for(const target of sourceTargets(link)){
      const destination=resolve(target.path,oldBoard);if(!destination)continue;
@@ -85,8 +85,9 @@ export function createBoardReferenceRenamer(oldPath:string,newPath:string,curren
     }
     return link;
    }):node.text;
-   if(file===node.file&&note===node.videoCapture?.note&&text===node.text)return node;
-   changed=true;return{...node,...(file!==node.file?{file}:{}),...(note!==node.videoCapture?.note&&node.videoCapture?{videoCapture:{...node.videoCapture,note:note!}}:{}),...(text!==node.text?{text}:{})};
+   const paragraphQuote=node.paragraphQuote?{...node.paragraphQuote,path:move(node.paragraphQuote.path)}:undefined;
+   if(paragraphQuote?.path===node.paragraphQuote?.path&&file===node.file&&note===node.videoCapture?.note&&text===node.text)return node;
+   changed=true;return{...node,...(paragraphQuote?{paragraphQuote}:{}),...(file!==node.file?{file}:{}),...(note!==node.videoCapture?.note&&node.videoCapture?{videoCapture:{...node.videoCapture,note:note!}}:{}),...(text!==node.text?{text}:{})};
   });
   const draft=board.writing?.draftPath,draftPath=draft?move(draft):draft;
   if(draftPath!==draft)changed=true;

@@ -26,7 +26,7 @@ class Menu {
 }
 function fixture(){
  const calls:{name:string;value?:unknown}[]=[],vault={on:()=>({}),getFiles:()=>[]};
- const plugin={settings:{surfaceStyle:'soft',glassEffects:false,accent:'forest',density:'comfortable',favoriteBoards:[]},app:{vault},currentBoard:undefined,quickCapture:()=>calls.push({name:'capture'}),promptBoard:()=>calls.push({name:'new'}),openSpaceHub:()=>calls.push({name:'hub'}),openExcerptNote:()=>calls.push({name:'excerpt'}),openBoardOrganizer:(value:unknown)=>calls.push({name:'organize',value}),openSectionCatalog:(value:unknown)=>calls.push({name:'sections',value})};
+ const plugin={settings:{surfaceStyle:'soft',glassEffects:false,accent:'forest',density:'comfortable',favoriteBoards:[]},app:{vault},currentBoard:undefined,boardForDocument:()=>undefined,quickCapture:()=>calls.push({name:'capture'}),promptBoard:()=>calls.push({name:'new'}),promptBrainBoard:()=>calls.push({name:'brain'}),openSpaceHub:()=>calls.push({name:'hub'}),openExcerptNote:()=>calls.push({name:'excerpt'}),openBoardOrganizer:(value:unknown)=>calls.push({name:'organize',value}),openSectionCatalog:(value:unknown)=>calls.push({name:'sections',value})};
  class ItemView {contentEl=new Element();app={vault};registerEvent(_event:unknown){};}
  class TemplatePicker {constructor(_app:unknown,_plugin:unknown){}open(){calls.push({name:'template'});}}
  const button=(parent:Element,label:string,_icon:string,action:()=>unknown,cls='')=>{const b=parent.createDiv({cls:'ts-button '+cls,text:label,attr:{'aria-label':label}});b.action=action;return b;};
@@ -38,8 +38,8 @@ function fixture(){
 }
 test('named creation menu retains new-board and template actions and closes with its navigator',async()=>{
  const f=fixture();await f.view.onOpen();const create=f.find('新建白板或使用模板');assert.equal(create.attrs['aria-haspopup'],'menu');assert.equal(create.attrs['aria-expanded'],'false');
- create.action?.();const first=Menu.items.at(-1)!;assert.deepEqual(first.entries.map(e=>e.title),['新建白板','从模板新建']);assert.deepEqual(first.position,{x:15,y:74});assert.equal(create.attrs['aria-expanded'],'true');
- first.entries[0].action();first.entries[1].action();assert.deepEqual(f.calls.map(c=>c.name),['new','template']);
+ create.action?.();const first=Menu.items.at(-1)!;assert.deepEqual(first.entries.map(e=>e.title),['新建白板','新建脑图白板','从模板新建']);assert.deepEqual(first.position,{x:15,y:74});assert.equal(create.attrs['aria-expanded'],'true');
+ first.entries[0].action();first.entries[1].action();first.entries[2].action();assert.deepEqual(f.calls.map(c=>c.name),['new','brain','template']);
  create.action?.();const second=Menu.items.at(-1)!;assert(first.hidden);first.hideCallback?.();assert.equal(create.attrs['aria-expanded'],'true','an old menu cannot collapse the current menu state');
  await f.view.onClose();assert(second.hidden);assert.equal(create.attrs['aria-expanded'],'false');
 });
@@ -50,5 +50,5 @@ test('capture and named workspace entries remain directly reachable',async()=>{
 test('persistent board tools follow the latest bound board instead of the board at creation',async()=>{
  const f=fixture();await f.view.onOpen();const board=()=>({closed:false,session:{},sidebar:new Element(),refreshNavigation(){}}),first=board(),second=board();
  f.view.bind(first);f.find('整理白板').action?.();f.view.bind(second);f.find('分组预览').action?.();second.closed=true;f.find('整理白板').action?.();
- assert.equal(f.calls[0].value,first);assert.equal(f.calls[1].value,second);assert.equal(f.calls[2].value,undefined);
+ assert.equal(f.calls[0].value,first);assert.equal(f.calls[1].value,second);assert.equal(f.calls[2].value,null);
 });

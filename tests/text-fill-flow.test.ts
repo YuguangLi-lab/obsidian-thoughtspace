@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import * as model from '../src/model';
-import {reflowAutomaticMindmaps,validateBranches} from '../src/mindmap';
+import {branchState,reflowAutomaticMindmaps,validateBranches} from '../src/mindmap';
 import {reflowReadingContent} from '../src/expansion-reading-state';
 import {sectionDisplayNode} from '../src/sections';
 import {selectionEdges} from '../src/selection-edges';
@@ -64,7 +64,7 @@ class Element extends EventTarget {
   remove(){this.disconnect();if(this.parentElement)this.parentElement.children=this.parentElement.children.filter(child=>child!==this);this.parentElement=null;}
   empty(){this.children.forEach(el=>el.disconnect());this.children=[];}
 }
-const deps={...cardStyles,cardHeadingColors,nodeHasBorder,textBlockPadding,textFitsContent,...model,reflowAutomaticMindmaps,reflowReadingContent,validateBranches,sectionDisplayNode,selectionEdges,selectionFormatKey,inkLabels,textFontFamily,syncNodeGeometry,cardControlLayout,
+const deps={...cardStyles,cardHeadingColors,nodeHasBorder,textBlockPadding,textFitsContent,...model,branchState,reflowAutomaticMindmaps,reflowReadingContent,validateBranches,sectionDisplayNode,selectionEdges,selectionFormatKey,inkLabels,textFontFamily,syncNodeGeometry,cardControlLayout,
   preserveToolbarFocus,setIcon:()=>{},Notice:class {},act:(fn:()=>unknown)=>fn(),
   markdownToolbar:(host:Element,editor:{replaceToolbar(dispose?:()=>void):void},disposeOuter?:()=>void)=>{host.createDiv({cls:'ts-markdown-tools'});editor.replaceToolbar(disposeOuter);},
   button:(parent:Element,label:string,_icon:string,callback:()=>unknown,cls?:string)=>{
@@ -78,7 +78,7 @@ const text=(id='text',patch:Partial<model.Card>={}):model.Card=>({id,kind:'text'
 const labels=['卡片颜色','自定义卡片颜色'] as const;
 function fixture(nodes:model.Card[]=[text()],selected=nodes.map(n=>n.id)){
   const view=new View(),owner=new Session(),calls={persist:0,emit:0};
-  Object.assign(owner,{board:{...model.emptyBoard(),nodes},history:new model.History(),blocked:false,
+  Object.assign(owner,{board:{...model.emptyBoard(),nodes},history:new model.History(),relationGeometry:new Map(),blocked:false,
     persist(){calls.persist++;},emit(){calls.emit++;view.renderSelectionTools();}});
   Object.assign(view,{session:owner,closed:false,selected:new Set(selected),selectionTools:new Element(),
     batchFormatTarget:'nodes',batchEdgeScope:'internal',plugin:{},contentEl:{}});
