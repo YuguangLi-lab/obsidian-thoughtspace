@@ -88,33 +88,11 @@
 .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-card-quick-preview {
   border-left:1px solid var(--ts-object-line); border-radius:0 5px 5px 0;
 }
-/* Folded documents keep their essential expand action in the title strip.
-   Right-side breathing room remains reserved for the connection target. */
-.ts-root .ts-node.ts-document-compact > .ts-compact-fold-row {
-  gap:6px; padding-left:12px; padding-right:20px;
-}
-.ts-root .ts-node.ts-document-compact .ts-compact-inline-unfold {
-  display:inline-flex; align-items:center; justify-content:center; flex:none;
-  width:calc(24px * var(--ts-control-scale,1)); min-width:0;
-  height:calc(24px * var(--ts-control-scale,1)); min-height:0; margin:0; padding:0!important;
-  position:static; border:0; border-radius:6px; background:transparent;
-  box-shadow:none; color:var(--text-muted); pointer-events:auto;
-}
-.ts-root .ts-node.ts-document-compact .ts-compact-inline-unfold svg {
-  width:calc(14px * var(--ts-control-scale,1)); height:calc(14px * var(--ts-control-scale,1));
-}
-.ts-root .ts-node.ts-document-compact .ts-compact-inline-unfold:hover {
-  color:var(--ts-accent); background:var(--ts-object-active);
-}
-.ts-root .ts-node.ts-document-compact .ts-compact-inline-unfold:focus-visible {
-  outline:2px solid var(--ts-accent); outline-offset:1px;
-}
-.ts-root .ts-node.ts-document-compact .ts-compact-inline-unfold:disabled { opacity:.35; }
 .ts-root .ts-node.ts-document-compact .ts-compact-actions {
-  opacity:0; visibility:hidden; transition:opacity 120ms ease,visibility 0s linear 120ms;
+  opacity:0; visibility:hidden; pointer-events:none; transition:opacity 120ms ease,visibility 0s linear 120ms;
 }
 .ts-root .ts-node.ts-document-compact:is(:hover,:focus-within,.is-selected,.is-control-hover,.is-control-focus) .ts-compact-actions {
-  opacity:1; visibility:visible; transition-delay:0s;
+  opacity:1; visibility:visible; pointer-events:auto; transition-delay:0s;
 }
 /* A folded document's inline expand button stays in its title strip. Only the
    optional floating reading action follows the quiet batch-selection policy. */

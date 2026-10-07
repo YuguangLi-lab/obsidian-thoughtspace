@@ -13,7 +13,7 @@ const builtRoot=path.resolve(process.env.QA_PLUGIN_ROOT||root);
 const out=path.resolve(process.env.QA_OUTPUT||path.join(root,'dist/ordinary-ui-native'));
 const label=process.env.QA_LABEL||'candidate';
 const temporary=await mkdtemp(path.join(tmpdir(),'thoughtspace-ordinary-ui-1332-'));
-const profile=path.join(temporary,'profile'),vault=path.join(temporary,'vault'),plugin=path.join(vault,'.obsidian/plugins/thoughtspace');
+const profile=path.join(temporary,'profile'),vault=path.join(temporary,'vault'),plugin=path.join(vault,process.env.QA_IN_MEMORY==='1'?'.obsidian/qa-session':'.obsidian/plugins/thoughtspace');
 await mkdir(out,{recursive:true});assert.equal((await readdir(out)).length,0,'QA_OUTPUT must be empty: preserve earlier evidence and choose a new output directory');
 await mkdir(plugin,{recursive:true});await mkdir(profile);
 const profileSource=process.env.OBSIDIAN_PROFILE||path.join(process.env.HOME,'Library/Application Support/obsidian');
@@ -21,9 +21,9 @@ const packages=(await readdir(profileSource)).filter(file=>/^obsidian-\d+\.\d+\.
 assert.ok(packages.length,'An installed Obsidian runtime is required');
 await copyFile(path.join(profileSource,packages.at(-1)),path.join(profile,packages.at(-1)));
 await writeFile(path.join(profile,'obsidian.json'),JSON.stringify({vaults:{baad0000ca4d0001:{path:vault,ts:Date.now(),open:true}}}));
-await writeFile(path.join(vault,'.obsidian/community-plugins.json'),'["thoughtspace"]');
+await writeFile(path.join(vault,'.obsidian/community-plugins.json'),process.env.QA_IN_MEMORY==='1'?'[]':'["thoughtspace"]');
 await writeFile(path.join(vault,'.obsidian/app.json'),JSON.stringify({alwaysUpdateLinks:true,showUnsupportedFiles:true}));
-for(const file of ['main.js','styles.css','manifest.json'])await copyFile(path.join(builtRoot,file),path.join(plugin,file));
+if(process.env.QA_IN_MEMORY!=='1')for(const file of ['main.js','styles.css','manifest.json'])await copyFile(path.join(builtRoot,file),path.join(plugin,file));
 await writeFile(path.join(plugin,'data.json'),JSON.stringify({onboardingVersion:99,alignmentGuides:false}));
 const notes={
  index:'# Research notebook\n\n'+Array.from({length:35},(_,i)=>`Paragraph ${i+1}: evidence, questions, and a repeatable observation.\n\n`).join(''),
@@ -39,7 +39,7 @@ const original={version:3,nodes:[
 ],edges:[{id:'relation',from:'index',to:'sticky',label:'Next'}],viewport:{x:40,y:30,zoom:1}};
 await writeFile(path.join(vault,'Polish.thoughtspace'),JSON.stringify(original));
 const report={label,builtRoot,scope:'Isolated native Obsidian. Actual Playwright pointer/wheel/keyboard input for gestures; fixture model setup for scale/theme/large board. Timings are local synchronous renderer samples, not FPS or hardware input latency.',temporary,profile,vault,runtime:packages.at(-1),checks:[],screenshots:[],errors:[],handledPluginErrors:[],metrics:[]};
-report.build=Object.fromEntries(await Promise.all(['main.js','styles.css','manifest.json'].map(async file=>[file,createHash('sha256').update(await readFile(path.join(plugin,file))).digest('hex')])));
+report.build=Object.fromEntries(await Promise.all(['main.js','styles.css','manifest.json'].map(async file=>[file,createHash('sha256').update(await readFile(path.join(builtRoot,file))).digest('hex')])));
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const check=(name,actual,expected=true)=>{report.checks.push({name,passed:JSON.stringify(actual)===JSON.stringify(expected),actual,expected});console.log(`${JSON.stringify(actual)===JSON.stringify(expected)?'PASS':'FAIL'} ${name}`);};
 let application,browser,page;
@@ -50,11 +50,24 @@ try{
  browser=await chromium.connectOverCDP(`http://127.0.0.1:${port}`);page=browser.contexts()[0].pages()[0];
  check('isolated profile',await realpath(await page.evaluate(()=>require('@electron/remote').app.getPath('userData'))),await realpath(profile));
  page.on('pageerror',error=>report.errors.push(error.message));
+ page.on('dialog',dialog=>{report.dialogs??=[];report.dialogs.push(dialog.message());void dialog.dismiss().catch(()=>{});});
  page.on('console',message=>{if(message.type()==='error'&&(/thoughtspace|main\.js/i.test(message.text())||/thoughtspace/i.test(message.location().url||'')))report.handledPluginErrors.push({text:message.text(),location:message.location()});});
  await page.waitForFunction(()=>window.app?.workspace?.layoutReady,{},{timeout:40000});
  check('isolated vault',await realpath(await page.evaluate(()=>app.vault.adapter.basePath)),await realpath(vault));
  const trust=page.getByRole('button',{name:/信任仓库作者并启用插件|Trust author and enable plugins/});if(await trust.count())await trust.click();
- await page.waitForFunction(()=>!!app.plugins.plugins.thoughtspace,{},{timeout:20000});
+ if(process.env.QA_IN_MEMORY==='1'){
+ await page.evaluate(async({code,css,manifest})=>{
+  // Feed the host loader in memory; never write installable plugin files or enable lists.
+  manifest.dir='.obsidian/qa-session';app.plugins.manifests.thoughtspace=manifest;
+  const adapter=app.vault.adapter,read=adapter.read.bind(adapter),exists=adapter.exists.bind(adapter);
+  adapter.read=async p=>p===manifest.dir+'/main.js'?code:p===manifest.dir+'/styles.css'?css:read(p);
+  adapter.exists=async p=>p===manifest.dir+'/styles.css'?true:exists(p);
+  await app.plugins.setEnable(true);
+  try{await app.plugins.loadPlugin('thoughtspace');}finally{adapter.read=read;adapter.exists=exists;}
+  if(!app.plugins.plugins.thoughtspace)throw Error('In-memory loader did not initialize');
+ },{code:await readFile(path.join(builtRoot,'main.js'),'utf8'),css:await readFile(path.join(builtRoot,'styles.css'),'utf8'),manifest:JSON.parse(await readFile(path.join(builtRoot,'manifest.json'),'utf8'))});
+ check('no installed plugin versions',(await readdir(path.join(vault,'.obsidian'))).includes('plugins'),false);
+ }else await page.waitForFunction(()=>!!app.plugins.plugins.thoughtspace,{},{timeout:20000});
  await page.evaluate(()=>{app.setting.close();require('@electron/remote').getCurrentWindow().focus();});await page.bringToFront();
  await page.evaluate(async()=>{const leaf=app.workspace.getLeaf(false);await leaf.setViewState({type:'thoughtspace-board',state:{file:'Polish.thoughtspace'},active:true});await leaf.loadIfDeferred();window.qaView=leaf.view;app.workspace.leftSplit.collapse();app.workspace.rightSplit.collapse();require('@electron/remote').getCurrentWindow().setBounds({x:40,y:40,width:1440,height:1040});});
  await page.waitForFunction(()=>app.workspace.getLeavesOfType('thoughtspace-board').some(l=>l.view.session?.board.nodes.length===4));
@@ -202,7 +215,7 @@ try{
  };
  const rootUI=page.locator('.workspace-leaf.mod-active .ts-root');
  if(process.env.QA_INLINE_ONLY==='1')await inlineDraftChecks();
- if(process.env.QA_ONLY_BRAIN!=='1'&&process.env.QA_INLINE_ONLY!=='1'){
+ if(process.env.QA_ONLY_BRAIN!=='1'&&process.env.QA_INLINE_ONLY!=='1'&&process.env.QA_CONTROLS_ONLY!=='1'){
  for(const theme of ['light','dark']){
   await page.evaluate(theme=>{document.body.classList.toggle('theme-dark',theme==='dark');document.body.classList.toggle('theme-light',theme==='light');},theme);
   for(const width of [1440,640,420]){
@@ -352,6 +365,7 @@ try{
  check('no native page errors',report.errors,[]);
  }
 
+ if(process.env.QA_EXTENDED==='1'){const {controlsChecks}=await import('../whiteboard-controls/checks.mjs');await controlsChecks({page,check,screenshot,report,fixtureDir:process.env.QA_FIXTURE_DIR});}
  if(process.env.QA_BRAIN==='1'||process.env.QA_ONLY_BRAIN==='1'){
   const titles={center:'研究问题',parent:'研究项目',child:'关键证据',association:'相关文献',sibling:'下一步验证'};
   for(const [id,title]of Object.entries(titles))await page.evaluate(async({file,raw})=>{await app.vault.create(file,raw);},{file:`brain-${id}.md`,raw:`# ${title}\n\n这是用于界面验收的合成笔记。\n\n- 记录观察与证据\n- 核对原始来源\n- 保留待验证的问题\n\n正文展开后，主题的字号和颜色继续生效。`});

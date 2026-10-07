@@ -5497,6 +5497,12 @@
   .ts-root .ts-floating-formatbar > .ts-format-heading:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { gap:5px 7px; padding:5px; }
   .ts-root .ts-floating-formatbar .ts-format-heading .ts-format-mode-button:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { padding-inline:6px!important; }
 }
+@container ts-board-canvas (max-width:320px) {
+  .ts-root .ts-floating-formatbar > .ts-format-heading:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { flex-wrap:nowrap; }
+  .ts-root .ts-floating-formatbar .ts-format-mode:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),
+  .ts-root .ts-floating-formatbar .ts-batch-format-switch:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { flex:none; flex-wrap:nowrap; }
+  .ts-root .ts-floating-formatbar > .ts-format-heading > .ts-style-transfer:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { margin-inline-start:0; }
+}
 /* On very narrow panes, one scrollable value row costs less document space than
    a tall stack of selects. Categories remain named and may wrap above it. */
 @container ts-board-canvas (max-width:360px) {
@@ -6452,6 +6458,9 @@
 .ts-root .ts-node.ts-card.is-selected:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { outline:1.5px solid var(--ts-accent); outline-offset:2px; }
 .ts-root .ts-node:is(.ts-card,.ts-text).is-inline-editing:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { outline:2px solid var(--ts-accent); outline-offset:2px; }
 .ts-root .ts-node.is-inline-editing:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::before { content:none; }
+/* Selection raises the object without moving it. Expanded group frames stay
+   behind their contents; hover never takes precedence over a selected card. */
+.ts-root .ts-main .ts-world > .ts-node.is-selected:not(.ts-section:not(.is-compact-fold)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { z-index:4; }
 
 /* Dock position is clamped in screen space, independent of document size.
    Counter-scaling keeps controls usable while zooming the canvas. */
@@ -6583,7 +6592,7 @@
   position:absolute; inset:var(--ts-control-top,-56px) var(--ts-control-right,0px) auto auto; z-index:8;
   transform:scale(var(--ts-control-scale,1)); transform-origin:top right;
   display:flex; align-items:center; gap:4px; width:max-content; padding:3px; box-sizing:border-box;
-  border:1px solid var(--ts-object-line); border-radius:9px; pointer-events:auto;
+  border:1px solid var(--ts-object-line); border-radius:8px; pointer-events:auto;
   background:var(--background-primary); box-shadow:var(--ts-object-shadow);
 }
 .ts-root .ts-node.is-compact-fold .ts-compact-actions > button:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
@@ -6595,14 +6604,31 @@
 .ts-root .ts-node.is-compact-fold .ts-compact-actions > button:hover:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { color:var(--text-normal); background:var(--background-modifier-hover)!important; }
 .ts-root .ts-node.is-compact-fold .ts-compact-actions > button:focus-visible:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { outline:2px solid var(--interactive-accent); outline-offset:-1px; }
 .ts-root .ts-node.is-compact-fold .ts-compact-actions > button:disabled:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { opacity:.35; cursor:not-allowed; }
+/* Every content fold has the same inline expand target. The optional reading
+   dock and the separate branch disclosure keep their own positions. */
+.ts-root .ts-node.ts-content-compact > .ts-compact-fold-row:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { gap:6px; padding-left:12px; padding-right:20px; }
+.ts-root .ts-node.ts-content-compact .ts-compact-inline-unfold:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  display:inline-flex; align-items:center; justify-content:center; flex:none;
+  width:calc(28px * var(--ts-control-scale,1)); min-width:0;
+  height:calc(28px * var(--ts-control-scale,1)); min-height:0; margin:0; padding:0!important;
+  position:static; border:0; border-radius:5px; background:transparent;
+  box-shadow:none; color:var(--text-muted); pointer-events:auto;
+}
+.ts-root .ts-node.ts-content-compact .ts-compact-inline-unfold svg:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  width:calc(15px * var(--ts-control-scale,1)); height:calc(15px * var(--ts-control-scale,1));
+}
+.ts-root .ts-node.ts-content-compact .ts-compact-inline-unfold:hover:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { color:var(--ts-accent); background:var(--ts-object-active); }
+.ts-root .ts-node.ts-content-compact .ts-compact-inline-unfold:focus-visible:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { outline:2px solid var(--ts-accent); outline-offset:1px; }
+.ts-root .ts-node.ts-content-compact .ts-compact-inline-unfold:disabled:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { opacity:.35; }
+.ts-root .ts-node.is-compact-fold .ts-compact-actions:empty:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { display:none; }
 .ts-root .ts-node.ts-image > .ts-image-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
   position:absolute; inset:var(--ts-control-top,-56px) var(--ts-control-right,0px) auto auto; z-index:8; display:flex; gap:4px; padding:3px;
   transform:scale(var(--ts-control-scale,1)); transform-origin:top right;
   border:1px solid var(--background-modifier-border); border-radius:8px; background:var(--background-primary);
-  opacity:0; visibility:hidden; pointer-events:auto;
+  opacity:0; visibility:hidden; pointer-events:none;
   transition:opacity 120ms ease,visibility 0s linear 120ms;
 }
-.ts-root .ts-node.ts-image:is(:hover,:focus-within,.is-selected,.is-control-hover) > .ts-image-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { opacity:1; visibility:visible; transition-delay:0s; }
+.ts-root .ts-node.ts-image:is(:hover,:focus-within,.is-selected,.is-control-hover) > .ts-image-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { opacity:1; visibility:visible; pointer-events:auto; transition-delay:0s; }
 .ts-root .ts-node.ts-image > .ts-image-actions .ts-icon-button:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { width:28px; height:28px; padding:5px!important; border:0; box-shadow:none; background:transparent; }
 @media (hover:none) {
   .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),
@@ -6677,7 +6703,7 @@
   position:absolute; inset:var(--ts-control-top,-60px) var(--ts-control-right,0px) auto auto;
   transform:scale(var(--ts-control-scale,1)); transform-origin:top right;
   z-index:8; display:flex; align-items:center; width:max-content; gap:4px; margin:0; padding:3px;
-  border:1px solid var(--ts-object-line); border-radius:9px; background:var(--background-primary);
+  border:1px solid var(--ts-object-line); border-radius:8px; background:var(--background-primary);
   box-shadow:var(--ts-object-shadow); opacity:0; visibility:hidden; pointer-events:none;
 }
 .ts-root .ts-node:is(:hover,:focus-within,.is-selected,.is-control-hover) > .ts-fold-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
@@ -8104,33 +8130,11 @@
 .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-card-quick-preview:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
   border-left:1px solid var(--ts-object-line); border-radius:0 5px 5px 0;
 }
-/* Folded documents keep their essential expand action in the title strip.
-   Right-side breathing room remains reserved for the connection target. */
-.ts-root .ts-node.ts-document-compact > .ts-compact-fold-row:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
-  gap:6px; padding-left:12px; padding-right:20px;
-}
-.ts-root .ts-node.ts-document-compact .ts-compact-inline-unfold:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
-  display:inline-flex; align-items:center; justify-content:center; flex:none;
-  width:calc(24px * var(--ts-control-scale,1)); min-width:0;
-  height:calc(24px * var(--ts-control-scale,1)); min-height:0; margin:0; padding:0!important;
-  position:static; border:0; border-radius:6px; background:transparent;
-  box-shadow:none; color:var(--text-muted); pointer-events:auto;
-}
-.ts-root .ts-node.ts-document-compact .ts-compact-inline-unfold svg:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
-  width:calc(14px * var(--ts-control-scale,1)); height:calc(14px * var(--ts-control-scale,1));
-}
-.ts-root .ts-node.ts-document-compact .ts-compact-inline-unfold:hover:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
-  color:var(--ts-accent); background:var(--ts-object-active);
-}
-.ts-root .ts-node.ts-document-compact .ts-compact-inline-unfold:focus-visible:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
-  outline:2px solid var(--ts-accent); outline-offset:1px;
-}
-.ts-root .ts-node.ts-document-compact .ts-compact-inline-unfold:disabled:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { opacity:.35; }
 .ts-root .ts-node.ts-document-compact .ts-compact-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
-  opacity:0; visibility:hidden; transition:opacity 120ms ease,visibility 0s linear 120ms;
+  opacity:0; visibility:hidden; pointer-events:none; transition:opacity 120ms ease,visibility 0s linear 120ms;
 }
 .ts-root .ts-node.ts-document-compact:is(:hover,:focus-within,.is-selected,.is-control-hover,.is-control-focus) .ts-compact-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
-  opacity:1; visibility:visible; transition-delay:0s;
+  opacity:1; visibility:visible; pointer-events:auto; transition-delay:0s;
 }
 /* A folded document's inline expand button stays in its title strip. Only the
    optional floating reading action follows the quiet batch-selection policy. */

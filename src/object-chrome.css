@@ -15,6 +15,9 @@
 .ts-root .ts-node.ts-card.is-selected { outline:1.5px solid var(--ts-accent); outline-offset:2px; }
 .ts-root .ts-node:is(.ts-card,.ts-text).is-inline-editing { outline:2px solid var(--ts-accent); outline-offset:2px; }
 .ts-root .ts-node.is-inline-editing::before { content:none; }
+/* Selection raises the object without moving it. Expanded group frames stay
+   behind their contents; hover never takes precedence over a selected card. */
+.ts-root .ts-main .ts-world > .ts-node.is-selected:not(.ts-section:not(.is-compact-fold)) { z-index:4; }
 
 /* Dock position is clamped in screen space, independent of document size.
    Counter-scaling keeps controls usable while zooming the canvas. */
@@ -146,7 +149,7 @@
   position:absolute; inset:var(--ts-control-top,-56px) var(--ts-control-right,0px) auto auto; z-index:8;
   transform:scale(var(--ts-control-scale,1)); transform-origin:top right;
   display:flex; align-items:center; gap:4px; width:max-content; padding:3px; box-sizing:border-box;
-  border:1px solid var(--ts-object-line); border-radius:9px; pointer-events:auto;
+  border:1px solid var(--ts-object-line); border-radius:8px; pointer-events:auto;
   background:var(--background-primary); box-shadow:var(--ts-object-shadow);
 }
 .ts-root .ts-node.is-compact-fold .ts-compact-actions > button {
@@ -158,14 +161,31 @@
 .ts-root .ts-node.is-compact-fold .ts-compact-actions > button:hover { color:var(--text-normal); background:var(--background-modifier-hover)!important; }
 .ts-root .ts-node.is-compact-fold .ts-compact-actions > button:focus-visible { outline:2px solid var(--interactive-accent); outline-offset:-1px; }
 .ts-root .ts-node.is-compact-fold .ts-compact-actions > button:disabled { opacity:.35; cursor:not-allowed; }
+/* Every content fold has the same inline expand target. The optional reading
+   dock and the separate branch disclosure keep their own positions. */
+.ts-root .ts-node.ts-content-compact > .ts-compact-fold-row { gap:6px; padding-left:12px; padding-right:20px; }
+.ts-root .ts-node.ts-content-compact .ts-compact-inline-unfold {
+  display:inline-flex; align-items:center; justify-content:center; flex:none;
+  width:calc(28px * var(--ts-control-scale,1)); min-width:0;
+  height:calc(28px * var(--ts-control-scale,1)); min-height:0; margin:0; padding:0!important;
+  position:static; border:0; border-radius:5px; background:transparent;
+  box-shadow:none; color:var(--text-muted); pointer-events:auto;
+}
+.ts-root .ts-node.ts-content-compact .ts-compact-inline-unfold svg {
+  width:calc(15px * var(--ts-control-scale,1)); height:calc(15px * var(--ts-control-scale,1));
+}
+.ts-root .ts-node.ts-content-compact .ts-compact-inline-unfold:hover { color:var(--ts-accent); background:var(--ts-object-active); }
+.ts-root .ts-node.ts-content-compact .ts-compact-inline-unfold:focus-visible { outline:2px solid var(--ts-accent); outline-offset:1px; }
+.ts-root .ts-node.ts-content-compact .ts-compact-inline-unfold:disabled { opacity:.35; }
+.ts-root .ts-node.is-compact-fold .ts-compact-actions:empty { display:none; }
 .ts-root .ts-node.ts-image > .ts-image-actions {
   position:absolute; inset:var(--ts-control-top,-56px) var(--ts-control-right,0px) auto auto; z-index:8; display:flex; gap:4px; padding:3px;
   transform:scale(var(--ts-control-scale,1)); transform-origin:top right;
   border:1px solid var(--background-modifier-border); border-radius:8px; background:var(--background-primary);
-  opacity:0; visibility:hidden; pointer-events:auto;
+  opacity:0; visibility:hidden; pointer-events:none;
   transition:opacity 120ms ease,visibility 0s linear 120ms;
 }
-.ts-root .ts-node.ts-image:is(:hover,:focus-within,.is-selected,.is-control-hover) > .ts-image-actions { opacity:1; visibility:visible; transition-delay:0s; }
+.ts-root .ts-node.ts-image:is(:hover,:focus-within,.is-selected,.is-control-hover) > .ts-image-actions { opacity:1; visibility:visible; pointer-events:auto; transition-delay:0s; }
 .ts-root .ts-node.ts-image > .ts-image-actions .ts-icon-button { width:28px; height:28px; padding:5px!important; border:0; box-shadow:none; background:transparent; }
 @media (hover:none) {
   .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions,
@@ -240,7 +260,7 @@
   position:absolute; inset:var(--ts-control-top,-60px) var(--ts-control-right,0px) auto auto;
   transform:scale(var(--ts-control-scale,1)); transform-origin:top right;
   z-index:8; display:flex; align-items:center; width:max-content; gap:4px; margin:0; padding:3px;
-  border:1px solid var(--ts-object-line); border-radius:9px; background:var(--background-primary);
+  border:1px solid var(--ts-object-line); border-radius:8px; background:var(--background-primary);
   box-shadow:var(--ts-object-shadow); opacity:0; visibility:hidden; pointer-events:none;
 }
 .ts-root .ts-node:is(:hover,:focus-within,.is-selected,.is-control-hover) > .ts-fold-actions {

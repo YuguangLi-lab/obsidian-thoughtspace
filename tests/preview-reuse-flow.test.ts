@@ -244,6 +244,29 @@ test('missing-source expanded single-button docks stay inside a narrow stage',()
   assert.ok(dockRight<=48+1e-8,`expanded right ${dockRight}`);
 });
 
+test('every content fold expands from the title strip and validates the live lock before activation',async()=>{
+ for(const kind of ['card','text','image','pdf','audio','video','board','section'] as const){
+  const f=fixture(kind,{collapsed:kind!=='section',sectionFolded:kind==='section',height:40,expandedHeight:180});
+  const unfold=f.element().querySelector('.ts-compact-inline-unfold'),row=f.element().querySelector('.ts-compact-fold-row');
+  assert.ok(unfold,kind);assert.equal(unfold.parent,row,kind);
+  const calls:unknown[][]=[];
+  f.view.foldText=(...args:unknown[])=>calls.push(args);
+  f.view.setSelectionFold=(ids:ReadonlySet<string>,...args:unknown[])=>calls.push([[...ids],...args]);
+  f.board.nodes[0].locked=true;await unfold.onclick?.();assert.deepEqual(calls,[],kind);
+  f.board.nodes[0].locked=false;await unfold.onclick?.();
+  assert.deepEqual(calls,kind==='section'?[[['node'],false,true]]:[['node',false]],kind);
+ }
+});
+
+test('media branch-only expansion remains distinct from content unfolding',async()=>{
+ const f=fixture('pdf',{branchFolded:true,height:40,expandedHeight:180}),calls:unknown[][]=[];
+ const unfold=f.element().querySelector('.ts-compact-unfold');assert.ok(unfold);
+ assert.equal(unfold.parent,f.element().querySelector('.ts-compact-actions'));
+ assert.equal(f.element().querySelector('.ts-compact-inline-unfold'),null);
+ f.view.foldBranches=(ids:ReadonlySet<string>,...args:unknown[])=>calls.push([[...ids],...args]);
+ await unfold.onclick?.();assert.deepEqual(calls,[[['node'],false,'level']]);
+});
+
 test('expanded quick controls refresh their lock and read-only state while reading stays available',()=>{
  for(const kind of ['card','text'] as const){
   const f=fixture(kind);

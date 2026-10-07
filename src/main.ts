@@ -3730,7 +3730,9 @@ class BoardView extends FileView {
           read.onpointerdown=e=>e.stopPropagation();read.ondblclick=e=>e.stopPropagation();
         }
         const documentCompact=(n.kind==='card'||n.kind==='text')&&!n.webUrl;el.toggleClass('ts-document-compact',documentCompact);
-        const unfold=button(documentCompact?row:actions,label,'chevron-down',expand,'ts-icon-button ts-compact-unfold'+(documentCompact?' ts-compact-inline-unfold':''));unfold.disabled=owner.blocked||!!n.locked;unfold.setAttribute('aria-expanded','false');unfold.onpointerdown=e=>e.stopPropagation();unfold.ondblclick=e=>e.stopPropagation();
+        const inlineUnfold=documentCompact||!!n.collapsed||!!n.sectionFolded;
+        el.toggleClass('ts-content-compact',inlineUnfold);
+        const unfold=button(inlineUnfold?row:actions,label,'chevron-down',expand,'ts-icon-button ts-compact-unfold'+(inlineUnfold?' ts-compact-inline-unfold':''));unfold.disabled=owner.blocked||!!n.locked;unfold.setAttribute('aria-expanded','false');unfold.onpointerdown=e=>e.stopPropagation();unfold.ondblclick=e=>e.stopPropagation();
         if(n.kind==='section')renderBranchControls(el,{...branchOptions,group:false});
         this.addPorts(el,n.id);
         el.ondblclick=e=>{if((e.target as Element).closest('button'))return;e.stopPropagation();act(expand);};
