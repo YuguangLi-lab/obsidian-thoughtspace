@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {cardControlLayout,type CardControlRect} from '../src/card-control-layout';
+import {foldControlObstacles} from '../src/fold-control-obstacles';
 
 const node={x:350,y:300,width:320,height:220};
 const close=(actual:number,expected:number)=>assert.ok(Math.abs(actual-expected)<1e-8,`${actual} != ${expected}`);
-function screen(rect:typeof node,viewport:{x:number;y:number;zoom:number},count:number,width=1200,height=900,dimensions?:{width:number;height:number;topReserve?:number;avoid?:ReadonlyArray<CardControlRect>}){
+function screen(rect:typeof node,viewport:{x:number;y:number;zoom:number},count:number,width=1200,height=900,dimensions?:{width:number;height:number;topReserve?:number;screenGap?:number;avoid?:ReadonlyArray<CardControlRect>}){
   const layout=cardControlLayout(rect,viewport,width,height,count,dimensions);
   const w=(dimensions?.width??32*count+4)*layout.scale*viewport.zoom,h=(dimensions?.height??36)*layout.scale*viewport.zoom;
   const right=(rect.x+rect.width-layout.right)*viewport.zoom+viewport.x;
@@ -181,21 +182,37 @@ test('malformed custom dimensions and reserves cannot emit non-finite CSS positi
   }
 });
 
-test('the taller format bar moves a 236 px note dock beside its own body instead of over its paragraphs',()=>{
+test('a taller format bar keeps the note dock below its body when vertical clearance is nearer',()=>{
   const rect={x:350,y:100,width:320,height:220};
   const box=screen(rect,{x:0,y:0,zoom:1},5,1000,700,{width:236,height:36,topReserve:126});
   assert.equal(intersects(box,{left:350,right:670,top:100,bottom:320}),false);
-  close(box.screenTop,126);assert.ok(box.left>=670,'the nearer right side has enough room');
-  assert.ok(box.screenRight<=988);
+  close(box.left,434);close(box.screenTop,340);
+  assert.ok(box.screenTop-126<670-434,'the clear vertical position is closer than the available right side');
+  assert.ok(box.screenRight<=988&&box.bottom<=688);
+});
+
+test('a taller card still uses its nearer side when vertical clearance would be farther',()=>{
+  const rect={x:350,y:100,width:320,height:320};
+  const box=screen(rect,{x:0,y:0,zoom:1},5,1000,700,{width:236,height:36,topReserve:126});
+  close(box.left,670);close(box.screenTop,126);
+  assert.equal(intersects(box,{left:350,right:670,top:100,bottom:420}),false);
+  assert.ok(670-434<440-126,'the right side remains closer than the clear vertical position');
+  assert.ok(box.screenRight<=988&&box.bottom<=688);
 });
 
 test('custom dock placement keeps the scaled body clear at half, normal and double zoom',()=>{
   const rect={x:350,y:100,width:320,height:220};
-  for(const zoom of [.5,1,2]){
+  // At double zoom the right-aligned dock also clears the bottom port
+  // horizontally, so the nearest valid position touches the body's bottom.
+  for(const [zoom,expectedTop] of [[.5,220],[1,340],[2,540]]){
     const viewport={x:350-rect.x*zoom,y:100-rect.y*zoom,zoom};
     const box=screen(rect,viewport,5,1000,700,{width:236,height:36,topReserve:126});
     assert.equal(intersects(box,{left:350,right:350+rect.width*zoom,top:100,bottom:100+rect.height*zoom}),false);
-    close(box.screenTop,126);assert.ok(box.left>=12&&box.screenRight<=988);
+    close(box.screenTop,expectedTop);
+    assert.ok(box.left>=12&&box.screenRight<=988&&box.bottom<=688);
+    for(const [x,y] of [[350+rect.width*zoom/2,100],[350+rect.width*zoom/2,100+rect.height*zoom],[350,100+rect.height*zoom/2],[350+rect.width*zoom,100+rect.height*zoom/2]]){
+      assert.equal(intersects(box,{left:x-20*zoom,right:x+20*zoom,top:y-20*zoom,bottom:y+20*zoom}),false);
+    }
   }
 });
 
@@ -233,6 +250,34 @@ test('a creation rail that does not overlap a normal right-side dock leaves its 
   const rail={x:6,y:60,width:68,height:300};
   assert.deepEqual(cardControlLayout(node,viewport,1200,900,5,{...dimensions,avoid:[rail]}),cardControlLayout(node,viewport,1200,900,5,dimensions));
   assert.deepEqual(cardControlLayout(node,viewport,1200,900,5,{...dimensions,avoid:[]}),cardControlLayout(node,viewport,1200,900,5,dimensions));
+});
+
+test('the desktop card-picker keeps its reading dock nearer its own card when vertical clearance beats a distant side',()=>{
+  // Native round1/light-1440-card-picker.png: stage (44,84), card (164,234),
+  // format bottom 199, reading button x=865. The old side-first dock at
+  // (818,127) stage pixels left that button 401 px past its card's right edge.
+  const rect={id:'index',x:80,y:120,width:300,height:240},viewport={x:40,y:30,zoom:1};
+  const neighbors=[rect,
+    {id:'sticky',x:470,y:140,width:300,height:220},
+    {id:'paper',x:470,y:480,width:300,height:200},
+    {id:'table',x:80,y:470,width:300,height:170},
+  ];
+  const avoid=[{x:10,y:237.5,width:62,height:372},...foldControlObstacles(rect,neighbors,viewport)];
+  const box=screen(rect,viewport,4,1396,790,{width:168,height:36,topReserve:127,screenGap:24,avoid});
+  const preferred={left:252,top:127},oldSide={left:818,top:127};
+  // Four px dock padding minus the card's one px border matches the native
+  // first button. The old placement fails this assertion with actual=401.
+  close(box.left+3-420,-165);
+  close(box.left,preferred.left);close(box.screenTop,414);
+  assert.ok(Math.hypot(box.left-preferred.left,box.screenTop-preferred.top)<Math.hypot(oldSide.left-preferred.left,oldSide.top-preferred.top));
+  const obstacles=[
+    {left:120,right:420,top:150,bottom:390},
+    ...[[270,150],[270,390],[120,270],[420,270]].map(([x,y])=>({left:x-24,right:x+24,top:y-24,bottom:y+24})),
+    {left:439,right:561,top:249,bottom:291},
+    ...avoid.map(r=>({left:r.x,right:r.x+r.width,top:r.y,bottom:r.y+r.height})),
+  ];
+  for(const obstacle of obstacles)assert.equal(intersects(box,obstacle),false,`dock must clear ${JSON.stringify(obstacle)}`);
+  assert.ok(box.left>=12&&box.screenRight<=1384&&box.screenTop>=127&&box.bottom<=778,'all actions remain inside the reserved screen area');
 });
 
 test('invalid avoidance rectangles are ignored without changing the supplied model or measurements',()=>{

@@ -1,5 +1,18 @@
 # 更新记录
 
+## 1.3.32
+
+### 普通白板操作层次与脑图边框配色（2026-10-08）
+
+- 收紧插入菜单，保留笔记、图片、PDF、视频、音频、网页、表格与结构入口；用途提示可通过悬停查看。卡片样式采用更小的图示和名称，六种外观仍可直接选择，正文排版与 Obsidian 字体保持原样。
+- 多选使用共享操作栏，单卡操作在悬停或键盘聚焦时显示，折叠对象保留直接展开入口。去除重复计数，窄窗格式参数横向可达，卡片样式按面板宽度换行，样式复制/粘贴并入首行，减少正文被工具栏遮挡。
+- 修复选中卡片后隐藏编辑按钮仍占定位宽度的问题；聚焦编辑按钮时保留其空间，失焦后恢复紧凑位置。避让同时比较横向与纵向空位，避免阅读操作条远离所属卡片。隐藏的多选操作条跳过不必要的邻近对象扫描，实际悬停/聚焦后仍计算避让。
+- 修复长内容内联编辑时，焦点移到工具栏或重新悬停导致草稿尺寸退回原尺寸的问题；保留当前编辑节点的临时几何，其他节点仍正常同步，保存前不回写源尺寸。
+- 脑图新增独立节点边框颜色，覆盖节点与展开阅读框；顶栏可直接进入配色，并在弹窗查看节点、文字、边框和连线的即时示例。保留按板保存、跟随主题、取消还原、恢复默认、撤销/重做和切板保护。
+- Compact ordinary-board insertion and appearance controls retain all existing actions and native typography. Batch selections use the shared toolbar, while hover/focus keeps local actions accessible. Brain boards gain independent border colors and a direct live-preview color dialog without rebuilding their graph or camera.
+
+验证范围与多轮原生截图见 [本轮检查报告](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.32/qa/ORDINARY-WHITEBOARD-1.3.32.md)。
+
 ## 1.3.31
 
 ### 脑图性能、界面与每板配色（2026-10-07）

@@ -2341,7 +2341,7 @@ class BoardView extends FileView {
     const railGroup=(label:string)=>railTools.createDiv({cls:'ts-rail-group',attr:{role:'group','aria-label':label}});
     const interactionRail=railGroup('选择与连接'),createRail=railGroup('创建内容'),organizeRail=railGroup('组织与工具');
     const panel=main.createDiv({cls:'ts-rail-popover ts-tools-palette',attr:{role:'dialog','aria-label':'更多白板工具'}});panel.hidden=true;
-    const toolsHead=panel.createDiv('ts-palette-heading');const toolsTitle=toolsHead.createDiv('ts-palette-title');toolsTitle.createEl('strong',{text:'白板工具'});toolsTitle.createSpan({text:'整理结构，继续思考'});
+    const toolsHead=panel.createDiv('ts-palette-heading');const toolsTitle=toolsHead.createDiv('ts-palette-title');toolsTitle.createEl('strong',{text:'白板工具'});
     const toolbar=panel.createDiv('ts-rail-actions');
     const cluster=(parent:HTMLElement,label:string)=>parent.createDiv({cls:'ts-tool-cluster',attr:{role:'group','aria-label':label}});
     const organize=cluster(toolbar,'组织与整理'),workspace=cluster(toolbar,'阅读与工作区');
@@ -2351,10 +2351,10 @@ class BoardView extends FileView {
     button(createRail,'文本','type',()=>this.newText());
     const insertPanel=main.createDiv({cls:'ts-rail-popover ts-insert-palette',attr:{role:'dialog','aria-label':'插入内容'}});insertPanel.hidden=true;
     const insertHead=insertPanel.createDiv('ts-palette-heading');
-    const insertTitle=insertHead.createDiv('ts-palette-title');insertTitle.createEl('strong',{text:'插入内容'});insertTitle.createSpan({text:'把材料带到思路中'});
+    const insertTitle=insertHead.createDiv('ts-palette-title');insertTitle.createEl('strong',{text:'插入内容'});
     const insertTools=insertPanel.createDiv('ts-rail-actions');
     const tile=(parent:HTMLElement,label:string,icon:string,caption:string,run:()=>unknown)=>{
-      const item=button(parent,label,icon,run,'ts-insert-tile');item.createSpan({cls:'ts-tool-description',text:caption});return item;
+      const item=button(parent,label,icon,run,'ts-insert-tile');item.createSpan({cls:'ts-tool-description',text:caption});item.title=`${label} · ${caption}`;return item;
     };
     const materials=cluster(insertTools,'笔记与材料'),structure=cluster(insertTools,'结构与关系');
     tile(materials,'已有笔记','file-input','引用库中的笔记',()=>this.insertExistingNote()).addClass('ts-insert-note-entry');
@@ -3208,6 +3208,7 @@ class BoardView extends FileView {
         fileMenu:(menu,id)=>{if(!current())return;const node=owner.board.nodes.find(n=>n.id===id&&supportsLocalRelations(n)),file=node?.file?this.app.vault.getAbstractFileByPath(node.file):undefined;if(file instanceof TFile)this.app.workspace.trigger('file-menu',menu,file,'thoughtspace',this.leaf);},
         add:()=>this.addBrainObject(),rename:()=>this.renameBoard(),
         background:anchor=>{if(current())this.showCanvasBackgroundMenu(anchor);},
+        colors:()=>{if(current())this.openBrainColors();},
         createRelation:(id,side,request,initial)=>this.addBrainRelation(owner,id,side,()=>current()&&request(),initial),
         settings:()=>{if(!current())return;this.brainBoardDialog?.close();const modal=new ActionPicker(this.app,'脑图白板',[{title:'关系显示层级（1–5 层）',run:()=>{if(current())this.brainBoardView?.showDepthMenu();}},{title:'背景与配色',run:()=>{if(current())this.showCanvasBackgroundMenu(this.brainBoardEl!.querySelector<HTMLElement>('[data-brain-action=more]')!);}},{title:'重命名脑图白板',run:()=>{if(current())this.renameBoard();}},{title:'复制白板链接',run:()=>{if(current())return this.copyDeepLink();}},{title:'切换为自由白板（保留所有对象与关系）',run:()=>{if(current())owner.change(board=>{delete board.presentation;delete board.brain;delete board.brainViewport;},undefined,false,true,false,true);}}]);this.brainBoardDialog=modal;modal.open();}
       };
@@ -3685,6 +3686,9 @@ class BoardView extends FileView {
       el.dataset.controlCount=String(compactControls?1:n.kind==='card'?(fileInfo instanceof TFile?5:1):n.kind==='text'?3:2);
       const primaryCount=compactControls?0:n.kind==='card'&&fileInfo instanceof TFile?2:n.kind==='text'&&!n.webUrl?1:0;
       el.dataset.controlWidth=String(32*Number(el.dataset.controlCount)+4+36*primaryCount);
+      // A labelled edit action occupies 64 px plus its 4 px gap. Single-object
+      // editing is also offered by the top toolbar; hover/batch docks keep it.
+      el.dataset.controlEditWidth=String(primaryCount?68:0);
       el.toggleClass('is-filtered-out',!!this.filterMatches&&!this.filterMatches.has(n.id));el.toggleClass('is-locked',!!n.locked);el.toggleClass('is-unrelated',!!this.relatedFocus&&!this.relatedFocus.has(n.id));el.toggleClass('ts-topic',!!n.topic);this.positions.set(n.id, el); el.toggleClass('is-selected', this.selected.has(n.id)); this.positionNode(n, el);
       el.toggleClass('is-fixed-reading',n.kind==='card'?!n.autoFit:n.kind==='text'&&!textFitsContent(n));
       if(isMedia)el.dataset.mediaBranches=mediaBranchKey;
@@ -3704,9 +3708,9 @@ class BoardView extends FileView {
       };
       const trackControls=()=>{
         scope.register(mountCardControlHover(el));
-        const place=()=>{if(this.session&&el.isConnected)this.positionNode(this.connectionCandidates.find(item=>item.id===n.id)||n,el);};
+        const place=()=>{if(this.session&&el.isConnected)this.positionNode(this.connectionCandidates.find(item=>item.id===n.id)||n,el,this.inlineTarget===n.id||this.inlineId===n.id);};
         const focus=()=>{el.classList.add('is-control-focus');place();};
-        const blur=()=>el.classList.remove('is-control-focus');
+        const blur=()=>{el.classList.remove('is-control-focus');place();};
         el.addEventListener('pointerenter',place);el.addEventListener('focusin',focus);el.addEventListener('focusout',blur);
         scope.register(()=>{el.removeEventListener('pointerenter',place);el.removeEventListener('focusin',focus);el.removeEventListener('focusout',blur);});
       };
@@ -4173,9 +4177,15 @@ class BoardView extends FileView {
     syncNodeGeometry(n,el,preserveDraftSize);
     if(this.controlStageSize&&this.session){
       const compact=!!(n.collapsed||n.branchFolded||n.sectionFolded),count=Number(el.dataset.controlCount)||(compact?(n.kind==='card'?2:1):n.kind==='card'?5:n.kind==='text'?3:2);
-      const active=compact||el.classList.contains('is-selected')||el.classList.contains('is-control-hover')||el.classList.contains('is-control-focus');
+      const focused=el.ownerDocument?.activeElement,editWidth=Number(el.dataset.controlEditWidth)||0;
+      const hideEdit=!compact&&editWidth>0&&this.selected?.size===1&&this.selected.has(n.id)&&!(focused?.classList.contains('ts-card-quick-edit')&&el.contains(focused));
+      if(el.dataset.quickEditHidden!==String(hideEdit))el.dataset.quickEditHidden=String(hideEdit);
+      // Batch docks are hidden until hovered/focused. Only controls that can be
+      // used now need neighbour avoidance; pointer/focus handlers place them
+      // before use, without adding an all-board scan to each camera frame.
+      const active=compact||(this.selected?.size===1&&el.classList.contains('is-selected'))||el.classList.contains('is-control-hover')||el.classList.contains('is-control-focus');
       const nearby=active?foldControlObstacles(n,this.connectionCandidates||[],this.session.board.viewport):[];
-      const control=cardControlLayout(n,this.session.board.viewport,this.controlStageSize.width,this.controlStageSize.height,count,{width:Number(el.dataset.controlWidth)||32*count+4,height:36,screenGap:24,topReserve:this.cardToolbarReserve||60,avoid:[...this.cardToolbarObstacles,...nearby]});
+      const control=cardControlLayout(n,this.session.board.viewport,this.controlStageSize.width,this.controlStageSize.height,count-(hideEdit?1:0),{width:(Number(el.dataset.controlWidth)||32*count+4)-(hideEdit?editWidth:0),height:36,screenGap:24,topReserve:this.cardToolbarReserve||60,avoid:[...this.cardToolbarObstacles,...nearby]});
       for(const [name,value] of [['scale',String(control.scale)],['top',`${control.top}px`],['right',`${control.right}px`]]){
         const key=`--ts-control-${name}`;if(el.style.getPropertyValue(key)!==value)el.style.setProperty(key,value);
       }
@@ -4435,7 +4445,7 @@ class BoardView extends FileView {
     const kind=nodes.length===1?(nodes[0].kind==='text'&&!nodeHasBorder(nodes[0])?'table':nodes[0].kind):'mixed';context.dataset.kind=kind;
     setIcon(context.createSpan({attr:{'aria-hidden':'true'}}),({table:'table-2',card:'sticky-note',text:'type',section:'group',image:'image',pdf:'file-text',audio:'audio-lines',video:'clapperboard',board:'panels-top-left',mindmap:'network',mixed:'layers'})[kind]);
     context.createSpan({cls:'ts-format-context-label',text:({table:'表格',card:'卡片',text:'文本',section:'分组',image:'图片',pdf:'PDF',audio:'音频',video:'视频',board:'子白板',mindmap:'脑图',mixed:'对象'})[kind]});
-    if(nodes.length>1)context.createSpan({cls:'ts-format-context-count',text:String(nodes.length)});
+    if(nodes.length>1)context.remove();
     const categories=heading.createDiv({cls:'ts-format-mode',attr:{role:'group','aria-label':'编辑工具'}});
     const node=nodes.length===1?nodes[0]:undefined,editor=node&&this.inlineId===node.id?this.inline:undefined;
     const styledCards=nodes.filter(supportsCardStyle);
@@ -4478,7 +4488,7 @@ class BoardView extends FileView {
     };
     if(editor){editor.input.addEventListener('select',syncModes);syncModes();}
     if(editor&&!this.inlineAppearance){markdownToolbar(host,editor,()=>editor.input.removeEventListener('select',syncModes));return;}
-    const transfer=host.createDiv({cls:'ts-style-transfer',attr:{role:'group','aria-label':'复制与粘贴外观'}});
+    const transfer=heading.createDiv({cls:'ts-style-transfer',attr:{role:'group','aria-label':'复制与粘贴外观'}});
     const copy=button(transfer,'复制对象样式','pipette',()=>this.copyObjectStyle(ids,owner),'ts-icon-button');
     const paste=button(transfer,'粘贴对象样式','paintbrush',()=>this.pasteObjectStyle(ids,owner),'ts-icon-button');
     copy.disabled=owner.blocked||nodes.length!==1;paste.disabled=owner.blocked||!this.plugin.copiedNodeStyle||nodes.every(n=>n.locked);
@@ -4548,7 +4558,7 @@ class BoardView extends FileView {
     select('边框粗细',{'0':'无边框','1':'细 · 1','2':'标准 · 2','3':'粗 · 3','4':'加粗 · 4'},borderNodes.map(n=>String(n.borderWidth??1)),(b,value)=>b.nodes.filter(n=>ids.has(n.id)&&nodeHasBorder(n)&&!n.locked).forEach(n=>{n.borderWidth=Number(value);if(textFitsContent(n))fitTextNode(n,this.contentEl);}));
     select('边框颜色',{default:'默认样式',...colorNames},borderNodes.map(n=>n.customBorder?n.color:'default'),(b,value)=>{if(value!=='default'&&!['sand','blue','green','rose','purple'].includes(value))b.version=3;b.nodes.filter(n=>ids.has(n.id)&&nodeHasBorder(n)&&!n.locked).forEach(n=>{if(value==='default')delete n.customBorder;else{n.color=value as Card['color'];n.customBorder=true;}});});
     }
-    host.append(transfer);
+    heading.append(transfer);
     if(this.inline){
       const editor=this.inline,controls=Array.from(host.querySelectorAll<HTMLInputElement|HTMLSelectElement>('select,input')),styleOptions=Array.from(host.querySelectorAll<HTMLButtonElement>('.ts-card-style-option'));
       const sync=()=>{const state=editor.snapshot(),disabled=!!state.busy||owner.blocked||owner.board.nodes.some(n=>ids.has(n.id)&&n.locked);for(const control of controls){if(control.disabled!==disabled)control.disabled=disabled;const title=state.busy?state.disabledReason||'编辑器忙碌中':control.ariaLabel||'';if(control.title!==title)control.title=title;}const styleDisabled=!!state.busy||owner.blocked||owner.board.nodes.some(n=>ids.has(n.id)&&supportsCardStyle(n)&&n.locked);for(const option of styleOptions)option.disabled=styleDisabled;};
@@ -4815,6 +4825,7 @@ class BoardView extends FileView {
     this.canvasBackgroundDialog=modal;modal.open();return modal;
   }
   private syncCanvasControls(){
+    const count=String(this.selected.size);if(this.contentEl.dataset.selectionCount!==count)this.contentEl.dataset.selectionCount=count;
     // Read the live controls instead of caching UI state across remounts or edits.
     const toggle=(el:Element,name:string,on:boolean)=>{if(el.classList.contains(name)!==on)el.classList.toggle(name,on);};
     const attr=(el:Element,name:string,value:string)=>{if(el.getAttribute(name)!==value)el.setAttribute(name,value);};

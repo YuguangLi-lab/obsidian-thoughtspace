@@ -18,7 +18,7 @@ export interface BrainBoardHost {
  source:BoardMindmapHost['source'];open:BoardMindmapHost['open'];preview:BoardMindmapHost['preview'];
  fileMenu?:BoardMindmapHost['fileMenu'];relate?:BoardMindmapHost['relate'];shortcut?:BoardMindmapHost['shortcut'];
  add:()=>void;addObject?:(kind:'section'|'board')=>void;rename?:()=>void;settings?:()=>void;isActive?:()=>boolean;activate?:()=>void;viewport?:(value:{x:number;y:number;zoom:number})=>void;
- background?:(anchor:HTMLElement)=>void;
+ background?:(anchor:HTMLElement)=>void;colors?:()=>void;
  organizeIdea?:(id:string,current:()=>boolean)=>void;
  renameNode?:(id:string,current:()=>boolean)=>void;
  finalizeViewport?:(intent:BrainBoardViewportIntent)=>void;
@@ -53,7 +53,7 @@ export class BrainBoardView extends Component {
  private readonly markerId=`ts-brain-arrow-${++brainSvgSequence}`;
  private alive=false;private generation=0;private renders=0;private nodeSequence=0;private context?:object|string;private boardPath?:string;private document?:Document;private center?:string;private error='';
  private shell!:HTMLElement;private topbar!:HTMLElement;private title!:HTMLElement;private stage!:HTMLElement;private scene!:HTMLElement;private svg!:SVGSVGElement;private labels!:HTMLElement;private empty!:HTMLElement;private status!:HTMLElement;private recent!:HTMLElement;private pager!:HTMLElement;
- private input!:HTMLInputElement;private search!:HTMLElement;private searchResults!:HTMLElement;private back!:HTMLButtonElement;private forward!:HTMLButtonElement;private more!:HTMLButtonElement;private zoomLabel!:HTMLButtonElement;
+ private input!:HTMLInputElement;private search!:HTMLElement;private searchResults!:HTMLElement;private back!:HTMLButtonElement;private forward!:HTMLButtonElement;private more!:HTMLButtonElement;private colorButton?:HTMLButtonElement;private zoomLabel!:HTMLButtonElement;
  private searchVisible=false;private query='';private searchPage=0;private searchIndex=0;private searchIds:string[]=[];private page=0;private layout?:ReturnType<typeof brainBoardLayout>;private nativePending=false;
  private searchRender?:{key?:object;path:string;doc:Document;signature:string};
  private revealId?:string;
@@ -74,7 +74,7 @@ export class BrainBoardView extends Component {
   this.searchResults=this.search.createDiv({cls:'ts-brain-search-results',attr:{role:'listbox','aria-label':'本板节点'}});this.searchResults.hidden=true;
   this.registerDomEvent(this.input,'focus',()=>this.toggleSearch(true));this.registerDomEvent(this.input,'input',()=>{this.query=this.input.value;this.searchPage=0;this.searchIndex=0;this.toggleSearch(true);});this.registerDomEvent(this.input,'keydown',event=>this.searchKey(event));
   this.registerDomEvent(this.search,'focusout',event=>{const next=event.relatedTarget as Node|null;if(!next||next.ownerDocument!==this.search.ownerDocument||!this.search.contains(next))this.toggleSearch(false);});
-  const actions=this.topbar.createDiv('ts-brain-top-actions');this.more=this.button(actions,'ellipsis','脑图菜单',event=>this.boardMenu(event),'more');this.button(actions,'settings-2','脑图设置',()=>{if(this.host.settings)this.host.settings();else this.boardMenu(undefined);},'settings');
+  const actions=this.topbar.createDiv('ts-brain-top-actions');if(this.host.colors){this.colorButton=this.button(actions,'palette','脑图配色',()=>this.openColors(),'colors');this.colorButton.setAttribute('aria-haspopup','dialog');}this.more=this.button(actions,'ellipsis','脑图菜单',event=>this.boardMenu(event),'more');this.button(actions,'settings-2','脑图设置',()=>{if(this.host.settings)this.host.settings();else this.boardMenu(undefined);},'settings');
   this.stage=this.shell.createDiv({cls:'ts-brain-stage',attr:{'aria-label':'节点关系图'}});this.scene=this.stage.createDiv('ts-brain-scene');this.svg=this.scene.createSvg('svg',{cls:'ts-brain-links',attr:{'aria-hidden':'true'}});this.labels=this.scene.createDiv('ts-brain-labels');this.empty=this.stage.createDiv('ts-brain-empty');
   this.status=this.stage.createDiv({cls:'ts-brain-status',attr:{role:'status','aria-live':'polite'}});this.pager=this.stage.createDiv('ts-brain-pager');
   const zoom=this.stage.createDiv('ts-brain-zoom');if(this.host.background)this.button(zoom,'palette','白板背景',event=>this.host.background?.(event.currentTarget as HTMLElement),'background');this.button(zoom,'layers','关系显示层级',()=>this.showDepthMenu(),'depth');zoom.createSpan({cls:'ts-brain-object-count'});this.button(zoom,'minus','缩小',()=>this.zoomAt(this.camera.zoom/1.2),'zoom-out');this.zoomLabel=this.button(zoom,'','恢复 100% 缩放',()=>this.zoomAt(1),'zoom-reset');this.button(zoom,'plus','放大',()=>this.zoomAt(this.camera.zoom*1.2),'zoom-in');this.button(zoom,'maximize','适应画布',()=>{this.motion.cancel();this.fitCamera=true;this.fitAll=true;this.fit();this.queueViewport();},'fit');this.button(zoom,'search','节点导航',()=>this.focusSearch(),'navigate');
@@ -98,7 +98,7 @@ export class BrainBoardView extends Component {
   if(!this.visible()){this.motion.cancel();this.generation++;this.closeMenu();this.clearPreviews();return;}
   // Read the viewport before history, SVG and node writes; fit shares this one refresh snapshot.
   const stageSize=this.stageSize={width:this.stage.clientWidth,height:this.stage.clientHeight};
-  this.title.title=snapshot.path;this.shell.classList.toggle('is-readonly',!!snapshot.readOnly);this.back.disabled=!!snapshot.readOnly||state.history.index<=0;this.forward.disabled=!!snapshot.readOnly||state.history.index>=state.history.entries.length-1;
+  this.title.title=snapshot.path;this.shell.classList.toggle('is-readonly',!!snapshot.readOnly);this.back.disabled=!!snapshot.readOnly||state.history.index<=0;this.forward.disabled=!!snapshot.readOnly||state.history.index>=state.history.entries.length-1;if(this.colorButton)this.colorButton.disabled=!!snapshot.readOnly;
   const stored=JSON.stringify(snapshot.board.brainViewport);if(!this.viewportIntent&&stored!==this.cameraStored){this.cameraStored=stored;const viewport=snapshot.board.brainViewport;if(viewport){this.camera={...viewport,zoom:clampZoom(viewport.zoom)};this.cameraReady=true;this.fitCamera=false;}else{this.cameraReady=false;this.fitCamera=true;this.fitAll=false;}}
   this.renderHistory(snapshot,state);this.renderSearch();this.shell.querySelector('.ts-brain-object-count')?.setText(`${snapshot.board.nodes.length} 个对象`);
   const native=state.centerId?snapshot.native?.(state.centerId):undefined,nativeData=native&&!Array.isArray(native)?native as NativeLocalRelations:undefined;this.nativePending=!!nativeData?.pendingPaths.length;
@@ -141,17 +141,19 @@ export class BrainBoardView extends Component {
   // Non-inheriting tokens stay on their consumers, avoiding a recascade through
   // ports, controls, previews and the entire scene on every color input.
   set(this.stage,'--brain-custom-background',colors.background||'');set(this.svg,'--brain-custom-line',colors.line||'');set(this.labels,'--brain-custom-text',colors.text||'');
-  for(const key of ['node','line','background'] as const)this.shell.classList.toggle(`has-custom-${key}`,!!colors[key]);
+  for(const key of ['node','border','line','background'] as const)this.shell.classList.toggle(`has-custom-${key}`,!!colors[key]);
   this.shell.classList.toggle('is-color-preview',!!this.colorPreview);
-  const ink=colors.node?brainStateInk(colors.node):'';for(const item of this.nodes.values()){set(item.pill,'--brain-custom-node',colors.node||'');set(item.title,'--brain-custom-text',colors.text||'');set(item.pill,'--brain-state-ink',ink);set(item.title,'--brain-state-ink',ink);}
+  const ink=colors.node?brainStateInk(colors.node):'';for(const item of this.nodes.values()){set(item.pill,'--brain-custom-node',colors.node||'');set(item.pill,'--brain-custom-border',colors.border||'');set(item.title,'--brain-custom-text',colors.text||'');set(item.pill,'--brain-state-ink',ink);set(item.title,'--brain-state-ink',ink);}for(const preview of this.previews.values())set(preview.body,'--brain-custom-border',colors.border||'');
  }
  /** Read the rendered surfaces, including the existing paper/image background. */
- colorSamples():Record<'background'|'node'|'text'|'line',string>{
+ colorSamples():Record<'background'|'node'|'border'|'text'|'line',string>{
   const doc=this.el.ownerDocument,win=doc.defaultView!,probe=this.stage.createSpan({cls:'ts-brain-color-probe'});
-  const style=win.getComputedStyle(probe),samples={background:win.getComputedStyle(this.stage).backgroundColor,node:style.backgroundColor,text:style.color,line:style.borderTopColor};probe.remove();return samples;
+  const node=[...this.nodes.values()].find(item=>item.root.dataset.brainRole!=='center')||this.nodes.values().next().value,nodeStyle=node?win.getComputedStyle(node.pill):undefined;
+  const style=win.getComputedStyle(probe),samples={background:win.getComputedStyle(this.stage).backgroundColor,node:nodeStyle?.backgroundColor||style.backgroundColor,border:nodeStyle?.borderTopColor||style.borderBottomColor,text:style.color,line:style.borderTopColor};probe.remove();return samples;
  }
  private pageDescendants(action:'previous'|'next'|'reset'){if(!this.descendants||!this.visible())return;this.motion.cancel();this.descendants[action]();this.fitCamera=true;this.fitAll=false;this.refresh();this.queueViewport();}
  showDepthMenu(){this.boardMenu(undefined);}
+ private openColors(){const snapshot=this.host.snapshot();if(this.alive&&this.visible()&&snapshot?.board.presentation==='brain'&&!snapshot.readOnly)this.host.colors?.();}
  focusSearch(){if(!this.visible())return;this.input.focus({preventScroll:true});if(!this.searchVisible)this.toggleSearch(true);}
  revealRelation(id:string){this.revealId=id;this.fitCamera=true;this.fitAll=true;this.refresh();this.queueViewport();}
  fitToCanvas(){this.motion.cancel();this.fitCamera=true;this.fitAll=true;this.fit();this.queueViewport();}
@@ -209,6 +211,7 @@ export class BrainBoardView extends Component {
  private boardMenu(event?:MouseEvent){const snapshot=this.host.snapshot();if(!snapshot)return;const menu=this.makeMenu(),generation=this.generation,key=snapshot.key,path=snapshot.path,current=()=>{const now=this.host.snapshot();return this.alive&&this.visible()&&this.generation===generation&&now?.key===key&&now?.path===path&&now.board.presentation==='brain';};menu.addItem(item=>item.setTitle('添加节点').setIcon('plus').setDisabled(!!snapshot.readOnly).onClick(()=>{if(current())this.host.add();}));if(this.host.rename)menu.addItem(item=>item.setTitle('重命名白板').setIcon('pencil').setDisabled(!!snapshot.readOnly).onClick(()=>{if(current())this.host.rename?.();}));menu.addItem(item=>item.setTitle('适应画布').setIcon('maximize').onClick(()=>{if(current()){this.fitCamera=true;this.fitAll=true;this.fit();this.queueViewport();}}));
   menu.addSeparator();for(let depth=1;depth<=5;depth++)menu.addItem(item=>item.setTitle(`显示 ${depth} 层${(snapshot.board.brain?.descendantDepth??1)===depth?' ✓':''}`).setIcon('layers').setDisabled(!!snapshot.readOnly).onClick(()=>{if(current()){this.motion.cancel();this.update({type:'depth',value:depth});}}));
   if(this.host.background)menu.addItem(item=>item.setTitle('白板背景').setIcon('palette').setDisabled(!!snapshot.readOnly).onClick(()=>{if(current())this.host.background?.(this.more);}));
+  if(this.host.colors)menu.addItem(item=>item.setTitle('脑图配色…').setIcon('palette').setDisabled(!!snapshot.readOnly).onClick(()=>{if(current())this.openColors();}));
   if(this.host.addObject)for(const [kind,title]of [['section','添加分组'],['board','引用子白板']] as const)menu.addItem(item=>item.setTitle(title).setDisabled(!!snapshot.readOnly).onClick(()=>{if(current())this.host.addObject?.(kind);}));
   const state=snapshot.board.brain;for(const id of state?.pins||[]){const node=snapshot.board.nodes.find(node=>node.id===id&&supportsBoardMindmapTarget(node));menu.addItem(item=>item.setTitle(node?`固定：${localRelationNode(node).title}`:'清理失效固定').setIcon('pin').setDisabled(!!snapshot.readOnly).onClick(()=>{if(current())this.update(node?{type:'center',id}:{type:'pin',id,pinned:false});}));}for(const id of state?.expandedIds||[])if(!snapshot.board.nodes.some(node=>node.id===id&&supportsBoardMindmapTarget(node)))menu.addItem(item=>item.setTitle(`清理失效展开：${id}`).setIcon('x').setDisabled(!!snapshot.readOnly).onClick(()=>{if(current())this.update({type:'expand',id,expanded:false});}));this.showMenu(menu,event,this.more);
  }

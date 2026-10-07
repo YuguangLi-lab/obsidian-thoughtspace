@@ -1,6 +1,6 @@
 import {isRecord} from './value-guards';
 
-export const brainColorKeys=['background','node','text','line'] as const;
+export const brainColorKeys=['background','node','border','text','line'] as const;
 export type BrainColorKey=typeof brainColorKeys[number];
 /** Optional board-local overrides. An absent key follows the live host theme. */
 export type BrainColors=Partial<Record<BrainColorKey,string>>;

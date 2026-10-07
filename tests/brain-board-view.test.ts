@@ -441,3 +441,20 @@ test('cancelling or unloading before the color frame runs prevents deferred draf
 test('a queued preview rechecks ownership and readonly status even before the next graph refresh',()=>{
  for(const change of ['owner','readonly','palette']){const f=fixture();f.view.previewColors({node:'#ffffff'});if(change==='owner')f.setSnapshot({...f.snapshot,key:{},path:'Other.thoughtspace'});if(change==='readonly')f.setSnapshot({...f.snapshot,readOnly:true});if(change==='palette')f.board.brainColors={node:'#123456'};f.doc.tick();assert.equal(f.view.nodes.get('b').pill.style.getPropertyValue('--brain-custom-node'),change==='palette'?'#123456':'');assert.equal(f.view.colorPreview,undefined);}
 });
+test('border color paints node pills and expanded bodies without rebuilding previews and cancel restores each original',()=>{
+ const f=fixture();action(node(f,'a'),'expand').click();const item=f.view.nodes.get('a'),preview=f.view.previews.get('a'),before=clone(f.board),renders=f.view.renders,sourceRenders=f.previews.length,camera={...f.view.camera};
+ for(let i=0;i<100;i++)f.view.previewColors({border:'#8b5c91'});f.doc.tick();
+ assert.equal(item.pill.style.getPropertyValue('--brain-custom-border'),'#8b5c91');assert.equal(preview.body.style.getPropertyValue('--brain-custom-border'),'#8b5c91');assert(f.view.shell.classList.contains('has-custom-border'));
+ assert.equal(f.view.renders,renders);assert.equal(f.previews.length,sourceRenders);assert.deepEqual(clone(f.board),before);assert.deepEqual(f.view.camera,camera);assert.equal(item.pill.style.getPropertyValue('--brain-custom-node'),'');
+ f.view.previewColors(null);assert.equal(item.pill.style.getPropertyValue('--brain-custom-border'),'');assert.equal(preview.body.style.getPropertyValue('--brain-custom-border'),'');assert(!f.view.shell.classList.contains('has-custom-border'));
+});
+test('removing or replacing persisted border colors does not retain paint from another board or preview',()=>{
+ const f=fixture();f.board.brainColors={border:'#336677'};f.view.refresh();assert.equal(f.view.nodes.get('b').pill.style.getPropertyValue('--brain-custom-border'),'#336677');
+ f.view.previewColors({border:'#ffffff'});f.board.brainColors={border:'#443366'};f.doc.tick();assert.equal(f.view.nodes.get('b').pill.style.getPropertyValue('--brain-custom-border'),'#443366');
+ f.setSnapshot({...f.snapshot,key:{},path:'Other.thoughtspace',board:{...f.board,brainColors:undefined}});f.view.refresh();assert.equal(f.view.nodes.get('b').pill.style.getPropertyValue('--brain-custom-border'),'');assert(!f.view.shell.classList.contains('has-custom-border'));
+});
+test('the direct color action does not recenter, edit geometry or bypass a read-only board',()=>{
+ const f=fixture(),opened:any[]=[];f.host.colors=()=>opened.push(clone(f.board));f.view.unload();f.view.load();const button=action(f.el,'colors'),before=clone(f.board);assert.equal(button.getAttribute('aria-haspopup'),'dialog');button.click();assert.equal(opened.length,1);assert.deepEqual(clone(f.board),before);assert.equal(f.saves.length,0);
+ f.setSnapshot({...f.snapshot,readOnly:true});f.view.refresh();assert(button.disabled);button.click();assert.equal(opened.length,1);
+ f.setSnapshot({...f.snapshot,readOnly:false});f.view.refresh();action(f.el,'more').click();const pending=menuItem('脑图配色…');f.setSnapshot({...f.snapshot,key:{},path:'Other.thoughtspace'});f.view.refresh();pending.click();assert.equal(opened.length,1);
+});

@@ -72,7 +72,7 @@
 }
 
 /* Parameter fields belong to the selected tab; copy/paste keeps its DOM order.
-   Wrapping occurs between complete fields, never through a native select. */
+   Complete fields scroll horizontally; native selects and their focus stay intact. */
 .ts-root .ts-floating-formatbar > .ts-format-row {
   display:flex; flex:none; align-items:center; gap:4px; min-width:0; max-width:100%; padding:5px;
   border-top:1px solid var(--ts-format-line); border-radius:0 0 9px 9px; background:var(--ts-format-wash);
@@ -86,12 +86,12 @@
   scrollbar-width:thin; scrollbar-color:var(--background-modifier-border) transparent;
 }
 .ts-root .ts-floating-formatbar .ts-commandbar > .ts-selection-tools {
-  display:flex; flex:1 1 auto; flex-wrap:wrap; align-items:center; gap:4px!important;
+  display:flex; flex:1 1 auto; flex-wrap:nowrap; align-items:center; gap:4px!important;
   width:auto; min-width:0; max-width:100%; min-height:var(--ts-board-format-control,32px);
   margin:0!important; padding:0!important; border:0!important;
 }
 .ts-root .ts-floating-formatbar :is(.ts-appearance-group,.ts-edge-format-group) {
-  display:flex; flex:1 1 auto; flex-wrap:wrap; align-items:center; gap:4px;
+  display:flex; flex:0 0 auto; flex-wrap:nowrap; align-items:center; gap:4px;
   min-width:0; max-width:100%; min-height:var(--ts-board-format-control,32px); margin:0; padding:0; border:0;
 }
 .ts-root .ts-floating-formatbar .ts-appearance-group[data-appearance-panel][hidden] { display:none!important; }
@@ -148,6 +148,13 @@
 .ts-root .ts-floating-formatbar :is(.ts-style-transfer,.ts-edge-format-actions) .ts-icon-button:hover:not(:disabled) {
   color:var(--text-normal); background:var(--background-modifier-hover)!important;
 }
+/* Style transfer shares the heading instead of wrapping below the previews.
+   It remains collapsed with appearance values until a category is opened. */
+.ts-root .ts-floating-formatbar > .ts-format-heading > .ts-style-transfer {
+  align-self:center; margin-inline: auto 0; padding-inline:6px 0;
+  border-inline:1px solid var(--ts-format-line); border-inline-end:0;
+}
+.ts-root .ts-floating-formatbar:has(.is-appearance-collapsed) > .ts-format-heading > .ts-style-transfer { display:none!important; }
 .ts-root .ts-floating-formatbar .ts-format-row > .ts-format-scroll {
   flex:0 0 26px; width:26px; min-width:26px; height:var(--ts-board-format-control,32px);
   margin:0; padding:0!important; border:1px solid var(--ts-format-line)!important; border-radius:5px!important;
@@ -284,4 +291,4 @@
 .ts-root .ts-floating-formatbar .ts-format-mode-button[data-mode="markdown"] { color:var(--text-normal); }
 /* The selected object's edit command is already present in the top toolbar.
    Other hovered cards retain their local edit action, including keyboard focus. */
-.ts-root .ts-main:has(.ts-format-mode-button[data-mode="markdown"]) .ts-node.is-selected > .ts-card-actions .ts-card-quick-edit:not(:focus) { display:none; }
+.ts-root .ts-main .ts-node[data-quick-edit-hidden=true] > .ts-card-actions .ts-card-quick-edit:not(:focus) { display:none; }

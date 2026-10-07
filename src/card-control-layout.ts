@@ -61,8 +61,9 @@ export function cardControlLayout(node:CardControlRect,viewport:CardControlViewp
     const nearest=(points:number[][])=>points.filter(clears).sort((a,b)=>travel(a)-travel(b))[0];
     const xs=[left,minX,maxX],ys=[top,minY,maxY];
     for(const [l,t,r,d] of obstacles){xs.push(clamp(l-width,minX,maxX),clamp(r,minX,maxX));ys.push(clamp(t-height,minY,maxY),clamp(d,minY,maxY));}
-    // Try sideways, then vertical placement; combinations handle corner cases.
-    let next=nearest(xs.map(a=>[a,top]))||nearest(ys.map(b=>[left,b]));
+    // Compare both axes so a nearby position below the card wins over a long
+    // sideways detour past a neighbour. Combinations handle corner cases.
+    let next=nearest([...xs.map(a=>[a,top]),...ys.map(b=>[left,b])]);
     if(!next){
       const uniqueY=[...new Set(ys)],points=[...new Set(xs)].flatMap(a=>uniqueY.map(b=>[a,b]));
       const covered=(point:readonly number[])=>obstacles.reduce((sum,rect)=>sum+overlap(point,rect),0);

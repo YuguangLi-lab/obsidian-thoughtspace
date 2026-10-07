@@ -22,14 +22,19 @@
   position:absolute; inset:var(--ts-control-top,-56px) var(--ts-control-right,0px) auto auto;
   transform:scale(var(--ts-control-scale,1)); transform-origin:top right;
   z-index:8; display:flex; align-items:center; gap:4px; width:max-content; box-sizing:border-box;
-  margin:0; padding:3px; border:1px solid var(--ts-object-line); border-radius:9px;
+  margin:0; padding:3px; border:1px solid var(--ts-object-line); border-radius:8px;
   background:var(--background-primary); box-shadow:var(--ts-object-shadow);
   opacity:0; visibility:hidden; pointer-events:none;
   transition:opacity 120ms ease,visibility 0s linear 120ms;
 }
 /* The pointer lifecycle keeps the dock visible across its geometric corridor.
    Focus and selection remain CSS-owned; no hit layer covers connection ports. */
-.ts-root .ts-node:is(.ts-card,.ts-text):is(:hover,:focus-within,.is-selected,.is-folded,.is-control-hover) > .ts-card-actions { opacity:1; visibility:visible; pointer-events:auto; transition-delay:0s; }
+.ts-root .ts-node:is(.ts-card,.ts-text):is(:hover,:focus-within,.is-selected,.is-folded,.is-control-hover,.is-control-focus) > .ts-card-actions { opacity:1; visibility:visible; pointer-events:auto; transition-delay:0s; }
+/* Batch formatting belongs to the shared toolbar. Hover and keyboard focus
+   still reveal a card's own actions; legacy folded docks retain their expand. */
+.ts-root[data-selection-count]:not([data-selection-count="0"]):not([data-selection-count="1"]) .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text).is-selected:not(:is(:hover,:focus-within,.is-control-hover,.is-control-focus,.is-folded)) > .ts-card-actions {
+  opacity:0; visibility:hidden; pointer-events:none;
+}
 .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-icon-button {
   display:inline-flex; align-items:center; justify-content:center; flex:none;
   width:28px; min-width:28px; height:28px; min-height:28px; padding:5px!important;

@@ -72,11 +72,8 @@
 
 /* Clear primary actions without changing document geometry. */
 .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions {
-  border-radius:10px; border-color:var(--ts-object-line);
-  box-shadow:0 2px 4px #00000008,0 8px 22px #00000012;
-}
-.theme-dark .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions {
-  box-shadow:0 2px 4px #00000025,0 8px 22px #00000035;
+  border-radius:8px; border-color:var(--ts-object-line);
+  box-shadow:var(--ts-object-shadow);
 }
 .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-icon-button.ts-card-action-primary {
   width:64px; min-width:64px; gap:6px; padding:4px 7px!important;
@@ -116,8 +113,13 @@
 .ts-root .ts-node.ts-document-compact .ts-compact-actions {
   opacity:0; visibility:hidden; transition:opacity 120ms ease,visibility 0s linear 120ms;
 }
-.ts-root .ts-node.ts-document-compact:is(:hover,:focus-within,.is-selected,.is-control-hover) .ts-compact-actions {
+.ts-root .ts-node.ts-document-compact:is(:hover,:focus-within,.is-selected,.is-control-hover,.is-control-focus) .ts-compact-actions {
   opacity:1; visibility:visible; transition-delay:0s;
+}
+/* A folded document's inline expand button stays in its title strip. Only the
+   optional floating reading action follows the quiet batch-selection policy. */
+.ts-root[data-selection-count]:not([data-selection-count="0"]):not([data-selection-count="1"]) .ts-main .ts-world > .ts-node.ts-document-compact.is-selected:not(:is(:hover,:focus-within,.is-control-hover,.is-control-focus)) .ts-compact-actions {
+  opacity:0; visibility:hidden; pointer-events:none;
 }
 .ts-root .ts-node.ts-document-compact .ts-compact-actions:empty { display:none; }
 /* Keep long documents readable without an opaque surface or a layout shift. */

@@ -14,8 +14,12 @@ import {foldControlObstacles} from '../src/fold-control-obstacles';
 
 const source=readFileSync(process.env.POSITION_SOURCE||'src/main.ts','utf8'),start=source.indexOf('  private positionNode('),end=source.indexOf('  private applyInlineSize(',start);
 assert.ok(start>0&&end>start);
-const deps={foldControlObstacles,effectiveCardStyle,cardHeadingColors,nodeHasBorder,textBlockPadding,cardFillHex,colors,sectionDisplayNode,textFontFamily,syncNodeGeometry,cardControlLayout};
+let obstacleScans=0;
+const deps={foldControlObstacles:(...args:Parameters<typeof foldControlObstacles>)=>{obstacleScans++;return foldControlObstacles(...args);},effectiveCardStyle,cardHeadingColors,nodeHasBorder,textBlockPadding,cardFillHex,colors,sectionDisplayNode,textFontFamily,syncNodeGeometry,cardControlLayout};
 const View=new Function(...Object.keys(deps),transformSync(`class View{${source.slice(start,end)}};return View`,{loader:'ts'}).code)(...Object.values(deps));
+const controlsStart=source.indexOf('      const trackControls=()=>{'),controlsEnd=source.indexOf('\n      if((n.collapsed',controlsStart);
+assert.ok(controlsStart>0&&controlsEnd>controlsStart);
+const ControlView=new Function('View','mountCardControlHover',transformSync(`class ControlView extends View{mountControls(n,el,scope){${source.slice(controlsStart,controlsEnd)}trackControls();}};return ControlView`,{loader:'ts'}).code)(View,()=>()=>{});
 const node=(patch:Partial<Card>={}):Card=>({id:'node',kind:'card',file:'note.md',x:20,y:30,width:300,height:180,color:'blue',transparent:true,fillColor:'blue',...patch});
 function surface(){
  const classes=new Set<string>(),properties=new Map<string,string>(),writes:string[]=[];
@@ -73,6 +77,42 @@ test('positioned docks honor cached label-button widths for notes and text',()=>
  }
 });
 
+test('a single selected card reserves only its visible actions, without changing content geometry',()=>{
+ for(const [kind,count,width] of [['card',5,236],['text',3,136]] as const){
+  const view=new View(),f=surface(),n=node({kind,x:20,y:150,width:100}),viewport={x:0,y:0,zoom:1};
+  view.selected=new Set([n.id]);view.cardToolbarObstacles=[];view.session={board:{viewport}};view.controlStageSize={width:480,height:320};
+  f.element.dataset.controlCount=String(count);f.element.dataset.controlWidth=String(width);f.element.dataset.controlEditWidth='68';
+  view.positionNode(n,f.element);
+  const expected=cardControlLayout(n,viewport,480,320,count-1,{width:width-68,height:36,topReserve:60,screenGap:24});
+  assert.equal(f.properties.get('--ts-control-right'),`${expected.right}px`);
+  assert.equal(f.properties.get('--ts-control-top'),`${expected.top}px`);
+  assert.equal(f.element.dataset.quickEditHidden,'true');
+  assert.deepEqual([f.style.left,f.style.top,f.style.width,f.style.height],['20px','150px','100px','180px']);
+  const edit={classList:{contains:(name:string)=>name==='ts-card-quick-edit'}};
+  const dom=Object.assign(f.element,{ownerDocument:{activeElement:edit as unknown},contains:(target:unknown)=>target===edit});
+  view.positionNode(n,dom);
+  assert.equal(f.element.dataset.quickEditHidden,'false','never remove or clip a keyboard-focused edit button');
+  const complete=cardControlLayout(n,viewport,480,320,count,{width,height:36,topReserve:60,screenGap:24});
+  assert.equal(f.properties.get('--ts-control-right'),`${complete.right}px`);
+  dom.ownerDocument.activeElement=null;view.positionNode(n,dom);
+  assert.equal(f.element.dataset.quickEditHidden,'true','blur restores the compact dock without a new selection');
+  view.selected.add('second');view.positionNode(n,f.element);
+  const batch=cardControlLayout(n,viewport,480,320,count,{width,height:36,topReserve:60,screenGap:24});
+  assert.equal(f.element.dataset.quickEditHidden,'false');
+  assert.equal(f.properties.get('--ts-control-right'),`${batch.right}px`,'hovered cards in a batch retain their own edit action');
+ }
+});
+
+test('hidden batch docks skip neighbour scans, then recompute before hover or focus use',()=>{
+ const view=new View(),f=surface(),n=node(),viewport={x:0,y:0,zoom:1};
+ view.selected=new Set([n.id,'other']);view.cardToolbarObstacles=[];view.session={board:{viewport}};view.controlStageSize={width:900,height:600};
+ view.connectionCandidates=[n,node({id:'other',x:450})];f.classes.add('is-selected');obstacleScans=0;
+ for(let i=0;i<120;i++)view.positionNode(n,f.element);
+ assert.equal(obstacleScans,0,'an invisible batch dock must not walk the board on every camera frame');
+ f.classes.add('is-control-hover');view.positionNode(n,f.element);assert.equal(obstacleScans,1,'a shown dock still avoids nearby content');
+ f.classes.delete('is-control-hover');f.classes.add('is-control-focus');view.positionNode(n,f.element);assert.equal(obstacleScans,2,'keyboard access has the same obstacle protection');
+});
+
 test('presentation changes still apply immediately without a cached node identity',()=>{
  const view=new View(),f=surface(),n=node();view.positionNode(n,f.element);f.writes.length=0;
  Object.assign(n,{transparent:false,fillColor:'#123abc',fontSize:24,fontFamily:'serif',customBorder:true,borderWidth:3,borderStyle:'dashed'});
@@ -98,6 +138,51 @@ test('appearance refresh keeps an inline editor draft size while updating its po
  view.positionNode({...n,x:50,y:80,fontSize:20},f.element,true);
  assert.deepEqual([f.style.left,f.style.top,f.style.width,f.style.height],['50px','80px','420px','270px']);
  assert.equal(f.properties.get('--ts-card-body-size'),'20px');assert.ok(!f.writes.includes('width')&&!f.writes.includes('height'));
+});
+
+test('pointer and focus dock events preserve the active inline draft when focus moves to the detached toolbar',()=>{
+ for(const kind of ['text','card'] as const)for(const marker of ['inlineId','inlineTarget'] as const){
+  const view=new ControlView(),f=surface(),n=node({kind}),before=structuredClone(n),classes=f.classes;
+  const toolbarButton={classList:{contains:()=>false}},element=Object.assign(new EventTarget(),f.element,{
+   isConnected:true,ownerDocument:{activeElement:toolbarButton},contains:()=>false,
+   classList:{contains:(name:string)=>classes.has(name),add:(name:string)=>classes.add(name),remove:(name:string)=>classes.delete(name)},
+  });
+  const disposers:(()=>void)[]=[];
+  view.selected=new Set([n.id]);view.session={board:{viewport:{x:0,y:0,zoom:1},nodes:[n]}};view.cardToolbarObstacles=[];
+  view.controlStageSize={width:900,height:600};view.connectionCandidates=[n];view[marker]=n.id;
+  view.mountControls(n,element,{register:(dispose:()=>void)=>disposers.push(dispose)});
+  f.style.width='420px';f.style.height='470px';f.writes.length=0;
+  for(const type of ['focusout','focusin','pointerenter']){
+   element.dispatchEvent(new Event(type));
+   assert.equal(view[marker],n.id,'moving focus does not finish the retained inline draft');
+   assert.deepEqual([f.style.width,f.style.height],['420px','470px'],`${kind} ${marker} ${type}: live draft geometry must survive`);
+   assert.ok(!f.writes.includes('width')&&!f.writes.includes('height'),'dock events must not reset an expanded editor');
+  }
+  assert.deepEqual(n,before,'presentation must not write the draft dimensions into the source');
+  assert.ok(Number.isFinite(parseFloat(f.properties.get('--ts-control-top')!)),'dock placement still updates');
+  disposers.forEach(dispose=>dispose());
+ }
+});
+
+test('dock events still synchronize a different node and released inline drafts, with cleanup',()=>{
+ const view=new ControlView(),f=surface(),n=node({x:45,y:65}),classes=f.classes;
+ const element=Object.assign(new EventTarget(),f.element,{
+  isConnected:true,ownerDocument:{activeElement:null},contains:()=>false,
+  classList:{contains:(name:string)=>classes.has(name),add:(name:string)=>classes.add(name),remove:(name:string)=>classes.delete(name)},
+ });
+ const disposers:(()=>void)[]=[];
+ view.selected=new Set([n.id]);view.session={board:{viewport:{x:0,y:0,zoom:1},nodes:[n]}};view.cardToolbarObstacles=[];
+ view.controlStageSize={width:900,height:600};view.connectionCandidates=[n];view.inlineId='another';view.inlineTarget='another';
+ view.mountControls(n,element,{register:(dispose:()=>void)=>disposers.push(dispose)});
+ f.style.width='420px';f.style.height='470px';element.dispatchEvent(new Event('focusin'));
+ assert.deepEqual([f.style.left,f.style.top,f.style.width,f.style.height],['45px','65px','300px','180px']);
+ view.inlineId=n.id;f.style.width='420px';f.style.height='470px';element.dispatchEvent(new Event('focusout'));
+ assert.deepEqual([f.style.width,f.style.height],['420px','470px']);
+ view.inlineId=undefined;view.inlineTarget=undefined;element.dispatchEvent(new Event('focusout'));
+ assert.deepEqual([f.style.width,f.style.height],['300px','180px'],'after editing ends the source geometry applies again');
+ disposers.forEach(dispose=>dispose());f.writes.length=0;
+ for(const type of ['focusout','focusin','pointerenter'])element.dispatchEvent(new Event(type));
+ assert.deepEqual(f.writes,[],'unloaded scopes cannot position stale nodes');
 });
 
 test('folded section presentation tracks compact geometry without mutating logical bounds',()=>{
