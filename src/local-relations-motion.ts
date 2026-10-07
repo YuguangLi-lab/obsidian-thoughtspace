@@ -48,32 +48,38 @@ export class LocalRelationMotion {
   try{
    if(root!==snapshot.root||!this.attached(root,snapshot.document,snapshot.window))return;
    if(!this.ready(root,snapshot.document,snapshot.window)){this.finish(onFinish);return;}
-   const rootRect=root.offsetWidth>0||root.offsetHeight>0?root.getBoundingClientRect():undefined;
+   const localWidth=root.offsetWidth,localHeight=root.offsetHeight;
+   const rootRect=localWidth>0||localHeight>0?root.getBoundingClientRect():undefined;
    const ratio=(screen:number|undefined,local:number)=>screen&&local>0&&Number.isFinite(screen/local)&&screen/local>0?screen/local:1;
-   const scaleX=ratio(rootRect?.width,root.offsetWidth),scaleY=ratio(rootRect?.height,root.offsetHeight);
-   const completion:{callback?:()=>void;building:boolean}={callback:onFinish,building:true};this.completion=completion;
-   for(const pill of this.pills(root).slice(0,limit)){
-    if(!this.ready(root,snapshot.document,snapshot.window)){this.cancel();return;}
+   const scaleX=ratio(rootRect?.width,localWidth),scaleY=ratio(rootRect?.height,localHeight);
+   // Capture all destination rectangles before starting any effect. Alternating
+   // animate()/visibility reads forces Chromium to recalculate styles per pill.
+   const pills=this.pills(root),planned:{element:HTMLElement;frames:Keyframe[]}[]=[];
+   for(const pill of pills.slice(0,limit)){
     const next=this.rect(pill.element);if(!next||typeof pill.element.animate!=='function')continue;
     const old=snapshot.rects.get(pill.id);let frames:Keyframe[];
     if(old){
      const x=old.left-next.left,y=old.top-next.top,sx=old.width/next.width,sy=old.height/next.height;
      if(![x,y,sx,sy].every(Number.isFinite))continue;
      if(Math.abs(x)<.5&&Math.abs(y)<.5&&Math.abs(old.width-next.width)<.5&&Math.abs(old.height-next.height)<.5)continue;
-     // Rectangle deltas are screen pixels; a board's scaled world transforms CSS
-     // pixels again. Convert back to local coordinates to preserve the old origin.
      frames=[{transformOrigin:'0 0',transform:`translate(${x/scaleX}px, ${y/scaleY}px) scale(${sx}, ${sy})`},{transformOrigin:'0 0',transform:'none'}];
     }else frames=[{opacity:0},{opacity:1}];
+    planned.push({element:pill.element,frames});
+   }
+   const completion:{callback?:()=>void;building:boolean}={callback:onFinish,building:true};this.completion=completion;
+   for(const pill of planned){
+    if(!this.current(root,snapshot.document,snapshot.window)){this.cancel();return;}
     try{
-     const animation=pill.element.animate(frames,{duration,easing:'cubic-bezier(0.22, 1, 0.36, 1)',fill:'none'});
+     const animation=pill.element.animate(pill.frames,{duration,easing:'cubic-bezier(0.22, 1, 0.36, 1)',fill:'none'});
+     if(this.completion!==completion){animation.cancel();return;}
      this.animations.add(animation);
      animation.onfinish=()=>{this.animations.delete(animation);animation.onfinish=null;animation.oncancel=null;if(this.completion===completion&&!completion.building&&!this.animations.size){this.completion=undefined;this.finish(completion.callback);}};
      animation.oncancel=()=>{if(this.completion===completion)this.cancel();};
-     if(!this.ready(root,snapshot.document,snapshot.window)){this.cancel();return;}
+     if(!this.current(root,snapshot.document,snapshot.window)){this.cancel();return;}
     }catch{/* One unsupported or detached pill must not block other navigation. */}
    }
    if(snapshot.ghosts){
-    const visible=new Set(this.pills(root).map(pill=>pill.id));
+    const visible=new Set(pills.map(pill=>pill.id));
     for(const [id,ghost] of snapshot.ghosts){
      const old=snapshot.rects.get(id);if(visible.has(id)||!old||!rootRect||typeof ghost.animate!=='function')continue;
      ghost.removeAttribute('id');for(const child of Array.from(ghost.querySelectorAll('[id]')))child.removeAttribute('id');
@@ -85,6 +91,10 @@ export class LocalRelationMotion {
      animation.oncancel=()=>{if(this.completion===completion)this.cancel();};
     }
    }
+   // A lifecycle/preference check after effects must not read layout again.
+   // Visibility was checked before the read phase; hidden effects are harmless
+   // and the next capture rechecks visibility before reading their positions.
+   if(!this.current(root,snapshot.document,snapshot.window)||snapshot.window.matchMedia?.('(prefers-reduced-motion: reduce)').matches){this.cancel();return;}
    completion.building=false;
    if(this.completion===completion&&!this.animations.size){this.completion=undefined;this.finish(completion.callback);}
   }catch{this.cancel();this.finish(onFinish);}
@@ -99,8 +109,9 @@ export class LocalRelationMotion {
 
  private finish(callback?:()=>void){try{callback?.();}catch{/* Visual cleanup cannot interrupt navigation. */}}
  private attached(root:HTMLElement,doc:Document,win:Window):boolean {
-  return root.isConnected&&root.ownerDocument===doc&&doc.defaultView===win&&!win.closed&&root.getClientRects().length>0;
+  return this.current(root,doc,win)&&root.getClientRects().length>0;
  }
+ private current(root:HTMLElement,doc:Document,win:Window):boolean {return root.isConnected&&root.ownerDocument===doc&&doc.defaultView===win&&!win.closed;}
  private ready(root:HTMLElement,doc:Document,win:Window):boolean {
   return this.attached(root,doc,win)&&!win.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
  }

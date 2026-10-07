@@ -16,6 +16,7 @@ import * as brain from '../src/brain-board';
 import * as creation from '../src/brain-board-create';
 import {reflowReadingContent} from '../src/expansion-reading-state';
 import {emptyBoard,clone,type Board,type Card} from '../src/model';
+import * as brainColors from '../src/brain-colors';
 
 class Doc {
  focused=true;hasFocus(){return this.focused;}
@@ -59,7 +60,7 @@ class Component {
 class MenuItem {submenu?:Menu;setSubmenu(){return this.submenu??=new Menu();}title='';icon='';disabled=false;callback=()=>{};setTitle(value:string){this.title=value;return this;}setIcon(value:string){this.icon=value;return this;}setDisabled(value:boolean){this.disabled=value;return this;}onClick(fn:()=>void){this.callback=fn;return this;}click(){if(!this.disabled)this.callback();}}
 class Menu {static last:Menu;items:MenuItem[]=[];native=true;shown?:string;doc?:Doc;hidden=false;private onHidden=()=>{};constructor(){Menu.last=this;}setUseNativeMenu(value:boolean){this.native=value;return this;}addItem(fn:(item:MenuItem)=>void){const item=new MenuItem();fn(item);this.items.push(item);return this;}addSeparator(){}showAtMouseEvent(){Menu.last=this;this.shown='mouse';}showAtPosition(_position:any,doc:Doc){Menu.last=this;this.shown='keyboard';this.doc=doc;}onHide(fn:()=>void){this.onHidden=fn;}hide(){this.hidden=true;this.onHidden();}}
 const source=readFileSync('src/brain-board-view.ts','utf8').replace(/^import[^\n]*\n/gm,'').replace(/\bexport /g,'');
-const deps={...descendants,...ports,LocalRelationMotion,...state,...relations,...layout,...creation,Component,Menu,setIcon(el:El,icon:string){el.dataset.icon=icon;}};
+const deps={...brainColors,...descendants,...ports,LocalRelationMotion,...state,...relations,...layout,...creation,Component,Menu,setIcon(el:El,icon:string){el.dataset.icon=icon;}};
 const {BrainBoardView:View,sideActionPositions}=new Function(...Object.keys(deps),transformSync(source+'\nreturn {BrainBoardView,sideActionPositions};',{loader:'ts'}).code)(...Object.values(deps));
 const card=(id:string,kind:Card['kind']='card'):Card=>({id,kind,title:'标题 '+id,file:kind==='card'?`Notes/${id}.md`:kind==='board'?`Boards/${id}.thoughtspace`:undefined,x:10,y:20,width:120,height:80,color:'slate'});
 function fixture(){
@@ -225,6 +226,31 @@ test('owning board rename replaces async preview scope without losing navigation
 test('mount/refresh/resize never saves camera while explicit zoom debounces and flushes before close',()=>{const f=fixture();f.view.refresh();assert.equal(f.viewports.length,0);action(f.el,'zoom-in').click();action(f.el,'zoom-in').click();assert.equal(f.viewports.length,0);assert.equal(f.doc.timers.size,1);f.view.unload();assert.equal(f.viewports.length,1);assert.equal(f.doc.timers.size,0);assert.ok(f.viewports[0].zoom>.72);});
 test('camera intent cannot save into a replacement session',()=>{const f=fixture();action(f.el,'zoom-in').click();f.setSnapshot({...f.snapshot,key:{}});f.view.flushViewport();assert.equal(f.viewports.length,0);});
 test('ordinary wheel pans only the graph and preview wheel retains native scrolling',()=>{const f=fixture(),stage=f.el.querySelector('.ts-brain-stage')!,before=clone(f.board.nodes);const event=stage.dispatch('wheel',{deltaX:20,deltaY:40});assert.equal(event.defaultPrevented,true);assert.equal(event.stopped,true);f.view.flushViewport();assert.equal(f.viewports.length,1);assert.deepEqual(clone(f.board.nodes),before);action(node(f,'a'),'expand').click();const wheel=f.previews[0].body.dispatch('wheel',{deltaY:30});assert.equal(wheel.defaultPrevented,false);assert.equal(wheel.stopped,true);});
+
+test('wheel bursts accumulate the exact latest camera but project once per frame',()=>{
+ const f=fixture(),stage=f.el.querySelector('.ts-brain-stage')!,camera={...f.view.camera};let writes=0;const transform=f.view.transform.bind(f.view);f.view.transform=()=>{writes++;transform();};
+ for(let i=0;i<12;i++)stage.dispatch('wheel',{deltaX:2,deltaY:3});assert.equal(writes,0);assert.equal(f.doc.frames.size,1);assert.equal(f.view.camera.x,camera.x-24);assert.equal(f.view.camera.y,camera.y-36);
+ f.doc.tick();assert.equal(writes,1);assert.equal(f.doc.frames.size,0);f.view.flushPendingViewport();assert.deepEqual(f.viewports[0],f.view.camera);
+});
+test('zoom bursts preserve changing anchors while DOM projection is deferred',()=>{
+ const f=fixture(),stage=f.el.querySelector('.ts-brain-stage')!;let expected={...f.view.camera};
+ for(const [x,y,delta]of [[100,80,-20],[200,120,30],[90,70,-10]]){const zoom=Math.max(.2,Math.min(2.5,expected.zoom*Math.exp(-delta*.002))),scale=zoom/expected.zoom;expected={x:x-(x-expected.x)*scale,y:y-(y-expected.y)*scale,zoom};stage.dispatch('wheel',{clientX:x,clientY:y,deltaY:delta,ctrlKey:true});}
+ assert.deepEqual(f.view.camera,expected);assert.equal(f.doc.frames.size,1);f.doc.tick();assert.equal(f.view.scene.style.transform,`translate(${expected.x}px, ${expected.y}px) scale(${expected.zoom})`);
+});
+test('zoom scale variables are scoped to consuming controls instead of the whole brain shell',()=>{
+ const f=fixture();f.view.zoomAt(.5);assert.equal(f.view.shell.style.getPropertyValue('--brain-action-scale'),'');assert.equal(f.view.shell.style.getPropertyValue('--brain-port-scale'),'');
+ for(const item of f.view.nodes.values()){assert.equal(item.actions.style.getPropertyValue('--brain-action-scale'),'2');assert.equal(item.title.style.getPropertyValue('--brain-action-scale'),'');assert.equal(item.root.style.getPropertyValue('--brain-action-scale'),'');if(item.root.dataset.brainRole==='center')for(const anchor of item.anchors)if(!anchor.hidden)assert.equal(anchor.style.getPropertyValue('--brain-port-scale'),'2');}
+});
+test('refresh preserves unchanged title and expansion icon DOM but still reflects edits',()=>{
+ const f=fixture(),item=f.view.nodes.get('b');let textWrites=0,iconWrites=0;const setText=item.label.setText.bind(item.label);item.label.setText=(text:string)=>{textWrites++;setText(text);};item.expand.dataset=new Proxy(item.expand.dataset,{set(target:Record<string,string>,key:string,value:string){if(key==='icon')iconWrites++;target[key]=value;return true;}});
+ f.view.refresh();assert.equal(textWrites,0);assert.equal(iconWrites,0);action(node(f,'b'),'expand').click();assert.equal(iconWrites,1);f.view.refresh();assert.equal(iconWrites,1);action(node(f,'b'),'expand').click();assert.equal(iconWrites,2);f.board.nodes.find(n=>n.id==='b')!.title='Changed title';f.view.refresh();assert.equal(textWrites,1);assert.equal(item.label.textContent,'Changed title');assert.equal(iconWrites,2);
+});
+test('pointer cancellation projects and saves the final input without leaving a frame',()=>{
+ const f=fixture(),stage=f.el.querySelector('.ts-brain-stage')!;const before={...f.view.camera};stage.dispatch('pointerdown',{pointerId:9,clientX:10,clientY:20});stage.dispatch('pointermove',{pointerId:9,clientX:60,clientY:80});assert.equal(f.doc.frames.size,1);stage.dispatch('pointercancel',{pointerId:9});assert.equal(f.doc.frames.size,0);assert.equal(f.view.camera.x,before.x+50);assert.equal(f.view.camera.y,before.y+60);f.view.flushPendingViewport();assert.deepEqual(f.viewports[0],f.view.camera);
+});
+test('replacement refresh and unload cannot render a stale scheduled camera',()=>{
+ for(const boundary of ['refresh','unload']){const f=fixture(),stage=f.el.querySelector('.ts-brain-stage')!;stage.dispatch('wheel',{deltaY:20});assert.equal(f.doc.frames.size,1);if(boundary==='refresh'){f.setSnapshot({...f.snapshot,board:{...clone(f.board),brainViewport:{x:4,y:5,zoom:1.2}},key:{}});f.view.refresh();assert.deepEqual(f.view.camera,{x:4,y:5,zoom:1.2});}else f.view.unload();assert.equal(f.doc.frames.size,0);f.doc.tick();}
+});
 test('removed center stays explicit and history back recovers without choosing arbitrary replacement',()=>{const f=fixture();title(f,'a').click();f.board.nodes=f.board.nodes.filter(node=>node.id!=='a');const saves=f.saves.length;f.view.refresh();assert.match(f.el.textContent,/中心节点已移除/);assert.equal(f.saves.length,saves);action(f.el,'back').click();assert.equal(f.board.brain!.centerId,'b');});
 test('empty dedicated board guides existing knowledge with one usable add intent and no synthetic node',()=>{const f=fixture();f.board.nodes=[];f.board.edges=[];f.board.brain=state.createBoardMindmapState();f.view.refresh();const empty=f.el.querySelector('.ts-brain-empty')!;assert.equal(f.el.querySelectorAll('.ts-brain-node').length,0);assert.match(empty.textContent,/从已有知识开始/);assert.match(empty.textContent,/仓库中的笔记或子白板/);assert.match(empty.textContent,/第一个节点将成为中心/);assert.equal(empty.querySelectorAll('button').length,1);assert.equal(action(empty,'add').getAttribute('aria-label'),'添加知识节点');action(empty,'add').click();assert.equal(f.added,1);assert.equal(f.saves.length,0);});
 test('large neighborhoods and search are bounded with reachable next pages',()=>{const f=fixture();for(let i=0;i<50;i++){f.board.nodes.push(card('extra'+i));f.board.edges.push({id:'extra'+i,from:'b',to:'extra'+i,label:''});}f.view.refresh();assert.ok(f.el.querySelectorAll('.ts-brain-node').length<=20);const first=f.el.querySelectorAll('.ts-brain-node').map(item=>item.dataset.brainNodeId);action(f.el,'next-page').click();assert.ok(f.el.querySelectorAll('.ts-brain-node').some(item=>!first.includes(item.dataset.brainNodeId)));const input=f.el.querySelector('input')!;input.dispatch('focus');assert.equal(f.el.querySelectorAll('.ts-brain-search-result').length,10);assert.equal(f.saves.length,0);});
@@ -273,7 +299,7 @@ test('refresh reads stage dimensions once before graph writes and later resize o
  scene.style=new Proxy(scene.style,{set(target,key,value){events.push('write:scene');return Reflect.set(target,key,value);}});
  const setAttribute=svg.setAttribute.bind(svg);svg.setAttribute=(name,value)=>{events.push('write:svg');setAttribute(name,value);};
  const measuredOnceBeforeWrites=()=>{assert.equal(events.filter(event=>event==='read:width').length,1);assert.equal(events.filter(event=>event==='read:height').length,1);const firstWrite=events.findIndex(event=>event.startsWith('write:'));assert(firstWrite>=0);assert(events.indexOf('read:width')<firstWrite,'Stage width must be read before graph DOM writes');assert(events.indexOf('read:height')<firstWrite,'Stage height must be read before graph DOM writes');};
- const centered=()=>{const camera=f.view.camera,display=f.view.layout;assert(Math.abs(camera.x+display.width*camera.zoom/2-width/2)<1e-8);assert(Math.abs(camera.y+display.height*camera.zoom/2-height/2)<1e-8);};
+ const centered=()=>{const camera=f.view.camera,display=f.view.layout;assert(Math.abs(camera.x+display.width*camera.zoom/2-width/2)<1e-8);assert(Math.abs(camera.y+display.height*camera.zoom/2-(f.view.fitAll?Math.max(160,height-(f.view.pager.hidden?76:144)):height)/2)<1e-8);};
  f.view.refresh();measuredOnceBeforeWrites();centered();assert.equal(f.view.layout.width,1200);assert.equal(f.viewports.length,0);
  events.length=0;width=1600;height=1000;f.view.refresh();measuredOnceBeforeWrites();centered();assert.equal(f.view.layout.width,1600);assert.equal(f.viewports.length,0);
  const zoom=f.view.camera.zoom;events.length=0;width=500;height=300;f.view.fitToCanvas();measuredOnceBeforeWrites();centered();assert(f.view.camera.zoom<zoom);assert(f.view.layout.width*f.view.camera.zoom<=width);assert(f.view.layout.height*f.view.camera.zoom<=height);assert.equal(f.viewports.length,0);
@@ -395,4 +421,23 @@ test('node menus keep rename on the first level and nest all creation, relation 
 test('associated depth preference renders further hops, resets on depth one and survives state replacement',()=>{
  const f=fixture();for(let i=1;i<=5;i++){f.board.nodes.push(card('assoc-'+i));f.board.edges.push({id:'assoc-e-'+i,from:i===1?'b':'assoc-'+(i-1),to:'assoc-'+i,direction:'both',fromSide:'right',toSide:'left',label:''});}
  f.snapshot.graphRevision=1;f.view.refresh();f.view.update({type:'depth',value:5});assert(node(f,'assoc-5'));assert.equal(node(f,'assoc-5').dataset.brainDepth,'5');const saved=clone(f.board);f.setSnapshot({...f.snapshot,board:clone(saved)});f.view.refresh();assert(node(f,'assoc-5'));f.view.update({type:'depth',value:1});assert.equal(node(f,'assoc-2'),undefined);assert(node(f,'assoc-1'));
+});
+
+test('color previews never rebuild the projection, render sources, save or change camera; cancellation restores saved values',()=>{
+ const f=fixture(),nodeRefs=[...f.view.nodes.values()],renders=f.view.renders,camera={...f.view.camera},saveCount=f.saves.length,frameCount=f.doc.frames.size;
+ f.board.brainColors={node:'#aabbcc'};f.view.refresh();const stableRenders=f.view.renders;
+ for(let i=0;i<100;i++)f.view.previewColors({background:'#111111',node:'#ffffff',text:'#123456',line:'#abcdef'});
+ assert.equal(f.view.renders,stableRenders);assert.deepEqual([...f.view.nodes.values()],nodeRefs);assert.equal(f.saves.length,saveCount);assert.equal(f.doc.frames.size,frameCount+1);f.doc.tick();assert.deepEqual(f.view.camera,camera);assert.deepEqual(f.board.brainColors,{node:'#aabbcc'});
+ assert.equal(f.view.nodes.get('b').title.style.getPropertyValue('--brain-custom-text'),'#123456');f.view.previewColors(null);
+ assert.equal(f.view.nodes.get('b').title.style.getPropertyValue('--brain-custom-text'),'');assert.equal(f.view.nodes.get('b').pill.style.getPropertyValue('--brain-custom-node'),'#aabbcc');assert(stableRenders>renders);assert.equal(f.view.shell.style.getPropertyValue('--brain-custom-node'),'');assert.equal(f.view.shell.style.getPropertyValue('--brain-custom-text'),'');
+});
+test('external palette change and owner switch discard stale preview without leaking to another brain',()=>{
+ const f=fixture();f.view.previewColors({node:'#ffffff'});f.board.brainColors={node:'#112233'};f.view.refresh();assert.equal(f.view.nodes.get('b').pill.style.getPropertyValue('--brain-custom-node'),'#112233');
+ f.view.previewColors({text:'#123456'});f.setSnapshot({...f.snapshot,key:{},path:'Other.thoughtspace',board:{...f.board,brainColors:undefined}});f.view.refresh();assert.equal(f.view.nodes.get('b').title.style.getPropertyValue('--brain-custom-text'),'');assert.equal(f.view.nodes.get('b').pill.style.getPropertyValue('--brain-custom-node'),'');
+});
+test('cancelling or unloading before the color frame runs prevents deferred draft paint',()=>{
+ for(const cancel of ['cancel','unload']){const f=fixture(),pill=f.view.nodes.get('b').pill;f.view.previewColors({node:'#ffffff'});assert(f.view.colorFrame);if(cancel==='cancel')f.view.previewColors(null);else f.view.unload();assert.equal(f.view.colorFrame,0);f.doc.tick();assert.equal(pill.style.getPropertyValue('--brain-custom-node'),'');}
+});
+test('a queued preview rechecks ownership and readonly status even before the next graph refresh',()=>{
+ for(const change of ['owner','readonly','palette']){const f=fixture();f.view.previewColors({node:'#ffffff'});if(change==='owner')f.setSnapshot({...f.snapshot,key:{},path:'Other.thoughtspace'});if(change==='readonly')f.setSnapshot({...f.snapshot,readOnly:true});if(change==='palette')f.board.brainColors={node:'#123456'};f.doc.tick();assert.equal(f.view.nodes.get('b').pill.style.getPropertyValue('--brain-custom-node'),change==='palette'?'#123456':'');assert.equal(f.view.colorPreview,undefined);}
 });

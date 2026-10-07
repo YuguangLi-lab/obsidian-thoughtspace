@@ -176,3 +176,9 @@ node scripts/install.mjs "/absolute/path/to/your/vault"
 [MIT](LICENSE)。第三方组件与许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 数据访问、可选图床和兼容性说明见 [SECURITY.md](SECURITY.md)；参与开发见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+## 知识脑图
+
+新建菜单支持独立脑图，保留想法、来源笔记/白板、重命名、精简节点菜单及父子/关联 1–5 层。大图通过分页与搜索继续访问其余节点。
+
+每板配色入口为 **脑图设置 → 背景与配色 → 脑图配色…**，或底栏 **白板背景 → 脑图配色…**。背景、节点、文字和连线可独立预览与保存；取消还原，留空跟随主题，恢复默认仅清除四项颜色。性能、界面验收与未解决限制见 [本轮验证报告](qa/BRAIN-PERFORMANCE-COLORS.md)。

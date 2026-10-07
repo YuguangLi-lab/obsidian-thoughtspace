@@ -1,5 +1,17 @@
 # 更新记录
 
+## 1.3.31
+
+### 脑图性能、界面与每板配色（2026-10-07）
+
+- 拖动与滚轮每帧合并相机呈现，将缩放变量限定在实际控件；动画先读取位置再启动，未变标题和图标保留 DOM。原节点预算、分页、关系方向与 480 ms 导航动画保持。
+- 精简顶栏和底栏，改善长中文标题、节点与连线层级、四向提示、创建/重命名字段及弹窗间距；显式适应画布为底栏与分页留白。
+- 每张脑图可独立设置背景、节点底色、文字、连线。入口：**脑图设置 → 背景与配色 → 脑图配色…**，或底栏 **白板背景 → 脑图配色…**。留空跟随主题，取消/Escape 还原，确认与恢复默认支持保存、撤销/重做和重开。
+- 预览按帧更新颜色，不重建节点、布局或索引；并发修改、切板与保存失败保留可见反馈。重置只处理四项配色，保留纸张/图片背景参数；低对比选择给建议而不替换用户颜色。
+- Brain boards gain board-local colors, clearer long titles and dialogs, and less repeated style/DOM work. Existing compact menus, rename, new boards and 1–5 parent/child and association hops remain available.
+
+验收、可复现自制样本与性能边界见 [本轮验证报告](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.31/qa/BRAIN-PERFORMANCE-COLORS.md)。千节点测试使用分页投影，初始挂载 48、几何可见 38 个节点；不表示同时显示千节点。配色交错复验未稳定重现首次升高，但保留小样式成本和尾部波动。历史内存增长、illegal access 和深层关系交叉未解决，第三方主题、低端设备和长期运行未测。
+
 ## 1.3.30
 
 ### 独立脑图白板、精简菜单与关联层级（2026-10-05）

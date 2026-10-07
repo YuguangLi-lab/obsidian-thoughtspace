@@ -1,15 +1,19 @@
 /* Dedicated brain boards keep their own canvas; ordinary boards and embedded
    mindmaps retain their existing geometry and controls. Colors follow Obsidian. */
+/* Scale is consumed on each control itself. Avoid recascading zoom updates
+   through its icon and tooltip descendants; older hosts keep the var fallback. */
+@property --brain-action-scale { syntax:"<number>"; inherits:false; initial-value:1; }
+@property --brain-port-scale { syntax:"<number>"; inherits:false; initial-value:1; }
 .ts-root.ts-brain-board > .ts-topbar,
 .ts-root.ts-brain-board > .ts-body,
 .view-header.ts-brain-native-header { display:none; }
 .ts-root.ts-brain-board { padding:0; overflow:hidden; }
 .ts-brain-host { flex:1; width:100%; height:100%; min-width:0; min-height:0; overflow:hidden; }
 .ts-brain-shell {
- --brain-line:color-mix(in srgb,var(--text-muted) 72%,var(--background-primary));
+ --brain-line:color-mix(in srgb,var(--text-muted) 86%,var(--background-primary));
  --brain-node:color-mix(in srgb,var(--background-secondary) 76%,var(--background-primary));
- --brain-outline:color-mix(in srgb,var(--background-modifier-border) 78%,var(--text-muted));
- --brain-gutter:24px;
+ --brain-outline:color-mix(in srgb,var(--text-muted) 60%,var(--background-modifier-border));
+ --brain-gutter:20px;
  --brain-state-duration:140ms;
  position:relative; display:flex; flex-direction:column; width:100%; height:100%; min-width:0; min-height:0;
  overflow:hidden; color:var(--text-normal); background:var(--background-primary); font-family:var(--font-interface); outline:none; container:ts-brain / inline-size;
@@ -28,12 +32,12 @@
 .ts-brain-shell .clickable-icon:disabled { opacity:.35; cursor:default; }
 .ts-brain-shell .clickable-icon svg { flex:none; width:18px; height:18px; }
 .ts-brain-topbar {
- position:relative; z-index:20; display:flex; align-items:center; flex:none; gap:12px; height:60px; padding:0 var(--brain-gutter);
+ position:relative; z-index:20; display:flex; align-items:center; flex:none; gap:12px; height:48px; padding:0 var(--brain-gutter);
  border-bottom:1px solid var(--background-modifier-border); background:var(--background-secondary);
 }
-.ts-brain-brand { display:flex; align-items:center; gap:12px; flex:none; color:var(--text-normal); font-size:16px; font-weight:600; letter-spacing:.01em; white-space:nowrap; }
+.ts-brain-brand { display:flex; align-items:center; gap:8px; flex:none; color:var(--text-normal); font-size:14px; font-weight:600; white-space:nowrap; }
 .ts-brain-brand-icon { display:flex; color:var(--interactive-accent); }
-.ts-brain-brand-icon svg { width:23px; height:23px; }
+.ts-brain-brand-icon svg { width:20px; height:20px; }
 .ts-brain-navigation { display:flex; align-items:center; gap:2px; height:24px; padding-left:12px; margin-left:16px; border-left:1px solid var(--background-modifier-border); }
 .ts-brain-search {
  position:absolute; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:8px; width:clamp(210px,30%,466px); height:36px; padding:0 12px;
@@ -62,28 +66,34 @@
 .ts-brain-links { position:absolute; top:0; left:0; overflow:visible; pointer-events:none; }
 .ts-brain-links path { fill:none; stroke:var(--brain-line); stroke-width:1.2; stroke-linecap:round; stroke-linejoin:round; vector-effect:non-scaling-stroke; }
 .ts-brain-links marker path { fill:var(--brain-line); stroke:none; }
-.ts-brain-links path.is-associated { stroke:color-mix(in srgb,var(--interactive-accent) 32%,var(--brain-line)); stroke-dasharray:3 5; }
+.ts-brain-links path.is-associated { stroke:color-mix(in srgb,var(--interactive-accent) 24%,var(--brain-line)); stroke-dasharray:3 5; }
 .ts-brain-labels { pointer-events:none; }
-.ts-brain-labels span { position:absolute; transform:translate(-50%,-50%); color:var(--text-muted); font-size:13px; font-weight:500; letter-spacing:.12em; white-space:nowrap; }
+.ts-brain-labels span { position:absolute; transform:translate(-50%,-50%); color:var(--text-muted); font-size:12px; font-weight:500; letter-spacing:.04em; white-space:nowrap; }
 .ts-brain-node { position:absolute; z-index:2; }
 .ts-brain-node:hover,.ts-brain-node:has(:focus-visible) { z-index:5; }
 .ts-brain-node.is-expanded { z-index:8; }
-.ts-brain-pill { position:relative; display:flex; align-items:center; width:100%; border:1px solid var(--brain-outline); border-radius:100px; background:var(--brain-node); transition:background-color var(--brain-state-duration) ease-out,border-color var(--brain-state-duration) ease-out,box-shadow var(--brain-state-duration) ease-out; }
+.ts-brain-pill { position:relative; display:flex; align-items:center; width:100%; border:1px solid var(--brain-outline); border-radius:12px; background:var(--brain-node); transition:background-color var(--brain-state-duration) ease-out,border-color var(--brain-state-duration) ease-out; }
 .ts-brain-pill:hover,.ts-brain-pill:has(:focus-visible) { border-color:color-mix(in srgb,var(--interactive-accent) 50%,var(--background-modifier-border)); background:color-mix(in srgb,var(--interactive-accent) 5%,var(--brain-node)); }
-.ts-brain-node .ts-brain-node-title { display:flex; width:100%; height:100%; padding:8px 20px; border-radius:inherit; color:var(--text-normal); font-size:17px; font-weight:400; line-height:1.5; text-align:center; }
+.ts-brain-node .ts-brain-node-title { display:flex; width:100%; height:100%; padding:8px 14px; border-radius:inherit; color:var(--text-normal); font-size:16px; font-weight:400; line-height:1.45; text-align:center; }
 .ts-brain-node-label { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .ts-brain-node .ts-brain-node-title:hover:not(:disabled) { background:transparent; }
+.ts-brain-node .ts-brain-node-title:disabled { opacity:1; cursor:default; }
 .ts-brain-node .ts-brain-node-title:focus-visible { outline-offset:4px; }
+.ts-brain-node.has-long-title:not(.is-center) .ts-brain-node-title { padding:4px 12px; font-size:14px; }
+.ts-brain-node.has-long-title:not(.is-center) .ts-brain-node-label { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; white-space:normal; line-height:1.4; overflow-wrap:anywhere; }
 .ts-brain-node.is-center .ts-brain-pill { border:1.5px solid color-mix(in srgb,var(--interactive-accent) 72%,var(--text-normal)); background:color-mix(in srgb,var(--interactive-accent) 13%,var(--background-primary)); }
 .ts-brain-node.is-center .ts-brain-pill:hover,.ts-brain-node.is-center .ts-brain-pill:has(:focus-visible) { background:color-mix(in srgb,var(--interactive-accent) 18%,var(--background-primary)); }
-.ts-brain-node.is-center .ts-brain-node-title { font-size:24px; font-weight:var(--font-semibold,600); letter-spacing:.01em; }
-.ts-brain-node.is-center.has-long-title .ts-brain-node-title { font-size:20px; }
+.ts-brain-node.is-center .ts-brain-node-title { font-size:22px; font-weight:var(--font-semibold,600); }
+.ts-brain-node.is-center.has-long-title .ts-brain-node-title { font-size:18px; }
 .ts-brain-node.is-center.has-long-title .ts-brain-node-label { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; white-space:normal; text-wrap:balance; line-height:1.3; }
+.ts-brain-node.is-center.has-extended-title .ts-brain-node-title { padding:3px 12px; font-size:16px; }
+.ts-brain-node.is-center.has-extended-title .ts-brain-node-label { text-wrap:wrap; -webkit-line-clamp:3; overflow-wrap:anywhere; }
 /* A: a small port at rest; only the pointed or focused direction shows a plus.
    The 32px transparent hit area is positioned outside reading geometry by the view. */
 .ts-brain-shell .clickable-icon.ts-brain-anchor { display:none; position:absolute; z-index:9; width:32px; height:32px; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; color:var(--interactive-accent); transform:scale(var(--brain-port-scale,1)); transform-origin:0 0; outline:none; }
 .ts-brain-node.is-center .ts-brain-anchor:not([hidden]) { display:inline-flex; }
 .ts-brain-shell .clickable-icon.ts-brain-anchor:is(:hover,:focus-visible,:active) { background:transparent; color:var(--interactive-accent); box-shadow:none; outline:none; }
+.ts-brain-shell .clickable-icon.ts-brain-anchor:focus-visible { outline:2px solid var(--interactive-accent); outline-offset:-3px; border-radius:6px; }
 .ts-brain-shell .ts-brain-anchor svg { width:14px; height:14px; opacity:0; }
 .ts-brain-port-dot { position:absolute; width:5px; height:5px; border-radius:50%; background:var(--interactive-accent); opacity:.7; }
 .ts-brain-anchor.is-top .ts-brain-port-dot { bottom:0; }
@@ -95,6 +105,9 @@
 .ts-brain-shell .ts-brain-anchor:active svg { transform:scale(.9); }
 .ts-brain-port-tip { display:none; position:absolute; bottom:calc(100% + 4px); left:50%; transform:translateX(-50%); padding:4px 7px; border:1px solid var(--background-modifier-border); border-radius:var(--radius-s); background:var(--background-primary); color:var(--text-normal); font-size:11px; font-weight:400; white-space:nowrap; pointer-events:none; }
 .ts-brain-anchor:is(:hover,:focus-visible) .ts-brain-port-tip { display:block; }
+.ts-brain-anchor.is-bottom .ts-brain-port-tip { top:calc(100% + 4px); bottom:auto; }
+.ts-brain-anchor.is-left .ts-brain-port-tip { top:50%; bottom:auto; right:calc(100% + 4px); left:auto; transform:translateY(-50%); }
+.ts-brain-anchor.is-right .ts-brain-port-tip { top:50%; bottom:auto; left:calc(100% + 4px); transform:translateY(-50%); }
 .ts-brain-node.is-center .ts-brain-node-actions { bottom:calc(100% + 40px * var(--brain-action-scale,1)); }
 .ts-brain-node.is-center .ts-brain-node-actions::after { height:42px; }
 .ts-brain-create-target { margin-top:12px; }
@@ -114,7 +127,9 @@
 .ts-brain-node[data-brain-actions-side=left] .ts-brain-node-actions::after { right:auto; left:100%; }
 .ts-brain-node.is-compact-actions .ts-brain-node-actions { left:auto; right:calc(6px * var(--brain-action-scale,1)); padding:0; border:0; background:transparent; box-shadow:none; transform-origin:top right; }
 .ts-brain-node.is-compact-actions .ts-brain-node-actions::after { display:none; }
-.ts-brain-node.is-compact-actions .ts-brain-node-title { padding-right:calc(44px * var(--brain-action-scale,1)); }
+/* Compact tools overlay on hover; reserving unscaled tool width here erased
+   short titles when the canvas was zoomed out. Pill reading width stays stable. */
+.ts-brain-node.is-compact-actions .ts-brain-node-title { padding-right:14px; }
 .ts-brain-node.is-pinned .ts-brain-pill::after { content:''; position:absolute; left:12px; top:calc(50% - 2px); width:4px; height:4px; border-radius:50%; background:var(--interactive-accent); }
 .ts-brain-source-status { margin-top:6px; padding:0 4px; overflow:hidden; color:var(--text-warning); font-size:11px; text-align:center; text-overflow:ellipsis; white-space:nowrap; }
 .ts-brain-node.is-missing .ts-brain-pill { border-style:dashed; }
@@ -148,12 +163,12 @@
 .ts-brain-zoom [data-brain-action=fit] { margin-left:3px; padding-left:8px; border-left:1px solid var(--background-modifier-border); border-radius:0; }
 .ts-brain-pager { left:var(--brain-gutter); }
 .ts-brain-pager span { padding:0 5px; }
-.ts-brain-footer { z-index:14; display:flex; align-items:center; flex:none; gap:24px; height:48px; min-width:0; padding:0 var(--brain-gutter); border-top:1px solid var(--background-modifier-border); background:var(--background-secondary); }
+.ts-brain-footer { z-index:14; display:flex; align-items:center; flex:none; gap:16px; height:38px; min-width:0; padding:0 var(--brain-gutter); border-top:1px solid var(--background-modifier-border); background:var(--background-secondary); }
 .ts-brain-recent-caption { display:flex; align-items:center; flex:none; gap:10px; color:var(--text-muted); font-size:11px; }
 .ts-brain-recent-caption > span:first-child { display:flex; }
-.ts-brain-recent-caption svg { width:19px; height:19px; }
+.ts-brain-recent-caption svg { width:15px; height:15px; }
 .ts-brain-recent { display:flex; align-items:center; flex:1; min-width:0; gap:10px; overflow:auto; scrollbar-width:none; overscroll-behavior:contain; }
-.ts-brain-recent .clickable-icon { position:relative; display:block; width:auto; min-width:90px; max-width:180px; height:32px; padding:6px 14px; overflow:hidden; border:1px solid transparent; border-radius:7px; color:var(--text-muted); font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
+.ts-brain-recent .clickable-icon { position:relative; display:block; width:auto; min-width:70px; max-width:180px; height:28px; padding:4px 10px; overflow:hidden; border:1px solid transparent; border-radius:6px; color:var(--text-muted); font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
 .ts-brain-recent .clickable-icon.is-active { border-color:color-mix(in srgb,var(--interactive-accent) 36%,transparent); background:color-mix(in srgb,var(--interactive-accent) 14%,transparent); color:var(--text-normal); }
 .ts-brain-recent .clickable-icon.is-active:hover { border-color:color-mix(in srgb,var(--interactive-accent) 52%,transparent); background:color-mix(in srgb,var(--interactive-accent) 19%,transparent); }
 .ts-brain-recent .clickable-icon.is-active::before { content:''; display:inline-block; width:5px; height:5px; margin-right:13px; vertical-align:middle; border-radius:50%; background:var(--interactive-accent); }
@@ -164,19 +179,19 @@
 .ts-brain-empty p { margin:0 0 18px; color:var(--text-muted); font-size:13px; line-height:1.7; }
 .ts-brain-empty .clickable-icon { width:auto; height:34px; padding:6px 12px; gap:7px; border:1px solid var(--background-modifier-border); background:var(--background-secondary); color:var(--text-normal); font-size:13px; }
 @container ts-brain (max-width:900px) {
- .ts-brain-topbar { --brain-gutter:16px; gap:8px; height:56px; }
+ .ts-brain-topbar { --brain-gutter:16px; gap:8px; height:48px; }
  .ts-brain-brand { gap:8px; font-size:14px; }
  .ts-brain-brand-icon svg { width:21px; height:21px; }
- .ts-brain-labels span { font-size:16px; }
+ .ts-brain-labels span { font-size:12px; }
  .ts-brain-navigation { margin-left:5px; padding-left:7px; }
  .ts-brain-search { position:relative; left:auto; transform:none; flex:1; width:0; min-width:100px; margin-left:10px; }
  .ts-brain-search-shortcut { display:none; }
  .ts-brain-top-actions { gap:2px; }
- .ts-brain-footer { --brain-gutter:16px; height:46px; gap:14px; }
+ .ts-brain-footer { --brain-gutter:16px; height:38px; gap:12px; }
  .ts-brain-zoom,.ts-brain-pager { --brain-gutter:16px; bottom:16px; }
 }
 @container ts-brain (max-width:540px) {
- .ts-brain-topbar { gap:4px; padding:0 9px; height:52px; }
+ .ts-brain-topbar { gap:4px; padding:0 9px; height:48px; }
  .ts-brain-brand > span:last-child { display:none; }
  .ts-brain-brand-icon svg { width:21px; height:21px; }
  .ts-brain-navigation { margin-left:0; padding-left:4px; }
@@ -199,7 +214,7 @@
 }
 
 /* The same native stage backgrounds and grain used by ordinary boards. */
-.ts-brain-stage { --ts-grid-ink:color-mix(in srgb,var(--text-muted) 9%,transparent); --ts-dot-ink:color-mix(in srgb,var(--text-muted) 27%,transparent); background-size:24px 24px; }
+.ts-root.ts-brain-board:not([data-snap=true]) .ts-brain-stage { --ts-grid-ink:color-mix(in srgb,var(--text-muted) 9%,transparent); --ts-dot-ink:color-mix(in srgb,var(--text-muted) 16%,transparent); background-size:24px 24px; }
 .ts-root[data-background=plain] .ts-brain-stage { background-image:none; }
 .ts-brain-scene { z-index:1; }
 .ts-brain-stage::before { pointer-events:none; }
@@ -210,3 +225,58 @@
 /* Pane width, including an open Obsidian side dock, bounds the toolbar. */
 @container ts-brain (max-width:620px) { .ts-brain-object-count { display:none; } .ts-brain-pager { bottom:64px; } }
 @container ts-brain (max-width:330px) { .ts-brain-pager { bottom:92px; } }
+
+/* Native dialogs retain theme tokens; fields get a visible name and a steady
+   rhythm without changing creation, retry or cancellation semantics. */
+:is(.ts-brain-create-modal,.ts-brain-rename-modal) { width:520px; max-width:calc(100vw - 32px); }
+:is(.ts-brain-create-modal,.ts-brain-rename-modal) .modal-content > h2 { margin:0 0 8px; font-size:20px; line-height:1.4; }
+:is(.ts-brain-create-modal,.ts-brain-rename-modal) .setting-item-description { margin:0 0 18px; line-height:1.6; overflow-wrap:anywhere; }
+:is(.ts-brain-create-modal,.ts-brain-rename-modal) .ts-brain-field-label { display:block; margin:14px 0 6px; color:var(--text-muted); font-size:12px; font-weight:500; }
+:is(.ts-brain-create-modal,.ts-brain-rename-modal) :is(input.ts-wide,select.ts-wide) { width:100%; height:38px; margin:0; font-size:14px; border-radius:var(--radius-m,8px); }
+.ts-brain-create-modal .ts-brain-create-target { margin-top:0; }
+:is(.ts-brain-create-modal,.ts-brain-rename-modal) [role=status] { margin-top:8px; min-height:0; color:var(--text-error); font-size:13px; line-height:1.5; }
+:is(.ts-brain-create-modal,.ts-brain-rename-modal) [role=status]:empty { display:none; }
+:is(.ts-brain-create-modal,.ts-brain-rename-modal) .modal-button-container { margin-top:24px; gap:8px; }
+
+@media (prefers-contrast:more) {
+ .ts-root.ts-brain-board:not([data-snap=true]) .ts-brain-stage { --ts-dot-ink:var(--text-muted); }
+}
+
+/* Four optional colors live only on a dedicated brain shell. Native controls,
+   normal boards and markdown bodies keep the host theme. */
+/* Universal syntax permits an omitted initial value: absent tokens retain the
+   existing var() theme fallback instead of defaulting to transparent. */
+@property --brain-custom-background { syntax:"*"; inherits:false; }
+@property --brain-custom-node { syntax:"*"; inherits:false; }
+@property --brain-custom-text { syntax:"*"; inherits:false; }
+@property --brain-custom-line { syntax:"*"; inherits:false; }
+@property --brain-state-ink { syntax:"*"; inherits:false; }
+.ts-brain-shell.is-color-preview :is(.ts-brain-pill,.ts-brain-node-title) { transition:none; }
+.ts-brain-shell .ts-brain-links { color:var(--brain-custom-line,var(--brain-line)); }
+.ts-brain-shell .ts-brain-labels { color:var(--brain-custom-text,var(--text-muted)); }
+.ts-root.ts-brain-board .ts-brain-shell.has-custom-background > .ts-brain-stage { background-color:var(--brain-custom-background); }
+.ts-brain-shell .ts-brain-node .ts-brain-node-title { color:var(--brain-custom-text,var(--text-normal)); }
+.ts-brain-shell .ts-brain-labels span { color:inherit; }
+.ts-brain-shell.has-custom-line .ts-brain-links path[data-brain-from] { stroke:currentColor; }
+.ts-brain-shell.has-custom-line .ts-brain-links marker path { fill:currentColor; stroke:none; }
+.ts-brain-shell.has-custom-node .ts-brain-pill,
+.ts-brain-shell.has-custom-node .ts-brain-node.is-center .ts-brain-pill { background:var(--brain-custom-node,var(--brain-node)); border-color:var(--brain-state-ink); }
+.ts-brain-shell.has-custom-node .ts-brain-node.is-center .ts-brain-pill { border-width:2px; box-shadow:inset 0 0 0 2px var(--interactive-accent); }
+.ts-brain-shell.has-custom-node .ts-brain-pill:is(:hover,:has(:focus-visible)) { box-shadow:inset 0 0 0 2px var(--brain-state-ink); }
+.ts-brain-shell.has-custom-node .ts-brain-node .ts-brain-node-title:focus-visible { outline-color:var(--brain-state-ink); box-shadow:0 0 0 2px var(--interactive-accent); }
+.ts-brain-colors-modal { width:480px; max-width:calc(100vw - 32px); }
+.ts-brain-colors-modal h2 { margin:0 0 8px; font-size:20px; }
+.ts-brain-colors-modal > .modal-content > .setting-item-description { margin:0 0 20px; line-height:1.6; overflow-wrap:anywhere; }
+.ts-brain-colors-modal .setting-item { gap:16px; padding:12px 0; }
+.ts-brain-colors-modal .setting-item-control { flex:none; gap:8px; }
+.ts-brain-colors-modal input[type=text] { width:116px; font-family:var(--font-monospace); font-size:12px; }
+.ts-brain-colors-modal input[type=color] { width:30px; height:30px; }
+.ts-brain-colors-modal input[aria-invalid=true] { border-color:var(--text-error); }
+.ts-brain-colors-warning,.ts-brain-colors-error { margin-top:12px; font-size:12px; line-height:1.6; }
+.ts-brain-colors-warning { color:var(--text-muted); }
+.ts-brain-colors-error { color:var(--text-error); }
+.ts-brain-colors-warning:empty,.ts-brain-colors-error:empty { display:none; }
+.ts-brain-colors-modal .modal-button-container { gap:8px; margin-top:24px; }
+.ts-brain-colors-modal .modal-button-container button:first-child { margin-right:auto; }
+@media(max-width:400px) { .ts-brain-colors-modal .setting-item { gap:8px; } .ts-brain-colors-modal input[type=text] { width:100px; } }
+.ts-brain-color-probe { position:absolute; visibility:hidden; pointer-events:none; background-color:var(--brain-node); color:var(--brain-custom-text,var(--text-normal)); border-top-color:var(--brain-line); }

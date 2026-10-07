@@ -1,4 +1,5 @@
 import {cleanBoardBackground,type BoardBackground} from './board-background';
+import {cleanBrainColors,type BrainColors} from './brain-colors';
 import {validParagraphOrigin,type ParagraphOrigin} from './paragraph-card';
 import type {PdfQuoteOrigin} from './pdf-quote';
 import {webUrl} from './web-card';
@@ -16,7 +17,7 @@ import {yingjianNotePath} from './yingjian';
 export interface Card { brainIdea?:true; mindmap?:BoardMindmapState;paragraphQuote?:ParagraphOrigin; pdfQuote?:PdfQuoteOrigin; videoCapture?:{id:string;note:string}; sectionFolded?:boolean; sectionDivider?:'none'|'solid'|'dashed'|'dotted'; cardStyle?:'band'|'paper'|'index'|'sticky' }
 export interface Board {background?:BoardBackground;readingLayout?:ReadingLayoutCheckpoint;relationGeometry?:RelationGeometryCheckpoint}
 /** Dedicated relation boards keep their view state separate from ordinary card geometry. */
-export interface Board {presentation?:'brain';brain?:BoardMindmapState;brainViewport?:{x:number;y:number;zoom:number}}
+export interface Board {presentation?:'brain';brain?:BoardMindmapState;brainViewport?:{x:number;y:number;zoom:number};brainColors?:BrainColors}
 import { connectionSides, Side } from './connections';
 import { branchState, branchTopology, validateBranches } from './mindmap';
 import {sectionMemberQuery,sectionMovementPinned,sectionContains} from './sections';
@@ -36,7 +37,7 @@ export const uid = () => crypto.randomUUID();
 export const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 export function parseBoard(text: string): Board {
   const b:unknown = JSON.parse(text);
-  assertBoardData(b);if(b.background!==undefined)b.background=cleanBoardBackground(b.background);validateBranches(b);if(b.readingLayout!==undefined&&!validReadingCheckpoint(b.readingLayout,b.nodes))delete b.readingLayout;if(b.relationGeometry!==undefined&&!validRelationGeometryCheckpoint(b.relationGeometry,b.nodes))delete b.relationGeometry;return b;
+  assertBoardData(b);if(b.background!==undefined)b.background=cleanBoardBackground(b.background);if(b.brainColors!==undefined){const colors=cleanBrainColors(b.brainColors);if(Object.keys(colors).length)b.brainColors=colors;else delete b.brainColors;}validateBranches(b);if(b.readingLayout!==undefined&&!validReadingCheckpoint(b.readingLayout,b.nodes))delete b.readingLayout;if(b.relationGeometry!==undefined&&!validRelationGeometryCheckpoint(b.relationGeometry,b.nodes))delete b.relationGeometry;return b;
 }
 function assertBoardData(b:unknown):asserts b is Board {
   if (!isRecord(b) || !isOneOf(b.version,[1,2,3]) || !isUnknownArray(b.nodes) || !isUnknownArray(b.edges)) throw new Error('不支持的白板格式或版本');

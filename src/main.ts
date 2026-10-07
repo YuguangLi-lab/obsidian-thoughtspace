@@ -1,5 +1,7 @@
 import {brainIdeaNode,brainIdeaToNote,brainNoteFolder} from './brain-board-idea';
 import {boardBackground,cleanBoardBackground} from './board-background';
+import {brainColorsStamp,cleanBrainColors,type BrainColors} from './brain-colors';
+import {BrainColorsModal} from './brain-colors-view';
 import {supportsLocalRelations,localRelationNode} from './local-relations';
 import {createBoardMindmapState,validBoardMindmapState,remapBoardMindmapState,updateBoardMindmapState,type BoardMindmapState} from './board-mindmap';
 import {BoardMindmapView,type BoardMindmapHost} from './board-mindmap-view';
@@ -3207,7 +3209,7 @@ class BoardView extends FileView {
         add:()=>this.addBrainObject(),rename:()=>this.renameBoard(),
         background:anchor=>{if(current())this.showCanvasBackgroundMenu(anchor);},
         createRelation:(id,side,request,initial)=>this.addBrainRelation(owner,id,side,()=>current()&&request(),initial),
-        settings:()=>{if(!current())return;this.brainBoardDialog?.close();const modal=new ActionPicker(this.app,'脑图白板',[{title:'关系显示层级（1–5 层）',run:()=>{if(current())this.brainBoardView?.showDepthMenu();}},{title:'白板背景',run:()=>{if(current())this.showCanvasBackgroundMenu(this.brainBoardEl!.querySelector<HTMLElement>('[data-brain-action=more]')!);}},{title:'重命名脑图白板',run:()=>{if(current())this.renameBoard();}},{title:'复制白板链接',run:()=>{if(current())return this.copyDeepLink();}},{title:'切换为自由白板（保留所有对象与关系）',run:()=>{if(current())owner.change(board=>{delete board.presentation;delete board.brain;delete board.brainViewport;},undefined,false,true,false,true);}}]);this.brainBoardDialog=modal;modal.open();}
+        settings:()=>{if(!current())return;this.brainBoardDialog?.close();const modal=new ActionPicker(this.app,'脑图白板',[{title:'关系显示层级（1–5 层）',run:()=>{if(current())this.brainBoardView?.showDepthMenu();}},{title:'背景与配色',run:()=>{if(current())this.showCanvasBackgroundMenu(this.brainBoardEl!.querySelector<HTMLElement>('[data-brain-action=more]')!);}},{title:'重命名脑图白板',run:()=>{if(current())this.renameBoard();}},{title:'复制白板链接',run:()=>{if(current())return this.copyDeepLink();}},{title:'切换为自由白板（保留所有对象与关系）',run:()=>{if(current())owner.change(board=>{delete board.presentation;delete board.brain;delete board.brainViewport;},undefined,false,true,false,true);}}]);this.brainBoardDialog=modal;modal.open();}
       };
       this.contentEl.addClass('ts-brain-board');this.nativeHeader?.addClass('ts-brain-native-header');
       this.brainBoardView=this.addChild(new BrainBoardView(this.app,el,host));
@@ -4763,11 +4765,30 @@ class BoardView extends FileView {
         owner.change(board=>{board.background={...current,canvasBackground:value};},undefined,false,true,false,true);await owner.flush();
       })));
     }
+    if(isBrainBoard(owner.board))menu.addItem(item=>item.setTitle('脑图配色…').setIcon('palette').onClick(()=>{if(available())this.openBrainColors();}));
     menu.addSeparator();menu.addItem(item=>item.setTitle('自定义纸张…').setIcon('palette').onClick(()=>{if(available())this.openBoardBackgroundSettings('paper');}));
     menu.addItem(item=>item.setTitle('设置背景图片…').setIcon('image-plus').onClick(()=>{if(available())this.openBoardBackgroundSettings('image');}));
     if(owner.board.background)menu.addItem(item=>item.setTitle('跟随默认背景').setIcon('rotate-ccw').onClick(()=>act(async()=>{if(!available())return;owner.change(board=>{delete board.background;},undefined,false,true,false,true);await owner.flush();})));
     menu.onHide(()=>{if(this.canvasMenu===menu){this.canvasMenu=undefined;anchor.setAttribute('aria-expanded','false');}});
     const rect=anchor.getBoundingClientRect();menu.showAtPosition({x:rect.left,y:Math.max(12,rect.top-288)},doc);
+  }
+  private openBrainColors(){
+    const owner=this.requireOwner(),view=this.brainBoardView,doc=this.contentEl.ownerDocument,path=owner.file.path;
+    if(!view||!isBrainBoard(owner.board)||owner.blocked)return;
+    this.canvasBackgroundDialog?.close();
+    const stamp=brainColorsStamp(owner.board.brainColors);
+    const current=()=>!this.closed&&!this.closing&&this.session===owner&&this.brainBoardView===view&&this.leaf.view===this&&this.contentEl.ownerDocument===doc&&!doc.defaultView?.closed&&owner.file.path===path&&isBrainBoard(owner.board)&&!owner.blocked&&brainColorsStamp(owner.board.brainColors)===stamp;
+    const modal=new BrainColorsModal(this.app,{document:doc,name:owner.file.basename,colors:cleanBrainColors(owner.board.brainColors),current,
+      preview:value=>{if(value===null||current())view.previewColors(value);},samples:()=>view.colorSamples(),
+      save:async(value:BrainColors)=>{
+        if(!current())throw Error('脑图或配色已变化，请重新打开配色设置');
+        const colors=cleanBrainColors(value);
+        // Whole-field replacement shares graph references, preserving the index.
+        owner.change(board=>{if(Object.keys(colors).length)board.brainColors=colors;else delete board.brainColors;},{...owner.board},false,true,false,true);
+        await owner.flush();if(owner.blocked)throw Error('配色保存失败，草稿已保留。请检查白板保存提示与恢复草稿。');
+      }});
+    const close=modal.onClose.bind(modal);modal.onClose=()=>{close();if(this.canvasBackgroundDialog===modal)this.canvasBackgroundDialog=undefined;};
+    this.canvasBackgroundDialog=modal;modal.open();return modal;
   }
   private openBoardBackgroundSettings(kind:'paper'|'image'){
     const owner=this.requireOwner(),doc=this.contentEl.ownerDocument,path=owner.file.path;

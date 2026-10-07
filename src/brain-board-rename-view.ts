@@ -13,7 +13,8 @@ export class BrainNodeRenameModal extends Modal {
   if(this.containerEl.ownerDocument!==doc)doc.body.appendChild(this.containerEl);
   this.alive=true;this.modalEl.addClass('ts-brain-rename-modal');this.host.decorate?.(this.modalEl);
   this.contentEl.createEl('h2',{text:this.host.title});this.contentEl.createEl('p',{text:this.host.description,cls:'setting-item-description'});
-  const input=this.contentEl.createEl('input',{type:'text',value:this.host.name,cls:'ts-wide',attr:{'aria-label':'新名称',maxlength:'160'}});
+  this.contentEl.createEl('label',{cls:'ts-brain-field-label',text:'新名称',attr:{for:'ts-brain-rename-name'}});
+  const input=this.contentEl.createEl('input',{type:'text',value:this.host.name,cls:'ts-wide',attr:{id:'ts-brain-rename-name','aria-label':'新名称',maxlength:'160'}});
   const status=this.contentEl.createDiv({attr:{role:'status','aria-live':'polite'}}),actions=this.contentEl.createDiv('modal-button-container');
   const cancel=actions.createEl('button',{text:'取消',attr:{type:'button'}}),save=actions.createEl('button',{text:'确定',cls:'mod-cta',attr:{type:'button'}});
   const live=()=>this.alive&&this.containerEl.isConnected&&this.containerEl.ownerDocument===doc&&!doc.defaultView?.closed;

@@ -171,3 +171,5 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for testing and release conventions. CI r
 ### Brain boards
 
 Create a dedicated brain board from the New menu. Ideas stay in the board until you explicitly turn them into notes. Parent/child branches and left/right associations support 1–5 relation hops, with bounded pages for large graphs. Node menus group creation, relationships and inherited file actions; rename and native whiteboard creation retain their existing sources. See [the verification and scope report](qa/BRAIN-MENU-RELATIONS.md).
+
+Set board-local background, node, text and line colors through **脑图设置 → 背景与配色 → 脑图配色…**, or **白板背景 → 脑图配色…** in the bottom controls. Empty fields follow the theme; Cancel restores saved colors and Reset clears only these four overrides. See [the performance, UI and color verification](qa/BRAIN-PERFORMANCE-COLORS.md) for tested scope and limitations.

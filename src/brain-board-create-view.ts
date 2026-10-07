@@ -23,17 +23,21 @@ export class BrainRelationCreateModal extends Modal {
   this.contentEl.createEl('h2',{text:this.host.convert?'整理成笔记':this.host.side?brainRelationLabels[this.host.side]:'添加知识节点'});
   const meaning=this.host.convert?'生成原生笔记并保留此节点与关系。撤销仅恢复想法引用，已生成笔记会保留。':!this.host.side?'先命名记录想法，也可引用或新建笔记。':this.host.side==='top'?`父节点 → ${this.host.center}`:this.host.side==='bottom'?`${this.host.center} → 子节点`:`${this.host.center} ↔ 关联节点`;
   this.contentEl.createEl('p',{cls:'setting-item-description',text:meaning});
-  const mode=this.contentEl.createEl('select',{cls:'dropdown ts-wide',attr:{'aria-label':'笔记来源'}});
+  const modeLabel=this.contentEl.createEl('label',{cls:'ts-brain-field-label',text:'节点来源',attr:{for:'ts-brain-create-source'}});
+  const mode=this.contentEl.createEl('select',{cls:'dropdown ts-wide',attr:{id:'ts-brain-create-source','aria-label':'笔记来源'}});
   if(!this.host.convert)mode.createEl('option',{value:'idea',text:'先记想法'});
   mode.createEl('option',{value:'new',text:'新建笔记'});if(!this.host.convert){mode.createEl('option',{value:'existing',text:'引用已有笔记'});mode.createEl('option',{value:'board',text:'新建白板'});}
   mode.value=this.host.convert?'new':this.host.initial||'idea';mode.hidden=!!this.host.convert;
-  const boardType=this.contentEl.createEl('select',{cls:'dropdown ts-wide',attr:{'aria-label':'白板类型'}});
+  const typeLabel=this.contentEl.createEl('label',{cls:'ts-brain-field-label',text:'白板类型',attr:{for:'ts-brain-create-type'}});
+  const boardType=this.contentEl.createEl('select',{cls:'dropdown ts-wide',attr:{id:'ts-brain-create-type','aria-label':'白板类型'}});
   boardType.createEl('option',{value:'board',text:'普通白板'});boardType.createEl('option',{value:'brain',text:'脑图白板'});boardType.value='board';
   const row=this.contentEl.createDiv('ts-brain-create-target');
-  const input=row.createEl('input',{cls:'ts-wide',type:'text',value:this.host.convert?this.host.center:'',attr:{'aria-label':'节点名称',placeholder:'输入节点名称',maxlength:'160'}});
+  const nameLabel=row.createEl('label',{cls:'ts-brain-field-label',attr:{for:'ts-brain-create-name'}});
+  const input=row.createEl('input',{cls:'ts-wide',type:'text',value:this.host.convert?this.host.center:'',attr:{id:'ts-brain-create-name','aria-label':'节点名称',placeholder:'输入节点名称',maxlength:'160'}});
   const folders={new:this.host.folder,board:this.host.boardFolder||'ThoughtSpace/白板'};
   let folderKind:'new'|'board'=mode.value==='board'?'board':'new';
-  const folder=this.contentEl.createEl('input',{cls:'ts-wide',type:'text',value:folders[folderKind],attr:{'aria-label':'目标文件夹'}});
+  const folderLabel=this.contentEl.createEl('label',{cls:'ts-brain-field-label',text:'目标文件夹',attr:{for:'ts-brain-create-folder'}});
+  const folder=this.contentEl.createEl('input',{cls:'ts-wide',type:'text',value:folders[folderKind],attr:{id:'ts-brain-create-folder','aria-label':'目标文件夹'}});
   const choose=row.createEl('button',{cls:'ts-wide',text:'选择已有笔记…',attr:{type:'button'}});
   const destination=this.contentEl.createEl('p',{cls:'setting-item-description'});
   const status=this.contentEl.createDiv({attr:{role:'status','aria-live':'polite'}});
@@ -43,7 +47,7 @@ export class BrainRelationCreateModal extends Modal {
   const connected=()=>this.alive&&this.containerEl.isConnected&&this.containerEl.ownerDocument===doc&&!doc.defaultView?.closed;
   const current=()=>connected()&&this.host.current();
   const render=()=>{
-   const existing=mode.value==='existing',idea=mode.value==='idea',board=mode.value==='board';input.hidden=existing;choose.hidden=!existing;folder.hidden=existing||idea;boardType.hidden=!board;input.setAttribute('aria-label',idea?'想法名称':board?'白板名称':'笔记名称');
+   const existing=mode.value==='existing',idea=mode.value==='idea',board=mode.value==='board';modeLabel.hidden=!!this.host.convert;typeLabel.hidden=!board;nameLabel.hidden=existing;nameLabel.setText(idea?'想法名称':board?'白板名称':'笔记名称');folderLabel.hidden=existing||idea;input.hidden=existing;choose.hidden=!existing;folder.hidden=existing||idea;boardType.hidden=!board;input.setAttribute('aria-label',idea?'想法名称':board?'白板名称':'笔记名称');
    choose.setText(selected?.path||'选择已有笔记…');
    destination.setText(idea?'仅存于此脑图，不创建笔记文件':existing?selected?`引用：${selected.path}`:'选择后只添加本板关系':`将创建于：${folder.value}/${input.value.trim()?safeName(input.value.trim()):board?'白板名称':'笔记名称'}.${board?'thoughtspace':'md'}（同名时自动编号）`);
    save.setText(retrySave?'重试保存':failed?'重试':'确定');
