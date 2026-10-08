@@ -5157,6 +5157,11 @@
 .ts-root .ts-board-rail .ts-button:hover:not(:disabled):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { background: var(--ts-board-hover) !important; }
 .ts-root .ts-board-rail .ts-button.is-active:hover:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { background: var(--ts-board-active) !important; }
 
+/* Reuse and association dialogs style their own operation choices only. */
+.ts-board-reuse .ts-reuse-options input[type=checkbox]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { accent-color: var(--ts-accent); }
+.ts-selection-note .ts-fragment-modes button[aria-pressed=true]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),
+.ts-selection-note .ts-fragment-option[aria-pressed=true]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { color: var(--ts-accent); }
+
 /* END workspace-refinement generated */
 
 /* BEGIN edge-workflow generated */

@@ -41,3 +41,32 @@ node qa/six-improvements/native-run.mjs
 Calendar belongs to a separate plugin and is not installed by this harness.
 External online video/account/network behavior is not validated by the empty
 online workspace captures. Reports, screenshots and test settings remain local.
+
+The bounded follow-up suite covers reuse/note association, brain creation and
+rename, media focus, and reversible settings-save failure recovery. Run each
+part in a fresh process so previous workspace focus cannot affect the next
+part. `QA_SUPPLEMENT_PART` accepts `reuse`, `brain`, `media`, or `settings`.
+
+```sh
+PLAYWRIGHT_MODULE=/absolute/path/to/playwright \
+QA_OUTPUT=/new/empty/supplement-evidence-directory \
+QA_CHECKS=qa/ui-polish/supplement.mjs \
+QA_SUPPLEMENT_PART=media \
+node qa/six-improvements/native-run.mjs
+```
+
+The media supplement uses a synthetic 20-second local video at
+`../qa/fixtures/focus.mp4`. Generate it with an existing ffmpeg installation:
+
+```sh
+ffmpeg -f lavfi -i color=c=0x527d6b:s=320x180:r=10:d=20 \
+-c:v libx264 -pix_fmt yuv420p -an ../qa/fixtures/focus.mp4
+```
+
+Settings failure injection replaces only the synthetic plugin instance's
+`saveData` method for one matching rejection and restores it in `finally`.
+No file permissions change. A native toggle exercises immediate rollback;
+native profile-import buttons exercise preserved input and retry in the same
+dialog. The macOS system dropdown does not accept this CDP keyboard route;
+it is not used as a successful preference interaction. The brain pager layout
+and external online/Calendar integrations remain outside this supplement.
