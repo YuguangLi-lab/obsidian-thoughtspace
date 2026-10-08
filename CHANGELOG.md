@@ -1,5 +1,26 @@
 # 更新记录
 
+## 1.3.33
+
+### 脑图关系避障、动态材料清单与工作区界面一致性（2026-10-08）
+
+- 修复脑图同端点多种关系被去重的问题，保留各关系的身份、类型和方向；父子与双向关联可同时显示，不改原始关系数据。
+- 深层脑图采用连续子树排布和安全绕线，展开阅读框也纳入避障；保留节点与关系预算、分页、中心切换动画和折叠操作。无法安全显示的关系计入未显示关系提示。
+- 不变图刷新复用关系扫描、布局投影和 SVG/阅读 DOM；图、原生引用、中心、层级、分页或展开状态变化时正确失效，卸载释放缓存。减少重复刷新工作，不宣称普遍 FPS 或输入延迟提升。
+- 搜索新增动态材料清单，保存关键词、类型、分组、颜色、阅读状态及正文搜索开关。支持重命名、删除与撤销，重开按当前材料重新计算；PDF 与阅读桌共享阅读状态，不保存整篇正文或结果快照，失败保留输入供重试。
+- 新增默认关闭的“精简重复卡片标题”：外壳名与正文首个 H1 相同时缩为来源行，关闭即可恢复；保留原生标题、Markdown、锚点与来源编辑入口，自定义标题、折叠和低缩放仍按原规则显示。
+- 统一插件操作控件的选中、悬停、焦点与强调色，改善搜索清单、短窗资料库滚动、设置焦点、复用/关联操作及独立媒体菜单。媒体与在线工作区跟随外观偏好，更新时保留播放器和草稿；正文链接、任务框、原生编辑器/PDF 与用户节点配色保持原有归属。
+- 保留八类内容的统一展开/折叠入口、层叠与隐藏控件命中修复，以及 260px 窄侧栏工具栏可达性。
+
+- Brain boards preserve parallel relationship identities and route deeper links around nodes and expanded reading panes. Stable refreshes reuse cached scans, projections and DOM while changes invalidate them; this does not imply universal FPS or input-latency gains.
+- Save dynamic material queries, including reading status and pending PDFs, with rename/delete/undo and current-result recomputation. Optional duplicate-title compression keeps native headings and source files intact. Plugin controls share consistent accent and keyboard focus across workspaces while preserving native content and custom colors. Eight content kinds and narrow-pane controls retain their expansion, stacking and hit-area fixes.
+
+验证：Node 22 全量 6,331 项自动回归和 7 项 Python 发布脚本测试通过，TypeScript 与构建通过；lint 0 错误、118 项既有警告。已验收功能版本在独立 Obsidian 1.14.4 合成库分阶段完成鼠标键盘、撤销重做、取消、保存重开和失败重试；最后追加复用/关联、脑图创建改名、媒体专注与设置失败恢复 170/170 项检查。这些是分阶段检查，不是所有组合的穷举。发行准备只更新版本及文档，构建后的 JavaScript/CSS 与已验收功能版本逐字节相同。方法与边界见 [发行验证](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.33/qa/RELEASE-1.3.33.md)。
+
+性能边界：100/500/1000 为总节点数，对照固定 7 可见节点、7 个节点 DOM 与 6 条关系路径；不表示同时渲染总数。缓存减少不变图的重复工作，但强制失效、RAF 和输入尾部没有一致改善；短时内存采样不能证明无泄漏。最后的局部弹窗配色修改未重新测量图性能。
+
+范围：脑图分页条移入独立状态行的方案未实施，浮层遮挡仍可能出现。外部在线视频站点、账号及真实网络播放未验证；独立 Calendar 插件未安装，仅检查缺失集成提示。PDF 不新增全文索引或 OCR。
+
 ## 1.3.32
 
 ### 普通白板操作层次与脑图边框配色（2026-10-08）
