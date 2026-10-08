@@ -54,7 +54,7 @@
   flex:none; white-space:nowrap;
 }
 .ts-root .ts-node.ts-card > .ts-card-meta > .ts-state-pill::before { flex:none; }
-.ts-root .ts-node.ts-card > .ts-card-meta > .ts-state-active { color:var(--text-accent); }
+.ts-root .ts-node.ts-card > .ts-card-meta > .ts-state-active { color:var(--ts-accent); }
 .ts-root .ts-node.ts-card > .ts-card-meta > .ts-state-done { color:var(--text-success,var(--color-green)); }
 .ts-root .ts-node.ts-card > .ts-card-meta > .ts-source-trigger {
   width:24px; height:24px; min-height:0; margin-right:0; color:var(--text-muted);
@@ -63,11 +63,11 @@
   display:none;
 }
 .ts-root .ts-node.ts-card > .ts-card-meta > :is(.ts-tag,.ts-source-trigger):is(:hover,:focus-visible,[aria-expanded=true]) {
-  background:var(--background-modifier-hover); color:var(--text-normal)!important;
+  background:var(--ts-object-active); color:var(--ts-accent)!important;
   border-color:var(--background-modifier-border-hover,var(--background-modifier-border));
 }
 .ts-root .ts-node.ts-card > .ts-card-meta > :is(.ts-tag,.ts-source-trigger):focus-visible {
-  outline:2px solid var(--interactive-accent); outline-offset:2px;
+  outline:2px solid var(--ts-accent,var(--interactive-accent)); outline-offset:2px;
 }
 
 /* Clear primary actions without changing document geometry. */

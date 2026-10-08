@@ -2,8 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
-import {emptyBoard,colors,colorNames,type Board,type Card} from '../src/model';
+import {emptyBoard,colors,colorNames,uid,clone,type Board,type Card} from '../src/model';
 import {boardSearchIndex,searchBoard,searchKinds,searchExcerpt,searchDirectory} from '../src/board-search';
+import * as savedSearches from '../src/saved-searches';
+import {markReading,reviewLabels} from '../src/reading-desk';
 
 type Options={cls?:string;text?:string;attr?:Record<string,string>;type?:string;value?:string};
 class Element{
@@ -52,12 +54,13 @@ class TFile{
 }
 const source=readFileSync('src/board-search-view.ts','utf8').replace(/^import .*;\n/gm,'');
 let searches=0,excerpts=0;const clipboard:string[]=[];
-const BoardSearchModal=new Function('Modal','TFile','Notice','setIcon','getAllTags','themeSurface','colors','colorNames','boardSearchIndex','searchBoard','searchKinds','searchExcerpt','searchDirectory','navigator',transformSync(source.replace(/^export /gm,'')+'\nreturn BoardSearchModal;',{loader:'ts'}).code)(Modal,TFile,class{},()=>{},()=>[],()=>{},colors,colorNames,boardSearchIndex,(...args:Parameters<typeof searchBoard>)=>{searches++;return searchBoard(...args);},searchKinds,(...args:Parameters<typeof searchExcerpt>)=>{excerpts++;return searchExcerpt(...args);},searchDirectory,{clipboard:{writeText:async(text:string)=>{clipboard.push(text);}}});
+const dependencies={Modal,TFile,Notice:class{},setIcon:()=>{},getAllTags:()=>[],themeSurface:()=>{},colors,colorNames,uid,boardSearchIndex,searchBoard:(...args:Parameters<typeof searchBoard>)=>{searches++;return searchBoard(...args);},searchKinds,searchExcerpt:(...args:Parameters<typeof searchExcerpt>)=>{excerpts++;return searchExcerpt(...args);},searchDirectory,...savedSearches,markReading,reviewLabels,navigator:{clipboard:{writeText:async(text:string)=>{clipboard.push(text);}}}};
+const BoardSearchModal=new Function(...Object.keys(dependencies),transformSync(source.replace(/^export /gm,'')+'\nreturn BoardSearchModal;',{loader:'ts'}).code)(...Object.values(dependencies));
 const node=(id:string,kind:Card['kind']='text'):Card=>({id,kind,title:id,text:`正文 ${id}`,x:1000,y:0,width:100,height:80,color:'green',...(kind==='card'?{file:`notes/${id}.md`}:{})});
 function fixture(nodes:Card[]=[node('alpha'),node('beta','card'),node('gamma')],read?:(file:TFile)=>Promise<string>){
  const board:Board={...emptyBoard(),nodes};const located:string[]=[],opened:string[]=[],reads:string[]=[],files=new Map(nodes.filter(n=>n.file).map(n=>[n.file!,new TFile(n.file!)]));
  const app={vault:{getAbstractFileByPath:(path:string)=>files.get(path),cachedRead:async(file:TFile)=>{reads.push(file.path);return read?read(file):`完整正文 ${file.basename}`;}},metadataCache:{getFileCache:()=>({headings:[{heading:'基础层级'}]})}};
- const host={title:'测试白板',board:()=>board,locate:async(id:string)=>{located.push(id);},open:async(id:string)=>{opened.push(id);},link:(id:string)=>`obsidian://open?id=${id}`};
+ const host={title:'测试白板',board:()=>board,commit:(edit:(b:Board)=>void):void|Promise<void>=>{const draft=clone(board);edit(draft);Object.assign(board,draft);},locate:async(id:string)=>{located.push(id);},open:async(id:string)=>{opened.push(id);},link:(id:string)=>`obsidian://open?id=${id}`};
  const modal=new BoardSearchModal(app,host);modal.onOpen();const input=modal.contentEl.querySelector('input') as Element,list=modal.contentEl.querySelector('.ts-board-search-results') as Element;
  return{modal,input,list,board,host,located,opened,reads,files,clock:modal.clock as Clock};
 }
@@ -256,9 +259,9 @@ test('search workbench labels native filters and keeps the query and results in 
  const {modal,input,list}=fixture(),content=modal.contentEl,workbench=content.querySelector('.ts-board-search-workbench')!,refine=workbench.querySelector('.ts-board-search-refine')!,matches=workbench.querySelector('.ts-board-search-matches')!;
  assert.ok(content.children.includes(content.querySelector('.ts-board-search-bar')));assert.ok(workbench.children.includes(refine));assert.ok(workbench.children.includes(matches));assert.ok(matches.children.includes(list));
  assert.equal(refine.getAttribute('aria-label'),'搜索筛选');assert.equal(list.getAttribute('role'),'region');assert.equal(list.getAttribute('aria-label'),'白板搜索结果');
- const fields=refine.querySelectorAll('.ts-board-search-filter');assert.equal(fields.length,3);
- for(const [i,label]of ['对象类型','所属分组','对象颜色'].entries()){assert.equal(fields[i].tagName,'LABEL');assert.equal(fields[i].querySelector('span')!.textContent,label);assert.equal(fields[i].querySelector('select')!.getAttribute('aria-label'),label);}
- assert.equal(refine.querySelector('.ts-board-search-fulltext')!.tagName,'LABEL');assert.equal(refine.querySelectorAll('input').length,1);assert.ok(refine.querySelector('.ts-board-search-index-status'));assert.equal(modal.document.activeElement,input);
+ const fields=refine.querySelector('.ts-board-search-filters')!.querySelectorAll('.ts-board-search-filter');assert.equal(fields.length,4);
+ for(const [i,label]of ['对象类型','所属分组','对象颜色','阅读状态'].entries()){assert.equal(fields[i].tagName,'LABEL');assert.equal(fields[i].querySelector('span')!.textContent,label);assert.equal(fields[i].querySelector('select')!.getAttribute('aria-label'),label);}
+ assert.equal(refine.querySelector('.ts-board-search-fulltext')!.tagName,'LABEL');assert.equal(refine.querySelectorAll('input').length,2);assert.ok(refine.querySelector('.ts-board-search-index-status'));assert.equal(modal.document.activeElement,input);
 });
 
 test('result context exposes complete plain titles and paths without converting source text into markup',async()=>{
@@ -280,4 +283,48 @@ test('stationary pointer boundary events cannot replace a keyboard-selected resu
  rows[2].onpointermove?.({clientX:100,clientY:200});assert.equal(current(list),'gamma');key(input,'ArrowUp');assert.equal(current(list),'beta');
  rows[2].onpointermove?.({clientX:100,clientY:200});assert.equal(current(list),'beta','a synthetic stationary move also leaves keyboard selection alone');
  rows[2].onpointermove?.({clientX:101,clientY:200});assert.equal(current(list),'gamma','real movement retains pointer selection');
+});
+
+const control=(modal:any,label:string)=>{const element=(modal.contentEl.querySelectorAll('button') as Element[]).find(el=>el.getAttribute('aria-label')===label);assert.ok(element,label);return element;};
+test('saved queries include reading filters and reopening recomputes a changed PDF queue',async()=>{
+ const f=fixture([{...node('pdf-one','pdf'),file:'one.pdf'},{...node('pdf-two','pdf'),file:'two.pdf',review:'done'}]);f.modal.kind.value='pdf';f.modal.review.value='later';f.modal.savedName.value='待读 PDF';control(f.modal,'保存当前查询为材料清单').click();await tick();
+ assert.equal(f.board.savedSearches?.length,1);assert.equal(f.board.savedSearches![0].query.review,'later');assert.deepEqual(f.modal.results.map((e:any)=>e.id),['pdf-one']);const id=f.board.savedSearches![0].id;f.modal.close();
+ f.board.nodes[0].review='done';f.board.nodes[1].review=undefined;const reopened=new BoardSearchModal(f.modal.app,{...f.host,context:{}});reopened.onOpen();reopened.savedSelect.value=id;reopened.savedSelect.onchange?.();await tick();assert.deepEqual(reopened.results.map((e:any)=>e.id),['pdf-two']);assert.equal(reopened.fullInput.checked,false);reopened.close();
+});
+test('saved groups remain explicit when removed while transient group restoration remains safe',async()=>{
+ const f=fixture([{...node('group','section'),x:0,width:2000,height:400,title:'Evidence'},node('alpha'),{...node('beta'),x:3000}]);f.modal.group.value='group';f.modal.savedName.value='Evidence';control(f.modal,'保存当前查询为材料清单').click();await tick();const id=f.board.savedSearches![0].id;
+ f.board.nodes=f.board.nodes.filter(n=>n.id!=='group');f.modal.clearFilters();f.modal.savedSelect.value=id;f.modal.savedSelect.onchange?.();await tick();assert.equal(f.modal.group.value,'group');assert.equal(f.modal.results.length,0);assert.match(f.modal.savedStatus.textContent,/原分组已删除/);assert.equal(f.board.savedSearches![0].query.group,'group');
+ f.modal.close();const reopened=new BoardSearchModal(f.modal.app,f.host);reopened.onOpen();assert.equal(reopened.group.value,'group');assert.equal(reopened.results.length,0);reopened.close();
+});
+test('saved name edits and deletion stay scoped to the current board and cancel leaves source intact',async()=>{
+ const f=fixture();f.modal.savedName.value='Materials';control(f.modal,'保存当前查询为材料清单').click();await tick();f.modal.savedName.value='Revised';control(f.modal,'重命名材料清单').click();await tick();assert.equal(f.board.savedSearches![0].name,'Revised');
+ const other=fixture();assert.equal(other.board.savedSearches,undefined);assert.equal(other.modal.savedSelect.options.length,1);f.modal.savedName.value='Cancelled';f.modal.close();assert.equal(f.board.savedSearches![0].name,'Revised');
+ const reopened=new BoardSearchModal(f.modal.app,f.host);reopened.onOpen();control(reopened,'删除材料清单').click();await tick();assert.deepEqual(f.board.savedSearches,[]);assert.equal(other.board.savedSearches,undefined);reopened.close();other.modal.close();
+});
+test('pending saved-query writes coalesce fast clicks and failure keeps input available for retry',async()=>{
+ const f=fixture(),pending=deferred<void>();let commits=0;f.host.commit=async()=>{commits++;return pending.promise;};f.modal.savedName.value='Keep my draft';const save=control(f.modal,'保存当前查询为材料清单');save.click();save.click();assert.equal(commits,1);assert.equal(save.disabled,true);assert.equal(f.modal.savedSelect.disabled,true);
+ pending.reject(new Error('disk unavailable'));await tick();assert.equal(save.disabled,false);assert.equal(f.modal.savedName.value,'Keep my draft');assert.match(f.modal.savedStatus.textContent,/保存失败.*disk unavailable/);assert.equal(f.board.savedSearches,undefined);
+ f.host.commit=edit=>{const draft=clone(f.board);edit(draft);Object.assign(f.board,draft);};save.click();await tick();assert.equal(f.board.savedSearches![0].name,'Keep my draft');f.modal.close();
+});
+test('paused session after a failed save keeps the original error and name draft visible',async()=>{
+ const f=fixture(),board=f.board;f.modal.savedName.value='Recovery input';f.host.commit=()=>{f.host.board=()=>{throw Error('session paused');};throw Error('disk save failed; draft retained');};control(f.modal,'保存当前查询为材料清单').click();await tick();assert.equal(f.modal.savedName.value,'Recovery input');assert.match(f.modal.savedStatus.textContent,/disk save failed; draft retained/);assert.equal(f.modal.mutationBusy,false);assert.equal(board.savedSearches,undefined);f.modal.close();
+});
+test('Enter while a material-list mutation is pending cannot navigate or close the active transaction',async()=>{
+ const f=fixture(),pending=deferred<void>();f.host.commit=()=>pending.promise;control(f.modal,'保存当前查询为材料清单').click();key(f.input,'Enter');await tick();assert.deepEqual(f.located,[]);assert.equal(f.modal.closeCount,0);pending.resolve();await tick();key(f.input,'Enter');await tick();assert.deepEqual(f.located,['alpha']);
+});
+test('stale saved-list name controls reject changes from another board tab and can retry',async()=>{
+ const f=fixture();f.modal.savedName.value='Original';control(f.modal,'保存当前查询为材料清单').click();await tick();f.board.savedSearches![0].name='Other tab';f.modal.savedName.value='My rename';control(f.modal,'重命名材料清单').click();await tick();assert.equal(f.board.savedSearches![0].name,'Other tab');assert.equal(f.modal.savedName.value,'My rename');assert.match(f.modal.savedStatus.textContent,/已变化/);
+ control(f.modal,'重命名材料清单').click();await tick();assert.equal(f.board.savedSearches![0].name,'My rename');f.modal.close();
+});
+test('reading-state edits recompute saved queues and failures and locked rows retain correct state',async()=>{
+ const f=fixture([{...node('pdf','pdf'),file:'evidence.pdf'}]);f.modal.kind.value='pdf';f.modal.review.value='later';f.modal.reset();let select=f.list.querySelector('.ts-board-search-review')!;select.value='done';select.onchange?.();await tick();assert.equal(f.board.nodes[0].review,'done');assert.equal(f.modal.results.length,0);
+ f.modal.review.value='';f.modal.reset();f.host.commit=()=>{throw Error('cannot save');};select=f.list.querySelector('.ts-board-search-review')!;select.value='later';select.onchange?.();await tick();assert.equal(f.board.nodes[0].review,'done');assert.equal(f.list.querySelector('.ts-board-search-review')!.value,'done');assert.match(f.modal.savedStatus.textContent,/保存失败/);
+ f.board.nodes[0].locked=true;await f.modal.refresh();assert.equal(f.list.querySelector('.ts-board-search-review')!.disabled,true);f.modal.close();
+});
+test('saved full-text queries reread bodies after reopening and store no indexed body strings',async()=>{
+ let body='originalBody';const f=fixture([node('note','card')],async()=>body);fullText(f.modal);await drain(f.clock);f.input.value='newBody';f.modal.savedName.value='Body query';control(f.modal,'保存当前查询为材料清单').click();await tick();const id=f.board.savedSearches![0].id;assert.equal(JSON.stringify(f.board.savedSearches).includes('originalBody'),false);f.modal.close();assert.equal(f.modal.bodies.size,0);
+ body='newBody';const reopened=new BoardSearchModal(f.modal.app,{...f.host,context:{}});reopened.onOpen();reopened.savedSelect.value=id;reopened.savedSelect.onchange?.();await drain(reopened.clock);await reopened.indexTask;assert.equal(reopened.fullInput.checked,true);assert.equal(reopened.results.length,1);assert.equal(f.reads.length,2);reopened.close();
+});
+test('closing during saved writes suppresses late UI work and detached controls',async()=>{
+ const f=fixture(),pending=deferred<void>();let edits=0;f.host.commit=async()=>{edits++;return pending.promise;};const save=control(f.modal,'保存当前查询为材料清单');save.click();f.modal.close();pending.resolve();await tick();save.click();assert.equal(edits,1);assert.equal(f.modal.contentEl.children.length,0);
 });

@@ -12,7 +12,7 @@ export function resolveSettingsLanguage(preference:SettingsLanguagePreference|un
 
 export const settingsCategoryKeys={
  general:['surfaceStyle','accent','glassEffects','density'],
- cards:['defaultCardStyle','defaultCardWidth','defaultTextSize','defaultEdgeStyle','defaultEdgeDirection','noteMarkdownToolbar'],
+ cards:['defaultCardStyle','defaultCardWidth','defaultTextSize','defaultEdgeStyle','defaultEdgeDirection','noteMarkdownToolbar','compactDuplicateCardTitles'],
  board:['canvasBackground','showMinimap','boardSearchEnabled','toolbarDensity','gridStep','alignmentGuides','axisLock','aspectLock','previewLimit','detailZoom','showCardTags','showPorts','showBoardHints'],
  input:boardInputPreferenceKeys,
  reading:['readingSize','readingWidth'],
@@ -21,7 +21,7 @@ export type SettingsCategory=keyof typeof settingsCategoryKeys;
 export type SettingsPreferenceKey=typeof settingsCategoryKeys[SettingsCategory][number];
 export type SettingsPreferencePatch=Partial<Pick<ThoughtSpacePreferences,SettingsPreferenceKey>>;
 
-const categoryDefaults={...defaultAppearance,...defaultBoardPreferences,noteMarkdownToolbar:true,boardSearchEnabled:true} as const;
+const categoryDefaults={...defaultAppearance,...defaultBoardPreferences,noteMarkdownToolbar:true,boardSearchEnabled:true,compactDuplicateCardTitles:false} as const;
 export function settingsCategoryDefaults(category:SettingsCategory):SettingsPreferencePatch {
  const result:SettingsPreferencePatch={};
  for(const key of settingsCategoryKeys[category])Object.assign(result,{[key]:categoryDefaults[key]});
@@ -37,7 +37,7 @@ const boolean=(value:unknown)=>typeof value==='boolean';
 const numberIn=(min:number,max:number)=>(value:unknown)=>typeof value==='number'&&Number.isFinite(value)&&value>=min&&value<=max;
 const profileValidators:Record<SettingsPreferenceKey,(value:unknown)=>boolean>={
  surfaceStyle:oneOf('soft','paper'),accent:oneOf('forest','blue','amber','rose'),glassEffects:boolean,density:oneOf('comfortable','compact'),
- defaultCardStyle:oneOf(...Object.keys(cardStyleChoices)),defaultCardWidth:numberIn(220,520),defaultTextSize:numberIn(12,32),defaultEdgeStyle:oneOf('curve','straight','elbow'),defaultEdgeDirection:oneOf('forward','both','none'),noteMarkdownToolbar:boolean,
+ defaultCardStyle:oneOf(...Object.keys(cardStyleChoices)),defaultCardWidth:numberIn(220,520),defaultTextSize:numberIn(12,32),defaultEdgeStyle:oneOf('curve','straight','elbow'),defaultEdgeDirection:oneOf('forward','both','none'),noteMarkdownToolbar:boolean,compactDuplicateCardTitles:boolean,
  // Custom image files are vault-local and are deliberately not portable in a profile.
  canvasBackground:oneOf('dots','grid','plain','paper'),showMinimap:boolean,boardSearchEnabled:boolean,toolbarDensity:oneOf('compact','comfortable'),gridStep:numberIn(8,64),alignmentGuides:boolean,axisLock:boolean,aspectLock:boolean,previewLimit:numberIn(20,160),detailZoom:numberIn(.2,.9),showCardTags:boolean,showPorts:boolean,showBoardHints:boolean,
  leftDrag:oneOf('pan','select','none'),rightDrag:oneOf('pan','select','none'),middleDrag:oneOf('pan','select','none'),wheelMode:oneOf('zoom','pan'),zoomSpeed:numberIn(.3,2),reverseWheelZoom:boolean,boardQuickKeys:boolean,panSpeed:numberIn(.3,3),reverseWheelPan:boolean,zoomAnchor:oneOf('pointer','center'),dragThreshold:numberIn(2,12),arrowNudge:boolean,deleteKeys:boolean,nudgeStep:numberIn(1,10),fastNudge:numberIn(10,100),

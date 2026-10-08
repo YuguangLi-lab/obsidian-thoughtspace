@@ -31,8 +31,8 @@
 .ts-root .ts-branch-controls .ts-branch-count { min-width:1ch; color:var(--text-normal); font-size:11px; line-height:1; font-variant-numeric:tabular-nums; }
 .ts-root .ts-branch-controls > .ts-branch-toggle[aria-expanded=false] { color:var(--ts-accent); background:var(--ts-object-active,var(--background-modifier-hover)); }
 .ts-root .ts-branch-controls > .ts-branch-setup { color:var(--text-muted); }
-.ts-root .ts-branch-controls > button:hover:not(:disabled) { color:var(--text-normal); background:var(--background-modifier-hover); }
-.ts-root .ts-branch-controls > button:focus-visible { outline:2px solid var(--interactive-accent); outline-offset:1px; }
+.ts-root .ts-branch-controls > button:is(:hover,:focus-visible):not(:disabled) { color:var(--ts-accent); background:var(--ts-object-active,var(--background-modifier-hover)); }
+.ts-root .ts-branch-controls > button:focus-visible { outline:2px solid var(--ts-accent,var(--interactive-accent)); outline-offset:1px; }
 .ts-root .ts-branch-controls > button:disabled { opacity:.4; cursor:not-allowed; }
 
 /* Content folding and connected-child folding remain separate named actions. */
@@ -44,6 +44,6 @@
  font:12px/1 var(--font-interface);
 }
 .ts-root .ts-section > .ts-node-header .ts-section-content-fold > span:last-child { display:inline; }
-.ts-root .ts-section > .ts-node-header .ts-section-content-fold:is(:hover,:focus-visible) { color:var(--text-normal); background:var(--background-modifier-hover); }
-.ts-root .ts-section > .ts-node-header .ts-section-content-fold:focus-visible { outline:2px solid var(--interactive-accent); outline-offset:1px; }
+.ts-root .ts-section > .ts-node-header .ts-section-content-fold:is(:hover,:focus-visible):not(:disabled) { color:var(--ts-accent); background:var(--ts-object-active,var(--background-modifier-hover)); }
+.ts-root .ts-section > .ts-node-header .ts-section-content-fold:focus-visible { outline:2px solid var(--ts-accent,var(--interactive-accent)); outline-offset:1px; }
 .ts-root .ts-section > .ts-node-header .ts-section-content-fold[aria-expanded=false] { color:var(--ts-accent); background:var(--ts-object-active,var(--background-modifier-hover)); }

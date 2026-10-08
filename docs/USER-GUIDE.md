@@ -262,7 +262,7 @@ For structured imports, run **打开材料工作台** (Open materials workbench)
 
 ### Read your collected material
 
-Open **工作区 → 打开阅读桌** (Workspace → Open reading desk). Search the material list, filter the board or opening selection, and switch between **内容 / 目录 / 关联** (Content / Headings / Connections). Use the reading-state control, **已读并下一篇** (Mark read and next), and **右侧打开原文** (Open original on the right). Alt + Left/Right switches items while the reading desk owns focus outside editable controls. Changing reading status preserves the current article and scroll position. The reading desk is for note/text/image material; use the native reader for PDF text selection.
+Open **工作区 → 打开阅读桌** (Workspace → Open reading desk). Search the material list, filter the board or opening selection, and switch between **内容 / 目录 / 关联** (Content / Headings / Connections). Use the reading-state control, **已读并下一篇** (Mark read and next), and **右侧打开原文** (Open original on the right). Alt + Left/Right switches items while the reading desk owns focus outside editable controls. Changing reading status preserves the current article and scroll position. The reading desk includes notes, text, images and native PDF embeds. PDF reading states are shared with saved material lists; use the native reader for PDF text selection.
 
 <a id="connections"></a>
 
@@ -389,6 +389,8 @@ Profiles contain supported appearance, reading and interaction preferences, not 
 ### Search locally or through Obsidian
 
 Use the header's **搜索白板**, Ctrl/Cmd + F on the canvas, or **搜索当前白板中的内容**. Choose a result to locate it; inspect its title, excerpt, and source before opening the original. For object filters and a reference check, open **更多白板工具 → 白板操作** and search for **筛选对象** or **白板检查**.
+
+Combine keywords, type, group, color and **阅读状态** (Reading status), then expand **材料清单** (Material lists), enter a name and choose **保存查询** (Save query). For a pending PDF list, choose PDF and **待读** (To read). Lists are saved in their own board file and recompute current results when opened; they contain filter criteria rather than result snapshots or note bodies. Rename or delete with the adjacent buttons; board undo restores a deletion. A deleted group keeps its list empty until you adjust and save a new query. Note, text, image and PDF results have a reading-state control, except locked objects. Failed saves preserve the input and show a retry message.
 
 Native search integration creates Markdown indexes under `ThoughtSpace/白板搜索/`. They cover board text, card titles, group names, and connection labels; location links return to the board. Linked notes are searchable through their original files. PDF indexing covers filenames and page numbers, not full text or OCR. **白板原生搜索** in settings can stop index updates; existing indexes remain. Use **重建白板原生搜索索引** if you need to regenerate them.
 

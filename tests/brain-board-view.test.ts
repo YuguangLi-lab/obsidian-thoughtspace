@@ -3,6 +3,7 @@ import * as descendants from '../src/brain-board-descendants';
 import * as ports from '../src/brain-board-ports';
 import {LocalRelationMotion} from '../src/local-relations-motion';
 import test from 'node:test';
+import {BrainRefreshCache} from '../src/brain-refresh-cache';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
@@ -59,8 +60,8 @@ class Component {
 }
 class MenuItem {submenu?:Menu;setSubmenu(){return this.submenu??=new Menu();}title='';icon='';disabled=false;callback=()=>{};setTitle(value:string){this.title=value;return this;}setIcon(value:string){this.icon=value;return this;}setDisabled(value:boolean){this.disabled=value;return this;}onClick(fn:()=>void){this.callback=fn;return this;}click(){if(!this.disabled)this.callback();}}
 class Menu {static last:Menu;items:MenuItem[]=[];native=true;shown?:string;doc?:Doc;hidden=false;private onHidden=()=>{};constructor(){Menu.last=this;}setUseNativeMenu(value:boolean){this.native=value;return this;}addItem(fn:(item:MenuItem)=>void){const item=new MenuItem();fn(item);this.items.push(item);return this;}addSeparator(){}showAtMouseEvent(){Menu.last=this;this.shown='mouse';}showAtPosition(_position:any,doc:Doc){Menu.last=this;this.shown='keyboard';this.doc=doc;}onHide(fn:()=>void){this.onHidden=fn;}hide(){this.hidden=true;this.onHidden();}}
-const source=readFileSync('src/brain-board-view.ts','utf8').replace(/^import[^\n]*\n/gm,'').replace(/\bexport /g,'');
-const deps={...brainColors,...descendants,...ports,LocalRelationMotion,...state,...relations,...layout,...creation,Component,Menu,setIcon(el:El,icon:string){el.dataset.icon=icon;}};
+const source=readFileSync(process.env.QA_BRAIN_VIEW_SOURCE||'src/brain-board-view.ts','utf8').replace(/^import[^\n]*\n/gm,'').replace(/\bexport /g,'');
+const deps={BrainRefreshCache,...brainColors,...descendants,...ports,LocalRelationMotion,...state,...relations,...layout,...creation,Component,Menu,setIcon(el:El,icon:string){el.dataset.icon=icon;}};
 const {BrainBoardView:View,sideActionPositions}=new Function(...Object.keys(deps),transformSync(source+'\nreturn {BrainBoardView,sideActionPositions};',{loader:'ts'}).code)(...Object.values(deps));
 const card=(id:string,kind:Card['kind']='card'):Card=>({id,kind,title:'标题 '+id,file:kind==='card'?`Notes/${id}.md`:kind==='board'?`Boards/${id}.thoughtspace`:undefined,x:10,y:20,width:120,height:80,color:'slate'});
 function fixture(){
@@ -75,6 +76,20 @@ const node=(f:ReturnType<typeof fixture>,id:string)=>f.el.querySelector(`[data-b
 const action=(root:El,key:string)=>root.querySelector(`[data-brain-action="${key}"]`)!;
 const title=(f:ReturnType<typeof fixture>,id:string)=>node(f,id).querySelector('.ts-brain-node-title')!;
 const allMenuItems=(menu:Menu):MenuItem[]=>menu.items.flatMap(item=>[item,...(item.submenu?allMenuItems(item.submenu):[])]);
+test('known unchanged graph retains SVG, history and preview DOM; revision/source/expand invalidates',()=>{
+ const f=fixture();let nativeReads=0;f.setSnapshot({...f.snapshot,graphRevision:1,nativeRevision:1,native:()=>{nativeReads++;return[];}});f.view.refresh();
+ const svg=f.el.querySelector('.ts-brain-links')!,recent=f.el.querySelector('.ts-brain-recent')!,paths=[...svg.children],entries=[...recent.children];
+ for(let i=0;i<20;i++)f.view.refresh();assert.equal(nativeReads,1);assert.deepEqual(svg.children,paths);assert.deepEqual(recent.children,entries);
+ f.board.nodes.find(n=>n.id==='c')!.title='Fresh title';f.setSnapshot({...f.snapshot,graphRevision:2});f.view.refresh();assert.match(title(f,'c').textContent,/Fresh title/);assert.equal(nativeReads,2);
+ f.board.brain!.expandedIds=['b'];f.view.refresh();const preview=node(f,'b').querySelector('.ts-brain-preview')!;assert.ok(preview);f.view.refresh();assert.equal(node(f,'b').querySelector('.ts-brain-preview'),preview);
+ f.stamps.set('b','new-source');f.setSnapshot({...f.snapshot,nativeRevision:2});f.view.refresh();assert.notEqual(node(f,'b').querySelector('.ts-brain-preview'),preview);
+ f.view.unload();assert.equal(f.view.projection,undefined);assert.equal(f.view.layout,undefined);assert.equal(f.view.transformLayout,undefined);
+});
+test('hosts without revision contracts retain descendant paging but detect in-place graph edits',()=>{
+ const f=fixture();for(let i=0;i<75;i++){f.board.nodes.push(card('paged-'+i));f.board.edges.push({id:'p'+i,from:'b',to:'paged-'+i,kind:'branch',label:''});}f.board.brain!.descendantDepth=3;f.view.refresh();const index=f.view.branchCache.index;
+ action(f.el,'next-branches').click();assert.equal(f.view.descendantPage.page,1);assert.equal(f.view.branchCache.index,index);f.view.refresh();assert.equal(f.view.descendantPage.page,1);
+ f.board.nodes.find(n=>n.id==='paged-0')!.title='Updated';f.view.refresh();assert.notEqual(f.view.branchCache.index,index);
+});
 const menuItem=(title:string)=>allMenuItems(Menu.last).find(item=>item.title===title)!;
 
 test('dedicated mount draws only supported nodes without mutating geometry, state, sources or viewport',()=>{const f=fixture(),before=clone(f.board);f.view.refresh();assert.deepEqual(clone(f.board),before);assert.equal(f.saves.length,0);assert.equal(f.viewports.length,0);assert.equal(f.opens.length,0);assert.equal(f.previews.length,0);assert.equal(f.el.querySelectorAll('.ts-node').length,0);assert.equal(f.el.querySelectorAll('[data-id]').length,0);assert.equal(node(f,'text'),undefined);assert.ok(node(f,'group'));assert.ok(node(f,'sub'));});
@@ -340,7 +355,7 @@ function closingRendererFixture(){
  const f=sessionRendererFixture({x:-200,y:18.3,zoom:1});f.first.view.unload();f.owner.listeners.clear();const main=readFileSync('src/main.ts','utf8');
  const take=(start:string,end:string)=>{const from=main.indexOf(start),to=main.indexOf(end,from);assert(from>=0&&to>from);return main.slice(from,to);};
  const code='class BoardView extends Component{'+take('  private fitLegacyGeometry(){','  private point(')+take('  private clearBrainBoard(){','  private addBrainObject(')+'};return BoardView';
- const deps={...descendants,...ports,LocalRelationMotion,...state,...brain,...relations,Component,BrainBoardView:View,View:class{},Notice:class{},TFile:class{}};
+ const deps={BrainRefreshCache,...descendants,...ports,LocalRelationMotion,...state,...brain,...relations,Component,BrainBoardView:View,View:class{},Notice:class{},TFile:class{}};
  const Parent=new Function(...Object.keys(deps),transformSync(code,{loader:'ts'}).code)(...Object.values(deps)),parent=new Parent(),leaf={view:parent},content=f.first.root.createDiv(),plugin=f.owner.plugin;
  Object.assign(plugin,{refreshDock(){},refreshLocalRelations(){},clearMaterialDrag(){}});Object.assign(parent,{app:{workspace:{getActiveViewOfType:()=>parent}},plugin,leaf,contentEl:content,session:f.owner,closed:false,closing:false,dialogEpoch:0,brainObjectEpoch:0,sidebarRun:0,renderFrame:0,blankClicks:{cancel(){}},clearCanvasGesture(){},clearNodes(){},finishMarquee(){},finishInlineForNavigation:async()=>{},renderSaveStatus(){},mindmapNative:()=>({relations:[],tagsByNode:new Map(),pendingPaths:[]}),mindmapSource:(_owner:any,id:string)=>({label:id,available:true,stamp:'1'})});
  parent.load();parent.renderBrainBoard();const renderer=parent.brainBoardView,el=parent.brainBoardEl;

@@ -6,8 +6,8 @@
   --ts-nav-subtle: var(--background-primary);
   --ts-nav-line: color-mix(in srgb, var(--background-modifier-border) 72%, transparent);
   --ts-nav-hover: var(--background-modifier-hover);
-  --ts-nav-accent: var(--interactive-accent);
-  --ts-nav-active: color-mix(in srgb, var(--interactive-accent) 10%, var(--background-primary));
+  --ts-nav-accent: var(--ts-accent,var(--interactive-accent));
+  --ts-nav-active: color-mix(in srgb, var(--ts-accent,var(--interactive-accent)) 6%, var(--background-primary));
   --ts-nav-radius: 7px;
   --ts-nav-row-height: 36px;
   display: flex;
@@ -40,8 +40,8 @@
 }
 .ts-root.ts-dock .ts-dock-quick { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; padding: 0 !important; }
 .ts-root.ts-dock .ts-dock-quick > .ts-button { min-width: 0; height: 37px !important; min-height: 37px; gap: 7px; padding: 0 11px !important; border-radius: var(--ts-nav-radius) !important; box-shadow: none !important; font-size: var(--font-ui-small, 13px) !important; }
-.ts-root.ts-dock .ts-dock-quick > .ts-primary { justify-content: flex-start; border: 1px solid transparent !important; background: var(--interactive-accent) !important; color: var(--text-on-accent) !important; font-weight: var(--font-semibold, 600); }
-.ts-root.ts-dock .ts-dock-quick > .ts-primary:hover { background: var(--interactive-accent-hover) !important; color: var(--text-on-accent) !important; }
+.ts-root.ts-dock .ts-dock-quick > .ts-primary { justify-content: flex-start; border: 1px solid transparent !important; background: var(--ts-nav-active) !important; color: var(--ts-accent) !important; font-weight: var(--font-semibold, 600); }
+.ts-root.ts-dock .ts-dock-quick > .ts-primary:is(:hover,:focus-visible):not(:disabled) { background: color-mix(in srgb,var(--ts-accent) 6%,var(--background-primary)) !important; color: var(--ts-accent) !important; }
 .ts-root.ts-dock .ts-dock-quick > .ts-dock-create { flex-direction: row-reverse; border: 1px solid var(--ts-nav-line) !important; background: var(--background-primary) !important; color: var(--text-normal) !important; }
 .ts-root.ts-dock .ts-dock-quick > .ts-dock-create:is(:hover, [aria-expanded='true']) { background: var(--ts-nav-hover) !important; border-color: var(--text-faint) !important; }
 .ts-root.ts-dock .ts-dock-create svg { width: 12px; height: 12px; }
@@ -93,7 +93,7 @@
 }
 .ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab']::after { content: none; display: none !important; }
 .ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab']:hover { background: var(--ts-nav-hover) !important; color: var(--text-normal) !important; }
-.ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'].is-active { background: var(--ts-nav-active) !important; color: var(--text-accent) !important; font-weight: var(--font-semibold, 600); box-shadow: none !important; }
+.ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'].is-active { background: var(--ts-nav-active) !important; color: var(--ts-accent,var(--interactive-accent)) !important; font-weight: var(--font-semibold, 600); box-shadow: none !important; }
 .ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'].is-active::before { content: ''; position: absolute; inset-inline-start: 12px; top: auto; bottom: -5px; right: 12px; width: auto; height: 2px; border-radius: 2px 2px 0 0; background: var(--ts-nav-accent); pointer-events: none; }
 .ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'] > span:first-child { display: flex; flex: none; }
 .ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'] svg { width: 15px; height: 15px; stroke-width: 1.65; }
@@ -102,7 +102,7 @@
 .ts-root.ts-dock .ts-sidebar-search > .ts-search::placeholder { color: var(--text-muted); opacity: 1; }
 .ts-root.ts-dock .ts-sidebar-search-icon { margin-left: 10px; color: var(--text-muted); }
 .ts-root.ts-dock .ts-sidebar-search:focus-within { background: var(--background-primary); border-color: var(--ts-nav-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ts-nav-accent) 12%, transparent); }
-.ts-root.ts-dock .ts-sidebar-search:focus-within .ts-sidebar-search-icon { color: var(--text-accent); }
+.ts-root.ts-dock .ts-sidebar-search:focus-within .ts-sidebar-search-icon { color: var(--ts-accent,var(--interactive-accent)); }
 .ts-root.ts-dock .ts-sidebar-search > .ts-search:focus { border: 0 !important; outline: none !important; box-shadow: none !important; }
 .ts-root.ts-dock .ts-search-clear { margin-right: 3px; }
 .ts-root.ts-dock .ts-search-clear[hidden] { display: none !important; }
@@ -114,10 +114,10 @@
 .ts-root.ts-dock .ts-board-switch { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .ts-root.ts-dock .ts-task-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .ts-root.ts-dock :is(.ts-board-switch, .ts-task-filters) > .ts-button { height: 30px; min-height: 30px; min-width: 0; gap: 5px; padding: 0 6px !important; border: 0 !important; border-bottom: 2px solid transparent !important; border-radius: 0 !important; background: transparent !important; color: var(--text-muted) !important; font-size: var(--font-ui-smaller, 12px) !important; box-shadow: none !important; }
-.ts-root.ts-dock :is(.ts-board-switch, .ts-task-filters) > .ts-button.is-active { border-bottom-color: var(--ts-nav-accent) !important; background: transparent !important; color: var(--text-accent) !important; box-shadow: none !important; font-weight: var(--font-semibold, 600); }
+.ts-root.ts-dock :is(.ts-board-switch, .ts-task-filters) > .ts-button.is-active { border-bottom-color: var(--ts-nav-accent) !important; background: transparent !important; color: var(--ts-accent,var(--interactive-accent)) !important; box-shadow: none !important; font-weight: var(--font-semibold, 600); }
 .ts-root.ts-dock :is(.ts-board-switch, .ts-task-filters) > .ts-button:hover { background: var(--ts-nav-hover) !important; color: var(--text-normal) !important; }
 .ts-root.ts-dock .ts-board-switch svg { width: 14px; height: 14px; color: var(--text-muted); }
-.ts-root.ts-dock .ts-board-switch > .ts-button.is-active svg { color: var(--text-accent); }
+.ts-root.ts-dock .ts-board-switch > .ts-button.is-active svg { color: var(--ts-accent,var(--interactive-accent)); }
 .ts-root.ts-dock .ts-board-list-controls { display: flex; align-items: center; gap: 2px; height: 27px; margin: 6px 0 0 !important; border: 0 !important; }
 .ts-root.ts-dock .ts-board-list-controls > select { flex: 1; width: 0; min-width: 0; height: 27px; padding-left: 6px !important; color: var(--text-muted); font-size: var(--font-ui-smaller, 12px); }
 .ts-root.ts-dock .ts-board-list-controls > select:hover { background-color: var(--ts-nav-hover) !important; }
@@ -140,18 +140,18 @@
 .ts-root.ts-dock .ts-outline-row[aria-level]:not([aria-level='1'])::before { left: calc(var(--ts-nav-outline-indent) - 2px); border-color: var(--ts-nav-line); }
 .ts-root.ts-dock .ts-tree-row[aria-expanded] > .ts-tree-title { font-weight: var(--font-semibold, 600); }
 .ts-root.ts-dock :is(.ts-tree-row.is-current, .ts-outline-row.is-selected),
-.ts-root.ts-dock .ts-board-tree[role='tree'] > .ts-tree-row[aria-current='page'] { border-color: color-mix(in srgb, var(--interactive-accent) 15%, transparent); background: var(--ts-nav-active) !important; box-shadow: none !important; }
+.ts-root.ts-dock .ts-board-tree[role='tree'] > .ts-tree-row[aria-current='page'] { border-color: color-mix(in srgb, var(--ts-accent,var(--interactive-accent)) 15%, transparent); background: var(--ts-nav-active) !important; box-shadow: none !important; }
 .ts-root.ts-dock :is(.ts-tree-row.is-current, .ts-outline-row.is-selected)::after { content: ''; display: block; position: absolute; left: -1px; top: 8px; bottom: 8px; width: 3px; height: auto; border: 0; border-radius: 2px; background: var(--ts-nav-accent); pointer-events: none; }
 .ts-root.ts-dock :is(.ts-tree-row, .ts-favorite-row, .ts-outline-row):not(.is-current):not(.is-selected):is(:hover, :focus-within) { background: var(--ts-nav-hover) !important; }
 .ts-root.ts-dock :is(.ts-tree-title, .ts-outline-title) { flex: 1; min-width: 0; height: calc(var(--ts-nav-row-height) - 4px); min-height: calc(var(--ts-nav-row-height) - 4px) !important; gap: 8px; padding-inline: 3px !important; border: 0 !important; border-radius: 5px !important; font-size: var(--font-ui-small, 13px) !important; }
 .ts-root.ts-dock :is(.ts-tree-title, .ts-outline-title) > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ts-root.ts-dock :is(.ts-tree-title, .ts-outline-title) svg { width: 15px; height: 15px; stroke-width: 1.65; }
 .ts-root.ts-dock :is(.ts-tree-row.is-current > .ts-tree-title, .ts-outline-row.is-selected > .ts-outline-title) { color: var(--text-normal) !important; font-weight: var(--font-semibold, 600); }
-.ts-root.ts-dock :is(.ts-tree-row.is-current, .ts-outline-row.is-selected) :is(.ts-tree-title, .ts-outline-title) svg { color: var(--text-accent); }
+.ts-root.ts-dock :is(.ts-tree-row.is-current, .ts-outline-row.is-selected) :is(.ts-tree-title, .ts-outline-title) svg { color: var(--ts-accent,var(--interactive-accent)); }
 .ts-root.ts-dock :is(.ts-tree-toggle, .ts-tree-spacer, .ts-outline-row > .ts-outline-toggle, .ts-outline-row > .ts-outline-toggle-spacer) { flex: 0 0 20px; width: 20px; min-width: 20px; height: 30px; border-radius: 5px !important; }
 .ts-root.ts-dock :is(.ts-tree-toggle, .ts-outline-toggle) svg { width: 13px; height: 13px; }
 .ts-root.ts-dock :is(.ts-tree-count, .ts-outline-children-count) { flex: none; min-width: 17px; margin-right: 2px; padding: 1px 4px; border-radius: 4px; background: transparent; color: var(--text-muted); font-size: var(--font-ui-smaller, 12px); font-variant-numeric: tabular-nums; }
-.ts-root.ts-dock .ts-tree-row.is-current .ts-tree-count { color: var(--text-accent); }
+.ts-root.ts-dock .ts-tree-row.is-current .ts-tree-count { color: var(--ts-accent,var(--interactive-accent)); }
 .ts-root.ts-dock :is(.ts-tree-add, .ts-favorite-row > .ts-icon-button, .ts-outline-row > .ts-icon-button:not(.ts-outline-toggle)) { flex: 0 0 24px; width: 24px; height: 28px; min-height: 28px; margin-right: 0; color: var(--text-muted); }
 .ts-root.ts-dock .ts-tree-warning { flex: none; margin-right: 4px; font-size: 10px; line-height: 1.5; }
 .ts-root.ts-dock .ts-tree-help { margin: 10px 6px 0; padding: 10px 0 0; border-top: 1px solid var(--ts-nav-line); color: var(--text-muted); font-size: var(--font-ui-smaller, 12px); line-height: 1.7; }
@@ -192,7 +192,7 @@
    while a long tree, library or task list scrolls. */
 .ts-root.ts-dock .ts-dock-workspace-tools { display: grid; flex: none; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding: 8px var(--ts-nav-gutter); border-top: 1px solid var(--ts-nav-line); background: var(--background-primary); }
 .ts-root.ts-dock .ts-dock-workspace-tools > .ts-button { display: flex; justify-content: flex-start; align-items: center; min-width: 0; height: 36px; min-height: 36px; gap: 7px; padding: 0 8px !important; border: 0 !important; border-radius: 5px !important; background: transparent !important; color: var(--text-muted) !important; box-shadow: none !important; font-size: var(--font-ui-smaller, 12px) !important; }
-.ts-root.ts-dock .ts-dock-workspace-tools > .ts-button:hover { border-color: color-mix(in srgb, var(--ts-nav-accent) 30%, var(--ts-nav-line)) !important; background: var(--ts-nav-active) !important; color: var(--text-accent) !important; }
+.ts-root.ts-dock .ts-dock-workspace-tools > .ts-button:hover { border-color: color-mix(in srgb, var(--ts-nav-accent) 30%, var(--ts-nav-line)) !important; background: var(--ts-nav-active) !important; color: var(--ts-accent,var(--interactive-accent)) !important; }
 .ts-root.ts-dock .ts-dock-workspace-tools > .ts-button > span:first-child { display: flex; flex: none; color: var(--text-muted); }
 .ts-root.ts-dock .ts-dock-workspace-tools > .ts-button > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ts-root.ts-dock .ts-dock-workspace-tools svg { width: 16px; height: 16px; stroke-width: 1.65; }

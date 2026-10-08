@@ -13,9 +13,10 @@ import {isVaultMediaPath,mediaKind,validMediaTime} from './media-source';
 import type {WritingState} from './writing';
 import {markdownRows} from './markdown-context';
 import {yingjianNotePath} from './yingjian';
+import {validSavedSearches,type SavedSearch} from './saved-searches';
 /** Capture provenance survives independent text/image editing and safe note renames. */
 export interface Card { brainIdea?:true; mindmap?:BoardMindmapState;paragraphQuote?:ParagraphOrigin; pdfQuote?:PdfQuoteOrigin; videoCapture?:{id:string;note:string}; sectionFolded?:boolean; sectionDivider?:'none'|'solid'|'dashed'|'dotted'; cardStyle?:'band'|'paper'|'index'|'sticky' }
-export interface Board {background?:BoardBackground;readingLayout?:ReadingLayoutCheckpoint;relationGeometry?:RelationGeometryCheckpoint}
+export interface Board {background?:BoardBackground;readingLayout?:ReadingLayoutCheckpoint;relationGeometry?:RelationGeometryCheckpoint;savedSearches?:SavedSearch[]}
 /** Dedicated relation boards keep their view state separate from ordinary card geometry. */
 export interface Board {presentation?:'brain';brain?:BoardMindmapState;brainViewport?:{x:number;y:number;zoom:number};brainColors?:BrainColors}
 import { connectionSides, Side } from './connections';
@@ -79,7 +80,7 @@ function assertBoardData(b:unknown):asserts b is Board {
     if((n.locked!==undefined&&typeof n.locked!=='boolean')||(n.autoFit!==undefined&&(n.kind!=='card'||typeof n.autoFit!=='boolean'))||(n.borderWidth!==undefined&&!isOneOf(n.borderWidth,[0,1,2,3,4]))||(n.borderStyle!==undefined&&!isOneOf(n.borderStyle,['solid','dashed','dotted'])))throw Error('对象样式或锁定状态不完整');
     if(n.branchFolded!==undefined&&(b.version!==3||typeof n.branchFolded!=='boolean'))throw Error('导图折叠状态无效');
     if(n.sectionFolded!==undefined&&(b.version!==3||typeof n.sectionFolded!=='boolean'||n.kind!=='section'))throw Error('分组折叠状态无效');
-    if(n.review!==undefined&&(!isOneOf(n.review,['later','reading','done'])||!isOneOf(n.kind,['card','text','image'])))throw Error('阅读状态无效');
+    if(n.review!==undefined&&(!isOneOf(n.review,['later','reading','done'])||!isOneOf(n.kind,['card','text','image','pdf'])))throw Error('阅读状态无效');
     ids.add(n.id);
   }
   const edgeIds = new Set<string>();
@@ -98,6 +99,7 @@ function assertBoardData(b:unknown):asserts b is Board {
   if(b.spaceId!==undefined&&(typeof b.spaceId!=='string'||!/^[a-zA-Z0-9-]{1,80}$/.test(b.spaceId)))throw Error('空间标识无效');
   if(b.snapToGrid!==undefined&&typeof b.snapToGrid!=='boolean')throw Error('吸附设置无效');
   if(b.savedViews!==undefined){if(!isUnknownArray(b.savedViews)||b.savedViews.length>50)throw Error('保存视角无效');const seen=new Set();for(const v of b.savedViews){if(!isRecord(v)||typeof v.id!=='string'||seen.has(v.id)||typeof v.name!=='string'||!v.name.trim()||v.name.length>100||!isRecord(v.viewport)||![v.viewport.x,v.viewport.y].every(isFiniteNumber)||!isFiniteNumber(v.viewport.zoom)||v.viewport.zoom<.15||v.viewport.zoom>2.5)throw Error('保存视角无效');seen.add(v.id);}}
+  if(b.savedSearches!==undefined&&(b.version!==3||!validSavedSearches(b.savedSearches)))throw Error('材料清单数据无效');
   if(b.selectionSets!==undefined){if(!isUnknownArray(b.selectionSets)||b.selectionSets.length>30)throw Error('保存选区无效');const seen=new Set<string>();for(const s of b.selectionSets){if(!isRecord(s)||typeof s.id!=='string'||seen.has(s.id)||typeof s.name!=='string'||!s.name.trim()||s.name.length>60||!isUnknownArray(s.ids)||s.ids.length>100000||s.ids.some((id:unknown)=>typeof id!=='string')||new Set(s.ids).size!==s.ids.length)throw Error('保存选区无效');seen.add(s.id);}}
   if(b.writing!==undefined){const w=b.writing;if(!isRecord(w)||typeof w.title!=='string'||w.title.length>160||!isUnknownArray(w.order)||w.order.length>100000||w.order.some((id:unknown)=>typeof id!=='string')||new Set(w.order).size!==w.order.length||(w.referenceId!==undefined&&typeof w.referenceId!=='string')||(w.draftPath!==undefined&&typeof w.draftPath!=='string'))throw Error('写作顺序数据无效');
     if(w.manuscript!==undefined&&(typeof w.manuscript!=='string'||w.manuscript.length>1000000))throw Error('写作正文数据无效');

@@ -70,7 +70,7 @@
   color:var(--text-normal);
 }
 .ts-mindmap-node .ts-mindmap-shell button.clickable-icon:focus-visible {
-  outline:2px solid var(--interactive-accent);
+  outline:2px solid var(--ts-accent,var(--interactive-accent));
   outline-offset:-2px;
 }
 .ts-mindmap-node .ts-mindmap-shell button.clickable-icon:disabled { opacity:.4; cursor:default; }
@@ -188,8 +188,8 @@
 }
 .ts-mindmap-node .ts-mindmap-item.is-center {
   width:224px;
-  border-color:var(--interactive-accent);
-  background:color-mix(in srgb,var(--interactive-accent) 7%,var(--background-primary));
+  border-color:var(--ts-accent,var(--interactive-accent));
+  background:color-mix(in srgb,var(--ts-accent,var(--interactive-accent)) 6%,var(--background-primary));
 }
 .ts-mindmap-node .ts-mindmap-item.is-pinned:not(.is-center) { border-color:var(--text-muted); }
 .ts-mindmap-node .ts-mindmap-item.is-expanded { width:clamp(204px,calc((100cqw - 120px) / 3),276px); }

@@ -37,7 +37,7 @@ class Setting {
 }
 class Observer {constructor(_callback:()=>void){}observe(){}disconnect(){}}
 const source=readFileSync('src/brain-colors-view.ts','utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
-const deps={...colors,Modal,Setting,MutationObserver:Observer};
+const deps={...colors,Modal,Setting,MutationObserver:Observer,themeSurface:(el:Element)=>{el.addClass('ts-ui-modal');el.dataset.accent='blue';}};
 const View=new Function(...Object.keys(deps),transformSync(source+'\nreturn BrainColorsModal;',{loader:'ts'}).code)(...Object.values(deps));
 const settle=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
 function fixture(){
@@ -47,6 +47,10 @@ function fixture(){
  const root=modal.contentEl as Element,input=(name:string)=>root.all().find(el=>el.attributes['aria-label']===name)!,button=(name:string)=>root.all().find(el=>el.tag==='BUTTON'&&(el.textContent===name||el.attributes['aria-label']===name))!,preview=root.all().find(el=>el.classes.has('ts-brain-colors-preview-node'))!;
  return{doc,modal,root,host,input,button,preview,previews,saved,setCurrent:(value:boolean)=>current=value,setFailure:(value:boolean)=>fail=value};
 }
+test('brain color actions inherit the workspace control accent independently of draft node colors',()=>{
+ const f=fixture();assert.ok(f.modal.modalEl.classes.has('ts-ui-modal'));assert.equal(f.modal.modalEl.dataset.accent,'blue');
+ f.input('节点底色颜色').input('#aa3344');f.doc.tick();assert.equal(f.modal.modalEl.dataset.accent,'blue');assert.equal(f.preview.style.backgroundColor,'#aa3344');
+});
 test('border is independently editable with immediate dialog preview while blank fields still follow the theme',()=>{
  const f=fixture();assert.equal(f.doc.activeElement,f.input('节点边框颜色'));f.input('节点边框颜色').input('#AbC');f.doc.tick();assert.equal(f.preview.style.borderColor,'#aabbcc');assert.equal(f.preview.style.backgroundColor,'#f2f2f2');assert.equal(f.saved.length,0);assert.equal(f.input('节点边框颜色选择器').value,'#aabbcc');
  f.button('节点边框跟随主题').click();f.doc.tick();assert.equal(f.input('节点边框颜色').value,'');assert.equal(f.preview.style.borderColor,'#666666');assert.deepEqual(f.previews.at(-1),{node:'#f2f2f2'});

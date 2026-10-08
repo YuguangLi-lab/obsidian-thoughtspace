@@ -18,6 +18,7 @@ import {visibleGridSize} from '../src/canvas-controls';
 import {textFontFamily} from '../src/text-tools';
 import {nodeHasBorder,textFitsContent,textBlockPadding} from '../src/text-sizing';
 import {cardDisplayTitle} from '../src/card-title-model';
+import {syncCardTitlePresentation} from '../src/compact-card-title';
 import {mountCardControlHover} from '../src/card-control-hover';
 import {mountCardQuickActions} from '../src/card-quick-actions';
 import {mountCardReadingAffordance} from '../src/card-reading-affordance';
@@ -120,7 +121,7 @@ function fixture(kind:model.Card['kind']='card',patch:Partial<model.Card>={}){
  const world=new Dom();world.root=true;const svg=world.createEl('svg'),previewQueue=new Queue(),pdfPreviewQueue=new Queue();
  const mediaMounts:{options:MediaCardOptions;body:Dom;paused:number;disposed:number}[]=[];
  const session={board,blocked:false,file:new File('board.thoughtspace')};
- const deps={isBrainBoard,parseOnlineSource,foldControlObstacles,effectiveCardStyle,cardHeadingColors,mountCardControlHover,nodeHasBorder,textBlockPadding,...model,...keys,mountCardQuickActions,mountCardReadingAffordance,cardControlLayout,renderBranchControls:branchModule.exports.renderBranchControls,branchState,branchRenderSnapshot,childConnectionCandidates:(board:model.Board,roots?:ReadonlySet<string>)=>{calls.childCandidates++;return childConnectionCandidates(board,roots);},sectionDisplayNode,visibleNodes,viewportRect,markdownPreview,visibleGridSize,textFontFamily,textFitsContent,cardDisplayTitle,mediaDimensions,
+ const deps={isBrainBoard,parseOnlineSource,foldControlObstacles,effectiveCardStyle,cardHeadingColors,mountCardControlHover,nodeHasBorder,textBlockPadding,...model,...keys,mountCardQuickActions,mountCardReadingAffordance,cardControlLayout,renderBranchControls:branchModule.exports.renderBranchControls,branchState,branchRenderSnapshot,childConnectionCandidates:(board:model.Board,roots?:ReadonlySet<string>)=>{calls.childCandidates++;return childConnectionCandidates(board,roots);},sectionDisplayNode,visibleNodes,viewportRect,markdownPreview,visibleGridSize,textFontFamily,textFitsContent,cardDisplayTitle,syncCardTitlePresentation,mediaDimensions,
   act:()=>{},TFile:File,Component:Scope,Element:Dom,getAllTags:(cache:{tags?:string[]})=>{calls.tags++;return cache.tags||null;},setIcon:()=>{},
   button:(host:Dom,label:string,_icon:string,fn:()=>void,cls='')=>{const el=host.createEl('button',{cls,attr:{'aria-label':label}});el.createSpan();el.createSpan({text:label});el.onclick=fn;return el;},
   bindCardTitle:()=>()=>{},readProperties:(fm:Record<string,unknown>)=>({status:fm.thoughtspace_status}),statuses:{done:'完成'},isOverdue:()=>false,localDay:()=>'',
@@ -138,7 +139,7 @@ function fixture(kind:model.Card['kind']='card',patch:Partial<model.Card>={}){
  const allDeps={...deps,...cardPreviewModule.exports};
  const View=new Function(...Object.keys(allDeps),transformSync(`class View{${methods}};return View`,{loader:'ts'}).code)(...Object.values(allDeps));
  const view=new View();view.hostedUploads=new Set();Object.assign(view,{syncMinimapAvoidance(){},cardToolbarObstacles:[],session,world,svg,stage:new Dom(),contentEl:new Dom(),zoomLabel:new Dom(),selected:new Set(),positions:new Map(),nodeScopes:new Map(),nodeKeys:new Map(),boardMindmaps:new Map(),mediaStates:new Map(),mediaPlayers:new Map(),mediaIdentities:new Map(),onlineBoardPlayers:new Map(),onlineBoardStates:new Map(),pdfTotals:new Map(),previewQueue,pdfPreviewQueue,
-  plugin:{settings:{gridStep:24,previewLimit:20,detailZoom:.4},pauseOnlineBoardPlayers(){},mediaWorkspace:{playback:new MediaPlayback(),identity:(file:any)=>({path:file.path,mtime:file.stat.mtime,size:file.stat.size})}},
+  plugin:{settings:{gridStep:24,previewLimit:20,detailZoom:.4,compactDuplicateCardTitles:false},pauseOnlineBoardPlayers(){},mediaWorkspace:{playback:new MediaPlayback(),identity:(file:any)=>({path:file.path,mtime:file.stat.mtime,size:file.stat.size})}},
   app:{vault:{getAbstractFileByPath:(path:string)=>files.get(path),getResourcePath:(file:File)=>file.path,async cachedRead(){calls.read++;return 'Rendered **note**';}},metadataCache:{getFileCache:()=>{calls.metadata++;return metadata;}}},
   displayBoard:()=>board,updateBackToContent(){},syncCanvasControls(){},updateObjectFilter(){},renderSaveStatus(){},renderNavigation(){},renderEdges(){},renderInspector(){},renderMinimap(){},addPorts(){},
   queueTextFit(){calls.textFit++;},queueCardFit(){calls.cardFit++;},queueNodeFit(fitNode:model.Card,size:{width:number;height:number}){calls.mediaFits.push({node:fitNode,size});}

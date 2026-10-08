@@ -154,7 +154,8 @@ export class ThoughtSpaceSettings extends PluginSettingTab {
   if(page==='cards'){
    this.select(el,'defaultCardStyle',['默认卡片样式','Default card style'],['仅用于之后新建或插入的 Markdown 卡片，已有卡片保持原样。','Applies to newly created or inserted Markdown cards. Existing cards stay unchanged.'],{transparent:['透明','Transparent'],solid:['实色','Solid'],band:['色带','Color band'],paper:['纸张','Paper'],index:['索引卡','Index'],sticky:['便签卡','Sticky note']});
    boardPreferenceControls(el.createDiv('ts-board-preferences'),prefs,persist,{includeMouse:false,section:'cards',hideReset:true,language:this.language});
-   this.toggle(el,'noteMarkdownToolbar',['笔记 Markdown 工具栏','Note formatting toolbar'],['在普通笔记和侧栏笔记的编辑模式显示格式工具。','Shows formatting tools while editing notes and sidebar notes.']);return;
+   this.toggle(el,'noteMarkdownToolbar',['笔记 Markdown 工具栏','Note formatting toolbar'],['在普通笔记和侧栏笔记的编辑模式显示格式工具。','Shows formatting tools while editing notes and sidebar notes.']);
+   this.toggle(el,'compactDuplicateCardTitles',['精简重复卡片标题','Compact duplicate card titles'],['卡片名与正文首个 H1 相同时，将外壳标题缩为来源行。保留正文和原笔记；关闭即可恢复。','When a card title matches its first H1, show the outer title as a compact source line. Keeps the heading and source note; turn off to restore.'],false);return;
   }
   if(page==='board'){
    this.select(el,'canvasBackground',['画布背景','Canvas background'],['背景只影响画布，不修改卡片内容。','Changes the canvas surface without changing card content.'],{dots:['点阵','Dots'],grid:['网格','Grid'],plain:['纯色','Plain'],paper:['纸张纹理','Paper texture'],image:['自定义图片','Custom image']});

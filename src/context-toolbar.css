@@ -4,7 +4,7 @@
 .ts-root .ts-main > .ts-floating-formatbar {
   --ts-format-line:color-mix(in srgb,var(--background-modifier-border) 82%,transparent);
   --ts-format-wash:color-mix(in srgb,var(--background-secondary) 58%,var(--background-primary));
-  --ts-format-active:color-mix(in srgb,var(--interactive-accent) 7%,var(--background-primary));
+  --ts-format-active:color-mix(in srgb,var(--ts-accent) 6%,var(--background-primary));
   top:12px; width:max-content; max-width:min(600px,calc(100% - 24px));
   display:flex; flex-direction:column; align-items:stretch; gap:0; padding:0;
   border:1px solid var(--ts-format-line); border-radius:10px; background:var(--background-primary);
@@ -49,11 +49,11 @@
 }
 .ts-root .ts-floating-formatbar .ts-format-mode-button > span { display:inline-flex; align-items:center; }
 .ts-root .ts-floating-formatbar .ts-format-mode-button svg { width:14px; height:14px; stroke-width:1.7; }
-.ts-root .ts-floating-formatbar .ts-format-heading .ts-format-mode-button:hover:not(:disabled) {
-  color:var(--text-normal); background:var(--background-modifier-hover)!important;
+.ts-root .ts-floating-formatbar .ts-format-heading .ts-format-mode-button:is(:hover,:focus-visible):not(:disabled) {
+  color:var(--ts-accent); background:var(--ts-format-active)!important;
 }
 .ts-root .ts-floating-formatbar .ts-format-heading .ts-format-mode-button.is-active {
-  color:var(--text-accent); background:var(--background-primary)!important;
+  color:var(--ts-accent); background:var(--background-primary)!important;
   border-color:var(--ts-format-line)!important; font-weight:600;
 }
 .ts-root .ts-floating-formatbar .ts-format-mode-button:disabled { opacity:.38; }
@@ -67,8 +67,11 @@
   box-shadow:none!important; color:var(--text-muted); font:500 11px/1.3 var(--font-interface);
 }
 .ts-root .ts-floating-formatbar .ts-batch-format-switch .ts-button > span { display:inline-flex; }
+.ts-root .ts-floating-formatbar .ts-batch-format-switch .ts-button:is(:hover,:focus-visible):not(:disabled) {
+  color:var(--ts-accent); background:var(--ts-format-active)!important;
+}
 .ts-root .ts-floating-formatbar .ts-batch-format-switch .ts-button.is-active {
-  background:var(--background-primary)!important; border-color:var(--ts-format-line)!important; color:var(--text-accent);
+  background:var(--background-primary)!important; border-color:var(--ts-format-line)!important; color:var(--ts-accent);
 }
 
 /* Parameter fields belong to the selected tab; copy/paste keeps its DOM order.
@@ -102,10 +105,10 @@
   background:var(--background-primary); color:var(--text-muted); white-space:nowrap;
 }
 .ts-root .ts-floating-formatbar .ts-commandbar :is(.ts-appearance-group,.ts-edge-format-group) .ts-format-field:hover {
-  border-color:var(--ts-format-line);
+  border-color:color-mix(in srgb,var(--ts-accent) 24%,var(--ts-format-line));
 }
 .ts-root .ts-floating-formatbar .ts-commandbar :is(.ts-appearance-group,.ts-edge-format-group) .ts-format-field:focus-within {
-  border-color:var(--interactive-accent); background:var(--ts-format-active);
+  border-color:var(--ts-accent); background:var(--ts-format-active);
 }
 .ts-root .ts-floating-formatbar .ts-commandbar :is(.ts-appearance-group,.ts-edge-format-group) .ts-format-field > .ts-format-label-icon { display:none; }
 .ts-root .ts-floating-formatbar .ts-commandbar :is(.ts-appearance-group,.ts-edge-format-group) .ts-format-field > .ts-format-label {
@@ -145,8 +148,8 @@
   margin:0; padding:5px!important; border:0!important; border-radius:5px!important;
   color:var(--text-muted); background:transparent!important; box-shadow:none!important;
 }
-.ts-root .ts-floating-formatbar :is(.ts-style-transfer,.ts-edge-format-actions) .ts-icon-button:hover:not(:disabled) {
-  color:var(--text-normal); background:var(--background-modifier-hover)!important;
+.ts-root .ts-floating-formatbar :is(.ts-style-transfer,.ts-edge-format-actions) .ts-icon-button:is(:hover,:focus-visible):not(:disabled) {
+  color:var(--ts-accent); background:var(--ts-format-active)!important;
 }
 /* Style transfer shares the heading instead of wrapping below the previews.
    It remains collapsed with appearance values until a category is opened. */
@@ -161,6 +164,7 @@
   background:var(--background-primary)!important; box-shadow:none!important; pointer-events:auto;
 }
 .ts-root .ts-floating-formatbar .ts-format-scroll svg { width:14px; height:14px; }
+.ts-root .ts-floating-formatbar .ts-format-scroll:is(:hover,:focus-visible):not(:disabled) { color:var(--ts-accent); background:var(--ts-format-active)!important; }
 .ts-root .ts-floating-formatbar .ts-format-scroll[hidden] { display:none!important; }
 .ts-root .ts-floating-formatbar:dir(rtl) .ts-format-scroll svg { transform:scaleX(-1); }
 .ts-root .ts-floating-formatbar .ts-commandbar .ts-edge-scope { margin:0; padding:0 6px; border:0; }
@@ -205,11 +209,13 @@
 }
 
 /* Existing choice menus keep their viewport-bound anchors and every action. */
-.ts-root .ts-main > .ts-inspector { border-radius:10px; background:var(--background-primary); }
+.ts-root .ts-main > .ts-inspector { --ts-format-active:color-mix(in srgb,var(--ts-accent) 6%,var(--background-primary)); border-radius:10px; background:var(--background-primary); }
 .ts-root .ts-inspector .ts-inspector-heading { gap:8px; padding:7px 5px 9px; margin-bottom:6px; color:var(--text-normal); border-bottom:1px solid var(--background-modifier-border); background:var(--background-primary); font-size:12px; }
 .ts-root .ts-inspector :is(.ts-choice-list,.ts-choice-grid) { gap:4px; }
 .ts-root .ts-inspector .ts-choice { min-height:34px; padding:7px 9px!important; border:1px solid transparent!important; border-radius:7px; color:var(--text-normal); }
-.ts-root .ts-inspector .ts-choice[aria-pressed=true] { color:var(--text-accent); background:var(--ts-format-active,var(--background-modifier-hover))!important; border-color:var(--interactive-accent)!important; }
+.ts-root .ts-inspector .ts-choice:is(:hover,:focus-visible):not(:disabled) { color:var(--ts-accent); background:var(--ts-format-active)!important; }
+.ts-root .ts-inspector .ts-choice[aria-pressed=true] { color:var(--ts-accent); background:var(--ts-format-active)!important; border-color:var(--ts-accent)!important; }
+.ts-root .ts-inspector .ts-choice:focus-visible { outline:2px solid var(--ts-accent); outline-offset:-2px; }
 .ts-root .ts-inspector .ts-choice i { width:16px; height:16px; border-radius:4px; box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--text-normal) 12%,transparent); }
 
 /* Native Markdown commands share the same visual rhythm in a board, note or
@@ -231,6 +237,9 @@
   transition: background-color 120ms ease, color 120ms ease;
 }
 :is(.ts-root, .ts-note-markdown-toolbar, .ts-writing) .ts-markdown-tools .ts-md-button svg { width: 16px; height: 16px; stroke-width: 1.7; }
+:is(.ts-root, .ts-note-markdown-toolbar, .ts-writing) .ts-markdown-tools .ts-md-button:is(:hover, :focus-visible):not(:disabled) {
+  color: var(--ts-accent, var(--interactive-accent)); background: color-mix(in srgb, var(--ts-accent, var(--interactive-accent)) 6%, var(--background-primary));
+}
 :is(.ts-root, .ts-note-markdown-toolbar, .ts-writing) .ts-markdown-tools .ts-md-button:is(.is-active, [aria-pressed=true]) {
   color: var(--ts-accent, var(--interactive-accent)); background: var(--ts-soft, var(--background-modifier-hover));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ts-accent, var(--interactive-accent)) 18%, transparent);
@@ -254,7 +263,7 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ts-accent, var(--interactive-accent)) 18%, transparent); opacity: 1;
 }
 :is(.ts-root, .ts-note-markdown-toolbar, .ts-writing) .ts-markdown-tools .ts-md-done:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--ts-accent, var(--interactive-accent)) 16%, var(--background-primary));
+  background: color-mix(in srgb, var(--ts-accent, var(--interactive-accent)) 6%, var(--background-primary));
 }
 .ts-note-markdown-toolbar { min-height: 42px; padding: 5px 8px; overscroll-behavior-x: contain; scroll-padding-inline: 8px; }
 .ts-writing .ts-writing-formatbar { overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scrollbar-width: thin; }

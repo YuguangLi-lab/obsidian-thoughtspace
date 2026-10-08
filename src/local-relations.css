@@ -1,10 +1,10 @@
 .ts-local-relations{display:flex;flex-direction:column;gap:10px;padding:12px;min-width:0;overflow:hidden;font-family:var(--font-interface);color:var(--text-normal);container-type:inline-size}
 .ts-local-relations button{font-family:var(--font-interface);box-shadow:none;min-width:0}
-.ts-local-relations button:focus-visible,.ts-local-relations summary:focus-visible{outline:2px solid var(--interactive-accent);outline-offset:2px}
+.ts-local-relations button:focus-visible:not(:where(.markdown-rendered *, .markdown-preview-view *, .cm-editor *)),.ts-local-relations summary:focus-visible:not(:where(.markdown-rendered *, .markdown-preview-view *, .cm-editor *)){outline:2px solid var(--ts-accent,var(--interactive-accent));outline-offset:2px}
 .ts-local-relations button svg{width:15px;height:15px;flex-shrink:0}
 .ts-local-relations-toolbar{display:grid;grid-template-columns:32px 32px minmax(0,1fr);gap:5px}
 .ts-local-relations-toolbar button{display:flex;align-items:center;justify-content:center;gap:5px;padding:5px;font-size:var(--font-ui-small)}
-.ts-local-relations-toolbar button[aria-pressed=true]{background:var(--background-modifier-hover);color:var(--text-accent)}
+.ts-local-relations-toolbar button[aria-pressed=true]{background:var(--background-modifier-hover);color:var(--ts-accent,var(--interactive-accent))}
 .ts-local-relations-center{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 8px;padding:10px;background:var(--background-secondary);border:1px solid var(--background-modifier-border);border-radius:var(--radius-m)}
 .ts-local-relations-center h3{grid-column:1;margin:0;font-size:var(--font-ui-medium);line-height:1.4;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .ts-local-relations-center>small,.ts-local-relations-center>p,.ts-local-relations-center>strong{grid-column:1/-1;min-width:0;overflow-wrap:anywhere}
@@ -88,7 +88,7 @@
 .ts-local-relations-recent{flex-shrink:0;font-size:var(--font-ui-smaller);color:var(--text-muted)}
 .ts-local-relations-recent-list{display:flex;gap:4px;overflow:auto;padding:4px 0 2px}
 .ts-local-relations-recent-list button{flex:0 0 auto;max-width:150px;overflow:hidden;text-overflow:ellipsis;font-size:var(--font-ui-smaller);height:25px;padding:3px 8px;border-radius:var(--radius-l)}
-.ts-local-relations-recent-list button[aria-current=true]{color:var(--text-accent);border:1px solid var(--interactive-accent)}
+.ts-local-relations-recent-list button[aria-current=true]{color:var(--ts-accent,var(--interactive-accent));border:1px solid var(--ts-accent,var(--interactive-accent))}
 .ts-local-relations[data-density=compact]{gap:6px;padding:8px}
 .ts-local-relations[data-density=compact] .ts-local-relations-neighbors button{padding:5px 9px;border-radius:var(--radius-l);font-size:var(--font-ui-smaller)}
 .ts-local-relations[data-density=compact] .ts-local-relations-neighbor-title{-webkit-line-clamp:1}
@@ -105,7 +105,7 @@
    The graph gets a minimum working area; short splits can scroll the whole view. */
 .ts-local-relations{overflow-y:auto}
 .ts-local-relations-options-body{max-height:160px;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:0 2px 6px}
-.ts-local-relations-options-body:focus-visible{outline:2px solid var(--interactive-accent);outline-offset:-2px}
+.ts-local-relations-options-body:focus-visible{outline:2px solid var(--ts-accent,var(--interactive-accent));outline-offset:-2px}
 .ts-local-relations-groups{min-height:180px}
 @container (max-width:759px){.ts-local-relations-options-body{max-height:104px}.ts-local-relations-group[data-kind=parents] .ts-local-relations-neighbors{max-height:104px}}
 
@@ -129,7 +129,7 @@
 .ts-local-heading-spacer{flex:0 0 22px}
 .ts-local-heading-row>button:hover{background:var(--background-modifier-hover)}
 .ts-local-relations-neighbors button.ts-local-depth-expand{display:flex;align-items:center;gap:3px;width:auto;max-width:100%;border:0;background:transparent;color:var(--text-muted);padding:2px 5px;margin-top:2px;font-size:var(--font-ui-smaller)}
-.ts-local-relations-neighbors button.ts-local-depth-expand[aria-pressed=true]{color:var(--text-accent)}
+.ts-local-relations-neighbors button.ts-local-depth-expand[aria-pressed=true]{color:var(--ts-accent,var(--interactive-accent))}
 .ts-local-depth-branch{border-bottom:1px solid var(--background-modifier-border);padding:3px 0 6px;margin-bottom:6px}
 .ts-local-depth-branch-header{display:flex;align-items:center;justify-content:space-between;gap:5px}
 .ts-local-depth-branch-header>strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--font-ui-smaller)}
@@ -172,7 +172,7 @@
 .ts-local-relation-target-label{color:var(--text-normal);line-height:1.5;overflow-wrap:anywhere;margin-bottom:5px}
 .ts-local-relation-target-results{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(140px,100%),1fr));gap:4px;margin:5px 0}
 .ts-local-relation-target-results>button{display:block;min-width:0;height:auto;padding:4px 6px;text-align:start;font-size:var(--font-ui-smaller);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ts-local-relation-target-results>button[aria-pressed=true]{color:var(--text-accent);border:1px solid var(--interactive-accent)}
+.ts-local-relation-target-results>button[aria-pressed=true]{color:var(--ts-accent,var(--interactive-accent));border:1px solid var(--ts-accent,var(--interactive-accent))}
 .ts-local-relation-target-results>nav{grid-column:1/-1}
 .ts-local-relation-remove-confirm{border:1px solid var(--background-modifier-border);border-radius:var(--radius-s);padding:7px;margin-top:6px;overflow-wrap:anywhere}
 .ts-local-relations-toolbar button[data-relation-focus=relation-edit-open]{width:28px;flex-shrink:0}
@@ -231,7 +231,7 @@
 .ts-local-relations-neighbor{display:grid;grid-template-columns:minmax(0,1fr) 24px;gap:3px;align-items:start}
 .ts-local-relations-neighbor>button[data-relation-kind]{height:28px;min-height:28px;border:1px solid var(--background-modifier-border);border-radius:999px;padding:4px 12px;white-space:nowrap;text-align:center;overflow:hidden;text-overflow:ellipsis;background:var(--background-secondary);font-size:var(--font-ui-small)}
 .ts-local-relations-neighbor>button[data-relation-kind]>span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ts-local-relations-neighbor>button[data-relation-kind]:active{background:var(--background-modifier-hover);border-color:var(--interactive-accent);color:var(--text-accent)}
+.ts-local-relations-neighbor>button[data-relation-kind]:active{background:var(--background-modifier-hover);border-color:var(--ts-accent,var(--interactive-accent));color:var(--ts-accent,var(--interactive-accent))}
 .ts-local-relations-proof{margin:0;min-width:0;background:transparent;grid-column:2}
 .ts-local-relations-proof>summary{list-style:none;display:flex;align-items:center;justify-content:center;gap:5px;min-height:30px;padding:3px;color:var(--text-muted);background:transparent;border-radius:var(--radius-s)}
 .ts-local-relations-proof>summary::-webkit-details-marker{display:none}
@@ -303,16 +303,16 @@
 .ts-local-relations .ts-local-relations-toolbar{position:relative;z-index:6;align-items:center;flex-wrap:nowrap;gap:4px;min-height:28px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
 .ts-local-relations :is(.ts-local-relations-navigation,.ts-local-relations-toolbar-tools){display:flex;align-items:center;flex:0 0 auto;gap:2px}
 .ts-local-relations .ts-local-relations-toolbar>input.ts-local-relations-search{flex:1 1 auto;min-width:76px;width:0;height:28px;padding-inline:8px;border-color:transparent;background:var(--background-secondary);font-size:var(--font-ui-small)}
-.ts-local-relations .ts-local-relations-toolbar>input.ts-local-relations-search:focus{border-color:var(--interactive-accent)}
+.ts-local-relations .ts-local-relations-toolbar>input.ts-local-relations-search:focus{border-color:var(--ts-accent,var(--interactive-accent))}
 .ts-local-relations .ts-local-relations-toolbar>input.ts-local-relations-search[hidden]{display:none}
 .ts-local-relations .ts-local-relations-toolbar button{height:28px;min-width:28px;padding:5px;border:0;border-radius:var(--radius-s);background:transparent;color:var(--text-muted)}
 .ts-local-relations .ts-local-relations-toolbar button:hover:not(:disabled){background:var(--background-modifier-hover);color:var(--text-normal)}
-.ts-local-relations .ts-local-relations-toolbar button[aria-expanded=true],.ts-local-relations .ts-local-relations-toolbar button[aria-pressed=true]{background:var(--background-modifier-hover);color:var(--text-accent)}
+.ts-local-relations .ts-local-relations-toolbar button[aria-expanded=true],.ts-local-relations .ts-local-relations-toolbar button[aria-pressed=true]{background:var(--background-modifier-hover);color:var(--ts-accent,var(--interactive-accent))}
 .ts-local-relations .ts-local-relations-toolbar button:disabled{opacity:.4}
 .ts-local-relations .ts-local-relations-toolbar button svg{width:15px;height:15px}
 .ts-local-relations .ts-local-relations-toolbar button>span:last-child{display:none}
 .ts-local-relations .ts-local-relations-toolbar button:is([data-relation-focus=filter-toggle],[data-relation-focus=more-toggle]){width:28px;flex-shrink:0}
-.ts-local-relations .ts-local-relations-toolbar button[data-relation-focus=filter-toggle][aria-pressed=true]{box-shadow:inset 0 -2px var(--interactive-accent)}
+.ts-local-relations .ts-local-relations-toolbar button[data-relation-focus=filter-toggle][aria-pressed=true]{box-shadow:inset 0 -2px var(--ts-accent,var(--interactive-accent))}
 .ts-local-relations :is(.ts-local-relations-picker,.ts-local-relations-filter-panel,.ts-local-relations-more-panel){position:absolute;z-index:10;inset-inline:8px;top:42px;min-width:0;max-height:min(320px,calc(100% - 88px));overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;border:1px solid var(--background-modifier-border);border-radius:var(--radius-m);background:var(--background-primary);box-shadow:var(--shadow-s);padding:8px 16px 8px 9px}
 .ts-local-relations .ts-local-relations-filter-panel{display:flex;flex-direction:column;gap:6px}
 .ts-local-relations .ts-local-relations-filter-panel>.ts-local-relations-search{height:28px;font-size:var(--font-ui-small)}
@@ -323,7 +323,7 @@
 .ts-local-relations .ts-local-relations-secondary-toolbar button{display:flex;align-items:center;gap:5px;padding:5px 7px}
 .ts-local-relations .ts-local-relations-secondary-toolbar select{padding:4px 6px;background:var(--background-secondary)}
 .ts-local-relations .ts-local-relations-secondary-toolbar button:hover:not(:disabled){background:var(--background-modifier-hover);color:var(--text-normal)}
-.ts-local-relations .ts-local-relations-secondary-toolbar button:is([aria-pressed=true],[aria-expanded=true]){background:var(--background-modifier-hover);color:var(--text-accent)}
+.ts-local-relations .ts-local-relations-secondary-toolbar button:is([aria-pressed=true],[aria-expanded=true]){background:var(--background-modifier-hover);color:var(--ts-accent,var(--interactive-accent))}
 .ts-local-relations :is(.ts-local-relations-filter-panel,.ts-local-relations-more-panel,.ts-local-relations-inspectors,.ts-local-relations-recent)[hidden]{display:none}
 .ts-local-relations .ts-local-relations-center{grid-template-columns:minmax(0,1fr) 28px 28px;gap:4px 3px}
 .ts-local-relations .ts-local-relations-center>h3{grid-column:1/-1;grid-row:1;justify-self:center;max-width:100%}

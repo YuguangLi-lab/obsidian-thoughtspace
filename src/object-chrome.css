@@ -2,7 +2,7 @@
    measured text insets, body fonts, custom fills or the native editor DOM. */
 .ts-root {
   --ts-object-line: color-mix(in srgb, var(--background-modifier-border) 88%, var(--text-muted) 12%);
-  --ts-object-active: color-mix(in srgb, var(--ts-accent) 9%, var(--background-primary));
+  --ts-object-active: color-mix(in srgb, var(--ts-accent) 6%, var(--background-primary));
   --ts-object-shadow: 0 1px 3px #0000000a, 0 4px 14px #0000000b;
 }
 .theme-dark .ts-root { --ts-object-shadow: 0 1px 3px #00000028, 0 4px 14px #00000022; }
@@ -45,7 +45,7 @@
 }
 .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-icon-button { margin:0; }
 .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-icon-button svg { width:15px; height:15px; stroke-width:1.8; }
-.ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-icon-button:is(:hover,:focus-visible):not(:disabled) { color:var(--text-normal); background:var(--background-modifier-hover); }
+.ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-icon-button:is(:hover,:focus-visible):not(:disabled) { color:var(--ts-accent); background:var(--ts-object-active); }
 .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-icon-button:is(.is-active,[aria-pressed=true]) { color:var(--ts-accent); background:var(--ts-object-active); }
 .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-icon-button:focus-visible { outline:2px solid var(--ts-accent); outline-offset:-1px; }
 .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-icon-button:disabled { opacity:.35; cursor:not-allowed; }
@@ -158,8 +158,9 @@
   position:static; width:28px; min-width:28px; pointer-events:auto;
   background:transparent!important; box-shadow:none!important; color:var(--text-muted); opacity:1;
 }
-.ts-root .ts-node.is-compact-fold .ts-compact-actions > button:hover { color:var(--text-normal); background:var(--background-modifier-hover)!important; }
-.ts-root .ts-node.is-compact-fold .ts-compact-actions > button:focus-visible { outline:2px solid var(--interactive-accent); outline-offset:-1px; }
+.ts-root .ts-node.is-compact-fold .ts-compact-actions > button:is(:hover,:focus-visible):not(:disabled) { color:var(--ts-accent); background:var(--ts-object-active)!important; }
+.ts-root .ts-node.is-compact-fold .ts-compact-actions > button:is(.is-active,[aria-pressed=true]) { color:var(--ts-accent); background:var(--ts-object-active)!important; }
+.ts-root .ts-node.is-compact-fold .ts-compact-actions > button:focus-visible { outline:2px solid var(--ts-accent); outline-offset:-1px; }
 .ts-root .ts-node.is-compact-fold .ts-compact-actions > button:disabled { opacity:.35; cursor:not-allowed; }
 /* Every content fold has the same inline expand target. The optional reading
    dock and the separate branch disclosure keep their own positions. */
@@ -174,7 +175,7 @@
 .ts-root .ts-node.ts-content-compact .ts-compact-inline-unfold svg {
   width:calc(15px * var(--ts-control-scale,1)); height:calc(15px * var(--ts-control-scale,1));
 }
-.ts-root .ts-node.ts-content-compact .ts-compact-inline-unfold:hover { color:var(--ts-accent); background:var(--ts-object-active); }
+.ts-root .ts-node.ts-content-compact .ts-compact-inline-unfold:is(:hover,:focus-visible):not(:disabled) { color:var(--ts-accent); background:var(--ts-object-active); }
 .ts-root .ts-node.ts-content-compact .ts-compact-inline-unfold:focus-visible { outline:2px solid var(--ts-accent); outline-offset:1px; }
 .ts-root .ts-node.ts-content-compact .ts-compact-inline-unfold:disabled { opacity:.35; }
 .ts-root .ts-node.is-compact-fold .ts-compact-actions:empty { display:none; }
@@ -187,6 +188,9 @@
 }
 .ts-root .ts-node.ts-image:is(:hover,:focus-within,.is-selected,.is-control-hover) > .ts-image-actions { opacity:1; visibility:visible; pointer-events:auto; transition-delay:0s; }
 .ts-root .ts-node.ts-image > .ts-image-actions .ts-icon-button { width:28px; height:28px; padding:5px!important; border:0; box-shadow:none; background:transparent; }
+.ts-root .ts-node.ts-image > .ts-image-actions .ts-icon-button:is(:hover,:focus-visible):not(:disabled),
+.ts-root .ts-node.ts-image > .ts-image-actions .ts-icon-button:is(.is-active,[aria-pressed=true]) { color:var(--ts-accent); background:var(--ts-object-active); }
+.ts-root .ts-node.ts-image > .ts-image-actions .ts-icon-button:focus-visible { outline:2px solid var(--ts-accent); outline-offset:-1px; }
 @media (hover:none) {
   .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions,
   .ts-root .ts-node.ts-image > .ts-image-actions { opacity:1; visibility:visible; pointer-events:auto; transition:none; }
@@ -219,7 +223,10 @@
 .ts-root .ts-web-url { color:var(--text-muted); font:12px/1.5 var(--font-interface); overflow-wrap:anywhere; overflow:hidden; max-height:3em; }
 .ts-root :is(.ts-web-actions,.ts-web-heading) button { height:28px; min-width:24px; padding:3px 7px; border:0; box-shadow:none; border-radius:5px; background:var(--background-secondary); font:12px/1.4 var(--font-interface); }
 .ts-root .ts-web-actions { display:flex; flex-wrap:wrap; gap:5px; }
-.ts-root .ts-web-actions button:first-child { color:var(--text-accent); }
+.ts-root .ts-web-actions button:first-child { color:var(--ts-accent); }
+.ts-root :is(.ts-web-actions,.ts-web-heading) button:is(:hover,:focus-visible):not(:disabled),
+.ts-root :is(.ts-web-actions,.ts-web-heading) button:is(.is-active,[aria-pressed=true]) { color:var(--ts-accent); background:var(--ts-object-active); }
+.ts-root :is(.ts-web-actions,.ts-web-heading) button:focus-visible { outline:2px solid var(--ts-accent); outline-offset:-1px; }
 .ts-root .ts-web-preview { order:2; flex:1 1 0; height:0; width:100%; min-height:60px; border:0; background:white; }
 
 .ts-root .ts-web-card.is-previewing { gap:6px; }
@@ -274,7 +281,7 @@
 .ts-root .ts-node > .ts-fold-actions > .ts-content-fold > span:last-child { display:none; }
 .ts-root .ts-node > .ts-fold-actions > .ts-content-fold svg { width:15px; height:15px; }
 .ts-root .ts-node > .ts-fold-actions > .ts-content-fold:is(:hover,:focus-visible):not(:disabled) {
-  color:var(--text-normal); background:var(--background-modifier-hover);
+  color:var(--ts-accent); background:var(--ts-object-active);
 }
 .ts-root .ts-node > .ts-fold-actions > .ts-content-fold:focus-visible { outline:2px solid var(--ts-accent); outline-offset:-1px; }
 .ts-root .ts-node > .ts-fold-actions > .ts-content-fold:disabled { opacity:.35; cursor:not-allowed; }

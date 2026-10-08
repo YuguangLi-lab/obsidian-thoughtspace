@@ -1,5 +1,6 @@
 import {Modal,Setting,type App} from 'obsidian';
 import {brainColor,brainColorKeys,brainContrast,cleanBrainColors,type BrainColors,type BrainColorKey} from './brain-colors';
+import {themeSurface} from './ui-tokens';
 
 export interface BrainColorsHost {
  document:Document;name:string;current:()=>boolean;colors:BrainColors;
@@ -14,7 +15,7 @@ export class BrainColorsModal extends Modal {
  onOpen(){
   const doc=this.host.document;if(!this.host.current()||!doc.defaultView||doc.defaultView.closed){this.close();return;}
   if(this.containerEl.ownerDocument!==doc)doc.body.appendChild(this.containerEl);
-  this.alive=true;this.modalEl.addClass('ts-brain-colors-modal');
+  this.alive=true;themeSurface(this.modalEl);this.modalEl.addClass('ts-brain-colors-modal');
   this.contentEl.createEl('h2',{text:'脑图配色'});
   this.contentEl.createEl('p',{cls:'setting-item-description',text:`仅用于「${this.host.name}」。留空跟随主题，节点边框可单独配色。保留已有背景纹理和图片。`});
   const preview=this.contentEl.createDiv({cls:'ts-brain-colors-preview',attr:{'aria-label':'脑图配色预览'}});

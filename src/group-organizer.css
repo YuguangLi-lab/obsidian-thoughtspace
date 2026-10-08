@@ -23,14 +23,14 @@
 .ts-group-organizer .ts-group-preview-heading { flex: none; color: var(--text-normal); font-size: 16px; font-weight: 600; }
 .ts-group-organizer .ts-group-preview { position: relative; display: flex; flex: 1; align-items: center; justify-content: center; min-height: 200px; overflow: hidden; border: 1px solid var(--ts-group-line); border-radius: 12px; background: radial-gradient(color-mix(in srgb, var(--text-muted) 13%, transparent) .6px, transparent .6px) 0 0 / 16px 16px, var(--ts-group-soft); }
 .ts-group-organizer .ts-group-preview svg { display: block; width: 100%; height: 100%; padding: 20px; }
-.ts-group-organizer .ts-group-frame { fill: var(--background-primary); stroke: var(--interactive-accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.ts-group-organizer .ts-group-frame { fill: var(--background-primary); stroke: var(--ts-accent,var(--interactive-accent)); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .ts-group-organizer .ts-group-original-frame { fill: none; stroke: var(--text-faint); stroke-width: 1; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
 .ts-group-organizer .ts-group-existing { fill: var(--background-modifier-border); stroke: var(--text-faint); stroke-width: .7; opacity: .55; vector-effect: non-scaling-stroke; }
-.ts-group-organizer .ts-group-moving { stroke: var(--interactive-accent); stroke-width: 1; fill-opacity: .7; vector-effect: non-scaling-stroke; }
-.ts-group-organizer .ts-group-moving-frame { fill: none; stroke: var(--interactive-accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.ts-group-organizer .ts-group-moving { stroke: var(--ts-accent,var(--interactive-accent)); stroke-width: 1; fill-opacity: .7; vector-effect: non-scaling-stroke; }
+.ts-group-organizer .ts-group-moving-frame { fill: none; stroke: var(--ts-accent,var(--interactive-accent)); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
 .ts-group-organizer .ts-group-legend { display: flex; flex: none; flex-wrap: wrap; gap: 5px 14px; color: var(--text-muted); font-size: 10px; line-height: 1.5; }
 .ts-group-organizer .ts-group-legend span { display: flex; align-items: center; gap: 5px; }
-.ts-group-organizer .ts-group-legend span::before { content: ''; display: block; width: 8px; height: 8px; border-radius: 2px; background: var(--interactive-accent); opacity: .7; }
+.ts-group-organizer .ts-group-legend span::before { content: ''; display: block; width: 8px; height: 8px; border-radius: 2px; background: var(--ts-accent,var(--interactive-accent)); opacity: .7; }
 .ts-group-organizer .ts-group-legend .ts-group-legend-existing::before { background: var(--text-faint); }
 .ts-group-organizer .ts-group-legend .ts-group-legend-before::before { background: none; border: 1px dashed var(--text-faint); opacity: 1; }
 .ts-group-organizer .ts-group-status { flex: none; color: var(--text-muted); font-size: 11px; line-height: 1.7; }
@@ -42,7 +42,7 @@
 .ts-group-organizer .ts-group-footer button[aria-label='取消'] { border: 0; background: transparent; color: var(--text-muted); }
 .ts-group-organizer .ts-group-footer button svg { display: block; width: 14px; height: 14px; }
 .ts-group-organizer .ts-group-footnote { min-width: 0; margin-inline-end: auto; color: var(--text-muted); font-size: 11px; line-height: 1.5; }
-.ts-group-organizer :is(button, input, select):focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: -2px; }
+.ts-group-organizer :is(button, input, select):focus-visible { outline: 2px solid var(--ts-accent,var(--interactive-accent)); outline-offset: -2px; }
 @container ts-group-organizer (max-width: 700px) {
   .ts-group-organizer .modal-header { padding: 16px 42px 10px 18px; }
   .ts-group-organizer .modal-title { font-size: 19px; }

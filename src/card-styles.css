@@ -34,6 +34,21 @@
 }
 .ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="band"].is-folded > .ts-node-header { border-radius:10px!important; }
 
+/* Opt-in duplicate titles become a source line. The native heading and its
+   anchors keep their exact DOM and typography; title editing retains full room. */
+.ts-root .ts-main .ts-world > .ts-node.ts-card.is-title-source-line:not(:is(.is-compact-fold,.ts-node-summary)):not(:has(.is-editing-title)) > .ts-node-header {
+  min-height:24px; padding-block:4px 2px!important; gap:5px;
+  color:var(--text-muted); font:400 11px/1.5 var(--font-interface);
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card.is-title-source-line:not(:has(.is-editing-title)) > .ts-node-header > span:first-child { margin-top:1px; }
+.ts-root .ts-main .ts-world > .ts-node.ts-card.is-title-source-line:not(:has(.is-editing-title)) > .ts-node-header > span:first-child svg { width:12px; height:12px; }
+.ts-root .ts-main .ts-world > .ts-node.ts-card.is-title-source-line:not(:has(.is-editing-title)) > .ts-node-header > .ts-card-note-title::before { content:'来源 · '; }
+.ts-root .ts-main .ts-world > .ts-node.ts-card.is-title-source-line:not(:has(.is-editing-title)) > .ts-node-header > .ts-card-note-title {
+  display:block; min-width:0; flex:1; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+  font:inherit; color:inherit; -webkit-line-clamp:unset;
+}
+.ts-root .ts-main .ts-world > .ts-node.ts-card.is-title-source-line[data-card-style="band"]:not(:is(.is-compact-fold,.ts-node-summary)):not(:has(.is-editing-title)) > .ts-node-header { color:var(--ts-card-heading-ink,var(--text-on-accent)); }
+
 /* Compact and low-detail cards use the same band, without introducing a header
    or changing their display-projected width and height. */
 .ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="band"]:is(.is-compact-fold,.ts-node-summary) {

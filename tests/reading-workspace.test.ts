@@ -40,7 +40,7 @@ function fixture(nodes:Card[]=[node('alpha'),node('beta'),node('gamma')],options
  const board={...emptyBoard(),nodes},reads:string[]=[],renders:string[]=[],notices:string[]=[],scopes:{loaded:boolean}[]=[],opened:string[]=[],revealed:string[]=[],commits:string[]=[],sources:string[]=[],vaultEvents=new Map<string,((file:TFile)=>unknown)[]>();
  class Component{loaded=false;disposers:(()=>void)[]=[];constructor(){scopes.push(this);}load(){this.loaded=true;}unload(){this.loaded=false;for(const dispose of this.disposers.splice(0))dispose();}registerDomEvent(el:Element,name:string,fn:(e:any)=>unknown){el.addEventListener(name,fn);this.disposers.push(()=>el.removeEventListener(name));}registerEvent(){}register(fn:()=>void){this.disposers.push(fn);}}
  const files=new Map(nodes.filter(n=>n.file).map(n=>[n.file!,new TFile(n.file!)]));
- const app={vault:{getAbstractFileByPath:(path:string)=>files.get(path),cachedRead:async(file:TFile)=>{reads.push(file.path);return options.read?options.read(file):`# ${file.path}\n\n笔记正文`;},on:(name:string,run:(file:TFile)=>unknown)=>{const callbacks=vaultEvents.get(name)||[];callbacks.push(run);vaultEvents.set(name,callbacks);return{};},getResourcePath:(file:TFile)=>file.path},workspace:{openLinkText:async()=>{}}};
+ const app={vault:{getAbstractFileByPath:(path:string)=>files.get(path),cachedRead:async(file:TFile)=>{reads.push(file.path);return options.read?options.read(file):`# ${file.path}\n\n笔记正文`;},on:(name:string,run:(file:TFile)=>unknown)=>{const callbacks=vaultEvents.get(name)||[];callbacks.push(run);vaultEvents.set(name,callbacks);return{};},getResourcePath:(file:TFile)=>file.path},workspace:{openLinkText:async()=>{}},fileManager:{generateMarkdownLink:(file:TFile,_source:string,subpath='')=>`[[${file.path}${subpath}]]`}};
  const host={sourcePath:()=> 'Boards/Research.thoughtspace',board:()=>board,ids:new Set<string>(),title:'阅读测试白板',settings:{surfaceStyle:'glass',readingSize:16,readingWidth:'comfortable'},commit:(edit:(b:typeof board)=>void)=>{commits.push('edit');edit(board);},reveal:(id:string)=>revealed.push(id),open:async(file:TFile)=>{opened.push(file.path);}};
  const deps={Modal,Component,TFile,Notice:class{constructor(message:string){notices.push(message);}},setIcon:()=>{},themeSurface:()=>{},remoteImageUrl:()=>undefined,...reading,MarkdownRenderer:{render:async(_app:unknown,text:string,el:Element,source:string)=>{sources.push(source);renders.push(text);if(options.render)await options.render(text,el);else{el.createEl('h1',{text:text.split('\n')[0].replace(/^# /,'')});el.createEl('p',{text});}}},navigator:{clipboard:{writeText:async()=>{}}}};
  const source=readFileSync('src/reading-desk-view.ts','utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
@@ -135,4 +135,10 @@ test('I140-8 reading text invalidates its cached relative-link context after mov
  f.host.sourcePath=()=> 'Archive/Research.thoughtspace';f.modal.renderList();await tick();
  assert.deepEqual(f.sources,['Boards/Research.thoughtspace','Archive/Research.thoughtspace']);
  f.modal.close();
+});
+
+test('PDF queue uses native embeds and shares review controls without reading binary content',async()=>{
+ const pdf={...node('PDF','pdf'),file:'Sources/Evidence.pdf',pdfPage:3},f=fixture([pdf]);await tick();assert.deepEqual(f.reads,[]);assert.deepEqual(f.renders,['![[Sources/Evidence.pdf#page=3]]']);assert.equal(label(f.modal,'当前阅读状态').value,'later');
+ const status=label(f.modal,'当前阅读状态');status.value='done';status.onchange?.();await tick();assert.equal(f.board.nodes[0].review,'done');assert.equal(f.renders.length,1);assert.equal(label(f.modal,'当前阅读状态').value,'done');
+ const kind=label(f.modal,'阅读内容类型');kind.value='pdf';kind.onchange?.();assert.equal(f.modal.items().length,1);f.board.nodes[0].pdfPage=5;f.modal.renderList();await tick();assert.equal(f.renders.at(-1),'![[Sources/Evidence.pdf#page=5]]');f.modal.close();
 });

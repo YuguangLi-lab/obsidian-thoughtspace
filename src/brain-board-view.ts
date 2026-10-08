@@ -3,15 +3,16 @@ import {Component,Menu,setIcon,type App,type MenuItem} from 'obsidian';
 import type {Board,Card} from './model';
 import {createBoardMindmapState,updateBoardMindmapState,supportsBoardMindmapTarget,type BoardMindmapAction,type BoardMindmapState} from './board-mindmap';
 import type {BoardMindmapHost,BoardMindmapSource} from './board-mindmap-view';
-import {localRelationMatches,localRelationNode,searchLocalCenters,type LocalRelationNode,type LocalRelationKind} from './local-relations';
+import {localRelationNode,searchLocalCenters,type LocalRelationNode,type LocalRelationKind} from './local-relations';
 import type {NativeLocalRelation,NativeLocalRelations} from './local-relations-native';
 import {brainBoardLayout,brainBoardDescendantLayout,type BrainBoardLayout} from './brain-board-layout';
-import {brainPortPositions} from './brain-board-ports';
+import {brainPortPositions,brainScreenObstacles,type BrainScreenRect} from './brain-board-ports';
+import {BrainRefreshCache} from './brain-refresh-cache';
 import {LocalRelationMotion} from './local-relations-motion';
-import {brainAssociationSides,brainRelationLabels,type BrainRelationSide} from './brain-board-create';
+import {brainRelationLabels,type BrainRelationSide} from './brain-board-create';
 import {cleanBrainColors,brainColorsStamp,brainStateInk,type BrainColors} from './brain-colors';
 
-export interface BrainBoardSnapshot {board:Board;path:string;key?:object;readOnly?:boolean;graphRevision?:number;native?:(id:string)=>NativeLocalRelations|readonly NativeLocalRelation[];}
+export interface BrainBoardSnapshot {board:Board;path:string;key?:object;readOnly?:boolean;graphRevision?:number;nativeRevision?:number;native?:(id:string)=>NativeLocalRelations|readonly NativeLocalRelation[];}
 export interface BrainBoardViewportIntent {key?:object;path:string;board:Board;value:{x:number;y:number;zoom:number};}
 export interface BrainBoardHost {
  snapshot:()=>BrainBoardSnapshot|undefined;change:(next:BoardMindmapState)=>void;
@@ -30,9 +31,8 @@ const roleLabels:Record<LocalRelationKind,string>={parents:'上级',children:'�
 let brainSvgSequence=0;
 const clampZoom=(value:number)=>Math.max(.2,Math.min(2.5,value));
 type SideActionPosition='left'|'right'|'compact';
-function sideActionPositions(layout:BrainBoardLayout,camera:{x:number;y:number;zoom:number},size:{width:number;height:number}){
+function sideActionPositions(layout:BrainBoardLayout,camera:{x:number;y:number;zoom:number},size:{width:number;height:number},obstacles:readonly BrainScreenRect[]=brainScreenObstacles(layout,camera)){
  const positions=new Map<string,SideActionPosition>(),zoom=camera.zoom,scale=Math.max(1,zoom),width=38*scale,height=104*scale,gap=6*scale;
- const obstacles=layout.nodes.flatMap(node=>{const pill={x:camera.x+node.x*zoom,y:camera.y+node.y*zoom,width:node.width*zoom,height:node.height*zoom};return node.previewWidth?[pill,{x:camera.x+(node.x+node.width/2-node.previewWidth/2)*zoom,y:camera.y+(node.y+node.height+12)*zoom,width:node.previewWidth*zoom,height:200*zoom}]:[pill];});
  for(const node of layout.nodes){
   if(!['associated','incoming','outgoing','siblings'].includes(node.role))continue;
   const center=camera.x+(node.x+node.width/2)*zoom,halfWidth=(node.previewWidth??node.width)*zoom/2,y=camera.y+(node.y+node.height/2)*zoom-height/2;
@@ -57,11 +57,15 @@ export class BrainBoardView extends Component {
  private searchVisible=false;private query='';private searchPage=0;private searchIndex=0;private searchIds:string[]=[];private page=0;private layout?:ReturnType<typeof brainBoardLayout>;private nativePending=false;
  private searchRender?:{key?:object;path:string;doc:Document;signature:string};
  private revealId?:string;
- private branchCache?:{board:Board;revision?:number;index:BrainBranchIndex};private descendants?:BrainDescendantPager;private descendantPage?:BrainDescendantPage;
+ private branchCache?:{board:Board;revision?:number;fallback?:string;index:BrainBranchIndex};private descendants?:BrainDescendantPager;private descendantPage?:BrainDescendantPage;
  private nodes=new Map<string,NodeElement>();private previews=new Map<string,Preview>();private activeMenu?:Menu;private observer?:ResizeObserver;
  private camera={x:0,y:0,zoom:1};private cameraReady=false;private cameraStored='';private cameraBoard?:Board;private fitCamera=true;private fitAll=false;private viewportTimer=0;private viewportWindow?:Window;private viewportIntent?:BrainBoardViewportIntent;
  private readonly motion=new LocalRelationMotion(true);
  private stageSize={width:0,height:0};
+ private readonly refreshCache=new BrainRefreshCache();
+ private projection?:{resolved:ReturnType<BrainRefreshCache['resolve']>;page?:BrainDescendantPage;stamp:string;layout:BrainBoardLayout};
+ private paintStamp='';private historyStamp='';private transformStamp='';
+ private refreshSources?:Map<string,BoardMindmapSource>;
  private colorPreview?:{key:object|string;path:string;stamp:string;value:BrainColors};
  private colorFrame=0;private colorWindow?:Window;
  private resizeFrame=0;private resizeWindow?:Window;private cameraFrame=0;private cameraWindow?:Window;private pan?:{id:number;x:number;y:number;startX:number;startY:number;moved:boolean};
@@ -85,10 +89,10 @@ export class BrainBoardView extends Component {
   this.registerDomEvent(this.stage,'wheel',event=>this.wheel(event),{passive:false});this.registerDomEvent(this.searchResults,'wheel',event=>event.stopPropagation(),{passive:true});this.registerDomEvent(this.recent,'wheel',event=>event.stopPropagation(),{passive:true});
   this.observe();this.refresh();
  }
- onunload(){this.motion.cancel();this.cancelCameraFrame();this.cancelColorFrame();this.colorPreview=undefined;this.alive=false;this.finalizeViewport();this.generation++;this.closeMenu();this.cancelResize();this.observer?.disconnect();this.observer=undefined;this.clearPreviews();for(const item of this.nodes.values())this.removeChild(item.scope);this.nodes.clear();this.branchCache=undefined;this.descendants=undefined;this.descendantPage=undefined;this.shell?.remove();}
+ onunload(){this.motion.cancel();this.cancelCameraFrame();this.cancelColorFrame();this.colorPreview=undefined;this.alive=false;this.finalizeViewport();this.generation++;this.closeMenu();this.cancelResize();this.observer?.disconnect();this.observer=undefined;this.clearPreviews();for(const item of this.nodes.values())this.removeChild(item.scope);this.nodes.clear();this.branchCache=undefined;this.descendants=undefined;this.descendantPage=undefined;this.refreshCache.clear();this.projection=undefined;this.layout=undefined;this.refreshSources=undefined;this.transformLayout=undefined;this.shell?.remove();}
  refresh(){
   if(!this.alive)return;this.cancelCameraFrame();this.cancelColorFrame();this.renders++;const snapshot=this.host.snapshot(),doc=this.el.ownerDocument;
-  if(!snapshot||snapshot.board.presentation!=='brain'){this.motion.cancel();this.generation++;this.closeMenu();this.clearPreviews();this.searchRender=undefined;this.stage.hidden=true;return;}
+  if(!snapshot||snapshot.board.presentation!=='brain'){this.motion.cancel();this.generation++;this.closeMenu();this.clearPreviews();this.searchRender=undefined;this.refreshCache.clear();this.projection=undefined;this.paintStamp='';this.stage.hidden=true;return;}
   this.stage.hidden=false;const state=snapshot.board.brain||createBoardMindmapState(),context=snapshot.key||snapshot.path,ownerChanged=this.context!==context||this.boardPath!==snapshot.path||this.document!==doc,centerChanged=this.center!==state.centerId;
   if(this.colorPreview&&(snapshot.readOnly||this.colorPreview.key!==context||this.colorPreview.path!==snapshot.path||this.colorPreview.stamp!==brainColorsStamp(snapshot.board.brainColors)))this.colorPreview=undefined;
   const motion= centerChanged&&!ownerChanged?this.motion.capture(this.scene):undefined;if(ownerChanged)this.motion.cancel();
@@ -100,20 +104,29 @@ export class BrainBoardView extends Component {
   const stageSize=this.stageSize={width:this.stage.clientWidth,height:this.stage.clientHeight};
   this.title.title=snapshot.path;this.shell.classList.toggle('is-readonly',!!snapshot.readOnly);this.back.disabled=!!snapshot.readOnly||state.history.index<=0;this.forward.disabled=!!snapshot.readOnly||state.history.index>=state.history.entries.length-1;if(this.colorButton)this.colorButton.disabled=!!snapshot.readOnly;
   const stored=JSON.stringify(snapshot.board.brainViewport);if(!this.viewportIntent&&stored!==this.cameraStored){this.cameraStored=stored;const viewport=snapshot.board.brainViewport;if(viewport){this.camera={...viewport,zoom:clampZoom(viewport.zoom)};this.cameraReady=true;this.fitCamera=false;}else{this.cameraReady=false;this.fitCamera=true;this.fitAll=false;}}
-  this.renderHistory(snapshot,state);this.renderSearch();this.shell.querySelector('.ts-brain-object-count')?.setText(`${snapshot.board.nodes.length} 个对象`);
-  const native=state.centerId?snapshot.native?.(state.centerId):undefined,nativeData=native&&!Array.isArray(native)?native as NativeLocalRelations:undefined;this.nativePending=!!nativeData?.pendingPaths.length;
-  const matches=localRelationMatches(snapshot.board,state.centerId||'',{nativeRelations:nativeData?.relations||native as readonly NativeLocalRelation[]|undefined});
+  this.renderSearch();
+  const resolved=this.refreshCache.resolve(snapshot,state.centerId||''),matches=resolved.matches;this.nativePending=resolved.nativePending;
   const depth=state.descendantDepth??1;
-  if(!this.branchCache||this.branchCache.board!==snapshot.board||this.branchCache.revision!==snapshot.graphRevision){this.branchCache={board:snapshot.board,revision:snapshot.graphRevision,index:new BrainBranchIndex(snapshot.board)};this.descendants=undefined;}
+  const branchFallback=snapshot.graphRevision===undefined?JSON.stringify([snapshot.board.nodes,snapshot.board.edges]):undefined;
+  if(!this.branchCache||this.branchCache.fallback!==branchFallback||this.branchCache.board.nodes!==snapshot.board.nodes||this.branchCache.board.edges!==snapshot.board.edges||this.branchCache.revision!==snapshot.graphRevision){this.branchCache={board:snapshot.board,revision:snapshot.graphRevision,fallback:branchFallback,index:new BrainBranchIndex(snapshot.board)};this.descendants=undefined;}
   if(ownerChanged||centerChanged||this.descendants?.depth!==depth)this.descendants=undefined;
   if(depth>1){this.descendants??=new BrainDescendantPager(this.branchCache.index,state.centerId||'',depth);this.descendantPage=this.descendants.current;}else this.descendantPage=undefined;
-  const previousLayout=this.layout;this.layout=brainBoardLayout(matches,{width:depth>1?Math.max(1900,stageSize.width):stageSize.width||1600,height:stageSize.height||870,page:this.page,pageSize:18,expandedIds:state.expandedIds.filter(id=>this.source(id).available),associationSides:brainAssociationSides(snapshot.board,state.centerId||''),revealId:this.revealId});this.revealId=undefined;this.page=this.layout.page;
-  if(this.descendantPage)this.layout=brainBoardDescendantLayout(this.layout,this.descendantPage,state.expandedIds.filter(id=>this.source(id).available));
+  this.refreshSources=new Map();const expandedIds=state.expandedIds.filter(id=>this.source(id).available),projectionStamp=JSON.stringify([stageSize,depth,this.page,expandedIds,this.revealId]);
+  const previousLayout=this.layout,previous=this.projection;
+  if(previous&&previous.resolved===resolved&&previous.page===this.descendantPage&&previous.stamp===projectionStamp)this.layout=previous.layout;
+  else{this.layout=brainBoardLayout(matches,{width:depth>1?Math.max(1900,stageSize.width):stageSize.width||1600,height:stageSize.height||870,page:this.page,pageSize:18,expandedIds,associationSides:resolved.sides,revealId:this.revealId});if(this.descendantPage)this.layout=brainBoardDescendantLayout(this.layout,this.descendantPage,expandedIds);this.projection={resolved,page:this.descendantPage,stamp:projectionStamp,layout:this.layout};}
+  this.revealId=undefined;this.page=this.layout.page;
+  const paintStamp=JSON.stringify([state,!!snapshot.readOnly,snapshot.nativeRevision,snapshot.path,brainColorsStamp(snapshot.board.brainColors),this.colorPreview?.value,this.error]);
+  if(!ownerChanged&&previousLayout===this.layout&&this.paintStamp===paintStamp){this.refreshSources=undefined;if(!this.cameraReady||this.fitCamera)this.fit(stageSize);else this.transform();return;}
+  this.paintStamp=paintStamp;const historyStamp=JSON.stringify([state.history,state.centerId,!!snapshot.readOnly,snapshot.graphRevision,snapshot.path]);if(ownerChanged||snapshot.graphRevision===undefined||historyStamp!==this.historyStamp){this.historyStamp=historyStamp;this.renderHistory(snapshot,state);}
+  this.shell.querySelector('.ts-brain-object-count')?.setText(`${snapshot.board.nodes.length} 个对象`);
   if(!centerChanged&&this.motion.active&&JSON.stringify(previousLayout?.nodes)!==JSON.stringify(this.layout.nodes))this.motion.cancel();
+  if(ownerChanged||previousLayout!==this.layout){
   this.scene.style.width=`${this.layout.width}px`;this.scene.style.height=`${this.layout.height}px`;this.svg.setAttribute('width',String(this.layout.width));this.svg.setAttribute('height',String(this.layout.height));this.svg.setAttribute('viewBox',`0 0 ${this.layout.width} ${this.layout.height}`);this.svg.dataset.relationMotionId=`brain-links-${state.centerId||'empty'}`;this.labels.dataset.relationMotionId=`brain-labels-${state.centerId||'empty'}`;this.svg.replaceChildren();
   const defs=this.svg.createSvg('defs'),marker=defs.createSvg('marker',{attr:{id:this.markerId,viewBox:'0 0 10 10',refX:'9',refY:'5',markerWidth:'6',markerHeight:'6',orient:'auto-start-reverse'}});marker.createSvg('path',{attr:{d:'M 1 1 L 9 5 L 1 9 Z'}});
-  for(const link of this.layout.links){const path=this.svg.createSvg('path',{cls:link.dashed?'is-associated':'',attr:{d:link.path,'data-brain-from':link.from,'data-brain-to':link.to,'data-brain-role':link.role}});if(link.role==='incoming'||link.role==='outgoing')path.setAttribute('marker-end',`url(#${this.markerId})`);}
+  for(const link of this.layout.links){const path=this.svg.createSvg('path',{cls:link.dashed?'is-associated':'',attr:{d:link.path,'data-brain-from':link.from,'data-brain-to':link.to,'data-brain-role':link.role,'data-brain-edge-ids':JSON.stringify(link.edgeIds||[]),'data-brain-direction':link.direction||''}});if(link.direction==='both')path.setAttribute('marker-start',`url(#${this.markerId})`);if(link.direction==='both'||link.direction==='forward'||link.role==='incoming'||link.role==='outgoing')path.setAttribute('marker-end',`url(#${this.markerId})`);}
   this.labels.empty();for(const label of this.layout.labels){const el=this.labels.createSpan({text:label.text});el.style.left=`${label.x}px`;el.style.top=`${label.y}px`;}
+  }
   const descriptors=new Map<string,LocalRelationNode>();for(const id of this.descendantPage?.ids||[]){const node=this.branchCache?.index.nodes.get(id);if(node)descriptors.set(id,localRelationNode(node));}if(matches.center)descriptors.set(matches.center.id,matches.center);const roles=new Map<string,string[]>();for(const group of matches.groups)for(const item of group.items){descriptors.set(item.id,item);const values=roles.get(item.id)||[];values.push(roleLabels[group.kind]);roles.set(item.id,values);}
   const visible=new Set<string>();for(const position of this.layout.nodes){const descriptor=descriptors.get(position.id);if(!descriptor)continue;visible.add(position.id);const item=this.node(descriptor,position.role,snapshot,state,roles.get(position.id)||[]);if(position.depth!==undefined){item.root.dataset.brainDepth=String(position.depth);item.title.setAttribute('aria-description',`距中心 ${position.depth} 跳关系`);}else delete item.root.dataset.brainDepth;item.root.style.left=`${position.x}px`;item.root.style.top=`${position.y}px`;item.root.style.width=`${position.width}px`;item.pill.style.height=`${position.height}px`;const previewWidth=position.previewWidth?`${position.previewWidth}px`:'';if(item.root.style.getPropertyValue('--brain-preview-width')!==previewWidth)item.root.style.setProperty('--brain-preview-width',previewWidth);}
   for(const [id,item]of this.nodes)if(!visible.has(id)){this.dropPreview(id);this.removeChild(item.scope);item.root.remove();this.nodes.delete(id);}
@@ -124,6 +137,7 @@ export class BrainBoardView extends Component {
   this.applyColors(this.colorPreview?.value??snapshot.board.brainColors);
   if(!this.cameraReady||this.fitCamera)this.fit(stageSize);else this.transform();
   if(motion)this.motion.play(this.scene,motion);
+  this.refreshSources=undefined;
  }
  /** Draft paint only: no projection, source rendering, history or camera writes. */
  previewColors(value:BrainColors|null){
@@ -179,7 +193,7 @@ export class BrainBoardView extends Component {
   return item;
  }
  private update(action:BoardMindmapAction){const snapshot=this.host.snapshot();if(!snapshot||snapshot.readOnly||!this.visible())return;try{const hadFeedback=!!this.error||!!this.status.textContent;this.error='';const state=snapshot.board.brain||createBoardMindmapState(),next=updateBoardMindmapState(state,action,snapshot.board.nodes),changed=JSON.stringify(next)!==JSON.stringify(state);if(!changed&&!hadFeedback)return;const render=this.renders;if(changed)this.host.change(next);if(this.renders===render)this.refresh();}catch(error){this.status.setText(this.error=this.message(error));}}
- private source(id:string):BoardMindmapSource{try{return this.host.source(id);}catch(error){return{label:'来源',available:false,reason:this.message(error)};}}
+ private source(id:string):BoardMindmapSource{const cached=this.refreshSources?.get(id);if(cached)return cached;let source:BoardMindmapSource;try{source=this.host.source(id);}catch(error){source={label:'来源',available:false,reason:this.message(error)};}this.refreshSources?.set(id,source);return source;}
  private createRelation(id:string,side:BrainRelationSide,initial?:'board'){const current=this.current(id),snapshot=this.host.snapshot();if(!current()||snapshot?.readOnly||snapshot?.board.nodes.find(node=>node.id===id)?.locked||!this.host.createRelation)return;try{void Promise.resolve(this.host.createRelation(id,side,current,initial)).catch(error=>{if(current())this.status.setText(this.message(error));});}catch(error){if(current())this.status.setText(this.message(error));}}
  private current(id:string){const snapshot=this.host.snapshot(),generation=this.generation,doc=this.el.ownerDocument,key=snapshot?.key,path=snapshot?.path,center=snapshot?.board.brain?.centerId;let valid=true;return()=>{const now=this.host.snapshot();valid=valid&&this.alive&&this.generation===generation&&this.el.ownerDocument===doc&&this.visible()&&now?.key===key&&now?.path===path&&now?.board.presentation==='brain'&&now.board.brain?.centerId===center&&!!now.board.nodes.some(node=>node.id===id&&supportsBoardMindmapTarget(node));return valid;};}
  private open(id:string,edit=false){const current=this.current(id);if(!current())return;try{void Promise.resolve(this.host.open(id,current,edit)).catch(error=>{if(current())this.status.setText(this.message(error));});}catch(error){if(current())this.status.setText(this.message(error));}}
@@ -251,10 +265,11 @@ export class BrainBoardView extends Component {
  // and accumulated delta, while ports and action positions run once per frame.
  private queueCameraFrame(){const win=this.el.ownerDocument.defaultView;if(this.cameraFrame||!win)return;this.cameraWindow=win;this.cameraFrame=win.requestAnimationFrame(()=>{this.cameraFrame=0;this.cameraWindow=undefined;if(this.alive&&this.el.ownerDocument.defaultView===win)this.transform();});}
  private cancelCameraFrame(){if(this.cameraFrame)this.cameraWindow?.cancelAnimationFrame(this.cameraFrame);this.cameraFrame=0;this.cameraWindow=undefined;}
- private fit(size?:{width:number;height:number}){if(!this.layout)return;const width=(size?.width??this.stage.clientWidth)||this.layout.width,height=(size?.height??this.stage.clientHeight)||this.layout.height;const readingHeight=this.fitAll?Math.max(160,height-(this.pager.hidden?76:144)):height,fitted=Math.min(1,width/this.layout.width,readingHeight/this.layout.height),zoom=this.fitAll?fitted:Math.max(.72,fitted);this.stageSize={width,height};this.camera={x:(width-this.layout.width*zoom)/2,y:(readingHeight-this.layout.height*zoom)/2,zoom};this.cameraReady=true;this.transform();}
+ private fit(size?:{width:number;height:number}){if(!this.layout)return;const width=(size?.width??this.stage.clientWidth)||this.layout.width,height=(size?.height??this.stage.clientHeight)||this.layout.height;const readingHeight=this.fitAll?Math.max(160,height-(this.pager.hidden?76:144)):height,fitted=Math.min(1,width/this.layout.width,readingHeight/this.layout.height),zoom=this.fitAll?fitted:Math.max(.72,fitted);this.stageSize={width,height};const center=!this.fitAll&&this.layout.nodes.some(node=>(node.depth??0)>1)?this.layout.nodes.find(node=>node.role==='center'):undefined;this.camera=center?{x:width/2-(center.x+center.width/2)*zoom,y:height*.35-(center.y+center.height/2)*zoom,zoom}:{x:(width-this.layout.width*zoom)/2,y:(readingHeight-this.layout.height*zoom)/2,zoom};this.cameraReady=true;this.transform();}
  private transform(){
+  const stamp=JSON.stringify([this.camera,this.stageSize]),same=this.transformStamp===stamp;if(same&&this.transformLayout===this.layout)return;this.transformStamp=stamp;this.transformLayout=this.layout;
   const actionScale=String(1/Math.min(1,this.camera.zoom));this.scene.style.transform=`translate(${this.camera.x}px, ${this.camera.y}px) scale(${this.camera.zoom})`;const label=`${Math.round(this.camera.zoom*100)}%`;if(this.zoomLabel.textContent!==label)this.zoomLabel.setText(label);
-  if(!this.layout)return;const portScale=String(1/this.camera.zoom),ports=brainPortPositions(this.layout,this.camera,this.stageSize);const positions=sideActionPositions(this.layout,this.camera,this.stageSize),focused=this.el.ownerDocument.activeElement;
+  if(!this.layout)return;const portScale=String(1/this.camera.zoom),obstacles=brainScreenObstacles(this.layout,this.camera),ports=brainPortPositions(this.layout,this.camera,this.stageSize,obstacles);const positions=sideActionPositions(this.layout,this.camera,this.stageSize,obstacles),focused=this.el.ownerDocument.activeElement;
   for(const [id,item]of this.nodes){
    // Compact tools overlay the pill; title padding is now fixed and no longer
    // consumes this variable. Keep scale writes on the controls so zooming does
@@ -266,6 +281,7 @@ export class BrainBoardView extends Component {
    if(restore&&this.visible()&&this.el.ownerDocument.hasFocus()&&(this.host.isActive?.()??true))item.menu.focus({preventScroll:true});
   }
  }
+ private transformLayout?:BrainBoardLayout;
  private queueViewport(){const snapshot=this.host.snapshot(),win=this.el.ownerDocument.defaultView;if(!snapshot||snapshot.readOnly||!this.host.viewport||!win)return;this.cancelViewport();this.viewportIntent={key:snapshot.key,path:snapshot.path,board:snapshot.board,value:{...this.camera}};this.viewportWindow=win;this.viewportTimer=win.setTimeout(()=>this.flushViewport(),160);}
  flushViewport(){const intent=this.viewportIntent,snapshot=this.host.snapshot();this.cancelViewport();if(!intent||!snapshot||snapshot.readOnly||snapshot.key!==intent.key||snapshot.path!==intent.path||snapshot.board!==intent.board||snapshot.board.presentation!=='brain')return;try{this.host.viewport?.(intent.value);this.cameraStored=JSON.stringify(intent.value);}catch(error){this.status?.setText(this.message(error));}}
  private finalizeViewport(){

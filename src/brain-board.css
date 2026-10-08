@@ -29,8 +29,8 @@
  transition:color var(--brain-state-duration) ease-out,background-color var(--brain-state-duration) ease-out,border-color var(--brain-state-duration) ease-out;
 }
 .ts-brain-shell .clickable-icon[hidden] { display:none; }
-.ts-brain-shell .clickable-icon:hover:not(:disabled) { background:var(--background-modifier-hover); color:var(--text-normal); }
-.ts-brain-shell .clickable-icon:focus-visible { outline:2px solid var(--interactive-accent); outline-offset:3px; }
+.ts-brain-shell .clickable-icon:is(:hover,:focus-visible):not(:disabled):not(:where(.markdown-rendered *, .markdown-preview-view *, .cm-editor *)) { background:color-mix(in srgb,var(--ts-accent) 6%,var(--background-primary)); color:var(--ts-accent); }
+.ts-brain-shell .clickable-icon:focus-visible:not(:where(.markdown-rendered *, .markdown-preview-view *, .cm-editor *)) { outline:2px solid var(--ts-accent,var(--interactive-accent)); outline-offset:3px; }
 .ts-brain-shell .clickable-icon:disabled { opacity:.35; cursor:default; }
 .ts-brain-shell .clickable-icon svg { flex:none; width:18px; height:18px; }
 .ts-brain-topbar {
@@ -38,7 +38,7 @@
  border-bottom:1px solid var(--brain-chrome-line); background:var(--background-primary);
 }
 .ts-brain-brand { display:flex; align-items:center; gap:8px; flex:none; color:var(--text-normal); font-size:14px; font-weight:600; white-space:nowrap; }
-.ts-brain-brand-icon { display:flex; color:var(--interactive-accent); }
+.ts-brain-brand-icon { display:flex; color:var(--ts-accent,var(--interactive-accent)); }
 .ts-brain-brand-icon svg { width:18px; height:18px; }
 .ts-brain-navigation { display:flex; align-items:center; gap:2px; height:24px; padding-left:12px; margin-left:16px; border-left:1px solid var(--background-modifier-border); }
 .ts-brain-search {
@@ -47,7 +47,7 @@
  transition:border-color var(--brain-state-duration) ease-out,box-shadow var(--brain-state-duration) ease-out;
 }
 .ts-brain-search:hover:not(:focus-within) { border-color:var(--background-modifier-border-hover,var(--background-modifier-border)); }
-.ts-brain-search:focus-within { border-color:var(--interactive-accent); box-shadow:0 0 0 2px color-mix(in srgb,var(--interactive-accent) 12%,transparent); }
+.ts-brain-search:focus-within { border-color:var(--ts-accent,var(--interactive-accent)); box-shadow:0 0 0 2px color-mix(in srgb,var(--ts-accent,var(--interactive-accent)) 12%,transparent); }
 .ts-brain-search-icon { display:flex; flex:none; }
 .ts-brain-search-icon svg { width:17px; height:17px; }
 .ts-brain-search input.ts-brain-query { flex:1; width:0; min-width:0; height:28px; margin:0; padding:0; border:0; outline:none; background:transparent; box-shadow:none; color:var(--text-normal); font-size:13px; }
@@ -58,7 +58,7 @@
 /* Keyboard selection must stay visually in step with aria-selected during rapid navigation. */
 .ts-brain-search-results .ts-brain-search-result { display:flex; justify-content:flex-start; gap:9px; width:100%; height:34px; padding:5px 8px; font-size:13px; transition:none; }
 .ts-brain-search-result span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.ts-brain-search-results .ts-brain-search-result.is-active { color:var(--text-normal); background:color-mix(in srgb,var(--interactive-accent) 10%,var(--background-secondary)); }
+.ts-brain-search-results .ts-brain-search-result.is-active { color:var(--text-normal); background:color-mix(in srgb,var(--ts-accent,var(--interactive-accent)) 6%,var(--background-secondary)); }
 .ts-brain-search-results .ts-brain-search-result:focus-visible,.ts-brain-recent .clickable-icon:focus-visible { outline-offset:-2px; }
 .ts-brain-search-pager { display:flex; align-items:center; justify-content:center; gap:8px; margin-top:6px; color:var(--text-muted); font-size:11px; }
 .ts-brain-top-actions { display:flex; gap:6px; margin-left:auto; }
@@ -75,7 +75,7 @@
 .ts-brain-node:hover,.ts-brain-node:has(:focus-visible) { z-index:5; }
 .ts-brain-node.is-expanded { z-index:8; }
 .ts-brain-pill { position:relative; display:flex; align-items:center; width:100%; border:1px solid var(--brain-outline); border-radius:12px; background:var(--brain-node); transition:background-color var(--brain-state-duration) ease-out,border-color var(--brain-state-duration) ease-out; }
-.ts-brain-pill:hover,.ts-brain-pill:has(:focus-visible) { border-color:color-mix(in srgb,var(--interactive-accent) 50%,var(--background-modifier-border)); background:color-mix(in srgb,var(--interactive-accent) 5%,var(--brain-node)); }
+.ts-brain-pill:hover,.ts-brain-pill:has(:focus-visible) { border-color:color-mix(in srgb,var(--ts-accent,var(--interactive-accent)) 50%,var(--background-modifier-border)); background:color-mix(in srgb,var(--ts-accent,var(--interactive-accent)) 5%,var(--brain-node)); }
 .ts-brain-node .ts-brain-node-title { display:flex; width:100%; height:100%; padding:8px 14px; border-radius:inherit; color:var(--text-normal); font-size:16px; font-weight:400; line-height:1.45; text-align:center; }
 .ts-brain-node-label { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .ts-brain-node .ts-brain-node-title:hover:not(:disabled) { background:transparent; }
@@ -83,8 +83,8 @@
 .ts-brain-node .ts-brain-node-title:focus-visible { outline-offset:4px; }
 .ts-brain-node.has-long-title:not(.is-center) .ts-brain-node-title { padding:4px 12px; font-size:14px; }
 .ts-brain-node.has-long-title:not(.is-center) .ts-brain-node-label { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; white-space:normal; line-height:1.4; overflow-wrap:anywhere; }
-.ts-brain-node.is-center .ts-brain-pill { border:1.5px solid color-mix(in srgb,var(--interactive-accent) 72%,var(--text-normal)); background:color-mix(in srgb,var(--interactive-accent) 13%,var(--background-primary)); }
-.ts-brain-node.is-center .ts-brain-pill:hover,.ts-brain-node.is-center .ts-brain-pill:has(:focus-visible) { background:color-mix(in srgb,var(--interactive-accent) 18%,var(--background-primary)); }
+.ts-brain-node.is-center .ts-brain-pill { border:1.5px solid color-mix(in srgb,var(--ts-accent,var(--interactive-accent)) 72%,var(--text-normal)); background:color-mix(in srgb,var(--ts-accent,var(--interactive-accent)) 13%,var(--background-primary)); }
+.ts-brain-node.is-center .ts-brain-pill:hover,.ts-brain-node.is-center .ts-brain-pill:has(:focus-visible) { background:color-mix(in srgb,var(--ts-accent,var(--interactive-accent)) 18%,var(--background-primary)); }
 .ts-brain-node.is-center .ts-brain-node-title { font-size:22px; font-weight:var(--font-semibold,600); }
 .ts-brain-node.is-center.has-long-title .ts-brain-node-title { font-size:18px; }
 .ts-brain-node.is-center.has-long-title .ts-brain-node-label { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; white-space:normal; text-wrap:balance; line-height:1.3; }
@@ -92,12 +92,12 @@
 .ts-brain-node.is-center.has-extended-title .ts-brain-node-label { text-wrap:wrap; -webkit-line-clamp:3; overflow-wrap:anywhere; }
 /* A: a small port at rest; only the pointed or focused direction shows a plus.
    The 32px transparent hit area is positioned outside reading geometry by the view. */
-.ts-brain-shell .clickable-icon.ts-brain-anchor { display:none; position:absolute; z-index:9; width:32px; height:32px; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; color:var(--interactive-accent); transform:scale(var(--brain-port-scale,1)); transform-origin:0 0; outline:none; }
+.ts-brain-shell .clickable-icon.ts-brain-anchor { display:none; position:absolute; z-index:9; width:32px; height:32px; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; color:var(--ts-accent,var(--interactive-accent)); transform:scale(var(--brain-port-scale,1)); transform-origin:0 0; outline:none; }
 .ts-brain-node.is-center .ts-brain-anchor:not([hidden]) { display:inline-flex; }
-.ts-brain-shell .clickable-icon.ts-brain-anchor:is(:hover,:focus-visible,:active) { background:transparent; color:var(--interactive-accent); box-shadow:none; outline:none; }
-.ts-brain-shell .clickable-icon.ts-brain-anchor:focus-visible { outline:2px solid var(--interactive-accent); outline-offset:-3px; border-radius:6px; }
+.ts-brain-shell .clickable-icon.ts-brain-anchor:is(:hover,:focus-visible,:active) { background:transparent; color:var(--ts-accent,var(--interactive-accent)); box-shadow:none; outline:none; }
+.ts-brain-shell .clickable-icon.ts-brain-anchor:focus-visible { outline:2px solid var(--ts-accent,var(--interactive-accent)); outline-offset:-3px; border-radius:6px; }
 .ts-brain-shell .ts-brain-anchor svg { width:14px; height:14px; opacity:0; }
-.ts-brain-port-dot { position:absolute; width:5px; height:5px; border-radius:50%; background:var(--interactive-accent); opacity:.7; }
+.ts-brain-port-dot { position:absolute; width:5px; height:5px; border-radius:50%; background:var(--ts-accent,var(--interactive-accent)); opacity:.7; }
 .ts-brain-anchor.is-top .ts-brain-port-dot { bottom:0; }
 .ts-brain-anchor.is-bottom .ts-brain-port-dot { top:0; }
 .ts-brain-anchor.is-left .ts-brain-port-dot { right:0; }
@@ -132,7 +132,7 @@
 /* Compact tools overlay on hover; reserving unscaled tool width here erased
    short titles when the canvas was zoomed out. Pill reading width stays stable. */
 .ts-brain-node.is-compact-actions .ts-brain-node-title { padding-right:14px; }
-.ts-brain-node.is-pinned .ts-brain-pill::after { content:''; position:absolute; left:12px; top:calc(50% - 2px); width:4px; height:4px; border-radius:50%; background:var(--interactive-accent); }
+.ts-brain-node.is-pinned .ts-brain-pill::after { content:''; position:absolute; left:12px; top:calc(50% - 2px); width:4px; height:4px; border-radius:50%; background:var(--ts-accent,var(--interactive-accent)); }
 .ts-brain-source-status { margin-top:6px; padding:0 4px; overflow:hidden; color:var(--text-warning); font-size:11px; text-align:center; text-overflow:ellipsis; white-space:nowrap; }
 .ts-brain-node.is-missing .ts-brain-pill { border-style:dashed; }
 .ts-brain-preview { position:relative; left:50%; width:var(--brain-preview-width,100%); max-height:200px; margin-top:12px; padding:16px 18px; overflow:auto; overscroll-behavior:contain; transform:translateX(-50%); border:1px solid var(--brain-chrome-line); border-radius:11px; background-color:var(--background-primary); box-shadow:var(--brain-chrome-shadow); color:var(--text-normal); font-family:var(--font-text,var(--font-interface)); font-size:15px; line-height:1.75; overflow-wrap:anywhere; cursor:auto; user-select:text; scrollbar-width:thin; scrollbar-color:color-mix(in srgb,var(--scrollbar-thumb-bg,var(--text-faint)) 72%,transparent) transparent; }
@@ -143,7 +143,7 @@
  background-size:100% 22px,100% 22px,100% 8px,100% 8px; background-repeat:no-repeat; background-position:center top,center bottom,center top,center bottom; background-attachment:local,local,scroll,scroll;
 }
 .ts-brain-preview:is(:hover,:focus-within) { scrollbar-color:var(--scrollbar-active-thumb-bg,var(--scrollbar-thumb-bg,var(--text-muted))) transparent; }
-.ts-brain-preview:focus-visible { outline:2px solid var(--interactive-accent); outline-offset:3px; }
+.ts-brain-preview:focus-visible { outline:2px solid var(--ts-accent,var(--interactive-accent)); outline-offset:3px; }
 .ts-brain-node.is-center .ts-brain-preview { width:var(--brain-preview-width,340px); }
 .ts-brain-preview > .ts-card-preview-content > :is(p,ul,ol),.ts-brain-preview > :is(p,ul,ol) { margin-block:0 10px; }
 .ts-brain-preview > .ts-card-preview-content > :is(ul,ol) { padding-inline-start:1.5em; }
@@ -177,9 +177,9 @@
 .ts-brain-recent-caption svg { width:15px; height:15px; }
 .ts-brain-recent { display:flex; align-items:center; flex:1; min-width:0; gap:10px; overflow:auto; scrollbar-width:none; overscroll-behavior:contain; }
 .ts-brain-recent .clickable-icon { position:relative; display:block; width:auto; min-width:70px; max-width:180px; height:28px; padding:4px 10px; overflow:hidden; border:1px solid transparent; border-radius:6px; color:var(--text-muted); font-size:12px; text-overflow:ellipsis; white-space:nowrap; }
-.ts-brain-recent .clickable-icon.is-active { border-color:color-mix(in srgb,var(--interactive-accent) 24%,transparent); background:color-mix(in srgb,var(--interactive-accent) 8%,transparent); color:var(--text-normal); }
-.ts-brain-recent .clickable-icon.is-active:hover { border-color:color-mix(in srgb,var(--interactive-accent) 38%,transparent); background:color-mix(in srgb,var(--interactive-accent) 12%,transparent); }
-.ts-brain-recent .clickable-icon.is-active::before { content:''; display:inline-block; width:4px; height:4px; margin-right:8px; vertical-align:middle; border-radius:50%; background:var(--interactive-accent); }
+.ts-brain-recent .clickable-icon.is-active { border-color:color-mix(in srgb,var(--ts-accent,var(--interactive-accent)) 24%,transparent); background:color-mix(in srgb,var(--ts-accent,var(--interactive-accent)) 6%,transparent); color:var(--text-normal); }
+.ts-brain-recent .clickable-icon.is-active:hover { border-color:color-mix(in srgb,var(--ts-accent,var(--interactive-accent)) 38%,transparent); background:color-mix(in srgb,var(--ts-accent,var(--interactive-accent)) 6%,transparent); }
+.ts-brain-recent .clickable-icon.is-active::before { content:''; display:inline-block; width:4px; height:4px; margin-right:8px; vertical-align:middle; border-radius:50%; background:var(--ts-accent,var(--interactive-accent)); }
 .ts-brain-empty { position:absolute; z-index:2; left:50%; top:45%; width:min(330px,calc(100% - 40px)); transform:translate(-50%,-50%); text-align:center; cursor:default; }
 .ts-brain-empty-icon { color:var(--interactive-accent); }
 .ts-brain-empty-icon svg { width:34px; height:34px; }
@@ -270,9 +270,9 @@
 .ts-brain-shell.has-custom-line .ts-brain-links marker path { fill:currentColor; stroke:none; }
 .ts-brain-shell.has-custom-node .ts-brain-pill,
 .ts-brain-shell.has-custom-node .ts-brain-node.is-center .ts-brain-pill { background:var(--brain-custom-node,var(--brain-node)); border-color:var(--brain-state-ink); }
-.ts-brain-shell.has-custom-node .ts-brain-node.is-center .ts-brain-pill { border-width:2px; box-shadow:inset 0 0 0 2px var(--interactive-accent); }
+.ts-brain-shell.has-custom-node .ts-brain-node.is-center .ts-brain-pill { border-width:2px; box-shadow:inset 0 0 0 2px var(--ts-accent,var(--interactive-accent)); }
 .ts-brain-shell.has-custom-node .ts-brain-pill:is(:hover,:has(:focus-visible)) { box-shadow:inset 0 0 0 2px var(--brain-state-ink); }
-.ts-brain-shell.has-custom-node .ts-brain-node .ts-brain-node-title:focus-visible { outline-color:var(--brain-state-ink); box-shadow:0 0 0 2px var(--interactive-accent); }
+.ts-brain-shell.has-custom-node .ts-brain-node .ts-brain-node-title:focus-visible { outline-color:var(--brain-state-ink); box-shadow:0 0 0 2px var(--ts-accent,var(--interactive-accent)); }
 .ts-brain-shell.has-custom-border .ts-brain-node .ts-brain-pill,
 .ts-brain-shell.has-custom-border .ts-brain-preview { border-color:var(--brain-custom-border); }
 .ts-brain-colors-modal { width:480px; max-width:calc(100vw - 32px); font-family:var(--font-interface); }
@@ -281,7 +281,7 @@
 .ts-brain-colors-preview { margin-bottom:12px; }
 .ts-brain-colors-preview-scene { display:flex; align-items:center; justify-content:center; min-height:100px; padding:20px; overflow:hidden; border:1px solid var(--background-modifier-border); border-radius:10px; background:var(--background-primary); }
 .ts-brain-colors-preview-node { z-index:1; flex:none; padding:10px 14px; border:1px solid var(--background-modifier-border); border-radius:9px; color:var(--text-normal); font-size:12px; }
-.ts-brain-colors-preview-node.is-center { border-width:2px; border-color:color-mix(in srgb,var(--interactive-accent) 72%,var(--text-normal)); background:color-mix(in srgb,var(--interactive-accent) 13%,var(--background-primary)); font-weight:600; }
+.ts-brain-colors-preview-node.is-center { border-width:2px; border-color:color-mix(in srgb,var(--ts-accent,var(--interactive-accent)) 72%,var(--text-normal)); background:color-mix(in srgb,var(--ts-accent,var(--interactive-accent)) 13%,var(--background-primary)); font-weight:600; }
 .ts-brain-colors-preview-link { flex:1; min-width:18px; max-width:60px; height:1px; background:var(--text-muted); }
 .ts-brain-colors-preview-caption { display:block; margin-top:7px; color:var(--text-faint); font-size:11px; }
 .ts-brain-colors-modal .setting-item { gap:16px; padding:10px 0; }

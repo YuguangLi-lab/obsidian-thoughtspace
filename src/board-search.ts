@@ -2,8 +2,8 @@ import {Board,Card,contained} from './model';
 import {branchState} from './mindmap';
 export const searchKinds:Record<Card['kind'],string>={card:'笔记',text:'文本',image:'图片',pdf:'PDF',audio:'音频',video:'视频',section:'分组',board:'子白板',mindmap:'脑图'};
 export interface SearchMetadata{title?:string;tags?:string[];headings?:string[];body?:string;}
-export interface BoardSearchEntry{id:string;kind:Card['kind'];color:Card['color'];title:string;path:string;groups:{id:string;title:string}[];body:string;search:string;searchBody?:string;hidden:boolean;}
-export interface BoardSearchFilter{query:string;kind:string;group:string;color:string;}
+export interface BoardSearchEntry{id:string;kind:Card['kind'];color:Card['color'];title:string;path:string;groups:{id:string;title:string}[];body:string;search:string;searchBody?:string;hidden:boolean;review?:Card['review'];locked?:boolean;}
+export interface BoardSearchFilter{query:string;kind:string;group:string;color:string;review?:string;}
 /** Title lookup stops at the first nonempty line; long bodies need no line array. */
 function firstTextLine(text:string){
  for(let from=0;from<text.length;){const next=text.indexOf('\n',from),end=next<0?text.length:next>from&&text[next-1]==='\r'?next-1:next,line=text.slice(from,end);if(line.trim())return line.slice(0,120);if(next<0)break;from=next+1;}
@@ -15,12 +15,12 @@ export function boardSearchIndex(board:Board,metadata:(n:Card)=>SearchMetadata=(
  // Keep local labels separate so repeated instances share the large body string.
  // This map belongs to one rebuild; edits and refreshes cannot reuse stale text.
  let searchBody=normalizedBodies.get(body);if(searchBody===undefined){searchBody=body.toLocaleLowerCase();normalizedBodies.set(body,searchBody);}
- return{id:n.id,kind:n.kind,color:n.color,title,path,groups:location,body,searchBody,hidden:hidden.has(n.id),search:[title,m.title||'',path,...location.map(g=>g.title),...(m.tags||[])].join('\n').toLocaleLowerCase()};});
+ return{id:n.id,kind:n.kind,color:n.color,title,path,groups:location,body,searchBody,hidden:hidden.has(n.id),review:['card','text','image','pdf'].includes(n.kind)?n.review||'later':undefined,locked:n.locked,search:[title,m.title||'',path,...location.map(g=>g.title),...(m.tags||[])].join('\n').toLocaleLowerCase()};});
 }
 export function searchBoard(entries:readonly BoardSearchEntry[],f:BoardSearchFilter):BoardSearchEntry[]{
  const words=f.query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean),bodyMatches=new Map<string,Map<string,boolean>>();
  const inBody=(body:string|undefined,word:string)=>{if(!body)return false;let matches=bodyMatches.get(body);if(!matches){matches=new Map();bodyMatches.set(body,matches);}let match=matches.get(word);if(match===undefined){match=body.includes(word);matches.set(word,match);}return match;};
- return entries.filter(e=>(!f.kind||e.kind===f.kind)&&(!f.color||e.color===f.color)&&(!f.group||(f.group===':none'?e.groups.length===0:e.groups.some(g=>g.id===f.group)))&&words.every(w=>e.search.includes(w)||inBody(e.searchBody,w)));
+ return entries.filter(e=>(!f.kind||e.kind===f.kind)&&(!f.color||e.color===f.color)&&(!f.review||e.review===f.review)&&(!f.group||(f.group===':none'?e.groups.length===0:e.groups.some(g=>g.id===f.group)))&&words.every(w=>e.search.includes(w)||inBody(e.searchBody,w)));
 }
 /** With no keyword only the displayed prefix matters, not the rest of a note. */
 function excerptPrefix(body:string,limit:number){
