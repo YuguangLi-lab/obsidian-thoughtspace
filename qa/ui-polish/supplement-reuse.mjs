@@ -81,6 +81,7 @@ export async function runReuse({page,report,check,screenshot,open}){
   // Cancel a configured new-board route; it must not create any destination.
   await openReuse();await check(`reuse ${theme}: target required before submit`,await modal().getByRole('button',{name:'添加并打开',exact:true}).isDisabled());
   await verifyAccent(theme,'reuse branch checkbox',modal().locator('.ts-reuse-options input[type=checkbox]'),'accentColor');
+  await verifyAccent(theme,'reuse checkbox painted background',modal().locator('.ts-reuse-options input[type=checkbox]'),'backgroundColor');
   await modal().getByRole('button',{name:'新建独立白板',exact:true}).click();
   await modal().getByRole('textbox',{name:'新白板名称'}).fill(`${prefix}-取消创建`);
   await modal().locator('.ts-reuse-options input[type=checkbox]').click();

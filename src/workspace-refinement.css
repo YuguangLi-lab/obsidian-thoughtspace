@@ -18,5 +18,6 @@
 
 /* Reuse and association dialogs style their own operation choices only. */
 .ts-board-reuse .ts-reuse-options input[type=checkbox] { accent-color: var(--ts-accent); }
+.ts-board-reuse .ts-reuse-options input[type=checkbox]:checked { background-color: var(--ts-accent); border-color: var(--ts-accent); }
 .ts-selection-note .ts-fragment-modes button[aria-pressed=true],
 .ts-selection-note .ts-fragment-option[aria-pressed=true] { color: var(--ts-accent); }
