@@ -1,4 +1,5 @@
 import {Component,ItemView,MarkdownRenderer,Notice,TFile,WorkspaceLeaf,setIcon,type ViewStateResult} from 'obsidian';
+import {applyWorkspaceDensity} from './workspace-density';
 import type {MediaMoment} from './media-notes';
 import {mediaClock,parseMediaTime,validMediaTime} from './media-source';
 import type {MediaPlacement} from './media-workspace-view';
@@ -6,6 +7,8 @@ import {parseOnlineSource,type OnlineState,type OnlineAction,type OnlineSource} 
 
 export const ONLINE_WORKSPACE='thoughtspace-online-player';
 export interface OnlineWorkspaceHost {
+ accent?():string;
+ density?():string;
  pick(placement:MediaPlacement):void;
  mount(host:HTMLElement,source:string):()=>void;
  open(source:string,placement:MediaPlacement,time?:number,note?:string):Promise<unknown>;
@@ -106,6 +109,7 @@ export class OnlineWorkspaceView extends ItemView {
  private positionButtons=new Map<MediaPlacement,HTMLButtonElement>();
 
  constructor(leaf:WorkspaceLeaf,private host:OnlineWorkspaceHost){super(leaf);}
+ applyPreferences(){applyWorkspaceDensity(this.contentEl,this.host.density?.());this.contentEl.dataset.accent=this.host.accent?.()||'forest';}
  getViewType(){return ONLINE_WORKSPACE;}
  getDisplayText(){return this.source?`${this.source.name} · 在线视频笔记`:'在线视频笔记';}
  getIcon(){return 'clapperboard';}
@@ -170,7 +174,7 @@ export class OnlineWorkspaceView extends ItemView {
  private render(){
   const generation=this.generation,current=()=>!this.closed&&this.generation===generation;
   this.releasePlayer();this.releasePreview();this.releaseTimeline();
-  const root=this.contentEl;root.empty();root.addClass('ts-online-workspace');root.dataset.placement=this.placement;this.positionButtons.clear();
+  const root=this.contentEl;root.empty();root.addClass('ts-online-workspace');this.applyPreferences();root.dataset.placement=this.placement;this.positionButtons.clear();
   const header=root.createDiv('ts-online-workspace__header'),heading=header.createDiv('ts-online-workspace__heading');
   heading.createEl('strong',{cls:'ts-online-workspace__title',text:this.source?.name||'在线视频笔记'});
   heading.createSpan({cls:'ts-online-workspace__source',text:this.source?.path||'选择视频，开始记录',attr:{title:this.source?.path||''}});

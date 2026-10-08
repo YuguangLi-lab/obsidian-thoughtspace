@@ -2,7 +2,7 @@ import {applyWorkspaceDensity} from './workspace-density';
 import { sage, sageDark } from '@radix-ui/colors';
 /** Official Radix Colors, scoped to this plugin. No global CSS reset. */
 export function designTokens(doc:Document){const el=doc.createElement('style');el.dataset.thoughtspaceTokens='true';
- const css=(colors:typeof sage,theme:string)=>`${theme} :is(.ts-root,.ts-settings,.ts-space-modal,.ts-ui-modal,.ts-native-header):not(.ts-calendar-plugin){${Object.entries(colors).map(([k,v])=>`--ts-ui-${k.replace('sage','')}:${v};`).join('')}}`;
+ const css=(colors:typeof sage,theme:string)=>`${theme} :is(.ts-root,.ts-journal,.ts-settings,.ts-space-modal,.ts-ui-modal,.ts-native-header,.ts-writing,.ts-note-markdown-toolbar,.ts-media-workspace,.ts-online-workspace,.ts-materials-panel,.ts-materials-modal):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){${Object.entries(colors).map(([k,v])=>`--ts-ui-${k.replace('sage','')}:${v};`).join('')}}`;
  el.textContent=css(sage,'.theme-light')+css(sageDark,'.theme-dark');doc.head.appendChild(el);return el;
 }
 

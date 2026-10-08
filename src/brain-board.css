@@ -14,6 +14,7 @@
  --brain-node:color-mix(in srgb,var(--background-secondary) 76%,var(--background-primary));
  --brain-outline:color-mix(in srgb,var(--text-muted) 42%,var(--background-modifier-border));
  --brain-chrome-line:color-mix(in srgb,var(--background-modifier-border) 82%,transparent);
+ --brain-surface-line:color-mix(in srgb,var(--background-modifier-border) 85%,var(--text-muted));
  --brain-chrome-shadow:0 2px 7px color-mix(in srgb,var(--background-modifier-box-shadow,rgba(0,0,0,.12)) 48%,transparent);
  --brain-gutter:20px;
  --brain-state-duration:140ms;
@@ -71,6 +72,9 @@
 .ts-brain-links path.is-associated { stroke:color-mix(in srgb,var(--interactive-accent) 24%,var(--brain-line)); stroke-dasharray:3 5; }
 .ts-brain-labels { pointer-events:none; }
 .ts-brain-labels span { position:absolute; transform:translate(-50%,-50%); color:var(--text-muted); font-size:12px; font-weight:500; letter-spacing:.04em; white-space:nowrap; }
+/* Depth captions sit in the gutter beside their first pill, so their right edge
+   must end at the layout anchor rather than extend into the node. */
+.ts-brain-labels [data-brain-label-align=end] { transform:translate(-100%,-50%); }
 .ts-brain-node { position:absolute; z-index:2; }
 .ts-brain-node:hover,.ts-brain-node:has(:focus-visible) { z-index:5; }
 .ts-brain-node.is-expanded { z-index:8; }
@@ -115,7 +119,7 @@
 .ts-brain-create-target { margin-top:12px; }
 .ts-brain-create-modal [hidden] { display:none !important; }
 .ts-brain-create-modal [role=status] { color:var(--text-error); min-height:1.5em; margin-top:8px; }
-.ts-brain-node-actions { position:absolute; right:12px; bottom:calc(100% + 6px); display:flex; gap:1px; padding:2px; border:1px solid var(--brain-chrome-line); border-radius:8px; background:var(--background-primary); box-shadow:var(--brain-chrome-shadow); transform:scale(var(--brain-action-scale,1)); transform-origin:bottom right; opacity:0; visibility:hidden; transition:opacity var(--brain-state-duration) ease-out,visibility 0s linear var(--brain-state-duration); }
+.ts-brain-node-actions { position:absolute; right:12px; bottom:calc(100% + 6px); display:flex; gap:1px; padding:2px; border:1px solid var(--brain-surface-line); border-radius:8px; background:var(--background-primary); box-shadow:var(--brain-chrome-shadow); transform:scale(var(--brain-action-scale,1)); transform-origin:bottom right; opacity:0; visibility:hidden; transition:opacity var(--brain-state-duration) ease-out,visibility 0s linear var(--brain-state-duration); }
 .ts-brain-node-actions::after { content:''; position:absolute; left:-8px; right:-8px; height:8px; top:100%; }
 .ts-brain-node:hover .ts-brain-node-actions,.ts-brain-node:has(:focus-visible) .ts-brain-node-actions,.ts-brain-node.is-expanded .ts-brain-node-actions { opacity:1; visibility:visible; transition-delay:0s; }
 .ts-brain-node.is-center:has(.ts-brain-anchor:is(:hover,:focus-visible,:active)) .ts-brain-node-actions { opacity:0; visibility:hidden; pointer-events:none; }
@@ -135,7 +139,7 @@
 .ts-brain-node.is-pinned .ts-brain-pill::after { content:''; position:absolute; left:12px; top:calc(50% - 2px); width:4px; height:4px; border-radius:50%; background:var(--ts-accent,var(--interactive-accent)); }
 .ts-brain-source-status { margin-top:6px; padding:0 4px; overflow:hidden; color:var(--text-warning); font-size:11px; text-align:center; text-overflow:ellipsis; white-space:nowrap; }
 .ts-brain-node.is-missing .ts-brain-pill { border-style:dashed; }
-.ts-brain-preview { position:relative; left:50%; width:var(--brain-preview-width,100%); max-height:200px; margin-top:12px; padding:16px 18px; overflow:auto; overscroll-behavior:contain; transform:translateX(-50%); border:1px solid var(--brain-chrome-line); border-radius:11px; background-color:var(--background-primary); box-shadow:var(--brain-chrome-shadow); color:var(--text-normal); font-family:var(--font-text,var(--font-interface)); font-size:15px; line-height:1.75; overflow-wrap:anywhere; cursor:auto; user-select:text; scrollbar-width:thin; scrollbar-color:color-mix(in srgb,var(--scrollbar-thumb-bg,var(--text-faint)) 72%,transparent) transparent; }
+.ts-brain-preview { position:relative; left:50%; width:var(--brain-preview-width,100%); max-height:200px; margin-top:12px; padding:16px 18px; overflow:auto; overscroll-behavior:contain; transform:translateX(-50%); border:1px solid var(--brain-surface-line); border-radius:11px; background-color:var(--background-primary); box-shadow:var(--brain-chrome-shadow); color:var(--text-normal); font-family:var(--font-text,var(--font-interface)); font-size:15px; line-height:1.75; overflow-wrap:anywhere; cursor:auto; user-select:text; scrollbar-width:thin; scrollbar-color:color-mix(in srgb,var(--scrollbar-thumb-bg,var(--text-faint)) 72%,transparent) transparent; }
 /* Native scroll shadows expose remaining reading content without measurement,
    changing note height, masking text, or introducing another floating control. */
 .ts-brain-preview {

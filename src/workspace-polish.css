@@ -32,8 +32,8 @@
 /* Task controls read as a single section, with the view selector in its heading. */
 /* Journal: a date masthead and an uninterrupted reading column. */
 /* Timeline keeps its duration rail, with clearer current-task and time labels. */
-:is(.ts-root,.ts-journal,.ts-native-header) :is(button,input,select,summary):focus-visible {outline:2px solid var(--ts-accent);outline-offset:2px;}
-@media(prefers-reduced-motion:reduce){:is(.ts-root,.ts-journal,.ts-native-header) * {transition:none!important;scroll-behavior:auto!important;}}
+:is(.ts-root,.ts-journal,.ts-native-header) :is(button,input,select,summary):focus-visible:not(:is(.markdown-rendered *,.markdown-preview-view *,.markdown-source-view *,.cm-editor *,.pdf-container *, .pdf-viewer *)) {outline:2px solid var(--ts-accent);outline-offset:2px;}
+@media(prefers-reduced-motion:reduce){:is(.ts-root,.ts-journal,.ts-native-header) :is(button,input,select,summary):not(:is(.markdown-rendered *,.markdown-preview-view *,.markdown-source-view *,.cm-editor *,.pdf-container *, .pdf-viewer *)) {transition:none!important;scroll-behavior:auto!important;}}
 
 /* 0.61 — A shared inset navigation and reading surface, scoped to plugin UI.
    Primer ActionList leading/trailing visuals and shadcn Sidebar composition. */
@@ -94,3 +94,9 @@
 .ts-pdf-quote-modal textarea{display:block;width:100%;min-height:160px;resize:vertical}
 .ts-pdf-quote-status{white-space:pre-wrap;overflow-wrap:anywhere;max-height:160px;overflow:auto;margin:var(--size-4-3) 0;font-size:var(--font-ui-small)}
 .ts-pdf-quote-actions{display:flex;justify-content:flex-end;gap:var(--size-4-2)}
+/* Wrapped filters must remain scrollable in short native dialogs. */
+@media (max-width:600px), (max-height:600px) {
+ .ts-database-modal .modal-content {overflow:auto;}
+ .ts-database-modal .modal-content > :not(.ts-db-results) {flex-shrink:0;}
+ .ts-database-modal .ts-db-results {flex:0 0 auto;min-height:160px;max-height:55vh;}
+}

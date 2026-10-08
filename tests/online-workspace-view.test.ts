@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import * as onlinePlatform from '../src/online-platform';
 import * as mediaSource from '../src/media-source';
+import * as density from '../src/workspace-density';
 import type {OnlineSource,OnlineState} from '../src/online-platform';
 
 // The view runs against the same small Obsidian DOM surface it uses in production.
@@ -94,6 +95,7 @@ new Function('require','module','exports','console',compiled)((name:string)=>{
  if(name==='obsidian')return{ItemView,TFile,Component,MarkdownRenderer,setIcon:()=>{},Notice:class{constructor(message:string){notices.push(message);}}};
  if(name==='./online-platform')return onlinePlatform;
  if(name==='./media-source')return mediaSource;
+ if(name==='./workspace-density')return density;
  throw Error(`Unexpected runtime dependency: ${name}`);
 },module,module.exports,{error:(...values:unknown[])=>errorsLogged.push(values)});
 const {OnlineWorkspaceView}=module.exports as {OnlineWorkspaceView:new(leaf:unknown,host:unknown)=>any};
@@ -144,6 +146,14 @@ const rows=(view:any):Element[]=>(view.contentEl as Element).querySelectorAll('.
 const status=(view:any)=>(view.contentEl as Element).querySelector('.ts-online-workspace__status')!.textContent;
 const urls=(view:any):ObjectURLs=>(view.contentEl as Element).ownerDocument.defaultView.URL;
 const preview=(view:any):Element|null=>(view.contentEl as Element).querySelector('.ts-online-workspace__draft-image');
+
+test('changing online workspace accent and density preserves the player, draft and subscription',async()=>{
+ const f=fixture();let accent='blue',density='compact';Object.assign(f.host,{accent:()=>accent,density:()=>density});
+ const v=await open(f);f.publish(synchronized(youtube));type(editor(v),'保留在线草稿');const input=editor(v),draft=v.memory.draft;
+ assert.equal(v.contentEl.dataset.accent,'blue');accent='rose';density='comfortable';v.applyPreferences();
+ assert.equal(v.contentEl.dataset.accent,'rose');assert.equal(v.contentEl.dataset.density,'comfortable');assert.equal(editor(v),input);assert.equal(v.memory.draft,draft);
+ assert.equal(f.mounts.length,1);assert.equal(f.mounts[0].released,0);assert.equal(f.listeners.size,1);await v.onClose();
+});
 
 test('the embedded player mounts into its connected view only after selecting a source and never launches itself',async()=>{
  const f=fixture(),v=f.view();await v.onOpen();assert.equal(f.mounts.length,0);

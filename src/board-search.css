@@ -31,7 +31,7 @@
   min-width: 0; min-height: 0; border-top: 1px solid var(--ts-search-line);
 }
 .ts-ui-modal.ts-board-search .ts-board-search-refine {
-  min-width: 0; min-height: 0; padding: 18px 16px;
+  min-width: 0; min-height: 0; padding: 14px 16px;
   background: var(--background-secondary); border-inline-end: 1px solid var(--ts-search-line);
   overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
 }
@@ -39,8 +39,8 @@
   margin: 0; padding: 0; color: var(--text-normal); font-family: var(--font-interface);
   font-size: 12px; line-height: 1.5; font-weight: 600; letter-spacing: 0;
 }
-.ts-ui-modal.ts-board-search .ts-board-search-filters { grid-template-columns: minmax(0, 1fr); gap: 14px; margin: 18px 0 0; }
-.ts-ui-modal.ts-board-search .ts-board-search-filter { display: flex; flex-direction: column; min-width: 0; gap: 6px; }
+.ts-ui-modal.ts-board-search .ts-board-search-filters { grid-template-columns: minmax(0, 1fr); gap: 8px; margin: 12px 0 0; }
+.ts-ui-modal.ts-board-search .ts-board-search-filter { display: flex; flex-direction: column; min-width: 0; gap: 5px; }
 .ts-ui-modal.ts-board-search .ts-board-search-filter > span { color: var(--text-muted); font-size: 11px; line-height: 1.4; }
 .ts-ui-modal.ts-board-search .modal-content .ts-board-search-filter > select {
   display: block; width: 100%; min-width: 0; max-width: 100%; height: 34px; min-height: 34px; flex: 0 0 34px;
@@ -54,25 +54,34 @@
 }
 .ts-ui-modal.ts-board-search .ts-board-search-fulltext {
   display: flex; align-items: center; gap: 8px; min-width: 0;
-  margin-top: 22px; color: var(--text-normal); font-size: 12px; line-height: 1.6;
+  margin-top: 14px; color: var(--text-normal); font-size: 12px; line-height: 1.6;
 }
 .ts-ui-modal.ts-board-search .ts-board-search-fulltext input[type=checkbox] { flex: none; margin: 0; }
 .ts-ui-modal.ts-board-search .ts-board-search-index-status {
-  margin-top: 6px; padding: 0; font-size: 11px; line-height: 1.7; color: var(--text-muted);
+  margin-top: 5px; padding: 0; font-size: 11px; line-height: 1.5; color: var(--text-muted);
 }
-.ts-ui-modal.ts-board-search .ts-board-search-saved { margin-top: 18px; border-top: 1px solid var(--ts-search-line); padding-top: 10px; }
+.ts-ui-modal.ts-board-search .ts-board-search-saved { margin-top: 12px; border-top: 1px solid var(--ts-search-line); padding-top: 6px; }
 .ts-ui-modal.ts-board-search .ts-board-search-saved > summary { display: flex; align-items: center; gap: 7px; min-height: 30px; cursor: pointer; color: var(--text-muted); font-size: 12px; list-style: none; border-radius: 5px; }
 .ts-ui-modal.ts-board-search .ts-board-search-saved > summary::-webkit-details-marker { display: none; }
 .ts-ui-modal.ts-board-search .ts-board-search-saved > summary::after { content: '⌄'; margin-inline-start: auto; }
 .ts-ui-modal.ts-board-search .ts-board-search-saved[open] > summary::after { content: '⌃'; }
 .ts-ui-modal.ts-board-search .ts-board-search-saved > summary > span:first-child { display: flex; }
 .ts-ui-modal.ts-board-search .ts-board-search-saved > summary svg { width: 14px; height: 14px; }
-.ts-ui-modal.ts-board-search .ts-board-search-saved-content { display: flex; flex-direction: column; gap: 8px; padding-top: 8px; }
-.ts-ui-modal.ts-board-search .ts-board-search-saved-content > input { width: 100%; min-width: 0; height: 32px; font-size: 12px; }
+.ts-ui-modal.ts-board-search .ts-board-search-saved-content { display: flex; flex-direction: column; gap: 7px; padding-top: 6px; }
+.ts-ui-modal.ts-board-search .ts-board-search-name > input { width: 100%; min-width: 0; height: 32px; font-size: 12px; }
 .ts-ui-modal.ts-board-search .ts-board-search-saved-actions { display: flex; gap: 4px; flex-wrap: wrap; }
 .ts-ui-modal.ts-board-search .ts-board-search-saved-actions > button { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 5px 7px; font-size: 11px; }
 .ts-ui-modal.ts-board-search .ts-board-search-saved-actions > button svg { width: 14px; height: 14px; }
 .ts-ui-modal.ts-board-search .ts-board-search-saved-status { color: var(--text-muted); font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+.ts-ui-modal.ts-board-search .ts-board-search-saved-status[data-state=success],
+.ts-ui-modal.ts-board-search .ts-board-search-saved-status[data-state=error],
+.ts-ui-modal.ts-board-search .ts-board-search-saved-status[data-state=warning] {
+  padding: 5px 7px; border-inline-start: 2px solid var(--ts-accent); border-radius: 3px;
+  background: color-mix(in srgb, var(--ts-accent) 6%, var(--background-primary));
+  color: var(--text-normal);
+}
+.ts-ui-modal.ts-board-search .ts-board-search-saved-status[data-state=error] { border-inline-start-color: var(--text-error); background: var(--background-modifier-error); color: var(--text-error); }
+.ts-ui-modal.ts-board-search .ts-board-search-saved-status[data-state=warning] { border-inline-start-color: var(--text-muted); background: var(--background-primary); }
 .ts-ui-modal.ts-board-search .ts-board-search-review { max-width: 90px; min-width: 66px; height: 28px; padding-inline: 6px; color: var(--text-muted); font-size: 11px; }
 .ts-ui-modal.ts-board-search .ts-board-search-saved > summary:hover { background: var(--background-modifier-hover); color: var(--ts-accent); }
 .ts-ui-modal.ts-board-search :is(.ts-board-search-saved summary,.ts-board-search-saved input,.ts-board-search-saved button,.ts-board-search-saved select,.ts-board-search-review):focus-visible { outline: 2px solid var(--ts-accent); outline-offset: 2px; }

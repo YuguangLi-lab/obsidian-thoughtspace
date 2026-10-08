@@ -81,8 +81,10 @@ class MenuItem {
 }
 class Menu {
  static instances:Menu[]=[];
+ useNativeMenu=true;
  items:MenuItem[]=[];separators=0;parent?:Element;mouseEvent?:unknown;position?:{x:number;y:number};document?:unknown;hidden=false;hideCount=0;
  constructor(){Menu.instances.push(this);}
+ setUseNativeMenu(value:boolean){this.useNativeMenu=value;return this;}
  setParentElement(parent:Element){this.parent=parent;return this;}
  addItem(fn:(item:MenuItem)=>unknown){const item=new MenuItem();this.items.push(item);fn(item);return this;}
  addSeparator(){this.separators++;return this;}
@@ -90,7 +92,7 @@ class Menu {
  showAtPosition(position:{x:number;y:number},document:unknown){this.position=position;this.document=document;return this;}
  hide(){this.hidden=true;this.hideCount++;return this;}
 }
-function more(view:any,event?:unknown){const before=Menu.instances.length;button(view.contentEl,'更多媒体操作').click(event);assert.equal(Menu.instances.length,before+1);return Menu.instances.at(-1)!;}
+function more(view:any,event?:unknown){const before=Menu.instances.length;button(view.contentEl,'更多媒体操作').click(event);assert.equal(Menu.instances.length,before+1);const menu=Menu.instances.at(-1)!;assert.equal(menu.useNativeMenu,false);return menu;}
 function menuItem(menu:Menu,title:string){const item=menu.items.find(value=>value.title===title);assert.ok(item,`menu item ${title} exists`);return item;}
 async function settled(){await new Promise<void>(resolve=>setImmediate(resolve));}
 const compiled=transformSync(readFileSync('src/media-workspace-view.ts','utf8'),{loader:'ts',format:'cjs'}).code;
@@ -116,6 +118,14 @@ function fixture(drafts?:MediaDraftStore){
  const view=()=>new MediaWorkspaceView({app},host);
  return{a,b,noteA,noteB,app,files,events,host,view,mounts,saves,opens,sent,resourceReads,get layoutSaves(){return layoutSaves;},get pickCount(){return pickCount;},choose:(file:TFile)=>pick?.(file),setRead:(fn:typeof read)=>{read=fn;},setWrite:(fn:typeof write)=>{write=fn;}};
 }
+
+test('changing workspace accent and density preserves a live decoder and unsaved draft',async()=>{
+ const f=fixture();let accent='blue',densityValue='compact';Object.assign(f.host,{accent:()=>accent,density:()=>densityValue});
+ const v=f.view();await v.setState({file:f.a.path});await f.mounts[0].hooks.capture(7);v.input.value='保留草稿';v.input.oninput();
+ const input=v.input,draft=v.memory.draft;assert.equal(v.contentEl.dataset.accent,'blue');
+ accent='rose';densityValue='comfortable';v.applyPreferences();assert.equal(v.contentEl.dataset.accent,'rose');assert.equal(v.contentEl.dataset.density,'comfortable');
+ assert.equal(v.input,input);assert.equal(v.memory.draft,draft);assert.equal(v.input.value,'保留草稿');assert.equal(f.mounts.length,1);assert.equal(f.mounts[0].disposed,0);await v.onClose();
+});
 
 test('opening media mounts lazily without creating notes, and only explicit time seeks',async()=>{
  const f=fixture();f.setRead(async()=>({entries:[]}));const v=f.view();await v.onOpen();await v.setState({file:f.a.path,placement:'sidebar'});

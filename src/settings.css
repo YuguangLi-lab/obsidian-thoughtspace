@@ -20,7 +20,9 @@
 .ts-settings-v2 .ts-settings-nav svg { width: 16px; height: 16px; }
 .ts-settings-v2 .ts-settings-nav button:is(:hover,:focus-visible):not(:disabled) { background: color-mix(in srgb,var(--ts-accent) 6%,var(--background-primary)); color: var(--ts-accent); }
 .ts-settings-v2 .ts-settings-nav button.is-active { background: var(--background-secondary); color: var(--ts-accent); font-weight: 600; box-shadow: inset 2px 0 var(--ts-accent); }
-.ts-settings-v2 .ts-settings-search:focus-within { border-color:var(--ts-accent); }
+.ts-settings-v2 .ts-settings-search:focus-within { border-color:var(--ts-accent); box-shadow:0 0 0 1px var(--ts-accent); }
+/* The composite search field owns one focus edge; its native input stays flat. */
+.ts-settings.ts-settings-v2 .ts-settings-search > input:focus-visible { outline:none; box-shadow:none; }
 .ts-settings-v2 .setting-item-control > .checkbox-container.is-enabled { background-color:var(--ts-accent); }
 .ts-settings-v2 .setting-item-control input[type=range] { accent-color:var(--ts-accent); }
 /* Native components keep their sizes and theme surfaces; only plugin-owned
@@ -48,6 +50,7 @@
 .ts-settings-v2 .ts-board-preferences h3 { margin: 22px 0 8px; font-size: 12px; font-weight: 600; color: var(--text-muted); letter-spacing: 0; }
 .ts-settings-v2 .ts-board-preferences .ts-settings-section { margin: 20px 0 8px; padding: 0; background: transparent; border: 0; border-radius: 0; }
 .ts-settings-v2 .ts-settings-save-status { min-height: 24px; padding-top: 8px; border-top: 1px solid var(--background-modifier-border); color: var(--text-muted); font-size: 11px; }
+.ts-settings-v2 .ts-settings-save-status:empty { border-top-color:transparent; }
 .ts-settings-v2.is-searching .ts-settings-panel { margin-bottom: 32px; }
 .ts-settings-profile-modal { width: min(720px, 94vw); }
 .ts-settings-profile-modal textarea { width: 100%; min-height: 260px; max-height: 50vh; resize: vertical; font-family: var(--font-monospace); font-size: 12px; line-height: 1.5; }

@@ -274,7 +274,7 @@ test('result context exposes complete plain titles and paths without converting 
 
 test('empty search has a distinct explanation and an operable reset inside the result viewport',()=>{
  const {modal,input,list,clock}=fixture();input.value='没有这个内容';input.oninput?.();clock.flush();const empty=list.querySelector('.ts-board-search-empty')!;
- assert.equal(empty.querySelector('strong')!.textContent,'没有匹配的内容');assert.match(empty.textContent,/清除类型、分组与颜色筛选/);assert.equal(empty.querySelector('.ts-board-search-empty-icon')!.getAttribute('aria-hidden'),'true');empty.querySelector('.ts-board-search-empty-clear')!.click();assert.equal(current(list),'alpha');assert.equal(modal.document.activeElement,input);
+ assert.equal(empty.querySelector('strong')!.textContent,'没有匹配的内容');assert.match(empty.textContent,/清除类型、分组、颜色与阅读状态筛选/);assert.equal(empty.querySelector('.ts-board-search-empty-icon')!.getAttribute('aria-hidden'),'true');empty.querySelector('.ts-board-search-empty-clear')!.click();assert.equal(current(list),'alpha');assert.equal(modal.document.activeElement,input);
 });
 
 test('stationary pointer boundary events cannot replace a keyboard-selected result',()=>{

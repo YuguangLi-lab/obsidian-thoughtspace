@@ -11,6 +11,7 @@ export const MEDIA_WORKSPACE='thoughtspace-media-player';
 export type MediaPlacement='tab'|'sidebar'|'window';
 export interface MediaWorkspaceHost {
  density?():string;
+ accent?():string;
  drafts?:MediaDraftStore;
  recoverDrafts?():void;
  open(file:TFile|undefined,placement:MediaPlacement,time?:number):Promise<unknown>;
@@ -219,7 +220,7 @@ export class MediaWorkspaceView extends ItemView {
  }
  private showMore(event?:MouseEvent){
   this.contextMenu?.hide();
-  const menu=this.contextMenu=new Menu(),file=this.file,generation=this.generation;
+  const menu=this.contextMenu=new Menu().setUseNativeMenu(false),file=this.file,generation=this.generation;
   menu.setParentElement(this.contentEl);
   const current=()=>!this.closed&&this.generation===generation&&this.file===file;
   const failed=()=>{if(current())this.message('操作未完成，请重试；当前摘录会保留。');};
@@ -295,7 +296,7 @@ export class MediaWorkspaceView extends ItemView {
   for(const[itemKey,item]of this.renderedMoments){const current=String(itemKey===key);if(item.row.dataset.current!==current)item.row.dataset.current=current;}
  }
 
- applyPreferences(){applyWorkspaceDensity(this.contentEl,this.host.density?.());}
+ applyPreferences(){applyWorkspaceDensity(this.contentEl,this.host.density?.());this.contentEl.dataset.accent=this.host.accent?.()||'forest';}
  private render(){
   this.contextMenu?.hide();this.contextMenu=undefined;
   const el=this.contentEl;el.empty();el.addClass('ts-media-workspace');this.applyPreferences();el.dataset.placement=this.placement;this.containerEl.addClass('ts-media-workspace-leaf');

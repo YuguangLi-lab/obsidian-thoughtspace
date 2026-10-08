@@ -4,8 +4,8 @@
   --ts-board-media-ink: var(--text-normal);
   --ts-board-media-muted: var(--text-muted);
   --ts-board-media-line: var(--background-modifier-border);
-  --ts-board-media-hover: var(--background-modifier-hover);
-  --ts-board-media-accent: var(--text-accent);
+  --ts-board-media-hover: color-mix(in srgb, var(--ts-board-media-accent) 6%, var(--ts-board-media-surface));
+  --ts-board-media-accent: var(--ts-accent);
   --ts-board-media-control: color-mix(in srgb, var(--ts-board-media-ink) 5%, var(--ts-board-media-surface));
   --ts-board-media-radius: 12px;
   container: ts-board-media / inline-size;
@@ -28,8 +28,7 @@
   --ts-board-media-ink: #f0f2f6;
   --ts-board-media-muted: #aeb6c2;
   --ts-board-media-line: #ffffff17;
-  --ts-board-media-hover: #ffffff10;
-  --ts-board-media-accent: color-mix(in srgb, var(--interactive-accent) 20%, #ffffff);
+  --ts-board-media-accent: color-mix(in srgb, var(--ts-accent) 20%, #ffffff);
 }
 .ts-root .ts-node.ts-av-node:not(.is-selected) {
   box-shadow: 0 2px 4px #00000008, 0 10px 24px #00000014;
@@ -94,7 +93,7 @@
   height: 14px;
 }
 .ts-root .ts-av-node > .ts-node-header .ts-icon-button:not(:disabled):hover {
-  color: var(--ts-board-media-ink) !important;
+  color: var(--ts-board-media-accent) !important;
   background: var(--ts-board-media-hover);
 }
 .ts-root .ts-av-node > .ts-node-header .ts-icon-button:not(:disabled):active {
@@ -478,7 +477,8 @@
   background: transparent;
   box-shadow: none;
 }
-.ts-av-player--board.ts-av-player--audio .ts-media-card__play:hover {
+.ts-av-player--board.ts-av-player--audio .ts-media-card__play:not(:disabled):hover {
+  color: var(--ts-board-media-accent);
   background: var(--ts-board-media-hover);
 }
 .ts-av-player--board.ts-av-player--video .ts-media-card__play {
@@ -491,7 +491,7 @@
   background: #e6ebf2;
   box-shadow: inset 0 1px 0 #ffffff, 0 5px 16px #00000026;
 }
-.ts-av-player--board.ts-av-player--video .ts-media-card__play:hover {
+.ts-av-player--board.ts-av-player--video .ts-media-card__play:not(:disabled):hover {
   background: #ffffff;
   border-color: #ffffff;
   box-shadow: inset 0 1px 0 #ffffff, 0 7px 20px #00000030;
@@ -552,7 +552,7 @@
   border: 1px solid transparent;
 }
 .ts-av-player--board .ts-media-card__capture:not(:disabled):hover {
-  background: color-mix(in srgb, var(--interactive-accent) 15%, var(--ts-board-media-surface));
+  background: var(--ts-board-media-hover);
 }
 .ts-av-player--board :is(.ts-media-card__frame, .ts-media-card__more-toggle) {
   width: 30px;
@@ -580,7 +580,7 @@
   white-space: nowrap;
 }
 .ts-av-player--board :is(.ts-media-card__frame, .ts-media-card__more-toggle):not(:disabled):hover {
-  color: var(--ts-board-media-ink);
+  color: var(--ts-board-media-accent);
   background: var(--ts-board-media-hover);
 }
 .ts-av-player--board .ts-media-card__capture-actions > .ts-media-card__more-toggle {
@@ -601,6 +601,10 @@
 .ts-av-player--board .ts-media-card__capture-actions button:not(:disabled):active {
   background: color-mix(in srgb, var(--ts-board-media-ink) 10%, var(--ts-board-media-surface));
   box-shadow: inset 0 1px 2px #00000012;
+}
+.ts-av-player--board:focus-visible {
+  outline: 2px solid var(--ts-board-media-accent);
+  outline-offset: -2px;
 }
 .ts-av-player--board button:focus-visible {
   position: relative;

@@ -151,15 +151,15 @@
   background:transparent!important; color:var(--text-muted); box-shadow:none!important;
   font:400 11px/1.25 var(--font-interface); letter-spacing:0; white-space:nowrap;
 }
-.ts-root .ts-floating-formatbar .ts-card-style-picker > button.ts-card-style-option:hover:not(:disabled) {
-  background:var(--background-modifier-hover)!important; color:var(--text-normal);
+.ts-root .ts-floating-formatbar .ts-card-style-picker > button.ts-card-style-option:hover:not(:disabled):not([aria-disabled="true"]) {
+  background:color-mix(in srgb,var(--ts-accent) 6%,var(--background-primary))!important; color:var(--ts-accent);
 }
 .ts-root .ts-floating-formatbar .ts-card-style-picker > button.ts-card-style-option[aria-pressed="true"] {
-  border-color:var(--interactive-accent)!important; color:var(--text-accent);
-  background:color-mix(in srgb,var(--interactive-accent) 7%,var(--background-primary))!important;
+  border-color:var(--ts-accent)!important; color:var(--ts-accent);
+  background:color-mix(in srgb,var(--ts-accent) 6%,var(--background-primary))!important;
 }
 .ts-root .ts-floating-formatbar .ts-card-style-picker > button.ts-card-style-option:focus-visible {
-  outline:2px solid var(--interactive-accent); outline-offset:1px;
+  outline:2px solid var(--ts-accent); outline-offset:1px;
 }
 .ts-root .ts-floating-formatbar .ts-card-style-picker > button.ts-card-style-option:disabled { opacity:.4; cursor:not-allowed; }
 .ts-root .ts-card-style-option > .ts-card-style-name { max-width:100%; overflow:hidden; text-overflow:ellipsis; }

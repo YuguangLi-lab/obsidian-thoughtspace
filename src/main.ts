@@ -508,7 +508,7 @@ export default class ThoughtSpace extends Plugin {
     await this.mediaWorkspace.load();
     this.onlinePlatform=new OnlinePlatform(state=>{const started=state.available&&!state.paused&&(!this.onlineState?.available||this.onlineState.paused||this.onlineState.sourcePath!==state.sourcePath);this.onlineState=state;if(started)this.pauseOnlineBoardPlayers();for(const notify of this.onlineListeners)notify(state);});
     this.onlineMedia=new OnlineMediaService(this.app,(title,body)=>this.createUnique(normalizePath(this.settings.cardFolder+'/媒体笔记'),title,'md',body),()=>this.yingjianVaultId());
-    this.onlineWorkspaceHost={mount:(host,source)=>this.onlinePlatform.mount(host,source),pick:placement=>this.pickOnlineVideo(placement),open:(source,placement,time,note)=>this.openOnlineWorkspace(source,placement,time,note),state:()=>this.onlineState,subscribe:fn=>{this.onlineListeners.add(fn);return()=>this.onlineListeners.delete(fn);},command:(source,action,value)=>this.onlinePlatform.command(source,action,value),adopt:async(source,placement)=>{
+    this.onlineWorkspaceHost={accent:()=>this.settings.accent,density:()=>this.settings.density,mount:(host,source)=>this.onlinePlatform.mount(host,source),pick:placement=>this.pickOnlineVideo(placement),open:(source,placement,time,note)=>this.openOnlineWorkspace(source,placement,time,note),state:()=>this.onlineState,subscribe:fn=>{this.onlineListeners.add(fn);return()=>this.onlineListeners.delete(fn);},command:(source,action,value)=>this.onlinePlatform.command(source,action,value),adopt:async(source,placement)=>{
       for(const leaf of this.app.workspace.getLeavesOfType(ONLINE_WORKSPACE))if(leaf.view instanceof OnlineWorkspaceView&&!leaf.view.canMove())return;
       const adopted=await this.onlinePlatform.adopt(source);await this.openOnlineWorkspace(adopted.path,placement,adopted.initialTime,undefined,true);
     },capture:async source=>{const frame=await this.onlinePlatform.capture(source);if(this.mediaClosed)throw Error('播放器已关闭，截图未保存');return {blob:new Blob([Uint8Array.from(frame.bytes)],{type:'image/png'}),time:frame.time};},notes:(source,note)=>this.onlineMedia.notes(source,note),save:(source,data,note)=>this.onlineMedia.save(source,data,note),send:(source,time,text,image)=>this.sendOnlineToBoard(source,time,text,image),openNote:file=>this.openNoteInSidebar(file)};
@@ -536,7 +536,7 @@ export default class ThoughtSpace extends Plugin {
     const unsubscribeRecovery=this.mediaDrafts?.subscribe(()=>{if(!this.mediaDrafts?.pending().length)recoveryNotice?.hide();});
     this.register(()=>{if(recoveryTimer!==undefined)window.clearTimeout(recoveryTimer);recoveryNotice?.hide();unsubscribeRecovery?.();});
     this.register(()=>{this.mediaRecovery?.close();void this.mediaDrafts?.dispose().catch(()=>new Notice('媒体草稿暂存失败，请勿关闭仍含草稿的窗口。',10000));});
-    this.mediaWorkspaceHost={density:()=>this.settings.density,drafts:this.mediaDrafts,recoverDrafts:recover,open:(file,placement,time)=>this.openMediaWorkspace(file,placement,time),pick:done=>this.pickMediaFile(done),pickExternal:done=>this.pickExternalMedia(done),pickOnline:placement=>this.pickOnlineVideo(placement),mount:(host,file,hooks)=>this.mediaWorkspace.mount(host,file,hooks),moments:file=>this.mediaWorkspace.moments(file),saveMoment:(file,data)=>this.mediaWorkspace.saveMoment(file,data),openNote:file=>this.openNoteInSidebar(file),sendToBoard:(file,moment)=>this.sendMediaToBoard(file,moment)};
+    this.mediaWorkspaceHost={accent:()=>this.settings.accent,density:()=>this.settings.density,drafts:this.mediaDrafts,recoverDrafts:recover,open:(file,placement,time)=>this.openMediaWorkspace(file,placement,time),pick:done=>this.pickMediaFile(done),pickExternal:done=>this.pickExternalMedia(done),pickOnline:placement=>this.pickOnlineVideo(placement),mount:(host,file,hooks)=>this.mediaWorkspace.mount(host,file,hooks),moments:file=>this.mediaWorkspace.moments(file),saveMoment:(file,data)=>this.mediaWorkspace.saveMoment(file,data),openNote:file=>this.openNoteInSidebar(file),sendToBoard:(file,moment)=>this.sendMediaToBoard(file,moment)};
     this.registerView(MEDIA_WORKSPACE,leaf=>new MediaWorkspaceView(leaf,this.mediaWorkspaceHost));
     this.register(()=>{this.mediaClosed=true;void this.mediaWorkspace.dispose().catch(report);});
     this.registerEvent(this.app.vault.on('rename',(file,oldPath)=>{if(file instanceof TFile)this.mediaWorkspace.playback.rename(oldPath,file.path);}));
@@ -909,7 +909,7 @@ export default class ThoughtSpace extends Plugin {
   async savePreferences() {
     await this.saveData(this.settings);
     for (const leaf of this.app.workspace.getLeavesOfType(VIEW)) if (leaf.view instanceof BoardView) leaf.view.applyPreferences();
-    for(const type of [WRITING,MEDIA_WORKSPACE,MATERIALS])for(const leaf of this.app.workspace.getLeavesOfType(type)){const view=leaf.view;if(view instanceof WritingView||view instanceof MediaWorkspaceView||view instanceof MaterialsView)view.applyPreferences();}
+    for(const type of [WRITING,MEDIA_WORKSPACE,ONLINE_WORKSPACE,MATERIALS])for(const leaf of this.app.workspace.getLeavesOfType(type)){const view=leaf.view;if(view instanceof WritingView||view instanceof MediaWorkspaceView||view instanceof OnlineWorkspaceView||view instanceof MaterialsView)view.applyPreferences();}
     this.refreshDock();
   }
   async session(file: TFile) {

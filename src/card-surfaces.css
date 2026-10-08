@@ -106,9 +106,9 @@
 .ts-root .ts-node > .ts-card-reading-affordance {
   position:absolute; z-index:5; right:16px; bottom:var(--ts-card-reading-footer);
   display:inline-flex; align-items:center; justify-content:center; min-height:26px;
-  margin:0; padding:4px 9px; border:1px solid var(--ts-object-line); border-radius:7px;
+  margin:0; padding:4px 9px; border:1px solid color-mix(in srgb,var(--ts-object-line) 70%,transparent); border-radius:7px;
   font:500 11px/1.4 var(--font-interface); color:var(--text-muted);
-  background:var(--background-primary); box-shadow:0 2px 6px #0000000d;
+  background:var(--background-primary); box-shadow:none;
   opacity:0; transition:opacity 120ms ease; cursor:pointer;
 }
 .ts-root .ts-node > .ts-card-reading-affordance[hidden] { display:none; }
