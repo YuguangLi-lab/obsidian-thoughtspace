@@ -59,6 +59,8 @@ import {BlankDoubleClick} from './blank-double-click';
 import {createHash} from 'crypto';
 import {resolve as resolvePath} from 'path';
 import {cleanPluginSettings,type ThoughtSpacePreferences} from './plugin-settings';
+import {cleanBoardCreationPreferences,type BoardCreationPreferences,type BoardCreationFormat} from './board-creation';
+import {BoardCreationModal} from './board-creation-view';
 import {ThoughtSpaceSettings,settingsLanguage} from './settings-view';
 import {hostPlugin,fileExplorer,hostSettings,workspaceLeafId,hostCommands} from './host-capabilities';
 import {parseLayoutSnapshot} from './layout-snapshot-data';
@@ -511,6 +513,8 @@ export default class ThoughtSpace extends Plugin {
   private onlineListeners=new Set<(state:OnlineState)=>void>();
   private onlineBoardPlayers=new Set<OnlineBoardPlayerHandle>();
   private spaceHub?:SpaceHubModal;
+  private boardCreationModal?:BoardCreationModal;private boardCreationStopped=false;
+  private boardCreationPreferenceQueue:Promise<void>=Promise.resolve();
   private paperSettingsModal?:PaperSettingsModal;
   private backgroundImageModal?:BackgroundImageModal;
   private backgroundImagesClosed=false;
@@ -530,6 +534,7 @@ export default class ThoughtSpace extends Plugin {
     this.register(()=>{this.backgroundImagesClosed=true;this.backgroundImageModal?.close();this.backgroundImageModal=undefined;this.paperSettingsModal?.close();this.paperSettingsModal=undefined;this.spaceHub?.close();this.spaceHub=undefined;this.nativeBridge?.close();this.nativeBridge=undefined;this.nativeFilePopup?.hide();});
     this.propertyStore = new PropertyStore(this.app, this.manifest.id);
     this.settings = cleanPluginSettings(await this.loadData());
+    this.register(()=>{this.boardCreationStopped=true;this.boardCreationModal?.close();this.boardCreationModal=undefined;});
     this.register(subscribeNativeBoardEditorDrains(this.app,()=>this.refreshMarkdownBoardOwnership()));
     this.register(()=>clearNativeBoardEditorTracking(this.app));
     this.register(()=>{if(this.localRelationsSaveTimer)window.clearTimeout(this.localRelationsSaveTimer);this.localRelationsSaveTimer=undefined;void this.flushLocalRelationsSettings();});
@@ -631,8 +636,9 @@ export default class ThoughtSpace extends Plugin {
     this.addCommand({ id: 'open-workspace', name: '打开研究工作台', callback: () => act(() => this.openHome()) });
     this.addCommand({id:'new-mindmap',name:'新建思维导图',callback:()=>this.promptMindmap()});
     this.addCommand({id:'mindmap-studio',name:'思维导图工作台（布局、配色与层级）',checkCallback:checking=>{const view=this.app.workspace.getActiveViewOfType(BoardView)||this.currentBoard;if(!view?.session||view.closed)return false;if(!checking)act(()=>view.openMindmapStudio());return true;}});
-    this.addCommand({ id: 'new-board', name: '新建白板', callback: () => this.promptBoard() });
-    this.addCommand({id:'new-brain-board',name:'新建脑图白板',callback:()=>this.promptBrainBoard()});
+    this.addCommand({id:'new-board-dialog',name:'新建白板或脑图…',callback:()=>this.promptNewBoard()});
+    this.addCommand({ id: 'new-board', name: '新建旧格式白板', callback: () => this.promptBoard() });
+    this.addCommand({id:'new-brain-board',name:'新建旧格式脑图白板',callback:()=>this.promptBrainBoard()});
     this.addCommand({id:'new-markdown-board',name:'新建 Markdown 白板',callback:()=>this.promptMarkdownBoard()});
     this.addCommand({id:'new-markdown-brain-board',name:'新建 Markdown 脑图白板',callback:()=>this.promptMarkdownBoard('brain')});
     this.addCommand({id:'open-markdown-board',name:'以白板打开当前 Markdown',checkCallback:checking=>{const view=this.app.workspace.getActiveViewOfType(MarkdownView);if(!view?.file||!isBoardFile(this.app,view.file))return false;if(!checking)act(()=>this.openCurrentMarkdownBoard());return true;}});
@@ -829,15 +835,15 @@ export default class ThoughtSpace extends Plugin {
     for(const leaf of this.app.workspace.getLeavesOfType(VIEW))if(leaf.view instanceof BoardView)leaf.view.refreshNavigation();
   }
   quickCapture(){new Prompt(this.app,'快速收集笔记','',async title=>{const file=await this.createUnique(this.settings.cardFolder,title,'md',`# ${title}\n\n`);await this.editNote(file);}).open();}
-  async createFromTemplate(id:string,name:string){
+  async createFromTemplate(id:string,name:string,format:BoardCreationFormat='legacy',current:()=>boolean=()=>true,open=true){
     const template=boardTemplates.find(t=>t.id===id);if(!template)throw new Error('未知白板模板');
     const board=emptyBoard();
     for(let i=0;i<template.titles.length;i++){
-      const title=template.titles[i], file=await this.createUnique(`${this.settings.cardFolder}/${safeName(name)}`,title,'md',`---\nthoughtspace_status: inbox\n---\n# ${title}\n\n${template.bodies[i]}\n`);
+      const title=template.titles[i], file=await this.createUnique(`${this.settings.cardFolder}/${safeName(name)}`,title,'md',`---\nthoughtspace_status: inbox\n---\n# ${title}\n\n${template.bodies[i]}\n`,current);
       board.nodes.push(applyDefaultCardStyle({id:uid(),kind:'card',transparent:true,file:file.path,x:80+(i%2)*440,y:80+Math.floor(i/2)*370,width:360,height:290,color:colors[i]},this.settings.defaultCardStyle));
     }
     board.edges=[{id:uid(),from:board.nodes[0].id,to:board.nodes[1].id,label:'展开'},{id:uid(),from:board.nodes[1].id,to:board.nodes[3].id,label:'形成判断'}];
-    const file=await this.createUnique(`${ROOT}/白板`,name,EXT,JSON.stringify(board,null,2));await this.openBoard(file,true);return file;
+    const file=await this.createUnique(`${ROOT}/白板`,name,format==='markdown'?'md':EXT,format==='markdown'?createMarkdownBoardDocument(board,name):JSON.stringify(board,null,2),current);if(open&&current())await this.openBoard(file,true,current);return file;
   }
   async duplicateBoard(file:TFile){const document=readBoardDocument(await this.app.vault.read(file),file.extension,parseYaml),board=clone(await this.readBoard(file));board.spaceId=uid();return this.createUnique(file.parent?.path||ROOT,`${file.basename} 副本`,file.extension,replaceBoardDocumentLayout(document.source,document,board,parseYaml).source);}
   async saveLayoutSnapshot(file:TFile,label='手动快照'){
@@ -903,7 +909,7 @@ export default class ThoughtSpace extends Plugin {
       preferences:()=>this.settings.hub,save:async prefs=>{this.settings.hub=prefs;await this.saveData(this.settings);},favorites:()=>this.settings.favoriteBoards,
       journalFolder:this.journalRoot,isBoardFile:file=>isBoardFile(this.app,file),readBoard:file=>this.readBoard(file),
       openBoard:async file=>{await this.openBoard(file);await this.recordBoardVisit(file);},openNote:file=>this.openNoteInSidebar(file),favorite:file=>this.toggleFavorite(file),
-      capture:()=>this.quickCapture(),createBoard:()=>this.promptBoard(),calendar:()=>this.ensureCalendar(true),
+      capture:()=>this.quickCapture(),createBoard:()=>this.promptNewBoard(),calendar:()=>this.ensureCalendar(true),
       target:view&&owner?{title:owner.file.basename,add:paths=>view.addNotesFromHub(paths,owner)}:undefined
     });this.spaceHub=modal;modal.open();return modal;
   }
@@ -1021,11 +1027,11 @@ export default class ThoughtSpace extends Plugin {
     if(this.app.vault.getAbstractFileByPath(source.path)!==source)throw Error('来源笔记已删除');const title=safeName(name);const link=this.app.fileManager.generateMarkdownLink(source,normalizePath(this.settings.cardFolder+'/概念.md'));
     return this.createUnique(this.settings.cardFolder,title,'md',`# ${title}\n\n来源：${link}\n\n`);
   }
-  async createUnique(folder: string, title: string, ext: string, body: string): Promise<TFile> {
-    await this.folder(folder);
+  async createUnique(folder: string, title: string, ext: string, body: string,current:()=>boolean=()=>true): Promise<TFile> {
+    if(!current())throw Error('创建已取消');await this.folder(folder);if(!current())throw Error('创建已取消');
     const name = safeName(title);
     for (let n = 0; n < 10000; n++) {
-      const path = normalizePath(`${folder}/${name}${n ? ` ${n + 1}` : ''}.${ext}`);
+      if(!current())throw Error('创建已取消');const path = normalizePath(`${folder}/${name}${n ? ` ${n + 1}` : ''}.${ext}`);
       if (this.app.vault.getAbstractFileByPath(path)) continue;
       try { return await this.app.vault.create(path, body); } catch (e) { if (!this.app.vault.getAbstractFileByPath(path)) throw e; }
     }
@@ -1161,6 +1167,33 @@ export default class ThoughtSpace extends Plugin {
     return this.createUnique(file.parent?.path||`${ROOT}/白板`,title,format==='markdown'?'md':EXT,content);
   }
   promptMindmap(){new MindmapPresetsModal(this.app,async b=>{const title=b.nodes[0].text||'我的思维导图',file=await this.createUnique(`${ROOT}/白板`,title,EXT,JSON.stringify(b,null,2));await this.openBoard(file,true);const v=this.app.workspace.getLeavesOfType(VIEW).map(l=>l.view).find(v=>v instanceof BoardView&&v.file===file) as BoardView|undefined;v?.fit();}).open();}
+  promptNewBoard(){
+    if(this.boardCreationStopped)return;this.boardCreationModal?.close();
+    const modal=new BoardCreationModal(this.app,{initial:cleanBoardCreationPreferences(this.settings.boardCreation),current:()=>!this.boardCreationStopped,decorate:themeSurface,
+      submit:async(name,choice,current)=>{
+        const board=choice.presentation==='brain'?createBrainBoard():emptyBoard();
+        const file=await this.createUnique(`${ROOT}/白板`,name,choice.format==='markdown'?'md':EXT,choice.format==='markdown'?createMarkdownBoardDocument(board,name):JSON.stringify(board,null,2),current);
+        await this.finishBoardCreation(file,choice,current);
+      }});this.boardCreationModal=modal;modal.open();return modal;
+  }
+  promptTemplateBoard(id:string,name:string,created?:()=>void){
+    if(this.boardCreationStopped)return;this.boardCreationModal?.close();
+    const modal=new BoardCreationModal(this.app,{initial:{...cleanBoardCreationPreferences(this.settings.boardCreation),presentation:'board'},name,title:'从模板新建',template:true,current:()=>!this.boardCreationStopped,decorate:themeSurface,
+      submit:async(title,choice,current)=>{const file=await this.createFromTemplate(id,title,choice.format,current,false);if(!current())return;try{created?.();}catch(error){new Notice(`模板白板已创建；模板窗口暂未关闭。${error instanceof Error?error.message:String(error)}`,8000);}await this.finishBoardCreation(file,choice,current,true,true);}
+    });this.boardCreationModal=modal;modal.open();return modal;
+  }
+  private async finishBoardCreation(file:TFile,choice:BoardCreationPreferences,current:()=>boolean,fit=false,formatOnly=false){
+    if(!current())return;
+    try{await this.openBoard(file,fit,current);}catch(error){new Notice(`白板已创建：${file.path}；暂未打开，请从文件列表重开。${error instanceof Error?error.message:String(error)}`,10000);return;}
+    if(!current())return;
+    try{await this.rememberBoardCreation(choice,current,formatOnly);}catch(error){new Notice(`白板已创建；类型与格式偏好未保存，下次仍使用原选择。${error instanceof Error?error.message:String(error)}`,10000);}
+  }
+  private rememberBoardCreation(choice:BoardCreationPreferences,current:()=>boolean,formatOnly=false){
+    const next=this.boardCreationPreferenceQueue.catch(()=>{}).then(async()=>{
+      if(!current())return;const previous=this.settings.boardCreation,selection=cleanBoardCreationPreferences({...choice,...(formatOnly?{presentation:cleanBoardCreationPreferences(previous).presentation}:{})});this.settings.boardCreation=selection;
+      try{await this.saveData(this.settings);}catch(error){if(this.settings.boardCreation===selection)this.settings.boardCreation=previous;throw error;}
+    });this.boardCreationPreferenceQueue=next;return next;
+  }
   promptBoard(presentation:'board'|'brain'='board') { new Prompt(this.app, '新建白板', presentation==='brain'?'新的脑图':'新的研究主题', async (name,type) => this.openBoard(await this.createUnique(`${ROOT}/白板`, name, EXT, JSON.stringify(type==='brain'?createBrainBoard():emptyBoard(), null, 2))),{label:'白板类型',value:presentation,items:[{value:'board',text:'普通白板'},{value:'brain',text:'脑图白板'}]}).open(); }
   promptBrainBoard(){this.promptBoard('brain');}
   private serializeFiling<T>(operation: () => Promise<T>): Promise<T> {
@@ -1247,7 +1280,7 @@ export default class ThoughtSpace extends Plugin {
   async ensureJournalFile(day=localDay()){return requireCalendar(this.app).ensureJournalFile(day);}
   materialAdapter():MaterialAdapter{
     const current=()=>{const view=this.currentBoard;if(!view?.session||view.closed||!view.file)throw Error('请先选择目标白板');return view;};
-    return {docked:true,target:()=>{const v=this.currentBoard;return v?.file&&!v.closed?{name:v.file.basename,path:v.file.path}:undefined;},pickTarget:()=>new ActionPicker(this.app,'选择目标白板',this.app.vault.getFiles().filter(f=>isBoardFile(this.app,f)).map(file=>({title:file.basename,run:()=>this.openBoard(file)})).concat([{title:'＋ 新建白板',run:async()=>this.promptBoard()}])).open(),
+    return {docked:true,target:()=>{const v=this.currentBoard;return v?.file&&!v.closed?{name:v.file.basename,path:v.file.path}:undefined;},pickTarget:()=>new ActionPicker(this.app,'选择目标白板',this.app.vault.getFiles().filter(f=>isBoardFile(this.app,f)).map(file=>({title:file.basename,run:()=>this.openBoard(file)})).concat([{title:'＋ 新建白板',run:async()=>{this.promptNewBoard();}}])).open(),
       pick:done=>new NotePicker(this.app,done).open(),open:async(file,line)=>{const leaf=await this.openNoteInSidebar(file);const editor=leaf.view instanceof MarkdownView?leaf.view.editor:undefined;if(editor&&line!==undefined){const pos={line,ch:0};editor.setCursor(pos);editor.scrollIntoView({from:pos,to:pos},true);}},
       excerpts:(file,raw,fragments,group,link,options)=>{const view=current();return view.importExcerpts(file,raw,fragments,group,link,view.session,options);},outline:(topics,title,direction)=>current().importOutline(topics,title,direction),
       locate:async result=>{const file=this.app.vault.getAbstractFileByPath(result.boardPath);if(!(file instanceof TFile))throw Error('目标白板已移动或删除');await this.openBoard(file);const view=this.app.workspace.getLeavesOfType(VIEW).find(l=>(l.view as BoardView).file===file)?.view as BoardView|undefined;if(!view?.session?.board.nodes.some(n=>n.id===result.ids[0]))throw Error('摘录已从白板移除，笔记文件仍可在资料库找到');view.revealNode(result.ids[0]);},
@@ -1948,7 +1981,7 @@ class TemplatePicker extends Modal {
     for(const t of boardTemplates){
       const card=grid.createDiv('ts-template-card');setIcon(card.createDiv('ts-template-icon'),t.icon);card.createEl('h3',{text:t.name});card.createEl('p',{text:t.description});
       const preview=card.createDiv('ts-template-preview');for(const title of t.titles)preview.createSpan({text:title});
-      button(card,'使用 '+t.name,'arrow-up-right',()=>{new Prompt(this.app,'新白板名称',t.name,async name=>{await this.plugin.createFromTemplate(t.id,name);this.close();}).open();},'ts-template-use');
+      button(card,'使用 '+t.name,'arrow-up-right',()=>this.plugin.promptTemplateBoard(t.id,t.name,()=>this.close()),'ts-template-use');
     }
   }
   onClose(){this.contentEl.empty();}
@@ -1961,7 +1994,7 @@ class NavigatorView extends ItemView {
   async onOpen(){
     this.contentEl.empty();this.contentEl.addClass('ts-root','ts-dock');
     const body=this.contentEl.createDiv('ts-dock-body'),launchpad=body.createEl('header',{cls:'ts-dock-launchpad',attr:{'aria-label':'知识空间入口'}}),quick=launchpad.createDiv('ts-dock-quick');button(quick,'收集笔记','plus',()=>this.plugin.quickCapture(),'ts-primary');
-    const create=button(quick,'新建','chevron-down',()=>{this.createMenu?.hide();const menu=this.createMenu=new Menu().setUseNativeMenu(false);menu.addItem(i=>i.setTitle('新建白板').setIcon('panels-top-left').onClick(()=>this.plugin.promptBoard()));menu.addItem(i=>i.setTitle('新建脑图白板').setIcon('network').onClick(()=>this.plugin.promptBrainBoard()));menu.addItem(i=>i.setTitle('新建 Markdown 白板').setIcon('file-plus').onClick(()=>this.plugin.promptMarkdownBoard()));menu.addItem(i=>i.setTitle('新建 Markdown 脑图白板').setIcon('network').onClick(()=>this.plugin.promptMarkdownBoard('brain')));menu.addItem(i=>i.setTitle('从模板新建').setIcon('layout-template').onClick(()=>new TemplatePicker(this.app,this.plugin).open()));create.setAttribute('aria-expanded','true');menu.onHide(()=>{if(this.createMenu===menu){this.createMenu=undefined;create.setAttribute('aria-expanded','false');}});const rect=create.getBoundingClientRect();menu.showAtPosition({x:rect.left,y:rect.bottom+4});},'ts-dock-create');create.setAttribute('aria-label','新建白板或使用模板');create.setAttribute('aria-haspopup','menu');create.setAttribute('aria-expanded','false');
+    const create=button(quick,'新建','chevron-down',()=>{this.createMenu?.hide();const menu=this.createMenu=new Menu().setUseNativeMenu(false);menu.addItem(i=>i.setTitle('新建白板或脑图…').setIcon('panels-top-left').onClick(()=>this.plugin.promptNewBoard()));menu.addItem(i=>i.setTitle('从模板新建').setIcon('layout-template').onClick(()=>new TemplatePicker(this.app,this.plugin).open()));create.setAttribute('aria-expanded','true');menu.onHide(()=>{if(this.createMenu===menu){this.createMenu=undefined;create.setAttribute('aria-expanded','false');}});const rect=create.getBoundingClientRect();menu.showAtPosition({x:rect.left,y:rect.bottom+4});},'ts-dock-create');create.setAttribute('aria-label','新建白板或使用模板');create.setAttribute('aria-haspopup','menu');create.setAttribute('aria-expanded','false');
     const entry=launchpad.createDiv({cls:'ts-dock-shortcuts',attr:{role:'navigation','aria-label':'知识空间快捷入口'}});button(entry,'空间总览','compass',()=>this.plugin.openSpaceHub());const excerpt=button(entry,'笔记摘录','notebook-pen',()=>this.plugin.openExcerptNote());excerpt.setAttribute('aria-label','打开笔记摘录');excerpt.title='打开笔记摘录';
     this.host=body.createDiv('ts-dock-host');
     const tools=this.contentEl.createDiv({cls:'ts-dock-workspace-tools',attr:{role:'group','aria-label':'当前白板工具'}});

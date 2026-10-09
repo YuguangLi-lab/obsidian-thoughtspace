@@ -1,3 +1,4 @@
+import {cleanBoardCreationPreferences,type BoardCreationPreferences} from './board-creation';
 import {cleanPendingBoardReferences,type PendingBoardReference} from './pending-board-references';
 import {cleanPaperPreferences} from './paper-appearance';
 import {cleanBackgroundImagePreferences} from './background-image';
@@ -13,7 +14,7 @@ import type {SettingsLanguagePreference} from './settings-preferences';
 import {cleanLocalRelationsPreferences,type LocalRelationsPreferences} from './local-relations-state';
 
 export type ThoughtSpacePreferences=FilingSettings&AppearanceSettings&BoardPreferences&{
- settingsLanguage:SettingsLanguagePreference;
+ settingsLanguage:SettingsLanguagePreference;boardCreation:BoardCreationPreferences;
  localRelations:LocalRelationsPreferences;
  layoutPresets:LayoutPreset[];imageHostEnabled?:boolean;database:DatabasePreferences;hub:HubPreferences;favoriteBoards:string[];
  notePaneLeafId?:string;noteMarkdownToolbar?:boolean;boardSearchEnabled?:boolean;compactDuplicateCardTitles:boolean;
@@ -24,7 +25,7 @@ export type ThoughtSpacePreferences=FilingSettings&AppearanceSettings&BoardPrefe
 export function cleanPluginSettings(raw:unknown):ThoughtSpacePreferences {
  const saved=isRecord(raw)?raw:{};
  const out:ThoughtSpacePreferences={...defaultFilingSettings,...defaultAppearance,...cleanBoardPreferences(saved),...cleanPaperPreferences(saved),...cleanBackgroundImagePreferences(saved),
-  localRelations:cleanLocalRelationsPreferences(saved.localRelations),
+  localRelations:cleanLocalRelationsPreferences(saved.localRelations),boardCreation:cleanBoardCreationPreferences(saved.boardCreation),
   settingsLanguage:isOneOf(saved.settingsLanguage,['auto','zh-CN','en'])?saved.settingsLanguage:'auto',compactDuplicateCardTitles:saved.compactDuplicateCardTitles===true,
   layoutPresets:cleanLayoutPresets(saved.layoutPresets),database:cleanDatabasePreferences(saved.database),hub:cleanHubPreferences(saved.hub),favoriteBoards:cleanFavorites(saved.favoriteBoards)};
  try{Object.assign(out,validateFolders(typeof saved.cardFolder==='string'?saved.cardFolder:out.cardFolder,typeof saved.journalFolder==='string'?saved.journalFolder:out.journalFolder));}catch{/* Invalid folders never redirect automatic filing outside the configured vault paths. */}
