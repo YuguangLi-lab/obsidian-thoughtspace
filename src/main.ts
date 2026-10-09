@@ -1137,6 +1137,7 @@ export default class ThoughtSpace extends Plugin {
       return original&&state.type==='empty'||original&&destination.isDeferred&&state.type===VIEW&&state.state?.file===target.file||view instanceof BoardView&&!view.closed&&view.file===file&&state.state?.file===target.file&&(!destinationOwner||view===destinationView&&view.session===destinationOwner);
     };
     const ownsPlaceholder=()=>owned&&!!destination&&destinationType==='empty'&&destination.view===destinationView&&destination.getViewState().type===destinationType&&JSON.stringify(destination.getViewState().state)===destinationState&&(!(destination.view instanceof FileView)||!destination.view.file);
+    const inheritsPlaceholder=()=>!destination&&!!obsoleteLeaf&&origin===obsoleteLeaf;
     const current=()=>!cancelled&&file.path===target.file&&this.app.vault.getAbstractFileByPath(target.file)===file&&location();
     const changed=()=>{if(allocating)return;const leaf=workspace.getMostRecentLeaf();
       // The superseded opener may dispose of its own exact placeholder. Its
@@ -1169,7 +1170,10 @@ export default class ThoughtSpace extends Plugin {
     }finally{cleanup();}})();
     // One in-flight navigation owns the leaf. Same-file requests update the
     // pending node so neither SharedOpen nor an older frame loses the latest one.
-    opening={file,current,update:node=>{target.node=node;if(!node)finishFrame?.();},stop,work,placeholder:()=>ownsPlaceholder()?destination:undefined,transfer:leaf=>{if(leaf===destination)owned=false;},fallback:()=>originMatches()?origin:null,releasing:()=>releasing};this.deepLinkOpening=opening;
+    // An intent still awaiting preflight has no leaf of its own. Carry the
+    // precise predecessor lease through it so a later intent can observe the
+    // original owner's disposal or take over that same host-reused empty tab.
+    opening={file,current,update:node=>{target.node=node;if(!node)finishFrame?.();},stop,work,placeholder:()=>ownsPlaceholder()?destination:inheritsPlaceholder()?obsolete?.placeholder():undefined,transfer:leaf=>{if(leaf===destination)owned=false;else if(inheritsPlaceholder()&&leaf===obsoleteLeaf)obsolete?.transfer(leaf);},fallback:()=>inheritsPlaceholder()?obsolete?.fallback()||null:originMatches()?origin:null,releasing:()=>releasing||inheritsPlaceholder()&&!!obsolete?.releasing()};this.deepLinkOpening=opening;
     return work;
   }
   async renameNote(file:TFile,value:string,original=file.path){
