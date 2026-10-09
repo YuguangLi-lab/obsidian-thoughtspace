@@ -925,6 +925,7 @@ export default class ThoughtSpace extends Plugin {
   private writingPreparation=new SharedOpen<BoardView,void>();
   private boardOpening=new SharedOpen<TFile,WorkspaceLeaf|undefined>();
   private boardOpeningNavigation=new Set<()=>void>();
+  private deepLinkOpening?:{file:TFile;current:()=>boolean;update:(node?:string)=>void;stop:()=>void;work:Promise<void>;placeholder:()=>WorkspaceLeaf|undefined;transfer:(leaf:WorkspaceLeaf)=>void;fallback:()=>WorkspaceLeaf|null;releasing:()=>boolean};
   readonly provisionalBoardGeometry=new WeakMap<WorkspaceLeaf,TFile>();
   async openWriting(view=this.currentBoard){
     if(!view?.file||!view.session)throw Error('请先打开白板');const file=view.file,owner=view.session;
@@ -1117,16 +1118,59 @@ export default class ThoughtSpace extends Plugin {
     throw new Error('无法生成唯一文件名');
   }
   async openDeepLink(params: Record<string,string>) {
-    const target = parseBoardLink(params,this.app.vault.getName());
-    const file = this.app.vault.getAbstractFileByPath(target.file);
+    const workspace=this.app.workspace,target=parseBoardLink(params,this.app.vault.getName()),file=this.app.vault.getAbstractFileByPath(target.file);
     if (!(file instanceof TFile)) throw new Error('白板已移动或不存在，请重新复制链接');
-    for(const leaf of this.app.workspace.getLeavesOfType(VIEW)) if(leaf.isDeferred) await leaf.loadIfDeferred();
-    await this.openBoard(file);
-    const view = this.app.workspace.getLeavesOfType(VIEW).map(l=>l.view).find(v=>v instanceof BoardView && v.file===file) as BoardView | undefined;
-    if(target.node && view) {
-      if(!view.session?.board.nodes.some(n=>n.id===target.node)) {new Notice('已打开白板；链接中的内容已被移除');return;}
-      await new Promise<void>(resolve=>(view.containerEl?.ownerDocument?.defaultView||window).requestAnimationFrame(()=>resolve()));view.revealNode(target.node);
-    }
+    const obsolete=this.deepLinkOpening;
+    if(obsolete?.file===file&&obsolete.current()){obsolete.update(target.node);return obsolete.work;}
+    const obsoleteLeaf=obsolete?.placeholder(),obsoleteOrigin=obsolete?.fallback();obsolete?.stop();
+    let origin=workspace.getMostRecentLeaf(),originView=origin?.view,originFile=originView instanceof FileView?originView.file:undefined,originOwner=originView instanceof BoardView?originView.session:undefined,originType=origin?.getViewState().type,originState=JSON.stringify(origin?.getViewState().state);
+    const originMatches=()=>!origin||origin.view===originView&&origin.getViewState().type===originType&&JSON.stringify(origin.getViewState().state)===originState&&(!(originView instanceof FileView)||originView.file===originFile)&&(!(originView instanceof BoardView)||originView.session===originOwner);
+    const rebaseOrigin=(leaf:WorkspaceLeaf)=>{origin=leaf;originView=leaf.view;originFile=leaf.view instanceof FileView?leaf.view.file:undefined;originOwner=leaf.view instanceof BoardView?leaf.view.session:undefined;originType=leaf.getViewState().type;originState=JSON.stringify(leaf.getViewState().state);};
+    let destination:WorkspaceLeaf|undefined,destinationView:View|undefined,destinationOwner:Session|undefined,destinationType:string|undefined,destinationState:string|undefined,lastLeaf=origin,allocating=false,cancelled=false,owned=false,releasing=false,bound:(()=>boolean)|undefined,finishFrame:(()=>void)|undefined,frameWindow:Window|null|undefined,opening:typeof obsolete;
+    const rememberTarget=(leaf:WorkspaceLeaf)=>{if(destination===leaf)return;destination=leaf;destinationView=leaf.view;destinationOwner=leaf.view instanceof BoardView?leaf.view.session:undefined;destinationType=leaf.getViewState().type;destinationState=JSON.stringify(leaf.getViewState().state);};
+    const location=()=>{
+      if(bound)return bound();
+      const active=workspace.getMostRecentLeaf();
+      if(active===origin&&originMatches())return true;
+      if(!destination||active!==destination)return false;
+      const state=destination.getViewState(),view=destination.view,original=view===destinationView&&state.type===destinationType&&JSON.stringify(state.state)===destinationState;
+      return original&&state.type==='empty'||original&&destination.isDeferred&&state.type===VIEW&&state.state?.file===target.file||view instanceof BoardView&&!view.closed&&view.file===file&&state.state?.file===target.file&&(!destinationOwner||view===destinationView&&view.session===destinationOwner);
+    };
+    const ownsPlaceholder=()=>owned&&!!destination&&destinationType==='empty'&&destination.view===destinationView&&destination.getViewState().type===destinationType&&JSON.stringify(destination.getViewState().state)===destinationState&&(!(destination.view instanceof FileView)||!destination.view.file);
+    const current=()=>!cancelled&&file.path===target.file&&this.app.vault.getAbstractFileByPath(target.file)===file&&location();
+    const changed=()=>{if(allocating)return;const leaf=workspace.getMostRecentLeaf();
+      // The superseded opener may dispose of its own exact placeholder. Its
+      // source fallback is allowed only after that leaf was actually removed.
+      if(origin===obsoleteLeaf&&obsolete?.releasing()&&leaf&&leaf===obsoleteOrigin&&obsolete.fallback()===leaf&&!workspace.getLeavesOfType('empty').includes(obsoleteLeaf)){rebaseOrigin(leaf);lastLeaf=leaf;return;}
+      if(!location()||leaf!==lastLeaf&&leaf!==destination)stop();lastLeaf=leaf;
+    },refs=[workspace.on('active-leaf-change',changed),workspace.on('file-open',changed)];
+    const cleanup=()=>{for(const ref of refs)workspace.offref(ref);refs.length=0;frameWindow?.removeEventListener?.('unload',stop);finishFrame?.();finishFrame=undefined;this.boardOpeningNavigation.delete(stop);if(this.deepLinkOpening===opening)this.deepLinkOpening=undefined;},stop=()=>{cancelled=true;cleanup();};this.boardOpeningNavigation.add(stop);
+    const navigation:BoardOpenNavigation={
+      acquire:create=>{allocating=true;const previous=workspace.getMostRecentLeaf();try{const leaf=create();if(leaf===obsoleteLeaf)obsolete?.transfer(leaf);owned=true;rememberTarget(leaf);lastLeaf=workspace.getMostRecentLeaf();if(lastLeaf!==leaf&&lastLeaf!==previous||!location())stop();return leaf;}finally{allocating=false;}},
+      target:rememberTarget,
+      ownsPlaceholder:leaf=>{const own=leaf===destination&&ownsPlaceholder();if(cancelled&&own)releasing=true;return own;}
+    };
+    const work=(async()=>{try{
+      await this.openBoard(file,false,current,false,navigation);
+      if(!current()||!destination||workspace.getMostRecentLeaf()!==destination)return;
+      const leaf=destination,view=leaf.view;
+      if(!(view instanceof BoardView)||view.closed||view.file!==file||!view.session)return;
+      const owner=view.session,doc=view.containerEl.ownerDocument,win=doc.defaultView;
+      // Keep the opened instance through the frame; another view of the same
+      // file must never receive a cancelled link's focus or center change.
+      bound=()=>workspace.getMostRecentLeaf()===leaf&&leaf.view===view&&!view.closed&&view.file===file&&view.session===owner&&leaf.getViewState().type===VIEW&&leaf.getViewState().state?.file===target.file&&view.containerEl.ownerDocument===doc&&doc.defaultView===win&&!win?.closed;
+      if(!current()||!target.node)return;
+      const containsNode=()=>owner.board.nodes.some(node=>node.id===target.node);
+      if(!containsNode()){new Notice('已打开白板；链接中的内容已被移除');return;}
+      await new Promise<void>(resolve=>{finishFrame=resolve;frameWindow=win;win?.addEventListener?.('unload',stop,{once:true});if(current())(win||window).requestAnimationFrame(()=>resolve());else resolve();});
+      if(!current()||!target.node)return;
+      if(!containsNode()){new Notice('已打开白板；链接中的内容已被移除');return;}
+      view.revealNode(target.node);
+    }finally{cleanup();}})();
+    // One in-flight navigation owns the leaf. Same-file requests update the
+    // pending node so neither SharedOpen nor an older frame loses the latest one.
+    opening={file,current,update:node=>{target.node=node;if(!node)finishFrame?.();},stop,work,placeholder:()=>ownsPlaceholder()?destination:undefined,transfer:leaf=>{if(leaf===destination)owned=false;},fallback:()=>originMatches()?origin:null,releasing:()=>releasing};this.deepLinkOpening=opening;
+    return work;
   }
   async renameNote(file:TFile,value:string,original=file.path){
     if(file.path!==original||this.app.vault.getAbstractFileByPath(original)!==file)throw Error('笔记已移动或删除，请重新编辑标题');
@@ -1178,7 +1222,7 @@ export default class ThoughtSpace extends Plugin {
         navigation?.target(created);if(provisional)this.provisionalBoardGeometry.set(created,file);
         const initialView=created.view,initialType=created.getViewState().type,initialState=JSON.stringify(created.getViewState().state);
         const ownsPlaceholder=()=>initialType==='empty'&&created.view===initialView&&created.getViewState().type===initialType&&JSON.stringify(created.getViewState().state)===initialState&&(!(created.view instanceof FileView)||!created.view.file);
-        const discard=()=>{this.provisionalBoardGeometry.delete(created);if(ownsPlaceholder())created.detach();};
+        const discard=()=>{this.provisionalBoardGeometry.delete(created);if(ownsPlaceholder()&&(!navigation?.ownsPlaceholder||navigation.ownsPlaceholder(created)))created.detach();};
         try{
           await this.readBoard(file);
           if(!current()||!ownsPlaceholder()||file.path!==path||this.app.vault.getAbstractFileByPath(path)!==file){discard();return undefined;}

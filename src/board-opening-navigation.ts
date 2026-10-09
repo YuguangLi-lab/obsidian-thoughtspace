@@ -6,4 +6,7 @@ import type {WorkspaceLeaf} from 'obsidian';
 export interface BoardOpenNavigation {
  acquire:(create:()=>WorkspaceLeaf)=>WorkspaceLeaf;
  target:(leaf:WorkspaceLeaf)=>void;
+ /** Optional disposal lease when another request can reuse the same empty tab.
+  * Called only while the opener's original empty view and state still match. */
+ ownsPlaceholder?:(leaf:WorkspaceLeaf)=>boolean;
 }
