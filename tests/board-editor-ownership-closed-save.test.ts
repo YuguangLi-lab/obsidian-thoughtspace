@@ -14,7 +14,7 @@ class File {extension='md';constructor(public path:string){}}
 interface Leaf {view:unknown;isDeferred:boolean;getViewState:()=>{type:string;state:{file:string}};}
 interface Clock {setTimeout:(run:()=>void,delay:number)=>number;clearTimeout:(id:number)=>void;}
 interface App {workspace:{containerEl:{ownerDocument:{defaultView:Clock}};getLeavesOfType:(type:string)=>Leaf[]};vault:{getAbstractFileByPath:(path:string)=>File|undefined;read:(file:File)=>Promise<string>};}
-interface OwnershipApi {nativeBoardEditorLeaves:(app:App,file:File)=>Leaf[];hasNativeBoardEditor:(app:App,file:File)=>boolean;assertBoardEditorOwnership:(app:App,file:File)=>void;settleNativeBoardEditor:(app:App,file:File,leaf:Leaf)=>Promise<void>;
+interface OwnershipApi {nativeBoardEditorStatus:(app:App,file:File)=>{open:number;pending:number};nativeBoardEditorLeaves:(app:App,file:File)=>Leaf[];hasNativeBoardEditor:(app:App,file:File)=>boolean;assertBoardEditorOwnership:(app:App,file:File)=>void;settleNativeBoardEditor:(app:App,file:File,leaf:Leaf)=>Promise<void>;
  clearNativeBoardEditorTracking:(app:App)=>void;subscribeNativeBoardEditorDrains:(app:App,callback:(file:File)=>void)=>()=>void;}
 
 function fixture(mode='source'){
@@ -194,4 +194,12 @@ test('native Properties opening registers the new native view before returning e
  const f=fixture(),{host}=observationHost(f);f.leaves.length=0;f.leaf.view={};
  Object.assign(f.leaf,{setViewState:async(state:{type:string;state:{file:string;mode:string}})=>{assert.equal(state.type,'markdown');f.view.mode=state.state.mode;f.view.file=f.file;f.leaf.view=f.view;f.leaves.push(f.leaf);}});
  await host.openBoardNativeMarkdown(f.file,f.leaf);f.view.saving=true;f.close();assert.equal(f.api.hasNativeBoardEditor(f.app,f.file),true,'the opening entry point itself must observe the native buffer before it can close');
+});
+
+
+test('native save feedback counts real pages separately from retired writers and never hydrates or saves them',async()=>{
+ const f=fixture();f.observe();assert.deepEqual(f.api.nativeBoardEditorStatus(f.app,f.file),{open:1,pending:0});f.view.saving=true;f.close();assert.deepEqual(f.api.nativeBoardEditorStatus(f.app,f.file),{open:0,pending:1});f.view.saving=false;await f.advanceSeveral();assert.deepEqual(f.api.nativeBoardEditorStatus(f.app,f.file),{open:0,pending:0});assert.deepEqual(f.counts(),{saves:0,reads:0});
+});
+test('status discovery counts deferred and other-window pages without turning them into editors',()=>{
+ const f=fixture(),second={view:new f.MarkdownView(),isDeferred:false,getViewState:()=>({type:'markdown',state:{file:f.file.path}})},deferred={view:{},isDeferred:true,getViewState:()=>({type:'markdown',state:{file:f.file.path}})};f.leaves.push(second,deferred);assert.deepEqual(f.api.nativeBoardEditorStatus(f.app,f.file),{open:3,pending:0});assert.deepEqual(f.counts(),{saves:0,reads:0});f.api.clearNativeBoardEditorTracking(f.app);assert.equal(f.timers.size,0);
 });

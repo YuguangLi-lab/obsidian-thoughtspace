@@ -22,7 +22,7 @@ function fixture(){
  const commit=deferred<boolean>(),navigation=deferred<void>(),acquisition=deferred<ReturnType<typeof session>>(),view=new View();
  function session(){const value={board:{...emptyBoard(),version:3 as const},blocked:false,refreshNativeEditing(){},listeners:new Set(),flush:async()=>{},change:(edit:(board:Board)=>void)=>{calls.committed++;edit(value.board);}};return value;}
  const owner=session(),next=session();owner.board.nodes.push({id:'chosen',kind:'text',text:'Unchanged',x:100,y:100,width:160,height:100,color:'green'});
- Object.assign(view,{dialogEpoch:0,session:owner,closed:false,selected:new Set(['chosen']),outlineCollapsed:new Set(),renderFrame:0,sidebarRun:0,inline:{commit:()=>commit.promise},
+ Object.assign(view,{cancelSaveFeedbackNavigation(){},dialogEpoch:0,session:owner,closed:false,selected:new Set(['chosen']),outlineCollapsed:new Set(),renderFrame:0,sidebarRun:0,inline:{commit:()=>commit.promise},
   blankClicks:{cancel(){}},viewTrail:{clear(){}},svg:{isConnected:true},stage:{removeClass(){}},
   contentEl:{ownerDocument:{defaultView:hostWindow},querySelectorAll:()=>[]},app:{workspace:{getActiveViewOfType:()=>undefined}},
   plugin:{provisionalBoardGeometry:new WeakMap(),session:()=>acquisition.promise,ensureDock:async()=>{},refreshDock(){},release:async()=>{}},

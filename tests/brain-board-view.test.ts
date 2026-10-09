@@ -1,3 +1,4 @@
+import {renderBoardSaveFeedback} from '../src/board-save-feedback';
 import {brainIdeaNode} from '../src/brain-board-idea';
 import * as descendants from '../src/brain-board-descendants';
 import * as ports from '../src/brain-board-ports';
@@ -62,7 +63,7 @@ class Component {
 class MenuItem {submenu?:Menu;setSubmenu(){return this.submenu??=new Menu();}title='';icon='';disabled=false;callback=()=>{};setTitle(value:string){this.title=value;return this;}setIcon(value:string){this.icon=value;return this;}setDisabled(value:boolean){this.disabled=value;return this;}onClick(fn:()=>void){this.callback=fn;return this;}click(){if(!this.disabled)this.callback();}}
 class Menu {static last:Menu;items:MenuItem[]=[];native=true;shown?:string;doc?:Doc;hidden=false;private onHidden=()=>{};constructor(){Menu.last=this;}setUseNativeMenu(value:boolean){this.native=value;return this;}addItem(fn:(item:MenuItem)=>void){const item=new MenuItem();fn(item);this.items.push(item);return this;}addSeparator(){}showAtMouseEvent(){Menu.last=this;this.shown='mouse';}showAtPosition(_position:any,doc:Doc){Menu.last=this;this.shown='keyboard';this.doc=doc;}onHide(fn:()=>void){this.onHidden=fn;}hide(){this.hidden=true;this.onHidden();}}
 const source=readFileSync(process.env.QA_BRAIN_VIEW_SOURCE||'src/brain-board-view.ts','utf8').replace(/^import[^\n]*\n/gm,'').replace(/\bexport /g,'');
-const deps={BrainRefreshCache,...brainColors,...descendants,...ports,LocalRelationMotion,...state,...relations,...layout,...creation,Component,Menu,setIcon(el:El,icon:string){el.dataset.icon=icon;}};
+const deps={renderBoardSaveFeedback,BrainRefreshCache,...brainColors,...descendants,...ports,LocalRelationMotion,...state,...relations,...layout,...creation,Component,Menu,setIcon(el:El,icon:string){el.dataset.icon=icon;}};
 const {BrainBoardView:View,sideActionPositions}=new Function(...Object.keys(deps),transformSync(source+'\nreturn {BrainBoardView,sideActionPositions};',{loader:'ts'}).code)(...Object.values(deps));
 const card=(id:string,kind:Card['kind']='card'):Card=>({id,kind,title:'标题 '+id,file:kind==='card'?`Notes/${id}.md`:kind==='board'?`Boards/${id}.thoughtspace`:undefined,x:10,y:20,width:120,height:80,color:'slate'});
 function fixture(){
@@ -416,9 +417,9 @@ function closingRendererFixture(){
  const f=sessionRendererFixture({x:-200,y:18.3,zoom:1});f.first.view.unload();f.owner.listeners.clear();const main=readFileSync('src/main.ts','utf8');
  const take=(start:string,end:string)=>{const from=main.indexOf(start),to=main.indexOf(end,from);assert(from>=0&&to>from);return main.slice(from,to);};
  const code='class BoardView extends Component{'+take('  private fitLegacyGeometry(){','  private point(')+take('  private clearBrainBoard(){','  private addBrainObject(')+'};return BoardView';
- const deps={BrainRefreshCache,...descendants,...ports,LocalRelationMotion,...state,...brain,...relations,Component,BrainBoardView:View,View:class{},Notice:class{},TFile:class{}};
+ const deps={renderBoardSaveFeedback,BrainRefreshCache,...descendants,...ports,LocalRelationMotion,...state,...brain,...relations,Component,BrainBoardView:View,View:class{},Notice:class{},TFile:class{}};
  const Parent=new Function(...Object.keys(deps),transformSync(code,{loader:'ts'}).code)(...Object.values(deps)),parent=new Parent(),leaf={view:parent},content=f.first.root.createDiv(),plugin=f.owner.plugin;
- Object.assign(plugin,{refreshDock(){},refreshLocalRelations(){},clearMaterialDrag(){}});Object.assign(parent,{app:{workspace:{getActiveViewOfType:()=>parent}},plugin,leaf,contentEl:content,session:f.owner,closed:false,closing:false,dialogEpoch:0,brainObjectEpoch:0,sidebarRun:0,renderFrame:0,blankClicks:{cancel(){}},clearCanvasGesture(){},clearNodes(){},finishMarquee(){},finishInlineForNavigation:async()=>{},renderSaveStatus(){},mindmapNative:()=>({relations:[],tagsByNode:new Map(),pendingPaths:[]}),mindmapSource:(_owner:any,id:string)=>({label:id,available:true,stamp:'1'})});
+ Object.assign(plugin,{refreshDock(){},refreshLocalRelations(){},clearMaterialDrag(){}});Object.assign(parent,{app:{workspace:{getActiveViewOfType:()=>parent}},plugin,leaf,contentEl:content,session:f.owner,closed:false,closing:false,dialogEpoch:0,brainObjectEpoch:0,sidebarRun:0,renderFrame:0,blankClicks:{cancel(){}},clearCanvasGesture(){},clearNodes(){},finishMarquee(){},finishInlineForNavigation:async()=>{},cancelSaveFeedbackNavigation(){},renderSaveStatus(){},mindmapNative:()=>({relations:[],tagsByNode:new Map(),pendingPaths:[]}),mindmapSource:(_owner:any,id:string)=>({label:id,available:true,stamp:'1'})});
  parent.load();parent.renderBrainBoard();const renderer=parent.brainBoardView,el=parent.brainBoardEl;
  const paint=(kind:string)=>{if(kind==='board')parent.brainBoardView?.refresh();};f.owner.listeners.add(paint);parent.unsubscribe=()=>f.owner.listeners.delete(paint);
  const pan=()=>{const stage=el.querySelector('.ts-brain-stage')!;stage.dispatch('pointerdown',{pointerId:4,clientX:35,clientY:70});stage.dispatch('pointermove',{pointerId:4,clientX:80,clientY:95});stage.dispatch('pointerup',{pointerId:4});assert.deepEqual(renderer.camera,{x:-155,y:43.3,zoom:1});assert.equal(f.first.doc.timers.size,1);};
@@ -544,4 +545,24 @@ test('native Properties brain action omits legacy sources, disables read-only an
  f.setSnapshot({...f.snapshot,path:'Board.MD',readOnly:true});f.view.refresh();action(f.el,'more').click();assert(menuItem('原生属性与 Markdown').disabled);menuItem('原生属性与 Markdown').click();assert.equal(calls,0);
  f.setSnapshot({...f.snapshot,readOnly:false});f.view.refresh();action(f.el,'more').click();const prior=menuItem('原生属性与 Markdown');f.setSnapshot({...f.snapshot,readOnly:true});prior.click();assert.equal(calls,0);
  f.setSnapshot({...f.snapshot,readOnly:false});f.view.refresh();action(f.el,'more').click();const stale=menuItem('原生属性与 Markdown');f.setSnapshot({...f.snapshot,path:'Other.md',key:{}});stale.click();assert.equal(calls,0);
+});
+
+
+test('save feedback changes only the status and retains layout, SVG, previews, history and camera',()=>{
+ const f=fixture();f.board.brain!.expandedIds=['b'];f.view.refresh();
+ const graph=f.view.layout,projection=f.view.projection,camera={...f.view.camera},svg=f.el.querySelector('.ts-brain-links')!,paths=[...svg.children],history=f.el.querySelector('.ts-brain-recent')!,entries=[...history.children],preview=node(f,'b').querySelector('.ts-brain-preview'),renders=f.view.renders;
+ const calls:string[]=[];f.host.saveFeedbackAction=(action:string)=>calls.push(action);
+ f.setSnapshot({...f.snapshot,saveFeedback:{state:'paused',text:'原生 Markdown 已打开 · 白板仅查看',detail:'Please save the native Properties page first',action:{kind:'locate-native',label:'定位原生页'}}});
+ f.view.refreshSaveFeedback();const status=f.el.querySelector('.ts-brain-status')!,button=status.querySelector('[data-save-feedback-action="locate-native"]')!;assert.ok(button);button.click();assert.deepEqual(calls,['locate-native']);assert.equal(status.hidden,false);
+ for(let i=0;i<30;i++)f.view.refreshSaveFeedback();assert.equal(status.querySelector('[data-save-feedback-action="locate-native"]'),button);assert.equal(f.view.renders,renders);assert.equal(f.view.layout,graph);assert.equal(f.view.projection,projection);assert.deepEqual(svg.children,paths);assert.deepEqual(history.children,entries);assert.equal(node(f,'b').querySelector('.ts-brain-preview'),preview);assert.deepEqual(f.view.camera,camera);
+ f.setSnapshot({...f.snapshot,saveFeedback:{state:'saved',text:'已保存'}});f.view.refreshSaveFeedback();assert.equal(status.hidden,true);assert.equal(status.querySelector('[data-save-feedback-action="locate-native"]'),undefined);assert.equal(f.view.renders,renders);assert.equal(f.saves.length,0);
+});
+test('a stale status action cannot navigate after owner, path, action or component changes',()=>{
+ for(const stale of ['owner','path','action','unload']){
+  const f=fixture(),calls:string[]=[];f.host.saveFeedbackAction=(action:string)=>calls.push(action);f.setSnapshot({...f.snapshot,saveFeedback:{state:'error',text:'Saved recovery',action:{kind:'open-recovery',label:'打开恢复草稿'}}});f.view.refreshSaveFeedback();const button=f.el.querySelector('[data-save-feedback-action="open-recovery"]')!;
+  if(stale==='owner')f.setSnapshot({...f.snapshot,key:{}});else if(stale==='path')f.setSnapshot({...f.snapshot,path:'Moved.md'});else if(stale==='action')f.setSnapshot({...f.snapshot,saveFeedback:{state:'saved',text:'已保存'}});else f.view.unload();button.click();assert.deepEqual(calls,[]);
+ }
+});
+test('a failed source open unhides a normal hidden brain status and keeps the error visible',async()=>{
+ const f=fixture();const status=f.el.querySelector('.ts-brain-status')!;assert.equal(status.hidden,true);f.host.open=async()=>{throw Error('Source temporarily unavailable');};action(node(f,'b'),'open').click();for(let i=0;i<10;i++)await Promise.resolve();assert.equal(status.hidden,false);assert.match(status.textContent,/Source temporarily unavailable/);assert.equal(status.dataset.state,'error');
 });

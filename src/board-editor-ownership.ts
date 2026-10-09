@@ -68,6 +68,12 @@ export function nativeBoardEditorLeaves(app:App,file:TFile):WorkspaceLeaf[]{
  for(const leaf of leaves)if(!leaf.isDeferred&&leaf.view instanceof MarkdownView&&leaf.view.file===file){let owners=state.owners.get(file);if(!owners){owners=new Set();state.owners.set(file,owners);}owners.add(leaf.view);}
  reconcileNativeSaves(app,state);return leaves;
 }
+/** Discovery does not load deferred pages or read/save editor buffers. */
+export function nativeBoardEditorStatus(app:App,file:TFile):{open:number;pending:number}{
+ const leaves=nativeBoardEditorLeaves(app,file),live=new Set(leaves.filter(leaf=>!leaf.isDeferred&&leaf.view instanceof MarkdownView&&leaf.view.file===file).map(leaf=>leaf.view));
+ let pending=0;for(const owner of tracking.get(app)?.owners.get(file)||[])if(!live.has(owner))pending++;
+ return{open:leaves.length,pending};
+}
 export function hasNativeBoardEditor(app:App,file:TFile):boolean{return nativeBoardEditorLeaves(app,file).length>0||!!tracking.get(app)?.owners.get(file)?.size;}
 export function assertBoardEditorOwnership(app:App,file:TFile):void{
  if(hasNativeBoardEditor(app,file))throw Error('此 Markdown 白板仍在原生编辑、阅读或属性页打开，白板暂时仅供查看。请保存并关闭原生页，或从原生页返回白板后重试；当前内容保留。');

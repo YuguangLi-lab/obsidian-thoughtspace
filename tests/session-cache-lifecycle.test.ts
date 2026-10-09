@@ -60,7 +60,7 @@ test('production onLoadFile attaches to the cached session after a previous view
  const f=fixture(),original=await f.host.session(f.file),view=new View();let releaseDock!:()=>void;
  const dock=new Promise<void>(resolve=>releaseDock=resolve);
  Object.assign(f.host,{provisionalBoardGeometry:new WeakMap(),ensureDock:()=>dock,refreshDock(){},clearMaterialDrag(){}});
- Object.assign(view,{plugin:f.host,closed:false,file:f.file,dialogEpoch:0,sidebarRun:0,renderFrame:0,blankClicks:{cancel(){}},finishMarquee(){},setSectionTool(){},syncSelectionTool(){},viewTrail:{clear(){}},outlineCollapsed:new Set(),clearNodes(){},selected:new Set(),stage:{removeClass(){}},svg:{isConnected:true},contentEl:{querySelectorAll:()=>[],ownerDocument:{defaultView:{cancelAnimationFrame(){}}}},app:{workspace:{getActiveViewOfType:()=>view}},paint(){},finishInlineForNavigation:async()=>{},clearBrainBoard(){},clearCanvasGesture(){}});
+ Object.assign(view,{cancelSaveFeedbackNavigation(){},plugin:f.host,closed:false,file:f.file,dialogEpoch:0,sidebarRun:0,renderFrame:0,blankClicks:{cancel(){}},finishMarquee(){},setSectionTool(){},syncSelectionTool(){},viewTrail:{clear(){}},outlineCollapsed:new Set(),clearNodes(){},selected:new Set(),stage:{removeClass(){}},svg:{isConnected:true},contentEl:{querySelectorAll:()=>[],ownerDocument:{defaultView:{cancelAnimationFrame(){}}}},app:{workspace:{getActiveViewOfType:()=>view}},paint(){},finishInlineForNavigation:async()=>{},clearBrainBoard(){},clearCanvasGesture(){}});
  const releasing=f.host.release(original);await Promise.resolve();const loading=view.onLoadFile(f.file);
  await releasing;releaseDock();await loading;
  assert.equal(view.session,original);assert.equal(original.listeners.size,1);

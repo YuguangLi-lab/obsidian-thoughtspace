@@ -9629,4 +9629,28 @@
 @media(max-width:400px) { .ts-brain-colors-modal .setting-item:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { gap:8px; } .ts-brain-colors-modal input[type=text]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { width:100px; } }
 .ts-brain-color-probe:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { position:absolute; visibility:hidden; pointer-events:none; background-color:var(--brain-node); color:var(--brain-custom-text,var(--text-normal)); border-top-color:var(--brain-line); border-bottom-color:var(--brain-outline); }
 
+/* Save guidance lives in the existing status location, only exceptional states
+   offer an action. Keep the action reachable in narrow native headers. */
+.ts-save-feedback-text:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { min-width:0; overflow:hidden; text-overflow:ellipsis; }
+.ts-save-feedback-action:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { flex:0 0 auto; padding:2px 6px; height:auto; min-height:24px; border:0; box-shadow:none; background:transparent; color:var(--ts-accent); font-size:inherit; }
+.ts-save-feedback-action:hover:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { background:var(--background-modifier-hover); }
+.ts-save-feedback-action:focus-visible:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { outline:2px solid var(--ts-accent); outline-offset:1px; }
+.ts-save-status.has-save-action:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { display:flex!important; min-width:76px; max-width:260px; width:auto; font-size:11px!important; }
+.ts-native-header .ts-save-status.has-save-action:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { min-width:0; max-width:260px; width:auto; gap:4px; font-size:11px!important; }
+.ts-brain-status.has-save-action:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { display:flex; align-items:center; gap:8px; text-align:start; }
+.ts-brain-status[data-state=error]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { color:var(--text-error); }
+@container (max-width:700px) {
+ .ts-native-header .ts-save-status.has-save-action:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { min-width:76px; max-width:150px; width:auto; font-size:11px!important; padding-inline:3px; }
+ .ts-save-status.has-save-action .ts-save-feedback-text:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { display:none; }
+}
+@media (max-width:480px) {
+ .ts-brain-status.has-save-action:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { flex-wrap:wrap; justify-content:center; gap:2px 6px; }
+ .ts-brain-status.has-save-action .ts-save-feedback-text:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { white-space:normal; }
+}
+
+.ts-native-header .ts-save-feedback-detail:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { display:none; }
+.ts-brain-status .ts-save-feedback-detail:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { flex:1 1 100%; max-width:480px; color:var(--text-muted); font-size:11px; line-height:1.5; white-space:normal; }
+.ts-brain-status:has(.ts-save-feedback-detail):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { display:flex; flex-wrap:wrap; justify-content:center; gap:4px 8px; }
+.ts-brain-status:has(.ts-save-feedback-detail) .ts-save-feedback-text:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { white-space:normal; }
+
 /* END brain-board generated */

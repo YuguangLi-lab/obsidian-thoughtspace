@@ -1,3 +1,4 @@
+import {renderBoardSaveFeedback,type BoardSaveFeedback,type BoardSaveFeedbackAction} from './board-save-feedback';
 import {BrainBranchIndex,BrainDescendantPager,type BrainDescendantPage} from './brain-board-descendants';
 import {Component,Menu,setIcon,type App,type MenuItem} from 'obsidian';
 import type {Board,Card} from './model';
@@ -13,9 +14,10 @@ import {brainRelationLabels,type BrainRelationSide} from './brain-board-create';
 import type {BrainRelationCommandTarget} from './brain-relation-commands';
 import {cleanBrainColors,brainColorsStamp,brainStateInk,type BrainColors} from './brain-colors';
 
-export interface BrainBoardSnapshot {board:Board;path:string;key?:object;readOnly?:boolean;graphRevision?:number;nativeRevision?:number;native?:(id:string)=>NativeLocalRelations|readonly NativeLocalRelation[];}
+export interface BrainBoardSnapshot {board:Board;path:string;key?:object;readOnly?:boolean;saveFeedback?:BoardSaveFeedback;graphRevision?:number;nativeRevision?:number;native?:(id:string)=>NativeLocalRelations|readonly NativeLocalRelation[];}
 export interface BrainBoardViewportIntent {key?:object;path:string;board:Board;value:{x:number;y:number;zoom:number};}
 export interface BrainBoardHost {
+ saveFeedbackAction?:(action:BoardSaveFeedbackAction)=>void;
  snapshot:()=>BrainBoardSnapshot|undefined;change:(next:BoardMindmapState)=>void;
  source:BoardMindmapHost['source'];open:BoardMindmapHost['open'];preview:BoardMindmapHost['preview'];
  fileMenu?:BoardMindmapHost['fileMenu'];relate?:BoardMindmapHost['relate'];shortcut?:BoardMindmapHost['shortcut'];
@@ -66,6 +68,7 @@ export class BrainBoardView extends Component {
  private stageSize={width:0,height:0};
  private readonly refreshCache=new BrainRefreshCache();
  private projection?:{resolved:ReturnType<BrainRefreshCache['resolve']>;page?:BrainDescendantPage;stamp:string;layout:BrainBoardLayout};
+ private statusHint='';
  private paintStamp='';private historyStamp='';private transformStamp='';
  private refreshSources?:Map<string,BoardMindmapSource>;
  private colorPreview?:{key:object|string;path:string;stamp:string;value:BrainColors};
@@ -118,6 +121,7 @@ export class BrainBoardView extends Component {
   if(previous&&previous.resolved===resolved&&previous.page===this.descendantPage&&previous.stamp===projectionStamp)this.layout=previous.layout;
   else{this.layout=brainBoardLayout(matches,{width:depth>1?Math.max(1900,stageSize.width):stageSize.width||1600,height:stageSize.height||870,page:this.page,pageSize:18,expandedIds,associationSides:resolved.sides,revealId:this.revealId});if(this.descendantPage)this.layout=brainBoardDescendantLayout(this.layout,this.descendantPage,expandedIds);this.projection={resolved,page:this.descendantPage,stamp:projectionStamp,layout:this.layout};}
   this.revealId=undefined;this.page=this.layout.page;
+  this.statusHint=matches.invalidBranches?'父子关系无效，已隐藏无法核实的分支':this.nativePending?'原生引用索引更新中':'';this.refreshSaveFeedback(snapshot);
   const paintStamp=JSON.stringify([state,!!snapshot.readOnly,snapshot.nativeRevision,snapshot.path,brainColorsStamp(snapshot.board.brainColors),this.colorPreview?.value,this.error]);
   if(!ownerChanged&&previousLayout===this.layout&&this.paintStamp===paintStamp){this.refreshSources=undefined;if(!this.cameraReady||this.fitCamera)this.fit(stageSize);else this.transform();return;}
   this.paintStamp=paintStamp;const historyStamp=JSON.stringify([state.history,state.centerId,!!snapshot.readOnly,snapshot.graphRevision,snapshot.path]);if(ownerChanged||snapshot.graphRevision===undefined||historyStamp!==this.historyStamp){this.historyStamp=historyStamp;this.renderHistory(snapshot,state);}
@@ -134,12 +138,20 @@ export class BrainBoardView extends Component {
   for(const [id,item]of this.nodes)if(!visible.has(id)){this.dropPreview(id);this.removeChild(item.scope);item.root.remove();this.nodes.delete(id);}
   for(const [id]of this.previews)if(!visible.has(id)||!state.expandedIds.includes(id)||!this.source(id).available)this.dropPreview(id);
   this.empty.hidden=!!matches.center;if(!matches.center){this.empty.empty();setIcon(this.empty.createDiv('ts-brain-empty-icon'),'network');this.empty.createEl('h3',{text:state.centerId?'中心节点已移除':'从已有知识开始'});this.empty.createEl('p',{text:state.centerId?'后退或搜索本板节点，继续浏览。':'引用仓库中的笔记或子白板，也可新建笔记与分组；第一个节点将成为中心。'});const label=state.centerId?'添加节点':'添加知识节点',button=this.button(this.empty,'plus',label,()=>this.host.add(),'add');button.createSpan({text:label});button.disabled=!!snapshot.readOnly;}
-  this.status.setText(this.error||(snapshot.readOnly?'此脑图只读':matches.invalidBranches?'父子关系无效，已隐藏无法核实的分支':this.nativePending?'原生引用索引更新中':''));this.pager.empty();this.pager.hidden=this.layout.pages<=1&&!this.descendantPage;if(this.layout.pages>1){this.button(this.pager,'chevron-left','上一页关系',()=>{this.page--;this.refresh();},'previous-page').disabled=this.layout.page===0;this.pager.createSpan({text:`${this.layout.page+1} / ${this.layout.pages} · ${this.layout.total} 个关系节点`});this.button(this.pager,'chevron-right','下一页关系',()=>{this.page++;this.refresh();},'next-page').disabled=this.layout.page===this.layout.pages-1;}
+  this.refreshSaveFeedback(snapshot);this.pager.empty();this.pager.hidden=this.layout.pages<=1&&!this.descendantPage;if(this.layout.pages>1){this.button(this.pager,'chevron-left','上一页关系',()=>{this.page--;this.refresh();},'previous-page').disabled=this.layout.page===0;this.pager.createSpan({text:`${this.layout.page+1} / ${this.layout.pages} · ${this.layout.total} 个关系节点`});this.button(this.pager,'chevron-right','下一页关系',()=>{this.page++;this.refresh();},'next-page').disabled=this.layout.page===this.layout.pages-1;}
   if(this.descendantPage){const page=this.descendantPage;this.pager.createSpan({text:`关系 ${depth} 层 · 第 ${page.page+1} 段 · 当前投影 ${this.layout.nodes.length} / ${this.branchCache.index.nodes.size} 个本板节点 · 已浏览 ${page.visited} 个${page.hasNext?' · 仍有关系节点待浏览':''}`});this.button(this.pager,'chevron-left','上一段关系',()=>this.pageDescendants('previous'),'previous-branches').disabled=page.page===page.firstPage;this.button(this.pager,'chevron-right','继续浏览关系',()=>this.pageDescendants('next'),'next-branches').disabled=!page.hasNext;if(page.page>0)this.button(this.pager,'rotate-ccw','返回首段关系',()=>this.pageDescendants('reset'),'reset-branches');const hidden=(this.layout as BrainBoardLayout&{hiddenEdges?:number}).hiddenEdges;if(hidden)this.pager.createSpan({text:`${hidden} 条可见端点关系未绘制；节点菜单可查看本板关系`});}
   this.applyColors(this.colorPreview?.value??snapshot.board.brainColors);
   if(!this.cameraReady||this.fitCamera)this.fit(stageSize);else this.transform();
   if(motion)this.motion.play(this.scene,motion);
   this.refreshSources=undefined;
+ }
+ /** Save acknowledgements update this status alone, preserving graph and camera DOM. */
+ refreshSaveFeedback(snapshot=this.host.snapshot()){
+  if(!this.alive||!snapshot||!this.status)return;
+  const supplied=snapshot.saveFeedback,feedback:BoardSaveFeedback=supplied&&supplied.state!=='saved'?{...supplied,detail:[supplied.detail,this.error].filter(Boolean).join(' · ')||undefined}:{state:this.error?'error':snapshot.readOnly?'paused':'saved',text:this.error||(snapshot.readOnly?'此脑图只读':this.statusHint)};
+  const key=snapshot.key,path=snapshot.path;
+  renderBoardSaveFeedback(this.status,feedback,action=>{const live=this.host.snapshot();if(!this.visible()||!live||live.key!==key||live.path!==path||live.saveFeedback?.action?.kind!==action)return;this.host.saveFeedbackAction?.(action);});
+  this.status.hidden=!feedback.text;
  }
  /** Draft paint only: no projection, source rendering, history or camera writes. */
  previewColors(value:BrainColors|null){
@@ -215,11 +227,11 @@ export class BrainBoardView extends Component {
   if(expanded&&source.available){const stamp=JSON.stringify([source.path,source.stamp,descriptor.kind]);let preview=this.previews.get(id);if(preview?.stamp!==stamp){this.dropPreview(id);const scope=this.addChild(new Component()),body=item.root.createDiv({cls:'ts-brain-preview',attr:{tabindex:'0',role:'region','aria-labelledby':item.label.getAttribute('id')!,'aria-description':label}});preview={body,scope,stamp};this.previews.set(id,preview);const record=preview,doc=this.el.ownerDocument,key=snapshot.key,path=snapshot.path;const current=()=>{const now=this.host.snapshot();return this.alive&&this.el.ownerDocument===doc&&this.visible()&&now?.key===key&&now?.path===path&&now.board.presentation==='brain'&&this.previews.get(id)===record&&body.isConnected&&!!now.board.brain?.expandedIds.includes(id)&&now.board.nodes.some(node=>node.id===id&&supportsBoardMindmapTarget(node))&&this.source(id).available&&JSON.stringify([this.source(id).path,this.source(id).stamp,descriptor.kind])===stamp;};try{this.host.preview(id,body,scope,current);}catch(error){if(current())body.setText(this.message(error));}}}
   return item;
  }
- private update(action:BoardMindmapAction){const snapshot=this.host.snapshot();if(!snapshot||snapshot.readOnly||!this.visible())return;try{const hadFeedback=!!this.error||!!this.status.textContent;this.error='';const state=snapshot.board.brain||createBoardMindmapState(),next=updateBoardMindmapState(state,action,snapshot.board.nodes),changed=JSON.stringify(next)!==JSON.stringify(state);if(!changed&&!hadFeedback)return;const render=this.renders;if(changed)this.host.change(next);if(this.renders===render)this.refresh();}catch(error){this.status.setText(this.error=this.message(error));}}
+ private update(action:BoardMindmapAction){const snapshot=this.host.snapshot();if(!snapshot||snapshot.readOnly||!this.visible())return;try{const hadFeedback=!!this.error||!!this.status.textContent;this.error='';const state=snapshot.board.brain||createBoardMindmapState(),next=updateBoardMindmapState(state,action,snapshot.board.nodes),changed=JSON.stringify(next)!==JSON.stringify(state);if(!changed&&!hadFeedback)return;const render=this.renders;if(changed)this.host.change(next);if(this.renders===render)this.refresh();}catch(error){this.showError(error);}}
  private source(id:string):BoardMindmapSource{const cached=this.refreshSources?.get(id);if(cached)return cached;let source:BoardMindmapSource;try{source=this.host.source(id);}catch(error){source={label:'来源',available:false,reason:this.message(error)};}this.refreshSources?.set(id,source);return source;}
- private createRelation(id:string,side:BrainRelationSide,initial?:'board'){const current=this.current(id),snapshot=this.host.snapshot();if(!current()||snapshot?.readOnly||snapshot?.board.nodes.find(node=>node.id===id)?.locked||!this.host.createRelation)return;try{void Promise.resolve(this.host.createRelation(id,side,current,initial)).catch(error=>{if(current())this.status.setText(this.message(error));});}catch(error){if(current())this.status.setText(this.message(error));}}
+ private createRelation(id:string,side:BrainRelationSide,initial?:'board'){const current=this.current(id),snapshot=this.host.snapshot();if(!current()||snapshot?.readOnly||snapshot?.board.nodes.find(node=>node.id===id)?.locked||!this.host.createRelation)return;try{void Promise.resolve(this.host.createRelation(id,side,current,initial)).catch(error=>{if(current())this.showError(error);});}catch(error){if(current())this.showError(error);}}
  private current(id:string){const snapshot=this.host.snapshot(),generation=this.generation,doc=this.el.ownerDocument,key=snapshot?.key,path=snapshot?.path,center=snapshot?.board.brain?.centerId;let valid=true;return()=>{const now=this.host.snapshot();valid=valid&&this.alive&&this.generation===generation&&this.el.ownerDocument===doc&&this.visible()&&now?.key===key&&now?.path===path&&now?.board.presentation==='brain'&&now.board.brain?.centerId===center&&!!now.board.nodes.some(node=>node.id===id&&supportsBoardMindmapTarget(node));return valid;};}
- private open(id:string,edit=false){const current=this.current(id);if(!current())return;try{void Promise.resolve(this.host.open(id,current,edit)).catch(error=>{if(current())this.status.setText(this.message(error));});}catch(error){if(current())this.status.setText(this.message(error));}}
+ private open(id:string,edit=false){const current=this.current(id);if(!current())return;try{void Promise.resolve(this.host.open(id,current,edit)).catch(error=>{if(current())this.showError(error);});}catch(error){if(current())this.showError(error);}}
  private submenu(menu:Menu,title:string,icon:string,fill:(menu:Menu)=>void){
   menu.addItem(item=>{item.setTitle(title).setIcon(icon);fill((item as MenuItem&{setSubmenu:()=>Menu}).setSubmenu().setUseNativeMenu(false));});
  }
@@ -233,7 +245,7 @@ export class BrainBoardView extends Component {
   if(this.host.renameNode)add(menu,node.brainIdea?'重命名想法':node.kind==='section'?'重命名分组':node.kind==='board'?'重命名来源白板':'重命名来源笔记','pencil-line',!readOnly&&!node.locked&&(!node.file||source.available),()=>this.host.renameNode?.(id,current));
   if(node.brainIdea&&this.host.organizeIdea)add(menu,'整理成笔记','file-plus',!readOnly&&!node.locked,()=>this.host.organizeIdea?.(id,current));
   else add(menu,'编辑实际笔记','pencil',source.available&&!!source.canEdit,()=>this.open(id,true),source.available?source.editReason||'此对象没有独立笔记正文':source.reason);
-  if(this.host.associateExisting)add(menu,'关联已有笔记…','file-input',!readOnly&&!node.locked,()=>{try{this.host.associateExisting?.(id,current);}catch(error){if(current())this.status.setText(this.message(error));}});
+  if(this.host.associateExisting)add(menu,'关联已有笔记…','file-input',!readOnly&&!node.locked,()=>{try{this.host.associateExisting?.(id,current);}catch(error){if(current())this.showError(error);}});
   if(id===state.centerId&&this.host.createRelation)this.submenu(menu,'新建节点','plus',sub=>{
    for(const side of ['top','bottom','left','right'] as const)add(sub,brainRelationLabels[side],'plus',!readOnly&&!node.locked,()=>this.createRelation(id,side));
    sub.addSeparator();add(sub,'新建白板…','panels-top-left',!readOnly&&!node.locked,()=>this.createRelation(id,'bottom','board'));
@@ -241,7 +253,7 @@ export class BrainBoardView extends Component {
   this.submenu(menu,'关系与固定','git-branch',sub=>{
    const roles=this.nodes.get(id)?.root.dataset.brainRoles;if(roles)add(sub,`关系：${roles}`,'info',false,()=>{});
    add(sub,state.pins.includes(id)?'取消固定':'固定节点','pin',!readOnly,()=>this.update({type:'pin',id}));
-   if(this.host.relate){sub.addSeparator();for(const [kind,label]of [['child','添加子级关系'],['parent','添加父级关系'],['associate','添加关联'],['remove','移除本板关系']] as const)add(sub,label,kind==='remove'?'unlink':'git-branch',!readOnly,()=>{try{void Promise.resolve(this.host.relate!(id,kind,current)).catch(error=>{if(current())this.status.setText(this.message(error));});}catch(error){if(current())this.status.setText(this.message(error));}});}
+   if(this.host.relate){sub.addSeparator();for(const [kind,label]of [['child','添加子级关系'],['parent','添加父级关系'],['associate','添加关联'],['remove','移除本板关系']] as const)add(sub,label,kind==='remove'?'unlink':'git-branch',!readOnly,()=>{try{void Promise.resolve(this.host.relate!(id,kind,current)).catch(error=>{if(current())this.showError(error);});}catch(error){if(current())this.showError(error);}});}
   });
   if(node.file&&source.available&&this.host.fileMenu)this.submenu(menu,'文件操作','file-cog',sub=>this.host.fileMenu?.(sub,id));
   this.showMenu(menu,event,anchor||this.nodes.get(id)?.menu||this.more);
@@ -308,12 +320,12 @@ export class BrainBoardView extends Component {
  }
  private transformLayout?:BrainBoardLayout;
  private queueViewport(){const snapshot=this.host.snapshot(),win=this.el.ownerDocument.defaultView;if(!snapshot||snapshot.readOnly||!this.host.viewport||!win)return;this.cancelViewport();this.viewportIntent={key:snapshot.key,path:snapshot.path,board:snapshot.board,value:{...this.camera}};this.viewportWindow=win;this.viewportTimer=win.setTimeout(()=>this.flushViewport(),160);}
- flushViewport(){const intent=this.viewportIntent,snapshot=this.host.snapshot();this.cancelViewport();if(!intent||!snapshot||snapshot.readOnly||snapshot.key!==intent.key||snapshot.path!==intent.path||snapshot.board!==intent.board||snapshot.board.presentation!=='brain')return;try{this.host.viewport?.(intent.value);this.cameraStored=JSON.stringify(intent.value);}catch(error){this.status?.setText(this.message(error));}}
+ flushViewport(){const intent=this.viewportIntent,snapshot=this.host.snapshot();this.cancelViewport();if(!intent||!snapshot||snapshot.readOnly||snapshot.key!==intent.key||snapshot.path!==intent.path||snapshot.board!==intent.board||snapshot.board.presentation!=='brain')return;try{this.host.viewport?.(intent.value);this.cameraStored=JSON.stringify(intent.value);}catch(error){this.showError(error);}}
  private finalizeViewport(){
   if(!this.host.finalizeViewport){this.flushViewport();return;}const intent=this.viewportIntent;this.cancelViewport();if(!intent)return;
   // Obsidian detaches the component before BoardView.onClose. Only this formal
   // unload path may ask the host to validate an intent without connected DOM.
-  try{this.host.finalizeViewport(intent);}catch(error){this.status?.setText(this.message(error));}
+  try{this.host.finalizeViewport(intent);}catch(error){this.showError(error);}
  }
  private cancelViewport(){if(this.viewportTimer)this.viewportWindow?.clearTimeout(this.viewportTimer);this.viewportTimer=0;this.viewportWindow=undefined;this.viewportIntent=undefined;}
  private observe(){this.observer?.disconnect();const win=this.el.ownerDocument.defaultView as (Window&{ResizeObserver?:typeof ResizeObserver})|null;if(win?.ResizeObserver){this.observer=new win.ResizeObserver(()=>{if(this.resizeFrame)return;this.resizeWindow=win;this.resizeFrame=win.requestAnimationFrame(()=>{this.resizeFrame=0;this.resizeWindow=undefined;if(this.alive&&this.el.ownerDocument.defaultView===win)this.refresh();});});this.observer.observe(this.stage);}}
@@ -327,5 +339,6 @@ export class BrainBoardView extends Component {
  private contentLabel(kind:Card['kind']){return kind==='text'?'想法': kind==='section'?'分组内容':kind==='board'?'子白板概览':'正文';}
  private openLabel(kind:Card['kind'],source:BoardMindmapSource){return kind==='section'?'查看分组内容':/^(打开|定位)/.test(source.label)?source.label:`打开 ${source.label}`;}
  private visible(){const win=this.el.ownerDocument.defaultView;return this.alive&&this.el.isConnected&&!!this.el.getClientRects().length&&!!win&&!win.closed;}
+ private showError(error:unknown){this.error=this.message(error);this.refreshSaveFeedback();}
  private message(error:unknown){return error instanceof Error?error.message:String(error);}
 }

@@ -302,3 +302,27 @@
 .ts-brain-colors-modal .modal-button-container button:first-child { margin-right:auto; }
 @media(max-width:400px) { .ts-brain-colors-modal .setting-item { gap:8px; } .ts-brain-colors-modal input[type=text] { width:100px; } }
 .ts-brain-color-probe { position:absolute; visibility:hidden; pointer-events:none; background-color:var(--brain-node); color:var(--brain-custom-text,var(--text-normal)); border-top-color:var(--brain-line); border-bottom-color:var(--brain-outline); }
+
+/* Save guidance lives in the existing status location, only exceptional states
+   offer an action. Keep the action reachable in narrow native headers. */
+.ts-save-feedback-text { min-width:0; overflow:hidden; text-overflow:ellipsis; }
+.ts-save-feedback-action { flex:0 0 auto; padding:2px 6px; height:auto; min-height:24px; border:0; box-shadow:none; background:transparent; color:var(--ts-accent); font-size:inherit; }
+.ts-save-feedback-action:hover { background:var(--background-modifier-hover); }
+.ts-save-feedback-action:focus-visible { outline:2px solid var(--ts-accent); outline-offset:1px; }
+.ts-save-status.has-save-action { display:flex!important; min-width:76px; max-width:260px; width:auto; font-size:11px!important; }
+.ts-native-header .ts-save-status.has-save-action { min-width:0; max-width:260px; width:auto; gap:4px; font-size:11px!important; }
+.ts-brain-status.has-save-action { display:flex; align-items:center; gap:8px; text-align:start; }
+.ts-brain-status[data-state=error] { color:var(--text-error); }
+@container (max-width:700px) {
+ .ts-native-header .ts-save-status.has-save-action { min-width:76px; max-width:150px; width:auto; font-size:11px!important; padding-inline:3px; }
+ .ts-save-status.has-save-action .ts-save-feedback-text { display:none; }
+}
+@media (max-width:480px) {
+ .ts-brain-status.has-save-action { flex-wrap:wrap; justify-content:center; gap:2px 6px; }
+ .ts-brain-status.has-save-action .ts-save-feedback-text { white-space:normal; }
+}
+
+.ts-native-header .ts-save-feedback-detail { display:none; }
+.ts-brain-status .ts-save-feedback-detail { flex:1 1 100%; max-width:480px; color:var(--text-muted); font-size:11px; line-height:1.5; white-space:normal; }
+.ts-brain-status:has(.ts-save-feedback-detail) { display:flex; flex-wrap:wrap; justify-content:center; gap:4px 8px; }
+.ts-brain-status:has(.ts-save-feedback-detail) .ts-save-feedback-text { white-space:normal; }
