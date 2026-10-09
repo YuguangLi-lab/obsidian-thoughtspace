@@ -20,7 +20,7 @@ export interface BrainBoardHost {
  source:BoardMindmapHost['source'];open:BoardMindmapHost['open'];preview:BoardMindmapHost['preview'];
  fileMenu?:BoardMindmapHost['fileMenu'];relate?:BoardMindmapHost['relate'];shortcut?:BoardMindmapHost['shortcut'];
  add:()=>void;addObject?:(kind:'section'|'board')=>void;rename?:()=>void;settings?:()=>void;isActive?:()=>boolean;activate?:()=>void;viewport?:(value:{x:number;y:number;zoom:number})=>void;
- background?:(anchor:HTMLElement)=>void;colors?:()=>void;
+ background?:(anchor:HTMLElement)=>void;colors?:()=>void;nativeProperties?:()=>unknown;
  organizeIdea?:(id:string,current:()=>boolean)=>void;
  associateExisting?:(id:string,current:()=>boolean)=>void;
  renameNode?:(id:string,current:()=>boolean)=>void;
@@ -247,6 +247,7 @@ export class BrainBoardView extends Component {
   this.showMenu(menu,event,anchor||this.nodes.get(id)?.menu||this.more);
  }
  private boardMenu(event?:MouseEvent){const snapshot=this.host.snapshot();if(!snapshot)return;const menu=this.makeMenu(),generation=this.generation,key=snapshot.key,path=snapshot.path,current=()=>{const now=this.host.snapshot();return this.alive&&this.visible()&&this.generation===generation&&now?.key===key&&now?.path===path&&now.board.presentation==='brain';};menu.addItem(item=>item.setTitle('添加节点').setIcon('plus').setDisabled(!!snapshot.readOnly).onClick(()=>{if(current())this.host.add();}));if(this.host.rename)menu.addItem(item=>item.setTitle('重命名白板').setIcon('pencil').setDisabled(!!snapshot.readOnly).onClick(()=>{if(current())this.host.rename?.();}));menu.addItem(item=>item.setTitle('适应画布').setIcon('maximize').onClick(()=>{if(current()){this.fitCamera=true;this.fitAll=true;this.fit();this.queueViewport();}}));
+  if(this.host.nativeProperties&&/\.md$/i.test(snapshot.path))menu.addItem(item=>item.setTitle('原生属性与 Markdown').setIcon('file-pen-line').setDisabled(!!snapshot.readOnly).onClick(()=>{if(current()&&!this.host.snapshot()?.readOnly)this.host.nativeProperties?.();}));
   menu.addSeparator();for(let depth=1;depth<=5;depth++)menu.addItem(item=>item.setTitle(`显示 ${depth} 层${(snapshot.board.brain?.descendantDepth??1)===depth?' ✓':''}`).setIcon('layers').setDisabled(!!snapshot.readOnly).onClick(()=>{if(current()){this.motion.cancel();this.update({type:'depth',value:depth});}}));
   if(this.host.background)menu.addItem(item=>item.setTitle('白板背景').setIcon('palette').setDisabled(!!snapshot.readOnly).onClick(()=>{if(current())this.host.background?.(this.more);}));
   if(this.host.colors)menu.addItem(item=>item.setTitle('脑图配色…').setIcon('palette').setDisabled(!!snapshot.readOnly).onClick(()=>{if(current())this.openColors();}));

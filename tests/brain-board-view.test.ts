@@ -534,3 +534,14 @@ test('the direct color action does not recenter, edit geometry or bypass a read-
  f.setSnapshot({...f.snapshot,readOnly:true});f.view.refresh();assert(button.disabled);button.click();assert.equal(opened.length,1);
  f.setSnapshot({...f.snapshot,readOnly:false});f.view.refresh();action(f.el,'more').click();const pending=menuItem('脑图配色…');f.setSnapshot({...f.snapshot,key:{},path:'Other.thoughtspace'});f.view.refresh();pending.click();assert.equal(opened.length,1);
 });
+
+test('Markdown brain menu exposes the native Properties action without adding persistent buttons',()=>{
+ const f=fixture();f.setSnapshot({...f.snapshot,path:'Boards/Native.md'});let calls=0;f.host.nativeProperties=()=>calls++;f.view.refresh();action(f.el,'more').click();const entry=menuItem('原生属性与 Markdown');assert(entry);assert(!entry.disabled);entry.click();assert.equal(calls,1);assert.equal(f.el.querySelectorAll('[data-brain-action="native-properties"]').length,0);
+});
+
+test('native Properties brain action omits legacy sources, disables read-only and rejects stale or newly read-only menu contexts',()=>{
+ const f=fixture();let calls=0;f.host.nativeProperties=()=>calls++;action(f.el,'more').click();assert.equal(menuItem('原生属性与 Markdown'),undefined);
+ f.setSnapshot({...f.snapshot,path:'Board.MD',readOnly:true});f.view.refresh();action(f.el,'more').click();assert(menuItem('原生属性与 Markdown').disabled);menuItem('原生属性与 Markdown').click();assert.equal(calls,0);
+ f.setSnapshot({...f.snapshot,readOnly:false});f.view.refresh();action(f.el,'more').click();const prior=menuItem('原生属性与 Markdown');f.setSnapshot({...f.snapshot,readOnly:true});prior.click();assert.equal(calls,0);
+ f.setSnapshot({...f.snapshot,readOnly:false});f.view.refresh();action(f.el,'more').click();const stale=menuItem('原生属性与 Markdown');f.setSnapshot({...f.snapshot,path:'Other.md',key:{}});stale.click();assert.equal(calls,0);
+});

@@ -540,7 +540,7 @@ export default class ThoughtSpace extends Plugin {
     this.settings = cleanPluginSettings(await this.loadData());
     this.register(()=>{this.boardCreationStopped=true;this.boardCreationModal?.close();this.boardCreationModal=undefined;});
     this.register(subscribeNativeBoardEditorDrains(this.app,()=>this.refreshMarkdownBoardOwnership()));
-    this.register(()=>clearNativeBoardEditorTracking(this.app));
+    this.register(()=>{this.nativeMarkdownOpeningStopped=true;this.nativeMarkdownOpening=undefined;clearNativeBoardEditorTracking(this.app);});
     this.register(()=>{if(this.localRelationsSaveTimer)window.clearTimeout(this.localRelationsSaveTimer);this.localRelationsSaveTimer=undefined;void this.flushLocalRelationsSettings();});
     this.mediaWorkspace=new MediaWorkspaceService(this.app,normalizePath(`${this.manifest.dir||this.app.vault.configDir+'/plugins/'+this.manifest.id}/media-playback.json`),{
       createNote:(title,body)=>this.createUnique(normalizePath(this.settings.cardFolder+'/媒体笔记'),title,'md',body),
@@ -613,10 +613,10 @@ export default class ThoughtSpace extends Plugin {
     this.addCommand({id:'section-catalog',name:'打开分组总览',checkCallback:checking=>{const view=this.app.workspace.getActiveViewOfType(BoardView)||this.currentBoard;if(!view?.session||view.closed)return false;if(!checking)act(()=>view.sectionNavigator());return true;}});
     this.addRibbonIcon('layout-dashboard','ThoughtSpace 整理白板',()=>act(()=>this.openBoardOrganizer()));
     this.addRibbonIcon('table-2', 'ThoughtSpace 资料库', () => act(() => this.openDatabase(this.currentBoard)));
-    this.registerEvent(this.app.workspace.on('file-menu',(menu,file)=>this.nativeFileMenu(menu,[file])));
+    this.registerEvent(this.app.workspace.on('file-menu',(menu,file,source,leaf)=>this.nativeFileMenu(menu,[file],!source.startsWith('file-explorer')&&leaf?.view instanceof MarkdownView?leaf.view:undefined)));
     this.registerEvent(this.app.workspace.on('files-menu',(menu,files)=>this.nativeFileMenu(menu,files)));
     this.registerEvent(this.app.workspace.on('editor-menu',(menu,editor,info)=>{
-      if(info.file)this.nativeFileMenu(menu,[info.file]);
+      if(info.file){const active=this.app.workspace.getActiveViewOfType(MarkdownView);this.nativeFileMenu(menu,[info.file],info instanceof MarkdownView?info:active?.file===info.file&&active.editor===editor?active:undefined);}
       const board=this.currentBoard?.file,sourceFile=info.file;
       if(board&&sourceFile)menu.addItem(i=>i.setTitle('ThoughtSpace · 插入当前白板链接').setIcon('link').onClick(()=>act(()=>{
         if(this.app.vault.getAbstractFileByPath(board.path)!==board)throw Error('白板已删除');
@@ -649,6 +649,7 @@ export default class ThoughtSpace extends Plugin {
     this.addCommand({id:'new-markdown-brain-board',name:'新建 Markdown 脑图白板',callback:()=>this.promptMarkdownBoard('brain')});
     this.addCommand({id:'open-markdown-board',name:'以白板打开当前 Markdown',checkCallback:checking=>{const view=this.app.workspace.getActiveViewOfType(MarkdownView);if(!view?.file||!isBoardFile(this.app,view.file))return false;if(!checking)act(()=>this.openCurrentMarkdownBoard());return true;}});
     this.addCommand({id:'board-native-properties',name:'打开白板原生属性与 Markdown',checkCallback:checking=>{const view=this.app.workspace.getActiveViewOfType(BoardView);if(!view?.file||view.file.extension.toLowerCase()!=='md')return false;if(!checking)act(()=>this.openBoardNativeMarkdown(view.file!,view.leaf));return true;}});
+    this.addCommand({id:'toggle-board-native',name:'切换白板与原生属性',checkCallback:checking=>{const native=this.app.workspace.getActiveViewOfType(MarkdownView),view=this.app.workspace.getActiveViewOfType(BoardView),available=!!native?.file&&isBoardFile(this.app,native.file)||!!view?.file&&view.file.extension.toLowerCase()==='md'&&!view.closed&&!!view.session&&!view.session.blocked;if(!available)return false;if(!checking)act(()=>this.toggleBoardNative());return true;}});
     for(const [format,id,name]of [['markdown','save-as-markdown-board','另存为 Markdown 白板'],['legacy','save-as-legacy-board','另存为旧格式白板']]as const)this.addCommand({id,name,checkCallback:checking=>{const view=this.app.workspace.getActiveViewOfType(BoardView);if(!view?.session||view.closed||view.session.blocked)return false;if(!checking)act(()=>this.promptSaveBoardAs(format,view));return true;}});
     this.registerEvent(this.app.workspace.on('layout-change',()=>this.refreshMarkdownBoardOwnership()));
     this.registerEvent(this.app.workspace.on('file-open',()=>this.refreshMarkdownBoardOwnership()));
@@ -699,7 +700,7 @@ export default class ThoughtSpace extends Plugin {
     this.app.workspace.trigger('file-menu',menu,file,'thoughtspace');
     menu.showAtPosition({x:Math.max(16,Math.min(window.innerWidth-280,window.innerWidth/2)),y:120});return menu;
   }
-  private nativeFileMenu(menu:Menu,files:TAbstractFile[]){
+  private nativeFileMenu(menu:Menu,files:TAbstractFile[],nativeView?:MarkdownView){
     if(files.length===1&&files[0] instanceof TFile&&isWorkspaceFile(files[0])&&mediaKind(files[0].path)){const file=files[0];
       for(const[placement,label,icon]of [['tab','主页面播放与记录','clapperboard'],['sidebar','侧边栏播放','panel-right'],['window','独立窗口播放','picture-in-picture-2']]as const)menu.addItem(i=>i.setTitle('ThoughtSpace · '+label).setIcon(icon).onClick(()=>act(()=>this.openMediaWorkspace(file,placement))));
       menu.addItem(i=>i.setTitle('ThoughtSpace · 加入白板').setIcon('panels-top-left').onClick(()=>act(()=>this.sendMediaToBoard(file))));
@@ -713,7 +714,9 @@ export default class ThoughtSpace extends Plugin {
       if(notes.length===1)menu.addItem(i=>i.setTitle('ThoughtSpace · Obsidian 关联').setIcon('network').onClick(()=>this.openNativeRelations(notes[0])));
     }
     if(files.length===1&&files[0] instanceof TFile&&isBoardFile(this.app,files[0])){
-      const file=files[0];if(file.extension.toLowerCase()==='md')menu.addItem(i=>i.setTitle('以白板打开').setIcon('panels-top-left').onClick(()=>act(()=>this.openBoard(file))));menu.addItem(i=>i.setTitle('ThoughtSpace · 导出原生链接索引').setIcon('file-output').onClick(()=>act(()=>this.exportNativeIndex(file))));
+      const file=files[0],path=file.path,active=this.app.workspace.getMostRecentLeaf(),view=nativeView?.file===file&&this.app.workspace.getActiveViewOfType(MarkdownView)===nativeView?nativeView:undefined,leaf=view?.leaf,doc=view?.containerEl.ownerDocument,win=doc?.defaultView;
+      const current=()=>file.path===path&&this.app.vault.getAbstractFileByPath(path)===file&&this.app.workspace.getMostRecentLeaf()===active&&(!view||this.app.workspace.getActiveViewOfType(MarkdownView)===view&&view.file===file&&leaf?.view===view&&view.containerEl.ownerDocument===doc&&!win?.closed);
+      if(file.extension.toLowerCase()==='md')menu.addItem(i=>i.setTitle(view?'返回白板':'以白板打开').setIcon('panels-top-left').onClick(()=>act(()=>{if(!current())throw Error('菜单页面或文件已变化，已取消打开白板');return view?this.openCurrentMarkdownBoard():this.openBoard(file,false,current);})));menu.addItem(i=>i.setTitle('ThoughtSpace · 导出原生链接索引').setIcon('file-output').onClick(()=>act(()=>this.exportNativeIndex(file))));
     }
   }
   pickNativeDestination(files:TFile[]){
@@ -1130,6 +1133,7 @@ export default class ThoughtSpace extends Plugin {
   }
   async openBoardInNewTab(file:TFile){if(!isBoardPath(file.path)||!isWorkspaceFile(file)||this.app.vault.getAbstractFileByPath(file.path)!==file)throw Error('白板已移动或删除');readBoardDocument(await this.app.vault.read(file),file.extension,parseYaml);const leaf=this.app.workspace.getLeaf('tab');try{await leaf.setViewState({type:VIEW,active:true,state:{file:file.path}});this.app.workspace.setActiveLeaf(leaf,{focus:true});}catch(error){leaf.detach();throw error;}return leaf;}
   readonly nativeBoardTransitions=new Set<TFile>();
+  private nativeMarkdownOpening?:WeakMap<WorkspaceLeaf,{file:TFile;view:View;work:Promise<void>}>;private nativeMarkdownOpeningStopped=false;
   private refreshMarkdownBoardOwnership(){
     // Observe native pages synchronously, including files with no Board Session
     // or rename journal yet. Their last save can outlive the closing leaf.
@@ -1148,11 +1152,30 @@ export default class ThoughtSpace extends Plugin {
   }
   async openBoardNativeMarkdown(file:TFile,leaf?:WorkspaceLeaf){
     if(file.extension.toLowerCase()!=='md'||!isWorkspaceFile(file)||this.app.vault.getAbstractFileByPath(file.path)!==file)throw Error('请选择仓库内的 Markdown 白板');
-    const original=file.path,target=leaf||this.app.workspace.getLeaf('tab');
-    if(target.view instanceof BoardView&&target.view.file===file){const owner=target.view.session;if(owner){await owner.flush();if(owner.blocked)throw Error('布局尚未安全保存，请先保留恢复草稿，再打开原生页');}}
-    if(file.path!==original||this.app.vault.getAbstractFileByPath(original)!==file)throw Error('白板在保存期间已移动或删除，原生页未打开');
-    // Use the normal Markdown view. Its public Properties UI owns all frontmatter edits.
-    await target.setViewState({type:'markdown',active:true,state:{file:file.path,mode:'preview'}});this.refreshMarkdownBoardOwnership();this.app.workspace.setActiveLeaf(target,{focus:true});
+    if(this.nativeMarkdownOpeningStopped)throw Error('插件已停止，原生页未打开');
+    const original=file.path,target=leaf||this.app.workspace.getLeaf('tab'),view=target.view,owner=view instanceof BoardView&&view.file===file?view.session:undefined,active=this.app.workspace.getMostRecentLeaf(),doc=view.containerEl?.ownerDocument,win=doc?.defaultView;
+    if(leaf&&(view instanceof BoardView||view instanceof MarkdownView)&&view.file!==file)throw Error('当前页面不是该白板，原生页未打开');
+    const pending=this.nativeMarkdownOpening??=new WeakMap(),existing=pending.get(target);if(existing?.file===file&&existing.view===view)return existing.work;
+    let cancelled=false,delivering=false;const navigation=this.app.workspace.on('active-leaf-change',next=>{if(next!==active&&!(delivering&&next===target))cancelled=true;});
+    const current=()=>!cancelled&&!this.nativeMarkdownOpeningStopped&&target.view===view&&view.containerEl?.isConnected!==false&&view.containerEl?.ownerDocument===doc&&doc?.defaultView===win&&!win?.closed&&this.app.workspace.getMostRecentLeaf()===active&&(!(view instanceof BoardView)||view.file===file&&view.session===owner&&!view.closed);
+    const work=Promise.resolve().then(async()=>{
+      if(!current())throw Error('当前页面已变化，已取消打开原生页');
+      if(view instanceof MarkdownView&&view.file===file)return;
+      if(owner)await owner.flush();
+      if(file.path!==original||this.app.vault.getAbstractFileByPath(original)!==file)throw Error('白板在保存期间已移动或删除，原生页未打开');
+      if(!current())throw Error('当前页面或文件已变化，已取消打开原生页');
+      if(owner?.blocked)throw Error('布局尚未安全保存，请先保留恢复草稿，再打开原生页');
+      // Obsidian owns Properties and Markdown editing after the saved board handoff.
+      delivering=true;await target.setViewState({type:'markdown',active:true,state:{file:original,mode:'preview'}});
+      this.refreshMarkdownBoardOwnership();
+      if(cancelled||this.nativeMarkdownOpeningStopped||!(target.view instanceof MarkdownView)||target.view.file!==file||file.path!==original||this.app.vault.getAbstractFileByPath(original)!==file||(this.app.workspace.getMostRecentLeaf()!==active&&this.app.workspace.getMostRecentLeaf()!==target))throw Error('页面已变化，原生页打开未抢回焦点');
+      this.app.workspace.setActiveLeaf(target,{focus:true});
+    }).finally(()=>{this.app.workspace.offref(navigation);if(pending.get(target)?.work===work)pending.delete(target);});pending.set(target,{file,view,work});return work;
+  }
+  toggleBoardNative(){
+    const view=this.app.workspace.getActiveViewOfType(BoardView);
+    if(view?.file?.extension.toLowerCase()==='md'&&!view.closed&&view.session&&!view.session.blocked)return this.openBoardNativeMarkdown(view.file,view.leaf);
+    return this.openCurrentMarkdownBoard();
   }
   async openCurrentMarkdownBoard(){
     const view=this.app.workspace.getActiveViewOfType(MarkdownView),file=view?.file,leaf=view?.leaf;
@@ -3420,6 +3443,7 @@ class BoardView extends FileView {
         shortcut:event=>{if(!current()||event.isComposing||event.altKey||!(event.metaKey||event.ctrlKey)||!['z','y'].includes(event.key.toLowerCase())||(event.target as Element).closest('input,textarea,select,[contenteditable]:not([contenteditable=false])'))return false;if(owner.blocked)return true;if(owner.convertingTexts.size||this.app.workspace.getLeavesOfType(VIEW).some(leaf=>leaf.view instanceof BoardView&&leaf.view.session===owner&&leaf.view.localRelationEditBusy)){new Notice('请先完成当前编辑或拖动，再撤销脑图操作；草稿已保留');return true;}owner.undo(event.shiftKey||event.key.toLowerCase()==='y');return true;},
         fileMenu:(menu,id)=>{if(!current())return;const node=owner.board.nodes.find(n=>n.id===id&&supportsLocalRelations(n)),file=node?.file?this.app.vault.getAbstractFileByPath(node.file):undefined;if(file instanceof TFile)this.app.workspace.trigger('file-menu',menu,file,'thoughtspace',this.leaf);},
         add:()=>this.addBrainObject(),rename:()=>this.renameBoard(),
+        nativeProperties:/\.md$/i.test(owner.file.path)?()=>{if(current()&&!owner.blocked)act(()=>this.plugin.openBoardNativeMarkdown(owner.file,this.leaf));}:undefined,
         background:anchor=>{if(current())this.showCanvasBackgroundMenu(anchor);},
         colors:()=>{if(current())this.openBrainColors();},
         createRelation:(id,side,request,initial)=>this.addBrainRelation(owner,id,side,()=>current()&&request(),initial),

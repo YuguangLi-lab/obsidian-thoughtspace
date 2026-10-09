@@ -37,6 +37,7 @@ class BoardView {
  resumeAutomaticGeometry(){}fit(){this.fits++;}revealNode(id:string){this.reveals.push(id);}
 }
 class MarkdownView {
+ containerEl={isConnected:true,ownerDocument:{defaultView:globalThis}};
  saving=false;saveAgain=false;file:TFile;leaf:any;mode='source';value:string;editor={getValue:()=>this.value};
  constructor(file:TFile,value:string,private persist:(value:string)=>void){this.file=file;this.value=value;}
  getMode(){return this.mode;}getViewData(){return this.value;}async save(){this.persist(this.value);}
@@ -52,17 +53,17 @@ class Menu {
 }
 const notices:string[]=[],errors:unknown[]=[];
 const helper=ast.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text==='isBoardFile');
-const deps={...model,...documents,...ownership,isBoardPath,isWorkspaceFile,parseYaml,TFile,BoardView,MarkdownView,Prompt,Menu,VIEW,EXT,ROOT,parseBoardLink,boardLink,createBrainBoard,captureBoardReferenceRename,createBoardReferenceRenamer,appendPendingBoardReference,removePendingBoardReference,
+const deps={mediaKind:()=>undefined,isPdfFile:()=>false,...model,...documents,...ownership,isBoardPath,isWorkspaceFile,parseYaml,TFile,BoardView,MarkdownView,Prompt,Menu,VIEW,EXT,ROOT,parseBoardLink,boardLink,createBrainBoard,captureBoardReferenceRename,createBoardReferenceRenamer,appendPendingBoardReference,removePendingBoardReference,
  normalizePath:(path:string)=>path.replace(/\/+/g,'/').replace(/^\//,''),act:(run:()=>unknown)=>run(),report:(error:unknown)=>errors.push(error),Notice:class{constructor(value:string){notices.push(value);}},window:globalThis};
 const isBoardFile=helper?execute(helper.getText(ast)+';return isBoardFile;',deps):()=>{throw Error('Production isBoardFile is missing');};
-const Host=execute(`class Host {${methods('ThoughtSpace',['readBoard','openBoard','openBoardInNewTab','openDeepLink','boardGraph','assertCanNestReachable','renameReferences','editReferenceJournal','deferBoardReference','retryPendingBoardReferences','flushPendingBoardReferences','createUnique','folder','duplicateBoard','promptMarkdownBoard','openCurrentMarkdownBoard','openBoardNativeMarkdown','refreshMarkdownBoardOwnership','promptSaveBoardAs','saveBoardAs'])}};return Host;`,{...deps,isBoardFile});
+const Host=execute(`class Host {${methods('ThoughtSpace',['readBoard','openBoard','openBoardInNewTab','openDeepLink','boardGraph','assertCanNestReachable','renameReferences','editReferenceJournal','deferBoardReference','retryPendingBoardReferences','flushPendingBoardReferences','createUnique','folder','duplicateBoard','promptMarkdownBoard','openCurrentMarkdownBoard','openBoardNativeMarkdown','refreshMarkdownBoardOwnership','promptSaveBoardAs','saveBoardAs','nativeFileMenu','toggleBoardNative'])}};return Host;`,{...deps,isBoardFile});
 const ViewMenu=execute(`class ViewMenu {${methods('BoardView',['boardMenu','renameBoard'])}};return ViewMenu;`,{...deps,isBoardFile,fileExplorer:()=>undefined,navigator:{clipboard:{writeText:async()=>{}}}});
 const tick=async()=>{for(let i=0;i<20;i++)await Promise.resolve();};
 function contentBoard():model.Board {
  const board=model.emptyBoard();board.version=3;board.spaceId='original-space';board.nodes=[{id:'original-node/#^',kind:'text',text:'Literal [[Sources/Note#Heading]]',x:10,y:20,width:280,height:160,color:'green'},{id:'child',kind:'board',file:'Boards/Child.md',x:340,y:20,width:240,height:160,color:'sand'}];board.edges=[{id:'original-edge',from:board.nodes[0].id,to:'child',label:'Retain',direction:'both'}];return board;
 }
 function fixture(){
- const host=new Host(),files=new Map<string,TFile>(),disk=new Map<TFile,string>(),frontmatter=new Map<TFile,unknown>(),leaves:any[]=[],events:any[][]=[];let active:any;
+ const host=new Host(),files=new Map<string,TFile>(),disk=new Map<TFile,string>(),frontmatter=new Map<TFile,unknown>(),leaves:any[]=[],events:any[][]=[],navigationListeners=new Set<(leaf:any)=>void>();let active:any;
  const put=(path:string,raw:string,metadata?:unknown)=>{const file=new TFile(path);file.stat.size=raw.length;files.set(path,file);disk.set(file,raw);if(metadata!==undefined)frontmatter.set(file,metadata);return file;};
  const write=(file:TFile,raw:string)=>{disk.set(file,raw);file.stat.mtime++;file.stat.size=raw.length;};
  const makeLeaf=(type:string='empty',file?:TFile)=>{
@@ -73,15 +74,15 @@ function fixture(){
    detach:()=>{leaf.detached=true;const index=leaves.indexOf(leaf);if(index>=0)leaves.splice(index,1);events.push(['detach',leaf]);}};
   if(file){leaf.view=type===VIEW?new BoardView(file):new MarkdownView(file,disk.get(file)!,raw=>write(file,raw));leaf.view.leaf=leaf;}leaves.push(leaf);return leaf;
  };
- const workspace={containerEl:{ownerDocument:{defaultView:globalThis}},getLeavesOfType:(type:string)=>leaves.filter(leaf=>leaf.type===type),getLeaf:(placement:string)=>{events.push(['create',placement]);return makeLeaf();},
+ const workspace={on:(_name:string,run:(leaf:any)=>void)=>{navigationListeners.add(run);return run;},offref:(run:(leaf:any)=>void)=>navigationListeners.delete(run),containerEl:{ownerDocument:{defaultView:globalThis}},getLeavesOfType:(type:string)=>leaves.filter(leaf=>leaf.type===type),getLeaf:(placement:string)=>{events.push(['create',placement]);return makeLeaf();},
   getActiveFile:()=>active?.view.file,getActiveViewOfType:(kind:any)=>active?.view instanceof kind?active.view:null,getMostRecentLeaf:()=>active,getActiveLeaf:()=>active,
-  revealLeaf:async(leaf:any)=>{events.push(['reveal',leaf]);},setActiveLeaf:(leaf:any)=>{active=leaf;events.push(['active',leaf]);}};
+  revealLeaf:async(leaf:any)=>{events.push(['reveal',leaf]);},setActiveLeaf:(leaf:any)=>{active=leaf;events.push(['active',leaf]);for(const run of navigationListeners)run(leaf);}};
  const app={workspace,metadataCache:{getFileCache:(file:TFile)=>frontmatter.has(file)?{frontmatter:frontmatter.get(file)}:null},vault:{
   getName:()=> 'Synthetic Vault',getFiles:()=>[...files.values()],getAbstractFileByPath:(path:string)=>files.get(path),read:async(file:TFile)=>{events.push(['read',file]);return disk.get(file)!;},cachedRead:async(file:TFile)=>{events.push(['cachedRead',file]);return disk.get(file)!;},
   process:async(file:TFile,change:(raw:string)=>string)=>{const raw=change(disk.get(file)!);write(file,raw);events.push(['process',file]);},createFolder:async(path:string)=>{events.push(['folder',path]);},create:async(path:string,raw:string)=>{events.push(['createFile',path]);return put(path,raw,raw.startsWith('---')?{thoughtspace:'board'}:undefined);}},
   fileManager:{renameFile:async(file:TFile,path:string)=>{const old=file.path;files.delete(old);file.path=path;files.set(path,file);events.push(['rename',old,path]);}}};
  Object.assign(host,{app,sessions:new Map(),settings:{favoriteBoards:[],pendingBoardReferences:[]},referenceQueue:Promise.resolve(),referenceJournalQueue:Promise.resolve(),boardOpening:new SharedOpen(),provisionalBoardGeometry:new Map(),nativeBoardTransitions:new Set(),nativeReferenceRuns:new Map(),nativeReferenceNotices:new Set(),saveData:async(data:unknown)=>{events.push(['saveData',structuredClone(data)]);},currentBoard:undefined});
- return{host,app,files,disk,frontmatter,leaves,events,put,write,makeLeaf,setActive:(leaf:any)=>{active=leaf;workspace.setActiveLeaf(leaf);},active:()=>active};
+ return{host,app,files,disk,frontmatter,leaves,events,navigationListeners,put,write,makeLeaf,setActive:(leaf:any)=>{active=leaf;workspace.setActiveLeaf(leaf);},active:()=>active};
 }
 function decoded(file:TFile,raw:string){return documents.readBoardDocument(raw,file.extension,parseYaml).board;}
 
@@ -265,4 +266,33 @@ test('a switched leaf during the fresh session read cancels the handoff and rele
  const f=fixture(),file=f.put('Root.md',documents.createMarkdownBoardDocument(model.emptyBoard(),'Root'),{thoughtspace:'board'}),other=f.put('Other.md','# native'),leaf=f.makeLeaf('markdown',file),setState=leaf.setViewState;f.setActive(leaf);
  leaf.setViewState=async(state:any)=>{await setState(state);if(state.type===VIEW)leaf.view.session.externalUpdate=async()=>{await setState({type:'markdown',state:{file:other.path,mode:'source'}});};};
  await assert.rejects(f.host.openCurrentMarkdownBoard());assert.equal(leaf.type,'markdown');assert.equal(leaf.view.file,other);assert.equal(f.host.nativeBoardTransitions.size,0);assert.equal(f.disk.get(other),'# native');
+});
+
+test('the active native editor menu returns the same Markdown board safely while Explorer preserves ordinary opening',async()=>{
+ const f=fixture(),file=f.put('Boards/Context.md',documents.createMarkdownBoardDocument(model.emptyBoard(),'Context'),{thoughtspace:'board'}),leaf=f.makeLeaf('markdown',file);f.setActive(leaf);let returns=0,opens=0;f.host.openCurrentMarkdownBoard=async()=>{returns++;};f.host.openBoard=async()=>{opens++;};
+ const editor=new Menu();f.host.nativeFileMenu(editor,[file],leaf.view);const returning=editor.items.find(item=>item.title==='返回白板');assert(returning);await returning.run!();assert.equal(returns,1);assert.equal(opens,0);
+ const explorer=new Menu();f.host.nativeFileMenu(explorer,[file]);assert(!explorer.items.some(item=>item.title==='返回白板'));await explorer.items.find(item=>item.title==='以白板打开')!.run!();assert.equal(opens,1);
+});
+test('a stale native menu cannot navigate a newer active native page',async()=>{
+ const f=fixture(),file=f.put('Boards/Stale.md',documents.createMarkdownBoardDocument(model.emptyBoard(),'Stale'),{thoughtspace:'board'}),leaf=f.makeLeaf('markdown',file);f.setActive(leaf);const menu=new Menu();f.host.nativeFileMenu(menu,[file],leaf.view);let returns=0;f.host.openCurrentMarkdownBoard=async()=>{returns++;};const next=f.put('Other.md','# retain'),other=f.makeLeaf('markdown',next);f.setActive(other);await assert.rejects(Promise.resolve().then(()=>menu.items.find(item=>item.title==='返回白板')!.run!()),/已变化|取消/);assert.equal(returns,0);assert.equal(f.active(),other);
+});
+test('rapid identical native Properties requests share one board flush and one same-leaf transition',async()=>{
+ const f=fixture(),file=f.put('Boards/Repeated.md',documents.createMarkdownBoardDocument(model.emptyBoard(),'Repeated'),{thoughtspace:'board'}),leaf=f.makeLeaf(VIEW,file);f.setActive(leaf);let flushes=0,release!:()=>void;const hold=new Promise<void>(resolve=>release=resolve);leaf.view.session.flush=async()=>{flushes++;await hold;};
+ const first=f.host.openBoardNativeMarkdown(file,leaf),second=f.host.openBoardNativeMarkdown(file,leaf);await tick();assert.equal(flushes,1);release();await Promise.all([first,second]);assert.equal(f.events.filter(event=>event[0]==='state').length,1);assert.equal(f.leaves.length,1);assert.equal(leaf.type,'markdown');
+});
+for(const changed of ['active-leaf','view','file','session']as const)test(`native Properties request cancels a changed ${changed} during flush without late transition or focus`,async()=>{
+ const f=fixture(),file=f.put('Boards/Pending.md',documents.createMarkdownBoardDocument(model.emptyBoard(),'Pending'),{thoughtspace:'board'}),leaf=f.makeLeaf(VIEW,file);f.setActive(leaf);let release!:()=>void;const hold=new Promise<void>(resolve=>release=resolve);leaf.view.session.flush=async()=>hold;const opening=f.host.openBoardNativeMarkdown(file,leaf),settled=Promise.allSettled([opening]);await tick();
+ const other=f.put('Other.md','# keep newer page');if(changed==='active-leaf')f.setActive(f.makeLeaf('markdown',other));else if(changed==='view')leaf.view=new MarkdownView(other,'# keep newer page',()=>{});else if(changed==='file')leaf.view.file=other;else leaf.view.session={blocked:false,flush:async()=>{}};
+ const focus=f.events.filter(event=>event[0]==='active').length;release();const result=await settled;assert.equal(result[0].status,'rejected');assert.equal(f.events.filter(event=>event[0]==='state').length,0);assert.equal(f.events.filter(event=>event[0]==='active').length,focus);assert.equal(f.disk.get(other),'# keep newer page');
+});
+
+test('a native Properties request that leaves then returns still cancels and releases its listener',async()=>{
+ const f=fixture(),file=f.put('Boards/Away.md',documents.createMarkdownBoardDocument(model.emptyBoard(),'Away'),{thoughtspace:'board'}),leaf=f.makeLeaf(VIEW,file);f.setActive(leaf);let release!:()=>void;const hold=new Promise<void>(resolve=>release=resolve);leaf.view.session.flush=async()=>hold;const opening=f.host.openBoardNativeMarkdown(file,leaf),settled=Promise.allSettled([opening]);await tick();assert.equal(f.navigationListeners.size,1);const other=f.makeLeaf('markdown',f.put('Other.md','# Other'));f.setActive(other);f.setActive(leaf);release();assert.equal((await settled)[0].status,'rejected');assert.equal(f.events.filter(event=>event[0]==='state').length,0);assert.equal(f.navigationListeners.size,0);
+});
+test('blocked native Properties handoff preserves its board and allows one fresh retry after saving succeeds',async()=>{
+ const f=fixture(),file=f.put('Boards/Retry.md',documents.createMarkdownBoardDocument(model.emptyBoard(),'Retry'),{thoughtspace:'board'}),leaf=f.makeLeaf(VIEW,file);f.setActive(leaf);leaf.view.session.blocked=true;await assert.rejects(f.host.openBoardNativeMarkdown(file,leaf),/布局尚未安全保存/);assert.equal(leaf.type,VIEW);assert.equal(f.navigationListeners.size,0);leaf.view.session.blocked=false;await f.host.openBoardNativeMarkdown(file,leaf);assert.equal(leaf.type,'markdown');assert.equal(f.navigationListeners.size,0);
+});
+test('the toggle handler reuses both safe paths and never makes an ordinary note into a board',async()=>{
+ const f=fixture(),file=f.put('Boards/Toggle.md',documents.createMarkdownBoardDocument(model.emptyBoard(),'Toggle'),{thoughtspace:'board'}),leaf=f.makeLeaf(VIEW,file);f.setActive(leaf);await f.host.toggleBoardNative();assert.equal(leaf.type,'markdown');await f.host.toggleBoardNative();assert.equal(leaf.type,VIEW);assert.equal(f.leaves.length,1);
+ const ordinary=f.makeLeaf('markdown',f.put('Ordinary.md','# retain ordinary'));f.setActive(ordinary);await assert.rejects(f.host.toggleBoardNative(),/thoughtspace/);assert.equal(ordinary.type,'markdown');
 });
