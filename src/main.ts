@@ -1126,7 +1126,8 @@ export default class ThoughtSpace extends Plugin {
       const existing=this.app.workspace.getLeavesOfType(VIEW).find(l=>(l.view as BoardView).file===file||l.getViewState().state?.file===file.path);
       if(existing){navigation?.target(existing);if(provisional&&!(existing.view instanceof BoardView&&existing.view.session))this.provisionalBoardGeometry.set(existing,file);try{await existing.loadIfDeferred();return existing;}catch(error){this.provisionalBoardGeometry.delete(existing);throw error;}}
       const create=()=>this.app.workspace.getLeaf('tab'),created=navigation?navigation.acquire(create):create();navigation?.target(created);if(provisional)this.provisionalBoardGeometry.set(created,file);
-      try{if(file.extension.toLowerCase()==='md'){await this.readBoard(file);if(!current()){created.detach();return created;}await created.setViewState({type:VIEW,active:false,state:{file:file.path}});}else{await this.readBoard(file);await created.openFile(file,{active:false});}return created;}catch(error){this.provisionalBoardGeometry.delete(created);created.detach();throw error;}
+      const discard=()=>{this.provisionalBoardGeometry.delete(created);if(created.getViewState().type==='empty'&&(!(created.view instanceof FileView)||!created.view.file))created.detach();};
+      try{if(file.extension.toLowerCase()==='md'){await this.readBoard(file);if(!current()){discard();return created;}await created.setViewState({type:VIEW,active:false,state:{file:file.path}});}else{await this.readBoard(file);if(!current()){discard();return created;}await created.openFile(file,{active:false});}return created;}catch(error){discard();throw error;}
     });
     if(!current())return;if(provisional)return leaf;
     await this.app.workspace.revealLeaf(leaf);if(!current()||(leaf.view instanceof BoardView&&leaf.view.file!==file))return;this.provisionalBoardGeometry.delete(leaf);
