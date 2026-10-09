@@ -20,9 +20,10 @@ import {emptyBoard,clone,type Board,type Card} from '../src/model';
 import * as brainColors from '../src/brain-colors';
 
 class Doc {
+ listeners=new Map<string,Set<(e:any)=>void>>();
  focused=true;hasFocus(){return this.focused;}
  activeElement:El|null=null;frames=new Map<number,()=>void>();counter=0;timers=new Map<number,()=>void>();
- defaultView={closed:false,setTimeout:(fn:()=>void)=>{const id=++this.counter;this.timers.set(id,fn);return id;},clearTimeout:(id:number)=>this.timers.delete(id),matchMedia:()=>({matches:false}),requestAnimationFrame:(fn:()=>void)=>{const id=++this.counter;this.frames.set(id,fn);return id;},cancelAnimationFrame:(id:number)=>this.frames.delete(id)};
+ defaultView={listeners:new Map<string,Set<(e:any)=>void>>(),closed:false,setTimeout:(fn:()=>void)=>{const id=++this.counter;this.timers.set(id,fn);return id;},clearTimeout:(id:number)=>this.timers.delete(id),matchMedia:()=>({matches:false}),requestAnimationFrame:(fn:()=>void)=>{const id=++this.counter;this.frames.set(id,fn);return id;},cancelAnimationFrame:(id:number)=>this.frames.delete(id)};
  tick(){const frames=[...this.frames.values()];this.frames.clear();for(const fn of frames)fn();}
 }
 class El {
@@ -39,7 +40,7 @@ class El {
  removeAttribute(key:string){delete this.attrs[key];}
  addClass(name:string){this.classList.add(name);}removeClass(name:string){this.classList.remove(name);}
  contains(child:El|null):boolean{return !!child&&(child===this||this.children.some(item=>item.contains(child)));}
- matches(selector:string):boolean{if(selector.includes(','))return selector.split(',').some(part=>this.matches(part.trim()));if(selector.startsWith('.'))return this.classes.has(selector.slice(1));if(selector.startsWith('[')){const found=selector.match(/^\[([^=\]]+)(?:="([^"]*)")?\]$/)!;return this.getAttribute(found[1])!==null&&(found[2]===undefined||this.getAttribute(found[1])===found[2]);}return this.tagName===selector.toUpperCase();}
+ matches(selector:string):boolean{if(selector.includes(','))return selector.split(',').some(part=>this.matches(part.trim()));if(selector==='[contenteditable]:not([contenteditable=false])')return this.getAttribute('contenteditable')!==null&&this.getAttribute('contenteditable')!=='false';if(selector.startsWith('.'))return this.classes.has(selector.slice(1));if(selector.startsWith('[')){const found=selector.match(/^\[([^=\]]+)(?:="([^"]*)")?\]$/)!;return this.getAttribute(found[1])!==null&&(found[2]===undefined||this.getAttribute(found[1])===found[2]);}return this.tagName===selector.toUpperCase();}
  closest(selector:string):El|null{return this.matches(selector)?this:this.parentElement?.closest(selector)||null;}
  querySelectorAll(selector:string):El[]{return this.children.flatMap(child=>[...(child.matches(selector)?[child]:[]),...child.querySelectorAll(selector)]);}querySelector(selector:string){return this.querySelectorAll(selector)[0];}
  getClientRects(){return this.isConnected&&this.visible&&!this.hidden&&!this.ancestors().some(parent=>!parent.visible||parent.hidden)?[this.getBoundingClientRect()]:[];}
@@ -109,6 +110,57 @@ test('four center plus buttons expose exact directions without changing center o
 test('four-direction controls reject read-only and locked nodes while retaining navigation',()=>{
  const f=fixture(),calls:string[]=[];f.host.createRelation=(_id:string,side:string)=>calls.push(side);f.snapshot.readOnly=true;f.view.refresh();for(const side of ['top','bottom','left','right']){assert(action(node(f,'b'),'add-'+side).disabled);action(node(f,'b'),'add-'+side).click();}
  f.snapshot.readOnly=false;f.board.nodes.find(node=>node.id==='b')!.locked=true;f.view.refresh();for(const side of ['top','bottom','left','right'])action(node(f,'b'),'add-'+side).click();assert.deepEqual(calls,[]);assert.equal(title(f,'b').disabled,false);
+});
+test('native relation command target dispatches the same four center relations and preserves source geometry',()=>{
+ const f=fixture(),calls:{id:string;side:string;current:()=>boolean}[]=[],before=clone(f.board);f.host.createRelation=(id:string,side:string,current:()=>boolean)=>calls.push({id,side,current});
+ const target=f.view.relationCommandTarget();assert.ok(target);assert.equal(target.editing,false);
+ for(const side of ['top','bottom','left','right']){assert.equal(target.canRun(side),true);target.run(side);}
+ assert.deepEqual(calls.map(({id,side})=>({id,side})),['top','bottom','left','right'].map(side=>({id:'b',side})));assert.deepEqual(clone(f.board),before);assert(calls.every(call=>call.current()));
+});
+test('relation commands accept all existing supported center kinds and reject other card kinds',()=>{
+ for(const kind of ['card','board','section','text','pdf','image','audio','video','mindmap'] as Card['kind'][]){
+  const f=fixture(),center=f.board.nodes.find(node=>node.id==='b')!;center.kind=kind;if(kind==='text')center.brainIdea=true;
+  f.host.createRelation=()=>{};const target=f.view.relationCommandTarget();assert.ok(target);
+  assert.equal(target.canRun('bottom'),['card','board','section','text'].includes(kind),kind);
+  if(kind==='text'){delete center.brainIdea;assert.equal(target.canRun('bottom'),false);}
+ }
+});
+test('relation commands recheck readonly, locked, hidden, window focus and active-view identity at execution',()=>{
+ const f=fixture(),calls:string[]=[];f.host.createRelation=(_id:string,side:string)=>calls.push(side);f.host.isActive=()=>true;
+ const target=f.view.relationCommandTarget();assert.ok(target);const center=f.board.nodes.find(node=>node.id==='b')!;
+ const changes:[()=>void,()=>void][]=[[()=>{f.snapshot.readOnly=true;},()=>{f.snapshot.readOnly=false;}],[()=>{center.locked=true;},()=>{delete center.locked;}],[()=>{f.el.visible=false;},()=>{f.el.visible=true;}],[()=>{f.doc.focused=false;},()=>{f.doc.focused=true;}],[()=>{f.doc.defaultView.closed=true;},()=>{f.doc.defaultView.closed=false;}],[()=>{f.host.isActive=()=>false;},()=>{f.host.isActive=()=>true;}]];
+ for(const [block,restore]of changes){block();assert.equal(target.canRun('top'),false);target.run('top');restore();}
+ assert.deepEqual(calls,[]);target.run('right');assert.deepEqual(calls,['right']);
+});
+test('relation commands suppress search, plaintext-only preview editors and IME without adding keyboard bindings',()=>{
+ const f=fixture(),calls:string[]=[];f.host.createRelation=(_id:string,side:string)=>calls.push(side);const target=f.view.relationCommandTarget();assert.ok(target);
+ for(const tag of ['input','textarea','select']){const input=f.el.createEl(tag);input.focus();assert.equal(target.canRun('bottom'),false);target.run('bottom');input.remove();}
+ const editor=f.el.createDiv();editor.setAttribute('contenteditable','plaintext-only');editor.matches=selector=>selector.includes('[contenteditable]');editor.focus();assert.equal(target.canRun('bottom'),false);target.run('bottom');editor.remove();f.doc.activeElement=null;
+ for(const callback of f.doc.listeners.get('compositionstart')||[])callback({});assert.equal(target.canRun('bottom'),false);target.run('bottom');
+ for(const callback of f.doc.listeners.get('compositionend')||[])callback({});assert.equal(target.canRun('bottom'),true);
+ const event=title(f,'b').dispatch('keydown',{key:'Tab'});assert.equal(event.defaultPrevented,false);assert.deepEqual(calls,[]);
+});
+test('retained relation commands invalidate after center, board path, owner or document changes and unload removes IME observers',()=>{
+ const f=fixture(),calls:string[]=[];f.host.createRelation=(_id:string,side:string)=>calls.push(side);const target=f.view.relationCommandTarget();assert.ok(target);
+ const initial=f.snapshot;
+ for(const change of [{...initial,key:{}},{...initial,path:'Renamed.md'},{...initial,board:{...f.board,presentation:undefined}},{...initial,board:{...f.board,brain:{...f.board.brain,centerId:'a'}}}]){
+  f.setSnapshot(change);assert.equal(target.canRun('left'),false);target.run('left');
+ }
+ f.setSnapshot(initial);f.el.ownerDocument=new Doc();assert.equal(target.canRun('left'),false);f.el.ownerDocument=f.doc;
+ f.view.unload();assert.equal(target.canRun('left'),false);assert.equal(f.doc.listeners.get('compositionstart')!.size,0);assert.equal(f.doc.listeners.get('compositionend')!.size,0);assert.equal(f.doc.defaultView.listeners.get('blur')!.size,0);assert.deepEqual(calls,[]);
+});
+test('moving a brain to another window replaces its IME observers and releases the old document',()=>{
+ const f=fixture();f.host.createRelation=()=>{};f.view.relationCommandTarget();const old=f.doc,newDoc=new Doc();f.el.ownerDocument=newDoc;f.view.relationCommandTarget();
+ assert.equal(old.listeners.get('compositionstart')!.size,0);assert.equal(old.listeners.get('compositionend')!.size,0);assert.equal(old.defaultView.listeners.get('blur')!.size,0);
+ const target=f.view.relationCommandTarget();assert.ok(target);for(const callback of newDoc.listeners.get('compositionstart')||[])callback({});assert.equal(target.canRun('top'),false);
+ for(const callback of newDoc.listeners.get('compositionend')||[])callback({});assert.equal(target.canRun('top'),true);f.view.unload();assert.equal(newDoc.listeners.get('compositionstart')!.size,0);
+});
+test('external sidebar and modal text inputs suppress execution while native prompt enumeration remains discoverable',()=>{
+ const f=fixture(),calls:string[]=[];f.host.createRelation=(_id:string,side:string)=>calls.push(side);
+ const sidebar=f.root.createDiv(),input=sidebar.createEl('input');input.focus();assert.equal(f.view.relationCommandTarget().canRun('top'),false);f.view.relationCommandTarget().run('top');
+ const prompt=f.root.createDiv('prompt'),promptInput=prompt.createEl('input');promptInput.focus();assert.equal(f.view.relationCommandTarget().canRun('top'),false);
+ const checking=f.view.relationCommandTarget(true);assert.equal(checking.editing,false);assert.equal(checking.canRun('top'),true);checking.run('top');assert.deepEqual(calls,[]);
+ title(f,'b').focus();f.view.relationCommandTarget().run('top');assert.deepEqual(calls,['top']);
 });
 test('actual sibling SVG link originates at shared parent and associated edges are dashed',()=>{const f=fixture(),links=f.el.querySelector('.ts-brain-links')!.children;assert.ok(links.some(link=>link.dataset.brainFrom==='a'&&link.dataset.brainTo==='sibling'));assert.ok(!links.some(link=>link.dataset.brainFrom==='b'&&link.dataset.brainTo==='sibling'));assert.ok(links.some(link=>(link.dataset.brainTo==='group'||link.dataset.brainFrom==='group')&&link.classes.has('is-associated')));});
 test('title click recenters once in same graph and keeps all source geometry intact',()=>{const f=fixture(),nodes=clone(f.board.nodes),scene=f.el.querySelector('.ts-brain-scene');title(f,'a').click();title(f,'a').click();assert.equal(f.board.brain!.centerId,'a');assert.equal(f.saves.length,1);assert.equal(f.el.querySelector('.ts-brain-scene'),scene);assert.deepEqual(clone(f.board.nodes),nodes);assert.equal(f.opens.length,0);assert.equal(f.doc.activeElement,title(f,'a'));});

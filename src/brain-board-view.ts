@@ -10,6 +10,7 @@ import {brainPortPositions,brainScreenObstacles,type BrainScreenRect} from './br
 import {BrainRefreshCache} from './brain-refresh-cache';
 import {LocalRelationMotion} from './local-relations-motion';
 import {brainRelationLabels,type BrainRelationSide} from './brain-board-create';
+import type {BrainRelationCommandTarget} from './brain-relation-commands';
 import {cleanBrainColors,brainColorsStamp,brainStateInk,type BrainColors} from './brain-colors';
 
 export interface BrainBoardSnapshot {board:Board;path:string;key?:object;readOnly?:boolean;graphRevision?:number;nativeRevision?:number;native?:(id:string)=>NativeLocalRelations|readonly NativeLocalRelation[];}
@@ -55,7 +56,7 @@ export class BrainBoardView extends Component {
  private alive=false;private generation=0;private renders=0;private nodeSequence=0;private context?:object|string;private boardPath?:string;private document?:Document;private center?:string;private error='';
  private shell!:HTMLElement;private topbar!:HTMLElement;private title!:HTMLElement;private stage!:HTMLElement;private scene!:HTMLElement;private svg!:SVGSVGElement;private labels!:HTMLElement;private empty!:HTMLElement;private status!:HTMLElement;private recent!:HTMLElement;private pager!:HTMLElement;
  private input!:HTMLInputElement;private search!:HTMLElement;private searchResults!:HTMLElement;private back!:HTMLButtonElement;private forward!:HTMLButtonElement;private more!:HTMLButtonElement;private colorButton?:HTMLButtonElement;private zoomLabel!:HTMLButtonElement;
- private searchVisible=false;private query='';private searchPage=0;private searchIndex=0;private searchIds:string[]=[];private page=0;private layout?:ReturnType<typeof brainBoardLayout>;private nativePending=false;
+ private searchVisible=false;private query='';private searchPage=0;private searchIndex=0;private searchIds:string[]=[];private page=0;private layout?:ReturnType<typeof brainBoardLayout>;private nativePending=false;private composing=false;private compositionDocument?:Document;private compositionScope?:Component;
  private searchRender?:{key?:object;path:string;doc:Document;signature:string};
  private revealId?:string;
  private branchCache?:{board:Board;revision?:number;fallback?:string;index:BrainBranchIndex};private descendants?:BrainDescendantPager;private descendantPage?:BrainDescendantPage;
@@ -92,7 +93,7 @@ export class BrainBoardView extends Component {
  }
  onunload(){this.motion.cancel();this.cancelCameraFrame();this.cancelColorFrame();this.colorPreview=undefined;this.alive=false;this.finalizeViewport();this.generation++;this.closeMenu();this.cancelResize();this.observer?.disconnect();this.observer=undefined;this.clearPreviews();for(const item of this.nodes.values())this.removeChild(item.scope);this.nodes.clear();this.branchCache=undefined;this.descendants=undefined;this.descendantPage=undefined;this.refreshCache.clear();this.projection=undefined;this.layout=undefined;this.refreshSources=undefined;this.transformLayout=undefined;this.shell?.remove();}
  refresh(){
-  if(!this.alive)return;this.cancelCameraFrame();this.cancelColorFrame();this.renders++;const snapshot=this.host.snapshot(),doc=this.el.ownerDocument;
+  if(!this.alive)return;this.trackCommandComposition();this.cancelCameraFrame();this.cancelColorFrame();this.renders++;const snapshot=this.host.snapshot(),doc=this.el.ownerDocument;
   if(!snapshot||snapshot.board.presentation!=='brain'){this.motion.cancel();this.generation++;this.closeMenu();this.clearPreviews();this.searchRender=undefined;this.refreshCache.clear();this.projection=undefined;this.paintStamp='';this.stage.hidden=true;return;}
   this.stage.hidden=false;const state=snapshot.board.brain||createBoardMindmapState(),context=snapshot.key||snapshot.path,ownerChanged=this.context!==context||this.boardPath!==snapshot.path||this.document!==doc,centerChanged=this.center!==state.centerId;
   if(this.colorPreview&&(snapshot.readOnly||this.colorPreview.key!==context||this.colorPreview.path!==snapshot.path||this.colorPreview.stamp!==brainColorsStamp(snapshot.board.brainColors)))this.colorPreview=undefined;
@@ -174,6 +175,27 @@ export class BrainBoardView extends Component {
  fitToCanvas(){this.motion.cancel();this.fitCamera=true;this.fitAll=true;this.fit();this.queueViewport();}
  resetZoom(){this.zoomAt(1);}
  flushPendingViewport(){this.flushViewport();}
+ private trackCommandComposition(){
+  const doc=this.el.ownerDocument;if(this.compositionDocument===doc)return;
+  if(this.compositionScope)this.removeChild(this.compositionScope);
+  this.composing=false;this.compositionDocument=doc;const scope=this.compositionScope=this.addChild(new Component());
+  scope.registerDomEvent(doc,'compositionstart',()=>{this.composing=true;},{capture:true});scope.registerDomEvent(doc,'compositionend',()=>{this.composing=false;},{capture:true});
+  if(doc.defaultView)scope.registerDomEvent(doc.defaultView,'blur',()=>{this.composing=false;});
+ }
+ relationCommandTarget(checking=false):BrainRelationCommandTarget|undefined{
+  const snapshot=this.host.snapshot(),doc=this.el.ownerDocument,id=snapshot?.board.brain?.centerId;
+  if(!snapshot||!id||snapshot.board.presentation!=='brain'||!this.alive||!this.visible()||!this.host.createRelation)return;
+  this.trackCommandComposition();
+  // Palette enumeration must remain discoverable while its native prompt is
+  // focused. Execution rechecks after the palette closes; other inputs keep
+  // their user shortcuts and never open a relationship dialog.
+  const editing=(enumerating=checking)=>this.composing||!!doc.activeElement&&!!doc.activeElement.closest('input,textarea,select,[contenteditable]:not([contenteditable=false])')&&!(enumerating&&doc.activeElement.closest('.prompt'));
+  const canRun=()=>{
+   const live=this.host.snapshot();
+   return !editing()&&this.alive&&this.visible()&&this.el.ownerDocument===doc&&!doc.defaultView?.closed&&doc.hasFocus()&&(this.host.isActive?.()??true)&&!!live&&!live.readOnly&&live.key===snapshot.key&&live.path===snapshot.path&&live.board.presentation==='brain'&&live.board.brain?.centerId===id&&live.board.nodes.some(node=>node.id===id&&supportsBoardMindmapTarget(node)&&!node.locked);
+  };
+  return{editing:editing(),canRun,run:side=>{if(canRun()&&!editing(false))this.createRelation(id,side);}};
+ }
  focusNode(id=this.host.snapshot()?.board.brain?.centerId){
   if(!this.visible())return;if(this.center!==this.host.snapshot()?.board.brain?.centerId)this.refresh();
   const item=id?this.nodes.get(id):undefined,position=this.layout?.nodes.find(node=>node.id===id);

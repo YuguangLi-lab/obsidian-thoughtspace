@@ -125,6 +125,8 @@ import {installRailToolSearch} from './rail-tool-search';
 import {installToolPalettes} from './tool-palette';
 import {boardWheelIntent} from './board-wheel';
 import {boardInputCommands,type BoardInputAction,type BoardInputCommandTarget} from './board-input-commands';
+import {brainRelationCommands,type BrainRelationCommandTarget} from './brain-relation-commands';
+import {resumeRecentBoard} from './recent-board';
 import {assertNativeNoteUnchanged,writeNativeNoteDraft,readCurrentNativeNote} from './native-note-state';
 import {NoteMarkdownToolbars} from './note-markdown-toolbar';
 import {InlineCardFit} from './inline-card-fit';
@@ -524,6 +526,7 @@ export default class ThoughtSpace extends Plugin {
   readonly pdfDocuments=new PdfDocumentPool(loadPdfJs,{set:(fn,ms)=>window.setTimeout(fn,ms),clear:id=>window.clearTimeout(id)});
   private searchSync?:BoardSearchSync;private searchTimer?:number;
   private searchNavigationSequence=0;private searchNavigationStopped=false;
+  private recentBoardOpening?:Promise<void>;private recentBoardNavigationStopped=false;
   private knownTags = new Map<TFile, string>();
   private hierarchyQueue: Promise<unknown> = Promise.resolve();
   private filingQueue: Promise<unknown> = Promise.resolve();
@@ -624,6 +627,8 @@ export default class ThoughtSpace extends Plugin {
     this.addCommand({id:'native-note-relations',name:'查看当前笔记的 Obsidian 关联',checkCallback:checking=>{const file=this.app.workspace.getActiveFile();if(file?.extension!=='md'||!isWorkspaceFile(file))return false;if(!checking)this.openNativeRelations(file);return true;}});
     this.addCommand({id:'native-board-index',name:'导出当前白板的原生链接索引',checkCallback:checking=>{const file=this.currentBoard?.file;if(!file)return false;if(!checking)act(()=>this.exportNativeIndex(file));return true;}});
     this.addCommand({id:'space-hub',name:'打开空间总览',callback:()=>this.openSpaceHub()});
+    this.addCommand({id:'resume-recent-board',name:'继续上次白板',callback:()=>act(()=>this.openRecentBoard())});
+    this.register(()=>{this.recentBoardNavigationStopped=true;});
     this.addCommand({id:'open-navigator',name:'打开 ThoughtSpace 侧边栏',callback:()=>act(()=>this.ensureDock(true))});
     this.addCommand({id:'board-templates',name:'从模板创建白板',callback:()=>new TemplatePicker(this.app,this).open()});
     this.addCommand({id:'quick-capture',name:'快速收集一条笔记',callback:()=>this.quickCapture()});
@@ -664,6 +669,7 @@ export default class ThoughtSpace extends Plugin {
     this.addCommand({ id: 'open-database', name: '打开卡片资料库与看板', callback: () => this.openDatabase(this.app.workspace.getActiveViewOfType(BoardView) || undefined) });
     this.addCommand({ id: 'toggle-focus', name: '切换白板专注模式', callback: () => this.app.workspace.getActiveViewOfType(BoardView)?.toggleFocus() });
     for(const command of boardInputCommands(()=>this.app.workspace.getActiveViewOfType(BoardView)?.inputCommandTarget()))this.addCommand(command);
+    for(const command of brainRelationCommands(checking=>this.app.workspace.getActiveViewOfType(BoardView)?.brainRelationCommandTarget(checking)))this.addCommand(command);
     this.registerEvent(this.app.vault.on('modify', f => { if (f instanceof TFile) { if(f.extension.toLowerCase()==='md'){this.localRelationsHeadingPending.add(f);for(const [leaf,target]of this.localRelationsTargets)if(target.owner.board.nodes.some(node=>supportsLocalRelations(node)&&(node.file===f.path||node.paragraphQuote?.path===f.path)))this.localRelationsSubscribers.get(leaf)?.();}const s = this.sessions.get(f); if (s) act(async () => (await s).externalUpdate()); } }));
     this.app.workspace.onLayoutReady(() => { for (const f of this.app.vault.getMarkdownFiles().filter(isWorkspaceFile)) { const cache = this.app.metadataCache.getFileCache(f); if (cache) this.knownTags.set(f, JSON.stringify(getAllTags(cache) || [])); } });
     this.registerEvent(this.app.metadataCache.on('resolved',()=>this.refreshLocalRelations()));
@@ -901,6 +907,22 @@ export default class ThoughtSpace extends Plugin {
   async recordBoardVisit(file:TFile){
     const first=this.settings.hub.recent[0];if(first?.path===file.path&&Date.now()-first.at<30000)return;
     this.settings.hub=rememberBoard(this.settings.hub,file.path);await this.saveData(this.settings);
+  }
+  openRecentBoard():Promise<void>{
+    if(this.recentBoardOpening)return this.recentBoardOpening;
+    const workspace=this.app.workspace,origin=workspace.getActiveViewOfType(View),originFile=origin instanceof FileView?origin.file:undefined,originSession=origin instanceof BoardView?origin.session:undefined,doc=origin?.containerEl.ownerDocument||workspace.containerEl.ownerDocument;
+    let target:TFile|undefined;
+    const current=()=>!this.recentBoardNavigationStopped&&!doc.defaultView?.closed&&doc.hasFocus()&&(workspace.getActiveViewOfType(View)===origin&&(!(origin instanceof FileView)||origin.file===originFile)&&(!(origin instanceof BoardView)||origin.session===originSession)||!!target&&workspace.getActiveViewOfType(BoardView)?.file===target);
+    const work=resumeRecentBoard([...this.settings.hub.recent],{
+      current,resolve:path=>{const file=this.app.vault.getAbstractFileByPath(path);return file instanceof TFile?file:undefined;},valid:file=>isBoardFile(this.app,file),
+      open:async(file,ready)=>{target=file;await this.openBoard(file,false,ready);if(!ready())return false;const view=workspace.getActiveViewOfType(BoardView);if(!view||view.closed||view.file!==file||!view.session)throw Error('白板尚未就绪');return true;},
+      visited:file=>this.recordBoardVisit(file)
+    }).then(result=>{
+      if(result.status==='cancelled'||!current())return;
+      if(result.status==='empty'){new Notice(result.skipped?'最近记录中的白板已失效或无法打开，已打开空间总览':'尚无最近白板，已打开空间总览');this.openSpaceHub();}
+      else if(result.skipped)new Notice(`已跳过 ${result.skipped} 个已失效或无法打开的最近白板`);
+    }).finally(()=>{if(this.recentBoardOpening===work)this.recentBoardOpening=undefined;});
+    this.recentBoardOpening=work;return work;
   }
   openSpaceHub(){
     if(this.spaceHub?.modalEl.isConnected){this.spaceHub.modalEl.querySelector<HTMLInputElement>('input[type=search]')?.focus();return this.spaceHub;}
@@ -4555,6 +4577,13 @@ class BoardView extends FileView {
     }));
   }
   refreshStyleControls(){this.renderSelectionTools();}
+  brainRelationCommandTarget(checking=false):BrainRelationCommandTarget|undefined{
+    const owner=this.session,view=this.brainBoardView,doc=this.contentEl.ownerDocument;
+    if(!owner||!view||!isBrainBoard(owner.board))return;
+    const target=view.relationCommandTarget(checking);if(!target)return;
+    const current=()=>this.session===owner&&this.brainBoardView===view&&!owner.blocked&&!this.closed&&!this.closing&&this.leaf.view===this&&this.contentEl.ownerDocument===doc&&this.app.workspace.getActiveViewOfType(BoardView)===this&&!this.inline&&!this.inlineTarget&&!this.gesture&&!this.marquee&&!this.rightMarquee&&!this.linkDrag&&!this.brainBoardDialog?.containerEl.isConnected&&!this.app.workspace.getLeavesOfType(VIEW).some(leaf=>leaf.view instanceof BoardView&&leaf.view.session===owner&&(leaf.view.brainRelationCreating||leaf.view.localRelationEditBusy||leaf.view.localRelationEditing));
+    return{editing:target.editing,canRun:side=>current()&&target.canRun(side),run:side=>{if(current()&&target.canRun(side))target.run(side);}};
+  }
   inputCommandTarget():BoardInputCommandTarget|undefined{
     const owner=this.session;if(!owner||owner.blocked||this.closed||this.gesture||this.marquee||this.rightMarquee||this.linkDrag)return;
     const active=this.contentEl.ownerDocument.activeElement;
