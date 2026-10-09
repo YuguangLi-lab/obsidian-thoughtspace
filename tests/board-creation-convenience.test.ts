@@ -26,7 +26,7 @@ test('space overview and material destination use the common format-aware entry'
 import * as model from '../src/model';
 import {createBrainBoard,isBrainBoard} from '../src/brain-board';
 import {createMarkdownBoardDocument,readBoardDocument} from '../src/board-document';
-import {cleanBoardCreationPreferences} from '../src/board-creation';
+import {cleanBoardCreationPreferences,TemplateCreationIncompleteError} from '../src/board-creation';
 import {boardTemplates} from '../src/navigation';
 import {applyDefaultCardStyle} from '../src/card-style';
 import {createRequire} from 'node:module';
@@ -57,24 +57,25 @@ class Setting {
   onChange(change:(value:string)=>void){selectEl.change=(value:string)=>{if(selectEl.disabled)return;selectEl.value=value;change(value);};return control;},setDisabled(value:boolean){selectEl.disabled=value;return control;}};make(control);return this;}
 }
 const modalSource=readFileSync('src/board-creation-view.ts','utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
-const BoardCreationModal=execute(modalSource+'\nreturn BoardCreationModal;',{Modal,Setting,View,cleanBoardCreationPreferences});
+const BoardCreationModal=execute(modalSource+'\nreturn BoardCreationModal;',{Modal,Setting,View,cleanBoardCreationPreferences,TemplateCreationIncompleteError});
 const notices:string[]=[];
-const Host=execute(`class Host {${methods(['folder','createUnique','promptNewBoard','promptTemplateBoard','finishBoardCreation','rememberBoardCreation','createFromTemplate'])}};return Host;`,{...model,BoardCreationModal,cleanBoardCreationPreferences,emptyBoard:model.emptyBoard,createBrainBoard,createMarkdownBoardDocument,boardTemplates,applyDefaultCardStyle,normalizePath:(path:string)=>path.replace(/\/+/g,'/'),ROOT:'ThoughtSpace',EXT:'thoughtspace',themeSurface(){},Notice:class{constructor(message:string){notices.push(message);}}});
+const Host=execute(`class Host {${methods(['folder','createUnique','promptNewBoard','promptTemplateBoard','finishBoardCreation','rememberBoardCreation','createFromTemplate'])}};return Host;`,{...model,BoardCreationModal,cleanBoardCreationPreferences,TemplateCreationIncompleteError,emptyBoard:model.emptyBoard,createBrainBoard,createMarkdownBoardDocument,boardTemplates,applyDefaultCardStyle,normalizePath:(path:string)=>path.replace(/\/+/g,'/'),ROOT:'ThoughtSpace',EXT:'thoughtspace',themeSurface(){},Notice:class{constructor(message:string){notices.push(message);}}});
 const tick=async()=>{for(let i=0;i<30;i++)await Promise.resolve();};
 function deferred(){let resolve!:()=>void,reject!:(error:Error)=>void;const promise=new Promise<void>((yes,no)=>{resolve=yes;reject=no;});return{promise,resolve,reject};}
 function fixture(initial:unknown=null){
  const files=new Map<string,{path:string;body:string}>(),folders=new Set<string>(),opened:string[]=[],writes:any[]=[],events:string[]=[],frames=new Map<number,()=>void>();let frame=0;
  const hooks:{create?:(path:string,body:string)=>Promise<void>;open?:()=>Promise<void>;save?:()=>Promise<void>}={};
  const doc:any={activeElement:null,defaultView:{requestAnimationFrame:(run:()=>void)=>{frames.set(++frame,run);return frame;},cancelAnimationFrame:(id:number)=>frames.delete(id)}};
- const invoker:any={id:'Invoker'},target:any={id:'Created'},activations:any[]=[];new View(invoker);new View(target);
- const app:any={document:doc,invoker,active:invoker,workspace:{getActiveViewOfType:(type:any)=>app.active.view instanceof type?app.active.view:null,setActiveLeaf:(leaf:any)=>{app.active=leaf;activations.push(leaf);}},vault:{getAbstractFileByPath:(path:string)=>files.get(path)||(folders.has(path)?{path}:undefined),createFolder:async(path:string)=>{folders.add(path);},create:async(path:string,body:string)=>{events.push('create-start');await hooks.create?.(path,body);const file={path,body};files.set(path,file);events.push('create-complete');return file;}}};
- const host=new Host();Object.assign(host,{app,settings:cleanPluginSettings(initial),boardCreationStopped:false,boardCreationPreferenceQueue:Promise.resolve(),openBoard:async(file:any,_fit:boolean,current:()=>boolean=()=>true)=>{events.push('open');await hooks.open?.();if(current()){opened.push(file.path);app.active=target;}},saveData:async(settings:any)=>{events.push('save-preferences');writes.push(structuredClone(settings));await hooks.save?.();}});
+ const invoker:any={id:'Invoker'},target:any={id:'Created'},activations:any[]=[],listeners=new Set<()=>void>();new View(invoker);new View(target);invoker.view.containerEl.ownerDocument=doc;target.view.containerEl.ownerDocument=doc;
+ const app:any={document:doc,invoker,active:invoker,workspace:{getActiveViewOfType:(type:any)=>app.active.view instanceof type?app.active.view:null,on:(_name:string,run:()=>void)=>{listeners.add(run);return run;},offref:(run:()=>void)=>listeners.delete(run),setActiveLeaf:(leaf:any)=>{app.active=leaf;activations.push(leaf);}},vault:{getAbstractFileByPath:(path:string)=>files.get(path)||(folders.has(path)?{path}:undefined),createFolder:async(path:string)=>{folders.add(path);},create:async(path:string,body:string)=>{events.push('create-start');await hooks.create?.(path,body);const file={path,body};files.set(path,file);events.push('create-complete');return file;}}};
+ let active=invoker;Object.defineProperty(app,'active',{get:()=>active,set:(value:unknown)=>{active=value;for(const run of listeners)run();}});
+ const host=new Host();Object.assign(host,{app,settings:cleanPluginSettings(initial),boardCreationStopped:false,boardCreationPreferenceQueue:Promise.resolve(),openBoard:async(file:any,_fit:boolean,current:()=>boolean=()=>true)=>{events.push('open');await hooks.open?.();if(current()){opened.push(file.path);target.view.file=file;app.active=target;}},saveData:async(settings:any)=>{events.push('save-preferences');writes.push(structuredClone(settings));await hooks.save?.();}});
  const modal=()=>modals.at(-1)!,all=()=>modal().contentEl.all() as Element[],find=(label:string)=>all().find(element=>element.attributes['aria-label']===label)!,button=(label:string)=>all().find(element=>element.tag==='button'&&element.text===label)!;
  const choice=(presentation='board',format='legacy')=>{find('白板类型').change?.(presentation);find('文件格式').change?.(format);};
  const name=(value:string)=>{find('白板名称').value=value;find('白板名称').oninput?.();};
  const decode=(file=[...files.values()].at(-1)!)=>readBoardDocument(file.body,file.path.split('.').at(-1)!,parseYaml).board;
  const fireFrame=()=>{const current=[...frames.values()];frames.clear();for(const run of current)run();};
- return{host,app,files,folders,opened,writes,events,frames,hooks,modal,all,find,button,choice,name,decode,fireFrame,activations};
+ return{host,app,files,folders,opened,writes,events,frames,listeners,hooks,modal,all,find,button,choice,name,decode,fireFrame,activations};
 }
 
 test('untrusted creation preference values use conservative defaults and valid fields round-trip independently',()=>{
@@ -146,4 +147,34 @@ test('legacy direct template callers remain legacy even when common creation rem
 });
 test('template cancellation and unknown template never save a preference or create files',async()=>{
  const f=fixture();f.host.promptTemplateBoard(boardTemplates[0].id,'Cancelled');f.find('文件格式').change?.('markdown');f.button('取消').click();await tick();assert.equal(f.files.size,0);assert.equal(f.writes.length,0);await assert.rejects(f.host.createFromTemplate('not-a-template','Bad'),/未知白板模板/);assert.equal(f.files.size,0);
+});
+
+test('a newer navigation during the actual opening await wins without late focus or preference persistence',async()=>{
+ const f=fixture(),gate=deferred();f.hooks.open=()=>gate.promise;f.host.promptNewBoard();f.name('Saved during navigation');f.button('创建').click();await tick();
+ const other:any={id:'Newer navigation'};new View(other);f.app.active=other;gate.resolve();await tick();assert.equal(f.files.size,1);assert.equal(f.opened.length,0);assert.equal(f.writes.length,0);assert.equal(f.app.active,other);assert.equal(f.activations.length,0);
+});
+test('changing the originating view file during a create await invalidates the request even without an active-leaf event',async()=>{
+ const f=fixture(),gate=deferred(),original={path:'Source.md'};f.app.invoker.view.file=original;f.hooks.create=()=>gate.promise;f.host.promptNewBoard();f.button('创建').click();await tick();f.app.invoker.view.file={path:'Other.md'};gate.resolve();await tick();assert.equal(f.files.size,1);assert.equal(f.opened.length,0);assert.equal(f.writes.length,0);
+});
+test('a partially created template does not let Retry duplicate its already completed native files',async()=>{
+ const f=fixture();let calls=0;f.hooks.create=async()=>{if(++calls===3)throw Error('Third template file fails');};f.host.promptTemplateBoard(boardTemplates[0].id,'Partial template');f.button('创建').click();await tick();assert.equal(f.files.size,2);assert.equal(f.writes.length,0);
+ f.hooks.create=undefined;const save=f.all().find(element=>element.tag==='button'&&element.text!=='取消')!;assert(save.disabled);save.click();await tick();assert.equal(f.files.size,2);assert.equal(f.opened.length,0);assert.equal(f.writes.length,0);const status=f.all().find(element=>element.attributes.role==='status')!.text;for(const path of f.files.keys())assert(status.includes(path));
+});
+
+test('leaving then returning to the original leaf still invalidates a pending creation and unregisters navigation on close',async()=>{
+ const f=fixture(),gate=deferred();f.hooks.create=()=>gate.promise;f.host.promptNewBoard();f.button('创建').click();await tick();const other:any={id:'Other'};new View(other);f.app.active=other;f.app.active=f.app.invoker;gate.resolve();await tick();assert.equal(f.opened.length,0);assert.equal(f.writes.length,0);assert.equal(f.listeners.size,1);f.button('取消').click();assert.equal(f.listeners.size,0);
+});
+for(const replacement of ['file-identity','file-rename','session','window','detached'] as const)test(`origin ${replacement} change cancels pending creation without late navigation`,async()=>{
+ const f=fixture(),gate=deferred(),file={path:'Origin.md'};f.app.invoker.view.file=file;f.app.invoker.view.session={id:'owner'};f.hooks.create=()=>gate.promise;f.host.promptNewBoard();f.button('创建').click();await tick();
+ if(replacement==='file-identity')f.app.invoker.view.file={path:file.path};else if(replacement==='file-rename')file.path='Moved.md';else if(replacement==='session')f.app.invoker.view.session={id:'new owner'};else if(replacement==='window')f.app.invoker.view.containerEl.ownerDocument={defaultView:{}};else f.app.invoker.view.containerEl.isConnected=false;
+ gate.resolve();await tick();assert.equal(f.files.size,1);assert.equal(f.opened.length,0);assert.equal(f.writes.length,0);
+});
+test('a template failure before any completed write remains safely retryable',async()=>{
+ const f=fixture();f.hooks.create=async()=>{throw Error('First file fails');};f.host.promptTemplateBoard(boardTemplates[0].id,'Retry empty');f.button('创建').click();await tick();assert.equal(f.files.size,0);assert(!f.button('重试').disabled);f.hooks.create=undefined;f.button('重试').click();await tick();assert.equal(f.files.size,5);assert.equal(f.writes.length,1);
+});
+test('a template board-file failure lists its completed cards and cannot automatically rerun them',async()=>{
+ const f=fixture();let calls=0;f.hooks.create=async()=>{if(++calls===5)throw Error('Board file fails');};f.host.promptTemplateBoard(boardTemplates[0].id,'Completed cards');f.button('创建').click();await tick();assert.equal(f.files.size,4);assert(f.button('创建已停止').disabled);const status=f.all().find(element=>element.attributes.role==='status')!.text;for(const file of f.files.values())assert(status.includes(file.path));assert.equal(f.opened.length,0);assert.equal(f.writes.length,0);
+});
+test('after completed creation, a preference write already submitted to the host may finish after Cancel and does not create a second file',async()=>{
+ const f=fixture(),gate=deferred();f.hooks.save=()=>gate.promise;f.host.promptNewBoard();f.choice('brain','markdown');f.button('创建').click();await tick();assert.equal(f.files.size,1);assert.equal(f.opened.length,1);assert.equal(f.writes.length,1);f.button('取消').click();gate.resolve();await tick();assert.equal(f.files.size,1);assert.deepEqual(f.host.settings.boardCreation,{presentation:'brain',format:'markdown'});assert.equal(f.activations.length,0);
 });
