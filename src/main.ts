@@ -1,5 +1,6 @@
 import {NativeBoardEditorPicker} from './board-save-feedback-native';
 import {renderBoardSaveFeedback,type BoardSaveFeedback,type BoardSaveFeedbackAction} from './board-save-feedback';
+import type {EventRef} from 'obsidian';
 import {appendPendingBoardReference,removePendingBoardReference,type PendingBoardReference} from './pending-board-references';
 import {brainIdeaNode,brainIdeaToNote,brainNoteFolder} from './brain-board-idea';
 import {readBoardDocument,replaceBoardDocumentLayout,createMarkdownBoardDocument,isMarkdownBoardFrontmatter,type BoardDocument} from './board-document';
@@ -655,6 +656,7 @@ export default class ThoughtSpace extends Plugin {
     this.addCommand({id:'space-hub',name:'打开空间总览',callback:()=>this.openSpaceHub()});
     this.addCommand({id:'resume-recent-board',name:'继续上次白板',callback:()=>act(()=>this.openRecentBoard())});
     this.register(()=>{this.recentBoardNavigationStopped=true;this.recentBoardNavigationCleanup?.();this.recentBoardNavigationCleanup=undefined;});
+    this.register(()=>{for(const stop of this.boardOpeningNavigation)stop();this.boardOpeningNavigation.clear();});
     this.addCommand({id:'open-navigator',name:'打开 ThoughtSpace 侧边栏',callback:()=>act(()=>this.ensureDock(true))});
     this.addCommand({id:'board-templates',name:'从模板创建白板',callback:()=>new TemplatePicker(this.app,this).open()});
     this.addCommand({id:'quick-capture',name:'快速收集一条笔记',callback:()=>this.quickCapture()});
@@ -921,7 +923,8 @@ export default class ThoughtSpace extends Plugin {
   }
   private writingOpening=new SharedOpen<TFile,WorkspaceLeaf>();
   private writingPreparation=new SharedOpen<BoardView,void>();
-  private boardOpening=new SharedOpen<TFile,WorkspaceLeaf>();
+  private boardOpening=new SharedOpen<TFile,WorkspaceLeaf|undefined>();
+  private boardOpeningNavigation=new Set<()=>void>();
   readonly provisionalBoardGeometry=new WeakMap<WorkspaceLeaf,TFile>();
   async openWriting(view=this.currentBoard){
     if(!view?.file||!view.session)throw Error('请先打开白板');const file=view.file,owner=view.session;
@@ -942,14 +945,16 @@ export default class ThoughtSpace extends Plugin {
   }
   openRecentBoard():Promise<void>{
     if(this.recentBoardOpening)return this.recentBoardOpening;
-    const workspace=this.app.workspace,origin=workspace.getActiveViewOfType(View),originFile=origin instanceof FileView?origin.file:undefined,originSession=origin instanceof BoardView?origin.session:undefined,doc=origin?.containerEl.ownerDocument||workspace.containerEl.ownerDocument;
-    let target:TFile|undefined,targetLeaf:WorkspaceLeaf|undefined,allocating=false,cancelled=false,lastLeaf=origin?.leaf;
+    const workspace=this.app.workspace,origin=workspace.getActiveViewOfType(View),originFile=origin instanceof FileView?origin.file:undefined,originSession=origin instanceof BoardView?origin.session:undefined,originType=origin?.leaf.getViewState().type,originState=JSON.stringify(origin?.leaf.getViewState().state),doc=origin?.containerEl.ownerDocument||workspace.containerEl.ownerDocument;
+    let target:TFile|undefined,targetLeaf:WorkspaceLeaf|undefined,targetView:View|undefined,targetType:string|undefined,targetState:string|undefined,allocating=false,cancelled=false,lastLeaf=origin?.leaf;
+    const rememberTarget=(leaf:WorkspaceLeaf)=>{if(targetLeaf===leaf)return;targetLeaf=leaf;targetView=leaf.view;targetType=leaf.getViewState().type;targetState=JSON.stringify(leaf.getViewState().state);};
     const location=()=>{
       const active=workspace.getActiveViewOfType(View);
-      if(active===origin&&(!(origin instanceof FileView)||origin.file===originFile)&&(!(origin instanceof BoardView)||origin.session===originSession))return true;
+      if(active===origin&&origin?.leaf.getViewState().type===originType&&JSON.stringify(origin?.leaf.getViewState().state)===originState&&(!(origin instanceof FileView)||origin.file===originFile)&&(!(origin instanceof BoardView)||origin.session===originSession))return true;
       if(!target||!targetLeaf||targetLeaf.view!==active)return false;
       const state=targetLeaf.getViewState();
-      return state.type==='empty'||active instanceof BoardView&&active.file===target||targetLeaf.isDeferred&&state.type===VIEW&&state.state?.file===target.path;
+      const original=active===targetView&&state.type===targetType&&JSON.stringify(state.state)===targetState;
+      return original&&state.type==='empty'||active instanceof BoardView&&active.file===target||original&&targetLeaf.isDeferred&&state.type===VIEW&&state.state?.file===target.path;
     };
     const current=()=>{
       if(this.recentBoardNavigationStopped||cancelled||!location()||doc.defaultView?.closed)return false;
@@ -959,8 +964,8 @@ export default class ThoughtSpace extends Plugin {
     const changed=()=>{if(allocating)return;const leaf=workspace.getActiveViewOfType(View)?.leaf;if(!location()||leaf!==lastLeaf&&leaf!==targetLeaf)cancelled=true;lastLeaf=leaf;},refs=[workspace.on('active-leaf-change',changed),workspace.on('file-open',changed)];
     const cleanup=()=>{for(const ref of refs)workspace.offref(ref);refs.length=0;};this.recentBoardNavigationCleanup=cleanup;
     const navigation:BoardOpenNavigation={
-      acquire:create=>{allocating=true;try{const leaf=create();targetLeaf=leaf;lastLeaf=workspace.getActiveViewOfType(View)?.leaf;return leaf;}finally{allocating=false;}},
-      target:leaf=>{targetLeaf=leaf;}
+      acquire:create=>{allocating=true;try{const leaf=create();rememberTarget(leaf);lastLeaf=workspace.getActiveViewOfType(View)?.leaf;return leaf;}finally{allocating=false;}},
+      target:rememberTarget
     };
     const work=resumeRecentBoard([...this.settings.hub.recent],{
       // Recent paths are already explicit board requests. Native metadata can
@@ -1139,23 +1144,56 @@ export default class ThoughtSpace extends Plugin {
   promptRenameNote(file:TFile){const original=file.path;new Prompt(this.app,'重命名笔记',file.basename,value=>this.renameNote(file,value,original)).open();}
   async openBoard(file:TFile,fit?:boolean,current?:()=>boolean,provisional?:false,navigation?:BoardOpenNavigation):Promise<void>;
   async openBoard(file:TFile,fit:boolean,current:()=>boolean,provisional:true,navigation?:BoardOpenNavigation):Promise<WorkspaceLeaf|undefined>;
-  async openBoard(file: TFile, fit = false, current:()=>boolean=()=>true, provisional=false,navigation?:BoardOpenNavigation):Promise<void|WorkspaceLeaf> {
-    if(!current())return;
-    if(!isBoardPath(file.path)||!isWorkspaceFile(file)||this.app.vault.getAbstractFileByPath(file.path)!==file)throw Error('请选择工作目录中的白板');
-    const path=file.path;
-    readBoardDocument(await this.app.vault.read(file),file.extension,parseYaml);if(!current())return;
-    if(file.path!==path||this.app.vault.getAbstractFileByPath(path)!==file)throw Error('白板已移动或删除');
-    const leaf=await this.boardOpening.run(file,async()=>{
-      const existing=this.app.workspace.getLeavesOfType(VIEW).find(l=>(l.view as BoardView).file===file||l.getViewState().state?.file===file.path);
-      if(existing){navigation?.target(existing);if(provisional&&!(existing.view instanceof BoardView&&existing.view.session))this.provisionalBoardGeometry.set(existing,file);try{await existing.loadIfDeferred();return existing;}catch(error){this.provisionalBoardGeometry.delete(existing);throw error;}}
-      const create=()=>this.app.workspace.getLeaf('tab'),created=navigation?navigation.acquire(create):create();navigation?.target(created);if(provisional)this.provisionalBoardGeometry.set(created,file);
-      const discard=()=>{this.provisionalBoardGeometry.delete(created);if(created.getViewState().type==='empty'&&(!(created.view instanceof FileView)||!created.view.file))created.detach();};
-      try{if(file.extension.toLowerCase()==='md'){await this.readBoard(file);if(!current()){discard();return created;}await created.setViewState({type:VIEW,active:false,state:{file:file.path}});}else{await this.readBoard(file);if(!current()){discard();return created;}await created.openFile(file,{active:false});}return created;}catch(error){discard();throw error;}
-    });
-    if(!current())return;if(provisional)return leaf;
-    await this.app.workspace.revealLeaf(leaf);if(!current()||(leaf.view instanceof BoardView&&leaf.view.file!==file))return;this.provisionalBoardGeometry.delete(leaf);
-    if(leaf.view instanceof BoardView)leaf.view.resumeAutomaticGeometry();this.app.workspace.setActiveLeaf(leaf,{focus:true});if(leaf.view instanceof BoardView)this.currentBoard=leaf.view;
-    if(fit&&leaf.view instanceof BoardView){await new Promise<void>(resolve=>(leaf.view.containerEl?.ownerDocument?.defaultView||window).requestAnimationFrame(()=>resolve()));if(current())leaf.view.fit();}
+  async openBoard(file: TFile, fit = false, ready?:()=>boolean, provisional=false,navigation?:BoardOpenNavigation):Promise<void|WorkspaceLeaf> {
+    const workspace=this.app.workspace,path=file.path;
+    let cancelled=false,allocating=false,mounting=false,revealing=false,target:WorkspaceLeaf|undefined;
+    let focus=workspace.getMostRecentLeaf(),focusView=focus?.view,focusType=focus?.getViewState().type,focusState=JSON.stringify(focus?.getViewState().state),focusFile=focusView instanceof FileView?focusView.file:undefined,focusSession=focusView instanceof BoardView?focusView.session:undefined;
+    const captureFocus=()=>{focus=workspace.getMostRecentLeaf();focusView=focus?.view;focusType=focus?.getViewState().type;focusState=JSON.stringify(focus?.getViewState().state);focusFile=focusView instanceof FileView?focusView.file:undefined;focusSession=focusView instanceof BoardView?focusView.session:undefined;};
+    const boardReady=(leaf:WorkspaceLeaf|undefined):leaf is WorkspaceLeaf=>!!leaf&&leaf.view instanceof BoardView&&!leaf.view.closed&&leaf.view.file===file&&leaf.getViewState().state?.file===path&&file.path===path&&this.app.vault.getAbstractFileByPath(path)===file;
+    const location=()=>{
+      const active=workspace.getMostRecentLeaf();
+      if(revealing&&active===target&&boardReady(target))return true;
+      if(active!==focus)return false;
+      if(mounting&&active===target&&boardReady(target))return true;
+      return !focus||focus.view===focusView&&focus.getViewState().type===focusType&&JSON.stringify(focus.getViewState().state)===focusState&&(!(focusView instanceof FileView)||focusView.file===focusFile)&&(!(focusView instanceof BoardView)||focusView.session===focusSession);
+    };
+    const current=()=>!cancelled&&(ready?ready():location());
+    const refs:EventRef[]=[],cleanup=()=>{for(const ref of refs)workspace.offref(ref);refs.length=0;this.boardOpeningNavigation.delete(stop);},stop=()=>{cancelled=true;cleanup();};
+    if(!ready){
+      const changed=()=>{if(allocating)return;if(!location())cancelled=true;else if(revealing&&workspace.getMostRecentLeaf()===target)captureFocus();};
+      refs.push(workspace.on('active-leaf-change',changed),workspace.on('file-open',changed));this.boardOpeningNavigation.add(stop);
+    }
+    try{
+      if(!current())return;
+      if(!isBoardPath(path)||!isWorkspaceFile(file)||this.app.vault.getAbstractFileByPath(path)!==file)throw Error('请选择工作目录中的白板');
+      readBoardDocument(await this.app.vault.read(file),file.extension,parseYaml);if(!current())return;
+      if(file.path!==path||this.app.vault.getAbstractFileByPath(path)!==file)throw Error('白板已移动或删除');
+      const leaf=await this.boardOpening.run(file,async()=>{
+        if(!current())return undefined;
+        const existing=workspace.getLeavesOfType(VIEW).find(l=>(l.view as BoardView).file===file||l.getViewState().state?.file===path);
+        if(existing){target=existing;navigation?.target(existing);if(provisional&&!(existing.view instanceof BoardView&&existing.view.session))this.provisionalBoardGeometry.set(existing,file);try{mounting=true;await existing.loadIfDeferred();if(!ready&&current()&&workspace.getMostRecentLeaf()===existing&&boardReady(existing))captureFocus();mounting=false;return existing;}catch(error){this.provisionalBoardGeometry.delete(existing);throw error;}}
+        const create=()=>workspace.getLeaf('tab');let created:WorkspaceLeaf;
+        allocating=true;
+        try{created=navigation?navigation.acquire(create):create();target=created;if(!ready){const active=workspace.getMostRecentLeaf();if(active!==focus&&active!==created||active===focus&&!location())cancelled=true;captureFocus();}}finally{allocating=false;}
+        navigation?.target(created);if(provisional)this.provisionalBoardGeometry.set(created,file);
+        const initialView=created.view,initialType=created.getViewState().type,initialState=JSON.stringify(created.getViewState().state);
+        const ownsPlaceholder=()=>initialType==='empty'&&created.view===initialView&&created.getViewState().type===initialType&&JSON.stringify(created.getViewState().state)===initialState&&(!(created.view instanceof FileView)||!created.view.file);
+        const discard=()=>{this.provisionalBoardGeometry.delete(created);if(ownsPlaceholder())created.detach();};
+        try{
+          await this.readBoard(file);
+          if(!current()||!ownsPlaceholder()||file.path!==path||this.app.vault.getAbstractFileByPath(path)!==file){discard();return undefined;}
+          mounting=true;
+          if(file.extension.toLowerCase()==='md')await created.setViewState({type:VIEW,active:false,state:{file:path}});else await created.openFile(file,{active:false});
+          if(!ready&&current()&&workspace.getMostRecentLeaf()===created&&boardReady(created))captureFocus();mounting=false;
+          return created;
+        }catch(error){discard();throw error;}
+      });
+      if(!current()||!boardReady(leaf))return;if(provisional)return leaf;
+      target=leaf;revealing=true;await workspace.revealLeaf(leaf);if(!current()||!boardReady(leaf))return;
+      this.provisionalBoardGeometry.delete(leaf);const view=leaf.view as BoardView;view.resumeAutomaticGeometry();workspace.setActiveLeaf(leaf,{focus:true});
+      if(!current()||leaf.view!==view||!boardReady(leaf))return;this.currentBoard=view;captureFocus();revealing=false;
+      if(fit){await new Promise<void>(resolve=>(view.containerEl?.ownerDocument?.defaultView||window).requestAnimationFrame(()=>resolve()));if(current()&&leaf.view===view&&boardReady(leaf))view.fit();}
+    }finally{cleanup();}
   }
 
   openBoardOrganizer(view:BoardView|null=this.app.workspace.getActiveViewOfType(BoardView)||this.currentBoard||null){

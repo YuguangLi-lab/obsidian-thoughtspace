@@ -10,7 +10,7 @@ import {isWorkspaceFile} from '../src/workspace';
 
 const source=readFileSync(process.env.CONVENIENCE_COMMAND_SOURCE||'src/main.ts','utf8');
 function take(start:string,end:string){const a=source.indexOf(start),b=source.indexOf(end,a+start.length);assert(a>=0&&b>a,start);return source.slice(a,b);}
-class View {containerEl:any;}
+class View {containerEl:any;leaf:any;}
 class FileView extends View {file?:TFile;}
 class BoardView extends FileView {session?:unknown;closed=false;}
 class TFile {constructor(public path:string,public valid=true){}}
@@ -21,6 +21,7 @@ const CommandView=new Function('isBrainBoard','BoardView','VIEW',transformSync(`
 function deferred(){let resolve!:()=>void;return{promise:new Promise<void>(done=>{resolve=done;}),resolve:()=>resolve()};}
 function fixture(){
  const files=new Map<string,TFile>(),origin=new FileView(),doc={hasFocus:()=>true,defaultView:{closed:false}},opened:string[]=[],visits:string[]=[];origin.containerEl={ownerDocument:doc};origin.file=new TFile('Initial.md');
+ origin.leaf={view:origin,getViewState:()=>({type:'markdown',state:{file:origin.file?.path}})};
  let active:View=origin,fallback=0;
  const plugin=new Plugin();Object.assign(plugin,{settings:{hub:{recent:[]}},app:{vault:{getAbstractFileByPath:(path:string)=>files.get(path)},workspace:{containerEl:{ownerDocument:doc},getActiveViewOfType:(Type:typeof View)=>active instanceof Type?active:null,on:()=>({}),offref:()=>{}}},
   openBoard:async(file:TFile,fit:boolean,current:()=>boolean,_provisional:boolean,navigation:{target:(leaf:unknown)=>void})=>{assert.equal(fit,false);if(!current())return;if(!file.valid||file.path==='damaged.thoughtspace')throw Error('invalid layout');opened.push(file.path);const board=new BoardView();board.file=file;board.session={};board.containerEl={ownerDocument:doc};const leaf={view:board,getViewState:()=>({type:'thoughtspace-board',state:{file:file.path}})};Object.assign(board,{leaf});navigation.target(leaf);active=board;},

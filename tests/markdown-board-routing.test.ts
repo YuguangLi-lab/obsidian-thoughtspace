@@ -31,15 +31,17 @@ function callsIn(methodName:string,callee:string){
 class TFile {
  stat={mtime:1,size:0};constructor(public path:string){}get extension(){return this.path.split('.').at(-1)!;}get basename(){return this.name.replace(/\.[^.]+$/,'');}get name(){return this.path.slice(this.path.lastIndexOf('/')+1);}get parent(){return{path:this.path.slice(0,Math.max(0,this.path.lastIndexOf('/')))};}
 }
-class BoardView {
+class View {}
+class FileView extends View {constructor(public file:TFile){super();}}
+class BoardView extends FileView {
  session:any;closed=false;fits=0;reveals:string[]=[];leaf:any;containerEl={ownerDocument:{defaultView:{requestAnimationFrame:(run:()=>void)=>run()}}};
- constructor(public file:TFile,board:model.Board=model.emptyBoard()){this.session={board,blocked:false,flush:async()=>{},refreshNativeEditing:()=>{},externalUpdate:async()=>{}};}
+ constructor(file:TFile,board:model.Board=model.emptyBoard()){super(file);this.session={board,blocked:false,flush:async()=>{},refreshNativeEditing:()=>{},externalUpdate:async()=>{}};}
  resumeAutomaticGeometry(){}fit(){this.fits++;}revealNode(id:string){this.reveals.push(id);}
 }
-class MarkdownView {
+class MarkdownView extends FileView {
  containerEl={isConnected:true,ownerDocument:{defaultView:globalThis}};
- saving=false;saveAgain=false;file:TFile;leaf:any;mode='source';value:string;editor={getValue:()=>this.value};
- constructor(file:TFile,value:string,private persist:(value:string)=>void){this.file=file;this.value=value;}
+ saving=false;saveAgain=false;leaf:any;mode='source';value:string;editor={getValue:()=>this.value};
+ constructor(file:TFile,value:string,private persist:(value:string)=>void){super(file);this.value=value;}
  getMode(){return this.mode;}getViewData(){return this.value;}async save(){this.persist(this.value);}
 }
 const ownershipModule={exports:{} as any};
@@ -53,7 +55,7 @@ class Menu {
 }
 const notices:string[]=[],errors:unknown[]=[];
 const helper=ast.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text==='isBoardFile');
-const deps={mediaKind:()=>undefined,isPdfFile:()=>false,...model,...documents,...ownership,isBoardPath,isWorkspaceFile,parseYaml,TFile,BoardView,MarkdownView,Prompt,Menu,VIEW,EXT,ROOT,parseBoardLink,boardLink,createBrainBoard,captureBoardReferenceRename,createBoardReferenceRenamer,appendPendingBoardReference,removePendingBoardReference,
+const deps={mediaKind:()=>undefined,isPdfFile:()=>false,...model,...documents,...ownership,isBoardPath,isWorkspaceFile,parseYaml,TFile,FileView,BoardView,MarkdownView,Prompt,Menu,VIEW,EXT,ROOT,parseBoardLink,boardLink,createBrainBoard,captureBoardReferenceRename,createBoardReferenceRenamer,appendPendingBoardReference,removePendingBoardReference,
  normalizePath:(path:string)=>path.replace(/\/+/g,'/').replace(/^\//,''),act:(run:()=>unknown)=>run(),report:(error:unknown)=>errors.push(error),Notice:class{constructor(value:string){notices.push(value);}},window:globalThis};
 const isBoardFile=helper?execute(helper.getText(ast)+';return isBoardFile;',deps):()=>{throw Error('Production isBoardFile is missing');};
 const Host=execute(`class Host {${methods('ThoughtSpace',['readBoard','openBoard','openBoardInNewTab','openDeepLink','boardGraph','assertCanNestReachable','renameReferences','editReferenceJournal','deferBoardReference','retryPendingBoardReferences','flushPendingBoardReferences','createUnique','folder','duplicateBoard','promptMarkdownBoard','openCurrentMarkdownBoard','openBoardNativeMarkdown','refreshMarkdownBoardOwnership','promptSaveBoardAs','saveBoardAs','nativeFileMenu','toggleBoardNative'])}};return Host;`,{...deps,isBoardFile});
@@ -67,21 +69,23 @@ function fixture(){
  const put=(path:string,raw:string,metadata?:unknown)=>{const file=new TFile(path);file.stat.size=raw.length;files.set(path,file);disk.set(file,raw);if(metadata!==undefined)frontmatter.set(file,metadata);return file;};
  const write=(file:TFile,raw:string)=>{disk.set(file,raw);file.stat.mtime++;file.stat.size=raw.length;};
  const makeLeaf=(type:string='empty',file?:TFile)=>{
-  const leaf:any={type,isDeferred:false,detached:false,view:undefined,state:{type,state:file?{file:file.path}:{}},
+  const leaf:any={type,isDeferred:false,detached:false,view:new View(),state:{type,state:file?{file:file.path}:{}},
    getViewState:()=>leaf.state,loadIfDeferred:async()=>{leaf.isDeferred=false;events.push(['load',leaf]);},
    setViewState:async(state:any)=>{events.push(['state',state]);leaf.type=state.type;leaf.state=state;const target=files.get(state.state.file);assert(target);if(state.type===VIEW)leaf.view=new BoardView(target,await host.readBoard(target));else{leaf.view=new MarkdownView(target,disk.get(target)!,raw=>write(target,raw));leaf.view.mode=state.state.mode||'source';}leaf.view.leaf=leaf;},
    openFile:async(target:TFile,options:any)=>{events.push(['openFile',target,options]);await leaf.setViewState({type:target.extension===EXT?VIEW:'markdown',state:{file:target.path}});},
    detach:()=>{leaf.detached=true;const index=leaves.indexOf(leaf);if(index>=0)leaves.splice(index,1);events.push(['detach',leaf]);}};
   if(file){leaf.view=type===VIEW?new BoardView(file):new MarkdownView(file,disk.get(file)!,raw=>write(file,raw));leaf.view.leaf=leaf;}leaves.push(leaf);return leaf;
  };
- const workspace={on:(_name:string,run:(leaf:any)=>void)=>{navigationListeners.add(run);return run;},offref:(run:(leaf:any)=>void)=>navigationListeners.delete(run),containerEl:{ownerDocument:{defaultView:globalThis}},getLeavesOfType:(type:string)=>leaves.filter(leaf=>leaf.type===type),getLeaf:(placement:string)=>{events.push(['create',placement]);return makeLeaf();},
+ const listeners=new Map<string,Set<(...args:any[])=>void>>([['active-leaf-change',navigationListeners]]),emit=(name:string,...args:any[])=>{for(const run of listeners.get(name)||[])run(...args);};
+ const workspace={containerEl:{ownerDocument:{defaultView:globalThis}},getLeavesOfType:(type:string)=>leaves.filter(leaf=>leaf.type===type),getLeaf:(placement:string)=>{events.push(['create',placement]);const leaf=makeLeaf();workspace.setActiveLeaf(leaf);return leaf;},
   getActiveFile:()=>active?.view.file,getActiveViewOfType:(kind:any)=>active?.view instanceof kind?active.view:null,getMostRecentLeaf:()=>active,getActiveLeaf:()=>active,
-  revealLeaf:async(leaf:any)=>{events.push(['reveal',leaf]);},setActiveLeaf:(leaf:any)=>{active=leaf;events.push(['active',leaf]);for(const run of navigationListeners)run(leaf);}};
+  revealLeaf:async(leaf:any)=>{events.push(['reveal',leaf]);},setActiveLeaf:(leaf:any)=>{active=leaf;events.push(['active',leaf]);emit('active-leaf-change',leaf);},
+  on:(name:string,run:(...args:any[])=>void)=>{let set=listeners.get(name);if(!set){set=new Set();listeners.set(name,set);}set.add(run);return{name,run};},offref:(ref:{name:string;run:(...args:any[])=>void})=>listeners.get(ref.name)?.delete(ref.run)};
  const app={workspace,metadataCache:{getFileCache:(file:TFile)=>frontmatter.has(file)?{frontmatter:frontmatter.get(file)}:null},vault:{
   getName:()=> 'Synthetic Vault',getFiles:()=>[...files.values()],getAbstractFileByPath:(path:string)=>files.get(path),read:async(file:TFile)=>{events.push(['read',file]);return disk.get(file)!;},cachedRead:async(file:TFile)=>{events.push(['cachedRead',file]);return disk.get(file)!;},
   process:async(file:TFile,change:(raw:string)=>string)=>{const raw=change(disk.get(file)!);write(file,raw);events.push(['process',file]);},createFolder:async(path:string)=>{events.push(['folder',path]);},create:async(path:string,raw:string)=>{events.push(['createFile',path]);return put(path,raw,raw.startsWith('---')?{thoughtspace:'board'}:undefined);}},
   fileManager:{renameFile:async(file:TFile,path:string)=>{const old=file.path;files.delete(old);file.path=path;files.set(path,file);events.push(['rename',old,path]);}}};
- Object.assign(host,{app,sessions:new Map(),settings:{favoriteBoards:[],pendingBoardReferences:[]},referenceQueue:Promise.resolve(),referenceJournalQueue:Promise.resolve(),boardOpening:new SharedOpen(),provisionalBoardGeometry:new Map(),nativeBoardTransitions:new Set(),nativeReferenceRuns:new Map(),nativeReferenceNotices:new Set(),saveData:async(data:unknown)=>{events.push(['saveData',structuredClone(data)]);},currentBoard:undefined});
+ Object.assign(host,{app,sessions:new Map(),settings:{favoriteBoards:[],pendingBoardReferences:[]},referenceQueue:Promise.resolve(),referenceJournalQueue:Promise.resolve(),boardOpening:new SharedOpen(),boardOpeningNavigation:new Set(),provisionalBoardGeometry:new Map(),nativeBoardTransitions:new Set(),nativeReferenceRuns:new Map(),nativeReferenceNotices:new Set(),saveData:async(data:unknown)=>{events.push(['saveData',structuredClone(data)]);},currentBoard:undefined});
  return{host,app,files,disk,frontmatter,leaves,events,navigationListeners,put,write,makeLeaf,setActive:(leaf:any)=>{active=leaf;workspace.setActiveLeaf(leaf);},active:()=>active};
 }
 function decoded(file:TFile,raw:string){return documents.readBoardDocument(raw,file.extension,parseYaml).board;}
