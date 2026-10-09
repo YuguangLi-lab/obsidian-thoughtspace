@@ -1121,7 +1121,9 @@ export default class ThoughtSpace extends Plugin {
   async openBoard(file: TFile, fit = false, current:()=>boolean=()=>true, provisional=false,navigation?:BoardOpenNavigation):Promise<void|WorkspaceLeaf> {
     if(!current())return;
     if(!isBoardPath(file.path)||!isWorkspaceFile(file)||this.app.vault.getAbstractFileByPath(file.path)!==file)throw Error('请选择工作目录中的白板');
+    const path=file.path;
     readBoardDocument(await this.app.vault.read(file),file.extension,parseYaml);if(!current())return;
+    if(file.path!==path||this.app.vault.getAbstractFileByPath(path)!==file)throw Error('白板已移动或删除');
     const leaf=await this.boardOpening.run(file,async()=>{
       const existing=this.app.workspace.getLeavesOfType(VIEW).find(l=>(l.view as BoardView).file===file||l.getViewState().state?.file===file.path);
       if(existing){navigation?.target(existing);if(provisional&&!(existing.view instanceof BoardView&&existing.view.session))this.provisionalBoardGeometry.set(existing,file);try{await existing.loadIfDeferred();return existing;}catch(error){this.provisionalBoardGeometry.delete(existing);throw error;}}
