@@ -14,6 +14,7 @@ import {supportsLocalRelations,localRelationNode} from '../src/local-relations';
 import {sectionContains} from '../src/sections';
 import {reflowReadingContent} from '../src/expansion-reading-state';
 import {boardInputCommands,type BoardInputAction} from '../src/board-input-commands';
+import {boardHostDeps} from './board-host-deps';
 
 // Real Session transactions and BoardView host methods; native window rendering,
 // source opening and pickers are boundary doubles, separately covered by native QA.
@@ -323,7 +324,7 @@ test('clearing a brain view closes its owned dialog, unloads its component and i
  const f=fixture(),mounted=f.mount(),before=model.clone(f.owner.board);f.view.addBrainObject('note');const picker=f.pickers.at(-1);f.view.clearBrainBoard();assert.equal(picker.closed,true);assert.equal(mounted.closed,true);assert.equal(mounted.el.isConnected,false);assert.equal(mounted.host.snapshot(),undefined);mounted.host.change(state.createBoardMindmapState('b'));await f.drain();assert.deepEqual(f.owner.board,before);assert.equal(f.writes(),0);
 });
 
-const NestingHost=compile('class Host{'+take('  async assertCanNestReachable(','  private assertCanNestGraph(')+'};return Host',{TFile,EXT:'thoughtspace',boardLinks:model.boardLinks});
+const NestingHost=compile('class Host{'+take('  async assertCanNestReachable(','  private assertCanNestGraph(')+'};return Host',{...boardHostDeps,TFile,EXT:'thoughtspace',boardLinks:model.boardLinks});
 function nestingFixture(graph:Record<string,string[]>){
  const files=new Map(Object.keys(graph).map(path=>[path,new TFile(path)])),reads:string[]=[],host=new NestingHost();let current=true,readHook:((file:TFile)=>Promise<void>)|undefined;
  host.app={vault:{getAbstractFileByPath:(path:string)=>files.get(path),getFiles:()=>{throw Error('Must not scan the vault');}}};

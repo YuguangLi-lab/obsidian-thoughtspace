@@ -1,5 +1,6 @@
 import {isRecord,isUnknownArray,isFiniteNumber,isOneOf} from './value-guards';
 import {Board, Card, Color} from './model';
+import {isBoardPath} from './board-path';
 
 export type HubScope = 'boards'|'favorites'|'recent'|'notes'|'inbox'|'shared';
 export type HubSort = 'updated'|'title'|'size';
@@ -15,7 +16,7 @@ export function cleanHubFilter(raw:unknown):HubFilter {
 export function cleanHubPreferences(raw:unknown):HubPreferences {
   const value=isRecord(raw)?raw:{},saved:SavedHubFilter[]=[],recent:HubPreferences['recent']=[];
   for(const item of isUnknownArray(value.saved)?value.saved:[]){if(saved.length===20)break;if(isRecord(item)&&typeof item.id==='string'&&item.id.length<=80&&typeof item.name==='string'&&item.name.trim()&&!saved.some(s=>s.id===item.id))saved.push({id:item.id,name:item.name.trim().slice(0,50),filter:cleanHubFilter(item.filter)});}
-  for(const item of isUnknownArray(value.recent)?value.recent:[]){if(recent.length===24)break;if(isRecord(item)&&typeof item.path==='string'&&item.path.endsWith('.thoughtspace')&&isFiniteNumber(item.at)&&item.at>0&&!recent.some(s=>s.path===item.path))recent.push({path:item.path,at:item.at});}
+  for(const item of isUnknownArray(value.recent)?value.recent:[]){if(recent.length===24)break;if(isRecord(item)&&isBoardPath(item.path)&&isFiniteNumber(item.at)&&item.at>0&&!recent.some(s=>s.path===item.path))recent.push({path:item.path,at:item.at});}
   return {view:value.view==='list'?'list':'gallery',saved,recent};
 }
 export function rememberBoard(prefs:HubPreferences,path:string,at=Date.now()):HubPreferences {return {...prefs,recent:[{path,at},...prefs.recent.filter(x=>x.path!==path)].slice(0,24)};}

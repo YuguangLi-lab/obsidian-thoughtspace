@@ -4,9 +4,11 @@ import {themeSurface} from './ui-tokens';
 import {isWorkspaceFile} from './workspace';
 import {HubPreferences, HubFilter, HubIndex, HubBoard, HubNote, HubScope, cleanHubFilter, defaultHubFilter, hubIndex, hubResults, summarizeBoard, saveHubFilter} from './space-hub';
 
-interface HubHost {
+export interface SpaceHubHost {
   preferences:()=>HubPreferences;save:(prefs:HubPreferences)=>Promise<void>;favorites:()=>string[];
   journalFolder:string;readBoard:(file:TFile)=>Promise<Board>;
+  /** Discovery only: readBoard still validates each source's full document. */
+  isBoardFile?:(file:TFile)=>boolean;
   openBoard:(file:TFile)=>Promise<void>;openNote:(file:TFile)=>unknown;favorite:(file:TFile)=>Promise<void>;
   capture:()=>void;createBoard:()=>void;calendar:()=>unknown;
   target?:{title:string;add:(paths:string[])=>Promise<number>};
@@ -22,7 +24,7 @@ export class SpaceHubModal extends Modal {
   private search!:HTMLInputElement;private tag!:HTMLSelectElement;private sort!:HTMLSelectElement;private journals!:HTMLInputElement;
   private refreshButton!:HTMLButtonElement;private loaded=false;
   private scopeTitle!:HTMLElement;private scopeCount!:HTMLElement;private viewButtons=new Map<string,HTMLButtonElement>();private detailReturnFocus?:HTMLElement;
-  constructor(app:App,private host:HubHost){super(app);}
+  constructor(app:App,private host:SpaceHubHost){super(app);}
   private action(parent:HTMLElement,label:string,icon:string,fn:()=>unknown,cls=''){
     const b=parent.createEl('button',{cls:`ts-hub-button ${cls}`,attr:{'aria-label':label,title:label}});if(icon)setIcon(b.createSpan(),icon);b.createSpan({text:label});b.onclick=()=>{try{Promise.resolve(fn()).catch(e=>this.error(e));}catch(e){this.error(e);}};return b;
   }
@@ -55,8 +57,9 @@ export class SpaceHubModal extends Modal {
     const run=++this.generation,changes=this.changes;this.busy=true;this.refreshButton.disabled=true;this.state.setText('正在整理白板与笔记索引…');
     try{
       const all=this.app.vault.getFiles().filter(isWorkspaceFile),paths=new Set(all.map(f=>f.path));
-      const notes:HubNote[]=all.filter(f=>f.extension==='md').map(f=>({path:f.path,title:f.basename,mtime:f.stat.mtime,tags:[...new Set(getAllTags(this.app.metadataCache.getFileCache(f)||{})||[])],journal:f.path.startsWith(this.host.journalFolder+'/')}));
-      const byPath=new Map(notes.map(n=>[n.path,n])),files=all.filter(f=>f.extension==='thoughtspace'),boards:HubBoard[]=[],errors:HubIndex['errors']=[];let cursor=0;
+      const files=all.filter(f=>this.host.isBoardFile?this.host.isBoardFile(f):f.extension==='thoughtspace'),boardFiles=new Set(files);
+      const notes:HubNote[]=all.filter(f=>f.extension==='md'&&!boardFiles.has(f)).map(f=>({path:f.path,title:f.basename,mtime:f.stat.mtime,tags:[...new Set(getAllTags(this.app.metadataCache.getFileCache(f)||{})||[])],journal:f.path.startsWith(this.host.journalFolder+'/')}));
+      const byPath=new Map(notes.map(n=>[n.path,n])),boards:HubBoard[]=[],errors:HubIndex['errors']=[];let cursor=0;
       await Promise.all(Array.from({length:Math.min(4,files.length)},async()=>{while(cursor<files.length&&this.active&&run===this.generation){const f=files[cursor++];try{if(f.stat.size>8*1024*1024)throw Error('超过 8 MB，未加入总览索引');const board=await this.host.readBoard(f);if(!this.active||run!==this.generation)return;boards.push(summarizeBoard(f.path,f.basename,f.stat.mtime,board,byPath,p=>paths.has(p)));}catch(e){errors.push({path:f.path,message:e instanceof Error?e.message:String(e)});}}}));
       if(!this.active||run!==this.generation)return;this.index=hubIndex(boards,notes,errors);this.loaded=true;this.selected=new Set([...this.selected].filter(p=>byPath.has(p)));
       this.tag.empty();this.tag.createEl('option',{value:'',text:'全部标签'});for(const tag of [...new Set(notes.flatMap(n=>n.tags))].sort())this.tag.createEl('option',{value:tag,text:tag});if(this.filter.tag&&!this.tag.querySelector(`option[value="${CSS.escape(this.filter.tag)}"]`))this.tag.createEl('option',{value:this.filter.tag,text:this.filter.tag});this.tag.value=this.filter.tag;

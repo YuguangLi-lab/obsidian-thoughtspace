@@ -1,3 +1,4 @@
+import {cleanPendingBoardReferences,type PendingBoardReference} from './pending-board-references';
 import {cleanPaperPreferences} from './paper-appearance';
 import {cleanBackgroundImagePreferences} from './background-image';
 import {cleanLayoutPresets,type LayoutPreset} from './layout-presets';
@@ -16,6 +17,7 @@ export type ThoughtSpacePreferences=FilingSettings&AppearanceSettings&BoardPrefe
  localRelations:LocalRelationsPreferences;
  layoutPresets:LayoutPreset[];imageHostEnabled?:boolean;database:DatabasePreferences;hub:HubPreferences;favoriteBoards:string[];
  notePaneLeafId?:string;noteMarkdownToolbar?:boolean;boardSearchEnabled?:boolean;compactDuplicateCardTitles:boolean;
+ pendingBoardReferences?:PendingBoardReference[];
  nativeBookmarksMigrated?:boolean;pendingBookmarkChanges?:Record<string,boolean>;
 };
 /** Persisted plugin data is untrusted JSON, including after sync or manual editing. */
@@ -35,5 +37,6 @@ export function cleanPluginSettings(raw:unknown):ThoughtSpacePreferences {
  if(isOneOf(saved.canvasBackground,['dots','grid','plain','paper','image']))out.canvasBackground=saved.canvasBackground;
  if(typeof saved.notePaneLeafId==='string')out.notePaneLeafId=saved.notePaneLeafId;
  if(isRecord(saved.pendingBookmarkChanges))out.pendingBookmarkChanges=Object.fromEntries(Object.entries(saved.pendingBookmarkChanges).filter((entry):entry is [string,boolean]=>typeof entry[1]==='boolean'));
+ if(saved.pendingBoardReferences!==undefined)out.pendingBoardReferences=cleanPendingBoardReferences(saved.pendingBoardReferences);
  return out;
 }

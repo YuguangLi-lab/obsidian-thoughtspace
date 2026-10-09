@@ -1,6 +1,7 @@
 import {brainIdeaNode} from './brain-board-idea';
 import {type Board,parseBoard} from './model';
 import {captureLocalRelationEdit,planLocalRelationEdit,type LocalRelationEditSnapshot} from './local-relations-edit';
+import {isBoardPath} from './board-path';
 
 export type BrainRelationSide='top'|'bottom'|'left'|'right';
 export const brainRelationLabels:Record<BrainRelationSide,string>={top:'添加父节点',bottom:'添加子节点',left:'添加左侧关联节点',right:'添加右侧关联节点'};
@@ -9,7 +10,7 @@ export const brainRelationLabels:Record<BrainRelationSide,string>={top:'添加�
  * original center. Left/right are associations, never inferred sibling branches. */
 export function planBrainNoteRelation(board:Board,centerId:string,path:string,side:BrainRelationSide,nodeId:string,edgeId:string,expected:LocalRelationEditSnapshot,ideaTitle?:string,fileKind:'card'|'board'='card'){
  if(board.presentation!=='brain'||!board.brain||!Object.hasOwn(brainRelationLabels,side))throw Error('脑图关系操作已失效');
- if(ideaTitle===undefined&&(typeof path!=='string'||!path.trim()||!path.toLowerCase().endsWith(fileKind==='board'?'.thoughtspace':'.md')))throw Error(fileKind==='board'?'请选择 ThoughtSpace 白板':'请选择 Markdown 笔记');
+ if(ideaTitle===undefined&&(typeof path!=='string'||!path.trim()||!(fileKind==='board'?isBoardPath(path):path.toLowerCase().endsWith('.md'))))throw Error(fileKind==='board'?'请选择 ThoughtSpace 白板':'请选择 Markdown 笔记');
  const center=captureLocalRelationEdit(board,[centerId]);
  if(!expected?.nodes||expected.nodes[centerId]!==center.nodes[centerId])throw Error('中心节点已变化，请重新添加关系');
  let target=ideaTitle===undefined?board.nodes.find(node=>node.kind===fileKind&&node.file===path):undefined;

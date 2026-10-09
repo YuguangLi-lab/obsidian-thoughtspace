@@ -12,6 +12,8 @@
 
 教程覆盖现有功能的完整使用流程，从第一张白板到阅读、写作和音视频摘录。英文版保留中文按钮名称，方便对照当前界面。
 
+[单文件 Markdown 白板说明](docs/markdown-boards.zh-CN.md)包含原生属性、文件格式与新旧另存；并发编辑和恢复边界见 [1.3.34 验证说明](qa/RELEASE-1.3.34.md)。
+
 | 想完成的事情 | 推荐入口 |
 | --- | --- |
 | 安装并创建第一张白板 | [安装](docs/USER-GUIDE.zh-CN.md#installation) → [十分钟上手](docs/USER-GUIDE.zh-CN.md#quick-start) |

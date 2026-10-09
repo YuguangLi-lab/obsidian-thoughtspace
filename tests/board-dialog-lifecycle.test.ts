@@ -20,7 +20,7 @@ function fixture(){
  const deps={isBrainBoard,GroupOrganizerModal:Modal,SavedViewsModal:Modal,LayoutPlannerModal:Modal,studioDraft,BoardView:class{},window:hostWindow,act:(fn:()=>unknown)=>fn(),report:(error:unknown)=>{throw error;},fitTextNode(){}};
  const View=new Function(...Object.keys(deps),transformSync(`class View{${methods}}return View;`,{loader:'ts'}).code)(...Object.values(deps));
  const commit=deferred<boolean>(),navigation=deferred<void>(),acquisition=deferred<ReturnType<typeof session>>(),view=new View();
- function session(){const value={board:{...emptyBoard(),version:3 as const},blocked:false,listeners:new Set(),flush:async()=>{},change:(edit:(board:Board)=>void)=>{calls.committed++;edit(value.board);}};return value;}
+ function session(){const value={board:{...emptyBoard(),version:3 as const},blocked:false,refreshNativeEditing(){},listeners:new Set(),flush:async()=>{},change:(edit:(board:Board)=>void)=>{calls.committed++;edit(value.board);}};return value;}
  const owner=session(),next=session();owner.board.nodes.push({id:'chosen',kind:'text',text:'Unchanged',x:100,y:100,width:160,height:100,color:'green'});
  Object.assign(view,{dialogEpoch:0,session:owner,closed:false,selected:new Set(['chosen']),outlineCollapsed:new Set(),renderFrame:0,sidebarRun:0,inline:{commit:()=>commit.promise},
   blankClicks:{cancel(){}},viewTrail:{clear(){}},svg:{isConnected:true},stage:{removeClass(){}},

@@ -1,5 +1,6 @@
 import type {Card} from './model';
 import {hasAsciiControl} from './value-guards';
+import {isBoardPath} from './board-path';
 
 export type MediaKind='audio'|'video';
 export const maximumMediaTime=100000000;
@@ -36,7 +37,7 @@ export function mediaCard(id:string,file:string,x:number,y:number,width=320,star
 
 export interface MediaSource {vault:string;board:string;node:string;file:string;time:number}
 function validLabel(value:unknown):value is string{return typeof value==='string'&&!!value.trim()&&value.length<=1000&&!hasControl(value);}
-function validSource(source:MediaSource):boolean{return validLabel(source.vault)&&isVaultPath(source.board)&&source.board.endsWith('.thoughtspace')&&validLabel(source.node)&&isVaultMediaPath(source.file)&&validMediaTime(source.time);}
+function validSource(source:MediaSource):boolean{return validLabel(source.vault)&&isVaultPath(source.board)&&isBoardPath(source.board)&&validLabel(source.node)&&isVaultMediaPath(source.file)&&validMediaTime(source.time);}
 /** A backlink identifies a concrete board node and attachment, preventing silent retargeting. */
 export function mediaSourceUrl(source:MediaSource):string {
  if(!validSource(source))throw Error('媒体来源链接无效');

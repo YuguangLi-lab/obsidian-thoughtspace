@@ -1,5 +1,6 @@
 import {localRelationKinds,type LocalRelationKind} from './local-relations';
 import {hasAsciiControl,isRecord} from './value-guards';
+import {isBoardPath} from './board-path';
 
 export const LOCAL_RELATIONS_STATE_VERSION=1;
 export const HISTORY_LIMIT=80;
@@ -30,7 +31,7 @@ function text(raw:unknown,limit:number):string {
 }
 function path(raw:unknown,board=false):string|undefined {
  if(typeof raw!=='string'||!raw||raw.length>1024||raw.trim()!==raw||hasControl(raw)||raw.startsWith('/')||raw.includes('\\')||raw.includes(':'))return;
- if(raw.split('/').some(part=>!part||part==='.'||part==='..')||board&&!raw.endsWith('.thoughtspace'))return;
+ if(raw.split('/').some(part=>!part||part==='.'||part==='..')||board&&!isBoardPath(raw))return;
  return raw;
 }
 export function localRelationsBoardPath(raw:unknown):string|undefined {return path(raw,true);}

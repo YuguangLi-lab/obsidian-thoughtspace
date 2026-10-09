@@ -49,7 +49,7 @@ function fixture(zoom=1){
  const View=new Function(...Object.keys(deps),transformSync(`class View{${methods}};return View`,{loader:'ts'}).code)(...Object.values(deps));
  const view=new View(),files=new Map<string,TFile>();
  const board={version:3,mode:'free',viewport:{x:123,y:-87,zoom},nodes:[] as any[],edges:[]};
- const owner={board,file:new TFile('Boards/example.thoughtspace'),blocked:false,change:(apply:(b:any)=>void)=>apply(board),persist:()=>calls.persist++};
+ const owner={board,file:new TFile('Boards/example.thoughtspace'),blocked:false,refreshNativeEditing(){},change:(apply:(b:any)=>void)=>apply(board),persist:()=>calls.persist++};
  let read:(file:TFile)=>Promise<string>=async file=>file.content;
  const addFile=(path='note.md')=>{const file=new TFile(path);files.set(path,file);return file;};
  Object.assign(view,{session:owner,closed:false,inlineStart:0,positions:new Map(),pendingFits:new Map(),selected:new Set(),

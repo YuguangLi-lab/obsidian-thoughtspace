@@ -9,7 +9,7 @@ test('Canvas export retains exact text without injecting unsupported styling',()
 test('deep links encode Chinese spaces and URL metacharacters',()=>{const vault='我的 & 笔记',file='目录/中文 & + #白板.thoughtspace',node='topic & /?';const u=new URL(boardLink(vault,file,node));assert.equal(u.protocol,'obsidian:');assert.equal(u.hostname,'thoughtspace');assert.deepEqual(parseBoardLink(Object.fromEntries(u.searchParams),vault),{file,node});});
 test('whole board link leaves node optional',()=>assert.deepEqual(parseBoardLink({vault:'V',file:'a.thoughtspace'},'V'),{file:'a.thoughtspace'}));
 test('deep links reject a different vault',()=>assert.throws(()=>parseBoardLink({vault:'other',file:'a.thoughtspace'},'V')));
-for(const file of ['/tmp/a.thoughtspace','../a.thoughtspace','a/../b.thoughtspace','a\\b.thoughtspace','a.md','a\n.thoughtspace'])test('deep links reject unsafe path '+JSON.stringify(file),()=>assert.throws(()=>parseBoardLink({vault:'V',file},'V')));
+for(const file of ['/tmp/a.thoughtspace','../a.thoughtspace','a/../b.thoughtspace','a\\b.thoughtspace','a.txt','a\n.thoughtspace'])test('deep links reject unsafe path '+JSON.stringify(file),()=>assert.throws(()=>parseBoardLink({vault:'V',file},'V')));
 
 test('protocol routing can consume vault while preserving explicit space',()=>assert.deepEqual(parseBoardLink({space:'V',file:'a.thoughtspace',action:'thoughtspace'},'V'),{file:'a.thoughtspace'}));
 

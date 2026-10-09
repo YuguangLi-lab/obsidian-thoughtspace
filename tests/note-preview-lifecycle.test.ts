@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
+import {boardHostDeps} from './board-host-deps';
 
 // Execute the production modal lifecycle with only Obsidian's host boundary replaced.
 class El {
@@ -23,8 +24,8 @@ function fixture(options:{read?:()=>Promise<string>;render?:()=>Promise<void>;bo
  class Component{loaded=false;constructor(){scopes.push(this)}load(){this.loaded=true}unload(){this.loaded=false}}
  class Modal{modalEl=new El();titleEl=new El();contentEl=new El();constructor(public app:any){}close(){(this as any).onClose();this.contentEl.connected=false}}
  const source=readFileSync('src/main.ts','utf8'),start=source.indexOf('class NotePreview extends Modal'),end=source.indexOf('/** 一个文件共用',start);
- const factory=new Function('Modal','Component','themeSurface','button','MarkdownRenderer','isWorkspaceFile','EXT','TFile','getFrontMatterInfo',transformSync(source.slice(start,end)+'\nreturn NotePreview',{loader:'ts'}).code);
- const Preview=factory(Modal,Component,()=>{},(el:El,label:string,_icon:string,fn:()=>unknown)=>{const b=el.createEl('button',{text:label});b.onclick=fn;return b},{render:async(_a:any,text:string)=>{rendered.push(text);await options.render?.()}},()=>true,'thoughtspace',class{},()=>({exists:false,contentStart:0}));
+ const factory=new Function('Modal','Component','themeSurface','button','MarkdownRenderer','isWorkspaceFile','EXT','TFile','getFrontMatterInfo',...Object.keys(boardHostDeps).filter(key=>key!=='isWorkspaceFile'),transformSync(source.slice(start,end)+'\nreturn NotePreview',{loader:'ts'}).code);
+ const Preview=factory(Modal,Component,()=>{},(el:El,label:string,_icon:string,fn:()=>unknown)=>{const b=el.createEl('button',{text:label});b.onclick=fn;return b},{render:async(_a:any,text:string)=>{rendered.push(text);await options.render?.()}},boardHostDeps.isWorkspaceFile,'thoughtspace',class{},()=>({exists:false,contentStart:0}),...Object.entries(boardHostDeps).filter(([key])=>key!=='isWorkspaceFile').map(([,value])=>value));
  const app={vault:{read:options.read||(()=>Promise.resolve('# 正文标题\n\n保留全部内容')),getFiles:()=>Array.from({length:options.boards??2},(_,i)=>({path:`b${i}.thoughtspace`,basename:`b${i}`,extension:'thoughtspace'})),getAbstractFileByPath:()=>undefined},metadataCache:{resolvedLinks:{}}};
  const modal=new Preview(app,{path:'文件名.md',basename:'文件名'},{readBoard:async()=>{scans++;return options.readBoard?options.readBoard():{nodes:[]}}});
  return{modal,rendered,scopes,scans:()=>scans};

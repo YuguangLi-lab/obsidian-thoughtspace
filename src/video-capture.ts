@@ -1,6 +1,7 @@
 import type { Board, Card } from './model';
 import { yingjianNotePath, parseYingjianLink } from './yingjian';
 import {markdownRows} from './markdown-context';
+import {isBoardPath} from './board-path';
 const captureId=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 export type CaptureLayout={width:number;placement:'below'|'right';color:'blue'|'green'|'rose'|'slate'};
 export function captureLayout(raw:unknown):CaptureLayout{
@@ -10,7 +11,7 @@ export function captureLayout(raw:unknown):CaptureLayout{
 export interface VideoCaptureRequest { id:string; board:string; note:string; vaultId:string; layout?:CaptureLayout; presentation?:'objects'; }
 export function videoCaptureRequest(raw:unknown):VideoCaptureRequest {
  const r=raw as VideoCaptureRequest;
- if(!r||typeof r.id!=='string'||!captureId.test(r.id)||!yingjianNotePath(r.note)||typeof r.board!=='string'||!r.board.endsWith('.thoughtspace')||!yingjianNotePath(r.board.slice(0,-13)+'.md')||typeof r.vaultId!=='string'||!/^[a-f0-9]{20}$/.test(r.vaultId))throw Error('视频记录目标或标识无效');
+ if(!r||typeof r.id!=='string'||!captureId.test(r.id)||!yingjianNotePath(r.note)||!isBoardPath(r.board)||!yingjianNotePath(r.board.replace(/\.(?:thoughtspace|md)$/i,'.md'))||typeof r.vaultId!=='string'||!/^[a-f0-9]{20}$/.test(r.vaultId))throw Error('视频记录目标或标识无效');
  if(r.presentation!==undefined&&r.presentation!=='objects')throw Error('不支持的视频记录展示方式');
  return{id:r.id,board:r.board,note:r.note,vaultId:r.vaultId,...(r.layout?{layout:captureLayout(r.layout)}:{}),...(r.presentation?{presentation:r.presentation}:{})};
 }

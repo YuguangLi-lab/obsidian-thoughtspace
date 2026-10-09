@@ -78,7 +78,7 @@ const text=(id='text',patch:Partial<model.Card>={}):model.Card=>({id,kind:'text'
 const labels=['卡片颜色','自定义卡片颜色'] as const;
 function fixture(nodes:model.Card[]=[text()],selected=nodes.map(n=>n.id)){
   const view=new View(),owner=new Session(),calls={persist:0,emit:0};
-  Object.assign(owner,{board:{...model.emptyBoard(),nodes},history:new model.History(),relationGeometry:new Map(),blocked:false,
+  Object.assign(owner,{board:{...model.emptyBoard(),nodes},history:new model.History(),relationGeometry:new Map(),blocked:false,writeBlocked:false,nativeReadonly:false,document:undefined,refreshNativeEditing(){},
     persist(){calls.persist++;},emit(){calls.emit++;view.renderSelectionTools();}});
   Object.assign(view,{session:owner,closed:false,selected:new Set(selected),selectionTools:new Element(),
     batchFormatTarget:'nodes',batchEdgeScope:'internal',plugin:{},contentEl:{}});

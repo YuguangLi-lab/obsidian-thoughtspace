@@ -19,8 +19,8 @@ test('Version 1 is read without mutation; version 2 round-trips nested boards', 
   const b = fixture(); assert.deepEqual(parseBoard(JSON.stringify(b)), b);
   b.version = 1; assert.throws(() => parseBoard(JSON.stringify(b)));
 });
-test('Board references require a safe thoughtspace path', () => {
-  for (const path of ['../secret.thoughtspace', '/root.thoughtspace', 'note.md', 'a/../../b.thoughtspace']) { const b = fixture(); b.nodes[2].file = path; assert.throws(() => parseBoard(JSON.stringify(b))); }
+test('Board references reject unsafe paths and unsupported extensions', () => {
+  for (const path of ['../secret.thoughtspace', '/root.thoughtspace', 'note.txt', 'a/../../b.thoughtspace']) { const b = fixture(); b.nodes[2].file = path; assert.throws(() => parseBoard(JSON.stringify(b))); }
 });
 test('Cycles are rejected for self-reference and arbitrary descendant depth', () => {
   const graph = new Map([['A', ['B']], ['B', ['C']], ['C', ['D']], ['D', []]]);

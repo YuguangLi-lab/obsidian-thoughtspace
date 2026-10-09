@@ -1,4 +1,8 @@
+import {appendPendingBoardReference,removePendingBoardReference,type PendingBoardReference} from './pending-board-references';
 import {brainIdeaNode,brainIdeaToNote,brainNoteFolder} from './brain-board-idea';
+import {readBoardDocument,replaceBoardDocumentLayout,createMarkdownBoardDocument,isMarkdownBoardFrontmatter,type BoardDocument} from './board-document';
+import {isBoardPath} from './board-path';
+import {hasNativeBoardEditor,assertBoardEditorOwnership,settleNativeBoardEditor,subscribeNativeBoardEditorDrains,clearNativeBoardEditorTracking} from './board-editor-ownership';
 import {boardBackground,cleanBoardBackground} from './board-background';
 import {brainColorsStamp,cleanBrainColors,type BrainColors} from './brain-colors';
 import {BrainColorsModal} from './brain-colors-view';
@@ -62,7 +66,7 @@ import {isRecord,isUnknownArray} from './value-guards';
 import {mediaDimensions} from './media-geometry';
 import {measureDroppedImages} from './native-media-size';
 import {setBoardEdgeStyle,inheritNewEdgeStyle} from './model';
-import {BoardSearchSync,SEARCH_FOLDER,searchBoardPath,searchIndexTarget} from './native-search';
+import {BoardSearchSync,isSearchIndexPath,searchBoardPath,searchIndexTarget} from './native-search';
 import {PdfDocumentPool} from './pdf-document-pool';
 import {discloseBranches,makeChildConnection,makeChildConnections,childConnectionCandidates,type BranchDisclosure} from './branch-disclosure';
 import {renderBranchControls} from './branch-controls';
@@ -171,6 +175,8 @@ import { LibraryScope, LibrarySort, libraryFiles, noteExcerpt, isWorkspaceFile }
 
 const DOCK = 'thoughtspace-navigator',MATERIALS='thoughtspace-materials',MATERIAL_DRAG='text/x-thoughtspace-fragment';
 const VIEW = 'thoughtspace-board', EXT = 'thoughtspace', ROOT = 'ThoughtSpace';
+/** Cache classification is for discovery only; opening always validates the full document. */
+function isBoardFile(app:App,file:TFile):boolean {return isWorkspaceFile(file)&&(file.extension===EXT||file.extension.toLowerCase()==='md'&&isMarkdownBoardFrontmatter(app.metadataCache.getFileCache(file)?.frontmatter));}
 const report = (e: unknown) => { console.error('[ThoughtSpace]', e); new Notice(`思维白板：${e instanceof Error ? e.message : String(e)}`, 8000); };
 const act = (f: () => unknown) => { try { Promise.resolve(f()).catch(report); } catch (e) { report(e); } };
 function button(parent: HTMLElement, label: string, icon: string, callback: () => unknown, cls = '') {
@@ -186,7 +192,7 @@ class Prompt extends Modal {
     let select:HTMLSelectElement|undefined;
     if(this.choice){const label=this.contentEl.createEl('label',{text:this.choice.label});select=label.createEl('select',{cls:'dropdown ts-wide ts-prompt-choice',attr:{'aria-label':this.choice.label}});for(const item of this.choice.items)select.createEl('option',{value:item.value,text:item.text});select.value=this.choice.value;}
     const input = this.contentEl.createEl('input', { type: 'text', value: this.initial, cls: 'ts-wide' });
-    const save = button(this.contentEl, '确定', 'check', async () => { if (!input.value.trim()) return; save.disabled = true; if(select)select.disabled=true; try { await this.submit(input.value.trim(),select?.value); this.close(); } finally { save.disabled = false; if(select)select.disabled=false; } }, 'mod-cta');
+    const save = button(this.contentEl, '确定', 'check', async () => { if (!input.value.trim()) return; save.disabled = true; if(select)select.disabled=true; try { await this.submit(input.value.trim(),select?.value); const target=this.app?.workspace?.getActiveViewOfType(View);this.close();if(target instanceof View&&target.containerEl.isConnected&&target.leaf?.view===target)this.app.workspace.setActiveLeaf(target.leaf,{focus:true}); } finally { save.disabled = false; if(select)select.disabled=false; } }, 'mod-cta');
     input.onkeydown = e => { if (e.defaultPrevented || e.isComposing || e.keyCode === 229) return; if (e.key === 'Enter') { e.preventDefault(); save.click(); } }; input.focus(); input.select();
   }
   onClose() { this.contentEl.empty(); }
@@ -205,7 +211,7 @@ class ReadingSourcePicker extends FuzzySuggestModal<TFile>{
 }
 class BoardPicker extends FuzzySuggestModal<TFile> {
   constructor(app: App, private current: TFile | null, private pick: (file: TFile) => unknown) { super(app); this.setPlaceholder('搜索要放入当前白板的子白板…'); }
-  getItems() { return this.app.vault.getFiles().filter(isWorkspaceFile).filter(f => f.extension === EXT && f !== this.current); }
+  getItems() { return this.app.vault.getFiles().filter(isWorkspaceFile).filter(f => isBoardFile(this.app,f) && f !== this.current); }
   getItemText(file: TFile) { return file.path; }
   onChooseItem(file: TFile) { act(() => this.pick(file)); }
 }
@@ -274,7 +280,7 @@ class NotePreview extends Modal {
       const loading=boards.createSpan({cls:'ts-muted',text:'正在查找关联白板…'});
       let count=0,skipped=0;
       try {
-        for(const file of this.app.vault.getFiles().filter(isWorkspaceFile).filter(f=>f.extension===EXT)) {
+        for(const file of this.app.vault.getFiles().filter(isWorkspaceFile).filter(f=>isBoardFile(this.app,f))) {
           if(!details.isConnected||!details.open){loaded=false;boards.empty();return;}
           try {
             const board=await this.plugin.readBoard(file);
@@ -313,8 +319,16 @@ class Session {
   private relationGeometry=new Map<string,{shape:string;text?:string;file:TAbstractFile|null|undefined;mtime?:number;size?:number;ctime?:number}>();
   brainGraphRevision=0;
   board: Board; history = new History(); listeners = new Set<(kind:SessionUpdate) => void>(); baseline: string;
-  saving = false; blocked = false; status = '已保存'; private persistQueued=false;private externalRead=0; private queue: Promise<void> = Promise.resolve();
-  constructor(private plugin: ThoughtSpace, public file: TFile, raw: string) { this.board = parseBoard(raw); this.baseline = raw;this.restoreRelationGeometry(); }
+  saving = false; private writeBlocked=false;private nativeReadonly=false;private document?:BoardDocument;private layoutBaseline='';status = '已保存'; private persistQueued=false;private externalRead=0; private queue: Promise<void> = Promise.resolve();
+  get nativeEditingPaused(){return this.nativeReadonly;}
+  get blocked(){return this.writeBlocked||this.nativeReadonly;}
+  set blocked(value:boolean){this.writeBlocked=value;}
+  constructor(private plugin: ThoughtSpace, public file: TFile, raw: string) { if(file.extension?.toLowerCase()==='md'){this.document=readBoardDocument(raw,'md',parseYaml);this.board=this.document.board;this.layoutBaseline=JSON.stringify(this.board,null,2);}else this.board = parseBoard(raw); this.baseline = raw;this.restoreRelationGeometry();this.refreshNativeEditing(); }
+  refreshNativeEditing(){
+    if(!this.document||this.writeBlocked)return;
+    const paused=!!this.plugin.nativeBoardTransitions?.has(this.file)||hasNativeBoardEditor(this.plugin.app,this.file);if(paused===this.nativeReadonly)return;
+    if(!paused)return;this.nativeReadonly=true;this.status='原生 Markdown 已打开 · 白板仅查看';this.emit();
+  }
   emit(kind:SessionUpdate='board') { this.listeners.forEach(fn => {try{fn(kind);}catch(e){report(e);}}); }
   /** Only these whole-field replacements can share graph references with before.
    * change still validates and saves; History.push immediately serializes before.
@@ -329,7 +343,7 @@ class Session {
     const value={...next};this.change(board=>{board.brainViewport=value;},{...this.board},false,false,false,true);
   }
   change(fn: (b: Board) => void, before?: Board, allowLocked=false, recordHistory=true, measurement=false, geometryOnly=false, preserveRelationGeometry=false) {
-    if (this.blocked) { new Notice('白板已暂停写入，请关闭所有该白板标签页后重新打开。'); return; }
+    this.refreshNativeEditing();if (this.blocked) { new Notice(this.nativeReadonly?'原生 Markdown 已打开，请切回白板后编辑布局。':'白板已暂停写入，请关闭所有该白板标签页后重新打开。'); return; }
     if(before===undefined)before=clone(this.board);
     const geometryBefore=this.relationGeometry.size?new Map(this.relationGeometry):undefined;
     try { fn(this.board); inheritNewEdgeStyle(this.board,before); if(!allowLocked){let nodeIndex:Map<string,Card>|undefined;for(const old of before.nodes){if(!old.locked)continue;nodeIndex??=new Map(this.board.nodes.map(n=>[n.id,n]));const current=nodeIndex.get(old.id);if(!current)throw Error('请先解锁对象再移出或转换');if(current.locked)Object.assign(current,{x:old.x,y:old.y,width:old.width,height:old.height,collapsed:old.collapsed,expandedHeight:old.expandedHeight});}}assertBoardGeometry(this.board);validateBranches(this.board);if(!geometryOnly)reflowReadingContent(this.board,before,{measurement});assertBoardGeometry(this.board); } catch(e) { this.board=before;if(geometryBefore)this.relationGeometry=geometryBefore;else this.relationGeometry.clear(); throw e; } if (this.board.version < 2 && this.board.nodes.some(n => n.kind === 'board')) this.board.version = 2;
@@ -347,7 +361,7 @@ class Session {
     const keys=Object.keys(left).filter(key=>left[key]!==undefined),other=Object.keys(right).filter(key=>right[key]!==undefined);
     return keys.length===other.length&&keys.every(key=>Object.prototype.hasOwnProperty.call(right,key)&&Session.sameState(left[key],right[key]));
   }
-  undo(redo = false) { if (this.blocked) return; const b = redo ? this.history.redo(this.board) : this.history.undo(this.board); if (b) { const previous=this.board;this.board = b;this.brainGraphRevision++;this.restoreRelationGeometry();this.holdRelationGeometry(previous,b,false);this.pruneRelationGeometry(); this.persist(); this.emit(); } }
+  undo(redo = false) { this.refreshNativeEditing();if (this.blocked) return; const b = redo ? this.history.redo(this.board) : this.history.undo(this.board); if (b) { const previous=this.board;this.board = b;this.brainGraphRevision++;this.restoreRelationGeometry();this.holdRelationGeometry(previous,b,false);this.pruneRelationGeometry(); this.persist(); this.emit(); } }
   private relationGeometryIdentity(node:Card){
     const path=node.paragraphQuote?.path||node.file,file=path?this.plugin.app?.vault.getAbstractFileByPath?.(path):undefined,stat=file&&'stat'in file?file.stat as {mtime:number;size:number;ctime?:number}:undefined;
     return{shape:relationGeometryShape(node),text:node.text,file,mtime:stat?.mtime,size:stat?.size,ctime:stat?.ctime};
@@ -398,22 +412,31 @@ class Session {
   relationGeometryHeld(node:Card){const held=this.relationGeometry.get(node.id);if(!held)return false;const live=this.board.nodes.find(current=>current.id===node.id),current=live&&this.relationGeometryIdentity(live);if(current&&held.shape===current.shape&&held.text===current.text&&held.file===current.file&&held.mtime===current.mtime&&held.size===current.size&&held.ctime===current.ctime)return true;this.relationGeometry.delete(node.id);this.syncRelationGeometry();return false;}
   releaseRelationGeometry(ids:ReadonlySet<string>){if(!ids.size)return;for(const id of ids)this.relationGeometry.delete(id);this.syncRelationGeometry();}
   persist() {
-    if(this.blocked)return;
+    this.refreshNativeEditing();if(this.blocked)return;
     if(this.status!=='保存中…'){this.status = '保存中…';this.emit('status');}
     if(this.persistQueued)return;this.persistQueued=true;
     this.queue = this.queue.then(async () => {
       this.persistQueued=false;
-      if (this.blocked) return;
+      if (this.blocked&&(!this.document||!this.nativeReadonly||this.writeBlocked)) return;
       try{assertBoardGeometry(this.board);}catch(e){this.blocked=true;this.status='布局数据无效 · 原文件未覆盖';this.emit('board');report(e);return;}
-      const next = JSON.stringify(this.board, null, 2); if (next === this.baseline) { this.status = '已保存'; this.emit('status'); return; }
+      const next = JSON.stringify(this.board, null, 2); if (next === (this.document?this.layoutBaseline:this.baseline)) { if(!this.nativeReadonly)this.status = '已保存'; this.emit('status'); return; }
+      const snapshot=this.document?JSON.parse(next) as Board:undefined,document=this.document;
       this.saving = true;
       try {
-        await this.plugin.app.vault.process(this.file, disk => { if (disk !== this.baseline) throw new Error('检测到其他窗口或同步工具修改了白板'); return next; });
-        this.baseline = next; this.status = this.persistQueued?'保存中…':'已保存';
+        let saved:BoardDocument|undefined;
+        await this.plugin.app.vault.process(this.file, disk => {
+          if(this.plugin.app.vault.getAbstractFileByPath&&this.plugin.app.vault.getAbstractFileByPath(this.file.path)!==this.file)throw Error('白板已删除或被替换，原目标未修改');
+          if(document&&this.file.extension.toLowerCase()!=='md')throw Error('白板格式在保存期间已变化，原目标未修改');
+          if(document&&snapshot){if(this.plugin.nativeBoardTransitions?.has(this.file))throw Error('原生视图正在交接，布局未写入');assertBoardEditorOwnership(this.plugin.app,this.file);saved=replaceBoardDocumentLayout(disk,document,snapshot,parseYaml);return saved.source;}
+          if (disk !== this.baseline) throw new Error('检测到其他窗口或同步工具修改了白板'); return next;
+        });
+        if(saved){this.document=saved;this.baseline=saved.source;this.layoutBaseline=next;}else this.baseline = next;
+        this.status = this.persistQueued?'保存中…':'已保存';
       } catch (e) {
         this.blocked = true; this.status = '保存失败 · 本地草稿保留中';
         try {
-          const recovered = await this.plugin.createUnique(this.file.parent?.path || '', `${this.file.basename}-恢复草稿`, EXT, JSON.stringify(this.board, null, 2));
+          const body=this.document?replaceBoardDocumentLayout(this.document.source,this.document,this.board,parseYaml).source:JSON.stringify(this.board,null,2);
+          const recovered = await this.plugin.createUnique(this.file.parent?.path || '', `${this.file.basename}-恢复草稿`, this.document?'md':EXT, body);
           this.status = '写入暂停 · 已另存恢复草稿'; new Notice(`原白板未被覆盖。当前布局已另存：${recovered.path}`, 12000);
         } catch (backupError) { report(backupError); this.status = '保存失败 · 请用导出保留布局'; }
         report(e);
@@ -422,25 +445,33 @@ class Session {
   }
   async flush() { let pending:Promise<void>;do{pending=this.queue;await pending;}while(pending!==this.queue); }
   async externalUpdate() {
-    // Vault modify can arrive before process settles. Keep that request until
-    // queued writes drain; newer notifications coalesce through externalRead.
-    if (this.blocked) return;
-    const readId=++this.externalRead;await this.flush();
-    if (readId!==this.externalRead||this.saving || this.blocked) return;
-    const baseline=this.baseline,board=this.board,pending=this.queue,viewport={...board.viewport};
-    const raw = await this.plugin.app.vault.read(this.file);
-    // A newer local transaction or another completed read owns the current state.
-    if(readId!==this.externalRead||this.blocked||this.saving||pending!==this.queue||baseline!==this.baseline||board!==this.board)return;
-    if (raw === this.baseline) return;
-    try {
-      const b = parseBoard(raw),savedViewport=parseBoard(baseline).viewport;
-      // Panning changes the camera directly until pointer release. Accept external
-      // content while keeping an unsaved camera or one moved during this read; release saves
-      // against the actual external baseline instead of reporting a false conflict.
+    // Read while the native lock remains held. Only a completed fresh read can
+    // release it; repainting a stale Session must never precede the handoff.
+    this.refreshNativeEditing();
+    const unavailable=()=>this.writeBlocked||!!this.document&&(!!this.plugin.nativeBoardTransitions?.has(this.file)||hasNativeBoardEditor(this.plugin.app,this.file));
+    if(unavailable())return;
+    const resumeNative=this.nativeReadonly,readId=++this.externalRead;let applied=false,readBaseline:string|undefined,readBoard:Board|undefined,readQueue:Promise<void>|undefined;
+    try{
+      await this.flush();if(readId!==this.externalRead||this.saving||unavailable())return;
+      const baseline=this.baseline,board=this.board,pending=this.queue,viewport={...board.viewport};readBaseline=baseline;readBoard=board;readQueue=pending;
+      const raw=await this.plugin.app.vault.read(this.file);
+      if(this.plugin.app.vault.getAbstractFileByPath&&this.plugin.app.vault.getAbstractFileByPath(this.file.path)!==this.file){this.blocked=true;this.status='白板已删除或被替换 · 已暂停写入';this.emit();return;}
+      if(readId!==this.externalRead||unavailable()||this.saving||pending!==this.queue||baseline!==this.baseline||board!==this.board)return;
+      if(raw===this.baseline){applied=true;return;}
+      const incoming=this.document?readBoardDocument(raw,'md',parseYaml):undefined,incomingBaseline=incoming?JSON.stringify(incoming.board,null,2):undefined;
+      if(incoming&&this.document&&incoming.layoutSource===this.document.layoutSource){this.document=incoming;this.baseline=raw;this.status='已同步原生属性与正文';applied=true;this.emit('status');return;}
+      const b=incoming?.board||parseBoard(raw),savedBoard=this.document?parseBoard(this.layoutBaseline):parseBoard(baseline),savedViewport=savedBoard.viewport;
+      if(incoming&&!Session.sameState({...board,viewport:savedViewport},savedBoard)){
+        this.blocked=true;this.status='布局冲突 · 本地草稿保留中';
+        const recovered=await this.plugin.createUnique(this.file.parent?.path||'',`${this.file.basename}-恢复草稿`,'md',replaceBoardDocumentLayout(this.document!.source,this.document!,board,parseYaml).source);
+        this.status='写入暂停 · 已另存恢复草稿';new Notice(`外部布局未被覆盖。当前布局已另存：${recovered.path}`,12000);this.emit();return;
+      }
       if([viewport,savedViewport].some(camera=>board.viewport.x!==camera.x||board.viewport.y!==camera.y||board.viewport.zoom!==camera.zoom))b.viewport={...board.viewport};
-      this.board = b; this.baseline = raw; this.history = new History();this.restoreRelationGeometry(); this.status = '已同步外部修改'; this.emit();
+      this.board=b;this.baseline=raw;if(incoming){this.document=incoming;this.layoutBaseline=incomingBaseline!;}this.history=new History();this.restoreRelationGeometry();this.status='已同步外部修改';applied=true;this.emit();
+    }catch(e){if(readId!==this.externalRead||readBaseline!==undefined&&(readBaseline!==this.baseline||readBoard!==this.board||readQueue!==this.queue))return;this.blocked=true;this.status='外部文件格式错误 · 已暂停写入';this.emit();report(e);}
+    finally{
+      if(resumeNative&&applied&&readId===this.externalRead&&!unavailable()){this.nativeReadonly=false;if(this.status==='原生 Markdown 已打开 · 白板仅查看')this.status='已恢复白板编辑';this.emit();}
     }
-    catch (e) { this.blocked = true; this.status = '外部文件格式错误 · 已暂停写入'; this.emit(); report(e); }
   }
 }
 
@@ -499,6 +530,8 @@ export default class ThoughtSpace extends Plugin {
     this.register(()=>{this.backgroundImagesClosed=true;this.backgroundImageModal?.close();this.backgroundImageModal=undefined;this.paperSettingsModal?.close();this.paperSettingsModal=undefined;this.spaceHub?.close();this.spaceHub=undefined;this.nativeBridge?.close();this.nativeBridge=undefined;this.nativeFilePopup?.hide();});
     this.propertyStore = new PropertyStore(this.app, this.manifest.id);
     this.settings = cleanPluginSettings(await this.loadData());
+    this.register(subscribeNativeBoardEditorDrains(this.app,()=>this.refreshMarkdownBoardOwnership()));
+    this.register(()=>clearNativeBoardEditorTracking(this.app));
     this.register(()=>{if(this.localRelationsSaveTimer)window.clearTimeout(this.localRelationsSaveTimer);this.localRelationsSaveTimer=undefined;void this.flushLocalRelationsSettings();});
     this.mediaWorkspace=new MediaWorkspaceService(this.app,normalizePath(`${this.manifest.dir||this.app.vault.configDir+'/plugins/'+this.manifest.id}/media-playback.json`),{
       createNote:(title,body)=>this.createUnique(normalizePath(this.settings.cardFolder+'/媒体笔记'),title,'md',body),
@@ -592,12 +625,22 @@ export default class ThoughtSpace extends Plugin {
     this.registerEvent(this.app.workspace.on('active-leaf-change',leaf=>{if(leaf?.view instanceof BoardView&&leaf.view.session){this.currentBoard=leaf.view;this.refreshDock();for(const l of this.app.workspace.getLeavesOfType(MATERIALS))if(l.view instanceof MaterialsView)l.view.workbench?.refreshTarget();const file=leaf.view.file;if(file)act(()=>this.recordBoardVisit(file));}}));
     this.app.workspace.onLayoutReady(()=>act(()=>this.ensureDock(false)));
     this.app.workspace.onLayoutReady(()=>act(()=>this.setupBookmarks()));
+    this.app.workspace.onLayoutReady(()=>this.refreshMarkdownBoardOwnership());
+    this.register(()=>{this.nativeReferenceNotices.clear();});
     this.registerEvent(this.app.workspace.on('layout-change',()=>act(()=>this.setupBookmarks())));
     this.addCommand({ id: 'open-workspace', name: '打开研究工作台', callback: () => act(() => this.openHome()) });
     this.addCommand({id:'new-mindmap',name:'新建思维导图',callback:()=>this.promptMindmap()});
     this.addCommand({id:'mindmap-studio',name:'思维导图工作台（布局、配色与层级）',checkCallback:checking=>{const view=this.app.workspace.getActiveViewOfType(BoardView)||this.currentBoard;if(!view?.session||view.closed)return false;if(!checking)act(()=>view.openMindmapStudio());return true;}});
     this.addCommand({ id: 'new-board', name: '新建白板', callback: () => this.promptBoard() });
     this.addCommand({id:'new-brain-board',name:'新建脑图白板',callback:()=>this.promptBrainBoard()});
+    this.addCommand({id:'new-markdown-board',name:'新建 Markdown 白板',callback:()=>this.promptMarkdownBoard()});
+    this.addCommand({id:'new-markdown-brain-board',name:'新建 Markdown 脑图白板',callback:()=>this.promptMarkdownBoard('brain')});
+    this.addCommand({id:'open-markdown-board',name:'以白板打开当前 Markdown',checkCallback:checking=>{const view=this.app.workspace.getActiveViewOfType(MarkdownView);if(!view?.file||!isBoardFile(this.app,view.file))return false;if(!checking)act(()=>this.openCurrentMarkdownBoard());return true;}});
+    this.addCommand({id:'board-native-properties',name:'打开白板原生属性与 Markdown',checkCallback:checking=>{const view=this.app.workspace.getActiveViewOfType(BoardView);if(!view?.file||view.file.extension.toLowerCase()!=='md')return false;if(!checking)act(()=>this.openBoardNativeMarkdown(view.file!,view.leaf));return true;}});
+    for(const [format,id,name]of [['markdown','save-as-markdown-board','另存为 Markdown 白板'],['legacy','save-as-legacy-board','另存为旧格式白板']]as const)this.addCommand({id,name,checkCallback:checking=>{const view=this.app.workspace.getActiveViewOfType(BoardView);if(!view?.session||view.closed||view.session.blocked)return false;if(!checking)act(()=>this.promptSaveBoardAs(format,view));return true;}});
+    this.registerEvent(this.app.workspace.on('layout-change',()=>this.refreshMarkdownBoardOwnership()));
+    this.registerEvent(this.app.workspace.on('file-open',()=>this.refreshMarkdownBoardOwnership()));
+
     this.addCommand({id:'show-board-as-brain',name:'将当前白板切换为脑图白板',checkCallback:checking=>{const view=this.app.workspace.getActiveViewOfType(BoardView);if(!view?.session||view.closed||view.session.blocked||isBrainBoard(view.session.board))return false;if(!checking)act(()=>view.showAsBrainBoard());return true;}});
     this.addCommand({ id: 'open-journal', name: '打开今日日记', callback: () => act(() => this.journal()) });
     this.addCommand({ id: 'file-cards-by-tags', name: '按标签整理卡片文件夹', callback: () => act(() => this.fileAllCards()) });
@@ -623,9 +666,9 @@ export default class ThoughtSpace extends Plugin {
       for(const [leaf,target]of this.localRelationsTargets)if(target.owner.board.nodes.some(node=>supportsLocalRelations(node)&&(node.file===file.path||node.paragraphQuote?.path===file.path)))this.localRelationsSubscribers.get(leaf)?.();
       const tags = getAllTags(cache) || [], signature = JSON.stringify(tags), previous = this.knownTags.get(file);
       this.knownTags.set(file, signature);
-      if (previous === undefined || previous === signature || !this.settings.autoFileCards || !file.path.startsWith(this.settings.cardFolder + '/')) return;
+      if (isBoardFile(this.app,file)||previous === undefined || previous === signature || !this.settings.autoFileCards || !file.path.startsWith(this.settings.cardFolder + '/')) return;
       act(() => this.serializeFiling(async () => {
-        if (this.knownTags.get(file) !== signature || !this.settings.autoFileCards || !file.path.startsWith(this.settings.cardFolder + '/')) return;
+        if (isBoardFile(this.app,file)||this.knownTags.get(file) !== signature || !this.settings.autoFileCards || !file.path.startsWith(this.settings.cardFolder + '/')) return;
         await this.moveFiled(file, tags.length ? tagFolder(tags[0], this.settings.cardFolder) : this.settings.cardFolder + '/未分类');
       }));
     }));
@@ -633,7 +676,7 @@ export default class ThoughtSpace extends Plugin {
     this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {
       const snapshot=captureBoardReferenceRename(file.path,this.app.vault.getFiles());
       this.settings.localRelations=remapLocalRelationsPreferences(this.settings.localRelations,oldPath,snapshot.newPath);this.settings.hub=remapHubPaths(this.settings.hub,oldPath,snapshot.newPath);act(()=>this.saveData(this.settings));
-      this.referenceQueue = this.referenceQueue.catch(() => {}).then(async () => { const next=remapFavorites(this.settings.favoriteBoards,oldPath,snapshot.newPath);if(JSON.stringify(next)!==JSON.stringify(this.settings.favoriteBoards)){this.settings.favoriteBoards=next;await this.savePreferences();} await this.renameReferences(file, oldPath,snapshot); });
+      this.referenceQueue = this.referenceQueue.catch(() => {}).then(async () => { if(this.settings.pendingBoardReferences?.length||this.nativeReferenceRuns?.size)try{await this.editReferenceJournal(operations=>{const moved=(path:string)=>path===oldPath||path.startsWith(oldPath+'/')?snapshot.newPath+path.slice(oldPath.length):path;return operations.map(operation=>({...operation,board:moved(operation.board)}));},true);}catch(error){report(error);}const next=remapFavorites(this.settings.favoriteBoards,oldPath,snapshot.newPath);if(JSON.stringify(next)!==JSON.stringify(this.settings.favoriteBoards)){this.settings.favoriteBoards=next;await this.savePreferences();} await this.renameReferences(file, oldPath,snapshot); });
       act(() => this.referenceQueue);
     }));
   }
@@ -656,8 +699,8 @@ export default class ThoughtSpace extends Plugin {
       menu.addSeparator();menu.addItem(i=>i.setTitle(`ThoughtSpace · 加入白板${notes.length>1?'（'+notes.length+' 篇）':''}…`).setIcon('panels-top-left').setDisabled(notes.length>100).onClick(()=>this.pickNativeDestination(notes)));
       if(notes.length===1)menu.addItem(i=>i.setTitle('ThoughtSpace · Obsidian 关联').setIcon('network').onClick(()=>this.openNativeRelations(notes[0])));
     }
-    if(files.length===1&&files[0] instanceof TFile&&files[0].extension===EXT&&isWorkspaceFile(files[0])){
-      const file=files[0];menu.addItem(i=>i.setTitle('ThoughtSpace · 导出原生链接索引').setIcon('file-output').onClick(()=>act(()=>this.exportNativeIndex(file))));
+    if(files.length===1&&files[0] instanceof TFile&&isBoardFile(this.app,files[0])){
+      const file=files[0];if(file.extension.toLowerCase()==='md')menu.addItem(i=>i.setTitle('以白板打开').setIcon('panels-top-left').onClick(()=>act(()=>this.openBoard(file))));menu.addItem(i=>i.setTitle('ThoughtSpace · 导出原生链接索引').setIcon('file-output').onClick(()=>act(()=>this.exportNativeIndex(file))));
     }
   }
   pickNativeDestination(files:TFile[]){
@@ -669,7 +712,7 @@ export default class ThoughtSpace extends Plugin {
   async addNativeNotes(board:TFile,files:TFile[]){
     if(!files.length||files.length>100)throw Error('每次最多加入 100 篇笔记');
     for(const file of [board,...files])if(this.app.vault.getAbstractFileByPath(file.path)!==file||!isWorkspaceFile(file))throw Error('文件已移动或删除，请重新选择');
-    if(board.extension!==EXT||files.some(f=>f.extension!=='md'))throw Error('请选择白板和 Markdown 笔记');
+    if(!isBoardFile(this.app,board)||files.some(f=>f.extension!=='md'||isBoardFile(this.app,f)))throw Error('请选择白板和 Markdown 笔记');
     await this.openBoard(board);
     const view=this.app.workspace.getLeavesOfType(VIEW).map(l=>l.view).find(v=>v instanceof BoardView&&v.file===board) as BoardView|undefined;
     if(!view?.session)throw Error('白板尚未就绪，请稍后重试');
@@ -678,14 +721,14 @@ export default class ThoughtSpace extends Plugin {
   openNativeRelations(file:TFile){
     this.nativeBridge?.close();this.nativeBridge=new NativeBridgeModal(this.app,file,{
       open:f=>{this.nativeBridge?.close();return this.openNoteInSidebar(f);},add:files=>this.pickNativeDestination(files),openBoard:f=>{this.nativeBridge?.close();return this.openBoard(f);},
-      usages:async (note,active)=>{const files:TFile[]=[];let errors=0;for(const f of this.app.vault.getFiles().filter(isWorkspaceFile).filter(f=>f.extension===EXT)){
+      usages:async (note,active)=>{const files:TFile[]=[];let errors=0;for(const f of this.app.vault.getFiles().filter(isWorkspaceFile).filter(f=>isBoardFile(this.app,f))){
         if(!active())break;
         if(f.stat.size>8*1024*1024){errors++;continue;}try{const b=await this.readBoard(f);if(b.nodes.some(n=>n.kind==='card'&&n.file===note.path))files.push(f);}catch{errors++;}
       }return {files,errors};}
     });this.nativeBridge.open();return this.nativeBridge;
   }
   async exportNativeIndex(file:TFile){
-    if(this.app.vault.getAbstractFileByPath(file.path)!==file||file.extension!==EXT||!isWorkspaceFile(file))throw Error('白板已变化，请重新打开');
+    if(this.app.vault.getAbstractFileByPath(file.path)!==file||!isBoardFile(this.app,file))throw Error('白板已变化，请重新打开');
     const board=await this.readBoard(file),source=`${ROOT}/导出/白板索引.md`,links:string[]=[],missing:string[]=[];
     for(const path of boardNotePaths(board)){const note=this.app.vault.getAbstractFileByPath(path);if(note instanceof TFile&&note.extension==='md'&&isWorkspaceFile(note))links.push(this.app.fileManager.generateMarkdownLink(note,source));else missing.push(path);}
     const content=nativeIndex(file.basename,this.app.fileManager.generateMarkdownLink(file,source),links,missing);
@@ -694,14 +737,14 @@ export default class ThoughtSpace extends Plugin {
   private setupBoardSearch(){
     const vault=this.app.vault,errors=new Set<string>();
     this.searchSync=new BoardSearchSync({
-      board:async path=>{const file=vault.getAbstractFileByPath(path);return file instanceof TFile&&file.extension===EXT&&isWorkspaceFile(file)?parseBoard(await vault.cachedRead(file)):undefined;},
+      board:async path=>{const file=vault.getAbstractFileByPath(path);return file instanceof TFile&&isBoardFile(this.app,file)?readBoardDocument(await vault.cachedRead(file),file.extension,parseYaml).board:undefined;},
       read:async path=>{const file=vault.getAbstractFileByPath(path);if(file&&! (file instanceof TFile))throw Error('搜索索引路径被文件夹占用');return file instanceof TFile?vault.read(file):undefined;},
       write:async(path,content,expected)=>{if(this.settings.boardSearchEnabled===false)return;await this.folder(path.slice(0,path.lastIndexOf('/')));const file=vault.getAbstractFileByPath(path);
         if(file instanceof TFile)await vault.process(file,disk=>{if(disk!==expected)throw Error('索引文件同时发生修改，已保留原内容');return content;});
         else if(!file&&expected===undefined)await vault.create(path,content);else throw Error('索引路径已变化');},
       remove:async(path,expected)=>{const file=vault.getAbstractFileByPath(path);if(file instanceof TFile&&await vault.read(file)===expected&&this.settings.boardSearchEnabled!==false)await this.app.fileManager.trashFile(file);}
     },vault.getName(),(path,error)=>{if(!errors.has(path)){errors.add(path);console.warn('ThoughtSpace search index:',path,error);new Notice(`白板搜索索引暂未更新：${path}。原白板未修改。`);}});
-    const enqueue=(path:string)=>{if(this.settings.boardSearchEnabled===false||!path.endsWith('.'+EXT)||!isWorkspaceFile({path}))return;this.searchSync?.enqueue(path);if(this.searchTimer!==undefined)window.clearTimeout(this.searchTimer);this.searchTimer=window.setTimeout(()=>{this.searchTimer=undefined;void this.searchSync?.flush();},1200);};
+    const enqueue=(path:string)=>{if(this.settings.boardSearchEnabled===false||!isBoardPath(path)||!isWorkspaceFile({path}))return;this.searchSync?.enqueue(path);if(this.searchTimer!==undefined)window.clearTimeout(this.searchTimer);this.searchTimer=window.setTimeout(()=>{this.searchTimer=undefined;void this.searchSync?.flush();},1200);};
     this.registerEvent(vault.on('create',file=>{if(file instanceof TFile)enqueue(file.path);}));
     this.registerEvent(vault.on('modify',file=>{if(file instanceof TFile)enqueue(file.path);}));
     this.registerEvent(vault.on('delete',file=>{if(file instanceof TFile)enqueue(file.path);else this.rebuildBoardSearch();}));
@@ -714,7 +757,7 @@ export default class ThoughtSpace extends Plugin {
   }
   private async openSearchResult(file:TFile|null){
     const sequence=++this.searchNavigationSequence,workspace=this.app.workspace;
-    if(this.searchNavigationStopped||this.settings.boardSearchEnabled===false||!file||!searchBoardPath(file.path))return;
+    if(this.searchNavigationStopped||this.settings.boardSearchEnabled===false||!file||!isSearchIndexPath(file.path))return;
     const path=file.path;
     // file-open can fire while the previous BoardView is still attached to the result leaf.
     await new Promise<void>(resolve=>(workspace.containerEl?.ownerDocument?.defaultView||window).requestAnimationFrame(()=>resolve()));
@@ -727,18 +770,18 @@ export default class ThoughtSpace extends Plugin {
     await new Promise<void>(resolve=>(view.containerEl?.ownerDocument?.defaultView||window).requestAnimationFrame(()=>resolve()));
     if(!alive()||view.editor.getValue()!==content)return;
     const state=view.getEphemeralState(),line=typeof state.line==='number'?state.line:view.editor.getCursor().line;
-    const target=searchIndexTarget(path,content,this.app.vault.getName(),line);if(!target)return;
+    if(!searchBoardPath(path,content))return;const target=searchIndexTarget(path,content,this.app.vault.getName(),line);if(!target)return;
     const board=this.app.vault.getAbstractFileByPath(target.file);
     if(!(board instanceof TFile)||!isWorkspaceFile(board)){new Notice('搜索结果对应的白板已移动或删除，请重建白板搜索索引');return;}
     // Reuse the result tab, including Cmd/Ctrl-click tabs, instead of leaving an index tab behind.
-    const leaf=view.leaf;await leaf.openFile(board,{state:{tsSearchRedirect:true}});
+    readBoardDocument(await this.app.vault.cachedRead(board),board.extension,parseYaml);if(!alive()||this.app.vault.getAbstractFileByPath(target.file)!==board)return;const leaf=view.leaf;await leaf.setViewState({type:VIEW,state:{file:board.path,tsSearchRedirect:true}});
     await new Promise<void>(resolve=>(view.containerEl?.ownerDocument?.defaultView||window).requestAnimationFrame(()=>resolve()));
     const opened=workspace.getActiveViewOfType(BoardView);
     if(!this.searchNavigationStopped&&opened&&leaf.view===opened&&opened.file===board&&!opened.closed&&target.node&&opened.session?.board.nodes.some(n=>n.id===target.node))opened.revealNode(target.node);
   }
   rebuildBoardSearch(){if(this.settings.boardSearchEnabled===false)return;for(const file of this.app.vault.getFiles()){
-    if(file.extension===EXT&&isWorkspaceFile(file))this.searchSync?.enqueue(file.path);
-    else if(file.path.startsWith(SEARCH_FOLDER+'/')&&file.path.endsWith('.thoughtspace.md'))this.searchSync?.enqueue(file.path.slice(SEARCH_FOLDER.length+1,-3));
+    if(isBoardFile(this.app,file))this.searchSync?.enqueue(file.path);
+    else if(isSearchIndexPath(file.path))act(async()=>{const path=searchBoardPath(file.path,await this.app.vault.cachedRead(file));if(path){this.searchSync?.enqueue(path);await this.searchSync?.flush();}});
   }void this.searchSync?.flush();}
   async ensureDock(show=false):Promise<WorkspaceLeaf> {
     let leaf=this.app.workspace.getLeavesOfType(DOCK)[0];
@@ -796,7 +839,7 @@ export default class ThoughtSpace extends Plugin {
     board.edges=[{id:uid(),from:board.nodes[0].id,to:board.nodes[1].id,label:'展开'},{id:uid(),from:board.nodes[1].id,to:board.nodes[3].id,label:'形成判断'}];
     const file=await this.createUnique(`${ROOT}/白板`,name,EXT,JSON.stringify(board,null,2));await this.openBoard(file,true);return file;
   }
-  async duplicateBoard(file:TFile){const board=clone(await this.readBoard(file));board.spaceId=uid();return this.createUnique(file.parent?.path||ROOT,`${file.basename} 副本`,EXT,JSON.stringify(board,null,2));}
+  async duplicateBoard(file:TFile){const document=readBoardDocument(await this.app.vault.read(file),file.extension,parseYaml),board=clone(await this.readBoard(file));board.spaceId=uid();return this.createUnique(file.parent?.path||ROOT,`${file.basename} 副本`,file.extension,replaceBoardDocumentLayout(document.source,document,board,parseYaml).source);}
   async saveLayoutSnapshot(file:TFile,label='手动快照'){
     const session=await this.session(file);try{
       return await this.writeLayoutSnapshot(session,label);
@@ -858,7 +901,7 @@ export default class ThoughtSpace extends Plugin {
     const view=this.currentBoard,owner=view?.session;
     const modal=new SpaceHubModal(this.app,{
       preferences:()=>this.settings.hub,save:async prefs=>{this.settings.hub=prefs;await this.saveData(this.settings);},favorites:()=>this.settings.favoriteBoards,
-      journalFolder:this.journalRoot,readBoard:file=>this.readBoard(file),
+      journalFolder:this.journalRoot,isBoardFile:file=>isBoardFile(this.app,file),readBoard:file=>this.readBoard(file),
       openBoard:async file=>{await this.openBoard(file);await this.recordBoardVisit(file);},openNote:file=>this.openNoteInSidebar(file),favorite:file=>this.toggleFavorite(file),
       capture:()=>this.quickCapture(),createBoard:()=>this.promptBoard(),calendar:()=>this.ensureCalendar(true),
       target:view&&owner?{title:owner.file.basename,add:paths=>view.addNotesFromHub(paths,owner)}:undefined
@@ -927,13 +970,13 @@ export default class ThoughtSpace extends Plugin {
     const current=await cached.catch(()=>undefined);
     if(current===s&&!s.listeners.size&&this.sessions.get(s.file)===cached)this.sessions.delete(s.file);
   }
-  async readBoard(file: TFile): Promise<Board> { const loaded = this.sessions.get(file); return loaded ? clone((await loaded).board) : parseBoard(await this.app.vault.cachedRead(file)); }
+  async readBoard(file: TFile): Promise<Board> { if(!isWorkspaceFile(file)||!isBoardPath(file.path))throw Error('请选择工作目录中的白板');const loaded = this.sessions.get(file); return loaded ? clone((await loaded).board) : readBoardDocument(await this.app.vault.cachedRead(file),file.extension,parseYaml).board; }
   async boardGraph():Promise<BoardGraph>;
   async boardGraph(current:()=>boolean):Promise<BoardGraph|undefined>;
   async boardGraph(current?:()=>boolean):Promise<BoardGraph|undefined> {
     if(current&&!current())return;
     const graph = new Map<string, string[]>(), errors = new Set<string>();
-    for (const f of this.app.vault.getFiles().filter(isWorkspaceFile).filter(f => f.extension === EXT)) {
+    for (const f of this.app.vault.getFiles().filter(isWorkspaceFile).filter(f => isBoardFile(this.app,f))) {
       if(current&&!current())return;
       // Link extraction is synchronous and read-only; open sessions need no deep copy
       // of note bodies or writing drafts. readBoard still isolates mutable callers.
@@ -956,7 +999,7 @@ export default class ThoughtSpace extends Plugin {
       if(!current())throw Error('子白板引用操作已取消');
       const path=pending.pop()!;if(path===parent.path)throw Error('不能把白板放入自身或后代中，这会形成循环嵌套');if(seen.has(path))continue;
       seen.add(path);if(seen.size>1000)throw Error('子白板层级过大，请先缩小引用范围');
-      const file=this.app.vault.getAbstractFileByPath(path);if(!(file instanceof TFile)||file.extension!==EXT)throw Error('目标白板或其子白板无法读取，请先修复引用');
+      const file=this.app.vault.getAbstractFileByPath(path);if(!(file instanceof TFile)||!isBoardFile(this.app,file))throw Error('目标白板或其子白板无法读取，请先修复引用');
       const snapshot={file,path,mtime:file.stat.mtime,size:file.stat.size};snapshots.push(snapshot);
       const board=await this.readBoard(file);if(!current())throw Error('子白板引用操作已取消');pending.push(...boardLinks(board));
     }
@@ -1018,11 +1061,13 @@ export default class ThoughtSpace extends Plugin {
   async openBoard(file:TFile,fit:boolean,current:()=>boolean,provisional:true):Promise<WorkspaceLeaf|undefined>;
   async openBoard(file: TFile, fit = false, current:()=>boolean=()=>true, provisional=false):Promise<void|WorkspaceLeaf> {
     if(!current())return;
+    if(!isBoardPath(file.path)||!isWorkspaceFile(file)||this.app.vault.getAbstractFileByPath(file.path)!==file)throw Error('请选择工作目录中的白板');
+    readBoardDocument(await this.app.vault.read(file),file.extension,parseYaml);if(!current())return;
     const leaf=await this.boardOpening.run(file,async()=>{
       const existing=this.app.workspace.getLeavesOfType(VIEW).find(l=>(l.view as BoardView).file===file||l.getViewState().state?.file===file.path);
       if(existing){if(provisional&&!(existing.view instanceof BoardView&&existing.view.session))this.provisionalBoardGeometry.set(existing,file);try{await existing.loadIfDeferred();return existing;}catch(error){this.provisionalBoardGeometry.delete(existing);throw error;}}
       const created=this.app.workspace.getLeaf('tab');if(provisional)this.provisionalBoardGeometry.set(created,file);
-      try{await created.openFile(file,{active:false});return created;}catch(error){this.provisionalBoardGeometry.delete(created);throw error;}
+      try{if(file.extension.toLowerCase()==='md'){await this.readBoard(file);if(!current()){created.detach();return created;}await created.setViewState({type:VIEW,active:false,state:{file:file.path}});}else{await this.readBoard(file);await created.openFile(file,{active:false});}return created;}catch(error){this.provisionalBoardGeometry.delete(created);created.detach();throw error;}
     });
     if(!current())return;if(provisional)return leaf;
     await this.app.workspace.revealLeaf(leaf);if(!current()||(leaf.view instanceof BoardView&&leaf.view.file!==file))return;this.provisionalBoardGeometry.delete(leaf);
@@ -1049,8 +1094,71 @@ export default class ThoughtSpace extends Plugin {
     picker.setPlaceholder('选择要预览分组的白板…');picker.open();
   }
   async openHome() {
-    const files = this.app.vault.getFiles().filter(isWorkspaceFile).filter(f => f.extension === EXT).sort((a, b) => b.stat.mtime - a.stat.mtime);
+    const files = this.app.vault.getFiles().filter(isWorkspaceFile).filter(f => isBoardFile(this.app,f)).sort((a, b) => b.stat.mtime - a.stat.mtime);
     if (files[0]) await this.openBoard(files[0]); else await this.demo();
+  }
+  async openBoardInNewTab(file:TFile){if(!isBoardPath(file.path)||!isWorkspaceFile(file)||this.app.vault.getAbstractFileByPath(file.path)!==file)throw Error('白板已移动或删除');readBoardDocument(await this.app.vault.read(file),file.extension,parseYaml);const leaf=this.app.workspace.getLeaf('tab');try{await leaf.setViewState({type:VIEW,active:true,state:{file:file.path}});this.app.workspace.setActiveLeaf(leaf,{focus:true});}catch(error){leaf.detach();throw error;}return leaf;}
+  readonly nativeBoardTransitions=new Set<TFile>();
+  private refreshMarkdownBoardOwnership(){
+    // Observe native pages synchronously, including files with no Board Session
+    // or rename journal yet. Their last save can outlive the closing leaf.
+    const observed=new Set<TFile>();
+    for(const leaf of this.app.workspace.getLeavesOfType('markdown')){
+      if(leaf.isDeferred||!(leaf.view instanceof MarkdownView))continue;
+      const file=leaf.view.file;if(!file||file.extension.toLowerCase()!=='md'||!isWorkspaceFile(file)||observed.has(file))continue;
+      observed.add(file);hasNativeBoardEditor(this.app,file);
+    }
+    act(()=>this.retryPendingBoardReferences());for(const [file,pending]of this.sessions)if(file.extension.toLowerCase()==='md')act(async()=>{const session=await pending,wasBlocked=session.blocked;session.refreshNativeEditing();if(wasBlocked){await this.referenceQueue.catch(()=>{});await this.flushPendingBoardReferences(file);await session.externalUpdate();}});
+  }
+  promptMarkdownBoard(presentation:'board'|'brain'='board'){
+    new Prompt(this.app,presentation==='brain'?'新建 Markdown 脑图白板':'新建 Markdown 白板',presentation==='brain'?'新的脑图':'新的研究主题',async(name,type)=>{
+      const board=type==='brain'?createBrainBoard():emptyBoard(),file=await this.createUnique(`${ROOT}/白板`,name,'md',createMarkdownBoardDocument(board,name));await this.openBoard(file);
+    },{label:'白板类型',value:presentation,items:[{value:'board',text:'普通白板'},{value:'brain',text:'脑图白板'}]}).open();
+  }
+  async openBoardNativeMarkdown(file:TFile,leaf?:WorkspaceLeaf){
+    if(file.extension.toLowerCase()!=='md'||!isWorkspaceFile(file)||this.app.vault.getAbstractFileByPath(file.path)!==file)throw Error('请选择仓库内的 Markdown 白板');
+    const original=file.path,target=leaf||this.app.workspace.getLeaf('tab');
+    if(target.view instanceof BoardView&&target.view.file===file){const owner=target.view.session;if(owner){await owner.flush();if(owner.blocked)throw Error('布局尚未安全保存，请先保留恢复草稿，再打开原生页');}}
+    if(file.path!==original||this.app.vault.getAbstractFileByPath(original)!==file)throw Error('白板在保存期间已移动或删除，原生页未打开');
+    // Use the normal Markdown view. Its public Properties UI owns all frontmatter edits.
+    await target.setViewState({type:'markdown',active:true,state:{file:file.path,mode:'preview'}});this.refreshMarkdownBoardOwnership();this.app.workspace.setActiveLeaf(target,{focus:true});
+  }
+  async openCurrentMarkdownBoard(){
+    const view=this.app.workspace.getActiveViewOfType(MarkdownView),file=view?.file,leaf=view?.leaf;
+    if(!view||!file||!leaf||!isBoardFile(this.app,file))throw Error('请先打开声明 thoughtspace: board 的 Markdown 白板');
+    if(this.nativeBoardTransitions.has(file))throw Error('此 Markdown 白板正在返回白板，请等待当前切换完成');
+    const path=file.path,text=view.getViewData();this.nativeBoardTransitions.add(file);this.refreshMarkdownBoardOwnership();
+    try{
+      await settleNativeBoardEditor(this.app,file,leaf);
+      if(leaf.view!==view||view.file!==file||view.getViewData()!==text||file.path!==path||this.app.vault.getAbstractFileByPath(path)!==file)throw Error('原生内容或页面已变化，已取消返回白板');
+      // The transition lock remains held throughout native onUnloadFile and the
+      // fresh read. Automatic card measurements cannot write during this handoff.
+      await leaf.setViewState({type:VIEW,active:true,state:{file:path}});
+      const clock=this.app.workspace.containerEl.ownerDocument.defaultView||window,start=Date.now();
+      for(;;){const saving:unknown=Object.getOwnPropertyDescriptor(view,'saving')?.value;if(typeof saving!=='boolean')throw Error('无法确认原生卸载保存状态，白板保持仅查看');if(!saving)break;if(Date.now()-start>1000)throw Error('原生卸载仍在保存，白板保持仅查看');await new Promise<void>(resolve=>clock.setTimeout(resolve,25));}
+      if(file.path!==path||this.app.vault.getAbstractFileByPath(path)!==file)throw Error('交接期间文件已移动，请回到原生页检查');
+      const raw=await this.app.vault.read(file);readBoardDocument(raw,'md',parseYaml);
+      if(raw!==text)throw Error('交接期间原生属性或正文发生变化，原文件保留，请重新打开后重试');
+      if(!(leaf.view instanceof BoardView)||leaf.view.file!==file||!leaf.view.session)throw Error('白板页面已切换，请重新打开');
+      assertBoardEditorOwnership(this.app,file);
+      const opened=leaf.view,owner=opened.session!;this.nativeBoardTransitions.delete(file);await this.referenceQueue.catch(()=>{});await this.flushPendingBoardReferences(file);await owner.externalUpdate();if(leaf.view!==opened||opened.file!==file||opened.session!==owner||owner.blocked)throw Error('白板交接已取消或保存仍受保护，请重新打开');this.app.workspace.setActiveLeaf(leaf,{focus:true});
+    }catch(error){
+      if(leaf.view instanceof BoardView&&leaf.view.file===file&&file.extension.toLowerCase()==='md'&&isWorkspaceFile(file)&&this.app.vault.getAbstractFileByPath(file.path)===file)await leaf.setViewState({type:'markdown',active:true,state:{file:file.path,mode:'source'}});
+      throw error;
+    }finally{this.nativeBoardTransitions.delete(file);this.refreshMarkdownBoardOwnership();}
+  }
+  promptSaveBoardAs(format:'markdown'|'legacy',view=this.app.workspace.getActiveViewOfType(BoardView)){
+    const file=view?.file,owner=view?.session;if(!file||!owner||view.closed||owner.blocked)throw Error('请先打开可编辑白板');
+    new Prompt(this.app,format==='markdown'?'另存为 Markdown 白板':'另存为旧格式白板',file.basename,async title=>{if(view.closed||view.file!==file||view.session!==owner)throw Error('白板已切换，另存已取消');const saved=await this.saveBoardAs(file,title,format);await this.openBoard(saved);new Notice('已创建独立副本；原文件与已有链接保留');}).open();
+  }
+  async saveBoardAs(file:TFile,title:string,format:'markdown'|'legacy'):Promise<TFile>{
+    const path=file.path,pending=this.sessions.get(file);if(pending){const session=await pending;session.refreshNativeEditing();if(session.blocked)throw Error('原白板暂停写入，请先保存并关闭原生页或处理冲突');await session.flush();if(session.blocked)throw Error('原白板尚未保存，另存已取消');}
+    if(this.app.vault.getAbstractFileByPath(path)!==file||file.path!==path||!isWorkspaceFile(file))throw Error('原白板已移动或删除，另存已取消');
+    if(file.extension.toLowerCase()==='md')assertBoardEditorOwnership(this.app,file);
+    const document=readBoardDocument(await this.app.vault.read(file),file.extension,parseYaml),board=clone(document.board);board.spaceId=uid();
+    const content=format==='legacy'?JSON.stringify(board,null,2):document.format==='markdown'?replaceBoardDocumentLayout(document.source,document,board,parseYaml).source:createMarkdownBoardDocument(board,title);
+    if(file.path!==path||this.app.vault.getAbstractFileByPath(path)!==file)throw Error('原白板已移动，另存已取消');
+    return this.createUnique(file.parent?.path||`${ROOT}/白板`,title,format==='markdown'?'md':EXT,content);
   }
   promptMindmap(){new MindmapPresetsModal(this.app,async b=>{const title=b.nodes[0].text||'我的思维导图',file=await this.createUnique(`${ROOT}/白板`,title,EXT,JSON.stringify(b,null,2));await this.openBoard(file,true);const v=this.app.workspace.getLeavesOfType(VIEW).map(l=>l.view).find(v=>v instanceof BoardView&&v.file===file) as BoardView|undefined;v?.fit();}).open();}
   promptBoard(presentation:'board'|'brain'='board') { new Prompt(this.app, '新建白板', presentation==='brain'?'新的脑图':'新的研究主题', async (name,type) => this.openBoard(await this.createUnique(`${ROOT}/白板`, name, EXT, JSON.stringify(type==='brain'?createBrainBoard():emptyBoard(), null, 2))),{label:'白板类型',value:presentation,items:[{value:'board',text:'普通白板'},{value:'brain',text:'脑图白板'}]}).open(); }
@@ -1078,15 +1186,16 @@ export default class ThoughtSpace extends Plugin {
   /** 先备份笔记及引用它的白板，再用 Obsidian 文件管理器移动；已有同名文件不覆盖。 */
   private async moveFiled(file: TFile, folder: string, exactName = false): Promise<boolean> {
     if (!isWorkspaceFile(file)) throw new Error('备份文件不参与自动归档，请先将需要恢复的文件复制到工作目录');
+    if(isBoardFile(this.app,file))throw Error('白板文件不参与卡片按标签归档，请使用原生文件管理器移动');
     if (file.parent?.path === folder) return false;
     const oldPath = file.path;
     await this.referenceQueue;
     for (const pending of this.sessions.values()) { const s = await pending; await s.flush(); }
     const affected: Array<{file: TFile; raw: string}> = [];
-    for (const board of this.app.vault.getFiles().filter(isWorkspaceFile).filter(f => f.extension === EXT)) {
+    for (const board of this.app.vault.getFiles().filter(isWorkspaceFile).filter(f => isBoardFile(this.app,f))) {
       const raw = await this.app.vault.read(board);
       let data: Board;
-      try { data = parseBoard(raw); } catch { if (raw.includes(oldPath)) throw new Error(`引用白板无法读取：${board.path}`); else continue; }
+      try { data = readBoardDocument(raw,board.extension,parseYaml).board; } catch { if (raw.includes(oldPath)) throw new Error(`引用白板无法读取：${board.path}`); else continue; }
       const loaded = this.sessions.get(board), session = loaded ? await loaded : undefined;
       if (data.nodes.some(n => n.file === oldPath) || session?.board.nodes.some(n => n.file === oldPath)) {
         if (session?.blocked) throw new Error(`引用白板已暂停写入，请先修复：${board.path}`);
@@ -1101,13 +1210,13 @@ export default class ThoughtSpace extends Plugin {
     const backup = `${this.app.vault.configDir}/plugins/${this.manifest.id}/filing-backups/${Date.now()}-${uid()}`;
     await this.app.vault.adapter.mkdir(backup);
     await this.app.vault.adapter.write(`${backup}/note.md`, await this.app.vault.read(file));
-    for (const [i, entry] of affected.entries()) await this.app.vault.adapter.write(`${backup}/board-${i}.thoughtspace`, entry.raw);
-    await this.app.vault.adapter.write(`${backup}/record.json`, JSON.stringify({ from: oldPath, to: target, boards: affected.map((entry, i) => ({ path: entry.file.path, backup: `board-${i}.thoughtspace` })), status: 'prepared' }, null, 2));
+    for (const [i, entry] of affected.entries()) await this.app.vault.adapter.write(`${backup}/board-${i}.${entry.file.extension}`, entry.raw);
+    await this.app.vault.adapter.write(`${backup}/record.json`, JSON.stringify({ from: oldPath, to: target, boards: affected.map((entry, i) => ({ path: entry.file.path, backup: `board-${i}.${entry.file.extension}` })), status: 'prepared' }, null, 2));
     await this.folder(folder);
     await this.app.fileManager.renameFile(file, target);
     await this.referenceQueue;
     for (const entry of affected) {
-      const current = parseBoard(await this.app.vault.read(entry.file));
+      const current = readBoardDocument(await this.app.vault.read(entry.file),entry.file.extension,parseYaml).board;
       if (current.nodes.some(n => n.file === oldPath)) throw new Error(`文件已移动，但白板引用未完成更新：${entry.file.path}；备份：${backup}`);
     }
     await this.app.vault.adapter.write(`${backup}/completed.json`, JSON.stringify({ from: oldPath, to: file.path }, null, 2));
@@ -1138,7 +1247,7 @@ export default class ThoughtSpace extends Plugin {
   async ensureJournalFile(day=localDay()){return requireCalendar(this.app).ensureJournalFile(day);}
   materialAdapter():MaterialAdapter{
     const current=()=>{const view=this.currentBoard;if(!view?.session||view.closed||!view.file)throw Error('请先选择目标白板');return view;};
-    return {docked:true,target:()=>{const v=this.currentBoard;return v?.file&&!v.closed?{name:v.file.basename,path:v.file.path}:undefined;},pickTarget:()=>new ActionPicker(this.app,'选择目标白板',this.app.vault.getFiles().filter(f=>f.extension===EXT&&isWorkspaceFile(f)).map(file=>({title:file.basename,run:()=>this.openBoard(file)})).concat([{title:'＋ 新建白板',run:async()=>this.promptBoard()}])).open(),
+    return {docked:true,target:()=>{const v=this.currentBoard;return v?.file&&!v.closed?{name:v.file.basename,path:v.file.path}:undefined;},pickTarget:()=>new ActionPicker(this.app,'选择目标白板',this.app.vault.getFiles().filter(f=>isBoardFile(this.app,f)).map(file=>({title:file.basename,run:()=>this.openBoard(file)})).concat([{title:'＋ 新建白板',run:async()=>this.promptBoard()}])).open(),
       pick:done=>new NotePicker(this.app,done).open(),open:async(file,line)=>{const leaf=await this.openNoteInSidebar(file);const editor=leaf.view instanceof MarkdownView?leaf.view.editor:undefined;if(editor&&line!==undefined){const pos={line,ch:0};editor.setCursor(pos);editor.scrollIntoView({from:pos,to:pos},true);}},
       excerpts:(file,raw,fragments,group,link,options)=>{const view=current();return view.importExcerpts(file,raw,fragments,group,link,view.session,options);},outline:(topics,title,direction)=>current().importOutline(topics,title,direction),
       locate:async result=>{const file=this.app.vault.getAbstractFileByPath(result.boardPath);if(!(file instanceof TFile))throw Error('目标白板已移动或删除');await this.openBoard(file);const view=this.app.workspace.getLeavesOfType(VIEW).find(l=>(l.view as BoardView).file===file)?.view as BoardView|undefined;if(!view?.session?.board.nodes.some(n=>n.id===result.ids[0]))throw Error('摘录已从白板移除，笔记文件仍可在资料库找到');view.revealNode(result.ids[0]);},
@@ -1585,7 +1694,7 @@ export default class ThoughtSpace extends Plugin {
         }finally{this.localRelationsEdits.delete(owner);this.refreshLocalRelations();}
       },
       restoreContext:async(path,originLeafId,current)=>{
-        if(!current())return false;const file=this.app.vault.getAbstractFileByPath(path);if(!(file instanceof TFile)||file.extension!==EXT)return false;
+        if(!current())return false;const file=this.app.vault.getAbstractFileByPath(path);if(!(file instanceof TFile)||!isBoardFile(this.app,file))return false;
         const doc=leaf.view.containerEl.ownerDocument,candidates=this.app.workspace.getLeavesOfType(VIEW).filter(candidate=>candidate.view instanceof BoardView&&!candidate.view.closed&&candidate.view.file===file&&candidate.view.session?.file===file);
         const exact=originLeafId?candidates.find(candidate=>workspaceLeafId(candidate)===originLeafId):undefined,local=candidates.filter(candidate=>candidate.view.containerEl.ownerDocument===doc),match=exact||(local.length===1?local[0]:undefined);
         if(!current()||!match||!(match.view instanceof BoardView)||!match.view.session)return false;this.localRelationsTargets.set(leaf,{view:match.view,owner:match.view.session});return true;
@@ -1712,16 +1821,54 @@ export default class ThoughtSpace extends Plugin {
   editJournal(file:TFile){act(()=>this.editNote(file));}
   async journal(){return requireCalendar(this.app).journal();}
 
+  private referenceJournalQueue:Promise<void>=Promise.resolve();
+  private referenceJournalDirty=false;
+  private editReferenceJournal(edit:(operations:readonly PendingBoardReference[])=>PendingBoardReference[],retainOnFailure=false):Promise<void>{
+    const next=this.referenceJournalQueue.catch(()=>{}).then(async()=>{const previous=this.settings.pendingBoardReferences,previousDirty=this.referenceJournalDirty,value=edit(previous||[]);if(!previousDirty&&JSON.stringify(value)===JSON.stringify(previous||[]))return;this.settings.pendingBoardReferences=value;try{await this.saveData(this.settings);this.referenceJournalDirty=false;}catch(error){if(!retainOnFailure&&this.settings.pendingBoardReferences===value){this.settings.pendingBoardReferences=previous;this.referenceJournalDirty=previousDirty;}else this.referenceJournalDirty=true;throw error;}});
+    this.referenceJournalQueue=next.catch(()=>{});return next;
+  }
+  private nativeReferenceRuns=new Map<TFile,Promise<void>>();
+  private nativeReferenceNotices=new Set<TFile>();
+  private async deferBoardReference(file:TFile,oldPath:string,snapshot:ReturnType<typeof captureBoardReferenceRename<TFile>>,boardPath:string){
+    try{await this.editReferenceJournal(operations=>appendPendingBoardReference(operations,{id:uid(),board:file.path,oldPath,newPath:snapshot.newPath,boardPath,paths:snapshot.files.map(entry=>entry.path)}),true);}catch(error){throw Error(`来源改名等待记录保存失败：${file.path}。原布局保留；当前内存可重试，但重启恢复尚未确认。${error instanceof Error?error.message:String(error)}`);}
+    if(!this.nativeReferenceNotices.has(file)){this.nativeReferenceNotices.add(file);new Notice(`来源已改名；${file.path} 的布局引用将在保存并关闭原生 Markdown 页后更新。等待记录已保存，原关系保留。`,10000);}
+  }
+  private async flushPendingBoardReferences(file:TFile){
+    const running=this.nativeReferenceRuns.get(file);if(running)return running;
+    if(this.nativeBoardTransitions.has(file)||hasNativeBoardEditor(this.app,file))return;
+    const operations=(this.settings.pendingBoardReferences||[]).filter(operation=>operation.board===file.path);if(!operations.length)return;
+    this.nativeBoardTransitions.add(file);
+    const work=(async()=>{
+      try{
+        let count=0;for(;;){const operation=(this.settings.pendingBoardReferences||[]).find(entry=>entry.board===file.path);if(!operation)break;if(++count>1000)throw Error('来源连续改名过多，等待记录保留，请稍后重试');
+          if(this.app.vault.getAbstractFileByPath(file.path)!==file)throw Error('待更新引用的白板已删除或替换，记录保留');
+          await this.app.vault.process(file,raw=>{
+            if(this.app.vault.getAbstractFileByPath(file.path)!==file)throw Error('待更新引用的白板已变化，原文件保留');assertBoardEditorOwnership(this.app,file);
+            const document=readBoardDocument(raw,file.extension,parseYaml),draft=createBoardReferenceRenamer(operation.oldPath,operation.newPath,operation.paths)(document.board,operation.boardPath);
+            return draft?replaceBoardDocumentLayout(raw,document,draft,parseYaml).source:raw;
+          });
+          await this.editReferenceJournal(current=>removePendingBoardReference(current,operation.id));
+        }
+        this.nativeReferenceNotices.delete(file);
+      }finally{this.nativeBoardTransitions.delete(file);}
+    })();this.nativeReferenceRuns.set(file,work);
+    try{await work;}finally{if(this.nativeReferenceRuns.get(file)===work)this.nativeReferenceRuns.delete(file);const loaded=this.sessions.get(file);if(loaded)await(await loaded).externalUpdate();}
+  }
+  private async retryPendingBoardReferences(){
+    await this.referenceQueue.catch(()=>{});
+    for(const path of new Set((this.settings.pendingBoardReferences||[]).map(operation=>operation.board))){const file=this.app.vault.getAbstractFileByPath(path);if(file instanceof TFile&&isWorkspaceFile(file)&&isBoardPath(file.path))try{await this.flushPendingBoardReferences(file);}catch(error){report(error);}}
+  }
   async renameReferences(file: TAbstractFile, oldPath: string,snapshot=captureBoardReferenceRename(file.path,this.app.vault.getFiles())) {
     // 自定义扩展名不会被 Obsidian 的双链重命名机制自动更新，因此显式迁移引用。
     const rename=createBoardReferenceRenamer(oldPath,snapshot.newPath,snapshot.files.map(entry=>entry.path));
-    for (const entry of snapshot.files.filter(entry=>isWorkspaceFile(entry)&&entry.extension===EXT)) {
-      const f=entry.file,active=()=>f.extension===EXT&&isWorkspaceFile(f)&&this.app.vault.getAbstractFileByPath(f.path)===f;
+    for (const entry of snapshot.files.filter(entry=>isWorkspaceFile(entry)&&isBoardPath(entry.path))) {
+      const f=entry.file,active=()=>isBoardFile(this.app,f)&&this.app.vault.getAbstractFileByPath(f.path)===f;
       if(!active())continue;
       const loaded = this.sessions.get(f);
       try {
+        if(f.extension.toLowerCase()==='md'&&(this.nativeBoardTransitions.has(f)||hasNativeBoardEditor(this.app,f)||loaded&&(await loaded).nativeEditingPaused||(this.settings.pendingBoardReferences||[]).some(operation=>operation.board===f.path)||this.nativeReferenceRuns.has(f))){await this.deferBoardReference(f,oldPath,snapshot,entry.path);continue;}
         if (loaded) { const s = await loaded;if(!active())continue;const draft=rename(s.board,entry.path); if (draft) { if (s.blocked) throw new Error(`引用白板已暂停写入：${f.path}`); s.change(b=>Object.assign(b,draft)); s.history = new History(); await s.flush(); } }
-        else await this.app.vault.process(f, raw => { if(!active())throw Error('引用白板已移动或删除，未修改');const draft=rename(parseBoard(raw),entry.path);return draft?JSON.stringify(draft,null,2):raw; });
+        else await this.app.vault.process(f, raw => { if(!active())throw Error('引用白板已移动或删除，未修改');const document=readBoardDocument(raw,f.extension,parseYaml),draft=rename(document.board,entry.path);if(!draft)return raw;if(document.format==='markdown')assertBoardEditorOwnership(this.app,f);return replaceBoardDocumentLayout(raw,document,draft,parseYaml).source; });
       } catch (e) { report(e); }
     }
   }
@@ -1814,7 +1961,7 @@ class NavigatorView extends ItemView {
   async onOpen(){
     this.contentEl.empty();this.contentEl.addClass('ts-root','ts-dock');
     const body=this.contentEl.createDiv('ts-dock-body'),launchpad=body.createEl('header',{cls:'ts-dock-launchpad',attr:{'aria-label':'知识空间入口'}}),quick=launchpad.createDiv('ts-dock-quick');button(quick,'收集笔记','plus',()=>this.plugin.quickCapture(),'ts-primary');
-    const create=button(quick,'新建','chevron-down',()=>{this.createMenu?.hide();const menu=this.createMenu=new Menu().setUseNativeMenu(false);menu.addItem(i=>i.setTitle('新建白板').setIcon('panels-top-left').onClick(()=>this.plugin.promptBoard()));menu.addItem(i=>i.setTitle('新建脑图白板').setIcon('network').onClick(()=>this.plugin.promptBrainBoard()));menu.addItem(i=>i.setTitle('从模板新建').setIcon('layout-template').onClick(()=>new TemplatePicker(this.app,this.plugin).open()));create.setAttribute('aria-expanded','true');menu.onHide(()=>{if(this.createMenu===menu){this.createMenu=undefined;create.setAttribute('aria-expanded','false');}});const rect=create.getBoundingClientRect();menu.showAtPosition({x:rect.left,y:rect.bottom+4});},'ts-dock-create');create.setAttribute('aria-label','新建白板或使用模板');create.setAttribute('aria-haspopup','menu');create.setAttribute('aria-expanded','false');
+    const create=button(quick,'新建','chevron-down',()=>{this.createMenu?.hide();const menu=this.createMenu=new Menu().setUseNativeMenu(false);menu.addItem(i=>i.setTitle('新建白板').setIcon('panels-top-left').onClick(()=>this.plugin.promptBoard()));menu.addItem(i=>i.setTitle('新建脑图白板').setIcon('network').onClick(()=>this.plugin.promptBrainBoard()));menu.addItem(i=>i.setTitle('新建 Markdown 白板').setIcon('file-plus').onClick(()=>this.plugin.promptMarkdownBoard()));menu.addItem(i=>i.setTitle('新建 Markdown 脑图白板').setIcon('network').onClick(()=>this.plugin.promptMarkdownBoard('brain')));menu.addItem(i=>i.setTitle('从模板新建').setIcon('layout-template').onClick(()=>new TemplatePicker(this.app,this.plugin).open()));create.setAttribute('aria-expanded','true');menu.onHide(()=>{if(this.createMenu===menu){this.createMenu=undefined;create.setAttribute('aria-expanded','false');}});const rect=create.getBoundingClientRect();menu.showAtPosition({x:rect.left,y:rect.bottom+4});},'ts-dock-create');create.setAttribute('aria-label','新建白板或使用模板');create.setAttribute('aria-haspopup','menu');create.setAttribute('aria-expanded','false');
     const entry=launchpad.createDiv({cls:'ts-dock-shortcuts',attr:{role:'navigation','aria-label':'知识空间快捷入口'}});button(entry,'空间总览','compass',()=>this.plugin.openSpaceHub());const excerpt=button(entry,'笔记摘录','notebook-pen',()=>this.plugin.openExcerptNote());excerpt.setAttribute('aria-label','打开笔记摘录');excerpt.title='打开笔记摘录';
     this.host=body.createDiv('ts-dock-host');
     const tools=this.contentEl.createDiv({cls:'ts-dock-workspace-tools',attr:{role:'group','aria-label':'当前白板工具'}});
@@ -1833,7 +1980,7 @@ class NavigatorView extends ItemView {
     this.bound=view;this.host.empty();
     if(view){this.host.appendChild(view.sidebar);view.refreshNavigation();return;}
     const empty=this.host.createDiv('ts-dock-welcome');empty.createEl('h3',{text:'最近的白板'});empty.createEl('p',{text:'选择白板，查看其中的卡片、任务与大纲。'});
-    const boards=this.plugin.app.vault.getFiles().filter(isWorkspaceFile).filter(f=>f.extension===EXT).sort((a,b)=>Number(this.plugin.settings.favoriteBoards.includes(b.path))-Number(this.plugin.settings.favoriteBoards.includes(a.path))||b.stat.mtime-a.stat.mtime);
+    const boards=this.plugin.app.vault.getFiles().filter(isWorkspaceFile).filter(f=>isBoardFile(this.app,f)).sort((a,b)=>Number(this.plugin.settings.favoriteBoards.includes(b.path))-Number(this.plugin.settings.favoriteBoards.includes(a.path))||b.stat.mtime-a.stat.mtime);
     for(const file of boards.slice(0,30))button(empty,file.basename,this.plugin.settings.favoriteBoards.includes(file.path)?'star':'panels-top-left',()=>this.plugin.openBoard(file),'ts-dock-board-link');
     if(!boards.length)button(empty,'选择入门模板','layout-template',()=>new TemplatePicker(this.app,this.plugin).open(),'ts-primary');
   }
@@ -1850,7 +1997,7 @@ class MaterialsView extends ItemView {
 }
 
 class BoardView extends FileView {
-  session?: Session; private unsubscribe?: () => void;
+  session?: Session; private unsubscribe?: () => void;private nativePropertiesAction?:HTMLElement;
   private snapToggle?:HTMLButtonElement;private gridSelect?:HTMLSelectElement;private canvasControls?:HTMLElement;private canvasSummary?:HTMLElement;private focusSelectedButton?:HTMLButtonElement;private overviewToggle?:HTMLButtonElement;private snapTarget?:HTMLElement;private snapReadout?:HTMLElement;
   private stage!: HTMLElement; private world!: HTMLElement; private svg!: SVGSVGElement;
   sidebar!: HTMLElement; closed=false; private closing=false; private dockContext?:HTMLElement; private list!: HTMLElement; private status!: HTMLElement; private inspector!: HTMLElement; private zoomLabel!: HTMLElement;
@@ -2162,7 +2309,7 @@ class BoardView extends FileView {
   async setState(state: Record<string, unknown>, result: ViewStateResult) {
     const paths = Array.isArray(state.tsTrail) ? state.tsTrail : [];
     this.trail = [...new Set(paths)].filter((p): p is string => typeof p === 'string' && p !== state.file).slice(0, 64)
-      .map(p => this.app.vault.getAbstractFileByPath(p)).filter((f): f is TFile => f instanceof TFile && f.extension === EXT);
+      .map(p => this.app.vault.getAbstractFileByPath(p)).filter((f): f is TFile => f instanceof TFile && isBoardFile(this.app,f));
     const {tsSearchRedirect,...savedState}=state;
     await super.setState(savedState, result);if(tsSearchRedirect===true)result.history=false;this.renderNavigation();
   }
@@ -2229,16 +2376,18 @@ class BoardView extends FileView {
     e.preventDefault();e.stopPropagation();const owner=this.session;const menu=new Menu().setUseNativeMenu(false);
     menu.addItem(i=>i.setTitle('重命名白板').setIcon('pencil').setDisabled(!owner || owner.blocked).onClick(()=>{if(this.session===owner)this.renameBoard();}));
     menu.addItem(i=>i.setTitle('复制白板链接').setIcon('link').onClick(()=>act(()=>{if(this.session===owner)return this.copyDeepLink();})));
+    if(this.file?.extension.toLowerCase()==='md')menu.addItem(i=>i.setTitle('原生属性与 Markdown').setIcon('file-pen-line').onClick(()=>act(()=>this.plugin.openBoardNativeMarkdown(this.file!,this.leaf))));
+    if(owner&&!owner.blocked)for(const [format,title]of [['markdown','另存为 Markdown 白板'],['legacy','另存为旧格式白板']]as const)menu.addItem(i=>i.setTitle(title).setIcon('copy').onClick(()=>act(()=>this.plugin.promptSaveBoardAs(format,this))));
     menu.showAtMouseEvent(e);
   }
   private renameBoard() {
     const file = this.file,owner=this.session,original=file?.path; if (!file || !owner || owner.blocked) return;
     new Prompt(this.app, '重命名白板', file.basename, async value => {
       this.requireOwner(owner);if(file.path!==original)throw new Error('白板已移动，请重新打开菜单');
-      const path = `${file.parent?.path ? file.parent.path + '/' : ''}${safeName(value)}.${EXT}`;
+      const path = `${file.parent?.path ? file.parent.path + '/' : ''}${safeName(value)}.${file.extension}`;
       if (path === file.path) return;
       if (this.app.vault.getAbstractFileByPath(path)) throw new Error('已有同名白板，请换一个名称');
-      await owner.flush();this.requireOwner(owner);await this.app.fileManager.renameFile(file, path);
+      await owner.flush();this.requireOwner(owner);if(file.path!==original||this.app.vault.getAbstractFileByPath(original)!==file)throw Error('白板在保存期间已移动或删除，请重新打开菜单');await this.app.fileManager.renameFile(file, path);
     }).open();
   }
   async onOpen() {
@@ -2254,6 +2403,7 @@ class BoardView extends FileView {
     const fallback=(!nativeHeader || !nativeTitle)?top.createDiv('ts-brand'):undefined;
     this.fileTitle=nativeTitle || fallback!.createSpan({cls:'ts-board-title',text:this.file?.basename||'思维白板'});
     this.fileTitle.addClass('ts-board-title');
+    this.nativePropertiesAction=this.addAction('file-pen-line','原生属性与 Markdown',()=>act(()=>{if(this.file)return this.plugin.openBoardNativeMarkdown(this.file,this.leaf);}));this.nativePropertiesAction.style.display=this.file?.extension.toLowerCase()==='md'?'':'none';
     if(nativeHeader && nativeTitle){this.nativeHeader=nativeHeader;nativeHeader.addClass('ts-native-header');root.addClass('ts-native-chrome');}
     this.registerDomEvent(this.fileTitle,'contextmenu',e=>{e.stopImmediatePropagation();this.titleMenu(e);},{capture:true});
     this.registerDomEvent(this.fileTitle,'dblclick',e=>{e.preventDefault();e.stopImmediatePropagation();this.renameBoard();},{capture:true});
@@ -2571,10 +2721,11 @@ class BoardView extends FileView {
     this.registerEvent(this.app.vault.on('rename', () => {this.brainNativeRevision++;this.scheduleRender();this.renderSidebar();}));
     this.registerEvent(this.app.metadataCache.on('changed', file => { this.refreshMediaReferences(file);if(this.tab==='library'||this.tab==='tasks')this.renderSidebar(); if (this.session?.board.nodes.some(n => n.file === file.path)){this.brainNativeRevision++;if(!this.gesture&&!this.marquee)this.scheduleRender();} }));
     this.registerEvent(this.app.metadataCache.on('resolved',()=>{this.brainNativeRevision++;if(this.boardMindmaps.size||this.brainBoardView)this.scheduleRender();}));
-    this.registerEvent(this.app.vault.on('modify', f => { if(f instanceof TFile&&mediaKind(f.path)&&this.session?.board.nodes.some(n=>n.file===f.path))this.scheduleRender();if (f instanceof TFile && f.extension === EXT && f !== this.file) { if (this.session?.board.nodes.some(n => n.kind === 'board' && n.file === f.path)) this.scheduleRender(); this.renderSidebar(); } }));
+    this.registerEvent(this.app.vault.on('modify', f => { if(f instanceof TFile&&mediaKind(f.path)&&this.session?.board.nodes.some(n=>n.file===f.path))this.scheduleRender();if (f instanceof TFile && isBoardFile(this.app,f) && f !== this.file) { if (this.session?.board.nodes.some(n => n.kind === 'board' && n.file === f.path)) this.scheduleRender(); this.renderSidebar(); } }));
   }
   async onLoadFile(file: TFile) {
     if(this.closed||this.closing)return;
+    if(this.nativePropertiesAction)this.nativePropertiesAction.style.display=file.extension.toLowerCase()==='md'?'':'none';
     this.automaticGeometryDeferred=this.plugin.provisionalBoardGeometry.get(this.leaf)===file;this.plugin.provisionalBoardGeometry.delete(this.leaf);
     const epoch=++this.dialogEpoch,active=()=>epoch===this.dialogEpoch&&!this.closed&&!this.closing;this.blankClicks.cancel();this.blankClickOwner=undefined;
     this.clearBrainBoard();this.tourBar?.remove();this.tourBar=undefined;this.searchModal?.close();this.searchModal=undefined;this.reuseModal?.close();this.reuseModal=undefined;this.savedViewsModal?.close();this.savedViewsModal=undefined;this.groupOrganizer?.close();this.groupOrganizer=undefined;this.layoutPlannerModal?.close();this.layoutPlannerModal=undefined;
@@ -2586,7 +2737,7 @@ class BoardView extends FileView {
       if (!this.svg.isConnected) { this.world.empty(); this.svg = this.world.createSvg('svg', { cls: 'ts-edges' });this.edgeLayer=new EdgeLayer(this.svg,this.markerId,id=>this.labelEdge(id)); }
       this.fitLegacyGeometry();
       this.paint();await this.plugin.ensureDock(false);if(!active())return;if(this.app.workspace.getActiveViewOfType(BoardView)===this)this.plugin.currentBoard=this;this.plugin.refreshDock();
-    } catch (e) {if(!active())return;this.unsubscribe?.();this.unsubscribe=undefined; this.session = undefined;this.contentEl.querySelectorAll<HTMLElement>('.ts-board-rail,.ts-floating-formatbar,.ts-footer').forEach(el=>el.inert=true);this.minimap?.empty();this.inspector?.removeClass('is-visible');this.selectionTools?.empty();this.selectionHeading?.empty();this.world.style.removeProperty('transform'); this.world.empty(); this.status.setText('文件无法读取 · 原文件保持不变'); this.world.createDiv({ cls: 'ts-error', text: `无法打开白板：${String(e)}。请检查 JSON 文件或恢复备份。` }); report(e); }
+    } catch (e) {if(!active())return;this.unsubscribe?.();this.unsubscribe=undefined; this.session = undefined;this.contentEl.querySelectorAll<HTMLElement>('.ts-board-rail,.ts-floating-formatbar,.ts-footer').forEach(el=>el.inert=true);this.minimap?.empty();this.inspector?.removeClass('is-visible');this.selectionTools?.empty();this.selectionHeading?.empty();this.world.style.removeProperty('transform'); this.world.empty(); this.status.setText('文件无法读取 · 原文件保持不变'); const error=this.world.createDiv({ cls: 'ts-error', text: `无法打开白板：${String(e)}。原文件保留，请检查布局区或恢复备份。` });if(file.extension.toLowerCase()==='md')button(error,'打开 Markdown 修复','file-pen-line',()=>this.plugin.openBoardNativeMarkdown(file,this.leaf));report(e); }
   }
   private fitLegacyGeometry(){
     const owner=this.session;if(!owner||owner.blocked||this.automaticGeometryDeferred||isBrainBoard(owner.board))return;
@@ -2628,7 +2779,7 @@ class BoardView extends FileView {
     const owner = this.session;
     new Prompt(this.app, '新建子白板', '新的研究主题', async title => {
       if (this.session !== owner) throw new Error('白板已切换，请回到原白板重试');
-      const file = await this.plugin.createUnique(`${ROOT}/白板`, title, EXT, JSON.stringify(emptyBoard(), null, 2));
+      const board=emptyBoard(),markdown=owner.file.extension.toLowerCase()==='md';const file = await this.plugin.createUnique(`${ROOT}/白板`, title, markdown?'md':EXT,markdown?createMarkdownBoardDocument(board,title):JSON.stringify(board,null,2));
       await this.addBoard(file, position, owner);
       if (!owner.blocked && this.session === owner) await this.enterBoard(file);
     }).open();
@@ -2645,7 +2796,7 @@ class BoardView extends FileView {
       const result = extractSubboard(before, ids, 'pending.thoughtspace', title);
       if(before.nodes.some(n=>n.locked&&!result.parent.nodes.some(remaining=>remaining.id===n.id)))throw new Error('请先解锁对象再转换为子白板');
       // 子白板成功落盘以后才替换父白板；中途失败不移除原卡片。
-      const file = await this.plugin.createUnique(`${ROOT}/白板`, title, EXT, JSON.stringify(result.child, null, 2));
+      const markdown=owner.file.extension.toLowerCase()==='md';const file = await this.plugin.createUnique(`${ROOT}/白板`, title, markdown?'md':EXT,markdown?createMarkdownBoardDocument(result.child,title):JSON.stringify(result.child,null,2));
       if (owner.blocked || JSON.stringify(owner.board) !== fingerprint) throw new Error(`父白板已经变化，原卡片未移除。已保留复制的子白板：${file.path}`);
       await this.plugin.assertCanNest(owner.file, file);
       if (owner.blocked || JSON.stringify(owner.board) !== fingerprint) throw new Error(`父白板已经变化，原卡片未移除。已保留复制的子白板：${file.path}`);
@@ -2756,7 +2907,7 @@ class BoardView extends FileView {
     if(customPath){
       e.preventDefault();const file=this.app.vault.getAbstractFileByPath(customPath);
       act(async()=>{this.requireOwner(owner);const point=position();if(!(file instanceof TFile))throw Error('文件已移动或删除，请重新拖入');
-        if(file.extension===EXT){if(this.inline&&!await this.inline.commit())return;this.requireOwner(owner);if(this.app.vault.getAbstractFileByPath(customPath)!==file)throw Error('白板已移动或删除，请重新拖入');await this.addBoard(file,point,owner);}
+        if(isBoardFile(this.app,file)){if(this.inline&&!await this.inline.commit())return;this.requireOwner(owner);if(this.app.vault.getAbstractFileByPath(customPath)!==file)throw Error('白板已移动或删除，请重新拖入');await this.addBoard(file,point,owner);}
         else await this.insertDroppedNotes([{file,path:customPath,page:1}],point,owner);
       });return;
     }
@@ -2890,7 +3041,7 @@ class BoardView extends FileView {
     const added=new Set(ids);for(const n of draft.nodes)if(added.has(n.id))applyDefaultCardStyle(n,this.plugin.settings.defaultCardStyle);
     owner!.change(()=>{owner!.board=draft;});this.selected=new Set(ids);this.contextOpen=false;this.updateSelection();this.revealNode(ids[0]);await owner!.flush();return ids.length;
   }
-  private requireOwner(owner=this.session){if(!owner||this.closed||this.session!==owner||owner.blocked)throw new Error('白板已切换或暂停写入，请回到原白板重试');return owner;}
+  private requireOwner(owner=this.session){owner?.refreshNativeEditing();if(!owner||this.closed||this.session!==owner||owner.blocked)throw new Error('白板已切换或暂停写入，请回到原白板重试');return owner;}
   private canCreateBlankText(e:MouseEvent){return !!this.session&&!this.closed&&!this.session.blocked&&!this.blankTextCreating&&!this.inlineExit&&!this.space&&!this.sectionTool&&this.mode!=='connect'&&e.button===0&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.shiftKey&&(e.target===this.stage||e.target===this.world||e.target===this.svg);}
   private async blankDoubleClick(e:MouseEvent){
     const clean=this.blankClicks.consume();
@@ -3522,7 +3673,7 @@ class BoardView extends FileView {
     let location:Awaited<ReturnType<BoardView['paragraphLocation']>>|undefined;
     if(source.paragraph&&!heading){location=await this.paragraphLocation(source.paragraph);if(!valid())return;}
     if(!valid())return;this.assertLocalRelationDraftSafe(file);
-    const type=heading||file.extension.toLowerCase()==='md'?'markdown':file.extension==='pdf'?'pdf':file.extension===EXT?VIEW:undefined,activate=options.activate!==false;
+    const boardSource=node?.kind==='board'&&!options.edit&&!heading;const type=boardSource?VIEW:heading||file.extension.toLowerCase()==='md'?'markdown':file.extension==='pdf'?'pdf':file.extension===EXT?VIEW:undefined,activate=options.activate!==false;
     const existing=options.companion||(!options.dedicated&&type?this.app.workspace.getLeavesOfType(type).find(l=>l.view.containerEl.ownerDocument===sourceDoc&&l.getViewState().state?.file===path):undefined);
     // A fresh popout split's EmptyView can still own a detached main-window DOM.
     // Its public workspace container identifies the destination before loading.
@@ -3530,7 +3681,7 @@ class BoardView extends FileView {
     const leaf=existing||this.createLocalRelationLeaf(navigationLeaf,valid,activate),previousView=existing?.view,wasDeferred=!!existing?.isDeferred,sameFile=existing?.getViewState().state?.file===path;
     const sameSource=()=>leaf.view.containerEl.ownerDocument===sourceDoc&&leaf.view.getState().file===path;
     if(existing&&sameFile){if(file.extension===EXT&&wasDeferred)this.plugin.provisionalBoardGeometry.set(leaf,file);try{await leaf.loadIfDeferred();}catch(error){if(this.plugin.provisionalBoardGeometry.get(leaf)===file)this.plugin.provisionalBoardGeometry.delete(leaf);throw error;}if(!valid()||!sameSource()||!wasDeferred&&leaf.view!==previousView)return;if(activate&&source.subpath&&!heading)leaf.setEphemeralState({subpath:source.subpath});}
-    else {if(file.extension===EXT)this.plugin.provisionalBoardGeometry.set(leaf,file);try{await leaf.openFile(file,{active:false,eState:activate&&source.subpath&&!heading?{subpath:source.subpath}:undefined});}catch(error){if(this.plugin.provisionalBoardGeometry.get(leaf)===file)this.plugin.provisionalBoardGeometry.delete(leaf);throw error;}}
+    else {if(type===VIEW)this.plugin.provisionalBoardGeometry.set(leaf,file);try{if(type===VIEW){await this.plugin.readBoard(file);await leaf.setViewState({type:VIEW,active:false,state:{file:path}});}else await leaf.openFile(file,{active:false,eState:activate&&source.subpath&&!heading?{subpath:source.subpath}:undefined});}catch(error){if(this.plugin.provisionalBoardGeometry.get(leaf)===file)this.plugin.provisionalBoardGeometry.delete(leaf);throw error;}}
     if(!valid()||!sameSource())return;this.assertLocalRelationDraftSafe(file);
     if(options.edit&&leaf.view instanceof MarkdownView){const editingView=leaf.view;await leaf.setViewState({...leaf.getViewState(),state:{...leaf.view.getState(),mode:'source'},active:false});if(!valid()||!sameSource()||leaf.view!==editingView)return;this.assertLocalRelationDraftSafe(file);}
     const openedView=leaf.view;
@@ -4294,8 +4445,8 @@ class BoardView extends FileView {
     new ActionPicker(this.app,'视角与快照',actions).open();
   }
   boardMenu(file:TFile,event:MouseEvent){const menu=new Menu().setUseNativeMenu(false);const add=(label:string,icon:string,run:()=>unknown)=>menu.addItem(i=>i.setTitle(label).setIcon(icon).onClick(()=>act(run)));
-    add('打开白板','panels-top-left',()=>this.navigate(file));add('在新标签页打开','square-arrow-out-up-right',()=>this.app.workspace.getLeaf('tab').openFile(file));
-    add('重命名白板','pencil',()=>new Prompt(this.app,'重命名白板',file.basename,async title=>{const path=normalizePath(`${file.parent?.path||''}/${safeName(title)}.${EXT}`);if(path===file.path)return;if(this.app.vault.getAbstractFileByPath(path))throw Error('同名白板已存在');await this.app.fileManager.renameFile(file,path);}).open());
+    add('打开白板','panels-top-left',()=>this.navigate(file));add('在新标签页打开','square-arrow-out-up-right',()=>this.plugin.openBoardInNewTab(file));
+    add('重命名白板','pencil',()=>new Prompt(this.app,'重命名白板',file.basename,async title=>{const path=normalizePath(`${file.parent?.path||''}/${safeName(title)}.${file.extension}`);if(path===file.path)return;if(this.app.vault.getAbstractFileByPath(path))throw Error('同名白板已存在');await this.app.fileManager.renameFile(file,path);}).open());
     add(this.plugin.settings.favoriteBoards.includes(file.path)?'取消收藏':'收藏白板','star',()=>this.plugin.toggleFavorite(file));
     add('新建子白板','folder-plus',async()=>{await this.navigate(file);this.newChildBoard();});
     add('复制白板','copy',async()=>{const copy=await this.plugin.duplicateBoard(file);await this.plugin.openBoard(copy);});
@@ -4612,7 +4763,7 @@ class BoardView extends FileView {
         if(n.kind==='text'&&n.text)n.text=rebaseReuseSources(n.text,link=>{const parts=resolveSourceLink(link,path=>this.app.metadataCache.getFirstLinkpathDest(path,owner!.file.path)),ref=parts.file;if(!(ref instanceof TFile))throw Error('摘录来源无法解析，请先修复来源链接');return this.app.fileManager.generateMarkdownLink(ref,targetPath,parts.subpath);});}
       let targetFile:TFile,session:Session|undefined,committed=false;let plan:ReturnType<typeof reusePlan>;
       try{
-        if(destination){const file=this.app.vault.getAbstractFileByPath(destination.path);if(!(file instanceof TFile)||file.extension!==EXT)throw Error('目标白板已移动或删除，请重新选择');targetFile=file;
+        if(destination){const file=this.app.vault.getAbstractFileByPath(destination.path);if(!(file instanceof TFile)||!isBoardFile(this.app,file))throw Error('目标白板已移动或删除，请重新选择');targetFile=file;
           session=await this.plugin.session(file);await session.flush();await session.externalUpdate();ensure();if(session.blocked)throw Error('目标白板写入暂停，请先解决保存冲突');
           for(const n of bundle.nodes.filter(n=>n.kind==='board')){const child=this.app.vault.getAbstractFileByPath(n.file!);if(!(child instanceof TFile))throw Error('引用白板已不存在');await this.plugin.assertCanNest(file,child);}
           ensure();if(this.app.vault.getAbstractFileByPath(destination.path)!==file||file.path!==destination.path)throw Error('目标白板已变化，请重新选择');if(reuseStamp(session.board)!==reuseStamp(destination.board))throw Error('目标布局已变化，请重新选择目标并预览');
@@ -5217,14 +5368,14 @@ class BoardView extends FileView {
         if(!favorites.length)pinned.createDiv({text:this.query?'没有匹配的收藏。':'点击白板标题旁的星标，把常用空间放在这里。',cls:'ts-favorite-hint'});return;
       }
       button(controls,'展开全部','chevrons-down',()=>{this.collapsedBoards.clear();this.renderSidebar();},'ts-icon-button');
-      button(controls,'折叠全部','chevrons-up',()=>{this.collapsedBoards=new Set(this.app.vault.getFiles().filter(f=>f.extension===EXT).map(f=>f.path));this.renderSidebar();},'ts-icon-button');
+      button(controls,'折叠全部','chevrons-up',()=>{this.collapsedBoards=new Set(this.app.vault.getFiles().filter(f=>isBoardFile(this.app,f)).map(f=>f.path));this.renderSidebar();},'ts-icon-button');
       button(controls,'定位当前白板','locate-fixed',async()=>{this.query='';const input=this.sidebar.querySelector<HTMLInputElement>('.ts-search');if(input)input.value='';const clear=this.sidebar.querySelector<HTMLButtonElement>('.ts-search-clear');if(clear)clear.hidden=true;this.collapsedBoards.clear();await this.populateSidebar();const row=Array.from(this.sidebar.querySelectorAll<HTMLElement>('[data-board-path]')).find(e=>e.dataset.boardPath===this.file?.path);row?.scrollIntoView({block:'nearest'});row?.querySelector<HTMLButtonElement>('.ts-tree-title')?.focus();},'ts-icon-button');
       const owner=this.session,current=()=>run===this.sidebarRun&&owner===this.session&&!this.closed&&this.tab==='boards';
       // Superseded searches discard the entire graph; nesting validation still
       // calls boardGraph without a cancellation predicate and checks every file.
       const result=await this.plugin.boardGraph(current);if(!result||!current())return;
       const {graph,errors}=result;
-      const files = this.app.vault.getFiles().filter(isWorkspaceFile).filter(f => f.extension === EXT).sort(compare);
+      const files = this.app.vault.getFiles().filter(isWorkspaceFile).filter(f => isBoardFile(this.app,f)).sort(compare);
       const byPath = new Map(files.map(f => [f.path, f]));
       const tree = list.createDiv({ cls: 'ts-board-tree', attr: { role: 'tree', 'aria-label': '嵌套白板树' } });
       // Arrow navigation stays within the visible tree and never moves canvas objects.

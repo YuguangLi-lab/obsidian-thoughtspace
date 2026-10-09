@@ -18,7 +18,7 @@ const Session=compile(`class Session{${take('  change(fn:','  persist() {')}}ret
 function fixture(choice:cardStyles.CardStyleChoice,web=false){
  const node:model.Card={id:'text',kind:'text',text:'Source **Markdown**',x:20,y:30,width:300,height:100,color:'green',...(web?{webUrl:'https://example.com'}:{})};
  const created:{path:string;body:string}[]=[],opened:unknown[]=[];let saved=0;
- const owner=new Session();Object.assign(owner,{board:{...model.emptyBoard(),version:3,nodes:[node]},history:new model.History(),relationGeometry:new Map(),blocked:false,convertingTexts:new Set(),persist(){saved++;model.parseBoard(JSON.stringify(this.board));},emit(){},async flush(){}});
+ const owner=new Session();Object.assign(owner,{board:{...model.emptyBoard(),version:3,nodes:[node]},history:new model.History(),relationGeometry:new Map(),blocked:false,writeBlocked:false,nativeReadonly:false,document:undefined,refreshNativeEditing(){},convertingTexts:new Set(),persist(){saved++;model.parseBoard(JSON.stringify(this.board));},emit(){},async flush(){}});
  const view=new View();Object.assign(view,{session:owner,closed:false,plugin:{settings:{defaultCardStyle:choice,cardFolder:'Notes',autoFileCards:false},
   async createUnique(_folder:string,_name:string,_extension:string,body:string){const file={path:'Notes/converted.md',body};created.push(file);return file;},
   async openNoteInSidebar(file:unknown){opened.push(file);}

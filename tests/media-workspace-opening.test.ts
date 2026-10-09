@@ -162,7 +162,7 @@ for(const phase of ['setup','reveal']as const)test(`an online draft started duri
 
 function board(){
  let id=0,changes=0;const media=new TFile('media/clip #[1].mp4'),files=new Map([[media.path,media]]),history=new History();
- const owner={board:{...emptyBoard(),version:3 as const,viewport:{x:33,y:44,zoom:.75}} as Board,blocked:false,change(fn:(board:Board)=>void){const before=structuredClone(this.board);fn(this.board);parseBoard(JSON.stringify(this.board));history.push(before);changes++;}};
+ const owner={board:{...emptyBoard(),version:3 as const,viewport:{x:33,y:44,zoom:.75}} as Board,blocked:false,refreshNativeEditing(){},change(fn:(board:Board)=>void){const before=structuredClone(this.board);fn(this.board);parseBoard(JSON.stringify(this.board));history.push(before);changes++;}};
  const deps={resolveSourceLink,mediaKind,isWorkspaceFile,mediaTime,mediaCard,mediaClock,mediaPlayerUrl,uid:()=>`new-${++id}`};
  const View=new Function(...Object.keys(deps),transformSync(`class View{${method('  private refreshMediaReferences(')}\n${method('  async addWorkspaceMedia(')}\n${method('  private requireOwner(')}};return View`,{loader:'ts'}).code)(...Object.values(deps));
  const view=new View();Object.assign(view,{session:owner,closed:false,selected:new Set(['old']),selectedEdge:'old-edge',point:()=>({x:400,y:250}),updateSelection:()=>{},app:{vault:{getName:()=> 'vault',getAbstractFileByPath:(path:string)=>files.get(path)}},plugin:{settings:{defaultCardWidth:320,defaultTextSize:18,defaultEdgeStyle:'curve'},mediaWorkspace:{identity:(file:TFile)=>file.path,playback:{get:()=>({time:8,rate:1,volume:1})}}}});

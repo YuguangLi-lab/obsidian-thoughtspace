@@ -22,7 +22,7 @@ function fixture(){
  const deps={parseOnlineSource,onlinePlayerUrl,mediaTime,mediaClock,foldCards,uid:()=>`generated-${++sequence}`,Notice:class{constructor(message:string){notices.push(message);}}};
  const View=new Function(...Object.keys(deps),transformSync(`class View {${methods}};return View`,{loader:'ts'}).code)(...Object.values(deps));
  const node=webCard(source,'video',{x:100,y:200});
- const owner={board:{...emptyBoard(),version:3,nodes:[node]} as Board,file:{path:'Boards/course.thoughtspace'},blocked:false,change(run:(board:Board)=>void){const before=structuredClone(this.board);run(this.board);parseBoard(JSON.stringify(this.board));history.push(before);}};
+ const owner={board:{...emptyBoard(),version:3,nodes:[node]} as Board,file:{path:'Boards/course.thoughtspace'},blocked:false,refreshNativeEditing(){},change(run:(board:Board)=>void){const before=structuredClone(this.board);run(this.board);parseBoard(JSON.stringify(this.board));history.push(before);}};
  const view=new View(),seeks:number[]=[],revealed:string[]=[];let renderCount=0;
  const note={path:'Notes/video.md'},moment={id:'capture-1',time:12.875,text:'',line:1};
  let save=async(_source:string,data:unknown)=>{saves.push(data);return {note,moment};};

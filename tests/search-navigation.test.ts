@@ -5,22 +5,23 @@ import {transformSync} from 'esbuild';
 import * as search from '../src/native-search';
 import {emptyBoard,parseBoard} from '../src/model';
 import {isWorkspaceFile} from '../src/workspace';
+import {boardHostDeps} from './board-host-deps';
 
 function fixture(lateView=false){
  let frames=0;
- const board=emptyBoard();board.nodes.push({id:'hit',kind:'text',text:'搜索命中内容',x:0,y:0,width:200,height:80,color:'green'});
+ const board=emptyBoard();board.version=3;board.nodes.push({id:'hit',kind:'text',text:'搜索命中内容',x:0,y:0,width:200,height:80,color:'green'});
  class TFile{extension:string;constructor(public path:string){this.extension=path.split('.').pop()!;}}
  const target=new TFile('白板/测试.thoughtspace'),index=new TFile(search.searchIndexPath(target.path));
  const text=search.boardSearchDocument(board,target.path,'库');const opened:string[]=[],revealed:string[]=[],events=new Map<string,Function>(),ready:Function[]=[],tasks:Promise<unknown>[]=[],cleanup:Function[]=[];
  class BoardView{file=target;closed=false;session={board};revealNode(id:string){revealed.push(id);}}
- const leaf:any={view:null,async openFile(file:TFile){opened.push(file.path);leaf.view=new BoardView();active=leaf.view;},getEphemeralState:()=>({line:text.split('\n').indexOf('搜索命中内容')})};
+ const leaf:any={view:null,async openFile(file:TFile){opened.push(file.path);leaf.view=new BoardView();active=leaf.view;},async setViewState(state:{type:string;state:{file:string;tsSearchRedirect?:boolean}}){assert.equal(state.type,'thoughtspace-board');assert.equal(state.state.file,target.path);assert.equal(state.state.tsSearchRedirect,true);await leaf.openFile(target);},getEphemeralState:()=>({line:text.split('\n').indexOf('搜索命中内容')})};
  class MarkdownView{file=index;leaf=leaf;editor={getValue:()=>text,getCursor:()=>({line:text.split('\n').indexOf('搜索命中内容')})};getEphemeralState(){return leaf.getEphemeralState();}}
  let active:any=new MarkdownView();leaf.view=active;
  let read=async()=>text;
  const workspace={on:(name:string,fn:Function)=>{events.set(name,fn);return{};},onLayoutReady:(fn:Function)=>ready.push(fn),getActiveFile:()=>active?.file,getActiveViewOfType:(type:any)=>(!lateView||frames>0)&&active instanceof type?active:null};
- const app={workspace,vault:{getName:()=> '库',getAbstractFileByPath:(path:string)=>path===target.path?target:path===index.path?index:null,read:()=>read(),cachedRead:()=>read(),on:()=>({}),getFiles:()=>[]}};
+ const app={workspace,metadataCache:{getFileCache:()=>undefined},vault:{getName:()=> '库',getAbstractFileByPath:(path:string)=>path===target.path?target:path===index.path?index:null,read:(file:TFile)=>file===target?Promise.resolve(JSON.stringify(board)):read(),cachedRead:(file:TFile)=>file===target?Promise.resolve(JSON.stringify(board)):read(),on:()=>({}),getFiles:()=>[]}};
  const source=readFileSync('src/main.ts','utf8'),start=source.indexOf('  private setupBoardSearch()'),end=source.indexOf('  async ensureDock(',start);
- const deps={...search,parseBoard,isWorkspaceFile,TFile,MarkdownView,BoardView,EXT:'thoughtspace',VIEW:'thoughtspace-board',window:{setTimeout,clearTimeout,requestAnimationFrame:(fn:Function)=>{frames++;fn();return 0;}},requestAnimationFrame:(fn:Function)=>{frames++;fn();return 0;},Notice:class{},act:(fn:()=>unknown)=>{tasks.push(Promise.resolve().then(fn));}};
+ const deps={...boardHostDeps,...search,parseBoard,isWorkspaceFile,TFile,MarkdownView,BoardView,EXT:'thoughtspace',VIEW:'thoughtspace-board',window:{setTimeout,clearTimeout,requestAnimationFrame:(fn:Function)=>{frames++;fn();return 0;}},requestAnimationFrame:(fn:Function)=>{frames++;fn();return 0;},Notice:class{},act:(fn:()=>unknown)=>{tasks.push(Promise.resolve().then(fn));}};
  const Plugin=new Function(...Object.keys(deps),transformSync('class Plugin{'+source.slice(start,end)+'};return Plugin',{loader:'ts'}).code)(...Object.values(deps));
  const plugin=new Plugin();Object.assign(plugin,{app,settings:{},searchNavigationSequence:0,searchNavigationStopped:false,registerEvent(){},register(fn:Function){cleanup.push(fn);},addCommand(){}});plugin.setupBoardSearch();
  return {plugin,index,target,text,events,opened,revealed,cleanup,setRead:(fn:()=>Promise<string>)=>read=fn,setLine:(line:number)=>leaf.getEphemeralState=()=>({line}),edit:()=>active.editor.getValue=()=>text+'user edit',remove:()=>app.vault.getAbstractFileByPath=()=>null,leave:()=>active=null,ready,async click(){events.get('file-open')?.(index);await Promise.all(tasks);},async settle(){await Promise.all(tasks);}};

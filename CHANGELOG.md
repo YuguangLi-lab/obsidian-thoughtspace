@@ -1,5 +1,24 @@
 # 更新记录
 
+## 1.3.34
+
+### 单文件 Markdown 白板、原生属性与保存恢复保护（2026-10-09）
+
+- 新增普通 Markdown 白板与 Markdown 脑图白板入口：原生 YAML 属性、Markdown 正文与 ThoughtSpace 布局放在同一 `.md` 文件中。Properties、metadataCache、Search 与 Bases 使用真实原生属性；不构造私有属性编辑器，不全局接管普通 `.md` 的打开方式。
+- 原 `.thoughtspace` 白板继续使用；新旧格式可明确另存为独立副本，保留原文件、节点/关系身份和材料引用，新副本使用新的 `spaceId`。停用插件后仍能阅读原生属性、正文及布局数据。
+- 布局保存重新核对最新文件，只替换合法专用布局区，保持区外原文及未知字段。损坏 YAML/JSON、重复标记或未知版本拒绝覆盖；布局冲突保留原文件并尝试创建唯一恢复草稿，不自动合并全部冲突正文。
+- 同文件原生页存在或关闭后仍在保存时，白板暂停布局写入。交接出现新输入、页面或文件变化时取消；更名取消回退使用当前有效文件路径，避免恢复已失效的旧路径。
+- 来源更名等待记录仅保存操作身份与库内路径，可靠落盘后按序重放；已有失败记录或正在重放时的后续更名继续排队，保留 A→B→C 连续更名。插件重载通过同一工作区窗口的弱身份保持已观察原生编辑器的保存保护，等首存与后续保存排空后再更新引用。
+- Native YAML Properties and Markdown content now share one file with the board layout. Ordinary Markdown keeps its native open behavior, and explicit copies retain legacy-board compatibility. Saving preserves text outside the owned layout region; handoff, queued renames and observed native-save ownership survive the tested cancellation, retry and plugin-reload cases.
+
+验证：Node 22 全量 6,653 项自动回归、7 项 Python 发布检查通过，TypeScript 与构建通过，lint 0 错误、118 项既有警告。独立 Obsidian 1.14.4 合成库完成原生属性类型、Search/Bases、取消、撤销重做、晚存、插件重载、完整应用重开、双窗口、外部文件写入、恢复重名及强制退出对照。15 份分组报告共 800 项断言，包含环境和性能预算检查，不是 800 个独立业务功能。方法与边界见 [1.3.34 验证说明](qa/RELEASE-1.3.34.md)，用法见[单文件 Markdown 白板](docs/markdown-boards.zh-CN.md)。
+
+恢复限制：已保存版本在本轮强制退出后恢复；尚未落盘的原生输入在暂停实际保存和自然保存前窗口中丢失，完全不加载候选的宿主对照相同。实际 File recovery 快照仅含保存基线，不含最新输入。弱身份桥不是跨进程草稿备份；宿主整篇晚存仍可能覆盖另一原生草稿或外部改动，插件不合并宿主全文。未验证真实 Obsidian Sync 账号、全部宿主版本/主题/插件组合，材料字节验证不等于离屏媒体播放验收。
+
+性能限制：同样本 1000 总节点、6 实际挂载节点、5 渲染边；正式旧格式/候选旧格式/候选 Markdown 打开 p50 为 66.5/67.5/71.4 ms，保存为 21.8/21.2/24.5 ms。Markdown 有额外校验成本，不宣称通用提速、无缺陷或无内存泄漏。
+
+Unsaved native input can be lost on forced termination before it reaches disk, also without this plugin. The observed recovery snapshot contained only the saved baseline. No general performance or bug-free guarantee is made.
+
 ## 1.3.33
 
 ### 脑图关系避障、动态材料清单与工作区界面一致性（2026-10-08）

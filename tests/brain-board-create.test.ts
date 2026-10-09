@@ -31,5 +31,5 @@ test('right association hints preserve actual shared-parent siblings and paged n
 for(const side of ['top','bottom','left','right'] as const)test(`${side} can link a native ThoughtSpace whiteboard without changing relationship kinds`,()=>{
  const b=fixture(),r=planBrainNoteRelation(b,'center','Boards/Child.thoughtspace',side,'child','e-board',captureLocalRelationEdit(b,['center']),undefined,'board');
  assert.equal(r.board.nodes.at(-1)!.kind,'board');assert.equal(r.board.nodes.at(-1)!.file,'Boards/Child.thoughtspace');assert.equal(r.board.edges[0].kind,side==='left'||side==='right'?undefined:'branch');assert.equal(r.board.edges[0].direction,side==='left'||side==='right'?'both':'forward');assert.deepEqual(parseBoard(JSON.stringify(r.board)),r.board);assert.equal(b.nodes.length,1);
- assert.throws(()=>planBrainNoteRelation(b,'center','Note.md',side,'child','e',captureLocalRelationEdit(b,['center']),undefined,'board'));
+ assert.throws(()=>planBrainNoteRelation(b,'center','Note.txt',side,'child','e',captureLocalRelationEdit(b,['center']),undefined,'board'));
 });

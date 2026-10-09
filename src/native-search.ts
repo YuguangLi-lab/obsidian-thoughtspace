@@ -4,24 +4,50 @@ import type {Board} from './model';
 import {boardLink,parseBoardLink} from './deeplinks';
 export const SEARCH_FOLDER='ThoughtSpace/白板搜索';
 export const searchIndexPath=(path:string)=>`${SEARCH_FOLDER}/${path}.md`;
-export function searchBoardPath(path:string){
- if(!path.startsWith(SEARCH_FOLDER+'/')||!path.endsWith('.thoughtspace.md'))return;
+const safeSourcePath=(path:string)=>!!path&&!hasAsciiControl(path)&&!/(^\/|(^|\/)\.\.?(\/|$)|\\|\/\/|\/$)/.test(path);
+const markdownSourcePath=(path:string)=>/\.md$/i.test(path);
+function indexSourcePath(path:string){
+ if(!path.startsWith(SEARCH_FOLDER+'/')||!path.endsWith('.md'))return;
  const file=path.slice(SEARCH_FOLDER.length+1,-3);
- if(!file||hasAsciiControl(file)||/(^\/|(^|\/)\.\.?(\/|$)|\\)/.test(file))return;
+ if(!safeSourcePath(file)||!(file.endsWith('.thoughtspace')||markdownSourcePath(file)))return;
  return file;
 }
+/** A path candidate only: callers must validate the generated document before navigation. */
+export function isSearchIndexPath(path:string){return indexSourcePath(path)!==undefined;}
 const checksum=(text:string)=>createHash('sha256').update(text).digest('hex');
-export function isManagedSearchIndex(text:string){const match=/^<!-- thoughtspace-search-v1:([a-f0-9]{64}) -->\n/.exec(text);return !!match&&checksum(text.slice(match[0].length))===match[1];}
+function openingBoardLink(text:string){
+ let header=0;for(let row=0;row<3;row++){const next=text.indexOf('\n',header);if(next<0)return;header=next+1;}
+ const end=text.indexOf('\n',header);return /^\[打开白板\]\((obsidian:\/\/thoughtspace\?[^\s]+)\)$/.exec(text.slice(header,end<0?text.length:end))?.[1];
+}
+function searchDocumentIdentity(text:string){
+ const legacy=/^<!-- thoughtspace-search-v1:([a-f0-9]{64}) -->\n/.exec(text);
+ if(legacy)return checksum(text.slice(legacy[0].length))===legacy[1]?{version:1 as const}:undefined;
+ const match=/^<!-- thoughtspace-search-v2:([a-f0-9]{64}):([^\s]+) -->\n/.exec(text);if(!match)return;
+ try{const source=decodeURIComponent(match[2]);
+  if(!markdownSourcePath(source)||!safeSourcePath(source)||encodeURIComponent(source)!==match[2]||checksum(source+'\n'+text.slice(match[0].length))!==match[1])return;
+  const opening=openingBoardLink(text);if(!opening)return;
+  const params=new URL(opening).searchParams;if(params.getAll('file').length!==1||params.get('file')!==source||params.has('node'))return;
+  return {version:2 as const,source};
+ }catch{return;}
+}
+export function isManagedSearchIndex(text:string){return searchDocumentIdentity(text)!==undefined;}
+/** Markdown mirrors need a verified source binding; extensions alone never establish identity. */
+export function searchBoardPath(path:string,text?:string){
+ const file=indexSourcePath(path);if(!file)return;
+ if(file.endsWith('.thoughtspace'))return file;
+ if(text===undefined)return;
+ const identity=searchDocumentIdentity(text);return identity?.version===2&&identity.source===file?file:undefined;
+}
 /** Resolve only generated navigation links, never links quoted inside node content. */
 export function searchIndexTarget(path:string,text:string,vault:string,line?:number){
- const file=searchBoardPath(path);if(!file||!isManagedSearchIndex(text))return;
+ const file=indexSourcePath(path),identity=searchDocumentIdentity(text);if(!file||!identity)return;
+ if(identity.version===2?identity.source!==file:markdownSourcePath(file))return;
  let target:{file:string;node?:string},fence='';
  // Verify the full generated document above, but visit only rows up to the
  // requested hit without allocating an array for every remaining content row.
- let header=0;for(let row=0;row<3;row++){const next=text.indexOf('\n',header);if(next<0)return;header=next+1;}
- const headerEnd=text.indexOf('\n',header),opening=/^\[打开白板\]\((obsidian:\/\/thoughtspace\?[^\s]+)\)$/.exec(text.slice(header,headerEnd<0?text.length:headerEnd));
+ const opening=openingBoardLink(text);
  if(!opening)return;
- try{target=parseBoardLink(Object.fromEntries(new URL(opening[1]).searchParams),vault);if(target.file!==file||target.node)return;}catch{return;}
+ try{target=parseBoardLink(Object.fromEntries(new URL(opening).searchParams),vault);if(target.file!==file||target.node)return;}catch{return;}
  const boardTarget=target,limit=typeof line==='number'&&Number.isInteger(line)&&line>=0?line:0;let start=0,invalid=false;
  for(let row=0;row<=limit;row++){
   const end=text.indexOf('\n',start),value=text.slice(start,end<0?text.length:end);start=end+1;
@@ -39,15 +65,17 @@ export function searchIndexTarget(path:string,text:string,vault:string,line?:num
 /** Code fences retain exact searchable characters without executing embeds or tasks. */
 const plain=(text:string)=>{let longest=0;for(const match of text.matchAll(/`+/g))longest=Math.max(longest,match[0].length);const fence='`'.repeat(Math.max(3,longest+1));return `${fence}text\n${text}\n${fence}`;};
 export function boardSearchDocument(board:Board,path:string,vault:string){
- const chunks=[`# ${path.split('/').pop()!.replace(/\.thoughtspace$/,'')} · 白板搜索`, `[打开白板](${boardLink(vault,path)})`, '自动生成的搜索索引。请在白板中编辑；笔记正文在原 Markdown 文件中搜索。'];
+ const markdown=markdownSourcePath(path);if(markdown&&!safeSourcePath(path))throw Error('白板搜索来源路径无效');
+ const chunks=[`# ${path.split('/').pop()!.replace(/\.thoughtspace$/,'').replace(/\.md$/i,'')} · 白板搜索`, `[打开白板](${boardLink(vault,path)})`, '自动生成的搜索索引。请在白板中编辑；笔记正文在原 Markdown 文件中搜索。'];
  for(const node of board.nodes){
   const content=[node.title,node.text,node.file,node.kind==='pdf'?`PDF 第 ${node.pdfPage||1} 页`:undefined].filter((v):v is string=>typeof v==='string'&&!!v.trim());
   if(content.length)chunks.push(`[定位 ${node.kind==='section'?'分组':'对象'}](${boardLink(vault,path,node.id)})\n\n${content.map(plain).join('\n\n')}`);
  }
  for(const edge of board.edges)if(edge.label.trim())chunks.push(`[定位连线起点](${boardLink(vault,path,edge.from)})\n\n${plain(edge.label)}`);
- const body=chunks.join('\n\n')+'\n';return `<!-- thoughtspace-search-v1:${checksum(body)} -->\n${body}`;
+ const body=chunks.join('\n\n')+'\n';return markdown?`<!-- thoughtspace-search-v2:${checksum(path+'\n'+body)}:${encodeURIComponent(path)} -->\n${body}`:`<!-- thoughtspace-search-v1:${checksum(body)} -->\n${body}`;
 }
 export interface SearchIndexIO {
+ /** Only verified source boards; ordinary Markdown and generated mirrors return undefined. */
  board(path:string):Promise<Board|undefined>;
  read(path:string):Promise<string|undefined>;
  write(path:string,content:string,expected:string|undefined):Promise<void>;
@@ -61,9 +89,11 @@ export class BoardSearchSync {
  flush():Promise<void>{if(this.running)return this.running;this.running=this.drain().finally(()=>{this.running=undefined;});return this.running;}
  stop(){this.stopped=true;this.pending.clear();}
  private async drain(){while(this.pending.size&&!this.stopped){const path=this.pending.values().next().value!;this.pending.delete(path);try{
+  if(markdownSourcePath(path)&&!safeSourcePath(path))throw Error('白板搜索来源路径无效');
   const board=await this.io.board(path);if(this.stopped)return;
   const target=searchIndexPath(path),old=await this.io.read(target);if(this.stopped)return;
-  if(old!==undefined&&!isManagedSearchIndex(old))throw Error('搜索索引有手动修改，已保留；移开该文件后可重建索引');
+  const identity=old===undefined?undefined:searchDocumentIdentity(old);
+  if(old!==undefined&&(!identity||markdownSourcePath(path)&&(identity.version!==2||identity.source!==path)))throw Error('搜索索引有手动修改或来源不匹配，已保留；移开该文件后可重建索引');
   if(!board){if(old!==undefined)await this.io.remove(target,old);continue;}
   const next=boardSearchDocument(board,path,this.vault);if(next!==old&&!this.stopped)await this.io.write(target,next,old);
  }catch(error){this.error(path,error);}}}

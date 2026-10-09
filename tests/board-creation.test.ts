@@ -27,8 +27,9 @@ function fixture(){
   open(){modals.push(this);(this as any).onOpen();}
   close(){this.closed=true;(this as any).onClose();}
  }
+ class View {}
  const act=(run:()=>unknown)=>{try{const pending=Promise.resolve(run());actions.push(pending);void pending.catch(error=>errors.push(error));}catch(error){errors.push(error);}};
- const Prompt=compile(take('function button(','class NotePicker ')+';return Prompt;',{Modal,act,setIcon(){},themeSurface(){}});
+ const Prompt=compile(take('function button(','class NotePicker ')+';return Prompt;',{Modal,View,act,setIcon(){},themeSurface(){}});
  const Host=compile('class Host{'+take('  async folder(','  async openDeepLink(')+take('  promptBoard(','  private serializeFiling')+'};return Host;',{Prompt,emptyBoard,createBrainBoard,safeName,normalizePath:(path:string)=>path,ROOT:'ThoughtSpace',EXT:'thoughtspace'});
  const host=new Host();host.app={vault:{getAbstractFileByPath:(path:string)=>files.get(path)||(folders.has(path)?{path}:undefined),createFolder:async(path:string)=>{folders.add(path);},create:async(path:string,body:string)=>{await hooks.create?.(path,body);const file={path,body};files.set(path,file);return file;}}};host.openBoard=async(file:{path:string})=>{opened.push(file.path);};
  const modal=()=>modals.at(-1)!,input=()=>modal().contentEl.all('input')[0] as Element,type=()=>modal().contentEl.all('select')[0] as Element,save=()=>modal().contentEl.all('button')[0] as Element;

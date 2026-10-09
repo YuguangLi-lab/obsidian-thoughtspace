@@ -120,7 +120,7 @@ function fixture(kind:model.Card['kind']='card',patch:Partial<model.Card>={}){
  const calls={metadata:0,tags:0,childCandidates:0,read:0,markdown:0,pdf:0,textFit:0,cardFit:0,previewed:[] as File[],mediaFits:[] as {node:model.Card;size:{width:number;height:number}}[]};
  const world=new Dom();world.root=true;const svg=world.createEl('svg'),previewQueue=new Queue(),pdfPreviewQueue=new Queue();
  const mediaMounts:{options:MediaCardOptions;body:Dom;paused:number;disposed:number}[]=[];
- const session={board,blocked:false,file:new File('board.thoughtspace')};
+ const session={board,blocked:false,writeBlocked:false,nativeReadonly:false,document:undefined,refreshNativeEditing(){},file:new File('board.thoughtspace')};
  const deps={isBrainBoard,parseOnlineSource,foldControlObstacles,effectiveCardStyle,cardHeadingColors,mountCardControlHover,nodeHasBorder,textBlockPadding,...model,...keys,mountCardQuickActions,mountCardReadingAffordance,cardControlLayout,renderBranchControls:branchModule.exports.renderBranchControls,branchState,branchRenderSnapshot,childConnectionCandidates:(board:model.Board,roots?:ReadonlySet<string>)=>{calls.childCandidates++;return childConnectionCandidates(board,roots);},sectionDisplayNode,visibleNodes,viewportRect,markdownPreview,visibleGridSize,textFontFamily,textFitsContent,cardDisplayTitle,syncCardTitlePresentation,mediaDimensions,
   act:()=>{},TFile:File,Component:Scope,Element:Dom,getAllTags:(cache:{tags?:string[]})=>{calls.tags++;return cache.tags||null;},setIcon:()=>{},
   button:(host:Dom,label:string,_icon:string,fn:()=>void,cls='')=>{const el=host.createEl('button',{cls,attr:{'aria-label':label}});el.createSpan();el.createSpan({text:label});el.onclick=fn;return el;},

@@ -11,13 +11,14 @@ import {parseLayoutSnapshot} from '../src/layout-snapshot-data';
 import {outlineTree} from '../src/group-organizer';
 import {readingTitle} from '../src/reading-desk';
 import {cardDisplayTitle} from '../src/card-title-model';
+import {boardHostDeps} from './board-host-deps';
 
 const source=readFileSync('src/main.ts','utf8');
 const take=(a:string,b:string)=>{const start=source.indexOf(a),end=source.indexOf(b,start);assert.ok(start>=0&&end>start);return source.slice(start,end);};
 function compile(body:string,deps:Record<string,unknown>){return new Function(...Object.keys(deps),transformSync(body,{loader:'ts'}).code)(...Object.values(deps));}
 class TFile {extension='thoughtspace';parent={path:''};constructor(public path:string,public basename=path.replace(/\.[^.]+$/,'')){} }
 const notices:string[]=[];
-const base={isBrainBoard,...model,...mindmap,reflowReadingContent,foldCards,Notice:class{constructor(message:string){notices.push(message);}},report:()=>{},EXT:'thoughtspace',TFile};
+const base={...boardHostDeps,isBrainBoard,...model,...mindmap,reflowReadingContent,foldCards,Notice:class{constructor(message:string){notices.push(message);}},report:()=>{},EXT:'thoughtspace',TFile};
 const Session=compile(take('class Session {','\nexport default class ThoughtSpace')+';return Session',base);
 const textNode=(id='one'):model.Card=>({id,kind:'text',text:'First',x:0,y:0,width:240,height:160,color:'sand'});
 function board(){return {...model.emptyBoard(),version:3 as const,spaceId:'space-140',nodes:[textNode()]};}

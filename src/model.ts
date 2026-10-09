@@ -14,6 +14,7 @@ import type {WritingState} from './writing';
 import {markdownRows} from './markdown-context';
 import {yingjianNotePath} from './yingjian';
 import {validSavedSearches,type SavedSearch} from './saved-searches';
+import {isBoardPath} from './board-path';
 /** Capture provenance survives independent text/image editing and safe note renames. */
 export interface Card { brainIdea?:true; mindmap?:BoardMindmapState;paragraphQuote?:ParagraphOrigin; pdfQuote?:PdfQuoteOrigin; videoCapture?:{id:string;note:string}; sectionFolded?:boolean; sectionDivider?:'none'|'solid'|'dashed'|'dotted'; cardStyle?:'band'|'paper'|'index'|'sticky' }
 export interface Board {background?:BoardBackground;readingLayout?:ReadingLayoutCheckpoint;relationGeometry?:RelationGeometryCheckpoint;savedSearches?:SavedSearch[]}
@@ -47,7 +48,7 @@ function assertBoardData(b:unknown):asserts b is Board {
   for (const n of b.nodes) {
     if (!isRecord(n) || typeof n.id !== 'string' || !n.id.trim() || ids.has(n.id) || !isOneOf(n.kind,b.version === 3 ? ['card','section','board','mindmap','text','image','pdf','audio','video'] : b.version === 2 ? ['card','section','board'] : ['card','section']) ||
       ![n.x,n.y].every(isFiniteNumber) || !isFiniteNumber(n.width) || !isFiniteNumber(n.height) || n.width < 80 || n.height < nodeMinimumHeight(n.kind) ||
-      !isOneOf(n.color,colors) || (isOneOf(n.kind,['card','board','image','pdf','audio','video']) && (typeof n.file !== 'string' || !((n.kind==='audio'||n.kind==='video') ? isVaultMediaPath(n.file)&&mediaKind(n.file)===n.kind : n.kind === 'pdf' ? /\.pdf$/i.test(n.file) : n.kind === 'image' ? /\.(png|jpe?g|gif|webp|avif|bmp)$/i.test(n.file) : n.kind === 'board' ? n.file.endsWith('.thoughtspace') : /\.md$/i.test(n.file)) || /(^\/|(^|\/)\.\.?(\/|$)|\\)/.test(n.file))) ||
+      !isOneOf(n.color,colors) || (isOneOf(n.kind,['card','board','image','pdf','audio','video']) && (typeof n.file !== 'string' || !((n.kind==='audio'||n.kind==='video') ? isVaultMediaPath(n.file)&&mediaKind(n.file)===n.kind : n.kind === 'pdf' ? /\.pdf$/i.test(n.file) : n.kind === 'image' ? /\.(png|jpe?g|gif|webp|avif|bmp)$/i.test(n.file) : n.kind === 'board' ? isBoardPath(n.file) : /\.md$/i.test(n.file)) || /(^\/|(^|\/)\.\.?(\/|$)|\\)/.test(n.file))) ||
       (n.kind === 'section' && typeof n.title !== 'string')) throw new Error('白板节点数据不完整');
     if(['file','title','text'].some(key=>n[key]!==undefined&&typeof n[key]!=='string'))throw new Error('白板节点数据不完整');
     if(n.brainIdea!==undefined&&(b.version!==3||n.kind!=='text'||n.brainIdea!==true||typeof n.title!=='string'||!n.title.trim()||n.title.length>160||n.file!==undefined))throw Error('脑图想法节点无效');

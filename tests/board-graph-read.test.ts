@@ -4,12 +4,14 @@ import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import {boardLinks,clone,emptyBoard,parseBoard,type Board} from '../src/model';
 import {isWorkspaceFile} from '../src/workspace';
+import {boardHostDeps} from './board-host-deps';
 
 const source=readFileSync('src/main.ts','utf8'),start=source.indexOf('  async readBoard('),end=source.indexOf('  /** 所有由本插件创建',start);
 function fixture(){
  const counts={clones:0,reads:0},files=[{path:'A.thoughtspace',extension:'thoughtspace'},{path:'B.thoughtspace',extension:'thoughtspace'}];
- const Plugin=new Function('clone','parseBoard','boardLinks','isWorkspaceFile','EXT',transformSync(`class Plugin{${source.slice(start,end)}};return Plugin`,{loader:'ts'}).code)((b:Board)=>{counts.clones++;return clone(b);},parseBoard,boardLinks,isWorkspaceFile,'thoughtspace');
- const host=new Plugin(),disk=new Map(files.map(f=>[f.path,JSON.stringify(emptyBoard())]));host.sessions=new Map();host.app={vault:{getFiles:()=>files,cachedRead:async(f:typeof files[number])=>{counts.reads++;return disk.get(f.path)!;}}};
+ const deps={...boardHostDeps,clone:(b:Board)=>{counts.clones++;return clone(b);},parseBoard,boardLinks,isWorkspaceFile,EXT:'thoughtspace'};
+ const Plugin=new Function(...Object.keys(deps),transformSync(`class Plugin{${source.slice(start,end)}};return Plugin`,{loader:'ts'}).code)(...Object.values(deps));
+ const host=new Plugin(),disk=new Map(files.map(f=>[f.path,JSON.stringify(emptyBoard())]));host.sessions=new Map();host.app={metadataCache:{getFileCache:()=>undefined},vault:{getFiles:()=>files,cachedRead:async(f:typeof files[number])=>{counts.reads++;return disk.get(f.path)!;}}};
  return{host,counts,files,disk};
 }
 const node=(id:string,kind:'text'|'board'='text',file?:string)=>({id,kind,file,text:'Large body '.repeat(200),x:0,y:0,width:200,height:100,color:'sand' as const});

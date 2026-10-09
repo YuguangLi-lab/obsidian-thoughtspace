@@ -10,6 +10,7 @@ import {isWorkspaceFile} from '../src/workspace';
 import {isPdfFile,pdfCard,pdfDropReference,pdfPage} from '../src/pdf-card';
 import {isNativeImagePath as isImage} from '../src/native-note-drop';
 import {resolveNativeNoteDrop,type NativeNoteReference} from '../src/native-note-drop';
+import {boardHostDeps} from './board-host-deps';
 
 const source=readFileSync('src/main.ts','utf8');
 function method(start:string){
@@ -31,14 +32,14 @@ function fixture(){
  const calls={changes:0,sourceWrites:0,selection:0,focus:0,materials:[] as unknown[][],attachments:[] as unknown[][],boards:[] as unknown[][],pdfs:[] as unknown[][],files:[] as unknown[][]};
  const imageSizes=new Map<string,{width:number;height:number}>();
  let measure=async(entries:NativeNoteReference<TFile>[],width:number)=>new Map(entries.filter(ref=>isImage(ref.path)).map(ref=>[ref.path,imageSizes.get(ref.path)||{width,height:width*.75}] as const));
- const deps={applyDefaultCardStyle,webUrl,mediaKind,mediaCard,isImage,measureDroppedImages:(...args:Parameters<typeof measure>)=>measure(...args),resolveNativeNoteDrop,isWorkspaceFile,isPdfFile,pdfCard,pdfDropReference,pdfPage,TFile,MATERIAL_DRAG,EXT,
+ const deps={...boardHostDeps,applyDefaultCardStyle,webUrl,mediaKind,mediaCard,isImage,measureDroppedImages:(...args:Parameters<typeof measure>)=>measure(...args),resolveNativeNoteDrop,isWorkspaceFile,isPdfFile,pdfCard,pdfDropReference,pdfPage,TFile,MATERIAL_DRAG,EXT,
   parseLinktext:(link:string)=>{const hash=link.indexOf('#');return{path:hash<0?link:link.slice(0,hash),subpath:hash<0?'':link.slice(hash)};},
   uid:()=>`drop-${++sequence}`,clone:structuredClone,
   act:(run:()=>unknown)=>{try{const pending=Promise.resolve(run());tasks.push(pending);void pending.catch(error=>errors.push(error));}catch(error){errors.push(error);}},
   Notice:class {constructor(message:string){errors.push(new Error(message));}}
  };
  const View=new Function(...Object.keys(deps),transformSync(`class View{${methods}};return View`,{loader:'ts'}).code)(...Object.values(deps));
- const view=new View(),owner={board:{...emptyBoard(),version:3 as const,viewport:{x:47,y:-31,zoom:.65}} as Board,file:new TFile('Boards/current.thoughtspace'),blocked:false,
+ const view=new View(),owner={board:{...emptyBoard(),version:3 as const,viewport:{x:47,y:-31,zoom:.65}} as Board,file:new TFile('Boards/current.thoughtspace'),blocked:false,refreshNativeEditing(){},
   change(run:(board:Board)=>void){const before=structuredClone(this.board);try{run(this.board);}catch(error){this.board=before;throw error;}history.push(before);calls.changes++;}}
  const add=(path='Notes/Alpha.md')=>{const file=new TFile(path);files.set(path,file);return file;};
  const position=(x:number,y:number):Point=>({x:(x-100-owner.board.viewport.x)/owner.board.viewport.zoom,y:(y-50-owner.board.viewport.y)/owner.board.viewport.zoom});
@@ -48,7 +49,7 @@ function fixture(){
  };
  const forbidWrite=()=>{calls.sourceWrites++;throw Error('Source note writes are forbidden during reference insertion');};
  Object.assign(view,{session:owner,file:owner.file,closed:false,selected:new Set(['previous']),selectedEdge:'previous-edge',contextOpen:true,
-  app:{dragManager:{draggable:null},vault:{getName:()=> 'demo-vault',getResourcePath:(file:TFile)=>'app://local/'+file.path,getAbstractFileByPath:(path:string)=>files.get(path),getFileByPath:(path:string)=>files.get(path),modify:forbidWrite,process:forbidWrite,create:forbidWrite,createBinary:forbidWrite},metadataCache:{getFirstLinkpathDest:resolve}},
+  app:{dragManager:{draggable:null},vault:{getName:()=> 'demo-vault',getResourcePath:(file:TFile)=>'app://local/'+file.path,getAbstractFileByPath:(path:string)=>files.get(path),getFileByPath:(path:string)=>files.get(path),modify:forbidWrite,process:forbidWrite,create:forbidWrite,createBinary:forbidWrite},metadataCache:{getFirstLinkpathDest:resolve,getFileCache:()=>undefined}},
   plugin:{settings:{defaultCardWidth:300},receiveMaterial:(...args:unknown[])=>calls.materials.push(args)},
   point:position,materialDropPoint:position,stage:{focus:()=>calls.focus++},updateSelection:()=>calls.selection++,renderBoard(){},
   importBoardAttachments:(...args:unknown[])=>calls.attachments.push(args),addBoard:(...args:unknown[])=>calls.boards.push(args),

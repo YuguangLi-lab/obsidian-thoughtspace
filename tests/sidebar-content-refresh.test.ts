@@ -11,6 +11,7 @@ import {firstNoteReferences} from '../src/sidebar-content';
 import {taskSummary,visibleTasks} from '../src/navigation';
 import {outlineTree} from '../src/group-organizer';
 import {readingTitle} from '../src/reading-desk';
+import {boardHostDeps} from './board-host-deps';
 
 // Exercise the registered content events, both schedulers and real sidebar
 // builders. Vault reads/DOM publication are boundaries, not substituted filters.
@@ -45,13 +46,14 @@ function fixture(tab:Tab){
  const note=new File('Notes/Note.md'),unrelated=new File('Notes/Unrelated.md'),pdf=new File('Books/Book.pdf');files.push(note,unrelated,pdf);
  const window={setTimeout(fn:()=>void,delay:number){const id=++next;timers.set(id,{at:now+delay,fn});return id;},clearTimeout(id:number){timers.delete(id);},requestAnimationFrame(fn:()=>void){const id=++next;frames.set(id,fn);return id;},cancelAnimationFrame(id:number){frames.delete(id);}};
  const on=(surface:'vault'|'metadata',event:string,fn:(file:File)=>void)=>{const handlers=listeners[surface].get(event)||[];handlers.push(fn);listeners[surface].set(event,handlers);};
- const deps={resolveSourceLink,mediaKind,mediaCard,window,TFile:File,EXT:'thoughtspace',isWorkspaceFile,libraryFiles,noteExcerpt,firstNoteReferences,outlineTree,taskSummary,visibleTasks,extractTasks,cardDisplayTitle,
+ const deps={...boardHostDeps,resolveSourceLink,mediaKind,mediaCard,window,TFile:File,EXT:'thoughtspace',isWorkspaceFile,libraryFiles,noteExcerpt,firstNoteReferences,outlineTree,taskSummary,visibleTasks,extractTasks,cardDisplayTitle,
   act:(run:()=>unknown)=>{pending.push(Promise.resolve().then(run));},button:(host:Element,title:string,_icon:string,run:()=>unknown,cls='')=>{const button=host.createEl('button',{text:title,cls,attr:{'aria-label':title}});button.onclick=run;return button;},setIcon(){},getAllTags:()=>[],readingTitle};
  const View=new Function(...Object.keys(deps),transformSync(`class View{init(){${events}}${methods}};return View`,{loader:'ts'}).code)(...Object.values(deps));
- const Plugin=new Function('isWorkspaceFile','boardLinks','EXT',transformSync(`class Plugin{${take('  async boardGraph()', '  /** 所有由本插件创建')}};return Plugin`,{loader:'ts'}).code)(isWorkspaceFile,boardLinks,'thoughtspace');
+ const graphDeps={...boardHostDeps,boardLinks,EXT:'thoughtspace'};
+ const Plugin=new Function(...Object.keys(graphDeps),transformSync(`class Plugin{${take('  async boardGraph()', '  /** 所有由本插件创建')}};return Plugin`,{loader:'ts'}).code)(...Object.values(graphDeps));
  const plugin=new Plugin(),view=new View(),board:Board={...emptyBoard(),nodes:[{id:'note',kind:'card',file:note.path,color:'sand',x:0,y:0,width:300,height:180}]};
  const vault={getFiles:()=>files,getMarkdownFiles:()=>files.filter(f=>f.extension==='md'),getAbstractFileByPath:(path:string)=>files.find(f=>f.path===path),cachedRead:async()=>{calls.readNote++;return '- [ ] Current task';},on:(event:string,fn:(file:File)=>void)=>on('vault',event,fn)};
- plugin.sessions=new Map();plugin.app={vault};plugin.settings={favoriteBoards:[],cardFolder:'Notes'};plugin.readBoard=async()=>{calls.readBoard++;return emptyBoard();};
+ plugin.sessions=new Map();plugin.app={vault,metadataCache:{getFileCache:()=>({})}};plugin.settings={favoriteBoards:[],cardFolder:'Notes'};plugin.readBoard=async()=>{calls.readBoard++;return emptyBoard();};
  Object.assign(view,{sidebarRun:0,renderFrame:0,viewportOnlyRender:true,tab,boardScope:'spaces',boardSort:'title',query:'',tag:'',outlineKind:'all',libraryScope:'vault',librarySort:'updated',taskScope:'board',taskFilter:'all',selected:new Set(),collapsedBoards:new Set(),outlineCollapsed:new Set(),file:files[0],session:{board},plugin,
   app:{vault,metadataCache:{on:(event:string,fn:(file:File)=>void)=>on('metadata',event,fn),getFileCache:()=>({})}},registerEvent(){},matches:()=>true,
   renderBoard(){calls.canvas++;},renderSaveStatus(){calls.status++;},populateSidebar(){calls.build++;lastList=new Element();return view.buildSidebar(lastList,view.sidebarRun);}});

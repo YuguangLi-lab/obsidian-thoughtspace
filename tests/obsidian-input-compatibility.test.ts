@@ -17,10 +17,11 @@ function promptFixture(){
   contentEl={createEl(tag:string,options:{value?:string}){const el={value:options.value||'',focus(){},select(){}};if(tag==='input')inputs.push(el);return el;},empty(){}};
   close(){closed++;}
  }
+ class View {}
  const button=(_parent:unknown,_label:string,_icon:string,run:()=>Promise<void>)=>{
   const el={disabled:false,click(){if(!el.disabled)void run();}};return el;
  };
- const Prompt=new Function('Modal','button','themeSurface',promptSource)(Modal,button,()=>{});
+ const Prompt=new Function('Modal','View','button','themeSurface',promptSource)(Modal,View,button,()=>{});
  const modal=new Prompt({},'关系说明','正在输入',(value:string)=>{submitted.push(value);});modal.onOpen();
  const input=inputs[0]!;
  const press=(extra:Record<string,unknown>={})=>{

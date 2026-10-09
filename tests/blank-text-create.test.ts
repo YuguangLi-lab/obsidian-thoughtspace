@@ -8,7 +8,7 @@ function fixture(){
  const source=readFileSync('src/main.ts','utf8'),take=(a:string,b:string)=>source.slice(source.indexOf(a),source.indexOf(b,source.indexOf(a)));
  const code=take('  private requireOwner(', '  editText(')+take('  private point(', '  private mutate(');
  let seq=0;const View=new Function('sectionAtPoint','visibleBranchBoard','Notice','uid','fitTextNode',transformSync('class View{'+code+'};return View',{loader:'ts'}).code)(sectionAtPoint,visibleBranchBoard,class Notice{},()=>`new-${++seq}`,()=>{});
- const v=new View(),board={version:3,mode:'mindmap',viewport:{x:120,y:-40,zoom:2},nodes:[],edges:[]},owner={board,blocked:false,change:(op:any)=>op(board)},edits:any[]=[];
+ const v=new View(),board={version:3,mode:'mindmap',viewport:{x:120,y:-40,zoom:2},nodes:[],edges:[]},owner={board,blocked:false,refreshNativeEditing(){},change:(op:any)=>op(board)},edits:any[]=[];
  Object.assign(v,{session:owner,blankClickOwner:owner,blankClicks:{consume:()=>true},stage:{getBoundingClientRect:()=>({left:100,top:50,width:900,height:700})},world:{},svg:{},mode:'select',plugin:{settings:{defaultTextSize:18}},updateSelection(){},startInlineEdit:async(id:string,selectAll:boolean)=>edits.push({id,selectAll})});
  const event=(patch:any={})=>({target:v.stage,button:0,clientX:420,clientY:330,preventDefault(){},stopPropagation(){},...patch});
  return{v,owner,board,edits,event};

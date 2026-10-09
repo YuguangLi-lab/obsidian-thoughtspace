@@ -40,7 +40,7 @@ function fixture(){
   mountMediaCard:(_host:unknown,options:MediaCardOptions)=>{const mounted={options,disposed:0,pauses:0,seeks:[] as number[]};let state:MediaCardState={time:options.initialTime||0,rate:1,volume:1,...options.state};mounts.push(mounted);return{dispose:()=>mounted.disposed++,pause:()=>mounted.pauses++,seek:(time:number)=>{mounted.seeks.push(time);state={...state,time};},getState:()=>({...state}),play:()=>options.onPlay?.()};}
  };
  const View=new Function(...Object.keys(deps),transformSync(`class View{${methods}};return View`,{loader:'ts'}).code)(...Object.values(deps));
- const owner={board:{...emptyBoard(),version:3 as const,viewport:{x:47,y:-31,zoom:.65}} as Board,file:new TFile('Boards/current.thoughtspace'),blocked:false,
+ const owner={board:{...emptyBoard(),version:3 as const,viewport:{x:47,y:-31,zoom:.65}} as Board,file:new TFile('Boards/current.thoughtspace'),blocked:false,refreshNativeEditing(){},
   change(run:(board:Board)=>void){const before=structuredClone(this.board);try{run(this.board);parseBoard(JSON.stringify(this.board));}catch(error){this.board=before;throw error;}history.push(before);calls.changes++;}};
  const view=new View(),forbid=()=>{calls.writes++;throw Error('Reference operations must not write source files');};
  Object.assign(view,{session:owner,file:owner.file,closed:false,selected:new Set(['previous']),selectedEdge:'previous-edge',contextOpen:true,mediaStates:new Map<string,MediaCardState>(),mediaIdentities:new Map<string,string>(),mediaPlayers:new Map(),

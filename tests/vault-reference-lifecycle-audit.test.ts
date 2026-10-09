@@ -8,10 +8,12 @@ import {textExcerptPresentation,sourceLinkTarget} from '../src/excerpt-sources';
 import {createBoardReferenceRenamer,captureBoardReferenceRename} from '../src/board-reference-rename';
 import {remapFavorites} from '../src/navigation';
 import {remapLocalRelationsPreferences} from '../src/local-relations-state';
+import {boardHostDeps} from './board-host-deps';
 
 const main=readFileSync('src/main.ts','utf8'),start=main.indexOf('  async renameReferences('),end=main.indexOf('\n  async databaseDemo(',start);
 const registrationStart=main.indexOf("    this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {"),registrationEnd=main.indexOf('\n    }));',registrationStart)+'\n    }));'.length;
-const Rename=new Function('remapLocalRelationsPreferences','parseBoard','History','isWorkspaceFile','report','EXT','createBoardReferenceRenamer','captureBoardReferenceRename','remapFavorites','remapHubPaths','act',transformSync(`class Rename{install(){${main.slice(registrationStart,registrationEnd)}}${main.slice(start,end)}};return Rename;`,{loader:'ts'}).code)(remapLocalRelationsPreferences,parseBoard,History,isWorkspaceFile,(error:unknown)=>{throw error;},'thoughtspace',createBoardReferenceRenamer,captureBoardReferenceRename,remapFavorites,(hub:unknown)=>hub,(run:()=>unknown)=>{try{void Promise.resolve(run()).catch(()=>{});}catch{}});
+const renameDeps={...boardHostDeps,remapLocalRelationsPreferences,parseBoard,History,isWorkspaceFile,report:(error:unknown)=>{throw error;},EXT:'thoughtspace',createBoardReferenceRenamer,captureBoardReferenceRename,remapFavorites,remapHubPaths:(hub:unknown)=>hub,act:(run:()=>unknown)=>{try{void Promise.resolve(run()).catch(()=>{});}catch{}}};
+const Rename=new Function(...Object.keys(renameDeps),transformSync(`class Rename{install(){${main.slice(registrationStart,registrationEnd)}}${main.slice(start,end)}};return Rename;`,{loader:'ts'}).code)(...Object.values(renameDeps));
 class TFile {constructor(public path:string){}get extension(){return this.path.split('.').at(-1)!;}}
 const writing=readFileSync('src/writing-view.ts','utf8'),openStart=writing.indexOf(' async openDraft()'),openEnd=writing.indexOf('\n async generate()',openStart);
 const Writer=new Function('TFile',transformSync(`class Writer{${writing.slice(openStart,openEnd)}};return Writer;`,{loader:'ts'}).code)(TFile);
@@ -22,7 +24,7 @@ function fixture(board:Board,loaded:boolean,boardPath='Boards/Study.thoughtspace
  let disk=JSON.stringify(board,null,2),backup=JSON.stringify(board,null,2);
  const session={board:structuredClone(board),history:new History(),blocked:false,change(edit:(board:Board)=>void){edit(this.board);},async flush(){writes.push(boardFile.path);disk=JSON.stringify(this.board,null,2);}};
  const plugin=new Rename();plugin.sessions=new Map(loaded?[[boardFile,Promise.resolve(session)]]:[]);Object.assign(plugin,{referenceQueue:Promise.resolve(),settings:{hub:{},favoriteBoards:[boardFile.path]},registerEvent(){},saveData:async()=>{},savePreferences:async()=>{}});
- plugin.app={vault:{on:(event:string,run:(file:{path:string},oldPath:string)=>void)=>events.set(event,run),getFiles:()=>[...files.values()],getAbstractFileByPath:(path:string)=>files.get(path),async process(file:TFile,update:(raw:string)=>string){assert.equal(file,boardFile,'Only the active board document may be changed');const next=update(disk);if(next!==disk)writes.push(file.path);disk=next;}}};plugin.install();
+ plugin.app={metadataCache:{getFileCache:()=>undefined},vault:{on:(event:string,run:(file:{path:string},oldPath:string)=>void)=>events.set(event,run),getFiles:()=>[...files.values()],getAbstractFileByPath:(path:string)=>files.get(path),async process(file:TFile,update:(raw:string)=>string){assert.equal(file,boardFile,'Only the active board document may be changed');const next=update(disk);if(next!==disk)writes.push(file.path);disk=next;}}};plugin.install();
  const add=(path:string)=>{const file=new TFile(path);files.set(path,file);return file;};
  const move=(oldPath:string,newPath:string)=>{const moved=files.get(oldPath)||{path:oldPath},children=[...files].filter(([path])=>path===oldPath||path.startsWith(oldPath+'/'));for(const [path,file]of children){files.delete(path);file.path=newPath+path.slice(oldPath.length);files.set(file.path,file);}moved.path=newPath;events.get('rename')!(moved,oldPath);};
  return{plugin,files,add,move,session,writes,boardFile,board:()=>loaded?session.board:parseBoard(disk),backup:()=>backup};

@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {cleanFavorites,remapFavorites,outlineNodes,taskSummary,visibleTasks,boardTemplates} from '../src/navigation';
 import {Card} from '../src/model';
-test('Favorite settings discard unsafe values and deduplicate valid paths',()=>{assert.deepEqual(cleanFavorites(['a.thoughtspace','a.thoughtspace','../b.thoughtspace','/a.thoughtspace','a//c.thoughtspace',1,'x.md','目录/b.thoughtspace']),['a.thoughtspace','目录/b.thoughtspace']);assert.deepEqual(cleanFavorites({}),[]);});
+test('Favorite settings discard unsafe values and deduplicate board path candidates',()=>{assert.deepEqual(cleanFavorites(['a.thoughtspace','a.thoughtspace','../b.thoughtspace','/a.thoughtspace','a//c.thoughtspace',1,'x.md','目录/b.thoughtspace']),['a.thoughtspace','x.md','目录/b.thoughtspace']);assert.deepEqual(cleanFavorites({}),[]);});
 test('Renaming a board or parent folder retains favorites without changing unrelated paths',()=>{assert.deepEqual(remapFavorites(['a/x.thoughtspace','ab/x.thoughtspace'],'a','b'),['b/x.thoughtspace','ab/x.thoughtspace']);assert.deepEqual(remapFavorites(['b/x.thoughtspace'],'b/x.thoughtspace','b/y.thoughtspace'),['b/y.thoughtspace']);});
 test('Deleting a favorite folder removes only its subtree',()=>{assert.deepEqual(remapFavorites(['a/x.thoughtspace','ab/x.thoughtspace'],'a'),['ab/x.thoughtspace']);});
 test('Task progress handles empty, mixed and complete scopes',()=>{assert.deepEqual(taskSummary([]),{total:0,done:0,percent:0});assert.deepEqual(taskSummary([{checked:true},{checked:false},{checked:false}]),{total:3,done:1,percent:33});assert.equal(taskSummary([{checked:true}]).percent,100);});

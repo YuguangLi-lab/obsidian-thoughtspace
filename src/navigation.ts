@@ -1,7 +1,8 @@
 import { Card } from './model';
-/** 只保存仓库相对路径，忽略失效的旧配置值。 */
+import {isBoardPath} from './board-path';
+/** 只保存路径候选，忽略失效的旧配置值；宿主仍需验证 Markdown 白板内容。 */
 export function cleanFavorites(value:unknown):string[] {
-  return Array.isArray(value) ? [...new Set(value.filter((v):v is string=>typeof v==='string'&&v.endsWith('.thoughtspace')&&!v.startsWith('/')&&!v.split('/').some(p=>p==='..'||!p)))].slice(0,200) : [];
+  return Array.isArray(value) ? [...new Set(value.filter((v):v is string=>isBoardPath(v)&&!v.startsWith('/')&&!v.split('/').some(p=>p==='..'||!p)))].slice(0,200) : [];
 }
 export function remapFavorites(paths:readonly string[],oldPath:string,newPath?:string):string[]{
   return cleanFavorites(paths.flatMap(path=>path===oldPath||path.startsWith(oldPath+'/') ? newPath?[newPath+path.slice(oldPath.length)]:[]:[path]));
