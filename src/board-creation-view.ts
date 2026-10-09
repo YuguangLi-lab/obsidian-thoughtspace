@@ -1,10 +1,11 @@
-import {Modal,Setting,View,type App,type TFile,type EventRef} from 'obsidian';
+import {Modal,Setting,View,type App,type TFile,type EventRef,type WorkspaceLeaf} from 'obsidian';
+import type {BoardOpenNavigation} from './board-opening-navigation';
 import {cleanBoardCreationPreferences,TemplateCreationIncompleteError,type BoardCreationPreferences} from './board-creation';
 
 export interface BoardCreationHost {
  initial:BoardCreationPreferences;name?:string;title?:string;template?:boolean;
  current:()=>boolean;decorate?:(element:HTMLElement)=>void;
- submit:(name:string,choice:BoardCreationPreferences,current:()=>boolean,expectDestination:(file:TFile)=>void)=>Promise<void>;
+ submit:(name:string,choice:BoardCreationPreferences,current:()=>boolean,expectDestination:(file:TFile)=>void,navigation:BoardOpenNavigation)=>Promise<void>;
 }
 // Some IMEs emit the compatibility 229 code before isComposing becomes true.
 const compositionKey=(event:{isComposing:boolean;keyCode?:number})=>event.isComposing||event.keyCode===229;
@@ -35,19 +36,20 @@ export class BoardCreationModal extends Modal {
   const cancel=actions.createEl('button',{text:'取消',attr:{type:'button'}}),save=actions.createEl('button',{cls:'mod-cta',text:'创建',attr:{type:'button'}});
   const origin=this.app.workspace.getActiveViewOfType(View),leaf=origin?.leaf,doc=origin?.containerEl.ownerDocument||this.containerEl.ownerDocument,win=doc.defaultView;
   const sourceFile:unknown=origin?Reflect.get(origin,'file'):undefined,sourcePath:unknown=sourceFile&&typeof sourceFile==='object'?Reflect.get(sourceFile,'path'):undefined,sourceSession:unknown=origin?Reflect.get(origin,'session'):undefined;
-  let expectedFile:TFile|undefined,terminal=false;
+  let expectedFile:TFile|undefined,expectedLeaf:WorkspaceLeaf|undefined,allocating=false,terminal=false;
   const originCurrent=()=>!origin||origin.containerEl.isConnected&&origin.containerEl.ownerDocument===doc&&origin.leaf===leaf&&leaf?.view===origin&&Reflect.get(origin,'file')===sourceFile&&Reflect.get(origin,'session')===sourceSession&&(!sourceFile||typeof sourceFile!=='object'||Reflect.get(sourceFile,'path')===sourcePath);
-  const activeCurrent=()=>{const active=this.app.workspace.getActiveViewOfType(View);return active===origin||!!expectedFile&&active instanceof View&&Reflect.get(active,'file')===expectedFile&&active.containerEl.ownerDocument===doc;};
+  const activeCurrent=()=>{const active=this.app.workspace.getActiveViewOfType(View);return active===origin||!!expectedFile&&!!expectedLeaf&&active instanceof View&&active.containerEl.ownerDocument===doc&&active.leaf===expectedLeaf&&expectedLeaf.view===active&&(!Reflect.get(active,'file')||Reflect.get(active,'file')===expectedFile);};
   const current=()=>{const valid=this.alive&&!this.navigationCancelled&&this.containerEl.isConnected&&this.containerEl.ownerDocument===doc&&doc.defaultView===win&&!win?.closed&&originCurrent()&&activeCurrent()&&this.host.current();if(!valid)this.navigationCancelled=true;return valid;};
-  this.navigation=this.app.workspace.on('active-leaf-change',()=>{if(!originCurrent()||!activeCurrent())this.navigationCancelled=true;});
+  this.navigation=this.app.workspace.on('active-leaf-change',()=>{if(!allocating&&(!originCurrent()||!activeCurrent()))this.navigationCancelled=true;});
   const expectDestination=(file:TFile)=>{if(current())expectedFile=file;};
+  const navigation:BoardOpenNavigation={acquire:create=>{if(!current())throw Error('新建请求已取消');allocating=true;try{const target=create();expectedLeaf=target;return target;}finally{allocating=false;if(!originCurrent()||!activeCurrent())this.navigationCancelled=true;}},target:target=>{if(!current())throw Error('新建请求已取消');expectedLeaf=target;}};
   const render=()=>{save.disabled=terminal||this.busy||!current()||!input.value.trim();input.disabled=this.busy;typeControl?.setDisabled(this.busy);formatControl?.setDisabled(this.busy);};
   cancel.onclick=()=>this.close();input.oninput=render;
   save.onclick=()=>{
    if(this.busy||save.disabled||!current())return;
    const name=input.value.trim(),choice={presentation:this.host.template?'board' as const:presentation,format};
    this.busy=true;status.setText('正在创建…');render();
-   void Promise.resolve().then(()=>this.host.submit(name,choice,current,expectDestination)).then(()=>{
+   void Promise.resolve().then(()=>this.host.submit(name,choice,current,expectDestination,navigation)).then(()=>{
     if(!current())return;const target=this.app.workspace.getActiveViewOfType(View);this.close();
     if(target instanceof View&&target.containerEl.isConnected&&target.leaf?.view===target)this.app.workspace.setActiveLeaf(target.leaf,{focus:true});
    }).catch(error=>{if(current()){terminal=error instanceof TemplateCreationIncompleteError;status.setText(error instanceof Error?error.message:String(error));save.setText(terminal?'创建已停止':'重试');}}).finally(()=>{this.busy=false;if(this.alive)render();});

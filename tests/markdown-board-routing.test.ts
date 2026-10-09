@@ -296,3 +296,7 @@ test('the toggle handler reuses both safe paths and never makes an ordinary note
  const f=fixture(),file=f.put('Boards/Toggle.md',documents.createMarkdownBoardDocument(model.emptyBoard(),'Toggle'),{thoughtspace:'board'}),leaf=f.makeLeaf(VIEW,file);f.setActive(leaf);await f.host.toggleBoardNative();assert.equal(leaf.type,'markdown');await f.host.toggleBoardNative();assert.equal(leaf.type,VIEW);assert.equal(f.leaves.length,1);
  const ordinary=f.makeLeaf('markdown',f.put('Ordinary.md','# retain ordinary'));f.setActive(ordinary);await assert.rejects(f.host.toggleBoardNative(),/thoughtspace/);assert.equal(ordinary.type,'markdown');
 });
+
+test('Explorer opening allows only its own synchronously auto-activated empty leaf',async()=>{
+ const f=fixture(),file=f.put('Boards/Explorer.md',documents.createMarkdownBoardDocument(model.emptyBoard(),'Explorer'),{thoughtspace:'board'}),native=f.makeLeaf('markdown',f.put('Other.md','# Other'));f.setActive(native);const create=f.app.workspace.getLeaf;f.app.workspace.getLeaf=(placement:string)=>{const own=create(placement);f.setActive(own);return own;};const menu=new Menu();f.host.nativeFileMenu(menu,[file]);await menu.items.find(item=>item.title==='以白板打开')!.run!();assert.equal(f.active().type,VIEW);assert.equal(f.active().view.file,file);
+});

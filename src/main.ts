@@ -740,8 +740,9 @@ export default class ThoughtSpace extends Plugin {
     }
     if(files.length===1&&files[0] instanceof TFile&&isBoardFile(this.app,files[0])){
       const file=files[0],path=file.path,active=this.app.workspace.getMostRecentLeaf(),view=nativeView?.file===file&&this.app.workspace.getActiveViewOfType(MarkdownView)===nativeView?nativeView:undefined,leaf=view?.leaf,doc=view?.containerEl.ownerDocument,win=doc?.defaultView;
-      const current=()=>file.path===path&&this.app.vault.getAbstractFileByPath(path)===file&&this.app.workspace.getMostRecentLeaf()===active&&(!view||this.app.workspace.getActiveViewOfType(MarkdownView)===view&&view.file===file&&leaf?.view===view&&view.containerEl.ownerDocument===doc&&!win?.closed);
-      if(file.extension.toLowerCase()==='md')menu.addItem(i=>i.setTitle(view?'返回白板':'以白板打开').setIcon('panels-top-left').onClick(()=>act(()=>{if(!current())throw Error('菜单页面或文件已变化，已取消打开白板');return view?this.openCurrentMarkdownBoard():this.openBoard(file,false,current);})));menu.addItem(i=>i.setTitle('ThoughtSpace · 导出原生链接索引').setIcon('file-output').onClick(()=>act(()=>this.exportNativeIndex(file))));
+      let openingLeaf:WorkspaceLeaf|undefined;const current=()=>file.path===path&&this.app.vault.getAbstractFileByPath(path)===file&&(this.app.workspace.getMostRecentLeaf()===active||this.app.workspace.getMostRecentLeaf()===openingLeaf)&&(!view||this.app.workspace.getActiveViewOfType(MarkdownView)===view&&view.file===file&&leaf?.view===view&&view.containerEl.ownerDocument===doc&&!win?.closed);
+      const navigation:BoardOpenNavigation={acquire:create=>{if(!current())throw Error('菜单页面已变化');const target=create();openingLeaf=target;return target;},target:target=>{if(!current())throw Error('菜单页面已变化');openingLeaf=target;}};
+      if(file.extension.toLowerCase()==='md')menu.addItem(i=>i.setTitle(view?'返回白板':'以白板打开').setIcon('panels-top-left').onClick(()=>act(()=>{if(!current())throw Error('菜单页面或文件已变化，已取消打开白板');return view?this.openCurrentMarkdownBoard():this.openBoard(file,false,current,false,navigation);})));menu.addItem(i=>i.setTitle('ThoughtSpace · 导出原生链接索引').setIcon('file-output').onClick(()=>act(()=>this.exportNativeIndex(file))));
     }
   }
   pickNativeDestination(files:TFile[]){
@@ -1255,21 +1256,21 @@ export default class ThoughtSpace extends Plugin {
   promptNewBoard(){
     if(this.boardCreationStopped)return;this.boardCreationModal?.close();
     const modal=new BoardCreationModal(this.app,{initial:cleanBoardCreationPreferences(this.settings.boardCreation),current:()=>!this.boardCreationStopped,decorate:themeSurface,
-      submit:async(name,choice,current,expectDestination)=>{
+      submit:async(name,choice,current,expectDestination,navigation)=>{
         const board=choice.presentation==='brain'?createBrainBoard():emptyBoard();
         const file=await this.createUnique(`${ROOT}/白板`,name,choice.format==='markdown'?'md':EXT,choice.format==='markdown'?createMarkdownBoardDocument(board,name):JSON.stringify(board,null,2),current);
-        expectDestination(file);await this.finishBoardCreation(file,choice,current);
+        expectDestination(file);await this.finishBoardCreation(file,choice,current,false,false,navigation);
       }});this.boardCreationModal=modal;modal.open();return modal;
   }
   promptTemplateBoard(id:string,name:string,created?:()=>void){
     if(this.boardCreationStopped)return;this.boardCreationModal?.close();
     const modal=new BoardCreationModal(this.app,{initial:{...cleanBoardCreationPreferences(this.settings.boardCreation),presentation:'board'},name,title:'从模板新建',template:true,current:()=>!this.boardCreationStopped,decorate:themeSurface,
-      submit:async(title,choice,current,expectDestination)=>{const file=await this.createFromTemplate(id,title,choice.format,current,false);if(!current())return;expectDestination(file);try{created?.();}catch(error){new Notice(`模板白板已创建；模板窗口暂未关闭。${error instanceof Error?error.message:String(error)}`,8000);}await this.finishBoardCreation(file,choice,current,true,true);}
+      submit:async(title,choice,current,expectDestination,navigation)=>{const file=await this.createFromTemplate(id,title,choice.format,current,false);if(!current())return;expectDestination(file);try{created?.();}catch(error){new Notice(`模板白板已创建；模板窗口暂未关闭。${error instanceof Error?error.message:String(error)}`,8000);}await this.finishBoardCreation(file,choice,current,true,true,navigation);}
     });this.boardCreationModal=modal;modal.open();return modal;
   }
-  private async finishBoardCreation(file:TFile,choice:BoardCreationPreferences,current:()=>boolean,fit=false,formatOnly=false){
+  private async finishBoardCreation(file:TFile,choice:BoardCreationPreferences,current:()=>boolean,fit=false,formatOnly=false,navigation?:BoardOpenNavigation){
     if(!current())return;
-    try{await this.openBoard(file,fit,current);}catch(error){new Notice(`白板已创建：${file.path}；暂未打开，请从文件列表重开。${error instanceof Error?error.message:String(error)}`,10000);return;}
+    try{await this.openBoard(file,fit,current,false,navigation);}catch(error){new Notice(`白板已创建：${file.path}；暂未打开，请从文件列表重开。${error instanceof Error?error.message:String(error)}`,10000);return;}
     if(!current())return;
     try{await this.rememberBoardCreation(choice,current,formatOnly);}catch(error){new Notice(`白板已创建；类型与格式偏好未保存，下次仍使用原选择。${error instanceof Error?error.message:String(error)}`,10000);}
   }

@@ -64,12 +64,12 @@ const tick=async()=>{for(let i=0;i<30;i++)await Promise.resolve();};
 function deferred(){let resolve!:()=>void,reject!:(error:Error)=>void;const promise=new Promise<void>((yes,no)=>{resolve=yes;reject=no;});return{promise,resolve,reject};}
 function fixture(initial:unknown=null){
  const files=new Map<string,{path:string;body:string}>(),folders=new Set<string>(),opened:string[]=[],writes:any[]=[],events:string[]=[],frames=new Map<number,()=>void>();let frame=0;
- const hooks:{create?:(path:string,body:string)=>Promise<void>;open?:()=>Promise<void>;save?:()=>Promise<void>}={};
+ const hooks:{create?:(path:string,body:string)=>Promise<void>;open?:()=>Promise<void>;allocate?:boolean;save?:()=>Promise<void>}={};
  const doc:any={activeElement:null,defaultView:{requestAnimationFrame:(run:()=>void)=>{frames.set(++frame,run);return frame;},cancelAnimationFrame:(id:number)=>frames.delete(id)}};
  const invoker:any={id:'Invoker'},target:any={id:'Created'},activations:any[]=[],listeners=new Set<()=>void>();new View(invoker);new View(target);invoker.view.containerEl.ownerDocument=doc;target.view.containerEl.ownerDocument=doc;
  const app:any={document:doc,invoker,active:invoker,workspace:{getActiveViewOfType:(type:any)=>app.active.view instanceof type?app.active.view:null,on:(_name:string,run:()=>void)=>{listeners.add(run);return run;},offref:(run:()=>void)=>listeners.delete(run),setActiveLeaf:(leaf:any)=>{app.active=leaf;activations.push(leaf);}},vault:{getAbstractFileByPath:(path:string)=>files.get(path)||(folders.has(path)?{path}:undefined),createFolder:async(path:string)=>{folders.add(path);},create:async(path:string,body:string)=>{events.push('create-start');await hooks.create?.(path,body);const file={path,body};files.set(path,file);events.push('create-complete');return file;}}};
  let active=invoker;Object.defineProperty(app,'active',{get:()=>active,set:(value:unknown)=>{active=value;for(const run of listeners)run();}});
- const host=new Host();Object.assign(host,{app,settings:cleanPluginSettings(initial),boardCreationStopped:false,boardCreationPreferenceQueue:Promise.resolve(),openBoard:async(file:any,_fit:boolean,current:()=>boolean=()=>true)=>{events.push('open');await hooks.open?.();if(current()){opened.push(file.path);target.view.file=file;app.active=target;}},saveData:async(settings:any)=>{events.push('save-preferences');writes.push(structuredClone(settings));await hooks.save?.();}});
+ const host=new Host();Object.assign(host,{app,settings:cleanPluginSettings(initial),boardCreationStopped:false,boardCreationPreferenceQueue:Promise.resolve(),openBoard:async(file:any,_fit:boolean,current:()=>boolean=()=>true,_provisional=false,navigation?:any)=>{events.push('open');if(hooks.allocate){const create=()=>{app.active=target;return target;};const own=navigation?navigation.acquire(create):create();navigation?.target(own);}else navigation?.target(target);await hooks.open?.();if(current()){opened.push(file.path);target.view.file=file;app.active=target;}},saveData:async(settings:any)=>{events.push('save-preferences');writes.push(structuredClone(settings));await hooks.save?.();}});
  const modal=()=>modals.at(-1)!,all=()=>modal().contentEl.all() as Element[],find=(label:string)=>all().find(element=>element.attributes['aria-label']===label)!,button=(label:string)=>all().find(element=>element.tag==='button'&&element.text===label)!;
  const choice=(presentation='board',format='legacy')=>{find('白板类型').change?.(presentation);find('文件格式').change?.(format);};
  const name=(value:string)=>{find('白板名称').value=value;find('白板名称').oninput?.();};
@@ -177,4 +177,15 @@ test('a template board-file failure lists its completed cards and cannot automat
 });
 test('after completed creation, a preference write already submitted to the host may finish after Cancel and does not create a second file',async()=>{
  const f=fixture(),gate=deferred();f.hooks.save=()=>gate.promise;f.host.promptNewBoard();f.choice('brain','markdown');f.button('创建').click();await tick();assert.equal(f.files.size,1);assert.equal(f.opened.length,1);assert.equal(f.writes.length,1);f.button('取消').click();gate.resolve();await tick();assert.equal(f.files.size,1);assert.deepEqual(f.host.settings.boardCreation,{presentation:'brain',format:'markdown'});assert.equal(f.activations.length,0);
+});
+
+test('the host activating its own newly allocated empty leaf preserves the approved creation through file mounting',async()=>{
+ const f=fixture();f.hooks.allocate=true;f.host.promptNewBoard();f.choice('brain','markdown');f.button('创建').click();await tick();assert.equal(f.files.size,1);assert.equal(f.opened.length,1);assert.equal(f.writes.length,1);assert.equal(f.app.active.id,'Created');assert(f.modal().closed);
+});
+
+test('a different empty leaf during own allocation or file mounting cancels creation rather than sharing a broad empty-leaf allowance',async()=>{
+ const f=fixture(),gate=deferred();f.hooks.allocate=true;f.hooks.open=()=>gate.promise;f.host.promptNewBoard();f.button('创建').click();await tick();const other:any={id:'Other empty'};new View(other);other.view.containerEl.ownerDocument=f.app.document;f.app.active=other;gate.resolve();await tick();assert.equal(f.files.size,1);assert.equal(f.opened.length,0);assert.equal(f.writes.length,0);assert.equal(f.app.active,other);
+});
+test('a same-file page on a different leaf is newer navigation and cannot acquire the creation request',async()=>{
+ const f=fixture(),gate=deferred();f.hooks.allocate=true;f.hooks.open=()=>gate.promise;f.host.promptNewBoard();f.button('创建').click();await tick();const other:any={id:'Other same file'};new View(other);other.view.containerEl.ownerDocument=f.app.document;other.view.file=[...f.files.values()][0];f.app.active=other;gate.resolve();await tick();assert.equal(f.opened.length,0);assert.equal(f.writes.length,0);assert.equal(f.app.active,other);
 });
