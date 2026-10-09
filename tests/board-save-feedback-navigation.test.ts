@@ -1,3 +1,6 @@
+import {boardHostDeps} from './board-host-deps';
+import {SharedOpen} from '../src/view-opening';
+import {emptyBoard} from '../src/model';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -10,15 +13,15 @@ function fixture(action='locate-native'){
  const doc={defaultView:{closed:false},body:{appendChild(el:any){el.ownerDocument=doc;}}},otherDoc={defaultView:{closed:false},body:{appendChild(el:any){el.ownerDocument=otherDoc;}}},file={path:'Boards/Protected.md'},recovery={path:'Boards/Recovery.md'},files=new Map([[file.path,file],[recovery.path,recovery]]);
  class NativeView {}
  class MarkdownView extends NativeView {file=file;draft='Unsaved native input';saving=true;saveAgain=true;save(){throw Error('Status navigation must not save a native page');}}
- const pickers:any[]=[],focuses:any[]=[],revealed:any[]=[],opens:any[]=[],listeners=new Set<(leaf:any)=>void>(),leaves:any[]=[];
+ const fileListeners=new Set<(file:any)=>void>();const pickers:any[]=[],focuses:any[]=[],revealed:any[]=[],opens:any[]=[],listeners=new Set<(leaf:any)=>void>(),leaves:any[]=[];
  class FuzzySuggestModal {containerEl={ownerDocument:doc};baseOpens=0;constructor(_app:unknown){pickers.push(this);}onOpen(){this.baseOpens++;if((this as any).hostError)throw (this as any).hostError;if((this as any).hostReject)return Promise.reject((this as any).hostReject);}setPlaceholder(text:string){(this as any).placeholder=text;}open(){}onClose(){}close(){this.onClose();}}
  const module={exports:{} as any};new Function('require','module','exports',transformSync(readFileSync('src/board-save-feedback-native.ts','utf8'),{loader:'ts',format:'cjs'}).code)(()=>({FuzzySuggestModal}),module,module.exports);
  const NativeBoardEditorPicker=module.exports.NativeBoardEditorPicker;
  const nativeBoardEditorLeaves=()=>leaves.filter(leaf=>leaf.getViewState().state.file===file.path);
- const View=new Function('View','nativeBoardEditorLeaves','NativeBoardEditorPicker','report',transformSync('class BoardView{'+take('  private saveFeedbackSequence=','  private scheduleRender(')+'};return BoardView',{loader:'ts'}).code)(NativeView,nativeBoardEditorLeaves,NativeBoardEditorPicker,()=>{});
+ const View=new Function('View','nativeBoardEditorLeaves','NativeBoardEditorPicker','report','MarkdownView',transformSync('class BoardView{'+take('  private saveFeedbackSequence=','  private scheduleRender(')+'};return BoardView',{loader:'ts'}).code)(NativeView,nativeBoardEditorLeaves,NativeBoardEditorPicker,()=>{},MarkdownView);
  let active:any,load:(()=>Promise<void>)|undefined,reveal:(()=>Promise<void>)|undefined,open:((...args:any[])=>Promise<any>)|undefined;
  function makeLeaf(view:any,document=doc,deferred=false){const leaf:any={view,isDeferred:deferred,getContainer:()=>({doc:document,win:document.defaultView}),getViewState:()=>({type:view instanceof MarkdownView?'markdown':'thoughtspace-board',state:{file:view.file?.path||''}}),async loadIfDeferred(){await load?.();this.isDeferred=false;}};view.leaf=leaf;return leaf;}
- const workspace={getActiveViewOfType:()=>active?.view,on:(_event:string,callback:(leaf:any)=>void)=>{listeners.add(callback);return callback;},offref:(callback:(leaf:any)=>void)=>listeners.delete(callback),async revealLeaf(leaf:any){revealed.push(leaf);await reveal?.();},setActiveLeaf(leaf:any){focuses.push(leaf);active=leaf;for(const callback of listeners)callback(leaf);}};
+ const workspace={getActiveViewOfType:()=>active?.view,on:(event:string,callback:(leaf:any)=>void)=>{(event==='file-open'?fileListeners:listeners).add(callback);return callback;},offref:(callback:(leaf:any)=>void)=>{listeners.delete(callback);fileListeners.delete(callback);},async revealLeaf(leaf:any){revealed.push(leaf);await reveal?.();},setActiveLeaf(leaf:any){focuses.push(leaf);active=leaf;for(const callback of listeners)callback(leaf);}};
  const app={workspace,vault:{getAbstractFileByPath:(path:string)=>files.get(path)}};
  const Host=new Function('MarkdownView','nativeBoardEditorLeaves',transformSync('class Host{'+take('  async locateNativeBoardEditor(','  nativeBoardEditorStatus(')+'};return Host',{loader:'ts'}).code)(MarkdownView,nativeBoardEditorLeaves);
  const plugin=new Host();Object.assign(plugin,{app,openBoard:async(...args:any[])=>{opens.push(args);return open?.(...args);}});
@@ -27,7 +30,7 @@ function fixture(action='locate-native'){
  const native=makeLeaf(new MarkdownView());leaves.push(native);
  const targetView=new View();Object.assign(targetView,{file:recovery,session:{},containerEl:{isConnected:true},resumeAutomaticGeometry(){}});const recoveryLeaf=makeLeaf(targetView);open=async()=>recoveryLeaf;
  const navigate=(leaf:any)=>{active=leaf;for(const callback of listeners)callback(leaf);};
- return{NativeBoardEditorPicker,view,plugin,owner,file,recovery,files,doc,otherDoc,sourceLeaf,native,recoveryLeaf,leaves,pickers,focuses,revealed,opens,listeners,MarkdownView,makeLeaf,navigate,run:()=>view.runSaveFeedbackAction(action),load:(fn:()=>Promise<void>)=>load=fn,reveal:(fn:()=>Promise<void>)=>reveal=fn,open:(fn:(...args:any[])=>Promise<any>)=>open=fn};
+ return{fileListeners,fireFile:(file:any)=>{for(const callback of fileListeners)callback(file);},NativeBoardEditorPicker,view,plugin,owner,file,recovery,files,doc,otherDoc,sourceLeaf,native,recoveryLeaf,leaves,pickers,focuses,revealed,opens,listeners,MarkdownView,makeLeaf,navigate,run:()=>view.runSaveFeedbackAction(action),load:(fn:()=>Promise<void>)=>load=fn,reveal:(fn:()=>Promise<void>)=>reveal=fn,open:(fn:(...args:any[])=>Promise<any>)=>open=fn};
 }
 test('locating one native page reveals it without reading, saving, closing or changing its draft',async()=>{const f=fixture(),before={...f.native.view};await f.run();assert.deepEqual(f.focuses,[f.native]);assert.equal(f.native.view.draft,before.draft);assert.equal(f.native.view.saving,true);assert.equal(f.native.view.saveAgain,true);assert.equal(f.owner.blocked,true);assert.equal(f.listeners.size,0);});
 test('multiple native windows require a choice; selecting the second preserves both drafts',async()=>{const f=fixture(),other=f.makeLeaf(new f.MarkdownView(),f.otherDoc);f.leaves.push(other);const pending=f.run();await tick();assert.equal(f.pickers.length,1);assert.deepEqual(f.focuses,[]);assert.match(f.pickers[0].getItemText(other),/其他窗口/);f.pickers[0].onChooseItem(other);f.pickers[0].close();await pending;assert.deepEqual(f.focuses,[other]);assert.equal(f.native.view.draft,'Unsaved native input');assert.equal(other.view.draft,'Unsaved native input');assert.equal(f.owner.blocked,true);assert.equal(f.listeners.size,0);});
@@ -50,3 +53,18 @@ test('user navigation after expected tab acquisition permanently cancels recover
 for(const kind of ['closed','closing','detached'])test(`recovery ${kind} destination while loading never receives focus`,async()=>{const f=fixture('open-recovery');if(kind==='detached')f.recoveryLeaf.view.containerEl.isConnected=false;else f.recoveryLeaf.view[kind]=true;await f.run();assert.deepEqual(f.focuses,[]);assert.equal(f.owner.blocked,true);assert.equal(f.listeners.size,0);});
 
 for(const failure of ['throw','reject'])test(`native picker host ${failure} closes safely, reports the cause and leaves retry possible`,async()=>{const f=fixture(),errors:unknown[]=[];let canceled=0;const picker=new f.NativeBoardEditorPicker(f.plugin.app,f.leaves,f.doc,()=>canceled++,()=>true,(error:unknown)=>errors.push(error));const error=Error('Host picker failed');if(failure==='throw')picker.hostError=error;else picker.hostReject=error;picker.onOpen();await tick();assert.equal(canceled,1);assert.deepEqual(errors,[error]);assert.deepEqual(f.focuses,[]);assert.equal(f.owner.blocked,true);});
+
+function productionRecoveryFixture(){
+ const f=fixture('open-recovery'),waiting=gate(),BoardView=f.view.constructor,mounts:string[]=[],detached:any[]=[];
+ const openBoard=new Function('BoardView','FileView','VIEW',...Object.keys(boardHostDeps),transformSync('class Host{'+take('  async openBoard(','\n  openBoardOrganizer(')+'};return Host.prototype.openBoard;',{loader:'ts'}).code)(BoardView,class FileView{},'thoughtspace-board',...Object.values(boardHostDeps));
+ (f.recovery as any).extension='md';Object.assign(f.plugin.app.vault,{read:async()=>boardHostDeps.createMarkdownBoardDocument(emptyBoard(),'Recovery')});f.plugin.boardOpening=new SharedOpen();f.plugin.provisionalBoardGeometry=new WeakMap();f.plugin.readBoard=async()=>{await waiting.promise;return emptyBoard();};
+ const initial={},target:any={view:initial,getViewState(){return this.view.file?{type:this.view instanceof BoardView?'thoughtspace-board':'markdown',state:{file:this.view.file.path}}:{type:'empty',state:{}};},getContainer:()=>({doc:f.doc,win:f.doc.defaultView}),detach(){detached.push(this);},async setViewState(state:any){mounts.push(state.state.file);const view=new BoardView();Object.assign(view,{file:f.recovery,session:{},containerEl:{isConnected:true},resumeAutomaticGeometry(){}});view.leaf=this;this.view=view;f.fireFile(f.recovery);}};
+ Object.assign(f.plugin.app.workspace,{getLeavesOfType:()=>[],getLeaf:()=>{f.navigate(target);return target;}});f.plugin.openBoard=openBoard;
+ return{...f,target,initial,waiting,mounts,detached};
+}
+for(const change of ['same-view-file','new-native-view','leave-and-return-file','replace-empty-view'])test(`production recovery opening preserves ${change} in its own same target leaf`,async()=>{
+ const f=productionRecoveryFixture(),pending=f.run();await tick();const userFile={path:'Notes/Newer user choice.md'};
+ if(change==='same-view-file')Object.assign(f.target.view,{file:userFile,leaf:f.target});else if(change==='new-native-view')f.target.view={file:userFile,leaf:f.target};else if(change==='leave-and-return-file'){f.target.view={file:userFile,leaf:f.target};f.fireFile(userFile);f.target.view=f.recoveryLeaf.view;f.target.view.leaf=f.target;}else f.target.view={};
+ f.navigate(f.target);const selected=f.target.view;f.waiting.resolve();await pending;assert.equal(f.target.view,selected);assert.deepEqual(f.mounts,[]);assert.deepEqual(f.focuses,[]);assert.deepEqual(f.detached,[]);assert.equal(f.owner.blocked,true);assert.equal(f.listeners.size,0);assert.equal(f.fileListeners.size,0);
+});
+test('production recovery opening accepts its exact initial placeholder and the mounted recovery board',async()=>{const f=productionRecoveryFixture(),pending=f.run();await tick();f.waiting.resolve();await pending;assert.deepEqual(f.mounts,[f.recovery.path]);assert.deepEqual(f.focuses,[f.target]);assert.equal(f.owner.blocked,true);assert.equal(f.listeners.size,0);assert.equal(f.fileListeners.size,0);});

@@ -2428,11 +2428,19 @@ class BoardView extends FileView {
   async runSaveFeedbackAction(action:BoardSaveFeedbackAction){
     const owner=this.session,source=this.leaf,doc=this.contentEl.ownerDocument,win=doc.defaultView;
     if(this.saveFeedbackPending||!owner||this.closed||this.closing||source.view!==this||!win||win.closed||this.app.workspace.getActiveViewOfType(View)!==this||owner.saveFeedback.action?.kind!==action)return;
-    this.saveFeedbackPending=true;const sequence=++this.saveFeedbackSequence;let stopped=false,allocating=false,target:WorkspaceLeaf|undefined;
+    this.saveFeedbackPending=true;const sequence=++this.saveFeedbackSequence;let stopped=false,allocating=false,target:WorkspaceLeaf|undefined,targetInitialView:View|undefined;
     const active=this.app.workspace.getActiveViewOfType(View)?.leaf,sourcePath=owner.file.path,sourceIdentity=this.app.vault.getAbstractFileByPath(sourcePath);
-    const valid=()=>!stopped&&sequence===this.saveFeedbackSequence&&!this.closed&&!this.closing&&this.session===owner&&source.view===this&&this.contentEl.ownerDocument===doc&&doc.defaultView===win&&!win.closed&&owner.file.path===sourcePath&&this.app.vault.getAbstractFileByPath(sourcePath)===sourceIdentity;
-    const ref=this.app.workspace.on('active-leaf-change',leaf=>{if(!allocating&&leaf!==active&&leaf!==target){stopped=true;this.saveFeedbackPicker?.close();}});
-    const stop=()=>{stopped=true;this.app.workspace.offref(ref);};this.stopSaveFeedbackNavigation=stop;
+    const requested=action==='open-recovery'?owner.recoveryFile:owner.file;
+    const setTarget=(leaf:WorkspaceLeaf)=>{if(target!==leaf)targetInitialView=leaf.view;target=leaf;};
+    const targetValid=()=>{
+      if(!target)return true;
+      if(target.isDeferred&&target.view===targetInitialView&&target.getViewState().state?.file===requested?.path)return true;
+      if(action==='open-recovery')return target.view===targetInitialView&&target.getViewState().type==='empty'||target.view instanceof BoardView&&target.view.file===requested;
+      return target.view instanceof MarkdownView&&target.view.file===requested;
+    };
+    const valid=()=>{if(!targetValid())stopped=true;return !stopped&&sequence===this.saveFeedbackSequence&&!this.closed&&!this.closing&&this.session===owner&&source.view===this&&this.contentEl.ownerDocument===doc&&doc.defaultView===win&&!win.closed&&owner.file.path===sourcePath&&this.app.vault.getAbstractFileByPath(sourcePath)===sourceIdentity;};
+    const changed=()=>{const leaf=this.app.workspace.getActiveViewOfType(View)?.leaf;if(!allocating&&(!targetValid()||leaf!==active&&leaf!==target)){stopped=true;this.saveFeedbackPicker?.close();}},refs=[this.app.workspace.on('active-leaf-change',changed),this.app.workspace.on('file-open',changed)];
+    const stop=()=>{stopped=true;for(const ref of refs)this.app.workspace.offref(ref);};this.stopSaveFeedbackNavigation=stop;
     try{
       if(action==='locate-native'){
         const leaves=nativeBoardEditorLeaves(this.app,owner.file);if(!leaves.length){owner.refreshNativeEditing();this.renderSaveStatus();return;}
@@ -2440,17 +2448,17 @@ class BoardView extends FileView {
           const picked=await new Promise<WorkspaceLeaf|undefined>(resolve=>{const picker=new NativeBoardEditorPicker(this.app,leaves,doc,resolve,valid,report);this.saveFeedbackPicker=picker;picker.open();});
           this.saveFeedbackPicker=undefined;if(!picked||!valid())return;chosen=picked;
         }
-        target=chosen;await this.plugin.locateNativeBoardEditor(owner.file,chosen,valid);return;
+        setTarget(chosen);await this.plugin.locateNativeBoardEditor(owner.file,chosen,valid);return;
       }
       const file=owner.recoveryFile,path=file?.path;
       if(!file||!path||this.app.vault.getAbstractFileByPath(path)!==file){this.renderSaveStatus();throw Error('恢复草稿已移除或替换；当前布局仍在本页，请导出保留。');}
       const current=()=>valid()&&file.path===path&&this.app.vault.getAbstractFileByPath(path)===file;
-      const navigation:BoardOpenNavigation={acquire:create=>{allocating=true;try{const leaf=create();target=leaf;const now=this.app.workspace.getActiveViewOfType(View)?.leaf;if(now&&now!==active&&now!==leaf)stopped=true;return leaf;}finally{allocating=false;}},target:leaf=>{target=leaf;}};
+      const navigation:BoardOpenNavigation={acquire:create=>{allocating=true;try{const leaf=create();setTarget(leaf);const now=this.app.workspace.getActiveViewOfType(View)?.leaf;if(now&&now!==active&&now!==leaf)stopped=true;return leaf;}finally{allocating=false;}},target:setTarget};
       target=await this.plugin.openBoard(file,false,current,true,navigation);if(!target||!current())return;
       const opened=target.view;if(!(opened instanceof BoardView)||opened.file!==file||!opened.session||opened.closed||opened.closing||!opened.containerEl.isConnected||target.getContainer().win.closed)return;
       await this.app.workspace.revealLeaf(target);if(!current()||target.view!==opened||opened.file!==file||opened.closed||opened.closing||!opened.containerEl.isConnected||target.getContainer().win.closed)return;
       opened.resumeAutomaticGeometry();this.app.workspace.setActiveLeaf(target,{focus:true});this.plugin.currentBoard=opened;
-    }finally{this.app.workspace.offref(ref);if(this.stopSaveFeedbackNavigation===stop)this.stopSaveFeedbackNavigation=undefined;if(sequence===this.saveFeedbackSequence){this.saveFeedbackPending=false;this.saveFeedbackPicker=undefined;}}
+    }finally{for(const ref of refs)this.app.workspace.offref(ref);if(this.stopSaveFeedbackNavigation===stop)this.stopSaveFeedbackNavigation=undefined;if(sequence===this.saveFeedbackSequence){this.saveFeedbackPending=false;this.saveFeedbackPicker=undefined;}}
   }
   private scheduleRender(viewportOnly=false){
     if(this.closed)return;
