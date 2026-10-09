@@ -2,7 +2,7 @@
 
 [English](USER-GUIDE.md) · [中文完整教程](USER-GUIDE.zh-CN.md) · [Project home](../README.md)
 
-This guide covers **ThoughtSpace Whiteboard 1.3.33** for **Obsidian desktop 1.13.7 or newer**. Settings support Chinese and English; other plugin menus and workspaces remain mainly Chinese. English explanations below include Chinese labels where needed. Button labels may appear as icons in narrow panes; hover over an icon to read its tooltip.
+This guide covers **ThoughtSpace Whiteboard 1.3.35** for **Obsidian desktop 1.13.7 or newer**. Settings support Chinese and English; other plugin menus and workspaces remain mainly Chinese. English explanations below include Chinese labels where needed. Button labels may appear as icons in narrow panes; hover over an icon to read its tooltip.
 
 ## Contents
 
@@ -20,7 +20,7 @@ This guide covers **ThoughtSpace Whiteboard 1.3.33** for **Obsidian desktop 1.13
 1. Open Obsidian **Settings → Community plugins** and browse for **ThoughtSpace Whiteboard**.
 2. Install and enable the plugin if it is available in your directory.
 3. Open the command palette and search for `ThoughtSpace`.
-4. Run **新建白板** (New whiteboard), or **创建入门示例白板** (Create a starter example).
+4. Run **新建白板或脑图…** (New whiteboard), or **创建入门示例白板** (Create a starter example).
 
 The community directory and GitHub releases can update at different times. If the version you need is unavailable in the directory, use the manual method below.
 
@@ -50,7 +50,7 @@ For a community installation, you can instead use Obsidian's community-plugin up
 
 This exercise produces a small research board and a reusable Markdown draft.
 
-1. **Minute 0–1:** Run **新建白板** and name it `Reading project`.
+1. **Minute 0–1:** Run **新建白板或脑图…** and name it `Reading project`.
 2. **Minute 1–2:** Double-click an empty area, type `What question am I trying to answer?`, and finish the edit with the editor's save control.
 3. **Minute 2–3:** Choose **插入内容 → 已有笔记** (Insert content → Existing note) and select a Markdown note from your vault.
 4. **Minute 3–4:** Click **＋ 新建卡片** (New card) in the left floating toolbar and record your own interpretation. You can set its board title later with **修改卡片标题** in the card's context menu.
@@ -89,7 +89,7 @@ A note can appear on several boards or more than once on one board. Those cards 
 | **ThoughtSpace 侧边栏** ribbon icon / **打开 ThoughtSpace 侧边栏** command | Browse cards, boards, tasks, and the outline |
 | **打开空间总览** command | Browse your knowledge space and boards |
 | **打开研究工作台** command | Open the research workspace |
-| **新建白板** / **从模板创建白板** commands | Create a board |
+| **新建白板或脑图…** / **从模板创建白板** commands | Create a board |
 | **新建思维导图** command | Start a mind map with a preset |
 | **ThoughtSpace 音视频笔记** ribbon icon | Play and annotate media without opening a board |
 
@@ -540,3 +540,9 @@ Use **Select excerpt (选段引用)** in a pinned reference to choose an existin
 The collapsible manuscript directory reads ATX and single-line Setext headings, separately from the material arrangement. Jump to a chapter, inspect its own-body word count, and mark completion. Unchanged sections keep completion through reordering; editing or renaming resets it. Identical duplicate sections use separate entries and conservatively reset completion if their count changes. Code, properties, quoted and nested-list headings are excluded. Multiline underlined text remains ordinary prose, matching the current Obsidian renderer.
 
 An arrangement-change notice never rewrites your prose. Explicitly rebuild only when ready; the existing manuscript is backed up first. New assembly/rebuild establishes a comparison baseline; appending new material at the manuscript end advances it only if no earlier arrangement changes were outstanding and the arrangement stays unchanged during the read. Older manuscripts without a baseline remain untouched and show an unknown-comparison notice until rebuilt. Source-note automatic synchronization and automatic manuscript merging are not included.
+
+## Convenience commands in 1.3.35
+
+The unified creation dialog selects ordinary or brain presentation and legacy or Markdown format, remembering successful choices. Explicit format commands remain available. Markdown boards have native Properties round trips in the same tab, with a bindable **切换白板与原生属性** command. **继续上次白板** resumes the latest valid recent board or opens the space hub.
+
+Brain boards provide four relationship commands with no default hotkeys; text inputs and IME retain their input protection. Linking an idea to an existing note preserves the entire idea and adds a reference and bidirectional relationship. The node menu also opens the existing-note picker directly. See the [detailed Markdown board guide (Chinese)](markdown-boards.zh-CN.md) and [1.3.35 validation and limits](../qa/RELEASE-1.3.35.md).

@@ -12,7 +12,10 @@ version = manifest['version']
 assert version == json.loads((root / 'package.json').read_text())['version']
 assert '/' not in version and '\\' not in version
 runtime = ['main.js', 'manifest.json', 'styles.css']
-files = runtime + ['README.md', 'README.zh-CN.md', 'docs/USER-GUIDE.md', 'docs/USER-GUIDE.zh-CN.md', 'docs/markdown-boards.zh-CN.md', 'qa/RELEASE-1.3.34.md', 'SECURITY.md', 'CONTRIBUTING.md', 'CHANGELOG.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md']
+files = runtime + ['README.md', 'README.zh-CN.md', 'docs/USER-GUIDE.md', 'docs/USER-GUIDE.zh-CN.md', 'docs/markdown-boards.zh-CN.md', f'qa/RELEASE-{version}.md', 'SECURITY.md', 'CONTRIBUTING.md', 'CHANGELOG.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md']
+# The current guide still links the Markdown board's published baseline limits.
+if version != '1.3.34':
+    files.append('qa/RELEASE-1.3.34.md')
 for name in files:
     assert (root / name).is_file(), f'Missing {name}; run npm run build first'
 dist.mkdir(exist_ok=True)

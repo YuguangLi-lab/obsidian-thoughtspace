@@ -12,7 +12,7 @@ A visual research and writing workspace for Obsidian. Arrange linked Markdown no
 
 The guides cover the whole workflow, not just the latest release. English instructions include the current Chinese button names so you can find them in the interface.
 
-[Single-file Markdown boards (Chinese)](docs/markdown-boards.zh-CN.md) covers native Properties, the file format, and copies between formats. See [1.3.34 validation and recovery limits](qa/RELEASE-1.3.34.md) before relying on concurrent editing or recovery.
+[Single-file Markdown boards (Chinese)](docs/markdown-boards.zh-CN.md) covers native Properties, the file format, and copies between formats. See [1.3.34 validation and recovery limits](qa/RELEASE-1.3.34.md) before relying on concurrent editing or recovery. See [1.3.35 convenience changes and verification](qa/RELEASE-1.3.35.md).
 
 | What you want to do | Start with |
 | --- | --- |
