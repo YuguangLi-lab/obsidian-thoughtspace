@@ -552,7 +552,7 @@ export default class ThoughtSpace extends Plugin {
   readonly pdfDocuments=new PdfDocumentPool(loadPdfJs,{set:(fn,ms)=>window.setTimeout(fn,ms),clear:id=>window.clearTimeout(id)});
   private searchSync?:BoardSearchSync;private searchTimer?:number;
   private searchNavigationSequence=0;private searchNavigationStopped=false;
-  private recentBoardOpening?:Promise<void>;private recentBoardNavigationStopped=false;
+  private recentBoardOpening?:Promise<void>;private recentBoardNavigationStopped=false;private recentBoardNavigationCleanup?:()=>void;
   private knownTags = new Map<TFile, string>();
   private hierarchyQueue: Promise<unknown> = Promise.resolve();
   private filingQueue: Promise<unknown> = Promise.resolve();
@@ -654,7 +654,7 @@ export default class ThoughtSpace extends Plugin {
     this.addCommand({id:'native-board-index',name:'导出当前白板的原生链接索引',checkCallback:checking=>{const file=this.currentBoard?.file;if(!file)return false;if(!checking)act(()=>this.exportNativeIndex(file));return true;}});
     this.addCommand({id:'space-hub',name:'打开空间总览',callback:()=>this.openSpaceHub()});
     this.addCommand({id:'resume-recent-board',name:'继续上次白板',callback:()=>act(()=>this.openRecentBoard())});
-    this.register(()=>{this.recentBoardNavigationStopped=true;});
+    this.register(()=>{this.recentBoardNavigationStopped=true;this.recentBoardNavigationCleanup?.();this.recentBoardNavigationCleanup=undefined;});
     this.addCommand({id:'open-navigator',name:'打开 ThoughtSpace 侧边栏',callback:()=>act(()=>this.ensureDock(true))});
     this.addCommand({id:'board-templates',name:'从模板创建白板',callback:()=>new TemplatePicker(this.app,this).open()});
     this.addCommand({id:'quick-capture',name:'快速收集一条笔记',callback:()=>this.quickCapture()});
@@ -943,17 +943,37 @@ export default class ThoughtSpace extends Plugin {
   openRecentBoard():Promise<void>{
     if(this.recentBoardOpening)return this.recentBoardOpening;
     const workspace=this.app.workspace,origin=workspace.getActiveViewOfType(View),originFile=origin instanceof FileView?origin.file:undefined,originSession=origin instanceof BoardView?origin.session:undefined,doc=origin?.containerEl.ownerDocument||workspace.containerEl.ownerDocument;
-    let target:TFile|undefined;
-    const current=()=>!this.recentBoardNavigationStopped&&!doc.defaultView?.closed&&doc.hasFocus()&&(workspace.getActiveViewOfType(View)===origin&&(!(origin instanceof FileView)||origin.file===originFile)&&(!(origin instanceof BoardView)||origin.session===originSession)||!!target&&workspace.getActiveViewOfType(BoardView)?.file===target);
+    let target:TFile|undefined,targetLeaf:WorkspaceLeaf|undefined,allocating=false,cancelled=false,lastLeaf=origin?.leaf;
+    const location=()=>{
+      const active=workspace.getActiveViewOfType(View);
+      if(active===origin&&(!(origin instanceof FileView)||origin.file===originFile)&&(!(origin instanceof BoardView)||origin.session===originSession))return true;
+      if(!target||!targetLeaf||targetLeaf.view!==active)return false;
+      const state=targetLeaf.getViewState();
+      return state.type==='empty'||active instanceof BoardView&&active.file===target||targetLeaf.isDeferred&&state.type===VIEW&&state.state?.file===target.path;
+    };
+    const current=()=>{
+      if(this.recentBoardNavigationStopped||cancelled||!location()||doc.defaultView?.closed)return false;
+      const targetDoc=targetLeaf?.view.containerEl.ownerDocument;
+      return doc.hasFocus()||!!targetDoc&&!targetDoc.defaultView?.closed&&targetDoc.hasFocus()&&workspace.getActiveViewOfType(View)?.leaf===targetLeaf;
+    };
+    const changed=()=>{if(allocating)return;const leaf=workspace.getActiveViewOfType(View)?.leaf;if(!location()||leaf!==lastLeaf&&leaf!==targetLeaf)cancelled=true;lastLeaf=leaf;},refs=[workspace.on('active-leaf-change',changed),workspace.on('file-open',changed)];
+    const cleanup=()=>{for(const ref of refs)workspace.offref(ref);refs.length=0;};this.recentBoardNavigationCleanup=cleanup;
+    const navigation:BoardOpenNavigation={
+      acquire:create=>{allocating=true;try{const leaf=create();targetLeaf=leaf;lastLeaf=workspace.getActiveViewOfType(View)?.leaf;return leaf;}finally{allocating=false;}},
+      target:leaf=>{targetLeaf=leaf;}
+    };
     const work=resumeRecentBoard([...this.settings.hub.recent],{
-      current,resolve:path=>{const file=this.app.vault.getAbstractFileByPath(path);return file instanceof TFile?file:undefined;},valid:file=>isBoardFile(this.app,file),
-      open:async(file,ready)=>{target=file;await this.openBoard(file,false,ready);if(!ready())return false;const view=workspace.getActiveViewOfType(BoardView);if(!view||view.closed||view.file!==file||!view.session)throw Error('白板尚未就绪');return true;},
+      // Recent paths are already explicit board requests. Native metadata can
+      // lag creation or edits, so the actual disk declaration and complete
+      // layout are validated by openBoard rather than the discovery cache.
+      current,resolve:path=>{const file=this.app.vault.getAbstractFileByPath(path);return file instanceof TFile?file:undefined;},valid:file=>isBoardPath(file.path)&&isWorkspaceFile(file),
+      open:async(file,ready)=>{target=file;targetLeaf=undefined;await this.openBoard(file,false,ready,false,navigation);if(!ready())return false;const view=workspace.getActiveViewOfType(BoardView);if(!view||view.closed||view.file!==file||!view.session)throw Error('白板尚未就绪');return true;},
       visited:file=>this.recordBoardVisit(file)
     }).then(result=>{
       if(result.status==='cancelled'||!current())return;
       if(result.status==='empty'){new Notice(result.skipped?'最近记录中的白板已失效或无法打开，已打开空间总览':'尚无最近白板，已打开空间总览');this.openSpaceHub();}
       else if(result.skipped)new Notice(`已跳过 ${result.skipped} 个已失效或无法打开的最近白板`);
-    }).finally(()=>{if(this.recentBoardOpening===work)this.recentBoardOpening=undefined;});
+    }).finally(()=>{cleanup();if(this.recentBoardNavigationCleanup===cleanup)this.recentBoardNavigationCleanup=undefined;if(this.recentBoardOpening===work)this.recentBoardOpening=undefined;});
     this.recentBoardOpening=work;return work;
   }
   openSpaceHub(){

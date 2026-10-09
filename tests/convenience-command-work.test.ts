@@ -5,6 +5,8 @@ import {transformSync} from 'esbuild';
 import {resumeRecentBoard} from '../src/recent-board';
 import {isBrainBoard} from '../src/brain-board';
 import {createBrainBoard} from '../src/brain-board';
+import {isBoardPath} from '../src/board-path';
+import {isWorkspaceFile} from '../src/workspace';
 
 const source=readFileSync(process.env.CONVENIENCE_COMMAND_SOURCE||'src/main.ts','utf8');
 function take(start:string,end:string){const a=source.indexOf(start),b=source.indexOf(end,a+start.length);assert(a>=0&&b>a,start);return source.slice(a,b);}
@@ -14,14 +16,14 @@ class BoardView extends FileView {session?:unknown;closed=false;}
 class TFile {constructor(public path:string,public valid=true){}}
 const notices:string[]=[];
 class Notice {constructor(message:string){notices.push(message);}}
-const Plugin=new Function('resumeRecentBoard','isBoardFile','View','FileView','BoardView','TFile','Notice',transformSync(`return class Plugin{${take('  openRecentBoard():','  openSpaceHub()')}}`,{loader:'ts'}).code)(resumeRecentBoard,(_app:unknown,file:TFile)=>file.valid,View,FileView,BoardView,TFile,Notice);
+const Plugin=new Function('resumeRecentBoard','isBoardPath','isWorkspaceFile','View','FileView','BoardView','TFile','Notice',transformSync(`return class Plugin{${take('  openRecentBoard():','  openSpaceHub()')}}`,{loader:'ts'}).code)(resumeRecentBoard,isBoardPath,isWorkspaceFile,View,FileView,BoardView,TFile,Notice);
 const CommandView=new Function('isBrainBoard','BoardView','VIEW',transformSync(`return class CommandView extends BoardView{${take('  brainRelationCommandTarget(checking','  inputCommandTarget():')}}`,{loader:'ts'}).code)(isBrainBoard,BoardView,'board');
 function deferred(){let resolve!:()=>void;return{promise:new Promise<void>(done=>{resolve=done;}),resolve:()=>resolve()};}
 function fixture(){
  const files=new Map<string,TFile>(),origin=new FileView(),doc={hasFocus:()=>true,defaultView:{closed:false}},opened:string[]=[],visits:string[]=[];origin.containerEl={ownerDocument:doc};origin.file=new TFile('Initial.md');
  let active:View=origin,fallback=0;
- const plugin=new Plugin();Object.assign(plugin,{settings:{hub:{recent:[]}},app:{vault:{getAbstractFileByPath:(path:string)=>files.get(path)},workspace:{containerEl:{ownerDocument:doc},getActiveViewOfType:(Type:typeof View)=>active instanceof Type?active:null}},
-  openBoard:async(file:TFile,fit:boolean,current:()=>boolean)=>{assert.equal(fit,false);if(!current())return;if(file.path==='damaged')throw Error('invalid layout');opened.push(file.path);const board=new BoardView();board.file=file;board.session={};board.containerEl={ownerDocument:doc};active=board;},
+ const plugin=new Plugin();Object.assign(plugin,{settings:{hub:{recent:[]}},app:{vault:{getAbstractFileByPath:(path:string)=>files.get(path)},workspace:{containerEl:{ownerDocument:doc},getActiveViewOfType:(Type:typeof View)=>active instanceof Type?active:null,on:()=>({}),offref:()=>{}}},
+  openBoard:async(file:TFile,fit:boolean,current:()=>boolean,_provisional:boolean,navigation:{target:(leaf:unknown)=>void})=>{assert.equal(fit,false);if(!current())return;if(!file.valid||file.path==='damaged.thoughtspace')throw Error('invalid layout');opened.push(file.path);const board=new BoardView();board.file=file;board.session={};board.containerEl={ownerDocument:doc};const leaf={view:board,getViewState:()=>({type:'thoughtspace-board',state:{file:file.path}})};Object.assign(board,{leaf});navigation.target(leaf);active=board;},
   recordBoardVisit:async(file:TFile)=>visits.push(file.path),openSpaceHub:()=>{fallback++;}
  });notices.length=0;
  const recent=(paths:string[])=>{plugin.settings.hub.recent=paths.map(path=>({path,at:1}));};
@@ -29,7 +31,7 @@ function fixture(){
  return{plugin,origin,doc,files,file,recent,opened,visits,setActive:(view:View)=>{active=view;},active:()=>active,fallback:()=>fallback};
 }
 test('real resume host skips deleted, plain Markdown and damaged files without fitting the saved camera',async()=>{
- const f=fixture();f.file('plain.md',false);f.file('damaged');f.file('Brain.md');f.recent(['deleted','plain.md','damaged','Brain.md']);await f.plugin.openRecentBoard();
+ const f=fixture();f.file('plain.md',false);f.file('damaged.thoughtspace');f.file('Brain.md');f.recent(['deleted','plain.md','damaged.thoughtspace','Brain.md']);await f.plugin.openRecentBoard();
  assert.deepEqual(f.opened,['Brain.md']);assert.deepEqual(f.visits,['Brain.md']);assert.equal(f.fallback(),0);assert.equal(notices.length,1);assert.match(notices[0],/3/);
 });
 test('real resume host shares continuous invocations, clears inflight state and can retry after completion',async()=>{
@@ -55,10 +57,10 @@ test('same-view file navigation while the recent board is opening cancels activa
  const work=f.plugin.openRecentBoard();f.origin.file=new TFile('Latest navigation.md');gate.resolve();await work;assert.deepEqual(f.opened,[]);assert.deepEqual(f.visits,[]);assert.equal(f.fallback(),0);
 });
 test('all invalid records and empty history give an explicit hub fallback without file creation',async()=>{
- for(const paths of [[],['deleted','plain.md','damaged']]){const f=fixture();f.file('plain.md',false);f.file('damaged');f.recent(paths);await f.plugin.openRecentBoard();assert.deepEqual(f.opened,[]);assert.deepEqual(f.visits,[]);assert.equal(f.fallback(),1);assert.equal(notices.length,1);assert.match(notices[0],/空间总览/);}
+ for(const paths of [[],['deleted','plain.md','damaged.thoughtspace']]){const f=fixture();f.file('plain.md',false);f.file('damaged.thoughtspace');f.recent(paths);await f.plugin.openRecentBoard();assert.deepEqual(f.opened,[]);assert.deepEqual(f.visits,[]);assert.equal(f.fallback(),1);assert.equal(notices.length,1);assert.match(notices[0],/空间总览/);}
 });
 test('a failed board mount is skipped while an error saving recent preferences never changes the successful target',async()=>{
- const f=fixture();f.file('mount-failed');f.file('Good.md');f.recent(['mount-failed','Good.md']);const original=f.plugin.openBoard;f.plugin.openBoard=async(file:TFile,...args:unknown[])=>{if(file.path==='mount-failed')return;return original(file,...args);};
+ const f=fixture();f.file('mount-failed.md');f.file('Good.md');f.recent(['mount-failed.md','Good.md']);const original=f.plugin.openBoard;f.plugin.openBoard=async(file:TFile,...args:unknown[])=>{if(file.path==='mount-failed.md')return;return original(file,...args);};
  await f.plugin.openRecentBoard();assert.deepEqual(f.opened,['Good.md']);
  f.plugin.recordBoardVisit=async()=>{throw Error('preferences failed');};await assert.rejects(f.plugin.openRecentBoard(),/preferences failed/);assert.deepEqual(f.opened,['Good.md','Good.md']);assert.equal(f.fallback(),0);
 });
