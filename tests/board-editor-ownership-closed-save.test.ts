@@ -165,7 +165,7 @@ function observationHost(f:ReturnType<typeof fixture>){
  const act=execute(source.slice(actStart,actEnd)+';return act',dependencies),isBoardFile=execute(helper.getText(ast)+';return isBoardFile',dependencies);
  const Host=execute('class Host {\n'+methods+'\n};return Host',{...dependencies,act,isBoardFile}),host=new Host();
  const ready:Array<()=>unknown>=[],events=new Map<string,()=>unknown>();
- Object.assign(f.app.workspace,{onLayoutReady:(run:()=>unknown)=>ready.push(run),on:(name:string,run:()=>unknown)=>{events.set(name,run);return{name};},setActiveLeaf:()=>{}});
+ Object.assign(f.app.workspace,{onLayoutReady:(run:()=>unknown)=>ready.push(run),on:(name:string,run:()=>unknown)=>{events.set(name,run);return{name};},offref:()=>{},getMostRecentLeaf:()=>f.leaf,setActiveLeaf:()=>{}});
  Object.assign(f.app,{metadataCache:{getFileCache:(file:File)=>({frontmatter:file===f.file?{thoughtspace:'board'}:{}})}});
  Object.assign(host,{app:f.app,settings:{},sessions:new Map(),nativeBoardTransitions:new Set(),referenceQueue:Promise.resolve(),nativeReferenceRuns:new Map(),registerEvent:()=>{}});
  const onload=declaration.members.find(node=>ts.isMethodDeclaration(node)&&node.name.getText(ast)==='onload');assert(onload&&ts.isMethodDeclaration(onload)&&onload.body);

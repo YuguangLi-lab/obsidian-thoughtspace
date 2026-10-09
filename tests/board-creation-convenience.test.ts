@@ -90,9 +90,9 @@ function productionOpening(f:ReturnType<typeof fixture>,reuseOrigin=true){
  const leaf=reuseOrigin?f.app.invoker:f.app.target;leaf.type='empty';leaf.getViewState=()=>({type:leaf.type,state:leaf.view.file?{file:leaf.view.file.path}:{}});
  leaf.detach=()=>{leaf.detached=true;};leaf.setViewState=async(state:any)=>{leaf.type=state.type;leaf.view.containerEl.isConnected=false;const next=new BoardView(leaf);(next.containerEl as any).ownerDocument=f.app.document;next.file=f.files.get(state.state.file);next.session={board:await f.host.readBoard(next.file)};};
  leaf.openFile=async(file:any)=>leaf.setViewState({type:'thoughtspace-board',state:{file:file.path}});
- Object.assign(f.app.workspace,{getLeavesOfType:(type:string)=>leaf.type===type?[leaf]:[],getLeaf:()=>{f.app.active=leaf;return leaf;},revealLeaf:async()=>{}});
+ Object.assign(f.app.workspace,{getMostRecentLeaf:()=>f.app.active,getLeavesOfType:(type:string)=>leaf.type===type?[leaf]:[],getLeaf:()=>{f.app.active=leaf;return leaf;},revealLeaf:async()=>{}});
  Object.assign(f.app.vault,{read:async(file:any)=>file.body,cachedRead:async(file:any)=>{await f.hooks.open?.();return file.body;}});
- Object.assign(f.host,{openBoard:Host.prototype.openBoard,sessions:new Map(),boardOpening:new SharedOpen(),provisionalBoardGeometry:new WeakMap()});return leaf;
+ Object.assign(f.host,{openBoard:Host.prototype.openBoard,sessions:new Map(),boardOpening:new SharedOpen(),boardOpeningNavigation:new Set(),provisionalBoardGeometry:new WeakMap()});return leaf;
 }
 
 test('untrusted creation preference values use conservative defaults and valid fields round-trip independently',()=>{

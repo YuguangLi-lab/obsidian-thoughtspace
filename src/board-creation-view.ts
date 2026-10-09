@@ -37,7 +37,7 @@ export class BoardCreationModal extends Modal {
   const origin=this.app.workspace.getActiveViewOfType(View),leaf=origin?.leaf,doc=origin?.containerEl.ownerDocument||this.containerEl.ownerDocument,win=doc.defaultView;
   const sourceFile:unknown=origin?Reflect.get(origin,'file'):undefined,sourcePath:unknown=sourceFile&&typeof sourceFile==='object'?Reflect.get(sourceFile,'path'):undefined,sourceSession:unknown=origin?Reflect.get(origin,'session'):undefined;
   let expectedFile:TFile|undefined,expectedPath:string|undefined,expectedLeaf:WorkspaceLeaf|undefined,lastLeaf=leaf,allocating=false,terminal=false;
-  const destinationCurrent=(view:View|undefined)=>!!expectedFile&&expectedFile.path===expectedPath&&this.app.vault.getAbstractFileByPath(expectedPath!)===expectedFile&&!!expectedLeaf&&view instanceof View&&view.containerEl.isConnected&&view.containerEl.ownerDocument===doc&&view.leaf===expectedLeaf&&expectedLeaf.view===view&&(!Reflect.get(view,'file')||Reflect.get(view,'file')===expectedFile);
+  const destinationCurrent=(view:View|undefined)=>!!expectedFile&&expectedFile.path===expectedPath&&this.app.vault.getAbstractFileByPath(expectedPath)===expectedFile&&!!expectedLeaf&&view instanceof View&&view.containerEl.isConnected&&view.containerEl.ownerDocument===doc&&view.leaf===expectedLeaf&&expectedLeaf.view===view&&(!Reflect.get(view,'file')||Reflect.get(view,'file')===expectedFile);
   // getLeaf('tab') may consume the invoking empty tab. Its original view can
   // then disconnect, but only mounting this request's exact file owns that
   // replacement; a different file or an unrelated empty view cancels it.
