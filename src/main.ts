@@ -92,6 +92,7 @@ import {noteRenamePath} from './note-rename';
 import {BrainNodeRenameModal} from './brain-board-rename-view';
 import {createBoardReferenceRenamer,captureBoardReferenceRename} from './board-reference-rename';
 import {SharedOpen} from './view-opening';
+import type {BoardOpenNavigation} from './board-opening-navigation';
 import {replaceSidebarContents,firstNoteReferences} from './sidebar-content';
 import {boardUsages} from './board-usage';
 import {sidebarSearchNavigation} from './sidebar-navigation';
@@ -1087,16 +1088,16 @@ export default class ThoughtSpace extends Plugin {
     await this.app.fileManager.renameFile(file,path);await this.referenceQueue;
   }
   promptRenameNote(file:TFile){const original=file.path;new Prompt(this.app,'重命名笔记',file.basename,value=>this.renameNote(file,value,original)).open();}
-  async openBoard(file:TFile,fit?:boolean,current?:()=>boolean):Promise<void>;
-  async openBoard(file:TFile,fit:boolean,current:()=>boolean,provisional:true):Promise<WorkspaceLeaf|undefined>;
-  async openBoard(file: TFile, fit = false, current:()=>boolean=()=>true, provisional=false):Promise<void|WorkspaceLeaf> {
+  async openBoard(file:TFile,fit?:boolean,current?:()=>boolean,provisional?:false,navigation?:BoardOpenNavigation):Promise<void>;
+  async openBoard(file:TFile,fit:boolean,current:()=>boolean,provisional:true,navigation?:BoardOpenNavigation):Promise<WorkspaceLeaf|undefined>;
+  async openBoard(file: TFile, fit = false, current:()=>boolean=()=>true, provisional=false,navigation?:BoardOpenNavigation):Promise<void|WorkspaceLeaf> {
     if(!current())return;
     if(!isBoardPath(file.path)||!isWorkspaceFile(file)||this.app.vault.getAbstractFileByPath(file.path)!==file)throw Error('请选择工作目录中的白板');
     readBoardDocument(await this.app.vault.read(file),file.extension,parseYaml);if(!current())return;
     const leaf=await this.boardOpening.run(file,async()=>{
       const existing=this.app.workspace.getLeavesOfType(VIEW).find(l=>(l.view as BoardView).file===file||l.getViewState().state?.file===file.path);
-      if(existing){if(provisional&&!(existing.view instanceof BoardView&&existing.view.session))this.provisionalBoardGeometry.set(existing,file);try{await existing.loadIfDeferred();return existing;}catch(error){this.provisionalBoardGeometry.delete(existing);throw error;}}
-      const created=this.app.workspace.getLeaf('tab');if(provisional)this.provisionalBoardGeometry.set(created,file);
+      if(existing){navigation?.target(existing);if(provisional&&!(existing.view instanceof BoardView&&existing.view.session))this.provisionalBoardGeometry.set(existing,file);try{await existing.loadIfDeferred();return existing;}catch(error){this.provisionalBoardGeometry.delete(existing);throw error;}}
+      const create=()=>this.app.workspace.getLeaf('tab'),created=navigation?navigation.acquire(create):create();navigation?.target(created);if(provisional)this.provisionalBoardGeometry.set(created,file);
       try{if(file.extension.toLowerCase()==='md'){await this.readBoard(file);if(!current()){created.detach();return created;}await created.setViewState({type:VIEW,active:false,state:{file:file.path}});}else{await this.readBoard(file);await created.openFile(file,{active:false});}return created;}catch(error){this.provisionalBoardGeometry.delete(created);created.detach();throw error;}
     });
     if(!current())return;if(provisional)return leaf;
