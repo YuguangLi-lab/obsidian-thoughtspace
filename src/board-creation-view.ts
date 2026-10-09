@@ -13,7 +13,7 @@ const compositionKey=(event:{isComposing:boolean;keyCode?:number})=>event.isComp
 /** Compact native modal. Closing revokes navigation and preference writes while
  * the host preserves any file whose vault write has already completed. */
 export class BoardCreationModal extends Modal {
- private alive=false;private busy=false;private focusFrame=0;private navigation?:EventRef;private navigationCancelled=false;
+ private alive=false;private busy=false;private focusFrame=0;private navigation?:EventRef;private fileNavigation?:EventRef;private navigationCancelled=false;
  constructor(app:App,private readonly host:BoardCreationHost){super(app);}
  onOpen(){
   if(!this.host.current()){this.close();return;}
@@ -36,12 +36,17 @@ export class BoardCreationModal extends Modal {
   const cancel=actions.createEl('button',{text:'取消',attr:{type:'button'}}),save=actions.createEl('button',{cls:'mod-cta',text:'创建',attr:{type:'button'}});
   const origin=this.app.workspace.getActiveViewOfType(View),leaf=origin?.leaf,doc=origin?.containerEl.ownerDocument||this.containerEl.ownerDocument,win=doc.defaultView;
   const sourceFile:unknown=origin?Reflect.get(origin,'file'):undefined,sourcePath:unknown=sourceFile&&typeof sourceFile==='object'?Reflect.get(sourceFile,'path'):undefined,sourceSession:unknown=origin?Reflect.get(origin,'session'):undefined;
-  let expectedFile:TFile|undefined,expectedLeaf:WorkspaceLeaf|undefined,allocating=false,terminal=false;
-  const originCurrent=()=>!origin||origin.containerEl.isConnected&&origin.containerEl.ownerDocument===doc&&origin.leaf===leaf&&leaf?.view===origin&&Reflect.get(origin,'file')===sourceFile&&Reflect.get(origin,'session')===sourceSession&&(!sourceFile||typeof sourceFile!=='object'||Reflect.get(sourceFile,'path')===sourcePath);
-  const activeCurrent=()=>{const active=this.app.workspace.getActiveViewOfType(View);return active===origin||!!expectedFile&&!!expectedLeaf&&active instanceof View&&active.containerEl.ownerDocument===doc&&active.leaf===expectedLeaf&&expectedLeaf.view===active&&(!Reflect.get(active,'file')||Reflect.get(active,'file')===expectedFile);};
+  let expectedFile:TFile|undefined,expectedPath:string|undefined,expectedLeaf:WorkspaceLeaf|undefined,lastLeaf=leaf,allocating=false,terminal=false;
+  const destinationCurrent=(view:View|undefined)=>!!expectedFile&&expectedFile.path===expectedPath&&this.app.vault.getAbstractFileByPath(expectedPath!)===expectedFile&&!!expectedLeaf&&view instanceof View&&view.containerEl.isConnected&&view.containerEl.ownerDocument===doc&&view.leaf===expectedLeaf&&expectedLeaf.view===view&&(!Reflect.get(view,'file')||Reflect.get(view,'file')===expectedFile);
+  // getLeaf('tab') may consume the invoking empty tab. Its original view can
+  // then disconnect, but only mounting this request's exact file owns that
+  // replacement; a different file or an unrelated empty view cancels it.
+  const originCurrent=()=>!origin||origin.containerEl.isConnected&&origin.containerEl.ownerDocument===doc&&origin.leaf===leaf&&leaf?.view===origin&&Reflect.get(origin,'file')===sourceFile&&Reflect.get(origin,'session')===sourceSession&&(!sourceFile||typeof sourceFile!=='object'||Reflect.get(sourceFile,'path')===sourcePath)||expectedLeaf===leaf&&destinationCurrent(leaf?.view)&&Reflect.get(leaf!.view,'file')===expectedFile;
+  const activeCurrent=()=>{const active=this.app.workspace.getActiveViewOfType(View);return active===origin||destinationCurrent(active||undefined);};
   const current=()=>{const valid=this.alive&&!this.navigationCancelled&&this.containerEl.isConnected&&this.containerEl.ownerDocument===doc&&doc.defaultView===win&&!win?.closed&&originCurrent()&&activeCurrent()&&this.host.current();if(!valid)this.navigationCancelled=true;return valid;};
-  this.navigation=this.app.workspace.on('active-leaf-change',()=>{if(!allocating&&(!originCurrent()||!activeCurrent()))this.navigationCancelled=true;});
-  const expectDestination=(file:TFile)=>{if(current())expectedFile=file;};
+  this.navigation=this.app.workspace.on('active-leaf-change',next=>{if(!allocating&&(next!==lastLeaf&&next!==expectedLeaf||!originCurrent()||!activeCurrent()))this.navigationCancelled=true;lastLeaf=next||undefined;});
+  this.fileNavigation=this.app.workspace.on('file-open',()=>{if(!allocating&&(!originCurrent()||!activeCurrent()))this.navigationCancelled=true;});
+  const expectDestination=(file:TFile)=>{if(current()){expectedFile=file;expectedPath=file.path;}};
   const navigation:BoardOpenNavigation={acquire:create=>{if(!current())throw Error('新建请求已取消');allocating=true;try{const target=create();expectedLeaf=target;return target;}finally{allocating=false;if(!originCurrent()||!activeCurrent())this.navigationCancelled=true;}},target:target=>{if(!current())throw Error('新建请求已取消');expectedLeaf=target;}};
   const render=()=>{save.disabled=terminal||this.busy||!current()||!input.value.trim();input.disabled=this.busy;typeControl?.setDisabled(this.busy);formatControl?.setDisabled(this.busy);};
   cancel.onclick=()=>this.close();input.oninput=render;
@@ -58,5 +63,5 @@ export class BoardCreationModal extends Modal {
   render();input.focus();input.select();
   if(win)this.focusFrame=win.requestAnimationFrame(()=>{this.focusFrame=0;if(current()){input.focus({preventScroll:true});input.select();}});
  }
- onClose(){this.alive=false;if(this.navigation)this.app.workspace.offref(this.navigation);this.navigation=undefined;if(this.focusFrame)this.containerEl.ownerDocument.defaultView?.cancelAnimationFrame(this.focusFrame);this.focusFrame=0;this.contentEl.empty();}
+ onClose(){this.alive=false;if(this.navigation)this.app.workspace.offref(this.navigation);this.navigation=undefined;if(this.fileNavigation)this.app.workspace.offref(this.fileNavigation);this.fileNavigation=undefined;if(this.focusFrame)this.containerEl.ownerDocument.defaultView?.cancelAnimationFrame(this.focusFrame);this.focusFrame=0;this.contentEl.empty();}
 }

@@ -29,6 +29,9 @@ import {createMarkdownBoardDocument,readBoardDocument} from '../src/board-docume
 import {cleanBoardCreationPreferences,TemplateCreationIncompleteError} from '../src/board-creation';
 import {boardTemplates} from '../src/navigation';
 import {applyDefaultCardStyle} from '../src/card-style';
+import {isBoardPath} from '../src/board-path';
+import {isWorkspaceFile} from '../src/workspace';
+import {SharedOpen} from '../src/view-opening';
 import {createRequire} from 'node:module';
 const parseYaml=createRequire(import.meta.url)('js-yaml').load;
 type Options={cls?:string;text?:string;attr?:Record<string,string>;type?:string;value?:string};
@@ -44,6 +47,8 @@ class Element {
 }
 const modals:any[]=[];
 class View {containerEl={isConnected:true};leaf:any;constructor(leaf:any){this.leaf=leaf;leaf.view=this;}}
+class FileView extends View {file:any;}
+class BoardView extends FileView {session:any;resumeAutomaticGeometry(){}fit(){}}
 class Modal {
  containerEl:Element;modalEl:Element;contentEl:Element;titleEl:Element;closed=false;
  constructor(readonly app:any){this.containerEl=new Element('div',app.document);this.modalEl=this.containerEl.createDiv();this.titleEl=this.modalEl.createDiv();this.contentEl=this.modalEl.createDiv();}
@@ -56,26 +61,38 @@ class Setting {
   addOption(value:string,text:string){selectEl.createEl('option',{value,text});return control;},setValue(value:string){selectEl.value=value;return control;},
   onChange(change:(value:string)=>void){selectEl.change=(value:string)=>{if(selectEl.disabled)return;selectEl.value=value;change(value);};return control;},setDisabled(value:boolean){selectEl.disabled=value;return control;}};make(control);return this;}
 }
-const modalSource=readFileSync('src/board-creation-view.ts','utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
+const modalSource=readFileSync(process.env.CREATION_MODAL_SOURCE||'src/board-creation-view.ts','utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
 const BoardCreationModal=execute(modalSource+'\nreturn BoardCreationModal;',{Modal,Setting,View,cleanBoardCreationPreferences,TemplateCreationIncompleteError});
 const notices:string[]=[];
-const Host=execute(`class Host {${methods(['folder','createUnique','promptNewBoard','promptTemplateBoard','finishBoardCreation','rememberBoardCreation','createFromTemplate'])}};return Host;`,{...model,BoardCreationModal,cleanBoardCreationPreferences,TemplateCreationIncompleteError,emptyBoard:model.emptyBoard,createBrainBoard,createMarkdownBoardDocument,boardTemplates,applyDefaultCardStyle,normalizePath:(path:string)=>path.replace(/\/+/g,'/'),ROOT:'ThoughtSpace',EXT:'thoughtspace',themeSurface(){},Notice:class{constructor(message:string){notices.push(message);}}});
+const Host=execute(`class Host {${methods(['folder','createUnique','promptNewBoard','promptTemplateBoard','finishBoardCreation','rememberBoardCreation','createFromTemplate','openBoard','readBoard'])}};return Host;`,{...model,BoardCreationModal,BoardView,FileView,isBoardPath,isWorkspaceFile,readBoardDocument,parseYaml,cleanBoardCreationPreferences,TemplateCreationIncompleteError,emptyBoard:model.emptyBoard,createBrainBoard,createMarkdownBoardDocument,boardTemplates,applyDefaultCardStyle,normalizePath:(path:string)=>path.replace(/\/+/g,'/'),ROOT:'ThoughtSpace',EXT:'thoughtspace',VIEW:'thoughtspace-board',themeSurface(){},Notice:class{constructor(message:string){notices.push(message);}}});
 const tick=async()=>{for(let i=0;i<30;i++)await Promise.resolve();};
 function deferred(){let resolve!:()=>void,reject!:(error:Error)=>void;const promise=new Promise<void>((yes,no)=>{resolve=yes;reject=no;});return{promise,resolve,reject};}
 function fixture(initial:unknown=null){
  const files=new Map<string,{path:string;body:string}>(),folders=new Set<string>(),opened:string[]=[],writes:any[]=[],events:string[]=[],frames=new Map<number,()=>void>();let frame=0;
  const hooks:{create?:(path:string,body:string)=>Promise<void>;open?:()=>Promise<void>;allocate?:boolean;save?:()=>Promise<void>}={};
  const doc:any={activeElement:null,defaultView:{requestAnimationFrame:(run:()=>void)=>{frames.set(++frame,run);return frame;},cancelAnimationFrame:(id:number)=>frames.delete(id)}};
- const invoker:any={id:'Invoker'},target:any={id:'Created'},activations:any[]=[],listeners=new Set<()=>void>();new View(invoker);new View(target);invoker.view.containerEl.ownerDocument=doc;target.view.containerEl.ownerDocument=doc;
- const app:any={document:doc,invoker,active:invoker,workspace:{getActiveViewOfType:(type:any)=>app.active.view instanceof type?app.active.view:null,on:(_name:string,run:()=>void)=>{listeners.add(run);return run;},offref:(run:()=>void)=>listeners.delete(run),setActiveLeaf:(leaf:any)=>{app.active=leaf;activations.push(leaf);}},vault:{getAbstractFileByPath:(path:string)=>files.get(path)||(folders.has(path)?{path}:undefined),createFolder:async(path:string)=>{folders.add(path);},create:async(path:string,body:string)=>{events.push('create-start');await hooks.create?.(path,body);const file={path,body};files.set(path,file);events.push('create-complete');return file;}}};
- let active=invoker;Object.defineProperty(app,'active',{get:()=>active,set:(value:unknown)=>{active=value;for(const run of listeners)run();}});
+ const invoker:any={id:'Invoker'},target:any={id:'Created'},activations:any[]=[],listeners=new Set<(leaf:any)=>void>(),fileListeners=new Set<(file:any)=>void>();new View(invoker);new View(target);invoker.view.containerEl.ownerDocument=doc;target.view.containerEl.ownerDocument=doc;
+ const app:any={document:doc,invoker,target,active:invoker,workspace:{getActiveViewOfType:(type:any)=>app.active.view instanceof type?app.active.view:null,on:(name:string,run:(leaf:any)=>void)=>{(name==='file-open'?fileListeners:listeners).add(run);return run;},offref:(run:(leaf:any)=>void)=>{listeners.delete(run);fileListeners.delete(run);},setActiveLeaf:(leaf:any)=>{app.active=leaf;activations.push(leaf);}},vault:{getAbstractFileByPath:(path:string)=>files.get(path)||(folders.has(path)?{path}:undefined),createFolder:async(path:string)=>{folders.add(path);},create:async(path:string,body:string)=>{events.push('create-start');await hooks.create?.(path,body);const file={path,body,get extension(){return this.path.split('.').at(-1)!;}};files.set(path,file);events.push('create-complete');return file;}}};
+ let active=invoker;Object.defineProperty(app,'active',{get:()=>active,set:(value:unknown)=>{active=value;for(const run of listeners)run(value);}});
  const host=new Host();Object.assign(host,{app,settings:cleanPluginSettings(initial),boardCreationStopped:false,boardCreationPreferenceQueue:Promise.resolve(),openBoard:async(file:any,_fit:boolean,current:()=>boolean=()=>true,_provisional=false,navigation?:any)=>{events.push('open');if(hooks.allocate){const create=()=>{app.active=target;return target;};const own=navigation?navigation.acquire(create):create();navigation?.target(own);}else navigation?.target(target);await hooks.open?.();if(current()){opened.push(file.path);target.view.file=file;app.active=target;}},saveData:async(settings:any)=>{events.push('save-preferences');writes.push(structuredClone(settings));await hooks.save?.();}});
  const modal=()=>modals.at(-1)!,all=()=>modal().contentEl.all() as Element[],find=(label:string)=>all().find(element=>element.attributes['aria-label']===label)!,button=(label:string)=>all().find(element=>element.tag==='button'&&element.text===label)!;
  const choice=(presentation='board',format='legacy')=>{find('白板类型').change?.(presentation);find('文件格式').change?.(format);};
  const name=(value:string)=>{find('白板名称').value=value;find('白板名称').oninput?.();};
  const decode=(file=[...files.values()].at(-1)!)=>readBoardDocument(file.body,file.path.split('.').at(-1)!,parseYaml).board;
  const fireFrame=()=>{const current=[...frames.values()];frames.clear();for(const run of current)run();};
- return{host,app,files,folders,opened,writes,events,frames,listeners,hooks,modal,all,find,button,choice,name,decode,fireFrame,activations};
+ return{host,app,files,folders,opened,writes,events,frames,listeners,fileListeners,hooks,modal,all,find,button,choice,name,decode,fireFrame,activations};
+}
+
+/** Execute the actual creation -> openBoard -> readBoard methods together.
+ * The boundary leaf reproduces getLeaf('tab') consuming an existing empty tab,
+ * disconnecting its old view and mounting the target file in a new BoardView. */
+function productionOpening(f:ReturnType<typeof fixture>,reuseOrigin=true){
+ const leaf=reuseOrigin?f.app.invoker:f.app.target;leaf.type='empty';leaf.getViewState=()=>({type:leaf.type,state:leaf.view.file?{file:leaf.view.file.path}:{}});
+ leaf.detach=()=>{leaf.detached=true;};leaf.setViewState=async(state:any)=>{leaf.type=state.type;leaf.view.containerEl.isConnected=false;const next=new BoardView(leaf);(next.containerEl as any).ownerDocument=f.app.document;next.file=f.files.get(state.state.file);next.session={board:await f.host.readBoard(next.file)};};
+ leaf.openFile=async(file:any)=>leaf.setViewState({type:'thoughtspace-board',state:{file:file.path}});
+ Object.assign(f.app.workspace,{getLeavesOfType:(type:string)=>leaf.type===type?[leaf]:[],getLeaf:()=>{f.app.active=leaf;return leaf;},revealLeaf:async()=>{}});
+ Object.assign(f.app.vault,{read:async(file:any)=>file.body,cachedRead:async(file:any)=>{await f.hooks.open?.();return file.body;}});
+ Object.assign(f.host,{openBoard:Host.prototype.openBoard,sessions:new Map(),boardOpening:new SharedOpen(),provisionalBoardGeometry:new WeakMap()});return leaf;
 }
 
 test('untrusted creation preference values use conservative defaults and valid fields round-trip independently',()=>{
@@ -188,4 +205,24 @@ test('a different empty leaf during own allocation or file mounting cancels crea
 });
 test('a same-file page on a different leaf is newer navigation and cannot acquire the creation request',async()=>{
  const f=fixture(),gate=deferred();f.hooks.allocate=true;f.hooks.open=()=>gate.promise;f.host.promptNewBoard();f.button('创建').click();await tick();const other:any={id:'Other same file'};new View(other);other.view.containerEl.ownerDocument=f.app.document;other.view.file=[...f.files.values()][0];f.app.active=other;gate.resolve();await tick();assert.equal(f.opened.length,0);assert.equal(f.writes.length,0);assert.equal(f.app.active,other);
+});
+
+test('after own empty-leaf activation, returning to the origin is newer navigation and cannot resurrect the held creation',async()=>{
+ const f=fixture(),gate=deferred();f.hooks.allocate=true;f.hooks.open=()=>gate.promise;f.host.promptNewBoard();f.button('创建').click();await tick();f.app.active=f.app.invoker;gate.resolve();await tick();assert.equal(f.files.size,1);assert.equal(f.opened.length,0);assert.equal(f.writes.length,0);assert.equal(f.app.active,f.app.invoker);
+});
+
+for(const format of ['legacy','markdown'])test(`actual ${format} opening may consume the origin empty view only for its exact requested file`,async()=>{
+ const f=fixture(),leaf=productionOpening(f),origin=leaf.view;f.host.promptNewBoard();f.choice('brain',format);f.button('创建').click();await tick();await tick();assert.equal(f.files.size,1);assert.notEqual(leaf.view,origin);assert.equal(origin.containerEl.isConnected,false);assert.equal(leaf.view.file,[...f.files.values()][0]);assert.equal(f.app.active,leaf);assert(f.modal().closed);assert.equal(f.writes.length,1);assert.deepEqual(f.host.settings.boardCreation,{presentation:'brain',format});
+});
+
+test('actual origin-leaf reuse still cancels a newer same-leaf file while the board read waits',async()=>{
+ const f=fixture(),leaf=productionOpening(f),gate=deferred();f.hooks.open=()=>gate.promise;f.host.promptNewBoard();f.button('创建').click();await tick();const other={path:'Newer.md'};leaf.view.file=other;f.app.active=leaf;gate.resolve();await tick();assert.equal(f.files.size,1);assert.equal(leaf.view.file,other);assert.equal(f.writes.length,0);assert(!f.modal().closed);
+});
+
+test('a user replacing the reused origin with a different empty view is not the approved file mount',async()=>{
+ const f=fixture(),leaf=productionOpening(f),gate=deferred();f.hooks.open=()=>gate.promise;f.host.promptNewBoard();f.button('创建').click();await tick();leaf.view.containerEl.isConnected=false;const other=new View(leaf);(other.containerEl as any).ownerDocument=f.app.document;f.app.active=leaf;gate.resolve();await tick();assert.equal(leaf.view,other);assert.equal(f.writes.length,0);assert(!f.modal().closed);
+});
+
+test('after own origin consumption, same-leaf file navigation away and back permanently cancels queued preference persistence',async()=>{
+ const f=fixture(),leaf=productionOpening(f),gate=deferred();f.host.boardCreationPreferenceQueue=gate.promise;f.host.promptNewBoard();f.button('创建').click();await tick();await tick();const created=leaf.view.file;assert.equal(created,[...f.files.values()][0]);leaf.view.file={path:'Newer.md'};for(const run of f.fileListeners)run(leaf.view.file);leaf.view.file=created;for(const run of f.fileListeners)run(created);gate.resolve();await tick();await tick();assert.equal(f.writes.length,0);assert.equal(f.app.active,leaf);f.button('取消').click();assert.equal(f.listeners.size,0);assert.equal(f.fileListeners.size,0);
 });
