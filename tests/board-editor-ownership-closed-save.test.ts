@@ -203,3 +203,7 @@ test('native save feedback counts real pages separately from retired writers and
 test('status discovery counts deferred and other-window pages without turning them into editors',()=>{
  const f=fixture(),second={view:new f.MarkdownView(),isDeferred:false,getViewState:()=>({type:'markdown',state:{file:f.file.path}})},deferred={view:{},isDeferred:true,getViewState:()=>({type:'markdown',state:{file:f.file.path}})};f.leaves.push(second,deferred);assert.deepEqual(f.api.nativeBoardEditorStatus(f.app,f.file),{open:3,pending:0});assert.deepEqual(f.counts(),{saves:0,reads:0});f.api.clearNativeBoardEditorTracking(f.app);assert.equal(f.timers.size,0);
 });
+
+test('native status keeps unknown retired save descriptors pending without invoking their getter',()=>{
+ const f=fixture();f.observe();let getters=0;Object.defineProperty(f.view,'saving',{configurable:true,get(){getters++;return false;}});f.close();assert.deepEqual(f.api.nativeBoardEditorStatus(f.app,f.file),{open:0,pending:1});assert.equal(getters,0);assert.deepEqual(f.counts(),{saves:0,reads:0});f.api.clearNativeBoardEditorTracking(f.app);assert.equal(f.timers.size,0);
+});

@@ -339,7 +339,7 @@ class Session {
       const ownership=this.nativePageCount===undefined?undefined:{open:this.nativePageCount},transition=this.plugin.nativeBoardTransitions?.has(this.file);
       if(transition)return{state:'paused',text:'原生页面正在交接 · 白板仅查看',detail:'正在确认原生最新内容已保存。完成后重新读取原文件；不会覆盖原生草稿。'};
       if(this.nativeReason==='native-reload')return{state:'paused',text:'原生保存已完成 · 正在重新读取白板',detail:'读取并核实最新原生属性、正文与布局后恢复编辑；当前布局仍受保护。'};
-      if(ownership&&ownership.open===0)return{state:'paused',text:'旧原生页仍在保存 · 等待保存完成',detail:'原生页已关闭，其保存缓冲仍在写入；完成并重新读取后恢复白板编辑。'};
+      if(ownership&&ownership.open===0)return{state:'paused',text:'旧原生页保存尚未确认 · 等待保存完成',detail:'原生页已关闭，仍有保存缓冲未完成或无法核实。完成确认并重新读取后恢复白板编辑。'};
       return{state:'paused',text:'原生 Markdown 已打开 · 白板仅查看',detail:ownership&&ownership.open>1?`此文件在 ${ownership.open} 个原生页打开。请保存并关闭其他原生页，再从保留页返回白板。`:'请在原生页保存属性与正文，再使用“返回白板”；当前布局保留。',action:{kind:'locate-native',label:'定位原生页'}};
     }
     return{state:this.status==='保存中…'?'saving':'saved',text:this.status};
@@ -354,7 +354,7 @@ class Session {
     if(!paused&&!this.nativeReadonly)return;
     const reason=transition?'handoff':!paused?'native-reload':ownership&&ownership.open===0?'native-saving':'native-open',already=this.nativeReadonly;
     if(already&&reason===this.nativeReason&&this.nativePageCount===ownership?.open)return;this.nativeReason=reason;this.nativePageCount=ownership?.open;this.nativeReadonly=true;
-    this.status=reason==='handoff'?'原生页面正在交接 · 白板仅查看':reason==='native-reload'?'原生保存已完成 · 正在重新读取白板':reason==='native-saving'?'旧原生页仍在保存 · 等待保存完成':'原生 Markdown 已打开 · 白板仅查看';this.emit(already?'status':'board');
+    this.status=reason==='handoff'?'原生页面正在交接 · 白板仅查看':reason==='native-reload'?'原生保存已完成 · 正在重新读取白板':reason==='native-saving'?'旧原生页保存尚未确认 · 等待保存完成':'原生 Markdown 已打开 · 白板仅查看';this.emit(already?'status':'board');
   }
   emit(kind:SessionUpdate='board') { this.listeners.forEach(fn => {try{fn(kind);}catch(e){report(e);}}); }
   /** Only these whole-field replacements can share graph references with before.
@@ -500,7 +500,7 @@ class Session {
       this.board=b;this.baseline=raw;if(incoming){this.document=incoming;this.layoutBaseline=incomingBaseline!;}this.history=new History();this.restoreRelationGeometry();this.status='已同步外部修改';applied=true;this.emit();
     }catch(e){if(readId!==this.externalRead||readBaseline!==undefined&&(readBaseline!==this.baseline||readBoard!==this.board||readQueue!==this.queue))return;this.blocked=true;this.writeError=e instanceof Error?e.message:String(e);this.status=externalPhase==='read'?'外部文件读取失败 · 已暂停写入':'外部文件格式错误 · 已暂停写入';this.emit();report(e);}
     finally{
-      if(resumeNative&&applied&&readId===this.externalRead&&!unavailable()){this.nativeReadonly=false;if(this.nativeReason&&['原生 Markdown 已打开 · 白板仅查看','原生页面正在交接 · 白板仅查看','旧原生页仍在保存 · 等待保存完成','原生保存已完成 · 正在重新读取白板'].includes(this.status))this.status='已恢复白板编辑';this.nativeReason='';this.emit();}
+      if(resumeNative&&applied&&readId===this.externalRead&&!unavailable()){this.nativeReadonly=false;if(this.nativeReason&&['原生 Markdown 已打开 · 白板仅查看','原生页面正在交接 · 白板仅查看','旧原生页保存尚未确认 · 等待保存完成','原生保存已完成 · 正在重新读取白板'].includes(this.status))this.status='已恢复白板编辑';this.nativeReason='';this.emit();}
     }
   }
 }
@@ -2404,16 +2404,16 @@ class BoardView extends FileView {
   async runSaveFeedbackAction(action:BoardSaveFeedbackAction){
     const owner=this.session,source=this.leaf,doc=this.contentEl.ownerDocument,win=doc.defaultView;
     if(this.saveFeedbackPending||!owner||this.closed||this.closing||source.view!==this||!win||win.closed||this.app.workspace.getActiveViewOfType(View)!==this||owner.saveFeedback.action?.kind!==action)return;
-    this.saveFeedbackPending=true;const sequence=++this.saveFeedbackSequence;let stopped=false,target:WorkspaceLeaf|undefined;
+    this.saveFeedbackPending=true;const sequence=++this.saveFeedbackSequence;let stopped=false,allocating=false,target:WorkspaceLeaf|undefined;
     const active=this.app.workspace.getActiveViewOfType(View)?.leaf,sourcePath=owner.file.path,sourceIdentity=this.app.vault.getAbstractFileByPath(sourcePath);
     const valid=()=>!stopped&&sequence===this.saveFeedbackSequence&&!this.closed&&!this.closing&&this.session===owner&&source.view===this&&this.contentEl.ownerDocument===doc&&doc.defaultView===win&&!win.closed&&owner.file.path===sourcePath&&this.app.vault.getAbstractFileByPath(sourcePath)===sourceIdentity;
-    const ref=this.app.workspace.on('active-leaf-change',leaf=>{if(leaf!==active&&leaf!==target){stopped=true;this.saveFeedbackPicker?.close();}});
+    const ref=this.app.workspace.on('active-leaf-change',leaf=>{if(!allocating&&leaf!==active&&leaf!==target){stopped=true;this.saveFeedbackPicker?.close();}});
     const stop=()=>{stopped=true;this.app.workspace.offref(ref);};this.stopSaveFeedbackNavigation=stop;
     try{
       if(action==='locate-native'){
         const leaves=nativeBoardEditorLeaves(this.app,owner.file);if(!leaves.length){owner.refreshNativeEditing();this.renderSaveStatus();return;}
         let chosen=leaves[0];if(leaves.length>1){
-          const picked=await new Promise<WorkspaceLeaf|undefined>(resolve=>{const picker=new NativeBoardEditorPicker(this.app,leaves,doc,resolve,valid);this.saveFeedbackPicker=picker;picker.open();});
+          const picked=await new Promise<WorkspaceLeaf|undefined>(resolve=>{const picker=new NativeBoardEditorPicker(this.app,leaves,doc,resolve,valid,report);this.saveFeedbackPicker=picker;picker.open();});
           this.saveFeedbackPicker=undefined;if(!picked||!valid())return;chosen=picked;
         }
         target=chosen;await this.plugin.locateNativeBoardEditor(owner.file,chosen,valid);return;
@@ -2421,9 +2421,10 @@ class BoardView extends FileView {
       const file=owner.recoveryFile,path=file?.path;
       if(!file||!path||this.app.vault.getAbstractFileByPath(path)!==file){this.renderSaveStatus();throw Error('恢复草稿已移除或替换；当前布局仍在本页，请导出保留。');}
       const current=()=>valid()&&file.path===path&&this.app.vault.getAbstractFileByPath(path)===file;
-      target=await this.plugin.openBoard(file,false,current,true);if(!target||!current())return;
-      const opened=target.view;if(!(opened instanceof BoardView)||opened.file!==file||!opened.session)return;
-      await this.app.workspace.revealLeaf(target);if(!current()||target.view!==opened||opened.file!==file)return;
+      const navigation:BoardOpenNavigation={acquire:create=>{allocating=true;try{const leaf=create();target=leaf;const now=this.app.workspace.getActiveViewOfType(View)?.leaf;if(now&&now!==active&&now!==leaf)stopped=true;return leaf;}finally{allocating=false;}},target:leaf=>{target=leaf;}};
+      target=await this.plugin.openBoard(file,false,current,true,navigation);if(!target||!current())return;
+      const opened=target.view;if(!(opened instanceof BoardView)||opened.file!==file||!opened.session||opened.closed||opened.closing||!opened.containerEl.isConnected||target.getContainer().win.closed)return;
+      await this.app.workspace.revealLeaf(target);if(!current()||target.view!==opened||opened.file!==file||opened.closed||opened.closing||!opened.containerEl.isConnected||target.getContainer().win.closed)return;
       opened.resumeAutomaticGeometry();this.app.workspace.setActiveLeaf(target,{focus:true});this.plugin.currentBoard=opened;
     }finally{this.app.workspace.offref(ref);if(this.stopSaveFeedbackNavigation===stop)this.stopSaveFeedbackNavigation=undefined;if(sequence===this.saveFeedbackSequence){this.saveFeedbackPending=false;this.saveFeedbackPicker=undefined;}}
   }
