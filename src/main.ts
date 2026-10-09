@@ -3386,6 +3386,7 @@ class BoardView extends FileView {
         source:id=>this.mindmapSource(owner,id),
         finalizeViewport:intent=>{if(this.closed||this.session!==owner||this.brainBoardOwner!==owner||this.brainBoardEl!==el||intent.key!==owner||intent.path!==owner.file.path||intent.board!==owner.board||owner.blocked||!isBrainBoard(owner.board))return;owner.changeBrainViewport(intent.value);},
         organizeIdea:(id,request)=>this.openBrainSeed(id,request),
+        associateExisting:(id,request)=>this.openBrainExistingRelation(owner,id,()=>current()&&request()),
         renameNode:(id,request)=>this.renameBrainNode(id,request),
         addObject:kind=>this.addBrainObject(kind),
         open:async(id,request,edit=false)=>{if(!current()||!request())return;const node=owner.board.nodes.find(n=>n.id===id&&supportsLocalRelations(n));if(node?.brainIdea){if(edit)this.openBrainSeed(id,request);else owner.changeBrainState(updateBoardMindmapState(owner.board.brain!,{type:'expand',id,expanded:true},owner.board.nodes));return;}if(node?.kind==='section'){const state=updateBoardMindmapState(owner.board.brain!,{type:'center',id},owner.board.nodes);owner.changeBrainState(updateBoardMindmapState(state,{type:'expand',id,expanded:true},owner.board.nodes));this.brainBoardView?.focusNode(id);return;}const doc=el.ownerDocument,win=doc.defaultView;return this.openLocalRelationSource(id,()=>current()&&request()&&el.ownerDocument===doc&&doc.defaultView===win&&!win?.closed,this.leaf,{edit});},
@@ -3404,30 +3405,51 @@ class BoardView extends FileView {
     }else this.brainBoardView?.refresh();
     this.renderSaveStatus();this.fileTitle?.setText(owner.file.basename);
   }
-  private addBrainRelation(owner:Session,id:string,side:BrainRelationSide,current:()=>boolean,initial?:'board'){
+  private openBrainExistingRelation(owner:Session,id:string,request:()=>boolean){
+    this.requireOwner(owner);const node=owner.board.nodes.find(value=>value.id===id&&supportsLocalRelations(value));
+    if(!node||node.locked||!request()||!isBrainBoard(owner.board))return;
+    if(this.app.workspace.getLeavesOfType(VIEW).some(leaf=>leaf.view instanceof BoardView&&leaf.view.session===owner&&(leaf.view.brainRelationCreating||leaf.view.localRelationEditBusy)))throw Error('请先完成此白板正在进行的编辑或创建');
+    this.brainBoardDialog?.close();const epoch=++this.brainObjectEpoch,path=owner.file.path,doc=this.contentEl.ownerDocument,center=owner.board.brain.centerId,stamp=JSON.stringify(node);
+    let chosen=false,cancelled=false;
+    const valid=()=>!cancelled&&request()&&this.brainObjectEpoch===epoch&&this.session===owner&&!owner.blocked&&owner.file.path===path&&!this.closed&&!this.closing&&this.leaf.view===this&&this.contentEl.ownerDocument===doc&&!doc.defaultView?.closed&&isBrainBoard(owner.board)&&owner.board.brain.centerId===center&&JSON.stringify(owner.board.nodes.find(value=>value.id===id))===stamp;
+    const picker=new NotePicker(this.app,file=>{
+      if(!valid())throw Error('节点或白板已变化，关联已取消');
+      if(file.extension.toLowerCase()!=='md'||this.app.vault.getAbstractFileByPath(file.path)!==file)throw Error('来源已变化，请重新选择笔记');
+      chosen=true;this.addBrainRelation(owner,id,'right',request,undefined,{file,path:file.path});
+    }),open=picker.onOpen.bind(picker),choose=picker.onChooseItem.bind(picker),close=picker.onClose.bind(picker);
+    // Native suggestions may close before delivering onChooseItem. Delay only
+    // cancellation marking to the next microtask; the selection itself still
+    // needs the original node, window and navigation scope before handoff.
+    picker.onChooseItem=file=>{chosen=true;choose(file);};
+    picker.onOpen=()=>{if(!valid()){picker.close();return;}if(picker.containerEl.ownerDocument!==doc)doc.body.appendChild(picker.containerEl);return open();};
+    picker.onClose=()=>{close();queueMicrotask(()=>{if(!chosen)cancelled=true;});if(this.brainBoardDialog===picker)this.brainBoardDialog=undefined;};
+    this.brainBoardDialog=picker;picker.open();
+  }
+  private addBrainRelation(owner:Session,id:string,side:BrainRelationSide,current:()=>boolean,initial?:'board',existing?:{file:TFile;path:string}){
     this.requireOwner(owner);if(!isBrainBoard(owner.board)||!current()||owner.blocked)return;
     const othersBusy=()=>this.app.workspace.getLeavesOfType(VIEW).some(leaf=>leaf.view instanceof BoardView&&leaf.view.session===owner&&(leaf.view.brainRelationCreating||leaf.view.localRelationEditBusy));
     if(othersBusy())throw Error('请先完成此白板正在进行的编辑或创建');
-    const path=owner.file.path,board=owner.board,doc=this.contentEl.ownerDocument,win=doc.defaultView,expected=captureLocalRelationEdit(board,[id]),folder=this.plugin.settings.cardFolder;
+    const path=owner.file.path,board=owner.board,center=board.brain.centerId,doc=this.contentEl.ownerDocument,win=doc.defaultView,expected=captureLocalRelationEdit(board,[id]),folder=this.plugin.settings.cardFolder;
     this.brainBoardDialog?.close();const epoch=++this.brainObjectEpoch;
     let saveRetry:BrainCreationSaveRetry|undefined;
-    const scopeValid=()=>current()&&this.session===owner&&owner.board===board&&owner.file.path===path&&this.leaf.view===this&&this.contentEl.ownerDocument===doc&&!win?.closed&&!this.closed&&!this.closing&&this.brainObjectEpoch===epoch&&isBrainBoard(owner.board)&&owner.board.brain.centerId===id;
+    const scopeValid=()=>current()&&this.session===owner&&owner.board===board&&owner.file.path===path&&this.leaf.view===this&&this.contentEl.ownerDocument===doc&&!win?.closed&&!this.closed&&!this.closing&&this.brainObjectEpoch===epoch&&isBrainBoard(owner.board)&&owner.board.brain.centerId===center;
     const valid=()=>scopeValid()&&!owner.blocked;
-    const modal=new BrainRelationCreateModal(this.app,{document:doc,side,center:localRelationNode(board.nodes.find(node=>node.id===id)!).title,folder,boardFolder:`${ROOT}/白板`,initial,current:valid,decorate:themeSurface,
+    const modal=new BrainRelationCreateModal(this.app,{document:doc,side,center:localRelationNode(board.nodes.find(node=>node.id===id)!).title,folder,boardFolder:`${ROOT}/白板`,initial,initialExisting:existing,chooseAssociationSide:!!existing,current:valid,decorate:themeSurface,
       canRetry:()=>!!saveRetry&&scopeValid()&&owner.blocked&&JSON.stringify(owner.board)===saveRetry.stamp,
       retry:async live=>{if(!saveRetry)throw Error('没有待重试的保存');await this.retryBrainCreationSave(owner,saveRetry,scopeValid,live);saveRetry=undefined;},
       pick:choose=>{const picker=new NotePicker(this.app,choose),open=picker.onOpen.bind(picker);picker.onOpen=()=>{if(!valid()){picker.close();return;}if(picker.containerEl.ownerDocument!==doc)doc.body.appendChild(picker.containerEl);return open();};return picker;},
       commit:async(target:BrainNoteTarget,request)=>{
+        const relationSide=existing&&target.kind==='existing'?target.side==='left'?'left':'right':side;
         if(this.brainRelationCreating)return;const ready=()=>valid()&&request()&&!this.app.workspace.getLeavesOfType(VIEW).some(leaf=>leaf.view instanceof BoardView&&leaf.view.session===owner&&(leaf.view!==this&&leaf.view.brainRelationCreating||leaf.view.localRelationEditBusy));
         if(!ready())throw Error('目标白板已变化，请重新添加关系');
         this.brainRelationCreating=true;let created:TFile|undefined,createdPath='',createdStamp=0,committed=false,body='';
         try{
           await owner.flush();if(!ready())throw Error('关系创建已取消');
           const nodeId=uid(),edgeId=uid();
-          if(target.kind==='idea'){const next=planBrainNoteRelation(owner.board,id,'',side,nodeId,edgeId,expected,target.name);owner.change(draft=>{if(!ready())throw Error('已取消');draft.nodes=next.board.nodes;draft.edges=next.board.edges;},undefined,false,true,false,true,true);committed=true;this.brainBoardView?.revealRelation(next.nodeId);await owner.flush();if(owner.blocked){saveRetry={stamp:JSON.stringify(owner.board)};throw new LocalRelationEditSaveError('想法已添加但保存失败，恢复草稿已保留；可重试保存或取消');}return;}
+          if(target.kind==='idea'){const next=planBrainNoteRelation(owner.board,id,'',relationSide,nodeId,edgeId,expected,target.name);owner.change(draft=>{if(!ready())throw Error('已取消');draft.nodes=next.board.nodes;draft.edges=next.board.edges;},undefined,false,true,false,true,true);committed=true;this.brainBoardView?.revealRelation(next.nodeId);await owner.flush();if(owner.blocked){saveRetry={stamp:JSON.stringify(owner.board)};throw new LocalRelationEditSaveError('想法已添加但保存失败，恢复草稿已保留；可重试保存或取消');}return;}
           // Validate branch/lock/center constraints before any note is created.
           const kind=target.kind==='board'?'board':'card';
-          planBrainNoteRelation(owner.board,id,target.kind==='existing'?target.path:`__new_brain_${nodeId}.${kind==='board'?EXT:'md'}`,side,nodeId,edgeId,expected,undefined,kind);
+          planBrainNoteRelation(owner.board,id,target.kind==='existing'?target.path:`__new_brain_${nodeId}.${kind==='board'?EXT:'md'}`,relationSide,nodeId,edgeId,expected,undefined,kind);
           let file:TFile;
           if(target.kind==='existing'){
             file=target.file;if(file.path!==target.path||this.app.vault.getAbstractFileByPath(target.path)!==file||file.extension.toLowerCase()!=='md')throw Error('来源已变化，请重新选择笔记');
@@ -3437,8 +3459,8 @@ class BoardView extends FileView {
           }
           if(!ready())throw Error('关系创建已取消');
           if(target.kind==='board'){await this.plugin.assertCanNest(owner.file,file);if(!ready())throw Error('白板创建已取消');}
-          const next=planBrainNoteRelation(owner.board,id,file.path,side,nodeId,edgeId,expected,undefined,kind);
-          owner.change(draft=>{if(!ready())throw Error('目标白板已变化');const latest=planBrainNoteRelation(draft,id,file.path,side,nodeId,edgeId,expected,undefined,kind);draft.nodes=latest.board.nodes;draft.edges=latest.board.edges;draft.version=latest.board.version;},undefined,false,true,false,true,true);
+          const next=planBrainNoteRelation(owner.board,id,file.path,relationSide,nodeId,edgeId,expected,undefined,kind);
+          owner.change(draft=>{if(!ready())throw Error('目标白板已变化');const latest=planBrainNoteRelation(draft,id,file.path,relationSide,nodeId,edgeId,expected,undefined,kind);draft.nodes=latest.board.nodes;draft.edges=latest.board.edges;draft.version=latest.board.version;},undefined,false,true,false,true,true);
           committed=true;this.brainBoardView?.revealRelation(next.nodeId);
           await owner.flush();if(owner.blocked){saveRetry={stamp:JSON.stringify(owner.board),note:{file,path:target.kind==='existing'?target.path:createdPath,...(created?{body}:{})}};throw new LocalRelationEditSaveError('关系已添加但白板保存失败；请保留恢复草稿，可重试保存或取消');}
         }finally{
@@ -3517,12 +3539,22 @@ class BoardView extends FileView {
       commit:async(target,live)=>{
         const ready=()=>valid()&&live()&&!this.app.workspace.getLeavesOfType(VIEW).some(leaf=>leaf.view instanceof BoardView&&leaf.view.session===owner&&(leaf.view!==this&&leaf.view.brainRelationCreating||leaf.view.localRelationEditBusy));
         if(this.brainRelationCreating||!ready())throw Error('白板已变化或正在创建，请重试');
-        if(idea&&target.kind!=='new')throw Error('请选择新建笔记');
+        if(idea&&target.kind!=='new'&&target.kind!=='existing')throw Error('请选择新建笔记或保留想法并关联已有笔记');
         this.brainRelationCreating=true;let created:TFile|undefined,createdPath='',createdStamp=0,committed=false,historyBefore:string|undefined;
         let body=idea?`# ${idea.title||''}\n\n${idea.text||''}`:'';
         if(target.kind==='board')body=JSON.stringify(target.presentation==='brain'?createBrainBoard():emptyBoard(),null,2);
         try{
           await owner.flush();if(!ready())throw Error('创建已取消');
+          if(idea&&target.kind==='existing'){
+            const file=target.file;if(file.path!==target.path||this.app.vault.getAbstractFileByPath(target.path)!==file||file.extension.toLowerCase()!=='md')throw Error('来源已变化，请重新选择');
+            const expected=captureLocalRelationEdit(owner.board,[idea.id]),nodeId=uid(),edgeId=uid(),next=planBrainNoteRelation(owner.board,idea.id,target.path,'right',nodeId,edgeId,expected);
+            // Existing notes are reference-only. Keep the complete idea object,
+            // its body and every old edge; one transaction adds the association.
+            owner.change(board=>{if(!ready()||file.path!==target.path||this.app.vault.getAbstractFileByPath(target.path)!==file)throw Error('白板或来源已变化');const latest=planBrainNoteRelation(board,idea.id,target.path,'right',nodeId,edgeId,expected);board.nodes=latest.board.nodes;board.edges=latest.board.edges;board.version=latest.board.version;},undefined,false,true,false,true);
+            committed=true;this.brainBoardView?.revealRelation(next.nodeId);await owner.flush();
+            if(owner.blocked){saveRetry={stamp:JSON.stringify(owner.board),note:{file,path:target.path}};throw new LocalRelationEditSaveError('脑图保存失败，想法正文与关联已保留，目标笔记正文不变；请保留恢复草稿，可重试保存或取消');}
+            return;
+          }
           let node:Card;
           if(target.kind==='idea')node=brainIdeaNode(uid(),target.name,owner.board.nodes.length*400);
           else{

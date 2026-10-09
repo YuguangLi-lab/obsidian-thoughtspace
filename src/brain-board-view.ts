@@ -21,6 +21,7 @@ export interface BrainBoardHost {
  add:()=>void;addObject?:(kind:'section'|'board')=>void;rename?:()=>void;settings?:()=>void;isActive?:()=>boolean;activate?:()=>void;viewport?:(value:{x:number;y:number;zoom:number})=>void;
  background?:(anchor:HTMLElement)=>void;colors?:()=>void;
  organizeIdea?:(id:string,current:()=>boolean)=>void;
+ associateExisting?:(id:string,current:()=>boolean)=>void;
  renameNode?:(id:string,current:()=>boolean)=>void;
  finalizeViewport?:(intent:BrainBoardViewportIntent)=>void;
  createRelation?:(id:string,side:BrainRelationSide,current:()=>boolean,initial?:'board')=>unknown;
@@ -210,6 +211,7 @@ export class BrainBoardView extends Component {
   if(this.host.renameNode)add(menu,node.brainIdea?'重命名想法':node.kind==='section'?'重命名分组':node.kind==='board'?'重命名来源白板':'重命名来源笔记','pencil-line',!readOnly&&!node.locked&&(!node.file||source.available),()=>this.host.renameNode?.(id,current));
   if(node.brainIdea&&this.host.organizeIdea)add(menu,'整理成笔记','file-plus',!readOnly&&!node.locked,()=>this.host.organizeIdea?.(id,current));
   else add(menu,'编辑实际笔记','pencil',source.available&&!!source.canEdit,()=>this.open(id,true),source.available?source.editReason||'此对象没有独立笔记正文':source.reason);
+  if(this.host.associateExisting)add(menu,'关联已有笔记…','file-input',!readOnly&&!node.locked,()=>{try{this.host.associateExisting?.(id,current);}catch(error){if(current())this.status.setText(this.message(error));}});
   if(id===state.centerId&&this.host.createRelation)this.submenu(menu,'新建节点','plus',sub=>{
    for(const side of ['top','bottom','left','right'] as const)add(sub,brainRelationLabels[side],'plus',!readOnly&&!node.locked,()=>this.createRelation(id,side));
    sub.addSeparator();add(sub,'新建白板…','panels-top-left',!readOnly&&!node.locked,()=>this.createRelation(id,'bottom','board'));
