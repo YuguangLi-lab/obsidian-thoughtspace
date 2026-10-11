@@ -8,6 +8,7 @@ import * as boardTools from '../src/board-tools';
 import * as dragDraft from '../src/drag-draft';
 import * as dragTargets from '../src/drag-targets';
 import * as experience from '../src/board-experience';
+import {boardTouchTarget} from '../src/board-touch';
 import {validSectionRect} from '../src/sections';
 
 // Exercise BoardView's actual event methods; only the host's DOM and frame clock are fake.
@@ -51,7 +52,7 @@ function fixture(nodes:model.Card[]=[node('a',20),node('b',150),node('old',500)]
   const calls={inspector:0,controls:0,render:0,schedule:0,persist:0,writes:0,history:0,menus:0,focus:0};
   const menus:{node?:string;edge?:string;position?:{x:number;y:number}}[]=[];
   class Menu {onHide(){}hide(){}showAtMouseEvent(){calls.menus++;}}
-  const deps={...model,...mindmap,...boardTools,...dragDraft,...dragTargets,...experience,validSectionRect,
+  const deps={...model,...mindmap,...boardTools,...dragDraft,...dragTargets,...experience,validSectionRect,boardTouchTarget,
     Menu,
     Date:{now:()=>now},
     PointerEvent:class {constructor(_type:string,fields:Record<string,unknown>){Object.assign(this,fields);}},
@@ -62,7 +63,7 @@ function fixture(nodes:model.Card[]=[node('a',20),node('b',150),node('old',500)]
   const capture=new Set<number>(),boxes:Element[]=[];
   const stage=Object.assign(new Element(),{ownerDocument:{defaultView:deps},clientWidth:1000,clientHeight:700,focus(){calls.focus++;},
     setPointerCapture:(id:number)=>capture.add(id),hasPointerCapture:(id:number)=>capture.has(id),releasePointerCapture:(id:number)=>capture.delete(id)});
-  Object.assign(view,{syncMinimapAvoidance(){},session:{board,blocked:false,persist(){calls.persist++;},change(fn:(b:model.Board)=>void){calls.writes++;fn(board);}},
+  Object.assign(view,{syncMinimapAvoidance(){},session:{board,blocked:false,refreshNativeEditing(){},persist(){calls.persist++;},change(fn:(b:model.Board)=>void){calls.writes++;fn(board);}},
     selected:new Set(['old']),selectionTool:true,space:false,mode:'select',pointerFrame:0,dragging:false,
     stage,world:{createDiv(){const box=new Element();boxes.push(box);return box;}},svg:new Element(),
     positions:new Map(nodes.map(n=>[n.id,new Element()])),pendingFits:new Map(),nodeFitQueue:{schedule(){}},

@@ -1,12 +1,14 @@
 import {App,Modal} from 'obsidian';
 import {themeSurface} from './ui-tokens';
 import {WritingRange,WritingReferenceMode} from './writing-reference';
+import {bindMobileViewport} from './mobile-viewport';
 /** Read-only source selection. No generated anchors and no writes to the original note. */
 export class WritingReferenceModal extends Modal {
- private closed=false;private busy=false;private chosen?:WritingRange;
+ private closed=false;private busy=false;private chosen?:WritingRange;private stopViewport?:()=>void;
  constructor(app:App,private source:string,private raw:string,private ranges:WritingRange[],private insert:(mode:WritingReferenceMode,range:WritingRange)=>Promise<void>,private restore:()=>void,private literal=false){super(app);}
  onOpen(){
   themeSurface(this.modalEl);this.modalEl.addClass('ts-writing-reference-picker');this.titleEl.setText('选段引用');
+  this.stopViewport=bindMobileViewport(this.modalEl);
   this.contentEl.createEl('small',{text:this.source,attr:{title:this.source}});
   const label=this.contentEl.createEl('label',{text:'标题、块或段落'}),select=label.createEl('select',{attr:{'aria-label':'引用范围'}});
   select.createEl('option',{text:'在下方选择文字…',value:''});this.ranges.forEach((r,i)=>select.createEl('option',{text:r.label,value:String(i)}));
@@ -21,5 +23,5 @@ export class WritingReferenceModal extends Modal {
   input.addEventListener('select',sync);input.addEventListener('keyup',sync);input.addEventListener('pointerup',sync);sync();select.focus();
  }
  isCurrent(){return !this.closed&&this.modalEl.isConnected;}
- onClose(){this.closed=true;this.raw='';this.ranges=[];this.contentEl.empty();this.modalEl.win.setTimeout(()=>this.restore(),0);}
+ onClose(){this.closed=true;this.stopViewport?.();this.stopViewport=undefined;this.raw='';this.ranges=[];this.contentEl.empty();this.modalEl.win.setTimeout(()=>this.restore(),0);}
 }

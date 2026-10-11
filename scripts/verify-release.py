@@ -7,14 +7,17 @@ import time
 import urllib.request
 from pathlib import Path
 
+from release_version import is_prerelease
+
 RUNTIME = ('main.js', 'manifest.json', 'styles.css')
 
 
 def verify_listing(release, tag, expected):
+    prerelease = is_prerelease(tag)
     if release.get('tag_name') != tag or release.get('draft') is not False:
-        raise ValueError('The requested stable release is not public')
-    if release.get('prerelease') is not False:
-        raise ValueError('The release must not be a prerelease')
+        raise ValueError('The requested release is not public')
+    if release.get('prerelease') is not prerelease:
+        raise ValueError('The release prerelease flag does not match its tag')
     assets = release.get('assets', [])
     for name, data in expected.items():
         matches = [a for a in assets if a.get('name') == name]
@@ -49,7 +52,11 @@ def main():
     root = Path(__file__).resolve().parent.parent
     tag = os.environ['RELEASE_TAG']
     repo = os.environ.get('GITHUB_REPOSITORY', 'YuguangLi-lab/obsidian-thoughtspace')
-    if not re.fullmatch(r'\d+\.\d+\.\d+', tag) or not re.fullmatch(r'[\w.-]+/[\w.-]+', repo):
+    try:
+        is_prerelease(tag)
+    except ValueError as error:
+        raise SystemExit('Invalid release tag or repository') from error
+    if not re.fullmatch(r'[\w.-]+/[\w.-]+', repo):
         raise SystemExit('Invalid release tag or repository')
     expected = {name: (root / name).read_bytes() for name in RUNTIME}
     if json.loads(expected['manifest.json'])['version'] != tag:

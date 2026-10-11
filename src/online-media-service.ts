@@ -12,7 +12,7 @@ export class OnlineMediaService {
  private uncertainCreations=new Set<string>();
  private closed=false;
  private attachments=new Map<string,{image:TFile;blob:Blob}>();
- constructor(private app:App,private create:(title:string,body:string)=>Promise<TFile>,private vaultId:()=>string){}
+ constructor(private app:App,private create:(title:string,body:string)=>Promise<TFile>,private vaultId:()=>string|undefined){}
  dispose(){this.closed=true;this.known.clear();this.uncertainCreations.clear();this.attachments.clear();}
  private source(input:string){const source=parseOnlineSource(input);if(this.closed)throw Error('在线视频笔记已关闭');if(!source)throw Error('在线视频来源无效');return source;}
  private alive(file:TFile){return !this.closed&&isWorkspaceFile(file)&&this.app.vault.getAbstractFileByPath(file.path)===file;}

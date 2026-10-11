@@ -1,5 +1,38 @@
 # 更新记录
 
+## 1.3.36-beta.2
+
+### 手机与平板适配（2026-10-11，预发布）
+
+- Adapt plugin surfaces to phone, tablet and split containers with scoped viewport and safe-area handling.
+- Separate card reading from touch dragging; support brain pinch navigation and 44px touch controls.
+- Preserve handwriting drafts across viewport changes and add opt-in finger writing.
+- Use compact media/online panels and retain composition and recovery drafts; mobile online notes use manual timing.
+- Keep materials panes scrollable without scroll-anchor jumps, and retain a usable source-editor height when a short writing window cannot load live preview.
+- Offer a complete read-only local board copy when both primary and recovery storage fail, retaining ink, camera and native Markdown content.
+- Fix brain zoom below 20% and saved-camera drift on reopen; short brain controls scroll while preserving a usable stage. Media/online/writing actions retain 44px touch targets.
+- 验证显示/保存/重开统一使用 15%–250% 缩放；1000 节点适应画布与短窗下限一致。稳定宿主尺寸避免原生标题栏或控制区重排偏移已保存镜头。
+- 7178 automated tests and 23 Python release tests passed; final round2 desktop simulation passed 1031 assertions across four complete batches. Earlier dimension-matrix checks belong to the first build and are reported separately.
+- Additional pre-publication iPad desktop simulation passed 407 assertions: all tablet orientations/splits, 100/500/1000-node ordinary/brain boards, keyboard occupation, finger/pen transitions and seven durable full-restart checkpoints.
+- Physical iOS/Android/WKWebView, system keyboard/IME, Pencil pressure/latency, complete palm rejection and device performance remain unverified. Stable latest remains 1.3.35; this is an opt-in prerelease.
+
+操作与恢复边界见 [移动适配说明](docs/MOBILE-ADAPTATION.zh-CN.md)，本轮 Studio 模拟证据见 [beta.2 验证说明](qa/RELEASE-1.3.36-beta.2.md)。
+
+## 1.3.36-beta.1
+
+### 手写白板候选记录（2026-10-10）
+
+- 新建白板对话框增加独立“手写白板”，可保存为旧格式或 Markdown；创建成功才记住类型与格式，已有普通白板与脑图保持原样。
+- 支持世界坐标笔迹、压力回退、整笔擦除、撤销重做与重开；鼠标可写画，笔输入与双指移动/缩放分别处理。取消、切换工具、失焦、缩放/尺寸变化或保存保护会清理未提交笔划。
+- 笔迹预览按动画帧增量绘制，每笔抬笔后只提交一次；有限采样与文档预算会明确拒绝超限，原笔迹不会被静默截断。
+- 双窗口在完成导航后同步镜头与笔迹坐标；鼠标或笔输入会聚焦画布，使 Escape 与撤销快捷键生效。原生属性返回白板会等待当前最新的磁盘读取，再恢复写入。
+- 拆开顶层 Node 文件系统、路径、哈希与 Electron 依赖。移动端不能使用电脑外部文件或 Electron 在线播放器；仓库本地媒体保留原路径。
+- **本次预发布采用隔离桌面原生测试与 pen/touch、移动 loader/尺寸模拟验收。真实 iPad、Apple Pencil、WKWebView 和原生 Properties 的实机行为未测，保留为已知范围，不要求等待实机再试用 beta。没有通用掌拒、Pencil 双击/悬停或 OCR 保证。**
+- 手写文件使用扩展 v3 格式；1.3.35 及更早版本无法打开新手写类型。保留独立副本，暂不以旧版编辑；原生 Canvas 导出会拒绝丢失笔迹的操作。
+- [手写白板使用、模拟范围与可选实机验证](docs/HANDWRITING-IPAD.zh-CN.md)。稳定最新版仍是 1.3.35；本 beta 仅供主动选择预发布的用户试用。
+
+本地检查与性能边界见 [1.3.36-beta.1 验证说明](qa/RELEASE-1.3.36-beta.1.md)。
+
 ## 1.3.35
 
 ### 新建、原生属性往返与脑图常用操作（2026-10-09）

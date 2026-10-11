@@ -22,6 +22,6 @@ test('active mindmap editor uses the replaced live viewport when restoring a vie
 test('panning paints in the existing pointer frame rather than waiting another frame',()=>{
  const f=fixture();const methods=new Function('requestAnimationFrame','cancelAnimationFrame',transformSync('class View{'+method('  private pointerMove(', '  private pointerUp(')+'};return View.prototype',{loader:'ts'}).code)((fn:()=>void)=>{f.frames.set(99,fn);return 99},(id:number)=>f.frames.delete(id));
  for(const name of ['pointerMove','flushPointer','applyPointerMove'])f.v[name]=methods[name];
- Object.assign(f.v,{mode:'select',pointerFrame:0,gesture:{id:1,x:0,y:0,pan:true,before:{viewport:{x:0,y:0,zoom:1}}}});f.v.stage.setPointerCapture=()=>{};
+ Object.assign(f.v,{mode:'select',pointerFrame:0,gesture:{owner:f.v.session,board:f.v.session.board,id:1,x:0,y:0,pan:true,before:{viewport:{x:0,y:0,zoom:1}}}});f.v.stage.setPointerCapture=()=>{};
  f.v.pointerMove({pointerId:1,clientX:40,clientY:50});f.flush();assert.deepEqual(f.calls,[true]);assert.equal(f.frames.size,0);assert.deepEqual(f.v.session.board.viewport,{x:40,y:50,zoom:1});
 });

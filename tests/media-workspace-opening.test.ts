@@ -14,7 +14,7 @@ class TFile {stat={mtime:1,size:100};constructor(public path:string){}get extens
 function deferred<T=void>(){let resolve!:(value:T)=>void,reject!:(error:unknown)=>void;const promise=new Promise<T>((yes,no)=>{resolve=yes;reject=no;});return{promise,resolve,reject};}
 const turn=()=>new Promise<void>(resolve=>setImmediate(resolve));
 type Placement='tab'|'sidebar'|'window';
-function opening(){
+function opening(desktop=true){
  const a=new TFile('media/A.mp4'),b=new TFile('media/B.mp3'),files=new Map([a,b].map(file=>[file.path,file]));
  const leaves:Leaf[]=[],onlineLeaves:OnlineLeaf[]=[],shared=new Map<string,number>(),calls={create:[] as string[],set:[] as string[],reveal:[] as Leaf[],activate:[] as {leaf:Leaf;focus:boolean}[],pause:0,expand:0,onlineStop:0};
  let active:View|OnlineView|undefined,activeFile:TFile|undefined;
@@ -52,7 +52,7 @@ function opening(){
   rightSplit:{expand:()=>calls.expand++},revealLeaf:async(leaf:Leaf)=>{calls.reveal.push(leaf);await beforeReveal?.(leaf);},
   setActiveLeaf:(leaf:Leaf,options:{focus:boolean})=>{calls.activate.push({leaf,focus:options.focus});active=leaf.view;},
  };
- const deps={MediaWorkspaceView:View,MEDIA_WORKSPACE:'thoughtspace-media-player',OnlineWorkspaceView:OnlineView,ONLINE_WORKSPACE:'thoughtspace-online-player',TFile,isWorkspaceFile,mediaKind,mediaTime};
+ const deps={isDesktopRuntime:()=>desktop,MediaWorkspaceView:View,MEDIA_WORKSPACE:'thoughtspace-media-player',OnlineWorkspaceView:OnlineView,ONLINE_WORKSPACE:'thoughtspace-online-player',TFile,isWorkspaceFile,mediaKind,mediaTime};
  const Plugin=new Function(...Object.keys(deps),transformSync(`class Plugin{${method('  openMediaWorkspace(')}};return Plugin`,{loader:'ts'}).code)(...Object.values(deps));
  const plugin=new Plugin();Object.assign(plugin,{mediaOpening:Promise.resolve(),mediaClosed:false,app:{workspace,vault:{getAbstractFileByPath:(path:string)=>files.get(path)}},onlinePlatform:{stop:()=>{calls.onlineStop++;}},mediaWorkspace:{playback:{pauseAll:()=>{calls.pause++;for(const leaf of leaves.filter(leaf=>leaf.attached)){const v=leaf.view;if(v.file)shared.set(v.file.path,v.time);v.paused=true;}}}}});
  const existing=(file:TFile|undefined=a,placement:Placement='tab',time=24)=>{const leaf=new Leaf(placement);leaf.view.file=file;leaf.view.placement=placement;leaf.view.time=time;active=leaf.view;return leaf;};
@@ -62,6 +62,10 @@ function opening(){
 
 for(const placement of ['tab','sidebar','window'] as const)test(`opening ${placement} uses its native leaf and never autoplays the first open`,async()=>{
  const f=opening();await f.plugin.openMediaWorkspace(f.a,placement);assert.deepEqual(f.calls.create,[placement]);assert.equal(f.leaves[0].view.file,f.a);assert.equal(f.leaves[0].view.placement,placement);assert.equal(f.leaves[0].view.resumes,0);assert.equal(f.calls.expand,placement==='sidebar'?1:0);
+});
+
+test('mobile window placement uses a tab without discarding the media identity',async()=>{
+ const f=opening(false);await f.plugin.openMediaWorkspace(f.a,'window');assert.deepEqual(f.calls.create,['tab']);assert.equal(f.leaves[0].view.file,f.a);assert.equal(f.leaves[0].view.placement,'tab');assert.equal(f.leaves[0].view.resumes,0);
 });
 test('same media and placement reuse the view without resetting its current timestamp',async()=>{
  const f=opening(),leaf=f.existing(f.a,'sidebar',39.125);await f.plugin.openMediaWorkspace(undefined,'sidebar');assert.equal(f.calls.create.length,0);assert.equal(f.calls.pause,0);assert.equal(leaf.view.time,39.125);assert.equal(leaf.view.states.length,0);assert.equal(f.calls.expand,1);

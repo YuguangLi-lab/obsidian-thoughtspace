@@ -26,7 +26,7 @@ new Function('require','module','exports',compiled)((name:string)=>{
  if(name==='./yingjian')return yingjian;
  throw Error(`Unexpected runtime dependency: ${name}`);
 },module,module.exports);
-const {OnlineMediaService}=module.exports as {OnlineMediaService:new(app:unknown,create:(title:string,body:string)=>Promise<TFile>,vaultId:()=>string)=>Service};
+const {OnlineMediaService}=module.exports as {OnlineMediaService:new(app:unknown,create:(title:string,body:string)=>Promise<TFile>,vaultId:()=>string|undefined)=>Service};
 const youtube='https://www.youtube.com/watch?v=dQw4w9WgXcQ',other='https://www.youtube.com/watch?v=abcdefghijk';
 const biliOne='https://www.bilibili.com/video/BV1xx411c7mD/',biliTwo=biliOne+'?p=2';
 const vaultName='我的仓库',vaultId='0123456789abcdefabcd';
@@ -34,7 +34,7 @@ const draft=(id='point-one',time=12.5,text='原始摘录'):Moment=>({id,time,tex
 const tick=()=>new Promise<void>(resolve=>setImmediate(resolve));
 function deferred<T=void>(){let resolve!:(value:T)=>void,reject!:(reason:unknown)=>void;const promise=new Promise<T>((yes,no)=>{resolve=yes;reject=no;});return{promise,resolve,reject};}
 type Hook=(file:TFile)=>void|Promise<void>;
-function fixture(){
+function fixture(runtimeVaultId:()=>string|undefined=()=>vaultId){
  const files=new Map<string,TFile>(),texts=new Map<TFile,string>(),cacheOverrides=new Map<TFile,Record<string,unknown>|null>();
  const reads:TFile[]=[],processes:TFile[]=[],writes:{file:TFile;before:string;after:string}[]=[],creates:{title:string;body:string;file?:TFile}[]=[];
  const controls:{beforeRead?:Hook;beforeProcess?:Hook;afterProcess?:Hook;beforeCreate?:()=>void|Promise<void>;afterCreate?:Hook;readFailures:Set<TFile>;processFailures:number;processAckFailures:number;createAckFailures:number}={readFailures:new Set(),processFailures:0,processAckFailures:0,createAckFailures:0};
@@ -61,7 +61,7 @@ function fixture(){
   const file=add(body,`notes/created-${index}.md`);record.file=file;await controls.afterCreate?.(file);
   if(controls.createAckFailures>0){controls.createAckFailures--;throw Error('create acknowledgement failed');}return file;
  };
- const service=new OnlineMediaService(app,create,()=>vaultId);
+ const service=new OnlineMediaService(app,create,runtimeVaultId);
  return{service,app,binaries,files,texts,cacheOverrides,controls,reads,processes,writes,creates,add,update,rename};
 }
 const moments=(f:ReturnType<typeof fixture>,file:TFile,source=youtube)=>onlineNotes.readOnlineMoments(f.texts.get(file)!,source,vaultName,vaultId).map(({id,time,text})=>({id,time,text}));
@@ -75,6 +75,13 @@ test('opening never creates a note; the first save creates once and same-id retr
  const input=draft(),first=await f.service.save(youtube,input),raw=f.texts.get(first.note)!;
  assert.equal(f.creates.length,1);assert.equal(onlineNotes.onlineNoteSource(raw),youtube);assert.deepEqual(moments(f,first.note),[input]);
  const retry=await f.service.save('https://youtu.be/dQw4w9WgXcQ?t=90',input);assert.equal(retry.note,first.note);assert.equal(f.creates.length,1);assert.equal(f.texts.get(first.note),raw);f.service.dispose();
+});
+
+test('mobile manual notes save, reopen, append and retry without a desktop vault path hash',async()=>{
+ let reads=0;const f=fixture(()=>{reads++;return undefined;}),first=await f.service.save(youtube,draft('phone-one',83,'手机手动摘录'));
+ assert.equal((await f.service.notes(youtube,first.note.path)).entries[0].text,'手机手动摘录');f.controls.processAckFailures=1;
+ await assert.rejects(f.service.save(youtube,draft('phone-two',91,'继续摘录'),first.note.path),/acknowledgement/);const saved=await f.service.save(youtube,draft('phone-two',91,'继续摘录'),first.note.path);
+ assert.equal(saved.note,first.note);assert.deepEqual((await f.service.notes(youtube,first.note.path)).entries.map(entry=>entry.id),['phone-one','phone-two']);assert.equal(f.creates.length,1);assert.ok(reads>0);f.service.dispose();
 });
 
 test('invalid input fails before any note is created or processed',async()=>{

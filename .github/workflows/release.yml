@@ -74,6 +74,11 @@ jobs:
       - name: Publish standard Obsidian assets
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$RELEASE_TAG" main.js manifest.json styles.css "dist/thoughtspace-$RELEASE_TAG.zip" dist/SHA256SUMS.txt --verify-tag --title "ThoughtSpace Whiteboard $RELEASE_TAG" --notes-file dist/release-notes.md
+        run: |
+          release_flags=()
+          if [ "$RELEASE_PRERELEASE" = true ]; then
+            release_flags+=(--prerelease --latest=false)
+          fi
+          gh release create "$RELEASE_TAG" main.js manifest.json styles.css "dist/thoughtspace-$RELEASE_TAG.zip" dist/SHA256SUMS.txt --verify-tag --title "ThoughtSpace Whiteboard $RELEASE_TAG" --notes-file dist/release-notes.md "${release_flags[@]}"
       - name: Verify public installer endpoints and asset contents
         run: python3 scripts/verify-release.py

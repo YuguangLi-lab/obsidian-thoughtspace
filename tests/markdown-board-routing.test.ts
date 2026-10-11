@@ -35,7 +35,7 @@ class View {}
 class FileView extends View {constructor(public file:TFile){super();}}
 class BoardView extends FileView {
  session:any;closed=false;fits=0;reveals:string[]=[];leaf:any;containerEl={ownerDocument:{defaultView:{requestAnimationFrame:(run:()=>void)=>run()}}};
- constructor(file:TFile,board:model.Board=model.emptyBoard()){super(file);this.session={board,blocked:false,flush:async()=>{},refreshNativeEditing:()=>{},externalUpdate:async()=>{}};}
+ constructor(file:TFile,board:model.Board=model.emptyBoard()){super(file);this.session={board,blocked:false,flush:async()=>{},refreshNativeEditing:()=>{},externalUpdate:async()=>{},async settleExternalUpdate(){await this.externalUpdate();}};}
  resumeAutomaticGeometry(){}fit(){this.fits++;}revealNode(id:string){this.reveals.push(id);}
 }
 class MarkdownView extends FileView {

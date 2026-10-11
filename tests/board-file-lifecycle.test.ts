@@ -1,4 +1,5 @@
 import {isBrainBoard} from '../src/brain-board';
+import {isHandwritingBoard} from '../src/handwriting-board';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -6,17 +7,21 @@ import {transformSync} from 'esbuild';
 import {textFitsContent} from '../src/text-sizing';
 
 const source=readFileSync('src/main.ts','utf8'),start=source.indexOf('  async onLoadFile(file:'),end=source.indexOf('\n  private point(',start);
-const View=new Function('isBrainBoard','act','report','fitTextNode','textFitsContent',transformSync('class BoardView{'+source.slice(start,end)+'};return BoardView',{loader:'ts'}).code)(isBrainBoard,(run:()=>unknown)=>{void run();},()=>{},(node:any)=>Object.assign(node,{width:360,height:240,autoSize:true}),textFitsContent);
+const viewCode=transformSync('class BoardView{'+source.slice(start,end)+'};return BoardView',{loader:'ts'}).code;
+function createView(notice:(message:string)=>void){
+ const View=new Function('isBrainBoard','isHandwritingBoard','isDesktopRuntime','Notice','act','report','fitTextNode','textFitsContent',viewCode)(isBrainBoard,isHandwritingBoard,()=>true,class{constructor(message:string){notice(message);}},(run:()=>unknown)=>{void run();},()=>{},(node:any)=>Object.assign(node,{width:360,height:240,autoSize:true}),textFitsContent);
+ return new View();
+}
 function deferred<T>(){let resolve!:(value:T)=>void,reject!:(error:unknown)=>void;const promise=new Promise<T>((a,b)=>{resolve=a;reject=b;});return{promise,resolve,reject};}
 function session(path:string){return{file:{path,extension:'thoughtspace'},board:{nodes:[] as any[]},listeners:new Set<()=>void>(),flush:async()=>{},blocked:false,refreshNativeEditing(){},writes:0,change(fn:(board:any)=>void){fn(this.board);this.writes++;}};}
 function fixture(){
  const requests:Array<{file:{path:string;extension:string};gate:ReturnType<typeof deferred<ReturnType<typeof session>>>}>=[],released:ReturnType<typeof session>[]=[],docks:Array<ReturnType<typeof deferred<void>>>=[];
- const counts={paint:0,clear:0,errors:0,refresh:0,current:0,metrics:0};let delayDock=false,current:unknown;
- const view=new View(),plugin={provisionalBoardGeometry:new WeakMap<object,{path:string}>(),session:(file:{path:string;extension:string})=>{const gate=deferred<ReturnType<typeof session>>();requests.push({file,gate});return gate.promise;},release:async(s:ReturnType<typeof session>)=>{released.push(s);},ensureDock:()=>{const gate=deferred<void>();docks.push(gate);if(!delayDock)gate.resolve();return gate.promise;},refreshDock(){counts.refresh++;},clearMaterialDrag(){},get currentBoard(){return current;},set currentBoard(value:unknown){current=value;counts.current++;}};
- Object.assign(view,{cancelSaveFeedbackNavigation(){},plugin,leaf:{},closed:false,pendingFits:new Map(),deferredCardFits:new Set(),refreshFontMetrics(){counts.metrics++;},file:{path:'a.thoughtspace'},dialogEpoch:0,sidebarRun:0,renderFrame:0,blankClicks:{cancel(){}},finishMarquee(){},setSectionTool(){},syncSelectionTool(){},viewTrail:{clear(){}},outlineCollapsed:new Set(),clearNodes(){counts.clear++;},selected:new Set(),stage:{removeClass(){}},svg:{isConnected:true},contentEl:{querySelectorAll:()=>[],ownerDocument:{defaultView:{cancelAnimationFrame(){}}}},app:{workspace:{getActiveViewOfType:()=>view}},paint(){counts.paint++;},finishInlineForNavigation:async()=>{},clearBrainBoard(){},clearCanvasGesture(){},world:{style:{removeProperty(){}},empty(){},createDiv(){counts.errors++;}},status:{setText(){}}});
+ const counts={paint:0,clear:0,errors:0,refresh:0,current:0,metrics:0,notices:0},notices:string[]=[];let delayDock=false,current:unknown;
+ const view=createView(message=>{notices.push(message);counts.notices++;}),plugin={provisionalBoardGeometry:new WeakMap<object,{path:string}>(),session:(file:{path:string;extension:string})=>{const gate=deferred<ReturnType<typeof session>>();requests.push({file,gate});return gate.promise;},release:async(s:ReturnType<typeof session>)=>{released.push(s);},ensureDock:()=>{const gate=deferred<void>();docks.push(gate);if(!delayDock)gate.resolve();return gate.promise;},refreshDock(){counts.refresh++;},clearMaterialDrag(){},get currentBoard(){return current;},set currentBoard(value:unknown){current=value;counts.current++;}};
+ Object.assign(view,{cancelSaveFeedbackNavigation(){},plugin,leaf:{},closed:false,pendingFits:new Map(),deferredCardFits:new Set(),refreshFontMetrics(){counts.metrics++;},file:{path:'a.thoughtspace'},dialogEpoch:0,sidebarRun:0,renderFrame:0,blankClicks:{cancel(){}},finishMarquee(){},setSectionTool(){},syncSelectionTool(){},viewTrail:{clear(){}},outlineCollapsed:new Set(),clearNodes(){counts.clear++;},selected:new Set(),stage:{removeClass(){}},svg:{isConnected:true},contentEl:{querySelectorAll:()=>[],ownerDocument:{defaultView:{cancelAnimationFrame(){}}}},app:{workspace:{getActiveViewOfType:()=>view}},paint(){counts.paint++;},finishInlineForNavigation:async()=>{},clearBrainBoard(){},clearHandwritingBoard(){},clearCanvasGesture(){},world:{style:{removeProperty(){}},empty(){},createDiv(){counts.errors++;}},status:{setText(){}}});
  const load=(path:string,provisional=false)=>{view.file={path,extension:'thoughtspace'};if(provisional)plugin.provisionalBoardGeometry.set(view.leaf,view.file);const pending=view.onLoadFile(view.file);return{pending,request:requests.at(-1)!};};
  const ready=async(path:string)=>{const loading=load(path),s=session(path);s.file=loading.request.file;loading.request.gate.resolve(s);await loading.pending;return s;};
- return{view,plugin,requests,released,docks,counts,load,ready,delayDock:()=>{delayDock=true;}};
+ return{view,plugin,requests,released,docks,counts,notices,load,ready,delayDock:()=>{delayDock=true;}};
 }
 
 for(const transition of ['onClose','onUnloadFile'] as const)test(`a session arriving after ${transition} is released without attaching or painting`,async()=>{
@@ -41,9 +46,15 @@ for(const failed of [false,true])test(`obsolete dock ${failed?'rejection':'compl
  assert.equal(f.view.session,b);assert.equal(a.listeners.size,0);assert.equal(b.listeners.size,1);assert.deepEqual(f.counts,counts);assert.deepEqual(f.released,[a]);
 });
 
-test('a current load failure after subscription releases its acquired session exactly once',async()=>{
+test('a current optional dock failure keeps its painted session subscribed and reports a notice',async()=>{
  const f=fixture();f.delayDock();const loading=f.load('a.thoughtspace'),s=session('a.thoughtspace');loading.request.gate.resolve(s);await Promise.resolve();f.docks[0].reject(Error('dock error'));await loading.pending;
- assert.equal(s.listeners.size,0);assert.equal(f.view.session,undefined);assert.deepEqual(f.released,[s]);assert.equal(f.counts.errors,1);await f.view.onClose();assert.deepEqual(f.released,[s]);
+ assert.equal(s.listeners.size,1);assert.equal(f.view.session,s);assert.deepEqual(f.released,[]);assert.equal(f.counts.paint,1);assert.equal(f.counts.errors,0);assert.equal(f.counts.notices,1);assert.match(f.notices[0],/白板已打开.*左侧面板暂不可用/);assert.equal(f.plugin.currentBoard,f.view);
+ await f.view.onClose();assert.equal(s.listeners.size,0);assert.deepEqual(f.released,[s]);
+});
+
+test('a current paint failure after subscription releases its acquired session exactly once',async()=>{
+ const f=fixture();f.view.paint=()=>{throw Error('paint error');};const loading=f.load('a.thoughtspace'),s=session('a.thoughtspace');loading.request.gate.resolve(s);await loading.pending;
+ assert.equal(s.listeners.size,0);assert.equal(f.view.session,undefined);assert.deepEqual(f.released,[s]);assert.equal(f.counts.errors,1);assert.equal(f.counts.notices,0);await f.view.onClose();assert.deepEqual(f.released,[s]);
 });
 
 test('unload waiting for draft completion cannot clear the newer session or its subscription',async()=>{

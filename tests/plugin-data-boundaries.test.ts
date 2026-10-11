@@ -1,3 +1,4 @@
+import {sha256} from '../src/portable-sha256';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -67,7 +68,7 @@ test('valid host capabilities retain their receiver when called',()=>{
 test('typed desktop vault identifier retains the existing SHA256 path hash',()=>{
  const source=readFileSync('src/main.ts','utf8'),a=source.indexOf('  private yingjianVaultId()'),b=source.indexOf('\n  async openYingjianLink',a);assert.ok(a>=0&&b>a);
  class FileSystemAdapter{constructor(private base:string){}getBasePath(){return this.base;}}
- const Host=new Function('FileSystemAdapter','createHash','resolvePath',transformSync(`class Host{${source.slice(a,b)}};return Host`,{loader:'ts'}).code)(FileSystemAdapter,createHash,resolvePath);
+ const Host=new Function('FileSystemAdapter','sha256','resolvePath',transformSync(`class Host{${source.slice(a,b)}};return Host`,{loader:'ts'}).code)(FileSystemAdapter,sha256,resolvePath);
  for(const path of ['/Users/example/Documents/研究笔记','/Users/example/../example/Vault']){const host=new Host();host.app={vault:{adapter:new FileSystemAdapter(path)}};assert.equal(host.yingjianVaultId(),createHash('sha256').update(resolvePath(path)).digest('hex').slice(0,20));}
  const host=new Host();host.app={vault:{adapter:{getBasePath:()=> '/unexpected'}}};assert.throws(()=>host.yingjianVaultId(),/桌面版/);
 });

@@ -10,7 +10,7 @@ export function brainScreenObstacles(layout:BrainBoardLayout,camera:{x:number;y:
  const z=camera.zoom,rect=(x:number,y:number,width:number,height:number):Rect=>({x:camera.x+x*z,y:camera.y+y*z,width:width*z,height:height*z});
  return layout.nodes.flatMap(node=>[rect(node.x,node.y,node.width,node.height),...(node.previewWidth?[rect(node.x+node.width/2-node.previewWidth/2,node.y+node.height+12,node.previewWidth,200)]:[])]);
 }
-export function brainPortPositions(layout:BrainBoardLayout,camera:{x:number;y:number;zoom:number},size:{width:number;height:number},obstacles:readonly BrainScreenRect[]=brainScreenObstacles(layout,camera)){
+export function brainPortPositions(layout:BrainBoardLayout,camera:{x:number;y:number;zoom:number},size:{width:number;height:number},obstacles:readonly BrainScreenRect[]=brainScreenObstacles(layout,camera),targetSize:32|44=32){
  const center=layout.nodes.find(node=>node.role==='center'),result=new Map<BrainRelationSide,{x:number;y:number}>();
  if(!center)return result;
  const z=camera.zoom;
@@ -20,9 +20,9 @@ export function brainPortPositions(layout:BrainBoardLayout,camera:{x:number;y:nu
  for(const side of ['top','bottom','left','right'] as const){
   let target:Rect|undefined;
   for(const distance of [0,8,24,48,80,128]){
-   for(const shift of [0,-36,36,-72,72]){
-    const candidate={x:side==='left'?left-34-distance:side==='right'?right+2+distance:cx-16+shift,y:side==='top'?top-34-distance:side==='bottom'?bottom+2+distance:cy-16+shift,width:32,height:32};
-    if(candidate.x<2||candidate.y<2||candidate.x+32>size.width-2||candidate.y+32>size.height-2)continue;
+   for(const shift of [0,-(targetSize+4),targetSize+4,-2*(targetSize+4),2*(targetSize+4)]){
+    const candidate={x:side==='left'?left-targetSize-2-distance:side==='right'?right+2+distance:cx-targetSize/2+shift,y:side==='top'?top-targetSize-2-distance:side==='bottom'?bottom+2+distance:cy-targetSize/2+shift,width:targetSize,height:targetSize};
+    if(candidate.x<2||candidate.y<2||candidate.x+targetSize>size.width-2||candidate.y+targetSize>size.height-2)continue;
     if(obstacles.some(value=>overlaps(candidate,value))||used.some(value=>overlaps(candidate,value)))continue;
     target=candidate;break;
    }

@@ -28,7 +28,7 @@ class MarkdownView {
  async save(){this.saves++;}
 }
 class BoardView {
- session={blocked:false,externalUpdate:async()=>{}};
+ session={blocked:false,externalUpdate:async()=>{},async settleExternalUpdate(){await this.externalUpdate();}};
  constructor(public file:File){}
 }
 

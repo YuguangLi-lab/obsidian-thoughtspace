@@ -1,6 +1,6 @@
 /** The save acknowledgement and its optional contextual action share one status
  * location. No source text or recovery document is retained by this renderer. */
-export type BoardSaveFeedbackAction='locate-native'|'open-recovery';
+export type BoardSaveFeedbackAction='locate-native'|'open-recovery'|'copy-local-draft';
 export interface BoardSaveFeedback {
  state:'saved'|'saving'|'paused'|'error';text:string;detail?:string;recoveryPath?:string;
  action?:{kind:BoardSaveFeedbackAction;label:string};

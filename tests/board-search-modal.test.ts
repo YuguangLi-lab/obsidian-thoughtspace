@@ -9,9 +9,9 @@ import {markReading,reviewLabels} from '../src/reading-desk';
 
 type Options={cls?:string;text?:string;attr?:Record<string,string>;type?:string;value?:string};
 class Element{
- children:Element[]=[];classes=new Set<string>();attributes:Record<string,string>={};disabled=false;value='';checked=false;scrolls=0;classWrites=0;emptyCalls=0;
+ children:Element[]=[];classes=new Set<string>();attributes:Record<string,string>={};disabled=false;value='';checked=false;scrollTop=0;scrolls=0;classWrites=0;emptyCalls=0;bindings=0;
  private text='';
- onclick?:()=>void;oninput?:()=>void;onchange?:()=>void;onkeydown?:(event:any)=>void;onpointerenter?:()=>void;onpointermove?:(event:{clientX:number;clientY:number})=>void;onfocus?:()=>void;
+ onclick?:()=>void;oninput?:()=>void;onchange?:()=>void;onkeydown?:(event:any)=>void;onpointerenter?:()=>void;onpointermove?:(event:{clientX:number;clientY:number;pointerType?:string})=>void;onfocus?:()=>void;
  constructor(readonly tagName:string,readonly ownerDocument:{activeElement?:Element},readonly win:Clock,options:Options|string={}){
   const opts=typeof options==='string'?{cls:options}:options;for(const cls of (opts.cls||'').split(/\s+/).filter(Boolean))this.classes.add(cls);
   this.text=opts.text||'';this.attributes={...opts.attr};this.value=opts.value||'';if(opts.type)this.attributes.type=opts.type;
@@ -54,7 +54,7 @@ class TFile{
 }
 const source=readFileSync('src/board-search-view.ts','utf8').replace(/^import .*;\n/gm,'');
 let searches=0,excerpts=0;const clipboard:string[]=[];
-const dependencies={Modal,TFile,Notice:class{},setIcon:()=>{},getAllTags:()=>[],themeSurface:()=>{},colors,colorNames,uid,boardSearchIndex,searchBoard:(...args:Parameters<typeof searchBoard>)=>{searches++;return searchBoard(...args);},searchKinds,searchExcerpt:(...args:Parameters<typeof searchExcerpt>)=>{excerpts++;return searchExcerpt(...args);},searchDirectory,...savedSearches,markReading,reviewLabels,navigator:{clipboard:{writeText:async(text:string)=>{clipboard.push(text);}}}};
+const dependencies={Modal,TFile,Notice:class{},setIcon:()=>{},getAllTags:()=>[],themeSurface:()=>{},bindMobileViewport:(root:Element)=>{root.bindings++;return()=>{root.bindings--;};},colors,colorNames,uid,boardSearchIndex,searchBoard:(...args:Parameters<typeof searchBoard>)=>{searches++;return searchBoard(...args);},searchKinds,searchExcerpt:(...args:Parameters<typeof searchExcerpt>)=>{excerpts++;return searchExcerpt(...args);},searchDirectory,...savedSearches,markReading,reviewLabels,navigator:{clipboard:{writeText:async(text:string)=>{clipboard.push(text);}}}};
 const BoardSearchModal=new Function(...Object.keys(dependencies),transformSync(source.replace(/^export /gm,'')+'\nreturn BoardSearchModal;',{loader:'ts'}).code)(...Object.values(dependencies));
 const node=(id:string,kind:Card['kind']='text'):Card=>({id,kind,title:id,text:`正文 ${id}`,x:1000,y:0,width:100,height:80,color:'green',...(kind==='card'?{file:`notes/${id}.md`}:{})});
 function fixture(nodes:Card[]=[node('alpha'),node('beta','card'),node('gamma')],read?:(file:TFile)=>Promise<string>){
@@ -67,6 +67,31 @@ function fixture(nodes:Card[]=[node('alpha'),node('beta','card'),node('gamma')],
 function key(el:Element,key:string,options:Record<string,unknown>={}){const event={key,isComposing:false,keyCode:0,altKey:false,ctrlKey:false,metaKey:false,shiftKey:false,defaultPrevented:false,target:el,preventDefault(){this.defaultPrevented=true;},...options};el.onkeydown?.(event);return event;}
 const current=(list:Element)=>list.querySelector('.is-active')?.getAttribute('data-search-node');
 const tick=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
+
+test('narrow-screen filter disclosure preserves query, live rows and scroll without rebuilding the index',()=>{
+ const f=fixture(),toggle=f.modal.contentEl.querySelector('.ts-board-search-refine-toggle') as Element;
+ assert.ok(toggle,'filters need an explicit touch control');
+ f.input.value='正文';f.modal.kind.value='text';f.modal.reset();f.list.scrollTop=123;
+ const rows=f.list.children.slice(),criteria=f.modal.criteria(),indexSearches=searches;
+ assert.equal(toggle.getAttribute('aria-expanded'),'false');
+ toggle.click();assert.equal(toggle.getAttribute('aria-expanded'),'true');assert.ok(f.modal.modalEl.classes.has('is-filters-open'));
+ toggle.click();assert.equal(toggle.getAttribute('aria-expanded'),'false');assert.equal(f.modal.modalEl.classes.has('is-filters-open'),false);
+ assert.deepEqual(f.modal.criteria(),criteria);assert.deepEqual(f.list.children,rows);assert.equal(f.list.scrollTop,123);assert.equal(searches,indexSearches);
+});
+
+test('reopening a filter disclosure starts collapsed and detached taps cannot change it',()=>{
+ const f=fixture(),oldToggle=f.modal.contentEl.querySelector('.ts-board-search-refine-toggle') as Element;
+ oldToggle.click();f.modal.onClose();oldToggle.click();assert.ok(f.modal.modalEl.classes.has('is-filters-open'));
+ f.modal.onOpen();const next=f.modal.contentEl.querySelector('.ts-board-search-refine-toggle') as Element;
+ oldToggle.click();assert.equal(next.getAttribute('aria-expanded'),'false');assert.equal(f.modal.modalEl.classes.has('is-filters-open'),false);assert.equal(f.modal.modalEl.bindings,1);f.modal.onClose();f.modal.onClose();assert.equal(f.modal.modalEl.bindings,0);
+});
+
+test('finger and pen scrolling leave the current search row and native scrolling intact',()=>{
+ const f=fixture(),rows=f.list.querySelectorAll('.ts-board-search-row'),before=current(f.list);f.list.scrollTop=120;
+ for(const pointerType of ['touch','pen'])rows[1].onpointermove?.({clientX:25,clientY:40,pointerType});
+ assert.equal(current(f.list),before);assert.equal(f.list.scrollTop,120);assert.deepEqual(f.located,[]);
+ rows[1].onpointermove?.({clientX:25,clientY:40,pointerType:'mouse'});assert.equal(current(f.list),'beta');
+});
 
 test('reopening the same board restores query filters selection and pagination without retaining note bodies',()=>{
  const f=fixture(Array.from({length:90},(_,i)=>node(`n${i}`)));

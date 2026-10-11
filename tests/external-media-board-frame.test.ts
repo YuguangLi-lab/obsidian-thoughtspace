@@ -17,9 +17,12 @@ function method(start:string){
  const next=/\n  (?:(?:private|public|protected|async|static)\s+)*(?:get\s+)?[A-Za-z_$][\w$]*\(/.exec(tail);assert.ok(next);return main.slice(at,at+start.length+next.index);
 }
 const methods=[method('  private async captureMediaFrame('),method('  private requireOwner(')].join('\n');
-const nodeRequire=createRequire(import.meta.url),externalModule={exports:{}};
+const nodeRequire=createRequire(import.meta.url),externalModule={exports:{}},runtimeModule={exports:{}};
+const desktopHost={Platform:{isDesktop:true,resourcePathPrefix:'app://runtime-id/'}};
+new Function('require','module','exports',transformSync(readFileSync('src/platform-runtime.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>name==='obsidian'?desktopHost:nodeRequire(name),runtimeModule,runtimeModule.exports);
 new Function('require','module','exports',transformSync(readFileSync('src/external-media.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>{
- if(name==='obsidian')return{Platform:{resourcePathPrefix:'app://runtime-id/'}};
+ if(name==='obsidian')return desktopHost;
+ if(name==='./platform-runtime')return runtimeModule.exports;
  if(name==='./media-source')return mediaSource;
  if(name==='./value-guards')return guards;
  return nodeRequire(name);

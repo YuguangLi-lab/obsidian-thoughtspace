@@ -71,7 +71,7 @@ function fixture(){
  const board:Board={...emptyBoard(),version:3,presentation:'brain',brain:state.createBoardMindmapState('b'),nodes:[...['a','b','c','d','sibling'].map(id=>card(id)),card('group','section'),card('sub','board'),card('text','text')],edges:[{id:'ab',from:'a',to:'b',label:'父级',kind:'branch'},{id:'as',from:'a',to:'sibling',label:'',kind:'branch'},{id:'bc',from:'b',to:'c',label:'子级',kind:'branch'},{id:'bd',from:'b',to:'d',label:'引用'},{id:'bs',from:'b',to:'sub',label:'子板',direction:'both'},{id:'bg',from:'b',to:'group',label:'分组',direction:'both'},{id:'bt',from:'b',to:'text',label:'不可用'}]};
  let snapshot:any={board,path:'Board.thoughtspace',key:{}},added=0;const saves:any[]=[],viewports:any[]=[],opens:{id:string;current:()=>boolean;edit:boolean}[]=[],previews:{id:string;body:El;scope:Component;current:()=>boolean}[]=[],missing=new Set<string>(),stamps=new Map<string,string>();
  const host:any={snapshot:()=>snapshot,change:(next:any)=>{saves.push(clone(next));snapshot.board.brain=next;},source:(id:string)=>{const node=board.nodes.find(item=>item.id===id);return{label:'来源 '+id,path:node?.file,available:!!node&&!missing.has(id),reason:'来源文件缺失',canEdit:node?.kind==='card',stamp:stamps.get(id)||'1'};},open:async(id:string,current:()=>boolean,edit:boolean)=>{opens.push({id,current,edit});},preview:(id:string,body:El,scope:Component,current:()=>boolean)=>{previews.push({id,body,scope,current});if(current())body.createEl('p',{text:`真实正文 ${id}`});},add:()=>{added++;},viewport:(value:any)=>{viewports.push(value);board.brainViewport=value;},relate:()=>{},fileMenu:()=>{}};
- const view=new View({},el,host);view.load();
+ host.container=root;const view=new View({},el,host);view.load();
  return{view,doc,root,el,board,host,saves,viewports,opens,previews,missing,stamps,get snapshot(){return snapshot;},setSnapshot:(value:any)=>{snapshot=value;},get added(){return added;}};
 }
 const node=(f:ReturnType<typeof fixture>,id:string)=>f.el.querySelector(`[data-brain-node-id="${id}"]`)!;
@@ -301,6 +301,21 @@ test('keyboard undo is scoped to nonediting controls and does not swallow compos
 test('same-session other-window refresh never steals focus from external native editor',()=>{const f=fixture(),editor=f.root.createEl('input');editor.focus();f.board.brain=state.updateBoardMindmapState(f.board.brain!,{type:'center',id:'a'},f.board.nodes);f.view.refresh();assert.equal(f.doc.activeElement,editor);assert.equal(f.saves.length,0);});
 test('owning board rename replaces async preview scope without losing navigation',()=>{const f=fixture();action(node(f,'a'),'expand').click();const old=f.previews[0],history=clone(f.board.brain!.history);f.snapshot.path='Renamed.thoughtspace';assert.equal(old.current(),false);f.view.refresh();assert.equal(old.scope.loaded,false);assert.equal(f.previews.length,2);assert.deepEqual(f.board.brain!.history,history);});
 test('mount/refresh/resize never saves camera while explicit zoom debounces and flushes before close',()=>{const f=fixture();f.view.refresh();assert.equal(f.viewports.length,0);action(f.el,'zoom-in').click();action(f.el,'zoom-in').click();assert.equal(f.viewports.length,0);assert.equal(f.doc.timers.size,1);f.view.unload();assert.equal(f.viewports.length,1);assert.equal(f.doc.timers.size,0);assert.ok(f.viewports[0].zoom>.72);});
+test('saved brain cameras below 20 percent retain their exact legal zoom on refresh and reopen',()=>{
+ for(const zoom of [.15,.17643254430216013,.199999]){const f=fixture(),before=clone(f.board);f.board.brainViewport={x:5.3890829129478846,y:-12,zoom};const expected={...f.board.brainViewport};f.view.refresh();assert.deepEqual(f.view.camera,expected);f.view.refresh();assert.deepEqual(f.view.camera,expected);f.view.unload();const reopened=new View({},f.el,f.host);reopened.load();assert.deepEqual(reopened.camera,expected);assert.equal(f.viewports.length,0);assert.deepEqual(clone(f.board.nodes),before.nodes);assert.deepEqual(f.board.edges,before.edges);assert.deepEqual(f.board.brain,before.brain);reopened.unload();}
+});
+test('a short-screen fit persists a legal minimum zoom and reopening preserves that exact camera',()=>{
+ const f=fixture(),stage=f.el.querySelector('.ts-brain-stage')!;f.board.nodes=Array.from({length:1000},(_,i)=>brainIdeaNode('fit-'+i,'Idea '+i));f.board.edges=Array.from({length:999},(_,i)=>({id:'fit-edge-'+i,from:'fit-'+Math.floor(i/10),to:'fit-'+(i+1),kind:'branch' as const,label:''}));f.board.brain={...state.createBoardMindmapState('fit-0'),descendantDepth:5};stage.clientWidth=390;stage.clientHeight=380;f.view.refresh();const before=clone(f.board);assert.ok(Math.min(stage.clientWidth/f.view.layout.width,Math.max(160,stage.clientHeight-144)/f.view.layout.height)<.15,'fixture must need a fit below the persisted minimum');f.view.fitToCanvas();assert.equal(f.view.camera.zoom,.15);const expected={...f.view.camera};f.view.flushPendingViewport();assert.deepEqual(f.viewports,[expected]);assert.deepEqual(f.board.brainViewport,expected);assert.ok(model.parseBoard(JSON.stringify(f.board)));f.view.refresh();assert.deepEqual(f.view.camera,expected);f.view.unload();const reopened=new View({},f.el,f.host);reopened.load();assert.deepEqual(reopened.camera,expected);assert.deepEqual(f.board.nodes,before.nodes);assert.deepEqual(f.board.edges,before.edges);assert.deepEqual(f.board.brain,before.brain);reopened.unload();
+});
+test('control-row reflow retains a restored camera while an actual pane resize preserves its reading anchor',()=>{
+ const f=fixture(),stage=f.el.querySelector('.ts-brain-stage')!;f.root.clientWidth=f.el.clientWidth=390;f.root.clientHeight=380;f.el.clientHeight=300;stage.clientWidth=346;stage.clientHeight=114;f.view.refresh();f.board.brainViewport={x:30.5,y:-64.95625,zoom:.15};const saved={...f.board.brainViewport};f.view.refresh();assert.deepEqual(f.view.camera,saved);
+ // The pager finishes rendering inside the same pane: it consumes 93px.
+ f.el.clientHeight=207;stage.clientHeight=21;f.view.refresh();assert.deepEqual(f.view.camera,saved);assert.deepEqual(f.board.brainViewport,saved);assert.equal(f.viewports.length,0);
+ const previous=f.view.layout,camera={...f.view.camera},distance=(item:any)=>Math.hypot(camera.x+(item.x+item.width/2)*camera.zoom-stage.clientWidth/2,camera.y+(item.y+item.height/2)*camera.zoom-stage.clientHeight/2),anchor=previous.nodes.reduce((best:any,item:any)=>!best||distance(item)<distance(best)?item:best,undefined),offset={x:camera.x+(anchor.x+anchor.width/2)*camera.zoom-stage.clientWidth/2,y:camera.y+(anchor.y+anchor.height/2)*camera.zoom-stage.clientHeight/2};
+ f.root.clientWidth=f.el.clientWidth=844;f.root.clientHeight=f.el.clientHeight=390;stage.clientWidth=800;stage.clientHeight=160;f.view.refresh();const next=f.view.layout.nodes.find((item:any)=>item.id===anchor.id);assert.equal(f.view.camera.zoom,saved.zoom);assert(Math.abs(f.view.camera.x+(next.x+next.width/2)*camera.zoom-stage.clientWidth/2-offset.x)<1e-8);assert(Math.abs(f.view.camera.y+(next.y+next.height/2)*camera.zoom-stage.clientHeight/2-offset.y)<1e-8);assert.deepEqual(f.board.brainViewport,saved);assert.equal(f.viewports.length,0);
+ // An external saved-camera restoration in the same refresh takes precedence.
+ f.root.clientWidth=f.el.clientWidth=390;f.root.clientHeight=f.el.clientHeight=380;stage.clientWidth=346;stage.clientHeight=21;f.board.brainViewport={x:11,y:22,zoom:.17643254430216013};f.view.refresh();assert.deepEqual(f.view.camera,f.board.brainViewport);assert.equal(f.viewports.length,0);
+});
 test('camera intent cannot save into a replacement session',()=>{const f=fixture();action(f.el,'zoom-in').click();f.setSnapshot({...f.snapshot,key:{}});f.view.flushViewport();assert.equal(f.viewports.length,0);});
 test('ordinary wheel pans only the graph and preview wheel retains native scrolling',()=>{const f=fixture(),stage=f.el.querySelector('.ts-brain-stage')!,before=clone(f.board.nodes);const event=stage.dispatch('wheel',{deltaX:20,deltaY:40});assert.equal(event.defaultPrevented,true);assert.equal(event.stopped,true);f.view.flushViewport();assert.equal(f.viewports.length,1);assert.deepEqual(clone(f.board.nodes),before);action(node(f,'a'),'expand').click();const wheel=f.previews[0].body.dispatch('wheel',{deltaY:30});assert.equal(wheel.defaultPrevented,false);assert.equal(wheel.stopped,true);});
 
@@ -311,7 +326,7 @@ test('wheel bursts accumulate the exact latest camera but project once per frame
 });
 test('zoom bursts preserve changing anchors while DOM projection is deferred',()=>{
  const f=fixture(),stage=f.el.querySelector('.ts-brain-stage')!;let expected={...f.view.camera};
- for(const [x,y,delta]of [[100,80,-20],[200,120,30],[90,70,-10]]){const zoom=Math.max(.2,Math.min(2.5,expected.zoom*Math.exp(-delta*.002))),scale=zoom/expected.zoom;expected={x:x-(x-expected.x)*scale,y:y-(y-expected.y)*scale,zoom};stage.dispatch('wheel',{clientX:x,clientY:y,deltaY:delta,ctrlKey:true});}
+ for(const [x,y,delta]of [[100,80,-20],[200,120,30],[90,70,-10]]){const zoom=Math.max(.15,Math.min(2.5,expected.zoom*Math.exp(-delta*.002))),scale=zoom/expected.zoom;expected={x:x-(x-expected.x)*scale,y:y-(y-expected.y)*scale,zoom};stage.dispatch('wheel',{clientX:x,clientY:y,deltaY:delta,ctrlKey:true});}
  assert.deepEqual(f.view.camera,expected);assert.equal(f.doc.frames.size,1);f.doc.tick();assert.equal(f.view.scene.style.transform,`translate(${expected.x}px, ${expected.y}px) scale(${expected.zoom})`);
 });
 test('zoom scale variables are scoped to consuming controls instead of the whole brain shell',()=>{
@@ -417,9 +432,9 @@ function closingRendererFixture(){
  const f=sessionRendererFixture({x:-200,y:18.3,zoom:1});f.first.view.unload();f.owner.listeners.clear();const main=readFileSync('src/main.ts','utf8');
  const take=(start:string,end:string)=>{const from=main.indexOf(start),to=main.indexOf(end,from);assert(from>=0&&to>from);return main.slice(from,to);};
  const code='class BoardView extends Component{'+take('  private fitLegacyGeometry(){','  private point(')+take('  private clearBrainBoard(){','  private addBrainObject(')+'};return BoardView';
- const deps={renderBoardSaveFeedback,BrainRefreshCache,...descendants,...ports,LocalRelationMotion,...state,...brain,...relations,Component,BrainBoardView:View,View:class{},Notice:class{},TFile:class{}};
+ const deps={renderBoardSaveFeedback,BrainRefreshCache,...descendants,...ports,LocalRelationMotion,...state,...brain,...relations,Component,BrainBoardView:View,View:class{},isDesktopRuntime:()=>true,Notice:class{},TFile:class{}};
  const Parent=new Function(...Object.keys(deps),transformSync(code,{loader:'ts'}).code)(...Object.values(deps)),parent=new Parent(),leaf={view:parent},content=f.first.root.createDiv(),plugin=f.owner.plugin;
- Object.assign(plugin,{refreshDock(){},refreshLocalRelations(){},clearMaterialDrag(){}});Object.assign(parent,{app:{workspace:{getActiveViewOfType:()=>parent}},plugin,leaf,contentEl:content,session:f.owner,closed:false,closing:false,dialogEpoch:0,brainObjectEpoch:0,sidebarRun:0,renderFrame:0,blankClicks:{cancel(){}},clearCanvasGesture(){},clearNodes(){},finishMarquee(){},finishInlineForNavigation:async()=>{},cancelSaveFeedbackNavigation(){},renderSaveStatus(){},mindmapNative:()=>({relations:[],tagsByNode:new Map(),pendingPaths:[]}),mindmapSource:(_owner:any,id:string)=>({label:id,available:true,stamp:'1'})});
+ Object.assign(plugin,{refreshDock(){},refreshLocalRelations(){},clearMaterialDrag(){}});Object.assign(parent,{app:{workspace:{getActiveViewOfType:()=>parent}},plugin,leaf,contentEl:content,session:f.owner,closed:false,closing:false,dialogEpoch:0,brainObjectEpoch:0,sidebarRun:0,renderFrame:0,blankClicks:{cancel(){}},clearHandwritingBoard(){parent.handwritingView=undefined;parent.handwritingOwner=undefined;},clearCanvasGesture(){},clearNodes(){},finishMarquee(){},finishInlineForNavigation:async()=>{},cancelSaveFeedbackNavigation(){},renderSaveStatus(){},mindmapNative:()=>({relations:[],tagsByNode:new Map(),pendingPaths:[]}),mindmapSource:(_owner:any,id:string)=>({label:id,available:true,stamp:'1'})});
  parent.load();parent.renderBrainBoard();const renderer=parent.brainBoardView,el=parent.brainBoardEl;
  const paint=(kind:string)=>{if(kind==='board')parent.brainBoardView?.refresh();};f.owner.listeners.add(paint);parent.unsubscribe=()=>f.owner.listeners.delete(paint);
  const pan=()=>{const stage=el.querySelector('.ts-brain-stage')!;stage.dispatch('pointerdown',{pointerId:4,clientX:35,clientY:70});stage.dispatch('pointermove',{pointerId:4,clientX:80,clientY:95});stage.dispatch('pointerup',{pointerId:4});assert.deepEqual(renderer.camera,{x:-155,y:43.3,zoom:1});assert.equal(f.first.doc.timers.size,1);};
@@ -565,4 +580,89 @@ test('a stale status action cannot navigate after owner, path, action or compone
 });
 test('a failed source open unhides a normal hidden brain status and keeps the error visible',async()=>{
  const f=fixture();const status=f.el.querySelector('.ts-brain-status')!;assert.equal(status.hidden,true);f.host.open=async()=>{throw Error('Source temporarily unavailable');};action(node(f,'b'),'open').click();for(let i=0;i<10;i++)await Promise.resolve();assert.equal(status.hidden,false);assert.match(status.textContent,/Source temporarily unavailable/);assert.equal(status.dataset.state,'error');
+});
+
+function touchStage(f:ReturnType<typeof fixture>){
+ const stage=f.el.querySelector('.ts-brain-stage')!,captured=new Set<number>();
+ (stage as any).setPointerCapture=(id:number)=>captured.add(id);(stage as any).hasPointerCapture=(id:number)=>captured.has(id);(stage as any).releasePointerCapture=(id:number)=>captured.delete(id);
+ return {stage,captured,touch:(type:string,id:number,x:number,y:number)=>stage.dispatch(type,{pointerType:'touch',pointerId:id,clientX:x,clientY:y})};
+}
+test('two finger graph zoom preserves its world anchor and commits once after both fingers lift',()=>{
+ const f=fixture(),{touch}=touchStage(f);f.view.camera={x:20,y:40,zoom:1};f.view.transform();
+ const before=clone(f.board.nodes),graph=f.view.layout,paths=[...f.el.querySelector('.ts-brain-links')!.children];
+ touch('pointerdown',1,100,100);touch('pointerdown',2,200,100);touch('pointermove',2,300,100);
+ assert.equal(f.view.camera.zoom,2);assert.equal((200-f.view.camera.x)/f.view.camera.zoom,130);assert.equal((100-f.view.camera.y)/f.view.camera.zoom,60);
+ assert.equal(f.viewports.length,0);touch('pointerup',2,300,100);const camera={...f.view.camera};touch('pointermove',1,60,80);assert.deepEqual(f.view.camera,camera);touch('pointerup',1,60,80);f.view.flushViewport();
+ assert.deepEqual(f.viewports,[camera]);assert.deepEqual(clone(f.board.nodes),before);assert.equal(f.view.layout,graph);assert.deepEqual(f.el.querySelector('.ts-brain-links')!.children,paths);
+});
+test('touch camera keeps editing focus and ignores preview scrolling and buttons',()=>{
+ const f=fixture(),{touch}=touchStage(f),outside=f.root.createEl('textarea');outside.focus();touch('pointerdown',1,30,30);assert.equal(f.doc.activeElement,outside);touch('pointerup',1,30,30);
+ action(node(f,'a'),'expand').click();const camera={...f.view.camera};const event=f.previews[0].body.dispatch('pointerdown',{pointerType:'touch',pointerId:2,clientX:40,clientY:50});assert.equal(event.defaultPrevented,false);assert.deepEqual(f.view.camera,camera);assert.equal(f.view.touchPoints.size,0);
+});
+test('canceled touch captures cannot move a replacement brain or leave held finger pan state',()=>{
+ const f=fixture(),{touch,captured}=touchStage(f);touch('pointerdown',1,30,30);touch('pointerdown',2,100,30);touch('pointercancel',1,30,30);assert.equal(captured.size,0);assert.equal(f.view.touchPoints.size,0);const camera={...f.view.camera};touch('pointermove',2,190,30);assert.deepEqual(f.view.camera,camera);
+ touch('pointerdown',3,30,30);f.setSnapshot({...f.snapshot,key:{}});f.view.refresh();assert.equal(captured.size,0);assert.equal(f.view.touchPoints.size,0);const replacement={...f.view.camera};touch('pointermove',3,100,100);assert.deepEqual(f.view.camera,replacement);assert.equal(f.viewports.length,0);
+});
+
+test('touch pan bursts project once per frame and release a single viewport intent',()=>{
+ const f=fixture(),{touch,captured}=touchStage(f),before={...f.view.camera};let paints=0;const transform=f.view.transform.bind(f.view);f.view.transform=()=>{paints++;transform();};
+ touch('pointerdown',1,80,120);for(let i=1;i<=12;i++)touch('pointermove',1,80+i*2,120+i*3);
+ assert.equal(paints,0);assert.equal(f.doc.frames.size,1);assert.equal(f.view.camera.x,before.x+24);assert.equal(f.view.camera.y,before.y+36);assert.equal(f.viewports.length,0);
+ f.doc.tick();assert.equal(paints,1);touch('pointerup',1,104,156);assert.equal(captured.size,0);assert.equal(f.doc.frames.size,0);assert.equal(f.doc.timers.size,1);f.view.flushPendingViewport();assert.deepEqual(f.viewports,[f.view.camera]);
+});
+test('pinch translates its centroid in local stage coordinates and clamps the scale without moving its world anchor',()=>{
+ const f=fixture(),{stage,touch}=touchStage(f);stage.getBoundingClientRect=()=>({left:40,top:60,right:640,bottom:460,width:600,height:400});f.view.camera={x:20,y:40,zoom:1};
+ touch('pointerdown',1,140,160);touch('pointerdown',2,240,160);touch('pointermove',1,90,190);touch('pointermove',2,590,190);
+ assert.equal(f.view.camera.zoom,2.5);assert.equal((300-f.view.camera.x)/f.view.camera.zoom,130);assert.equal((130-f.view.camera.y)/f.view.camera.zoom,60);
+ touch('pointermove',1,339,190);touch('pointermove',2,341,190);assert.equal(f.view.camera.zoom,.15);assert.equal((300-f.view.camera.x)/f.view.camera.zoom,130);assert.equal((130-f.view.camera.y)/f.view.camera.zoom,60);
+});
+test('duplicate and third touches or a pen cannot replace a running graph gesture',()=>{
+ const f=fixture(),{stage,touch,captured}=touchStage(f);touch('pointerdown',1,100,100);touch('pointerdown',1,120,140);touch('pointerdown',2,200,100);touch('pointerdown',3,500,300);
+ stage.dispatch('pointerdown',{pointerType:'pen',pointerId:4,clientX:500,clientY:300});assert.deepEqual([...captured],[1,2]);touch('pointermove',2,300,100);assert.equal(f.view.camera.zoom,Math.min(2.5,f.view.pinch.camera.zoom*2));
+ const camera={...f.view.camera};touch('pointermove',3,600,400);stage.dispatch('pointermove',{pointerType:'pen',pointerId:4,clientX:700,clientY:500});assert.deepEqual(f.view.camera,camera);
+});
+test('lifting either pinch finger freezes the survivor until a fresh second touch starts from the latest camera',()=>{
+ for(const ended of [1,2]){const f=fixture(),{touch,captured}=touchStage(f);f.view.camera={x:20,y:40,zoom:1};touch('pointerdown',1,100,100);touch('pointerdown',2,200,100);touch('pointermove',2,300,100);touch('pointerup',ended,ended===1?100:300,100);
+  const survivor=ended===1?2:1,camera={...f.view.camera};touch('pointermove',survivor,150,120);assert.deepEqual(f.view.camera,camera);touch('pointerdown',3,250,120);touch('pointermove',3,300,120);assert.equal(f.view.camera.zoom,2.5);touch('pointerup',survivor,150,120);touch('pointerup',3,300,120);assert.equal(captured.size,0);assert.equal(f.doc.timers.size,1);f.view.flushPendingViewport();assert.deepEqual(f.viewports,[f.view.camera]);
+ }
+});
+for(const boundary of ['pointercancel','lostpointercapture','blur','unload'])test(`moved touch ${boundary} releases every capture and preserves the latest camera once`,()=>{
+ const f=fixture(),{stage,touch,captured}=touchStage(f);touch('pointerdown',1,100,100);touch('pointerdown',2,200,100);touch('pointermove',2,260,130);const camera={...f.view.camera};
+ const release=(stage as any).releasePointerCapture;(stage as any).releasePointerCapture=(id:number)=>{release(id);touch('lostpointercapture',id,0,0);};
+ if(boundary==='blur')for(const fn of f.doc.defaultView.listeners.get('blur')||[])fn({});else if(boundary==='unload')f.view.unload();else touch(boundary,1,100,100);
+ assert.equal(captured.size,0);assert.equal(f.view.touchPoints.size,0);assert.equal(f.doc.frames.size,0);assert.equal(stage.classList.contains('is-panning'),false);
+ if(boundary!=='unload'){touch('pointermove',2,500,500);assert.deepEqual(f.view.camera,camera);f.view.flushPendingViewport();}assert.deepEqual(f.viewports,[camera]);
+});
+test('touch preview selection and native editable controls retain focus, default actions and delegated pointer handlers',()=>{
+ const f=fixture();touchStage(f);action(node(f,'b'),'expand').click();const preview=f.previews[0].body,camera={...f.view.camera};let bubbled=0;f.root.listeners.set('pointerdown',new Set([()=>bubbled++]));
+ for(const [tag,attrs]of [['textarea',{}],['select',{}],['input',{}],['div',{contenteditable:'true'}],['a',{href:'#note'}]] as const){const editor=preview.createEl(tag,{attr:attrs});editor.focus();const event=editor.dispatch('pointerdown',{pointerType:'touch',pointerId:11,clientX:40,clientY:50});assert.equal(event.defaultPrevented,false);assert.equal(event.stopped,false);assert.equal(f.doc.activeElement,editor);assert.deepEqual(f.view.camera,camera);assert.equal(f.view.touchPoints.size,0);}
+ assert.equal(bubbled,5);const event=preview.dispatch('dblclick');assert.equal(event.stopped,false);
+});
+test('a zoom button or wheel ends a held touch before later moves can overwrite its camera',()=>{
+ for(const command of ['button','wheel']){const f=fixture(),{stage,touch,captured}=touchStage(f);touch('pointerdown',1,100,100);touch('pointermove',1,130,120);if(command==='button')action(f.el,'zoom-in').click();else stage.dispatch('wheel',{deltaX:5,deltaY:10});const camera={...f.view.camera};touch('pointermove',1,300,400);touch('pointerup',1,300,400);assert.deepEqual(f.view.camera,camera);assert.equal(captured.size,0);f.view.flushPendingViewport();assert.deepEqual(f.viewports,[camera]);}
+});
+test('rapid center navigation cancels touch ownership and late moves cannot alter the new center camera',()=>{
+ const f=fixture(),{touch,captured}=touchStage(f);touch('pointerdown',1,100,100);touch('pointermove',1,130,120);title(f,'a').click();title(f,'b').click();const camera={...f.view.camera};assert.equal(f.board.brain!.centerId,'b');assert.equal(captured.size,0);touch('pointermove',1,500,500);touch('pointerup',1,500,500);assert.deepEqual(f.view.camera,camera);f.view.flushPendingViewport();assert.deepEqual(f.viewports,[camera]);
+});
+test('phone and tablet rotations or split panes preserve a manually chosen reading anchor and zoom without source writes',()=>{
+ const f=fixture(),{stage}=touchStage(f);f.root.clientWidth=f.el.clientWidth=stage.clientWidth=360;f.root.clientHeight=f.el.clientHeight=stage.clientHeight=740;f.view.refresh();f.view.camera.zoom=1.15;f.view.fitCamera=false;const before=clone(f.board.nodes);let anchor=f.view.layout.nodes.find((n:any)=>n.id==='b');f.view.camera.x=180-(anchor.x+anchor.width/2)*1.15+12;f.view.camera.y=370-(anchor.y+anchor.height/2)*1.15-8;f.view.transform();
+ for(const [width,height]of [[390,844],[430,932],[844,390],[768,1024],[1024,768],[820,1180],[1180,820],[360,740]]){f.root.clientWidth=f.el.clientWidth=stage.clientWidth=width;f.root.clientHeight=f.el.clientHeight=stage.clientHeight=height;f.view.refresh();anchor=f.view.layout.nodes.find((n:any)=>n.id==='b');assert.equal(f.view.camera.zoom,1.15);assert(Math.abs(f.view.camera.x+(anchor.x+anchor.width/2)*1.15-width/2-12)<1e-8);assert(Math.abs(f.view.camera.y+(anchor.y+anchor.height/2)*1.15-height/2+8)<1e-8);}
+ assert.deepEqual(clone(f.board.nodes),before);assert.equal(f.saves.length,0);assert.equal(f.viewports.length,0);
+});
+test('resize during a gesture releases captures and updates its pending camera intent to the resized viewport',()=>{
+ const f=fixture(),{stage,touch,captured}=touchStage(f);touch('pointerdown',1,100,100);touch('pointermove',1,130,120);f.root.clientWidth=f.el.clientWidth=stage.clientWidth=390;f.root.clientHeight=f.el.clientHeight=stage.clientHeight=844;f.view.refresh();const camera={...f.view.camera};assert.equal(captured.size,0);touch('pointermove',1,500,500);assert.deepEqual(f.view.camera,camera);f.view.flushPendingViewport();assert.deepEqual(f.viewports,[camera]);
+});
+test('a touch viewport save failure retains the reading camera and a fresh gesture can save and reopen it',()=>{
+ const f=fixture(),{touch}=touchStage(f),viewport=f.host.viewport;f.host.viewport=()=>{throw Error('视角保存失败，请重试');};touch('pointerdown',1,100,100);touch('pointermove',1,130,120);touch('pointerup',1,130,120);const camera={...f.view.camera};f.view.flushPendingViewport();assert.match(f.el.querySelector('.ts-brain-status')!.textContent,/视角保存失败/);f.view.refresh();assert.deepEqual(f.view.camera,camera);
+ f.host.viewport=viewport;touch('pointerdown',2,100,100);touch('pointermove',2,104,100);touch('pointerup',2,104,100);f.view.flushPendingViewport();const saved={...f.view.camera};f.view.unload();const reopened=new View({},f.el,f.host);reopened.load();assert.deepEqual(reopened.camera,saved);assert.deepEqual(f.viewports,[saved]);reopened.unload();
+});
+test('brain paging and zoom controls share a separate shell row so a narrow pane can wrap them without covering the stage',()=>{
+ const f=fixture(),controls=f.el.querySelector('.ts-brain-controls')!,stage=f.el.querySelector('.ts-brain-stage')!;assert.equal(controls.parentElement,f.el.querySelector('.ts-brain-shell'));assert.equal(f.view.pager.parentElement,controls);assert.equal(f.el.querySelector('.ts-brain-zoom')!.parentElement,controls);assert.equal(stage.contains(controls),false);assert.equal(stage.querySelectorAll('.ts-brain-pan-surface').length,1);
+});
+test('narrow panes and coarse input use 44px brain target geometry while desktop retains 32px',()=>{
+ const f=fixture(),stage=f.el.querySelector('.ts-brain-stage')!,shell=f.el.querySelector('.ts-brain-shell')!;assert.equal(shell.style.getPropertyValue('--ts-brain-action-size'),'32px');stage.clientWidth=540;f.view.refresh();assert.equal(shell.style.getPropertyValue('--ts-brain-action-size'),'44px');stage.clientWidth=541;f.view.refresh();assert.equal(shell.style.getPropertyValue('--ts-brain-action-size'),'32px');f.view.touchMedia={matches:true};f.view.transform();assert.equal(shell.style.getPropertyValue('--ts-brain-action-size'),'44px');f.view.touchMedia={matches:false};f.view.transform();assert.equal(shell.style.getPropertyValue('--ts-brain-action-size'),'32px');
+ const scene:layout.BrainBoardLayout={width:1000,height:650,nodes:[{id:'a',role:'associated',x:140,y:100,width:178,height:49}],links:[],labels:[],page:0,pages:1,total:1};assert.equal(sideActionPositions(scene,{x:0,y:0,zoom:1},{width:360,height:190},undefined,32).get('a'),'left');assert.equal(sideActionPositions(scene,{x:0,y:0,zoom:1},{width:360,height:190},undefined,44).get('a'),'compact');
+});
+test('coarse pointer observers repaint target geometry and release the prior window on document moves',()=>{
+ const f=fixture(),listeners=new Set<()=>void>(),media={matches:false,addEventListener:(_type:string,fn:()=>void)=>listeners.add(fn),removeEventListener:(_type:string,fn:()=>void)=>listeners.delete(fn)},other=new Doc();other.defaultView.matchMedia=()=>media as any;const adopt=(el:El)=>{el.ownerDocument=other;el.children.forEach(adopt);};adopt(f.el);f.view.refresh();assert.equal(listeners.size,1);media.matches=true;for(const listener of listeners)listener();assert.equal(f.el.querySelector('.ts-brain-shell')!.style.getPropertyValue('--ts-brain-action-size'),'44px');f.view.unload();assert.equal(listeners.size,0);
 });

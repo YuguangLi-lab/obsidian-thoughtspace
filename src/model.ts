@@ -1,3 +1,4 @@
+import {assertInkData,type InkData} from './ink-model';
 import {cleanBoardBackground,type BoardBackground} from './board-background';
 import {cleanBrainColors,type BrainColors} from './brain-colors';
 import {validParagraphOrigin,type ParagraphOrigin} from './paragraph-card';
@@ -19,7 +20,7 @@ import {isBoardPath} from './board-path';
 export interface Card { brainIdea?:true; mindmap?:BoardMindmapState;paragraphQuote?:ParagraphOrigin; pdfQuote?:PdfQuoteOrigin; videoCapture?:{id:string;note:string}; sectionFolded?:boolean; sectionDivider?:'none'|'solid'|'dashed'|'dotted'; cardStyle?:'band'|'paper'|'index'|'sticky' }
 export interface Board {background?:BoardBackground;readingLayout?:ReadingLayoutCheckpoint;relationGeometry?:RelationGeometryCheckpoint;savedSearches?:SavedSearch[]}
 /** Dedicated relation boards keep their view state separate from ordinary card geometry. */
-export interface Board {presentation?:'brain';brain?:BoardMindmapState;brainViewport?:{x:number;y:number;zoom:number};brainColors?:BrainColors}
+export interface Board {presentation?:'brain'|'handwriting';ink?:InkData;brain?:BoardMindmapState;brainViewport?:{x:number;y:number;zoom:number};brainColors?:BrainColors}
 import { connectionSides, Side } from './connections';
 import { branchState, branchTopology, validateBranches } from './mindmap';
 import {sectionMemberQuery,sectionMovementPinned,sectionContains} from './sections';
@@ -34,7 +35,12 @@ export interface Card { mindmapRules?:{layout:'right'|'left'|'down'|'up'|'bilate
 export interface Edge { id: string; from: string; to: string; label: string; style?: 'curve'|'straight'|'elbow'; direction?: 'forward'|'both'|'none'; dashed?: boolean; color?: Color; fromSide?: Side; toSide?: Side; kind?: 'branch' }
 export interface Board { defaultEdgeStyle?:Edge['style']; mindmapLayout?:'right'|'left'|'down'|'up'|'bilateral'; mindmapDensity?:'compact'|'standard'|'relaxed'; writing?:WritingState; selectionSets?:{id:string;name:string;ids:string[]}[]; spaceId?:string; snapToGrid?:boolean; savedViews?:{id:string;name:string;viewport:{x:number;y:number;zoom:number}}[]; version: 1 | 2 | 3; mode?: 'free'|'mindmap'; mindmapDirection?: 'right'|'down'|'up'; nodes: Card[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }
 export const emptyBoard = (): Board => ({ version: 1, nodes: [], edges: [], viewport: { x: 60, y: 60, zoom: 1 } });
-export const uid = () => crypto.randomUUID();
+export const uid = () => {
+ const source=globalThis.crypto;if(typeof source?.randomUUID==='function')return source.randomUUID();
+ if(typeof source?.getRandomValues!=='function')throw Error('无法生成安全标识，当前内容未保存');
+ const bytes=source.getRandomValues(new Uint8Array(16));bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;
+ const hex=Array.from(bytes,value=>value.toString(16).padStart(2,'0')).join('');return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+};
 // Internal snapshots deliberately use JSON semantics, including omitted undefined fields.
 export const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 export function parseBoard(text: string): Board {
@@ -43,6 +49,7 @@ export function parseBoard(text: string): Board {
 }
 function assertBoardData(b:unknown):asserts b is Board {
   if (!isRecord(b) || !isOneOf(b.version,[1,2,3]) || !isUnknownArray(b.nodes) || !isUnknownArray(b.edges)) throw new Error('不支持的白板格式或版本');
+  if(b.presentation==='handwriting'){if(b.version!==3)throw Error('手写白板版本无效');assertInkData(b.ink);}else if(b.ink!==undefined)throw Error('手写笔迹只能保存在手写白板');
   if(b.defaultEdgeStyle!==undefined&&(!isOneOf(b.defaultEdgeStyle,['curve','straight','elbow'])||b.version!==3))throw Error('白板默认连线路径无效');
   const ids = new Set<string>();
   for (const n of b.nodes) {
@@ -92,7 +99,7 @@ function assertBoardData(b:unknown):asserts b is Board {
     edgeIds.add(e.id);
   }
   if (!isRecord(b.viewport) || ![b.viewport.x,b.viewport.y].every(isFiniteNumber) || !isFiniteNumber(b.viewport.zoom) || b.viewport.zoom < .15 || b.viewport.zoom > 2.5) throw new Error('白板视口数据不完整');
-  if(b.presentation!==undefined&&(b.version!==3||b.presentation!=='brain'))throw Error('白板展示模式无效');
+  if(b.presentation!==undefined&&(b.version!==3||!isOneOf(b.presentation,['brain','handwriting'])))throw Error('白板展示模式无效');
   if(b.presentation==='brain'?!validBoardMindmapState(b.brain):b.brain!==undefined)throw Error('脑图白板状态无效');
   if(b.brainViewport!==undefined&&(b.presentation!=='brain'||!validBrainViewport(b.brainViewport)))throw Error('脑图白板视口无效');
   if((b.mode !== undefined && (b.version !== 3 || !isOneOf(b.mode,['free','mindmap']))) || (b.mindmapDirection !== undefined && (b.version !== 3 || !isOneOf(b.mindmapDirection,['right','down','up'])))) throw new Error('导图设置不完整');
@@ -122,6 +129,8 @@ export function contained(section: Card, node: Card): boolean {
 }
 /** Reject invalid geometry before layout or persistence can spread NaN across a board. */
 export function assertBoardGeometry(board:Board):void {
+  if(board.presentation==='handwriting'){if(board.version!==3)throw Error('手写白板版本无效');assertInkData(board.ink);}else if(board.ink!==undefined)throw Error('手写笔迹只能保存在手写白板');
+
  for(const n of board.nodes)if(!Number.isFinite(n.x)||!Number.isFinite(n.y)||!Number.isFinite(n.width)||!Number.isFinite(n.height)||n.width<80||n.height<nodeMinimumHeight(n.kind))throw Error('白板尺寸无效，已阻止写入');
  const v=board.viewport;if(!v||!Number.isFinite(v.x)||!Number.isFinite(v.y)||!Number.isFinite(v.zoom)||v.zoom<.15||v.zoom>2.5)throw Error('白板视口无效，已阻止写入');
  if(board.brainViewport!==undefined&&(board.presentation!=='brain'||!validBrainViewport(board.brainViewport)))throw Error('脑图白板视口无效，已阻止写入');
@@ -159,6 +168,8 @@ export class History {
 }
 
 export function canvasExport(b: Board,vaultName?:string) {
+  if(b.ink?.strokes.length)throw Error('原生 Canvas 无法保存手写笔迹，请保留原手写白板或另存完整白板副本');
+
   // Index only as far as requested endpoints; retain find's first-match semantics.
   const nodes=new Map<string,Card>();let next=0;
   const nodeById=(id:string)=>{while(!nodes.has(id)&&next<b.nodes.length){const node=b.nodes[next++],key=node.id;if(!nodes.has(key))nodes.set(key,node);}return nodes.get(id)!;};

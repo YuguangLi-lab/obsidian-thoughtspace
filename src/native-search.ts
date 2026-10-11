@@ -1,5 +1,5 @@
 import {hasAsciiControl} from './value-guards';
-import {createHash} from 'crypto';
+import {sha256} from './portable-sha256';
 import type {Board} from './model';
 import {boardLink,parseBoardLink} from './deeplinks';
 export const SEARCH_FOLDER='ThoughtSpace/白板搜索';
@@ -14,7 +14,7 @@ function indexSourcePath(path:string){
 }
 /** A path candidate only: callers must validate the generated document before navigation. */
 export function isSearchIndexPath(path:string){return indexSourcePath(path)!==undefined;}
-const checksum=(text:string)=>createHash('sha256').update(text).digest('hex');
+const checksum=(text:string)=>sha256(text);
 function openingBoardLink(text:string){
  let header=0;for(let row=0;row<3;row++){const next=text.indexOf('\n',header);if(next<0)return;header=next+1;}
  const end=text.indexOf('\n',header);return /^\[打开白板\]\((obsidian:\/\/thoughtspace\?[^\s]+)\)$/.exec(text.slice(header,end<0?text.length:end))?.[1];

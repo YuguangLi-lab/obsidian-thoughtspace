@@ -4,6 +4,7 @@ import {BoardSearchEntry,boardSearchIndex,searchBoard,searchKinds,searchExcerpt,
 import {addSavedSearch,renameSavedSearch,removeSavedSearch,savedSearchQuery,savedSearchStamp,type SavedSearchQuery} from './saved-searches';
 import {markReading,reviewLabels,type ReviewState} from './reading-desk';
 import {themeSurface} from './ui-tokens';
+import {bindMobileViewport} from './mobile-viewport';
 export interface BoardSearchHost{title:string;context?:object;board:()=>Board;commit:(edit:(board:Board)=>void)=>void|Promise<void>;locate:(id:string)=>Promise<void>;open:(id:string)=>Promise<void>;link:(id:string)=>string;}
 interface SearchContext{query:string;kind:string;group:string;color:string;review:string;full:boolean;saved?:string;active?:string;limit:number;scroll:number;}
 // Session identity scopes transient search state across tabs and undo/redo, and
@@ -16,15 +17,20 @@ export class BoardSearchModal extends Modal{
  private rows:{row:HTMLElement;pick:HTMLButtonElement;controls:(HTMLButtonElement|HTMLSelectElement)[]}[]=[];private excerptCache=new Map<BoardSearchEntry,string>();private excerptQuery='';private bodies=new Map<string,string>();private generation=0;private closed=false;private active=0;private limit=40;private timer?:number;private full=false;private busy=false;
  // Refreshes invalidate immediately, but their file reads share one serial queue.
  private indexTask:Promise<void>=Promise.resolve();private pointer?:{x:number;y:number};
- private restored?:SearchContext;private restoredActive?:string;
+ private restored?:SearchContext;private restoredActive?:string;private viewport?:()=>void;private refineDisclosure?:HTMLButtonElement;
  constructor(app:App,private host:BoardSearchHost){super(app);this.restored=searchContexts.get(host.context||host);this.full=this.restored?.full||false;this.restoredActive=this.restored?.active;this.savedId=this.restored?.saved;}
  private run(action:()=>unknown){try{Promise.resolve(action()).catch(e=>{if(!this.closed)new Notice(e instanceof Error?e.message:String(e));});}catch(e){if(!this.closed)new Notice(e instanceof Error?e.message:String(e));}}
  private button(el:HTMLElement,label:string,icon:string,run:()=>unknown){const b=el.createEl('button',{attr:{'aria-label':label,title:label}});setIcon(b,icon);b.onclick=()=>this.run(run);return b;}
- onOpen(){this.closed=false;themeSurface(this.modalEl);this.modalEl.addClass('ts-board-search');this.titleEl.setText('搜索白板');this.titleEl.createEl('small',{cls:'ts-board-search-scope',text:this.host.title,attr:{title:this.host.title}});
+ onOpen(){this.closed=false;themeSurface(this.modalEl);this.modalEl.addClass('ts-board-search');this.viewport?.();this.viewport=bindMobileViewport(this.modalEl);this.titleEl.setText('搜索白板');this.titleEl.createEl('small',{cls:'ts-board-search-scope',text:this.host.title,attr:{title:this.host.title}});
   const bar=this.contentEl.createDiv({cls:'ts-board-search-bar',attr:{role:'search','aria-label':'搜索当前白板'}});setIcon(bar.createSpan({attr:{'aria-hidden':'true'}}),'search');this.input=bar.createEl('input',{type:'search',attr:{placeholder:'标题、文本、#标签、分组或文件路径…','aria-label':'搜索白板内容'}});
   this.input.oninput=()=>{this.cancelQuery();this.clearButton.disabled=!this.hasFilters();this.timer=this.contentEl.win.setTimeout(()=>{this.timer=undefined;this.reset();},90);};this.input.onkeydown=e=>this.keydown(e);
   this.clearButton=this.button(bar,'清除关键词与筛选','x',()=>this.clearFilters());this.clearButton.addClass('ts-board-search-clear','ts-board-search-filter-reset');
   this.button(bar,'刷新搜索索引','refresh-cw',()=>this.refresh());
+  const disclosure=this.contentEl.createEl('button',{cls:'ts-board-search-refine-toggle',text:'筛选与清单',attr:{type:'button','aria-expanded':'false','aria-label':'展开或收起搜索筛选与材料清单'}});
+  this.refineDisclosure=disclosure;
+  // On narrow containers, disclose the existing controls rather than rebuilding
+  // them: query, saved-list draft, scroll and pending reads retain their owners.
+  let filtersOpen=false;this.modalEl.toggleClass('is-filters-open',false);disclosure.onclick=()=>{if(this.closed||this.refineDisclosure!==disclosure)return;filtersOpen=!filtersOpen;this.modalEl.toggleClass('is-filters-open',filtersOpen);disclosure.setAttribute('aria-expanded',String(filtersOpen));};
   const workbench=this.contentEl.createDiv('ts-board-search-workbench'),refine=workbench.createDiv({cls:'ts-board-search-refine',attr:{role:'group','aria-label':'搜索筛选'}});refine.createEl('h3',{text:'筛选范围'});
   const filters=refine.createDiv('ts-board-search-filters');const select=(label:string,options:Record<string,string>)=>{const field=filters.createEl('label',{cls:'ts-board-search-filter'});field.createSpan({text:label});const s=field.createEl('select',{attr:{'aria-label':label}});for(const [value,text]of Object.entries(options))s.createEl('option',{value,text});s.onchange=()=>this.reset();return s;};
   this.kind=select('对象类型',{'':'全部类型',...searchKinds});this.group=select('所属分组',{'':'全部分组',':none':'未分组'});this.color=select('对象颜色',{'':'全部颜色',...Object.fromEntries(colors.map(c=>[c,colorNames[c]]))});this.review=select('阅读状态',{'':'全部状态',...reviewLabels});
@@ -121,7 +127,7 @@ export class BoardSearchModal extends Modal{
   for(const [i,e]of entries.slice(0,this.limit).entries()){
    const row=this.list.createDiv({cls:'ts-board-search-row',attr:{'data-search-node':e.id,role:'group','aria-label':`${searchKinds[e.kind]} · ${e.title}`}});const pick=row.createEl('button',{cls:'ts-board-search-pick',attr:{'aria-label':`定位 ${e.title}`}});const controls:(HTMLButtonElement|HTMLSelectElement)[]=[pick];this.rows.push({row,pick,controls});this.markCurrent(i,i===this.active);
    // Scrolling and row replacement can fire pointerenter under an unmoving mouse.
-   row.onpointermove=event=>{if(this.pointer?.x===event.clientX&&this.pointer.y===event.clientY)return;this.pointer={x:event.clientX,y:event.clientY};this.setActive(i,false,false);};pick.onfocus=()=>this.setActive(i,false,false);pick.onkeydown=event=>this.keydown(event,true,i);pick.onclick=()=>this.run(()=>{this.setActive(i,false,false);return this.activate(e);});
+   row.onpointermove=event=>{if(event.pointerType&&event.pointerType!=='mouse'||this.pointer?.x===event.clientX&&this.pointer.y===event.clientY)return;this.pointer={x:event.clientX,y:event.clientY};this.setActive(i,false,false);};pick.onfocus=()=>this.setActive(i,false,false);pick.onkeydown=event=>this.keydown(event,true,i);pick.onclick=()=>this.run(()=>{this.setActive(i,false,false);return this.activate(e);});
    const head=pick.createDiv('ts-board-search-heading');setIcon(head.createSpan({attr:{'aria-hidden':'true'}}),{card:'file-text',text:'type',image:'image',pdf:'file-text',audio:'audio-lines',video:'video',section:'group',board:'panels-top-left',mindmap:'network'}[e.kind]);head.createEl('strong',{text:e.title,attr:{title:e.title}});head.createEl('small',{text:searchKinds[e.kind]});
    let excerpt=this.excerptCache.get(e);if(excerpt===undefined){excerpt=searchExcerpt(e,this.input.value);this.excerptCache.set(e,excerpt);}if(excerpt)pick.createDiv({cls:'ts-board-search-excerpt',text:excerpt});
    const meta=pick.createDiv('ts-board-search-meta'),location=meta.createDiv({cls:'ts-board-search-location',text:e.groups.map(g=>g.title).join(' / ')||'未分组'});if(e.hidden)location.appendText(' · 折叠分支内');if(e.path)meta.createDiv({cls:'ts-board-search-path',text:e.path,attr:{title:e.path}});const actions=row.createDiv('ts-board-search-row-actions');const link=this.button(actions,'复制内容定位链接','link',()=>navigator.clipboard.writeText(this.host.link(e.id)).then(()=>new Notice('已复制定位链接')));controls.push(link);link.onfocus=()=>this.setActive(i,false,false);
@@ -131,5 +137,5 @@ export class BoardSearchModal extends Modal{
   if(entries.length>this.limit){const more=this.button(this.list,'显示更多结果','chevron-down',()=>{const next=this.limit;this.limit+=40;this.render();this.setActive(next,true);});more.addClass('ts-board-search-more');more.appendText(` 再显示 40 项 · 剩余 ${entries.length-this.limit}`);}
   this.updateBusy();if(focusedId){const previous=this.rows.find(({row})=>row.getAttribute('data-search-node')===focusedId);if(previous)(previous.controls.find(control=>control.getAttribute('aria-label')===focusedLabel)||previous.pick).focus();else this.input.focus();}
  }
- onClose(){if(!this.closed&&this.input)searchContexts.set(this.host.context||this.host,{...this.criteria(),saved:this.savedId,active:this.results[this.active]?.id,limit:this.limit,scroll:this.list.scrollTop||0});this.closed=true;this.pointer=undefined;this.generation++;this.cancelQuery();this.entries=[];this.results=[];this.rows=[];this.excerptCache.clear();this.bodies.clear();this.contentEl.empty();}
+ onClose(){if(!this.closed&&this.input)searchContexts.set(this.host.context||this.host,{...this.criteria(),saved:this.savedId,active:this.results[this.active]?.id,limit:this.limit,scroll:this.list.scrollTop||0});this.closed=true;this.viewport?.();this.viewport=undefined;this.refineDisclosure=undefined;this.pointer=undefined;this.generation++;this.cancelQuery();this.entries=[];this.results=[];this.rows=[];this.excerptCache.clear();this.bodies.clear();this.contentEl.empty();}
 }

@@ -1,6 +1,6 @@
 import {App,FileSystemAdapter,TFile} from 'obsidian';
-import {resolve as resolvePath} from 'path';
-import {createHash} from 'crypto';
+import {desktopPathResolve,isDesktopRuntime} from './platform-runtime';
+import {sha256} from './portable-sha256';
 import {mountMediaCard,type MediaCardHandle,type MediaCardState} from './media-card-player';
 import {MediaPlayback,type MediaIdentity} from './media-playback';
 import {mediaKind,mediaTime} from './media-source';
@@ -76,7 +76,7 @@ export class MediaWorkspaceService {
    if(closed)return;try{if(sourceAlive())this.playback.remember(identity,handle.getState(),handle);}finally{closed=true;try{handle.dispose();}finally{if(subtitleUrl){urlApi.revokeObjectURL(subtitleUrl);subtitleUrl=undefined;}unregister();this.mounted.delete(wrapper);}}
   }};this.mounted.add(wrapper);return wrapper;
  }
- private sourceMatches(source:string|undefined,file:TFile){if(source===file.path)return true;const adapter=this.app.vault.adapter;return typeof source==='string'&&adapter instanceof FileSystemAdapter&&source===resolvePath(adapter.getBasePath(),file.path);}
+ private sourceMatches(source:string|undefined,file:TFile){if(source===file.path)return true;const adapter=this.app.vault.adapter;return typeof source==='string'&&isDesktopRuntime()&&adapter instanceof FileSystemAdapter&&source===desktopPathResolve(adapter.getBasePath(),file.path);}
  private noteAlive(snapshot:Pick<NoteSnapshot,'note'|'identity'>){const{note,identity}=snapshot;return isWorkspaceFile(note)&&note.path===identity.path&&note.stat.mtime===identity.mtime&&note.stat.size===identity.size&&this.app.vault.getAbstractFileByPath(identity.path)===note;}
  /** Read each candidate once. Metadata selects candidates; the actual document remains authoritative. */
  private async readNotes(file:TFile,identity:MediaIdentity){
@@ -127,7 +127,7 @@ export class MediaWorkspaceService {
  async moments(file:TFile):Promise<{note?:TFile;entries:WorkspaceMediaMoment[];warnings?:string[]}>{
   this.ensure(file);const identity=this.identity(file),result=await this.readNotes(file,identity);this.ensure(file,identity.path,identity.mtime,identity.size);
   const source={vault:this.app.vault.getName(),file:file.path},warnings=new Set(result.issues.map(issue=>issue.message));
-  const adapter=this.app.vault.adapter,legacyVaultId=adapter instanceof FileSystemAdapter?createHash('sha256').update(resolvePath(adapter.getBasePath())).digest('hex').slice(0,20):undefined;
+  const adapter=this.app.vault.adapter,legacyVaultId=isDesktopRuntime()&&adapter instanceof FileSystemAdapter?sha256(desktopPathResolve(adapter.getBasePath())).slice(0,20):undefined;
   const groups=result.notes.map(snapshot=>{
    const legacy=mediaNoteSource(snapshot.raw),rows=readMediaMoments(snapshot.raw,source);if(legacy)rows.push(...readLegacyMediaMoments(snapshot.raw,source,legacy,legacyVaultId));
    const seen=new Set<string>();return rows.filter(row=>{const key=JSON.stringify([row.id,row.line]);if(seen.has(key))return false;seen.add(key);return true;}).map(row=>({...row,notePath:snapshot.identity.path,key:JSON.stringify([snapshot.identity.path,row.id,row.line])}));

@@ -1,10 +1,10 @@
-import {createHash} from 'crypto';
+import {sha256} from './portable-sha256';
 import {excerptPresentation,type ExcerptSource} from './excerpt-sources';
 import {selectionFragment} from './materials';
 import {writingReferenceRanges,type WritingRange} from './writing-reference';
 import {hasAsciiControl,isRecord} from './value-guards';
 export type ParagraphOrigin={path:string;subpath:string;mode:'embed'}|{path:string;from:number;to:number;quote:string;hash:string;subpath?:string;mode:'snapshot'}
-export const paragraphHash=(raw:string)=>createHash('sha256').update(raw).digest('hex');
+export const paragraphHash=(raw:string)=>sha256(raw);
 export function validParagraphOrigin(value:unknown):value is ParagraphOrigin{
  if(!isRecord(value))return false;
  if(typeof value.path!=='string'||value.path.length>2048||!/\.md$/i.test(value.path)||hasAsciiControl(value.path)||value.path.includes('\\')||/^[/\\]|^[a-z][\w+.-]*:/i.test(value.path)||value.path.split('/').some(p=>p==='..'||p==='.')||!(value.subpath===undefined||typeof value.subpath==='string'&&value.subpath.startsWith('#')&&value.subpath.length<=2048&&!hasAsciiControl(value.subpath)))return false;

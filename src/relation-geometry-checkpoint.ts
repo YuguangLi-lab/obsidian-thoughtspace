@@ -1,4 +1,4 @@
-import {createHash} from 'crypto';
+import {sha256} from './portable-sha256';
 import type {Card} from './model';
 import {textFitsContent} from './text-sizing';
 import {hasAsciiControl,isFiniteNumber,isRecord,isUnknownArray} from './value-guards';
@@ -15,7 +15,7 @@ export function relationGeometryShape(node:Card):string {
 }
 /** A digest avoids copying long standalone text or paragraph bodies into the checkpoint. */
 export function relationGeometryTextStamp(text:string|undefined):string|undefined {
- return text===undefined?undefined:createHash('sha256').update(text).digest('hex');
+ return text===undefined?undefined:sha256(text);
 }
 export function canPersistRelationGeometry(node:Card):boolean {
  return node.kind==='card'?node.autoFit===true:node.kind==='image'||node.kind==='pdf'||textFitsContent(node);

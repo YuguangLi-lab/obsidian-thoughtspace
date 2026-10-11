@@ -5,6 +5,7 @@ import {transformSync} from 'esbuild';
 import * as onlinePlatform from '../src/online-platform';
 import * as mediaSource from '../src/media-source';
 import * as density from '../src/workspace-density';
+import * as viewport from '../src/mobile-viewport';
 import type {OnlineSource,OnlineState} from '../src/online-platform';
 
 // The view runs against the same small Obsidian DOM surface it uses in production.
@@ -96,6 +97,7 @@ new Function('require','module','exports','console',compiled)((name:string)=>{
  if(name==='./online-platform')return onlinePlatform;
  if(name==='./media-source')return mediaSource;
  if(name==='./workspace-density')return density;
+ if(name==='./mobile-viewport')return viewport;
  throw Error(`Unexpected runtime dependency: ${name}`);
 },module,module.exports,{error:(...values:unknown[])=>errorsLogged.push(values)});
 const {OnlineWorkspaceView}=module.exports as {OnlineWorkspaceView:new(leaf:unknown,host:unknown)=>any};
@@ -557,4 +559,27 @@ test('timeline screenshots render only the current fifty-entry page and release 
  const v=await open(f);await settle();const first=markdownRenders.slice(start);assert.equal(first.length,50);assert.equal(rows(v).length,50);
  await click(v,'下一页');const last=markdownRenders.slice(start+50);assert.equal(last.length,1);assert.equal(last[0].text,'![[frame-50.png]]');assert.equal(rows(v).length,1);
  for(const scope of new Set(first.map(render=>render.component)))assert.equal(scope.unloads,1);await v.onClose();assert.equal(last[0].component.unloads,1);
+});
+
+test('narrow online panels retain mount, IME draft and editor selection while restoring view state',async()=>{
+ const f=fixture(),v=await open(f);f.publish(synchronized(youtube));const input=v.input;input.value='draft';input.dispatch('input');input.dispatch('compositionstart');input.value='draft 正在输入';input.selectionStart=2;input.selectionEnd=5;const draft=v.memory.draft,mount=f.mounts[0];
+ for(const label of ['写摘录','时间轴','播放','写摘录'])await click(v,label);assert.equal(v.getState().panel,'compose');assert.equal(v.input,input);assert.equal(v.memory.draft,draft);assert.equal(input.value,'draft 正在输入');assert.equal(input.selectionStart,2);assert.equal(input.selectionEnd,5);assert.equal(v.composing,true);assert.equal(f.mounts.length,1);assert.equal(mount.released,0);
+ await v.setState({...v.getState(),panel:'timeline'});assert.equal(v.getState().panel,'timeline');assert.equal(v.input,input);assert.equal(mount.released,0);input.dispatch('compositionend');await v.onClose();const next=await open(f,youtube,{panel:'compose'});assert.equal(next.getState().panel,'compose');assert.equal(next.input.value,'draft 正在输入');await next.onClose();
+});
+
+test('mobile manual recording never mounts or controls the desktop player and keeps failed saves across panel restoration',async()=>{
+ const f=fixture(),external:string[]=[];Object.assign(f.host,{playbackAvailable:()=>false,openExternal:async(path:string)=>{external.push(path);}});f.setWrite(async()=>{throw Error('mobile storage unavailable');});
+ const v=await open(f,youtube,{panel:'player'});f.publish(synchronized(youtube,80));assert.equal(f.mounts.length,0);assert.equal(v.getState().time,undefined);assert.equal(button(v,'加载视频 / 重试').disabled,true);assert.equal(button(v,'快速截图').disabled,true);assert.equal(v.manualFallback.open,true);
+ await click(v,'在浏览器打开视频');assert.deepEqual(external,[youtube.path]);assert.deepEqual(f.commands,[]);assert.deepEqual(f.opens,[]);
+ await click(v,'写摘录');v.manual.value='1:23';await click(v,'确认时间');type(editor(v),'mobile draft');const original={...v.memory.draft};await click(v,'保存摘录');assert.equal(v.memory.draft.text,original.text);assert.match(status(v),/mobile storage unavailable/);await click(v,'时间轴');const state=v.getState();await v.onClose();
+ const next=await open(f,youtube,state);assert.equal(next.getState().panel,'timeline');assert.equal(next.input.value,'mobile draft');assert.equal(next.memory.draft.id,original.id);assert.equal(next.memory.draft.time,83);assert.equal(f.mounts.length,0);assert.deepEqual(f.commands,[]);await next.onClose();
+});
+
+test('IME close without compositionend retains the visible online draft and blocks touch save or cancellation',async()=>{
+ const f=fixture(),v=await open(f);f.publish(synchronized(youtube));const input=editor(v);type(input,'before');input.dispatch('compositionstart');input.value='before 中文合成';await click(v,'保存摘录');await click(v,'取消摘录');assert.equal(f.saves.length,0);assert.equal(input.value,'before 中文合成');await v.onClose();
+ const next=await open(f);assert.equal(editor(next).value,'before 中文合成');await next.onClose();
+});
+
+test('composition owns the empty online editor across concurrent views until it is closed',async()=>{
+ const f=fixture(),first=await open(f);f.publish(synchronized(youtube));first.input.dispatch('compositionstart');first.input.value='首个窗口合成';const other=await open(f);assert.equal(other.input.readOnly,true);await first.onClose();assert.equal(other.input.value,'首个窗口合成');assert.equal(other.input.readOnly,false);await other.onClose();
 });

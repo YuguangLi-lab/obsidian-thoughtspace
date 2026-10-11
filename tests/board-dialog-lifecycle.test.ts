@@ -14,10 +14,10 @@ const methods=take('  async openGroupOrganizer(','  openReadingDesk(')
 function deferred<T>(){let resolve!:(value:T)=>void,reject!:(error:Error)=>void;const promise=new Promise<T>((yes,no)=>{resolve=yes;reject=no;});return{promise,resolve,reject};}
 const entries=[['openGroupOrganizer','groupOrganizer'],['openSavedViews','savedViewsModal'],['openLayoutPlanner','layoutPlannerModal']] as const;
 function fixture(){
- const calls={created:0,opened:0,closed:0,committed:0,restored:[] as string[]},modals:Modal[]=[];
+ const calls={created:0,opened:0,closed:0,committed:0,handwritingClears:0,restored:[] as string[],notices:[] as string[]},modals:Modal[]=[];
  class Modal{constructor(_app:unknown,readonly host:{board:()=>Board;ids?:Set<string>;commit:(edit:(board:Board)=>void)=>void;restore?:(id:string)=>void}){calls.created++;modals.push(this);}open(){calls.opened++;}close(){calls.closed++;}}
  const hostWindow={cancelAnimationFrame(){},clearTimeout(){}};
- const deps={isBrainBoard,GroupOrganizerModal:Modal,SavedViewsModal:Modal,LayoutPlannerModal:Modal,studioDraft,BoardView:class{},window:hostWindow,act:(fn:()=>unknown)=>fn(),report:(error:unknown)=>{throw error;},fitTextNode(){}};
+ const deps={isBrainBoard,isDesktopRuntime:()=>true,Notice:class{constructor(message:unknown){calls.notices.push(String(message));}},GroupOrganizerModal:Modal,SavedViewsModal:Modal,LayoutPlannerModal:Modal,studioDraft,BoardView:class{},window:hostWindow,act:(fn:()=>unknown)=>fn(),report:(error:unknown)=>{throw error;},fitTextNode(){}};
  const View=new Function(...Object.keys(deps),transformSync(`class View{${methods}}return View;`,{loader:'ts'}).code)(...Object.values(deps));
  const commit=deferred<boolean>(),navigation=deferred<void>(),acquisition=deferred<ReturnType<typeof session>>(),view=new View();
  function session(){const value={board:{...emptyBoard(),version:3 as const},blocked:false,refreshNativeEditing(){},listeners:new Set(),flush:async()=>{},change:(edit:(board:Board)=>void)=>{calls.committed++;edit(value.board);}};return value;}
@@ -26,10 +26,15 @@ function fixture(){
   blankClicks:{cancel(){}},viewTrail:{clear(){}},svg:{isConnected:true},stage:{removeClass(){}},
   contentEl:{ownerDocument:{defaultView:hostWindow},querySelectorAll:()=>[]},app:{workspace:{getActiveViewOfType:()=>undefined}},
   plugin:{provisionalBoardGeometry:new WeakMap(),session:()=>acquisition.promise,ensureDock:async()=>{},refreshDock(){},release:async()=>{}},
-  finishInlineForNavigation:()=>navigation.promise,finishMarquee(){},setSectionTool(){},syncSelectionTool(){},clearNodes(){},clearBrainBoard(){},clearCanvasGesture(){},paint(){},restoreView:(id:string)=>calls.restored.push(id),
+  finishInlineForNavigation:()=>navigation.promise,finishMarquee(){},setSectionTool(){},syncSelectionTool(){},clearNodes(){},clearBrainBoard(){},clearHandwritingBoard(){calls.handwritingClears++;view.handwritingView=undefined;view.handwritingOwner=undefined;},clearCanvasGesture(){},paint(){},restoreView:(id:string)=>calls.restored.push(id),
  });
  return{view,owner,next,calls,modals,commit,navigation,acquisition};
 }
+for(const lifecycle of ['onClose','onUnloadFile'] as const)test(`${lifecycle} clears an attached handwriting controller before pending navigation resolves`,async()=>{
+ const f=fixture();f.view.handwritingView={};f.view.handwritingOwner=f.owner;const transition=f.view[lifecycle]();
+ assert.equal(f.calls.handwritingClears,1);assert.equal(f.view.handwritingView,undefined);assert.equal(f.view.handwritingOwner,undefined);assert.equal(f.view.session,f.owner);
+ f.navigation.resolve();await transition;assert.equal(f.calls.handwritingClears,1);
+});
 for(const [entry,field]of entries){
  test(`${entry}: opens once only after the editor commits successfully`,async()=>{const f=fixture(),before=JSON.stringify(f.owner.board);let oldClosed=0;f.view[field]={close:()=>oldClosed++};const opening=f.view[entry]();assert.equal(f.calls.created,0);assert.equal(oldClosed,0);f.commit.resolve(true);await opening;assert.equal(f.calls.created,1);assert.equal(f.calls.opened,1);assert.equal(oldClosed,1);assert.equal(f.view[field],f.modals[0]);assert.equal(f.modals[0].host.board(),f.owner.board);assert.equal(JSON.stringify(f.owner.board),before);if(entry==='openGroupOrganizer'||entry==='openLayoutPlanner'){assert.deepEqual([...f.modals[0].host.ids!],['chosen']);f.view.selected.clear();assert.deepEqual([...f.modals[0].host.ids!],['chosen']);}});
  test(`${entry}: a declined or failed editor save retains the existing dialog and never opens another`,async()=>{for(const failure of ['declined','rejected']){const f=fixture();let closed=0;const previous={close:()=>closed++};f.view[field]=previous;const opening=f.view[entry]();if(failure==='declined'){f.commit.resolve(false);await opening;}else{f.commit.reject(Error('save conflict'));await assert.rejects(opening,/save conflict/);}assert.equal(f.calls.created,0);assert.equal(f.calls.opened,0);assert.equal(closed,0);assert.equal(f.view[field],previous);}});

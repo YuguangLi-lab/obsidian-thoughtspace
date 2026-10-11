@@ -17,6 +17,7 @@ import {cleanBrainColors,brainColorsStamp,brainStateInk,type BrainColors} from '
 export interface BrainBoardSnapshot {board:Board;path:string;key?:object;readOnly?:boolean;saveFeedback?:BoardSaveFeedback;graphRevision?:number;nativeRevision?:number;native?:(id:string)=>NativeLocalRelations|readonly NativeLocalRelation[];}
 export interface BrainBoardViewportIntent {key?:object;path:string;board:Board;value:{x:number;y:number;zoom:number};}
 export interface BrainBoardHost {
+ container?:HTMLElement;
  saveFeedbackAction?:(action:BoardSaveFeedbackAction)=>void;
  snapshot:()=>BrainBoardSnapshot|undefined;change:(next:BoardMindmapState)=>void;
  source:BoardMindmapHost['source'];open:BoardMindmapHost['open'];preview:BoardMindmapHost['preview'];
@@ -33,10 +34,10 @@ interface NodeElement {root:HTMLElement;pill:HTMLElement;title:HTMLButtonElement
 interface Preview {body:HTMLElement;scope:Component;stamp:string;}
 const roleLabels:Record<LocalRelationKind,string>={parents:'上级',children:'下级',siblings:'同级',associated:'关联',incoming:'引用此对象',outgoing:'此对象引用'};
 let brainSvgSequence=0;
-const clampZoom=(value:number)=>Math.max(.2,Math.min(2.5,value));
+const clampZoom=(value:number)=>Math.max(.15,Math.min(2.5,value));
 type SideActionPosition='left'|'right'|'compact';
-function sideActionPositions(layout:BrainBoardLayout,camera:{x:number;y:number;zoom:number},size:{width:number;height:number},obstacles:readonly BrainScreenRect[]=brainScreenObstacles(layout,camera)){
- const positions=new Map<string,SideActionPosition>(),zoom=camera.zoom,scale=Math.max(1,zoom),width=38*scale,height=104*scale,gap=6*scale;
+function sideActionPositions(layout:BrainBoardLayout,camera:{x:number;y:number;zoom:number},size:{width:number;height:number},obstacles:readonly BrainScreenRect[]=brainScreenObstacles(layout,camera),targetSize:32|44=32){
+ const positions=new Map<string,SideActionPosition>(),zoom=camera.zoom,scale=Math.max(1,zoom),width=(targetSize+6)*scale,height=(targetSize*3+8)*scale,gap=6*scale;
  for(const node of layout.nodes){
   if(!['associated','incoming','outgoing','siblings'].includes(node.role))continue;
   const center=camera.x+(node.x+node.width/2)*zoom,halfWidth=(node.previewWidth??node.width)*zoom/2,y=camera.y+(node.y+node.height/2)*zoom-height/2;
@@ -58,14 +59,14 @@ export class BrainBoardView extends Component {
  private alive=false;private generation=0;private renders=0;private nodeSequence=0;private context?:object|string;private boardPath?:string;private document?:Document;private center?:string;private error='';
  private shell!:HTMLElement;private topbar!:HTMLElement;private title!:HTMLElement;private stage!:HTMLElement;private scene!:HTMLElement;private svg!:SVGSVGElement;private labels!:HTMLElement;private empty!:HTMLElement;private status!:HTMLElement;private recent!:HTMLElement;private pager!:HTMLElement;
  private input!:HTMLInputElement;private search!:HTMLElement;private searchResults!:HTMLElement;private back!:HTMLButtonElement;private forward!:HTMLButtonElement;private more!:HTMLButtonElement;private colorButton?:HTMLButtonElement;private zoomLabel!:HTMLButtonElement;
- private searchVisible=false;private query='';private searchPage=0;private searchIndex=0;private searchIds:string[]=[];private page=0;private layout?:ReturnType<typeof brainBoardLayout>;private nativePending=false;private composing=false;private compositionDocument?:Document;private compositionScope?:Component;
+ private searchVisible=false;private query='';private searchPage=0;private searchIndex=0;private searchIds:string[]=[];private page=0;private layout?:ReturnType<typeof brainBoardLayout>;private nativePending=false;private composing=false;private compositionDocument?:Document;private compositionScope?:Component;private touchMedia?:MediaQueryList;
  private searchRender?:{key?:object;path:string;doc:Document;signature:string};
  private revealId?:string;
  private branchCache?:{board:Board;revision?:number;fallback?:string;index:BrainBranchIndex};private descendants?:BrainDescendantPager;private descendantPage?:BrainDescendantPage;
  private nodes=new Map<string,NodeElement>();private previews=new Map<string,Preview>();private activeMenu?:Menu;private observer?:ResizeObserver;
  private camera={x:0,y:0,zoom:1};private cameraReady=false;private cameraStored='';private cameraBoard?:Board;private fitCamera=true;private fitAll=false;private viewportTimer=0;private viewportWindow?:Window;private viewportIntent?:BrainBoardViewportIntent;
  private readonly motion=new LocalRelationMotion(true);
- private stageSize={width:0,height:0};
+ private stageSize={width:0,height:0};private paneSize={width:0,height:0};
  private readonly refreshCache=new BrainRefreshCache();
  private projection?:{resolved:ReturnType<BrainRefreshCache['resolve']>;page?:BrainDescendantPage;stamp:string;layout:BrainBoardLayout};
  private statusHint='';
@@ -73,6 +74,7 @@ export class BrainBoardView extends Component {
  private refreshSources?:Map<string,BoardMindmapSource>;
  private colorPreview?:{key:object|string;path:string;stamp:string;value:BrainColors};
  private colorFrame=0;private colorWindow?:Window;
+ private touchPoints=new Map<number,{x:number;y:number}>();private touchMoved=false;private pinch?:{x:number;y:number;distance:number;camera:{x:number;y:number;zoom:number}};
  private resizeFrame=0;private resizeWindow?:Window;private cameraFrame=0;private cameraWindow?:Window;private pan?:{id:number;x:number;y:number;startX:number;startY:number;moved:boolean};
  constructor(_app:App,private readonly el:HTMLElement,private readonly host:BrainBoardHost){super();}
  onload(){
@@ -84,31 +86,34 @@ export class BrainBoardView extends Component {
   this.registerDomEvent(this.input,'focus',()=>this.toggleSearch(true));this.registerDomEvent(this.input,'input',()=>{this.query=this.input.value;this.searchPage=0;this.searchIndex=0;this.toggleSearch(true);});this.registerDomEvent(this.input,'keydown',event=>this.searchKey(event));
   this.registerDomEvent(this.search,'focusout',event=>{const next=event.relatedTarget as Node|null;if(!next||next.ownerDocument!==this.search.ownerDocument||!this.search.contains(next))this.toggleSearch(false);});
   const actions=this.topbar.createDiv('ts-brain-top-actions');if(this.host.colors){this.colorButton=this.button(actions,'palette','脑图配色',()=>this.openColors(),'colors');this.colorButton.setAttribute('aria-haspopup','dialog');}this.more=this.button(actions,'ellipsis','脑图菜单',event=>this.boardMenu(event),'more');this.button(actions,'settings-2','脑图设置',()=>{if(this.host.settings)this.host.settings();else this.boardMenu(undefined);},'settings');
-  this.stage=this.shell.createDiv({cls:'ts-brain-stage',attr:{'aria-label':'节点关系图'}});this.scene=this.stage.createDiv('ts-brain-scene');this.svg=this.scene.createSvg('svg',{cls:'ts-brain-links',attr:{'aria-hidden':'true'}});this.labels=this.scene.createDiv('ts-brain-labels');this.empty=this.stage.createDiv('ts-brain-empty');
+  this.stage=this.shell.createDiv({cls:'ts-brain-stage',attr:{'aria-label':'节点关系图'}});this.stage.createDiv({cls:'ts-brain-pan-surface',attr:{'aria-hidden':'true'}});this.scene=this.stage.createDiv('ts-brain-scene');this.svg=this.scene.createSvg('svg',{cls:'ts-brain-links',attr:{'aria-hidden':'true'}});this.labels=this.scene.createDiv('ts-brain-labels');this.empty=this.stage.createDiv('ts-brain-empty');
   this.status=this.stage.createDiv({cls:'ts-brain-status',attr:{role:'status','aria-live':'polite'}});this.pager=this.stage.createDiv('ts-brain-pager');
-  const zoom=this.stage.createDiv('ts-brain-zoom');if(this.host.background)this.button(zoom,'palette','白板背景',event=>this.host.background?.(event.currentTarget as HTMLElement),'background');this.button(zoom,'layers','关系显示层级',()=>this.showDepthMenu(),'depth');zoom.createSpan({cls:'ts-brain-object-count'});this.button(zoom,'minus','缩小',()=>this.zoomAt(this.camera.zoom/1.2),'zoom-out');this.zoomLabel=this.button(zoom,'','恢复 100% 缩放',()=>this.zoomAt(1),'zoom-reset');this.button(zoom,'plus','放大',()=>this.zoomAt(this.camera.zoom*1.2),'zoom-in');this.button(zoom,'maximize','适应画布',()=>{this.motion.cancel();this.fitCamera=true;this.fitAll=true;this.fit();this.queueViewport();},'fit');this.button(zoom,'search','节点导航',()=>this.focusSearch(),'navigate');
+  const zoom=this.stage.createDiv('ts-brain-zoom');if(this.host.background)this.button(zoom,'palette','白板背景',event=>this.host.background?.(event.currentTarget as HTMLElement),'background');this.button(zoom,'layers','关系显示层级',()=>this.showDepthMenu(),'depth');zoom.createSpan({cls:'ts-brain-object-count'});this.button(zoom,'minus','缩小',()=>this.zoomAt(this.camera.zoom/1.2),'zoom-out');this.zoomLabel=this.button(zoom,'','恢复 100% 缩放',()=>this.zoomAt(1),'zoom-reset');this.button(zoom,'plus','放大',()=>this.zoomAt(this.camera.zoom*1.2),'zoom-in');this.button(zoom,'maximize','适应画布',()=>this.fitToCanvas(),'fit');this.button(zoom,'search','节点导航',()=>this.focusSearch(),'navigate');
+  const controls=this.shell.createDiv('ts-brain-controls');controls.appendChild(this.pager);controls.appendChild(zoom);
   const footer=this.shell.createDiv('ts-brain-footer'),caption=footer.createDiv('ts-brain-recent-caption');setIcon(caption.createSpan(),'history');caption.createSpan({text:'最近浏览'});this.recent=footer.createDiv('ts-brain-recent');
-  this.registerDomEvent(this.shell,'keydown',event=>this.keydown(event));this.registerDomEvent(this.shell,'dblclick',event=>event.stopPropagation());this.registerDomEvent(this.shell,'click',event=>{if(!(event.target as HTMLElement)?.closest('.ts-brain-preview'))event.stopPropagation();});
-  this.registerDomEvent(this.shell,'pointerdown',event=>{if(event.isTrusted)this.host.activate?.();event.stopPropagation();if(!this.search.contains(event.target as Node))this.toggleSearch(false);});
+  this.registerDomEvent(this.shell,'keydown',event=>this.keydown(event));this.registerDomEvent(this.shell,'dblclick',event=>{if(!(event.target as HTMLElement)?.closest('.ts-brain-preview'))event.stopPropagation();});this.registerDomEvent(this.shell,'click',event=>{if(!(event.target as HTMLElement)?.closest('.ts-brain-preview'))event.stopPropagation();});
+  this.registerDomEvent(this.shell,'pointerdown',event=>{if(event.isTrusted)this.host.activate?.();if(!(event.target as HTMLElement)?.closest('.ts-brain-preview'))event.stopPropagation();if(!this.search.contains(event.target as Node))this.toggleSearch(false);});
   this.registerDomEvent(this.stage,'pointerdown',event=>this.pointerDown(event));this.registerDomEvent(this.stage,'pointermove',event=>this.pointerMove(event));this.registerDomEvent(this.stage,'pointerup',event=>this.pointerEnd(event));this.registerDomEvent(this.stage,'pointercancel',event=>this.pointerEnd(event));this.registerDomEvent(this.stage,'lostpointercapture',event=>this.pointerEnd(event));
   this.registerDomEvent(this.stage,'wheel',event=>this.wheel(event),{passive:false});this.registerDomEvent(this.searchResults,'wheel',event=>event.stopPropagation(),{passive:true});this.registerDomEvent(this.recent,'wheel',event=>event.stopPropagation(),{passive:true});
   this.observe();this.refresh();
  }
- onunload(){this.motion.cancel();this.cancelCameraFrame();this.cancelColorFrame();this.colorPreview=undefined;this.alive=false;this.finalizeViewport();this.generation++;this.closeMenu();this.cancelResize();this.observer?.disconnect();this.observer=undefined;this.clearPreviews();for(const item of this.nodes.values())this.removeChild(item.scope);this.nodes.clear();this.branchCache=undefined;this.descendants=undefined;this.descendantPage=undefined;this.refreshCache.clear();this.projection=undefined;this.layout=undefined;this.refreshSources=undefined;this.transformLayout=undefined;this.shell?.remove();}
+ onunload(){this.cancelPointers(true);this.motion.cancel();this.cancelCameraFrame();this.cancelColorFrame();this.colorPreview=undefined;this.alive=false;this.finalizeViewport();this.generation++;this.closeMenu();this.cancelResize();this.observer?.disconnect();this.observer=undefined;this.clearPreviews();for(const item of this.nodes.values())this.removeChild(item.scope);this.nodes.clear();this.branchCache=undefined;this.descendants=undefined;this.descendantPage=undefined;this.refreshCache.clear();this.projection=undefined;this.layout=undefined;this.refreshSources=undefined;this.transformLayout=undefined;this.shell?.remove();}
  refresh(){
   if(!this.alive)return;this.trackCommandComposition();this.cancelCameraFrame();this.cancelColorFrame();this.renders++;const snapshot=this.host.snapshot(),doc=this.el.ownerDocument;
-  if(!snapshot||snapshot.board.presentation!=='brain'){this.motion.cancel();this.generation++;this.closeMenu();this.clearPreviews();this.searchRender=undefined;this.refreshCache.clear();this.projection=undefined;this.paintStamp='';this.stage.hidden=true;return;}
+  if(!snapshot||snapshot.board.presentation!=='brain'){this.cancelPointers();this.motion.cancel();this.generation++;this.closeMenu();this.clearPreviews();this.searchRender=undefined;this.refreshCache.clear();this.projection=undefined;this.paintStamp='';this.stage.hidden=true;return;}
   this.stage.hidden=false;const state=snapshot.board.brain||createBoardMindmapState(),context=snapshot.key||snapshot.path,ownerChanged=this.context!==context||this.boardPath!==snapshot.path||this.document!==doc,centerChanged=this.center!==state.centerId;
   if(this.colorPreview&&(snapshot.readOnly||this.colorPreview.key!==context||this.colorPreview.path!==snapshot.path||this.colorPreview.stamp!==brainColorsStamp(snapshot.board.brainColors)))this.colorPreview=undefined;
   const motion= centerChanged&&!ownerChanged?this.motion.capture(this.scene):undefined;if(ownerChanged)this.motion.cancel();
-  if(ownerChanged||centerChanged){this.generation++;this.closeMenu();this.page=0;if(ownerChanged){this.searchRender=undefined;this.clearPreviews();this.cancelViewport();this.cameraReady=false;this.fitCamera=true;this.fitAll=false;if(this.document!==doc){this.cancelResize();this.observe();}}this.context=context;this.boardPath=snapshot.path;this.document=doc;this.center=state.centerId;this.error='';}
+  if(ownerChanged||centerChanged){this.cancelPointers();this.generation++;this.closeMenu();this.page=0;if(ownerChanged){this.searchRender=undefined;this.clearPreviews();this.cancelViewport();this.cameraReady=false;this.fitCamera=true;this.fitAll=false;if(this.document!==doc){this.cancelResize();this.observe();}}this.context=context;this.boardPath=snapshot.path;this.document=doc;this.center=state.centerId;this.error='';}
   // Re-read saved cameras after an owner rename, undo or external replacement.
-  if(ownerChanged||this.cameraBoard!==snapshot.board){this.cancelViewport();const pan=this.pan;this.pan=undefined;this.stage.classList.remove('is-panning');if(pan&&this.stage.hasPointerCapture?.(pan.id))this.stage.releasePointerCapture(pan.id);this.cameraBoard=snapshot.board;this.cameraStored='';}
-  if(!this.visible()){this.motion.cancel();this.generation++;this.closeMenu();this.clearPreviews();return;}
+  if(ownerChanged||this.cameraBoard!==snapshot.board){this.cancelViewport();this.cancelPointers();this.cameraBoard=snapshot.board;this.cameraStored='';}
+  if(!this.visible()){this.cancelPointers(true);this.motion.cancel();this.generation++;this.closeMenu();this.clearPreviews();return;}
   // Read the viewport before history, SVG and node writes; fit shares this one refresh snapshot.
-  const stageSize=this.stageSize={width:this.stage.clientWidth,height:this.stage.clientHeight};
+  const pane=this.host.container??this.el,previousPane=this.paneSize,paneSize={width:pane.clientWidth,height:pane.clientHeight},paneResized=previousPane.width>0&&previousPane.height>0&&(previousPane.width!==paneSize.width||previousPane.height!==paneSize.height);this.paneSize=paneSize;
+  const previousSize=this.stageSize,stageSize={width:this.stage.clientWidth,height:this.stage.clientHeight},resized=previousSize.width>0&&previousSize.height>0&&(previousSize.width!==stageSize.width||previousSize.height!==stageSize.height);
+  if(resized)this.cancelPointers(true);this.stageSize=stageSize;
   this.title.title=snapshot.path;this.shell.classList.toggle('is-readonly',!!snapshot.readOnly);this.back.disabled=!!snapshot.readOnly||state.history.index<=0;this.forward.disabled=!!snapshot.readOnly||state.history.index>=state.history.entries.length-1;if(this.colorButton)this.colorButton.disabled=!!snapshot.readOnly;
-  const stored=JSON.stringify(snapshot.board.brainViewport);if(!this.viewportIntent&&stored!==this.cameraStored){this.cameraStored=stored;const viewport=snapshot.board.brainViewport;if(viewport){this.camera={...viewport,zoom:clampZoom(viewport.zoom)};this.cameraReady=true;this.fitCamera=false;}else{this.cameraReady=false;this.fitCamera=true;this.fitAll=false;}}
+  const stored=JSON.stringify(snapshot.board.brainViewport);let restoredCamera=false;if(!this.viewportIntent&&stored!==this.cameraStored){this.cameraStored=stored;const viewport=snapshot.board.brainViewport;if(viewport){this.camera={...viewport,zoom:clampZoom(viewport.zoom)};this.cameraReady=true;this.fitCamera=false;restoredCamera=true;}else{this.cameraReady=false;this.fitCamera=true;this.fitAll=false;}}
   this.renderSearch();
   const resolved=this.refreshCache.resolve(snapshot,state.centerId||''),matches=resolved.matches;this.nativePending=resolved.nativePending;
   const depth=state.descendantDepth??1;
@@ -120,6 +125,9 @@ export class BrainBoardView extends Component {
   const previousLayout=this.layout,previous=this.projection;
   if(previous&&previous.resolved===resolved&&previous.page===this.descendantPage&&previous.stamp===projectionStamp)this.layout=previous.layout;
   else{this.layout=brainBoardLayout(matches,{width:depth>1?Math.max(1900,stageSize.width):stageSize.width||1600,height:stageSize.height||870,page:this.page,pageSize:18,expandedIds,associationSides:resolved.sides,revealId:this.revealId});if(this.descendantPage)this.layout=brainBoardDescendantLayout(this.layout,this.descendantPage,expandedIds);this.projection={resolved,page:this.descendantPage,stamp:projectionStamp,layout:this.layout};}
+  // The native header and pager reflow inside the owning leaf container. Only
+  // an actual leaf resize may compensate an already restored camera.
+  if(resized&&paneResized&&!restoredCamera&&!ownerChanged&&!centerChanged&&this.cameraReady&&!this.fitCamera&&previousLayout)this.preserveResizeCamera(previousLayout,previousSize,stageSize);
   this.revealId=undefined;this.page=this.layout.page;
   this.statusHint=matches.invalidBranches?'父子关系无效，已隐藏无法核实的分支':this.nativePending?'原生引用索引更新中':'';this.refreshSaveFeedback(snapshot);
   const paintStamp=JSON.stringify([state,!!snapshot.readOnly,snapshot.nativeRevision,snapshot.path,brainColorsStamp(snapshot.board.brainColors),this.colorPreview?.value,this.error]);
@@ -179,12 +187,12 @@ export class BrainBoardView extends Component {
   const node=[...this.nodes.values()].find(item=>item.root.dataset.brainRole!=='center')||this.nodes.values().next().value,nodeStyle=node?win.getComputedStyle(node.pill):undefined;
   const style=win.getComputedStyle(probe),samples={background:win.getComputedStyle(this.stage).backgroundColor,node:nodeStyle?.backgroundColor||style.backgroundColor,border:nodeStyle?.borderTopColor||style.borderBottomColor,text:style.color,line:style.borderTopColor};probe.remove();return samples;
  }
- private pageDescendants(action:'previous'|'next'|'reset'){if(!this.descendants||!this.visible())return;this.motion.cancel();this.descendants[action]();this.fitCamera=true;this.fitAll=false;this.refresh();this.queueViewport();}
+ private pageDescendants(action:'previous'|'next'|'reset'){if(!this.descendants||!this.visible())return;this.cancelPointers(true);this.motion.cancel();this.descendants[action]();this.fitCamera=true;this.fitAll=false;this.refresh();this.queueViewport();}
  showDepthMenu(){this.boardMenu(undefined);}
  private openColors(){const snapshot=this.host.snapshot();if(this.alive&&this.visible()&&snapshot?.board.presentation==='brain'&&!snapshot.readOnly)this.host.colors?.();}
- focusSearch(){if(!this.visible())return;this.input.focus({preventScroll:true});if(!this.searchVisible)this.toggleSearch(true);}
- revealRelation(id:string){this.revealId=id;this.fitCamera=true;this.fitAll=true;this.refresh();this.queueViewport();}
- fitToCanvas(){this.motion.cancel();this.fitCamera=true;this.fitAll=true;this.fit();this.queueViewport();}
+ focusSearch(){if(!this.visible())return;this.cancelPointers(true);this.input.focus({preventScroll:true});if(!this.searchVisible)this.toggleSearch(true);}
+ revealRelation(id:string){this.cancelPointers(true);this.revealId=id;this.fitCamera=true;this.fitAll=true;this.refresh();this.queueViewport();}
+ fitToCanvas(){this.cancelPointers(true);this.motion.cancel();this.fitCamera=true;this.fitAll=true;this.fit();this.queueViewport();}
  resetZoom(){this.zoomAt(1);}
  flushPendingViewport(){this.flushViewport();}
  private trackCommandComposition(){
@@ -192,7 +200,8 @@ export class BrainBoardView extends Component {
   if(this.compositionScope)this.removeChild(this.compositionScope);
   this.composing=false;this.compositionDocument=doc;const scope=this.compositionScope=this.addChild(new Component());
   scope.registerDomEvent(doc,'compositionstart',()=>{this.composing=true;},{capture:true});scope.registerDomEvent(doc,'compositionend',()=>{this.composing=false;},{capture:true});
-  if(doc.defaultView)scope.registerDomEvent(doc.defaultView,'blur',()=>{this.composing=false;});
+  if(doc.defaultView)scope.registerDomEvent(doc.defaultView,'blur',()=>{this.composing=false;this.cancelPointers(true);});
+  const touch=this.touchMedia=doc.defaultView?.matchMedia?.('(any-pointer: coarse)');if(touch?.addEventListener){const change=()=>this.transform();touch.addEventListener('change',change);scope.register(()=>touch.removeEventListener('change',change));}
  }
  relationCommandTarget(checking=false):BrainRelationCommandTarget|undefined{
   const snapshot=this.host.snapshot(),doc=this.el.ownerDocument,id=snapshot?.board.brain?.centerId;
@@ -209,7 +218,7 @@ export class BrainBoardView extends Component {
   return{editing:editing(),canRun,run:side=>{if(canRun()&&!editing(false))this.createRelation(id,side);}};
  }
  focusNode(id=this.host.snapshot()?.board.brain?.centerId){
-  if(!this.visible())return;if(this.center!==this.host.snapshot()?.board.brain?.centerId)this.refresh();
+  if(!this.visible())return;this.cancelPointers(true);if(this.center!==this.host.snapshot()?.board.brain?.centerId)this.refresh();
   const item=id?this.nodes.get(id):undefined,position=this.layout?.nodes.find(node=>node.id===id);
   if(item&&position){
    // Keep the visibility guard and verify dimensions for standalone focus or a
@@ -292,21 +301,70 @@ export class BrainBoardView extends Component {
  private chooseSearch(id:string){this.update({type:'center',id});this.toggleSearch(false);this.focusNode(id);}
  private searchKey(event:KeyboardEvent){if(event.isComposing)return;if(event.key==='Escape'){event.preventDefault();event.stopPropagation();this.toggleSearch(false);this.focusNode();}else if(event.key==='Enter'){event.preventDefault();event.stopPropagation();const id=this.searchIds[this.searchIndex];if(id)this.chooseSearch(id);}else if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();event.stopPropagation();this.searchIndex=Math.max(0,Math.min(this.searchIds.length-1,this.searchIndex+(event.key==='ArrowDown'?1:-1)));if(!this.searchVisible)this.toggleSearch(true);else this.selectSearchRow();}}
  private keydown(event:KeyboardEvent){if(event.isComposing)return;const editing=!!(event.target as HTMLElement)?.closest('input,textarea,select,[contenteditable="true"]');if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='k'&&(!editing||event.target===this.input)){event.preventDefault();event.stopPropagation();this.focusSearch();return;}if(editing)return;if(event.altKey&&(event.key==='ArrowLeft'||event.key==='ArrowRight')){event.preventDefault();event.stopPropagation();this.update({type:'history',direction:event.key==='ArrowLeft'?'back':'forward'});this.focusNode();return;}if(event.key==='Escape'){this.closeMenu();this.toggleSearch(false);event.stopPropagation();return;}if(this.host.shortcut?.(event)){event.preventDefault();event.stopPropagation();return;}event.stopPropagation();}
- private pointerDown(event:PointerEvent){if(event.button!==0||(event.target as HTMLElement)?.closest('button,input,.ts-brain-preview,.ts-brain-pager,.ts-brain-zoom'))return;event.preventDefault();this.shell.focus({preventScroll:true});this.pan={id:event.pointerId,x:event.clientX,y:event.clientY,startX:this.camera.x,startY:this.camera.y,moved:false};this.stage.setPointerCapture?.(event.pointerId);}
- private pointerMove(event:PointerEvent){if(!this.pan||this.pan.id!==event.pointerId)return;const dx=event.clientX-this.pan.x,dy=event.clientY-this.pan.y;if(Math.abs(dx)+Math.abs(dy)<3&&!this.pan.moved)return;if(!this.pan.moved)this.stage.classList.add('is-panning');this.motion.cancel();this.pan.moved=true;this.fitCamera=false;this.camera={...this.camera,x:this.pan.startX+dx,y:this.pan.startY+dy};this.queueCameraFrame();}
- private pointerEnd(event:PointerEvent){if(!this.pan||this.pan.id!==event.pointerId)return;const moved=this.pan.moved;this.pan=undefined;this.stage.classList.remove('is-panning');if(this.stage.hasPointerCapture?.(event.pointerId))this.stage.releasePointerCapture(event.pointerId);if(moved){this.cancelCameraFrame();this.transform();this.queueViewport();}}
- private wheel(event:WheelEvent){event.stopPropagation();if((event.target as HTMLElement)?.closest('.ts-brain-preview')&&!event.metaKey&&!event.ctrlKey)return;event.preventDefault();this.motion.cancel();const factor=event.deltaMode===1?16:event.deltaMode===2?this.stage.clientHeight:1;if(event.ctrlKey||event.metaKey){const rect=this.stage.getBoundingClientRect();this.zoomAt(this.camera.zoom*Math.exp(-event.deltaY*factor*.002),event.clientX-rect.left,event.clientY-rect.top,true);return;}this.fitCamera=false;this.camera.x-=event.deltaX*factor;this.camera.y-=event.deltaY*factor;this.queueCameraFrame();this.queueViewport();}
- private zoomAt(zoom:number,x=this.stage.clientWidth/2,y=this.stage.clientHeight/2,defer=false){this.motion.cancel();const next=clampZoom(zoom),scale=next/this.camera.zoom;this.camera={x:x-(x-this.camera.x)*scale,y:y-(y-this.camera.y)*scale,zoom:next};this.fitCamera=false;this.cameraReady=true;if(defer)this.queueCameraFrame();else{this.cancelCameraFrame();this.transform();}this.queueViewport();}
+ private pointerDown(event:PointerEvent){
+  if(event.button!==0)return;
+  if((event.target as HTMLElement)?.closest('button,input,textarea,select,a,[contenteditable],.ts-brain-preview,.ts-brain-pager,.ts-brain-zoom')){this.cancelPointers(true);return;}
+  if(event.pointerType==='touch'){
+   if(this.pan&&!this.touchPoints.has(this.pan.id)||this.touchPoints.has(event.pointerId)||this.touchPoints.size>=2)return;
+   event.preventDefault();this.touchPoints.set(event.pointerId,{x:event.clientX,y:event.clientY});this.stage.setPointerCapture?.(event.pointerId);
+   if(this.touchPoints.size===1){this.touchMoved=false;this.pan={id:event.pointerId,x:event.clientX,y:event.clientY,startX:this.camera.x,startY:this.camera.y,moved:false};}
+   else{const [a,b]=[...this.touchPoints.values()];this.pan=undefined;this.pinch={x:(a.x+b.x)/2,y:(a.y+b.y)/2,distance:Math.max(1,Math.hypot(a.x-b.x,a.y-b.y)),camera:{...this.camera}};}
+   return;
+  }
+  if(this.touchPoints.size||this.pan)return;
+  event.preventDefault();this.shell.focus({preventScroll:true});this.pan={id:event.pointerId,x:event.clientX,y:event.clientY,startX:this.camera.x,startY:this.camera.y,moved:false};this.stage.setPointerCapture?.(event.pointerId);
+ }
+ private pointerMove(event:PointerEvent){
+  if(this.touchPoints.has(event.pointerId)){
+   event.preventDefault();
+   this.touchPoints.set(event.pointerId,{x:event.clientX,y:event.clientY});
+   if(this.pinch&&this.touchPoints.size===2){
+    const [a,b]=[...this.touchPoints.values()],pinch=this.pinch,rect=this.stage.getBoundingClientRect(),zoom=clampZoom(pinch.camera.zoom*Math.hypot(a.x-b.x,a.y-b.y)/pinch.distance),scale=zoom/pinch.camera.zoom;
+    this.camera={x:(a.x+b.x)/2-rect.left-(pinch.x-rect.left-pinch.camera.x)*scale,y:(a.y+b.y)/2-rect.top-(pinch.y-rect.top-pinch.camera.y)*scale,zoom};this.touchMoved=true;this.stage.classList.add('is-panning');this.motion.cancel();this.fitCamera=false;this.cameraReady=true;this.queueCameraFrame();return;
+   }
+  }
+  if(!this.pan||this.pan.id!==event.pointerId)return;const dx=event.clientX-this.pan.x,dy=event.clientY-this.pan.y;if(Math.abs(dx)+Math.abs(dy)<3&&!this.pan.moved)return;if(!this.pan.moved)this.stage.classList.add('is-panning');this.motion.cancel();this.pan.moved=true;this.touchMoved=this.touchMoved||this.touchPoints.has(event.pointerId);this.fitCamera=false;this.camera={...this.camera,x:this.pan.startX+dx,y:this.pan.startY+dy};this.queueCameraFrame();
+ }
+ private pointerEnd(event:PointerEvent){
+  if(this.touchPoints.has(event.pointerId)){
+   const moved=this.touchMoved;if(event.type==='pointercancel'||event.type==='lostpointercapture'){this.cancelPointers();}
+   else{this.touchPoints.delete(event.pointerId);if(this.pan?.id===event.pointerId)this.pan=undefined;this.pinch=undefined;if(this.stage.hasPointerCapture?.(event.pointerId))this.stage.releasePointerCapture(event.pointerId);if(this.touchPoints.size)return;this.touchMoved=false;this.stage.classList.remove('is-panning');}
+   if(moved){this.cancelCameraFrame();this.transform();this.queueViewport();}return;
+  }
+  if(!this.pan||this.pan.id!==event.pointerId)return;const moved=this.pan.moved;this.pan=undefined;this.stage.classList.remove('is-panning');if(this.stage.hasPointerCapture?.(event.pointerId))this.stage.releasePointerCapture(event.pointerId);if(moved){this.cancelCameraFrame();this.transform();this.queueViewport();}
+ }
+ private cancelPointers(save=false){
+  const ids=new Set([...this.touchPoints.keys(),...(this.pan?[this.pan.id]:[])]),moved=this.touchMoved||!!this.pan?.moved;
+  // Clear ownership before releasing capture: lostpointercapture can be delivered
+  // synchronously and must not end a surviving finger or enqueue a second save.
+  this.touchPoints.clear();this.pan=undefined;this.pinch=undefined;this.touchMoved=false;this.stage?.classList.remove('is-panning');for(const id of ids)if(this.stage?.hasPointerCapture?.(id))this.stage.releasePointerCapture(id);
+  if(!moved)return;this.cancelCameraFrame();const snapshot=this.host.snapshot();
+  if(save&&this.alive&&snapshot&&snapshot.board===this.cameraBoard&&(snapshot.key||snapshot.path)===this.context&&snapshot.path===this.boardPath&&snapshot.board.presentation==='brain'){this.transform();this.queueViewport();}
+ }
+ private wheel(event:WheelEvent){event.stopPropagation();if((event.target as HTMLElement)?.closest('.ts-brain-preview')&&!event.metaKey&&!event.ctrlKey)return;event.preventDefault();this.cancelPointers(true);this.motion.cancel();const factor=event.deltaMode===1?16:event.deltaMode===2?this.stage.clientHeight:1;if(event.ctrlKey||event.metaKey){const rect=this.stage.getBoundingClientRect();this.zoomAt(this.camera.zoom*Math.exp(-event.deltaY*factor*.002),event.clientX-rect.left,event.clientY-rect.top,true);return;}this.fitCamera=false;this.camera.x-=event.deltaX*factor;this.camera.y-=event.deltaY*factor;this.queueCameraFrame();this.queueViewport();}
+ private zoomAt(zoom:number,x=this.stage.clientWidth/2,y=this.stage.clientHeight/2,defer=false){this.cancelPointers(true);this.motion.cancel();const next=clampZoom(zoom),scale=next/this.camera.zoom;this.camera={x:x-(x-this.camera.x)*scale,y:y-(y-this.camera.y)*scale,zoom:next};this.fitCamera=false;this.cameraReady=true;if(defer)this.queueCameraFrame();else{this.cancelCameraFrame();this.transform();}this.queueViewport();}
  // Inputs update the logical camera immediately; only the DOM projection is
  // coalesced. A later input in the same frame therefore keeps its exact anchor
  // and accumulated delta, while ports and action positions run once per frame.
  private queueCameraFrame(){const win=this.el.ownerDocument.defaultView;if(this.cameraFrame||!win)return;this.cameraWindow=win;this.cameraFrame=win.requestAnimationFrame(()=>{this.cameraFrame=0;this.cameraWindow=undefined;if(this.alive&&this.el.ownerDocument.defaultView===win)this.transform();});}
  private cancelCameraFrame(){if(this.cameraFrame)this.cameraWindow?.cancelAnimationFrame(this.cameraFrame);this.cameraFrame=0;this.cameraWindow=undefined;}
- private fit(size?:{width:number;height:number}){if(!this.layout)return;const width=(size?.width??this.stage.clientWidth)||this.layout.width,height=(size?.height??this.stage.clientHeight)||this.layout.height;const readingHeight=this.fitAll?Math.max(160,height-(this.pager.hidden?76:144)):height,fitted=Math.min(1,width/this.layout.width,readingHeight/this.layout.height),zoom=this.fitAll?fitted:Math.max(.72,fitted);this.stageSize={width,height};const center=!this.fitAll&&this.layout.nodes.some(node=>(node.depth??0)>1)?this.layout.nodes.find(node=>node.role==='center'):undefined;this.camera=center?{x:width/2-(center.x+center.width/2)*zoom,y:height*.35-(center.y+center.height/2)*zoom,zoom}:{x:(width-this.layout.width*zoom)/2,y:(readingHeight-this.layout.height*zoom)/2,zoom};this.cameraReady=true;this.transform();}
+ private preserveResizeCamera(previous:BrainBoardLayout,size:{width:number;height:number},next:{width:number;height:number}){
+  if(!this.layout||next.width<=0||next.height<=0)return;
+  // Keep the closest displayed node at the same offset from the viewport center.
+  // Intrinsic layout dimensions also change on a wide pane, so merely retaining
+  // camera x/y would shift the relationship the user was reading.
+  const distance=(node:BrainBoardLayout['nodes'][number])=>Math.hypot(this.camera.x+(node.x+node.width/2)*this.camera.zoom-size.width/2,this.camera.y+(node.y+node.height/2)*this.camera.zoom-size.height/2);
+  const anchor=previous.nodes.reduce<BrainBoardLayout['nodes'][number]|undefined>((best,node)=>!best||distance(node)<distance(best)?node:best,undefined),target=anchor?this.layout.nodes.find(node=>node.id===anchor.id):undefined;
+  const dx=anchor&&target?target.x+target.width/2-anchor.x-anchor.width/2:(this.layout.width-previous.width)/2,dy=anchor&&target?target.y+target.height/2-anchor.y-anchor.height/2:(this.layout.height-previous.height)/2;
+  this.camera={...this.camera,x:this.camera.x+(next.width-size.width)/2-dx*this.camera.zoom,y:this.camera.y+(next.height-size.height)/2-dy*this.camera.zoom};
+  if(this.viewportIntent)this.viewportIntent.value={...this.camera};
+ }
+ private fit(size?:{width:number;height:number}){if(!this.layout)return;const width=(size?.width??this.stage.clientWidth)||this.layout.width,height=(size?.height??this.stage.clientHeight)||this.layout.height;const readingHeight=this.fitAll?Math.max(160,height-(this.pager.hidden?76:144)):height,fitted=Math.min(1,width/this.layout.width,readingHeight/this.layout.height),zoom=clampZoom(this.fitAll?fitted:Math.max(.72,fitted));this.stageSize={width,height};const center=!this.fitAll&&this.layout.nodes.some(node=>(node.depth??0)>1)?this.layout.nodes.find(node=>node.role==='center'):undefined;this.camera=center?{x:width/2-(center.x+center.width/2)*zoom,y:height*.35-(center.y+center.height/2)*zoom,zoom}:{x:(width-this.layout.width*zoom)/2,y:(readingHeight-this.layout.height*zoom)/2,zoom};this.cameraReady=true;this.transform();}
  private transform(){
-  const stamp=JSON.stringify([this.camera,this.stageSize]),same=this.transformStamp===stamp;if(same&&this.transformLayout===this.layout)return;this.transformStamp=stamp;this.transformLayout=this.layout;
+  const targetSize=this.stageSize.width>0&&this.stageSize.width<=540||this.touchMedia?.matches?44:32,stamp=JSON.stringify([this.camera,this.stageSize,targetSize]),same=this.transformStamp===stamp;if(same&&this.transformLayout===this.layout)return;this.transformStamp=stamp;this.transformLayout=this.layout;
+  if(this.shell.style.getPropertyValue('--ts-brain-action-size')!==`${targetSize}px`)this.shell.style.setProperty('--ts-brain-action-size',`${targetSize}px`);
   const actionScale=String(1/Math.min(1,this.camera.zoom));this.scene.style.transform=`translate(${this.camera.x}px, ${this.camera.y}px) scale(${this.camera.zoom})`;const label=`${Math.round(this.camera.zoom*100)}%`;if(this.zoomLabel.textContent!==label)this.zoomLabel.setText(label);
-  if(!this.layout)return;const portScale=String(1/this.camera.zoom),obstacles=brainScreenObstacles(this.layout,this.camera),ports=brainPortPositions(this.layout,this.camera,this.stageSize,obstacles);const positions=sideActionPositions(this.layout,this.camera,this.stageSize,obstacles),focused=this.el.ownerDocument.activeElement;
+  if(!this.layout)return;const portScale=String(1/this.camera.zoom),obstacles=brainScreenObstacles(this.layout,this.camera),ports=brainPortPositions(this.layout,this.camera,this.stageSize,obstacles,targetSize);const positions=sideActionPositions(this.layout,this.camera,this.stageSize,obstacles,targetSize),focused=this.el.ownerDocument.activeElement;
   for(const [id,item]of this.nodes){
    // Compact tools overlay the pill; title padding is now fixed and no longer
    // consumes this variable. Keep scale writes on the controls so zooming does
@@ -335,7 +393,7 @@ export class BrainBoardView extends Component {
  private makeMenu(){this.closeMenu();const menu=new Menu().setUseNativeMenu(false);this.activeMenu=menu;menu.onHide(()=>{if(this.activeMenu===menu)this.activeMenu=undefined;});return menu;}
  private closeMenu(){const menu=this.activeMenu;this.activeMenu=undefined;try{menu?.hide();}catch{/* Owning popout may already be closing. */}}
  private showMenu(menu:Menu,event:MouseEvent|undefined,anchor:HTMLElement){if(event)menu.showAtMouseEvent(event);else{const rect=anchor.getBoundingClientRect();menu.showAtPosition({x:rect.left,y:rect.bottom},this.el.ownerDocument);}}
- private button(parent:HTMLElement,icon:string,label:string,run:(event:MouseEvent)=>unknown,action?:string){const button=parent.createEl('button',{cls:'clickable-icon',attr:{type:'button','aria-label':label,title:label}});if(action)button.dataset.brainAction=action;if(icon)setIcon(button,icon);button.onclick=event=>{event.stopPropagation();run(event);};return button;}
+ private button(parent:HTMLElement,icon:string,label:string,run:(event:MouseEvent)=>unknown,action?:string){const button=parent.createEl('button',{cls:'clickable-icon',attr:{type:'button','aria-label':label,title:label}});if(action)button.dataset.brainAction=action;if(icon)setIcon(button,icon);button.onclick=event=>{event.stopPropagation();this.cancelPointers(true);run(event);};return button;}
  private contentLabel(kind:Card['kind']){return kind==='text'?'想法': kind==='section'?'分组内容':kind==='board'?'子白板概览':'正文';}
  private openLabel(kind:Card['kind'],source:BoardMindmapSource){return kind==='section'?'查看分组内容':/^(打开|定位)/.test(source.label)?source.label:`打开 ${source.label}`;}
  private visible(){const win=this.el.ownerDocument.defaultView;return this.alive&&this.el.isConnected&&!!this.el.getClientRects().length&&!!win&&!win.closed;}

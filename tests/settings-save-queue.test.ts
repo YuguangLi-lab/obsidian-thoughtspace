@@ -7,7 +7,7 @@ import {exportSettingsProfile,parseSettingsProfile,resolveSettingsLanguage,setti
 
 type Options={cls?:string;text?:string;attr?:Record<string,string>;type?:string;value?:string};
 class Element {
- children:Element[]=[];dataset:Record<string,string>={};attributes:Record<string,string>={};classes=new Set<string>();value='';disabled=false;hidden=false;readOnly=false;files?:{size:number;text:()=>Promise<string>}[];writes=0;private text='';onclick?:()=>void;oninput?:()=>void;onchange?:()=>void;
+ children:Element[]=[];dataset:Record<string,string>={};attributes:Record<string,string>={};classes=new Set<string>();value='';disabled=false;hidden=false;readOnly=false;files?:{size:number;text:()=>Promise<string>}[];writes=0;bindings=0;private text='';onclick?:()=>void;oninput?:()=>void;onchange?:()=>void;
  constructor(readonly tagName:string,options:Options|string={}){const opts=typeof options==='string'?{cls:options}:options;this.text=opts.text||'';this.attributes={...opts.attr};this.value=opts.value||'';if(opts.type)this.attributes.type=opts.type;for(const cls of (opts.cls||'').split(/\s+/).filter(Boolean))this.classes.add(cls);}
  get textContent():string{return this.text+this.children.map(child=>child.textContent).join('');}
  createEl(tag:string,options:Options|string={}){this.writes++;const child=new Element(tag.toUpperCase(),options);this.children.push(child);return child;}createDiv(options:Options|string={}){return this.createEl('div',options);}createSpan(options:Options|string={}){return this.createEl('span',options);}
@@ -29,9 +29,9 @@ const compiled=transformSync(source+'\nreturn ThoughtSpaceSettings;',{loader:'ts
 
 function fixture(raw:unknown={}){
  const modals:any[]=[],delegated:{prefs:ThoughtSpacePreferences;persist:()=>Promise<void>}[]=[];
- class Modal {modalEl=new Element('DIV');titleEl=this.modalEl.createEl('h2');contentEl=this.modalEl.createDiv();closeCount=0;onOpen?:()=>void;onClose?:()=>void;constructor(readonly app:unknown){modals.push(this);}open(){this.onOpen?.();}close(){this.closeCount++;this.onClose?.();}}
- class PluginSettingTab {containerEl=new Element('DIV');constructor(readonly app:unknown){}}
- const deps={Modal,PluginSettingTab,Setting,Notice:class{},setIcon:()=>{},getLanguage:()=> 'en',themeSurface:()=>{},resolveSettingsLanguage,settingsCategoryDefaults,exportSettingsProfile,parseSettingsProfile,boardPreferenceControls:(_el:unknown,prefs:ThoughtSpacePreferences,persist:()=>Promise<void>)=>delegated.push({prefs,persist}),mousePreferenceControls:(_el:unknown,prefs:ThoughtSpacePreferences,persist:()=>Promise<void>)=>delegated.push({prefs,persist}),hostSettings:()=>undefined,imageHostApi:()=>undefined,validateFolders:()=>({})};
+ class Modal {modalEl=new Element('DIV');titleEl=this.modalEl.createEl('h2');contentEl=this.modalEl.createDiv();closeCount=0;onOpen(){}onClose(){}constructor(readonly app:unknown){modals.push(this);}open(){this.onOpen();}close(){this.closeCount++;this.onClose();}}
+ class PluginSettingTab {containerEl=new Element('DIV');constructor(readonly app:unknown){}hide(){}}
+ const deps={Modal,PluginSettingTab,Setting,Notice:class{},setIcon:()=>{},getLanguage:()=> 'en',themeSurface:()=>{},bindMobileViewport:(root:Element)=>{root.bindings++;return()=>{root.bindings--;};},resolveSettingsLanguage,settingsCategoryDefaults,exportSettingsProfile,parseSettingsProfile,boardPreferenceControls:(_el:unknown,prefs:ThoughtSpacePreferences,persist:()=>Promise<void>)=>delegated.push({prefs,persist}),mousePreferenceControls:(_el:unknown,prefs:ThoughtSpacePreferences,persist:()=>Promise<void>)=>delegated.push({prefs,persist}),hostSettings:()=>undefined,imageHostApi:()=>undefined,validateFolders:()=>({})};
  const ThoughtSpaceSettings=new Function(...Object.keys(deps),compiled)(...Object.values(deps));
  const saves:ThoughtSpacePreferences[]=[],pending:ReturnType<typeof deferred<void>>[]=[];
  let disk=cleanPluginSettings(raw),rendered=cleanPluginSettings(raw),refreshes=0,rebuilds=0,displays=0,reports=0;
@@ -106,6 +106,11 @@ function profileFixture(){
  return{...f,modal,root,input,file,status,button,setJson,choose};
 }
 const json=(accent:string)=>JSON.stringify({format:'thoughtspace-preferences',version:1,preferences:{accent}});
+
+test('profile and confirmation modals release their viewport bindings on cancellation',()=>{
+ const f=profileFixture();assert.equal(f.modal.modalEl.bindings,1);f.modal.close();f.modal.close();assert.equal(f.modal.modalEl.bindings,0);
+ f.tab.confirmFiling(false);const confirm=f.modals.at(-1);assert.equal(confirm.modalEl.bindings,1);confirm.close();confirm.close();assert.equal(confirm.modalEl.bindings,0);
+});
 
 test('profile edits and oversized or unreadable file selections revoke an earlier validation immediately',async()=>{
  const f=profileFixture();f.setJson(json('blue'));f.button('Validate').click();assert.equal(f.button('Apply profile').disabled,false);

@@ -2,6 +2,7 @@ import {createOnlineController,type OnlineController,type OnlineState as Control
 import {parseOnlineVideo,type ParsedOnlineSource} from './online-platform/online-video.mjs';
 import {resolveOnlineVideo,type RedirectFetcher} from './online-platform/online-resolver.mjs';
 import {createWebviewWindow,type OnlineWebviewRuntime} from './online-platform-webview';
+import {requireDesktopRuntime} from './platform-runtime';
 
 export type OnlineSource=Omit<ParsedOnlineSource,'mediaUrl'>;
 export type {OnlineAction} from './online-platform/online-controller.mjs';
@@ -17,6 +18,7 @@ export function parseOnlineSource(input:string):OnlineSource|undefined {
 /** The resolver reads redirect headers only; it never downloads a page body. */
 export async function resolveOnlineSource(input:string):Promise<OnlineSource> {
  const redirects:RedirectFetcher=(url,options)=>new Promise((resolve,reject)=>{
+  requireDesktopRuntime('在线视频短链接解析');
   const https=require('node:https') as typeof import('node:https');
   const request=https.get(url,{signal:options.signal},response=>{
    response.destroy();
@@ -63,6 +65,7 @@ export class OnlinePlatform {
  private getController():OnlineController {
   if(this.disposed)throw Error('在线视频播放器已关闭，请重新打开');
   if(this.controller)return this.controller;
+  if(!this.loadRuntime)requireDesktopRuntime('插件内在线视频播放器');
   // These desktop-only modules are loaded only for an explicit playback action.
   let runtime:OnlineWebviewRuntime;
   try {

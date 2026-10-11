@@ -1,3 +1,4 @@
+import {sha256} from '../src/portable-sha256';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -18,7 +19,7 @@ function fixture(){
  const files=new Map<string,TFile>(),texts=new Map<TFile,string>(),creates:{file:TFile;body:string}[]=[],inputs:string[]=[];
  const controls={beforeSource:undefined as (()=>Promise<void>)|undefined,beforeRead:undefined as ((file:TFile)=>Promise<void>)|undefined,beforeValidate:undefined as ((file:TFile)=>Promise<void>)|undefined};
  let reads=0,validations=0,binaryOperations=0;
- const deps={TFile,createHash,safeName,normalizePath:posix.normalize,createExternalMediaReference:async(input:string)=>{inputs.push(input);await controls.beforeSource?.();return reference;}};
+ const deps={TFile,sha256,safeName,normalizePath:posix.normalize,createExternalMediaReference:async(input:string)=>{inputs.push(input);await controls.beforeSource?.();return reference;}};
  const Plugin=new Function(...Object.keys(deps),transformSync(`class Plugin{${method}};return Plugin`,{loader:'ts'}).code)(...Object.values(deps));
  const plugin=new Plugin(),forbidBinary=()=>{binaryOperations++;throw Error('External media must remain outside the vault');};
  Object.assign(plugin,{mediaClosed:false,settings:{cardFolder:'ThoughtSpace/Cards'},app:{vault:{getAbstractFileByPath:(path:string)=>files.get(path),read:async(file:TFile)=>{reads++;await controls.beforeRead?.(file);return texts.get(file)!;},readBinary:forbidBinary,createBinary:forbidBinary}},mediaWorkspace:{validateResource:async(file:TFile)=>{validations++;await controls.beforeValidate?.(file);}},createUnique:async(folder:string,title:string,extension:string,body:string)=>{

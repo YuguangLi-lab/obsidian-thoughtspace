@@ -6,6 +6,7 @@ import {hostSettings} from './host-capabilities';
 import {imageHostApi} from './image-host';
 import {validateFolders} from './filing';
 import {themeSurface} from './ui-tokens';
+import {bindMobileViewport} from './mobile-viewport';
 
 type Page=SettingsCategory|'filing'|'images'|'profiles';
 type Pair=readonly [string,string];
@@ -33,11 +34,11 @@ export interface SettingsHost extends Plugin {
 export const settingsLanguage=(settings:ThoughtSpacePreferences)=>resolveSettingsLanguage(settings.settingsLanguage,getLanguage());
 
 class SettingsConfirm extends Modal {
- private closed=false;
+ private closed=false;private viewport?:()=>void;
  constructor(app:App,private label:string,private detail:string,private confirmLabel:string,private language:SettingsLanguage,private apply:()=>Promise<void>){super(app);}
  onOpen(){
   this.closed=false;
-  themeSurface(this.modalEl);this.titleEl.setText(this.label);
+  themeSurface(this.modalEl);this.modalEl.addClass('ts-settings-confirm-modal');this.viewport?.();this.viewport=bindMobileViewport(this.modalEl);this.titleEl.setText(this.label);
   this.contentEl.createEl('p',{text:this.detail});
   const status=this.contentEl.createDiv({attr:{role:'status'}});
   const row=new Setting(this.contentEl);
@@ -46,7 +47,7 @@ class SettingsConfirm extends Modal {
    if(this.closed)return;b.setDisabled(true);try{await this.apply();if(!this.closed)this.close();}catch{if(this.closed)return;status.setText(this.language==='en'?'Operation failed. Check the result before retrying.':'操作失败，请检查结果后重试。');b.setDisabled(false);}
   }));
  }
- onClose(){this.closed=true;this.contentEl.empty();}
+ onClose(){this.closed=true;this.viewport?.();this.viewport=undefined;this.contentEl.empty();}
 }
 
 /** The same settings surface is shared by Obsidian preferences and the workspace dialog. */
@@ -56,7 +57,7 @@ export class ThoughtSpaceSettings extends PluginSettingTab {
  private panels=new Map<Page,HTMLElement>();private navigation=new Map<Page,HTMLButtonElement>();
  private searchCount?:HTMLElement;private searchInput?:HTMLInputElement;
  private saveTail:Promise<void>=Promise.resolve();
- private pendingWrites=0;private refreshAfterSave=false;
+ private pendingWrites=0;private refreshAfterSave=false;private viewport?:()=>void;
  constructor(app:App,private host:SettingsHost){super(app,host);}
  private t(pair:Pair){return pair[this.language==='en'?1:0];}
  private report(error:unknown){console.error('[ThoughtSpace settings]',error);const message=this.t(['设置未能保存，请重试。','Settings could not be saved. Please try again.']);this.status?.setText(message);new Notice(message);}
@@ -97,6 +98,7 @@ export class ThoughtSpaceSettings extends PluginSettingTab {
   }));
  }
  display(){
+  this.viewport?.();this.viewport=undefined;
   this.language=settingsLanguage(this.host.settings);
   const root=this.containerEl;root.empty();root.addClass('ts-settings','ts-settings-v2');root.dataset.accent=this.host.settings.accent;root.lang=this.language;
   this.panels.clear();this.navigation.clear();
@@ -123,8 +125,9 @@ export class ThoughtSpaceSettings extends PluginSettingTab {
    this.renderPage(item.id,panel);
   }
   this.status=root.createDiv({cls:'ts-settings-save-status',attr:{role:'status','aria-live':'polite'}});
-  this.filter();
+  this.filter();this.viewport=bindMobileViewport(root);
  }
+ hide(){this.viewport?.();this.viewport=undefined;super.hide();}
  private filter(){
   const query=this.query.trim().toLowerCase(),terms=query.split(/\s+/).filter(Boolean);let count=0;
   this.containerEl.toggleClass('is-searching',!!query);
@@ -206,8 +209,9 @@ export class ThoughtSpaceSettings extends PluginSettingTab {
   const modal=new Modal(this.app),t=(pair:Pair)=>this.t(pair);themeSurface(modal.modalEl);modal.modalEl.addClass('ts-settings-profile-modal');modal.titleEl.setText(t(importing?['导入偏好配置','Import preferences']:['导出偏好配置','Export preferences']));
   const input=modal.contentEl.createEl('textarea',{attr:{'aria-label':t(['偏好配置 JSON','Preference profile JSON']),spellcheck:'false'}});input.value=importing?'':exportSettingsProfile(this.host.settings);input.readOnly=!importing;
   const status=modal.contentEl.createDiv({cls:'ts-settings-profile-status',attr:{role:'status','aria-live':'polite'}});
-  const actions=new Setting(modal.contentEl);let patch:Partial<ThoughtSpacePreferences>|undefined;let generation=0,closed=false,loading=false,busy=false;let validateButton:HTMLButtonElement;
-  modal.onClose=()=>{closed=true;generation++;modal.contentEl.empty();};
+  const actions=new Setting(modal.contentEl);let patch:Partial<ThoughtSpacePreferences>|undefined;let generation=0,closed=false,loading=false,busy=false;let validateButton:HTMLButtonElement;let viewport:(()=>void)|undefined;
+  modal.onOpen=()=>{viewport?.();viewport=bindMobileViewport(modal.modalEl);};
+  modal.onClose=()=>{closed=true;generation++;viewport?.();viewport=undefined;modal.contentEl.empty();};
   if(importing){
    const file=modal.contentEl.createEl('input',{type:'file',attr:{accept:'.json,application/json','aria-label':t(['选择配置文件','Choose profile file'])}});file.hidden=true;
    file.onchange=()=>{const selected=file.files?.[0];file.value='';if(!selected||busy)return;const run=++generation;patch=undefined;apply.disabled=true;loading=false;validateButton.disabled=false;if(selected.size>65_536){status.setText(t(['配置文件过大。','Profile file is too large.']));return;}loading=true;validateButton.disabled=true;status.setText(t(['正在读取配置…','Reading profile…']));void selected.text().then(text=>{if(closed||run!==generation)return;input.value=text;patch=undefined;apply.disabled=true;status.setText('');}).catch(()=>{if(!closed&&run===generation)status.setText(t(['无法读取文件。','Could not read file.']));}).finally(()=>{if(!closed&&run===generation){loading=false;validateButton.disabled=false;}});};

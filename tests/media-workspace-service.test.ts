@@ -15,6 +15,7 @@ import * as subtitles from '../src/media-subtitles';
 import * as markdownContext from '../src/markdown-context';
 import * as markdownLinks from '../src/markdown-links';
 import * as markdownLiterals from '../src/markdown-literals';
+import {sha256} from '../src/portable-sha256';
 import type {MediaCardOptions,MediaCardState} from '../src/media-card-player';
 
 class TFile {
@@ -28,9 +29,12 @@ function deferred<T=void>(){let resolve!:(value:T)=>void,reject!:(error:unknown)
 const tick=()=>new Promise<void>(resolve=>setImmediate(resolve));
 const timers=new Map<number,()=>void>();let timerId=0;
 const compiled=transformSync(readFileSync('src/media-workspace-service.ts','utf8'),{loader:'ts',format:'cjs'}).code,module={exports:{}},nodeRequire=createRequire(import.meta.url);
-const externalModule={exports:{}};
+const externalModule={exports:{}},runtimeModule={exports:{}};
+const desktopHost={TFile,FileSystemAdapter,Platform:{isDesktop:true,resourcePathPrefix:'app://runtime-id/'}};
+new Function('require','module','exports',transformSync(readFileSync('src/platform-runtime.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>name==='obsidian'?desktopHost:nodeRequire(name),runtimeModule,runtimeModule.exports);
 new Function('require','module','exports',transformSync(readFileSync('src/external-media.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>{
- if(name==='obsidian')return{Platform:{resourcePathPrefix:'app://runtime-id/'}};
+ if(name==='obsidian')return desktopHost;
+ if(name==='./platform-runtime')return runtimeModule.exports;
  if(name==='./media-source')return mediaSource;
  if(name==='./value-guards')return{hasAsciiControl:(value:string)=>/[\x00-\x1f]/.test(value),isRecord:(value:unknown)=>!!value&&typeof value==='object'&&!Array.isArray(value)};
  return nodeRequire(name);
@@ -38,7 +42,9 @@ new Function('require','module','exports',transformSync(readFileSync('src/extern
 const external=externalModule.exports as typeof import('../src/external-media');
 let mountPlayer:(_host:unknown,options:MediaCardOptions)=>unknown;
 new Function('require','module','exports','setTimeout','clearTimeout',compiled)((name:string)=>{
- if(name==='obsidian')return{TFile,FileSystemAdapter};
+ if(name==='obsidian')return desktopHost;
+ if(name==='./platform-runtime')return runtimeModule.exports;
+ if(name==='./portable-sha256')return{sha256};
  if(name==='./media-playback')return playback;
  if(name==='./media-source')return mediaSource;
  if(name==='./external-media')return external;

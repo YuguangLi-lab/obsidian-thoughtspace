@@ -1,4 +1,5 @@
 import * as density from '../src/workspace-density';
+import * as viewport from '../src/mobile-viewport';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -25,7 +26,7 @@ class Element {
  children:Element[]=[];dataset:Record<string,string>={};attributes=new Map<string,string>();
  parentElement?:Element;
  ownerDocument:{defaultView:{setTimeout:typeof setTimeout;clearTimeout:typeof clearTimeout;URL:ObjectURLs};activeElement?:Element}={defaultView:{setTimeout,clearTimeout,URL:new ObjectURLs()}};
- className='';textContent='';title='';value='';disabled=false;readOnly=false;hidden=false;scrollTop=0;
+ className='';textContent='';title='';value='';disabled=false;readOnly=false;hidden=false;scrollTop=0;clientWidth=1024;
  scrollCalls:unknown[]=[];style={values:new Map<string,string>(),setProperty(key:string,value:string){this.values.set(key,value);},getPropertyValue(key:string){return this.values.get(key)||'';}};
  get src(){return this.attributes.get('src')||'';}set src(value:string){this.attributes.set('src',value);}
  onclick?:(event?:any)=>unknown;oninput?:()=>unknown;onkeydown?:(event:unknown)=>unknown;
@@ -97,7 +98,7 @@ function menuItem(menu:Menu,title:string){const item=menu.items.find(value=>valu
 async function settled(){await new Promise<void>(resolve=>setImmediate(resolve));}
 const compiled=transformSync(readFileSync('src/media-workspace-view.ts','utf8'),{loader:'ts',format:'cjs'}).code;
 const module={exports:{}};
-new Function('require','module','exports',compiled)((name:string)=>name==='obsidian'?{ItemView,Menu,Modal,TFile,setIcon:()=>{},Notice:class{constructor(text:string){notices.push(text);}}}:name==='./workspace-density'?density:name==='./media-source'?mediaSource:name==='./media-preview-source'?previewSource:undefined,module,module.exports);
+new Function('require','module','exports',compiled)((name:string)=>name==='obsidian'?{ItemView,Menu,Modal,TFile,setIcon:()=>{},Notice:class{constructor(text:string){notices.push(text);}}}:name==='./workspace-density'?density:name==='./mobile-viewport'?viewport:name==='./media-source'?mediaSource:name==='./media-preview-source'?previewSource:undefined,module,module.exports);
 const {MediaWorkspaceView} = module.exports as {MediaWorkspaceView:new(leaf:unknown,host:unknown)=>any};
 function fixture(drafts?:MediaDraftStore){
  const a=new TFile('media/A.mp4'),b=new TFile('media/B.mp3'),noteA=new TFile('notes/A.md'),noteB=new TFile('notes/B.md');
@@ -638,4 +639,50 @@ test('right-hand separator keyboard resizing preserves the current editor and dr
 test('pending recovery is actionable in the source header and leaves the draft read-only',async()=>{
  const disk=localDrafts();disk.rows.set('header',{version:1,id:'header',text:'pending',time:1,updatedAt:1,source:{path:'media/A.mp4',mtime:100,size:1000}});const store=disk.create();await store.load();const f=fixture(store),v=f.view();let opened=0;f.host.recoverDrafts=()=>{opened++;};await v.setState({file:f.a.path});
  assert.equal(v.contentEl.querySelector('.ts-media-workspace__header').contains(v.status),true);assert.equal(v.recoveryButton.hidden,false);assert.equal(v.input.readOnly,true);assert.equal(v.draftStatus.textContent,'待恢复 / 丢弃');await v.recoveryButton.click();assert.equal(opened,1);await v.onClose();
+});
+
+test('phone playback panel round-trips without replacing player, composed draft or selection',async()=>{
+ const f=fixture(),v=f.view();await v.setState({file:f.a.path});v.input.value='未保存 phone draft';v.input.oninput();v.input.selectionStart=2;v.input.selectionEnd=7;v.input.dispatch('compositionstart');v.input.value='未保存 phone draft 输入中';
+ const input=v.input,player=v.player,draft=v.memory.draft;button(v.contentEl,'播放').click();assert.equal(v.getState().recordPanel,'player');button(v.contentEl,'写摘录').click();button(v.contentEl,'时间轴').click();button(v.contentEl,'播放').click();
+ assert.equal(v.input,input);assert.equal(v.player,player);assert.equal(v.memory.draft,draft);assert.equal(input.value,'未保存 phone draft 输入中');assert.equal(input.selectionStart,2);assert.equal(input.selectionEnd,7);assert.equal(v.composing,true);assert.equal(f.mounts.length,1);assert.equal(f.mounts[0].disposed,0);
+ await v.setState({...v.getState(),recordPanel:'player',time:undefined});assert.equal(v.getState().recordPanel,'player');assert.equal(v.input,input);input.dispatch('compositionend');const state=v.getState();await v.onClose();const reopened=f.view();await reopened.setState(state);assert.equal(reopened.getState().recordPanel,'player');assert.equal(reopened.input.value,'未保存 phone draft 输入中');await reopened.onClose();
+});
+
+test('closing media during unfinished composition preserves the visible draft and ignores touch save and clear',async()=>{
+ const f=fixture(),v=f.view();await v.setState({file:f.a.path});v.input.value='before';v.input.oninput();v.input.dispatch('compositionstart');v.input.value='before 中文合成';button(v.contentEl,'保存摘录').click();button(v.contentEl,'清空草稿').click();assert.equal(f.saves.length,0);assert.equal(v.input.value,'before 中文合成');const state=v.getState();await v.onClose();
+ const next=f.view();await next.setState(state);assert.equal(next.input.value,'before 中文合成');await next.onClose();
+});
+
+test('a source change during composition cannot discard the visible text on close or retarget its old source',async()=>{
+ const f=fixture(),v=f.view();await v.setState({file:f.a.path});v.input.value='before';v.input.oninput();const original={...v.memory.draft.source};v.input.dispatch('compositionstart');v.input.value='before 来源改变中的输入';f.a.stat.mtime++;v.sourceChanged();await v.onClose();
+ const next=f.view();await next.setState({file:f.a.path});assert.equal(next.input.value,'before 来源改变中的输入');assert.deepEqual(next.memory.draft.source,original);assert.equal(next.input.readOnly,true);assert.equal(f.saves.length,0);await next.onClose();
+});
+
+test('legacy focused media states restore the player on phones and narrow tablet splits in both state paths',async()=>{
+ for(const width of [360,390,430,760]){
+  const f=fixture(),v=f.view();v.contentEl.clientWidth=width;await v.setState({file:f.a.path,focusPlayer:true,recordPanel:'compose'});assert.equal(v.getState().recordPanel,'player');assert.equal(v.getState().focusPlayer,true);assert.equal(button(v.contentEl,'播放').attributes.get('aria-pressed'),'true');
+  const input=v.input,player=v.player;await v.setState({...v.getState(),recordPanel:'compose'});assert.equal(v.getState().recordPanel,'player');assert.equal(v.input,input);assert.equal(v.player,player);assert.equal(f.mounts.length,1);
+  await v.setState({...v.getState(),recordPanel:'compose',compactPlayer:true});assert.equal(v.focusPlayer,false);assert.equal(v.compactPlayer,true);assert.equal(v.getState().recordPanel,'compose');await v.onClose();
+ }
+});
+
+test('phone More focus toggles and record buttons preserve the same composing draft, selection and player',async()=>{
+ const f=fixture(),v=f.view();v.contentEl.clientWidth=390;await v.setState({file:f.a.path});v.input.value='before';v.input.oninput();v.input.dispatch('compositionstart');v.input.value='before 中文合成';v.input.selectionStart=2;v.input.selectionEnd=5;const input=v.input,player=v.player,draft=v.memory.draft;
+ menuItem(more(v),'专注播放').activate();assert.equal(v.getState().recordPanel,'player');assert.equal(v.getState().focusPlayer,true);
+ menuItem(more(v),'显示记录面板').activate();assert.equal(v.getState().recordPanel,'compose');assert.equal(v.getState().focusPlayer,false);
+ menuItem(more(v),'专注播放').activate();button(v.contentEl,'时间轴').click();assert.equal(v.getState().recordPanel,'timeline');assert.equal(v.getState().focusPlayer,false);
+ menuItem(more(v),'专注播放').activate();button(v.contentEl,'写摘录').click();assert.equal(v.getState().recordPanel,'compose');assert.equal(v.getState().focusPlayer,false);
+ await v.setState({...v.getState(),focusPlayer:true,recordPanel:'compose',time:undefined});assert.equal(v.getState().recordPanel,'player');assert.equal(v.getState().focusPlayer,true);
+ assert.equal(v.input,input);assert.equal(v.player,player);assert.equal(v.memory.draft,draft);assert.equal(input.value,'before 中文合成');assert.equal(input.selectionStart,2);assert.equal(input.selectionEnd,5);assert.equal(v.composing,true);assert.equal(f.mounts.length,1);assert.equal(f.mounts[0].disposed,0);await v.onClose();
+});
+
+test('desktop focus retains its record preference until narrowing selects the live player without rebuilding',async()=>{
+ for(const width of [761,1024]){
+  const f=fixture(),v=f.view();v.contentEl.clientWidth=width;await v.setState({file:f.a.path,recordPanel:'timeline',focusPlayer:true});assert.equal(v.getState().recordPanel,'timeline');assert.equal(v.getState().focusPlayer,true);menuItem(more(v),'显示记录面板').activate();assert.equal(v.getState().recordPanel,'timeline');menuItem(more(v),'专注播放').activate();assert.equal(v.getState().recordPanel,'timeline');
+  const input=v.input,player=v.player;v.contentEl.clientWidth=760;v.onResize();assert.equal(v.getState().recordPanel,'player');assert.equal(v.getState().focusPlayer,true);v.contentEl.clientWidth=1024;v.onResize();assert.equal(v.getState().focusPlayer,true);assert.equal(v.input,input);assert.equal(v.player,player);assert.equal(f.mounts.length,1);assert.equal(f.mounts[0].disposed,0);await v.onClose();
+ }
+});
+
+test('a hidden restored media leaf normalizes focused playback only after it acquires a narrow width',async()=>{
+ const f=fixture(),v=f.view();v.contentEl.clientWidth=0;await v.setState({file:f.a.path,focusPlayer:true,recordPanel:'compose'});assert.equal(v.getState().recordPanel,'compose');const input=v.input,player=v.player;v.contentEl.clientWidth=360;v.onResize();assert.equal(v.getState().recordPanel,'player');assert.equal(v.getState().focusPlayer,true);assert.equal(v.input,input);assert.equal(v.player,player);assert.equal(f.mounts.length,1);await v.onClose();
 });

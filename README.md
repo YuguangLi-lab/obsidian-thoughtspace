@@ -2,6 +2,8 @@
 
 **English** · [简体中文](README.zh-CN.md)
 
+**Prerelease [1.3.36-beta.2](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/tag/1.3.36-beta.2).** Choose **Handwriting board (手写白板)** as the third type in **New board or brain board (新建白板或脑图…)**. This beta adds phone/tablet layouts, touch reading and navigation, draft preservation during resize, and saving recovery. See the [mobile guide (Chinese)](docs/MOBILE-ADAPTATION.zh-CN.md), [handwriting guide (Chinese)](docs/HANDWRITING-IPAD.zh-CN.md) and [validation report](qa/RELEASE-1.3.36-beta.2.md). **Acceptance uses isolated desktop tests and simulated mobile input/loading; physical iOS/Android, Pencil, system IME and WKWebView remain untested.** Stable latest remains **1.3.35**; use the explicit beta link to try this prerelease.
+
 Collect material, connect ideas, and shape an article inside Obsidian. Notes, boards, and generated drafts stay in your vault.
 
 **1.3.35 · Obsidian desktop 1.13.7+ · MIT**

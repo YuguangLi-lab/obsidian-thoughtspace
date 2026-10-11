@@ -1,4 +1,5 @@
 import {applyWorkspaceDensity} from './workspace-density';
+import {bindMobileViewport} from './mobile-viewport';
 import {ItemView,Menu,Modal,Notice,TFile,WorkspaceLeaf,setIcon,type App,type ViewStateResult} from 'obsidian';
 import type {MediaCardHandle,MediaCardState} from './media-card-player';
 import type {MediaDraft,MediaDraftStore} from './media-draft-store';
@@ -27,7 +28,7 @@ export interface MediaWorkspaceHost {
 export interface MediaWorkspaceState extends Record<string,unknown>{file?:string;time?:number;placement?:MediaPlacement;playback?:MediaCardState;focusPlayer?:boolean;recordPanel?:RecordPanel;compactPlayer?:boolean;viewerRatio?:number;recordDensity?:RecordDensity;composerRatio?:number}
 type Draft=MediaDraft;
 type WorkspaceMoment=MediaMoment & {key?:string;notePath?:string};
-type RecordPanel='compose'|'timeline';
+type RecordPanel='player'|'compose'|'timeline';
 type RecordFilter='all'|'text'|'image';
 type RecordDensity='comfortable'|'compact';
 interface Memory {source:MediaIdentity;state:MediaCardState;draft?:Draft;pending?:Promise<unknown>;listeners:Set<(refresh:boolean)=>void>;focusPlayer?:boolean;editor?:symbol;capturePending?:symbol}
@@ -50,6 +51,7 @@ function playback(value:MediaCardState|undefined,fallback:MediaCardState):MediaC
 }
 const sourceIdentity=(file:TFile):MediaIdentity=>({path:file.path,mtime:file.stat.mtime,size:file.stat.size});
 const matchesSource=(file:TFile,source:MediaIdentity|undefined)=>!!source&&file.path===source.path&&file.stat.mtime===source.mtime&&file.stat.size===source.size;
+const compositionKey=(event:{isComposing:boolean;keyCode?:number})=>event.isComposing||event.keyCode===229;
 const broadcast=(memory:Memory,refresh=false)=>{for(const notify of memory.listeners)notify(refresh);};
 export class MediaWorkspaceView extends ItemView {
  private file?:TFile;
@@ -120,8 +122,9 @@ export class MediaWorkspaceView extends ItemView {
  private composing=false;
  private unsubscribeDrafts?:()=>void;
  private recoveryPrompt=false;
+ private stopViewport?:()=>void;
 
- constructor(leaf:WorkspaceLeaf,private host:MediaWorkspaceHost){super(leaf);this.unsubscribeDrafts=host.drafts?.subscribe(()=>{
+ constructor(leaf:WorkspaceLeaf,private host:MediaWorkspaceHost){super(leaf);this.stopViewport=bindMobileViewport(this.contentEl);this.unsubscribeDrafts=host.drafts?.subscribe(()=>{
   if(this.file&&this.memory&&!this.closed){if(!this.memory.draft)this.memory.draft=host.drafts?.activeFor(this.file.path);this.paintComposer();}
  });}
  getViewType(){return MEDIA_WORKSPACE;}
@@ -152,11 +155,12 @@ export class MediaWorkspaceView extends ItemView {
    if(next&&!this.memory.draft)this.memory.draft=this.host.drafts?.activeFor(next.path);this.paintComposer();
    this.placement=placement;this.contentEl.dataset.placement=placement;
    if(typeof state.focusPlayer==='boolean')this.setFocusPlayer(state.focusPlayer);
-   if(state.recordPanel==='compose'||state.recordPanel==='timeline')this.setRecordPanel(state.recordPanel);
+   if(state.recordPanel==='player'||state.recordPanel==='compose'||state.recordPanel==='timeline')this.setRecordPanel(state.recordPanel);
    if(typeof state.compactPlayer==='boolean')this.setCompactPlayer(state.compactPlayer);
    if(typeof state.composerRatio==='number')this.setComposerRatio(state.composerRatio);
    if(typeof state.viewerRatio==='number')this.setViewerRatio(state.viewerRatio);
    if(state.recordDensity==='compact'||state.recordDensity==='comfortable')this.setRecordDensity(state.recordDensity);
+   this.syncFocusedPanel();
    this.contentEl.querySelectorAll<HTMLButtonElement>('.ts-media-workspace__positions button').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.placement===placement)));
    if(validMediaTime(state.time)){this.memory.state.time=state.time;this.player?.seek(state.time);}
    this.app.workspace.requestSaveLayout();if(result)result.history=true;return;
@@ -166,7 +170,7 @@ export class MediaWorkspaceView extends ItemView {
   this.disposePlayer();this.releasePreview();this.closePreviews();this.unsubscribe?.();this.unsubscribe=undefined;this.releaseEditor();
   this.generation++;this.timelineRun++;this.cancelRefresh();
   this.file=next;this.placement=placement;this.note=undefined;this.entries=[];this.query='';this.limit=50;this.pageStart=0;this.recordFilter='all';this.expandedRecords.clear();
-  this.recordPanel=state.recordPanel==='timeline'?'timeline':'compose';
+  this.recordPanel=state.recordPanel==='player'||state.recordPanel==='timeline'?state.recordPanel:'compose';
   this.recordDensity=state.recordDensity==='compact'?'compact':'comfortable';
   if(typeof state.compactPlayer==='boolean')this.compactPlayer=state.compactPlayer;
   if(typeof state.composerRatio==='number'&&Number.isFinite(state.composerRatio))this.composerRatio=Math.max(35,Math.min(65,state.composerRatio));
@@ -182,7 +186,7 @@ export class MediaWorkspaceView extends ItemView {
    const owned=this.memory,notify=(refresh:boolean)=>{if(this.closed||this.memory!==owned)return;this.paintComposer();if(refresh&&!owned.pending)this.scheduleRefresh();};
    owned.listeners.add(notify);this.unsubscribe=()=>owned.listeners.delete(notify);
   }
-  this.render();if(state.file&&!next)this.message('找不到这份音视频文件，请重新选择。');
+  this.render();this.syncFocusedPanel();if(state.file&&!next)this.message('找不到这份音视频文件，请重新选择。');
   this.app.workspace.requestSaveLayout();if(result)result.history=true;
   await this.refreshMoments();
  }
@@ -335,8 +339,8 @@ export class MediaWorkspaceView extends ItemView {
   const playerHost=main.createDiv('ts-media-workspace__player');
   const desk=layout.createDiv('ts-media-workspace__desk');
   const switcher=layout.createDiv({cls:'ts-media-workspace__panel-switcher',attr:{role:'group','aria-label':'记录区显示内容'}});
-  for(const[panel,label,icon]of [['compose','写摘录','square-pen'],['timeline','时间轴','list-video']]as const){
-   const button=this.action(switcher,label,icon,()=>this.setRecordPanel(panel));this.panelButtons.set(panel,button);if(panel==='timeline')this.panelCount=button.createSpan({cls:'ts-media-workspace__panel-count',attr:{'aria-hidden':'true'}});
+  for(const[panel,label,icon]of [['player','播放','play'],['compose','写摘录','square-pen'],['timeline','时间轴','list-video']]as const){
+   const button=this.action(switcher,label,icon,()=>{if(this.narrowLayout()&&panel!=='player'&&this.focusPlayer)this.setFocusPlayer(false);this.setRecordPanel(panel);});this.panelButtons.set(panel,button);if(panel==='timeline')this.panelCount=button.createSpan({cls:'ts-media-workspace__panel-count',attr:{'aria-hidden':'true'}});
   }
   this.setRecordPanel(this.recordPanel);
   const composer=layout.createDiv('ts-media-workspace__composer'),heading=composer.createDiv('ts-media-workspace__composer-heading');
@@ -363,7 +367,7 @@ export class MediaWorkspaceView extends ItemView {
   this.input.addEventListener('compositionstart',()=>{try{this.beginDraft(this.currentPlayback().time);this.composing=true;if(this.memory)broadcast(this.memory);}catch{this.paintComposer();}});
   this.input.addEventListener('compositionend',()=>{this.composing=false;this.updateDraftInput();});
   this.input.oninput=()=>this.updateDraftInput();
-  this.input.onkeydown=event=>{if((event.ctrlKey||event.metaKey)&&event.key==='Enter'&&!event.isComposing){event.preventDefault();event.stopPropagation();void this.saveDraft().catch(()=>{});}};
+  this.input.onkeydown=event=>{if((event.ctrlKey||event.metaKey)&&event.key==='Enter'&&!compositionKey(event)&&!this.composing){event.preventDefault();event.stopPropagation();void this.saveDraft().catch(()=>{});}};
   const attachmentInfo=this.draftAttachment.createDiv('ts-media-workspace__attachment-info');
   attachmentInfo.createEl('strong',{text:'画面已附加'});
   this.imageLabel=attachmentInfo.createDiv('ts-media-workspace__image-label');
@@ -416,7 +420,10 @@ export class MediaWorkspaceView extends ItemView {
    if(this.initialSeek!==undefined){this.player.seek(this.initialSeek);this.initialSeek=undefined;}
   }catch{this.message('播放器暂时无法打开，请重新选择媒体；已有摘录保持不变。');}
  }
- private setFocusPlayer(value:boolean){if(value&&this.compactPlayer)this.setCompactPlayer(false);this.focusPlayer=value;if(this.memory)this.memory.focusPlayer=value;this.paintFocus();this.app.workspace.requestSaveLayout();}
+ private narrowLayout(){const width=this.contentEl.clientWidth;return width>0&&width<=760;}
+ private syncFocusedPanel(){if(this.narrowLayout()&&this.focusPlayer&&this.recordPanel!=='player')this.setRecordPanel('player');}
+ onResize(){this.syncFocusedPanel();}
+ private setFocusPlayer(value:boolean){if(value&&this.compactPlayer)this.setCompactPlayer(false);this.focusPlayer=value;if(this.memory)this.memory.focusPlayer=value;if(this.narrowLayout()){if(value)this.setRecordPanel('player');else if(this.recordPanel==='player')this.setRecordPanel('compose');}this.paintFocus();this.app.workspace.requestSaveLayout();}
  private paintFocus(){
   this.contentEl.dataset.focusPlayer=String(this.focusPlayer);
   if(this.focusButton){const label=this.focusPlayer?'显示记录面板':'专注播放';this.focusButton.setAttribute('aria-label',label);this.focusButton.setAttribute('title',label);this.focusButton.setAttribute('aria-pressed',String(this.focusPlayer));setIcon(this.focusButton.children[0] as HTMLElement,this.focusPlayer?'minimize-2':'maximize-2');}
@@ -441,7 +448,7 @@ export class MediaWorkspaceView extends ItemView {
   try{this.host.drafts.stage(draft);}catch{this.message('本机暂存失败，草稿仍在当前会话中，请保存摘录或复制文字。');new Notice('媒体草稿未能暂存到本机，请及时保存摘录或复制文字。',10000);}
  }
  private async clearDraft(){
-  const memory=this.memory;if(!memory||memory.pending||memory.capturePending||memory.editor&&memory.editor!==this.editorKey)return;
+  const memory=this.memory;if(this.composing||!memory||memory.pending||memory.capturePending||memory.editor&&memory.editor!==this.editorKey)return;
   const draft=memory.draft;if(!draft)return;
   const job=this.host.drafts?.discard(draft.id);if(job){memory.pending=job;broadcast(memory);try{await job;}catch{this.message('无法删除本机暂存，草稿仍保留，请重试。');throw Error('暂存删除失败');}finally{if(memory.pending===job)memory.pending=undefined;broadcast(memory);}}
   if(memory.draft===draft)memory.draft=undefined;memory.editor=undefined;this.composing=false;broadcast(memory);this.message('草稿已清空。');this.sourceChanged();
@@ -473,8 +480,8 @@ export class MediaWorkspaceView extends ItemView {
   this.paintDraftImage(draft?.image);
   if(this.draftAttachment)this.draftAttachment.hidden=!draft?.image;
   if(this.imageLabel){this.imageLabel.textContent=draft?.image?(this.previewUrl?'点击缩略图预览 · 随摘录保存':'截图将随摘录保存'):'';this.imageLabel.hidden=!draft?.image;}
-  if(this.clearButton)this.clearButton.disabled=pending||capturing||elsewhere||!draft;
-  if(this.saveButton){this.saveButton.disabled=pending||capturing||elsewhere||stale||!draft;this.saveButton.setAttribute('aria-busy',String(pending||capturing));}
+  if(this.clearButton)this.clearButton.disabled=this.composing||pending||capturing||elsewhere||!draft;
+  if(this.saveButton){this.saveButton.disabled=this.composing||pending||capturing||elsewhere||stale||!draft;this.saveButton.setAttribute('aria-busy',String(pending||capturing));}
  }
  private async saveDraft(){
   const file=this.file,memory=this.memory,draft=memory?.draft;
@@ -548,6 +555,10 @@ export class MediaWorkspaceView extends ItemView {
  private disposePlayer(){const player=this.player;try{if(player&&this.memory)this.memory.state=playback(player.getState?.(),this.memory.state);}finally{this.player=undefined;player?.dispose();}}
  async onClose(){
   if(this.closed)return;
+  // Closing or mobile navigation can end composition without a final input event.
+  // Preserve this editor's visible text before decoder disposal broadcasts state.
+  if(this.composing&&this.input&&this.memory?.draft&&this.memory.editor===this.editorKey&&!this.memory.pending&&!this.memory.draft.locked){this.memory.draft.text=this.input.value;this.stashDraft();}
+  this.stopViewport?.();this.stopViewport=undefined;
   this.contextMenu?.hide();this.contextMenu=undefined;
   try{this.disposePlayer();}finally{
    this.releasePreview();this.closePreviews();this.unsubscribe?.();this.unsubscribe=undefined;this.unsubscribeDrafts?.();this.unsubscribeDrafts=undefined;this.releaseEditor();this.closed=true;this.generation++;this.timelineRun++;this.cancelRefresh();

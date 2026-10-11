@@ -33,7 +33,7 @@ const entryMethods=main.slice(main.indexOf('  private resolveLegacyMedia('),main
 const onlineMethod=main.slice(main.indexOf('  openOnlineWorkspace('),main.indexOf('  async sendOnlineToBoard('));
 const localMethod=main.slice(main.indexOf('  openMediaWorkspace('),main.indexOf('  async sendMediaToBoard('));
 const deps={parseYingjianLink,yingjianNotePath,TFile,isWorkspaceFile,isRecord,parseYaml,isVaultMediaPath,mediaKind,mediaTime,FileSystemAdapter,resolvePath,mediaNoteSource,parseOnlineSource,onlineNoteSource,OnlineWorkspaceView,MediaWorkspaceView,MEDIA_WORKSPACE,ONLINE_WORKSPACE,window:{setTimeout:(fn:()=>void)=>setTimeout(fn,0)}};
-const compile=(methods:string)=>new Function(...Object.keys(deps),transformSync('class Harness {'+methods+'}\nreturn Harness;',{loader:'ts'}).code)(...Object.values(deps));
+const compile=(methods:string,desktop=true)=>{const bindings={...deps,isDesktopRuntime:()=>desktop};return new Function(...Object.keys(bindings),transformSync('class Harness {'+methods+'}\nreturn Harness;',{loader:'ts'}).code)(...Object.values(bindings));};
 const Entry=compile(entryMethods),Workspace=compile(onlineMethod+localMethod);
 function entryFixture(path=source){
  const file=new TFile(),contents=new Map([[file,`---\nsource: ${JSON.stringify(path)}\nvideo-note-id: course\n---\n`]]),files=new Map([[file.path,file]]),calls:any[][]=[],plugin=new Entry();
@@ -42,8 +42,8 @@ function entryFixture(path=source){
  plugin.resolveLegacyMedia=()=>{throw Error('Online sources must not become local TFiles');};plugin.openMediaWorkspace=()=>{throw Error('Online source must not enter local playback');};
  return{plugin,file,files,contents,calls};
 }
-function workspaceFixture(){
- const plugin=new Workspace(),leaves:any[]=[],created:any[]=[],events:any[][]=[],files=new Map<string,TFile>();let active:any;
+function workspaceFixture(desktop=true){
+ const plugin=new (desktop?Workspace:compile(onlineMethod+localMethod,false))(),leaves:any[]=[],created:any[]=[],events:any[][]=[],files=new Map<string,TFile>();let active:any;
  const makeLeaf=(view?:OnlineWorkspaceView|MediaWorkspaceView)=>{
   const leaf:any={view,type:view instanceof MediaWorkspaceView?MEDIA_WORKSPACE:ONLINE_WORKSPACE,detached:false,loadIfDeferred:async()=>{},setViewState:async(state:any)=>{
    events.push(['state',state]);leaf.type=state.type;leaf.view=state.type===ONLINE_WORKSPACE?new OnlineWorkspaceView(state.state.source,state.state.placement,state.state.note):new MediaWorkspaceView(files.get(state.state.file),state.state.placement);leaf.view.leaf=leaf;leaf.view.state=state.state;
@@ -58,6 +58,13 @@ function workspaceFixture(){
  plugin.onlinePlatform={open:(...args:any[])=>{events.push(['open',...args]);plugin.onlineState={sourcePath:args[0],closed:false};},command:async(...args:any[])=>{events.push(['command',...args]);return true;},stop:()=>events.push(['stop'])};
  return{plugin,workspace,events,created,leaves,files,makeLeaf,setActive:(view:any)=>active=view};
 }
+
+test('mobile online workspace retains note and manual time without a desktop player launch',async()=>{
+ const f=workspaceFixture(false);await f.plugin.openOnlineWorkspace(source,'window',14.25,'课程.md');
+ assert.equal(f.created.length,1);assert.equal(f.created[0].view.currentSource().path,source);assert.equal(f.created[0].view.getState().placement,'tab');assert.equal(f.created[0].view.getState().time,14.25);assert.equal(f.created[0].view.getState().note,'课程.md');
+ assert.equal(f.events.some(event=>['pause','open','command'].includes(event[0])),false);
+ await f.plugin.openOnlineWorkspace(source,'tab',14.25,'课程.md');assert.equal(f.created.length,1);assert.equal(f.events.some(event=>['pause','open','command'].includes(event[0])),false);
+});
 
 test('legacy online note entry routes Bilibili and YouTube into online workspace with original note identity',async()=>{
  for(const path of [source,youtube]){const f=entryFixture(path);await f.plugin.openYingjian(f.file);assert.deepEqual(f.calls,[[path,'tab',undefined,f.file.path]]);}

@@ -1,0 +1,136 @@
+/* Responsive layout and input stay inside ThoughtSpace surfaces. */
+:is(.ts-root,.ts-writing,.ts-media-workspace,.ts-online-workspace,.ts-materials-panel){max-height:min(100%,var(--ts-visible-height,100%));min-width:0;min-height:0}
+:is(.ts-prompt-modal,.ts-board-creation-modal,.ts-board-search,.ts-settings-confirm-modal,.ts-workspace-settings-modal,.ts-materials-modal,.ts-database-modal){max-width:calc(100vw - max(16px,env(safe-area-inset-left,0px)) - max(16px,env(safe-area-inset-right,0px)));max-height:min(calc(100dvh - 24px),var(--ts-visible-height,100dvh))}
+:is(.ts-prompt-modal,.ts-board-creation-modal,.ts-settings-confirm-modal,.ts-workspace-settings-modal,.ts-database-modal) .modal-content{min-width:0;min-height:0;overflow:auto;overscroll-behavior:contain}
+.ts-local-draft-copy-modal textarea{width:100%;min-height:128px;max-height:min(45dvh,360px);overflow:auto;user-select:text;-webkit-user-select:text;overscroll-behavior:contain}
+:is(.ts-canvas-footer,.ts-handwriting-footer,.ts-brain-footer,.ts-media-workspace__status,.ts-online-workspace__status,.ts-writing-status){padding-bottom:max(6px,env(safe-area-inset-bottom,0px))}
+.ts-root :is(.ts-card-preview,.ts-text-body,.ts-inline-input,.ts-inline-native){touch-action:pan-x pan-y;user-select:text;-webkit-user-select:text;overscroll-behavior:contain}
+.ts-root :is(.ts-node-header,.ts-compact-fold-row,.ts-resize){touch-action:none}
+.ts-root .ts-resize{min-width:24px;min-height:24px}
+.ts-handwriting{container:ts-handwriting / inline-size}
+.ts-handwriting-stage{min-height:0}
+.ts-brain-stage{touch-action:pan-y}
+.ts-brain-shell{container-type:size}
+.ts-brain-pan-surface{position:absolute;inset:0;touch-action:none}
+.ts-brain-scene{pointer-events:none}
+.ts-brain-scene .ts-brain-node{pointer-events:auto}
+.ts-brain-shell .ts-brain-node-actions .clickable-icon,.ts-brain-shell .clickable-icon.ts-brain-anchor{width:var(--ts-brain-action-size,32px);height:var(--ts-brain-action-size,32px);min-width:var(--ts-brain-action-size,32px);min-height:var(--ts-brain-action-size,32px)}
+.ts-brain-node.is-center .ts-brain-node-actions{bottom:calc(100% + (var(--ts-brain-action-size,32px) + 8px) * var(--brain-action-scale,1))}
+.ts-brain-node.is-center .ts-brain-node-actions::after{height:calc(var(--ts-brain-action-size,32px) + 10px)}
+.ts-brain-preview{touch-action:pan-y;overscroll-behavior:contain}
+.ts-brain-controls{position:relative;display:flex;flex:none;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;padding:6px max(10px,env(safe-area-inset-right,0px)) 6px max(10px,env(safe-area-inset-left,0px));border-top:1px solid var(--background-modifier-border);background:var(--background-primary)}
+.ts-brain-controls :is(.ts-brain-pager,.ts-brain-zoom){position:static;transform:none;margin:0;max-width:100%;flex-wrap:wrap}
+.ts-brain-controls [hidden]{display:none!important}
+.ts-writing{container-name:ts-writing}
+.ts-writing-recovery{flex:none;max-height:min(180px,35%);overflow:auto;padding:8px 12px;background:var(--background-secondary)}
+.ts-writing-recovery textarea{width:100%;min-height:96px;max-height:160px}
+.ts-writing-manuscript:has(>.ts-writing-source-editor){overflow:auto;overscroll-behavior:contain}
+.ts-writing-manuscript>.ts-writing-source-editor{flex:1 0 100px;min-height:100px;height:auto}
+:is(.ts-materials-modal,.ts-materials-panel){container:ts-materials / inline-size}
+.ts-materials-modal .modal-content{flex:1 1 auto;min-height:0;max-height:none;overflow:auto;overscroll-behavior:contain}
+.ts-materials-list{overflow-anchor:none}
+.ts-settings-v2{container:ts-settings / inline-size}
+.ts-database-modal{container:ts-database / inline-size}
+.vertical-tab-content.ts-settings.ts-settings-v2[data-ts-compact="true"]{padding-left:12px!important;padding-right:12px!important}
+.ts-materials-pane-switch,.ts-board-search-refine-toggle,.ts-online-workspace__panel-switcher{display:none}
+@container ts-database (max-width:760px){
+ .ts-db-top{flex-wrap:wrap;gap:8px}
+ .ts-db-top>*{flex-shrink:0;max-width:100%}
+ .ts-db-tabs{flex-wrap:wrap}
+ .ts-db-count{margin-left:0;white-space:nowrap}
+}
+@container ts-handwriting (max-width:700px){
+ .ts-handwriting-toolbar{gap:6px;padding-inline:6px}
+ .ts-handwriting-actions .ts-handwriting-caption,.ts-handwriting-navigation-hint{display:none}
+ .ts-handwriting-footer{gap:6px;font-size:10px}
+}
+@container ts-brain (max-width:540px){
+ .ts-brain-topbar{height:auto;min-height:48px;flex-wrap:wrap;padding:4px 8px}
+ .ts-brain-search{order:3;flex:1 0 100%;width:100%;margin:0;min-height:40px}
+ .ts-brain-search-results{left:0;right:0}
+ .ts-brain-top-actions{margin-left:auto}
+ .ts-brain-top-actions .clickable-icon,.ts-brain-controls .clickable-icon{min-width:40px;min-height:40px}
+ .ts-brain-controls{padding-inline:6px}
+ .ts-brain-footer{height:auto;min-height:36px;overflow-x:auto}
+}
+@container ts-brain (max-height:420px){
+ .ts-brain-stage{min-height:min(100px,40cqh)}
+ .ts-brain-controls{flex:0 1 auto;min-height:48px;max-height:min(116px,35cqh);overflow-y:auto;overscroll-behavior:contain;align-content:flex-start;scroll-padding-block:6px;touch-action:pan-y}
+ .ts-brain-controls>:is(.ts-brain-pager,.ts-brain-zoom){flex-shrink:0}
+}
+@container ts-search-panel (max-width:660px){
+ .ts-board-search-refine-toggle{display:inline-flex;align-self:flex-start;margin:0 12px 8px;min-height:44px}
+ .ts-board-search-workbench{display:flex!important;flex-direction:column}
+ .ts-board-search-refine{display:none!important;flex:none;max-height:40%;border-right:0;border-bottom:1px solid var(--background-modifier-border)}
+ .is-filters-open .ts-board-search-refine{display:block!important}
+ .ts-board-search-results{min-height:0;flex:1}
+}
+@container ts-materials (max-width:760px){
+ .ts-materials-pane-switch{display:flex;flex:none;grid-area:1/1;gap:6px;padding:6px 0}
+ .ts-materials-pane-switch button{flex:1;min-height:44px}
+ :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-body:not(.is-reading){display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);min-height:280px;flex:1 0 280px;height:auto;overflow:hidden}
+ :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-body:not(.is-reading):has(>.ts-materials-reading-switch){grid-template-rows:auto auto minmax(0,1fr)}
+ .ts-materials-panel .ts-materials-body:not(.is-reading){min-height:360px;flex:1 0 360px}
+ .ts-materials-body>.ts-materials-reading-switch{grid-area:1/1}
+ .ts-materials-body:has(>.ts-materials-reading-switch)>.ts-materials-pane-switch{grid-area:2/1}
+ .ts-materials-body[data-pane="library"] .ts-materials-detail,.ts-materials-body[data-pane="detail"] .ts-materials-library{display:none}
+ :is(.ts-materials-modal,.ts-materials-panel) :is(.ts-materials-library,.ts-materials-detail){grid-area:2/1;min-width:0;min-height:0;height:100%;overflow:auto;flex:1;padding-inline:12px}
+ .ts-materials-library{overflow-anchor:none}
+ .ts-materials-library .ts-materials-list{min-height:44px}
+ .ts-materials-body:has(>.ts-materials-reading-switch)>:is(.ts-materials-library,.ts-materials-detail){grid-area:3/1}
+ .ts-materials-source-actions,.ts-materials-commit,.ts-materials-options{flex-wrap:wrap}
+}
+@container ts-settings (max-width:600px){
+ .setting-item{align-items:stretch;flex-wrap:wrap;gap:8px}
+ .setting-item-info{flex:1 1 100%}
+ .setting-item-control{justify-content:flex-start;flex-wrap:wrap;max-width:100%}
+ .setting-item-control :is(input[type=text],select){max-width:100%;min-width:0}
+}
+@container ts-settings (max-width:320px){
+ .ts-settings-v2 .ts-settings-nav{grid-template-columns:minmax(0,1fr)}
+ .ts-settings-v2 .ts-settings-nav button{min-height:44px}
+ .ts-settings-v2 .ts-settings-nav button>span:last-child{min-width:0;overflow-wrap:normal}
+ .ts-settings-v2 .ts-settings-header>.setting-item{width:100%}
+ .ts-settings-v2 .ts-settings-header>.setting-item .setting-item-name{font-size:16px}
+ .ts-settings-v2 .ts-settings-panel-heading{flex-wrap:wrap;gap:4px}
+}
+@container ts-media (max-width:760px){
+ .ts-media-workspace .ts-media-workspace__action,.ts-media-workspace .ts-media-card__toolbar :is(button,select){min-height:44px!important;min-width:44px!important;touch-action:manipulation}
+ .ts-media-workspace__layout{display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:44px minmax(0,1fr)!important;grid-template-areas:"switcher" "notes"!important;min-height:0;gap:6px;padding:8px;overflow:hidden}
+ .ts-media-workspace[data-focus-player] .ts-media-workspace__panel-switcher{display:flex!important;min-height:44px;position:relative;top:auto;overflow-x:auto}
+ .ts-media-workspace__panel-switcher .ts-media-workspace__action{min-height:40px}
+ .ts-media-workspace__main,.ts-media-workspace__composer,.ts-media-workspace__desk{grid-area:notes;min-height:0!important;max-height:100%;height:auto;align-self:stretch;position:relative;top:auto}
+ .ts-media-workspace__main{overflow:auto}
+ .ts-media-workspace[data-record-panel="player"] :is(.ts-media-workspace__composer,.ts-media-workspace__desk),.ts-media-workspace[data-record-panel="compose"] :is(.ts-media-workspace__main,.ts-media-workspace__desk),.ts-media-workspace[data-record-panel="timeline"] :is(.ts-media-workspace__main,.ts-media-workspace__composer){display:none!important}
+ .ts-media-workspace[data-record-panel="compose"] .ts-media-workspace__layout>.ts-media-workspace__composer,.ts-media-workspace[data-record-panel="timeline"] .ts-media-workspace__layout>.ts-media-workspace__desk{display:flex!important}
+ .ts-media-workspace__composer,.ts-media-workspace__desk{overflow:auto}
+ .ts-media-workspace .ts-media-workspace__composer{padding-bottom:max(24px,env(safe-area-inset-bottom,0px))}
+ .ts-media-workspace__editor{min-height:100px;flex:1 0 100px}
+ .ts-media-workspace .ts-media-workspace__input{min-height:60px}
+ .ts-media-workspace__desk .ts-media-workspace__records{min-height:220px}
+ .ts-media-workspace__header-actions{flex-wrap:wrap}
+}
+@container ts-online-workspace (max-width:780px){
+ .ts-online-workspace .ts-online-workspace__action{min-height:44px!important;min-width:44px!important;touch-action:manipulation}
+ .ts-online-workspace__panel-switcher{display:flex;gap:4px;flex:none;padding:4px 10px}
+ .ts-online-workspace__panel-switcher button{flex:1;min-height:44px}
+ .ts-online-workspace__layout{display:flex;flex-direction:column;min-height:0;padding:8px;overflow:auto}
+ .ts-online-workspace__player,.ts-online-workspace__composer,.ts-online-workspace__records{flex:1 0 auto;min-height:0}
+ .ts-online-workspace[data-panel="player"] :is(.ts-online-workspace__composer,.ts-online-workspace__records),.ts-online-workspace[data-panel="compose"] :is(.ts-online-workspace__player,.ts-online-workspace__records),.ts-online-workspace[data-panel="timeline"] :is(.ts-online-workspace__player,.ts-online-workspace__composer){display:none!important}
+ .ts-online-workspace__input{min-height:90px}
+ .ts-online-workspace__composer-actions{position:sticky;bottom:0;background:var(--background-primary)}
+}
+@container ts-writing (max-width:900px){
+ .ts-writing :is(.ts-writing-button,.ts-md-button,.ts-md-select){min-height:44px!important;min-width:44px!important;touch-action:manipulation}
+ .ts-writing-layout{min-width:0;min-height:0}
+ .ts-writing-dock{max-width:calc(100% - 16px)}
+ .ts-writing-dock-resize{display:none}
+ .ts-writing-title{max-width:100%;min-width:0}
+ .ts-writing-action-group{flex-wrap:wrap}
+}
+@media (any-pointer:coarse),(max-width:600px){
+ .ts-media-workspace .ts-media-workspace__action,.ts-media-workspace .ts-media-card__toolbar :is(button,select),.ts-online-workspace .ts-online-workspace__action,.ts-writing :is(.ts-writing-button,.ts-md-button,.ts-md-select){min-height:44px!important;min-width:44px!important;touch-action:manipulation}
+ :is(.ts-prompt-modal,.ts-board-creation-modal,.ts-board-search,.ts-settings-confirm-modal,.ts-workspace-settings-modal,.ts-settings-v2,.ts-materials-panel,.ts-materials-modal,.ts-database-modal,.ts-writing,.ts-media-workspace,.ts-online-workspace) :is(button,select){min-height:44px;touch-action:manipulation}
+ :is(.ts-root,.ts-prompt-modal,.ts-board-search,.ts-settings-v2,.ts-writing,.ts-media-workspace,.ts-online-workspace,.ts-materials-modal,.ts-materials-panel,.ts-database-modal) :is(input[type=text],input[type=search],textarea){font-size:16px}
+ .ts-root :is(.ts-header-action,.ts-board-rail button,.ts-canvas-controls button){min-width:40px;min-height:40px;touch-action:manipulation}
+}

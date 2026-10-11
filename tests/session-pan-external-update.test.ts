@@ -20,7 +20,7 @@ function fixture(side:'left'|'right',version:1|2|3=3){
  let disk=JSON.stringify(initial,null,2),resolveRead!:(raw:string)=>void,writes=0,recoveries=0;
  const plugin={app:{vault:{read:()=>new Promise<string>(resolve=>resolveRead=resolve),process:async(_file:unknown,edit:(raw:string)=>string)=>{writes++;disk=edit(disk);}}},createUnique:async()=>{recoveries++;return{path:'recovery.thoughtspace'};}};
  const session=new Session(plugin,file,disk),view=new View(),screens:number[]=[],trail:model.Board['viewport'][]=[];
- const gesture={id:1,x:10,y:20,before:{viewport:{...initial.viewport}},pan:true,crossedThreshold:true};
+ const gesture={owner:session,board:session.board,id:1,x:10,y:20,before:{viewport:{...initial.viewport}},pan:true,crossedThreshold:true};
  const captures=new Set<number>();
  Object.assign(view,{session,gesture:side==='left'?gesture:undefined,rightMarquee:side==='right'?{id:1,x:10,y:20,viewport:{...initial.viewport},owner:session,action:'pan',moved:false,crossedThreshold:true}:undefined,dragging:false,mode:'select',pendingFits:new Map(),plugin:{settings:{dragThreshold:4}},stage:{setPointerCapture:(id:number)=>captures.add(id),hasPointerCapture:(id:number)=>captures.has(id),releasePointerCapture:(id:number)=>captures.delete(id)},renderBoard:()=>screens.push(session.board.viewport.x),flushPointer(){},previewGridLanding(){},drawAlignmentGuides(){},cancelConnection(){},setSectionTool(){},viewTrail:{remember:(viewport:model.Board['viewport'])=>trail.push({...viewport})}});
  session.listeners.add((kind:string)=>{if(kind==='board')screens.push(session.board.viewport.x);});

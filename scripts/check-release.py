@@ -3,11 +3,14 @@ import json
 import os
 import re
 from pathlib import Path
+from release_version import is_prerelease
 
 root = Path(__file__).resolve().parent.parent
 tag = os.environ['RELEASE_TAG']
-if not re.fullmatch(r'\d+\.\d+\.\d+', tag):
-    raise SystemExit('Release tag must be an exact stable version, without a v prefix')
+try:
+    prerelease = is_prerelease(tag)
+except ValueError as error:
+    raise SystemExit(str(error)) from error
 manifest = json.loads((root / 'manifest.json').read_text())
 package = json.loads((root / 'package.json').read_text())
 lock = json.loads((root / 'package-lock.json').read_text())
@@ -26,4 +29,7 @@ notes += '安装或升级时替换这三个运行文件，保留已有 `data.jso
 notes += f'\n[中文完整教程](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/{tag}/docs/USER-GUIDE.zh-CN.md) · [Complete English guide](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/{tag}/docs/USER-GUIDE.md)\n'
 (root / 'dist').mkdir(exist_ok=True)
 (root / 'dist' / 'release-notes.md').write_text(notes)
+if os.environ.get('GITHUB_ENV'):
+    with open(os.environ['GITHUB_ENV'], 'a') as environment:
+        environment.write(f'RELEASE_PRERELEASE={str(prerelease).lower()}\n')
 print('Release metadata verified:', tag)

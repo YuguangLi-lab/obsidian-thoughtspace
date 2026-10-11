@@ -13,9 +13,12 @@ import {mediaCard,isVaultMediaPath,mediaKind} from '../src/media-source';
 import {emptyBoard,parseBoard} from '../src/model';
 import {mediaNoteDocument,mediaPlayerUrl,parseMediaPlayerUrl} from '../src/media-notes';
 
-const nodeRequire=createRequire(import.meta.url),mod={exports:{}};
+const nodeRequire=createRequire(import.meta.url),mod={exports:{}},runtimeModule={exports:{}};
+const desktopHost={Platform:{isDesktop:true,resourcePathPrefix:'app://runtime-id/'}};
+new Function('require','module','exports',transformSync(readFileSync('src/platform-runtime.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>name==='obsidian'?desktopHost:nodeRequire(name),runtimeModule,runtimeModule.exports);
 new Function('require','module','exports',transformSync(readFileSync('src/external-media.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>{
- if(name==='obsidian')return{Platform:{resourcePathPrefix:'app://runtime-id/'}};
+ if(name==='obsidian')return desktopHost;
+ if(name==='./platform-runtime')return runtimeModule.exports;
  if(name==='./media-source')return source;
  if(name==='./value-guards')return guards;
  return nodeRequire(name);

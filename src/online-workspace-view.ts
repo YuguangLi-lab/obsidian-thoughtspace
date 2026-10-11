@@ -1,5 +1,6 @@
 import {Component,ItemView,MarkdownRenderer,Notice,TFile,WorkspaceLeaf,setIcon,type ViewStateResult} from 'obsidian';
 import {applyWorkspaceDensity} from './workspace-density';
+import {bindMobileViewport} from './mobile-viewport';
 import type {MediaMoment} from './media-notes';
 import {mediaClock,parseMediaTime,validMediaTime} from './media-source';
 import type {MediaPlacement} from './media-workspace-view';
@@ -7,6 +8,8 @@ import {parseOnlineSource,type OnlineState,type OnlineAction,type OnlineSource} 
 
 export const ONLINE_WORKSPACE='thoughtspace-online-player';
 export interface OnlineWorkspaceHost {
+ playbackAvailable?():boolean;
+ openExternal?(source:string):Promise<unknown>;
  accent?():string;
  density?():string;
  pick(placement:MediaPlacement):void;
@@ -22,7 +25,8 @@ export interface OnlineWorkspaceHost {
  send(source:string,time?:number,text?:string,image?:string):Promise<unknown>;
  openNote(file:TFile):Promise<unknown>;
 }
-export interface OnlineWorkspaceState extends Record<string,unknown>{source?:string;note?:string;placement?:MediaPlacement;time?:number}
+type OnlinePanel='player'|'compose'|'timeline';
+export interface OnlineWorkspaceState extends Record<string,unknown>{source?:string;note?:string;placement?:MediaPlacement;time?:number;panel?:OnlinePanel}
 interface Draft {id:string;time:number;text:string;mode:'synced'|'manual';image?:Blob;locked?:boolean}
 interface Capture {owner:symbol;source:string;invalid:boolean}
 interface Memory {draft?:Draft;manualTime?:number;pending?:symbol;capture?:Capture;editor?:symbol;note?:TFile;listeners:Set<(refresh:boolean)=>void>}
@@ -65,6 +69,8 @@ export class OnlineWorkspaceView extends ItemView {
  private opened=false;
  private closed=false;
  private composing=false;
+ private panel:OnlinePanel='compose';
+ private panelButtons=new Map<OnlinePanel,HTMLButtonElement>();
  private subscription?:()=>void;
  private releaseMemory?:()=>void;
  private releaseMount?:()=>void;
@@ -107,8 +113,9 @@ export class OnlineWorkspaceView extends ItemView {
  private previousButton?:HTMLButtonElement;
  private nextButton?:HTMLButtonElement;
  private positionButtons=new Map<MediaPlacement,HTMLButtonElement>();
+ private stopViewport?:()=>void;
 
- constructor(leaf:WorkspaceLeaf,private host:OnlineWorkspaceHost){super(leaf);}
+ constructor(leaf:WorkspaceLeaf,private host:OnlineWorkspaceHost){super(leaf);this.stopViewport=bindMobileViewport(this.contentEl);}
  applyPreferences(){applyWorkspaceDensity(this.contentEl,this.host.density?.());this.contentEl.dataset.accent=this.host.accent?.()||'forest';}
  getViewType(){return ONLINE_WORKSPACE;}
  getDisplayText(){return this.source?`${this.source.name} · 在线视频笔记`:'在线视频笔记';}
@@ -116,14 +123,16 @@ export class OnlineWorkspaceView extends ItemView {
  currentSource(){return this.source;}
  currentNote(){return this.memory?.note?.path||this.note;}
  private verified():OnlineState|undefined {
+  if(this.host.playbackAvailable?.()===false)return;
   const state=this.live;
   return this.source&&state?.available&&!state.closed&&state.sourcePath===this.source.path&&state.status!=='source-changed'&&(!state.candidate||state.candidate.path===this.source.path)&&validMediaTime(state.time)?state:undefined;
  }
  getState():OnlineWorkspaceState {
   const time=this.verified()?.time;
-  return {source:this.source?.path,note:this.currentNote(),placement:this.placement,...(time!==undefined?{time}:{})};
+  return {source:this.source?.path,note:this.currentNote(),placement:this.placement,panel:this.panel,...(time!==undefined?{time}:{})};
  }
  canMove(){
+  if(this.composing){new Notice('请先完成当前输入，再切换视频或工作区位置');return false;}
   if(this.memory?.capture){new Notice('截图处理中，请稍候再切换视频或工作区位置');return false;}
   if(this.memory?.draft||this.memory?.pending){new Notice('请先保存或取消当前摘录，再切换视频或工作区位置');return false;}
   return !this.closed;
@@ -142,11 +151,13 @@ export class OnlineWorkspaceView extends ItemView {
   const same=source?.path===this.source?.path&&(note||'')===(this.currentNote()||'');
   if((!same||placement!==this.placement)&&!this.canMove())return;
   if(same&&this.memory){
+   if(state.panel==='player'||state.panel==='compose'||state.panel==='timeline')this.setPanel(state.panel);
    this.placement=placement;this.requestedTime=validMediaTime(state.time)?state.time:this.requestedTime;
    this.contentEl.dataset.placement=placement;this.paintPositions();this.live=this.host.state();this.invalidateCapture();this.paintPlayback();this.paintComposer();
    this.app.workspace.requestSaveLayout();if(result)result.history=true;return;
   }
   this.release();this.generation++;this.timelineRun++;this.source=source;this.note=note;this.placement=placement;
+  this.panel=state.panel==='player'||state.panel==='timeline'?state.panel:'compose';
   this.requestedTime=validMediaTime(state.time)?state.time:source?.initialTime;this.entries=[];this.page=0;
   this.memory=source?memoryFor(this.host,source.path,note):undefined;
   if(this.memory){
@@ -171,22 +182,32 @@ export class OnlineWorkspaceView extends ItemView {
  private message(value:string){if(!this.closed&&this.status)this.status.textContent=value;}
  private failure(action:string,error:unknown){console.error(`[ThoughtSpace online] ${action}`,error);this.message(`${action}失败：${errorText(error)}；当前摘录仍保留。`);}
  private releasePlayer(){const release=this.releaseMount;this.releaseMount=undefined;try{release?.();}catch(error){this.failure('关闭播放器',error);}}
+ private setPanel(panel:OnlinePanel){
+  this.panel=panel;this.contentEl.dataset.panel=panel;
+  for(const[key,button]of this.panelButtons)button.setAttribute('aria-pressed',String(key===panel));
+  this.app.workspace.requestSaveLayout();
+ }
  private render(){
   const generation=this.generation,current=()=>!this.closed&&this.generation===generation;
   this.releasePlayer();this.releasePreview();this.releaseTimeline();
-  const root=this.contentEl;root.empty();root.addClass('ts-online-workspace');this.applyPreferences();root.dataset.placement=this.placement;this.positionButtons.clear();
+  const root=this.contentEl;root.empty();root.addClass('ts-online-workspace');this.applyPreferences();root.dataset.placement=this.placement;root.dataset.playbackAvailable=String(this.host.playbackAvailable?.()!==false);this.positionButtons.clear();this.panelButtons.clear();
   const header=root.createDiv('ts-online-workspace__header'),heading=header.createDiv('ts-online-workspace__heading');
   heading.createEl('strong',{cls:'ts-online-workspace__title',text:this.source?.name||'在线视频笔记'});
   heading.createSpan({cls:'ts-online-workspace__source',text:this.source?.path||'选择视频，开始记录',attr:{title:this.source?.path||''}});
   this.action(header,'选择视频','folder-open',()=>{if(this.canMove())this.host.pick(this.placement);},true);
   const positions=root.createDiv('ts-online-workspace__positions');
   for(const [placement,label,icon]of [['tab','主页面','panel-top'],['sidebar','右侧栏','panel-right'],['window','独立窗口','picture-in-picture-2']]as const)this.positionButtons.set(placement,this.action(positions,label,icon,()=>this.move(placement)));
+  const switcher=root.createDiv({cls:'ts-online-workspace__panel-switcher',attr:{role:'group','aria-label':'工作区显示内容'}});
+  for(const[panel,label,icon]of [['player','播放','play'],['compose','写摘录','square-pen'],['timeline','时间轴','list-video']]as const)this.panelButtons.set(panel,this.action(switcher,label,icon,()=>this.setPanel(panel)));
+  this.setPanel(this.panel);
   const layout=root.createDiv('ts-online-workspace__layout'),player=layout.createDiv('ts-online-workspace__player');
   const playerHeading=player.createDiv('ts-online-workspace__section-heading');playerHeading.createEl('strong',{text:'视频播放器'});
   this.connection=playerHeading.createSpan({cls:'ts-online-workspace__connection'});
   this.loadButton=this.action(playerHeading,'加载视频 / 重试','refresh-cw',()=>this.openPlatform(),true);
+  if(this.host.openExternal)this.action(playerHeading,'在浏览器打开视频','external-link',()=>this.source&&this.host.openExternal?.(this.source.path),true).disabled=!this.source;
   const embed=player.createDiv({cls:'ts-online-workspace__embed',attr:{'aria-label':'在线视频播放器'}});
   if(!this.source)embed.createDiv({cls:'ts-online-workspace__empty',text:'选择一个视频开始播放'});
+  else if(this.host.playbackAvailable?.()===false)embed.createDiv({cls:'ts-online-workspace__empty',text:'此设备使用浏览器播放视频；在“写摘录”中确认手动时间，继续记录文字。',attr:{role:'status'}});
   this.playerError=player.createDiv({cls:'ts-online-workspace__player-error',attr:{role:'status','aria-live':'polite'}});
   this.candidateBox=player.createDiv('ts-online-workspace__candidate');this.candidateLabel=this.candidateBox.createSpan();
   this.adoptButton=this.action(this.candidateBox,'切换到当前视频','arrow-right-left',()=>this.adopt());
@@ -216,7 +237,7 @@ export class OnlineWorkspaceView extends ItemView {
   this.imageLabel=this.imageBox.createSpan({cls:'ts-online-workspace__image-label'});
   this.removeImageButton=this.action(this.imageBox,'移除截图','image-minus',()=>this.removeScreenshot(),true);
   this.input=composer.createEl('textarea',{cls:'ts-online-workspace__input',attr:{'aria-label':'摘录内容',placeholder:'记录想法，支持 Markdown。首次输入时固定摘录时间。'}});
-  this.composing=false;this.input.oninput=()=>{if(current())this.edit();};this.input.addEventListener('compositionstart',()=>{if(current())this.composing=true;});this.input.addEventListener('compositionend',()=>{if(current())this.composing=false;});
+  this.composing=false;this.input.oninput=()=>{if(current())this.edit();};this.input.addEventListener('compositionstart',()=>{if(!current()||this.input?.readOnly)return;this.composing=true;if(this.memory&&!this.memory.editor){this.memory.editor=this.editor;notify(this.memory);}else this.paintComposer();});this.input.addEventListener('compositionend',()=>{if(current()){this.composing=false;this.edit();this.paintComposer();}});
   this.input.onkeydown=event=>{if(current()&&(event.metaKey||event.ctrlKey)&&event.key==='Enter'&&!compositionKey(event)&&!this.composing){event.preventDefault();void this.saveDraft().catch(error=>{if(current())this.failure('保存摘录',error);});}};
   const actions=composer.createDiv('ts-online-workspace__composer-actions');actions.createSpan({cls:'ts-online-workspace__hint',text:'⌘ / Ctrl + Enter 保存'});
   this.clearButton=this.action(actions,'取消摘录','x',()=>this.cancelDraft());this.saveButton=this.action(actions,'保存摘录','check',()=>this.saveDraft());this.saveButton.addClass('mod-cta');
@@ -231,12 +252,12 @@ export class OnlineWorkspaceView extends ItemView {
   this.nextButton=this.action(pagination,'下一页','chevron-right',()=>{if((this.page+1)*50<this.entries.length){this.page++;this.renderTimeline();}},true);
   this.status=root.createDiv({cls:'ts-online-workspace__status',attr:{role:'status','aria-live':'polite'}});
   this.paintPositions();this.paintPlayback();this.paintComposer();this.renderTimeline();
-  if(this.source)this.releaseMount=this.host.mount(embed,this.source.path);
+  if(this.source&&this.host.playbackAvailable?.()!==false)this.releaseMount=this.host.mount(embed,this.source.path);
  }
  private paintPositions(){for(const [placement,button]of this.positionButtons)button.setAttribute('aria-pressed',String(placement===this.placement));}
  private paintPlayback(){
   const state=this.verified(),candidate=this.candidate(),own=this.live?.sourcePath===this.source?.path?this.live:undefined;
-  if(this.connection)this.connection.textContent=state?'时间已同步':own?.closed?'播放器已关闭':candidate?'视频已切换':own?.status==='loading'?'视频正在加载':own?.status==='error'||own?.status==='blocked'?'视频暂不可同步':'等待视频同步';
+  if(this.connection)this.connection.textContent=this.host.playbackAvailable?.()===false?'手动摘录模式':state?'时间已同步':own?.closed?'播放器已关闭':candidate?'视频已切换':own?.status==='loading'?'视频正在加载':own?.status==='error'||own?.status==='blocked'?'视频暂不可同步':'等待视频同步';
   if(this.playerError){const error=!state&&own?.error?errorText(own.error):'';this.playerError.textContent=error;this.playerError.hidden=!error;}
   if(this.timeLabel)this.timeLabel.textContent=state?`${mediaClock(state.time)}${validMediaTime(state.duration)&&state.duration>0?' / '+mediaClock(state.duration):''}`:'时间未同步';
   for(const button of [this.playButton,this.backButton,this.forwardButton,this.seekButton])if(button)button.disabled=!state;
@@ -257,16 +278,16 @@ export class OnlineWorkspaceView extends ItemView {
  }
  private paintComposer(){
   const memory=this.memory,draft=memory?.draft,pending=!!(memory?.pending||memory?.capture),other=!!memory?.editor&&memory.editor!==this.editor,time=draft||this.captureTime();
-  if(this.input){if(this.input.value!==(draft?.text||''))this.input.value=draft?.text||'';this.input.readOnly=!memory||pending||other||!time||!!draft?.locked;}
+  if(this.input){if(!this.composing&&this.input.value!==(draft?.text||''))this.input.value=draft?.text||'';this.input.readOnly=!memory||pending||other||!time||!!draft?.locked;}
   if(this.draftTime)this.draftTime.textContent=time?`${mediaClock(time.time)} · ${draft?(draft.mode==='manual'?'手动已固定':'已固定'):time.mode==='manual'?'手动已确认':'随播放同步'}`:'请先同步或确认时间';
-  if(this.saveButton)this.saveButton.disabled=!draft||pending||other;
-  if(this.clearButton)this.clearButton.disabled=!draft&&memory?.manualTime===undefined||pending||other;
+  if(this.saveButton)this.saveButton.disabled=this.composing||!draft||pending||other;
+  if(this.clearButton)this.clearButton.disabled=this.composing||!draft&&memory?.manualTime===undefined||pending||other;
   if(this.manual)this.manual.disabled=!memory||!!draft||pending||other||!!this.verified();
-  if(this.manualFallback)this.manualFallback.hidden=!memory||!!this.verified();
+  if(this.manualFallback){this.manualFallback.hidden=!memory||!!this.verified();if(memory&&this.host.playbackAvailable?.()===false)this.manualFallback.open=true;}
   if(this.confirmButton)this.confirmButton.disabled=!memory||!!draft||pending||other||!!this.verified();
   if(this.timestampButton)this.timestampButton.disabled=!memory||!!draft||pending||other||!this.captureTime();
-  if(this.captureButton){this.captureButton.disabled=!memory||pending||other||!!draft?.locked||!this.verified();this.captureButton.setAttribute('aria-busy',String(!!memory?.capture));}
-  if(this.loadButton)this.loadButton.disabled=!this.source||pending;
+  if(this.captureButton){this.captureButton.disabled=this.composing||!memory||pending||other||!!draft?.locked||!this.verified();this.captureButton.setAttribute('aria-busy',String(!!memory?.capture));}
+  if(this.loadButton)this.loadButton.disabled=this.host.playbackAvailable?.()===false||!this.source||pending;
   if(this.removeImageButton)this.removeImageButton.disabled=!draft?.image||pending||other||!!draft.locked;
   if(this.noteButton)this.noteButton.disabled=!memory?.note;
   if(this.adoptButton)this.adoptButton.disabled=!this.candidate()||!!draft||pending;
@@ -284,14 +305,14 @@ export class OnlineWorkspaceView extends ItemView {
   const memory=this.memory,time=this.captureTime();
   if(this.closed||!memory||!time||memory.draft||memory.pending||memory.capture||memory.editor&&memory.editor!==this.editor)return;
   memory.draft={id:crypto.randomUUID(),time:time.time,text:'',mode:time.mode};memory.editor=this.editor;
-  notify(memory);this.message('时间戳已固定，可以直接保存，也可以继续填写摘录。');this.input?.focus();
+  notify(memory);this.setPanel('compose');this.message('时间戳已固定，可以直接保存，也可以继续填写摘录。');this.input?.focus();
  }
  private invalidateCapture(){
   const capture=this.memory?.capture;if(capture&&capture.source===this.source?.path&&!this.verified())capture.invalid=true;
  }
  private async takeScreenshot(){
   const source=this.source,memory=this.memory;
-  if(this.closed||!source||!memory||!this.verified()||memory.pending||memory.capture||memory.draft?.locked||memory.editor&&memory.editor!==this.editor)return;
+  if(this.composing||this.closed||!source||!memory||!this.verified()||memory.pending||memory.capture||memory.draft?.locked||memory.editor&&memory.editor!==this.editor)return;
   const generation=this.generation,original=memory.draft,capture:Capture={owner:this.editor,source:source.path,invalid:false};
   memory.capture=capture;memory.editor=this.editor;notify(memory);this.message('正在截取已加载的视频画面…');
   try{
@@ -301,7 +322,7 @@ export class OnlineWorkspaceView extends ItemView {
    if(capture.invalid||!this.verified()){this.message('视频来源或播放状态已变化，请重新截图；原摘录仍保留。');return;}
    if(!validMediaTime(result.time)||result.time>864000||result.blob?.type!=='image/png'||!Number.isFinite(result.blob.size)||result.blob.size<=0||result.blob.size>20*1024*1024)throw Error('截图数据无效');
    memory.draft={id:original?.id||crypto.randomUUID(),time:result.time,text:original?.text||'',mode:'synced',image:result.blob};memory.manualTime=undefined;
-   this.message('截图已加入草稿；可以直接保存，也可以补充文字。');this.input?.focus();
+   this.setPanel('compose');this.message('截图已加入草稿；可以直接保存，也可以补充文字。');this.input?.focus();
   }catch(error){if(!this.closed&&this.memory===memory&&this.generation===generation)this.failure('截图',error);}
   finally{
    if(memory.capture===capture){memory.capture=undefined;if(!memory.draft&&memory.editor===this.editor)memory.editor=undefined;notify(memory);}
@@ -330,15 +351,15 @@ export class OnlineWorkspaceView extends ItemView {
  private confirmTime(){
   const memory=this.memory;if(this.closed||!memory||this.verified()||memory.pending||memory.capture||memory.draft||memory.editor&&memory.editor!==this.editor)return;
   const time=parseMediaTime(this.manual?.value||'');if(time===undefined){this.message('请输入有效时间，例如 90 或 1:30。');return;}
-  memory.manualTime=time;notify(memory);this.message(`已确认手动时间 ${mediaClock(time)}；首次输入后固定。`);this.input?.focus();
+  memory.manualTime=time;notify(memory);this.setPanel('compose');this.message(`已确认手动时间 ${mediaClock(time)}；首次输入后固定。`);this.input?.focus();
  }
  private cancelDraft(){
-  const memory=this.memory;if(this.closed||!memory||memory.pending||memory.capture||memory.editor&&memory.editor!==this.editor)return;
+  const memory=this.memory;if(this.composing||this.closed||!memory||memory.pending||memory.capture||memory.editor&&memory.editor!==this.editor)return;
   memory.draft=undefined;memory.manualTime=undefined;memory.editor=undefined;if(this.manual)this.manual.value='';notify(memory);this.message('已取消当前摘录。');
  }
  private async saveDraft(){
   const source=this.source,memory=this.memory,draft=memory?.draft;
-  if(this.closed||!source||!memory||!draft||memory.pending||memory.capture||memory.editor&&memory.editor!==this.editor)return;
+  if(this.composing||this.closed||!source||!memory||!draft||memory.pending||memory.capture||memory.editor&&memory.editor!==this.editor)return;
   memory.editor=this.editor;draft.locked=true;const pending=Symbol('online-note-save');memory.pending=pending;notify(memory);this.message('正在保存摘录…');
   try{
    const result=await this.host.save(source.path,{id:draft.id,time:draft.time,text:draft.text,...(draft.image?{image:draft.image}:{})},this.currentNote());
@@ -380,7 +401,7 @@ export class OnlineWorkspaceView extends ItemView {
  }
  private releaseTimeline(){this.timelineScope?.unload();this.timelineScope=undefined;}
  private async openPlatform(){
-  if(!this.source||this.memory?.pending||this.memory?.capture)return;
+  if(this.host.playbackAvailable?.()===false||!this.source||this.memory?.pending||this.memory?.capture)return;
   if(this.live?.sourcePath===this.source.path&&!this.live.closed)await this.host.command(this.source.path,'reload');
   else await this.host.open(this.source.path,this.placement,this.verified()?.time??this.requestedTime??this.source.initialTime,this.currentNote());
  }
@@ -390,5 +411,5 @@ export class OnlineWorkspaceView extends ItemView {
  private async command(action:OnlineAction,value?:number){if(this.source&&this.verified())await this.host.command(this.source.path,action,value);}
  private async seekBy(delta:number){const state=this.verified();if(!state)return;await this.command('seek',Math.max(0,Math.min(validMediaTime(state.duration)&&state.duration>0?state.duration:100000000,state.time+delta)));}
  private async seekTo(){const time=parseMediaTime(this.seek?.value||'');if(time===undefined){this.message('请输入有效的跳转时间。');return;}await this.command('seek',time);}
- async onClose(){if(this.closed)return;this.closed=true;this.generation++;this.timelineRun++;this.subscription?.();this.subscription=undefined;this.release();this.contentEl.empty();}
+ async onClose(){if(this.closed)return;if(this.composing)this.edit();this.stopViewport?.();this.stopViewport=undefined;this.closed=true;this.generation++;this.timelineRun++;this.subscription?.();this.subscription=undefined;this.release();this.contentEl.empty();}
 }

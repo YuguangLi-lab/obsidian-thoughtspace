@@ -52,6 +52,7 @@ function fixture(nodes:Card[],ids:ReadonlySet<string>,snapToGrid=true){
    draft:new Map(before.nodes.filter(n=>ids.has(n.id)&&!n.locked).map(n=>[n.id,{...n}])),
    idSet:ids,ids:[...ids],targets:targets.dragTargets(board.nodes,ids),pan:false}
  });
+ view.gesture.owner=view.session;view.gesture.board=board;
  const move=(x:number,y:number,extra:Record<string,unknown>={})=>view.applyPointerMove({pointerId:1,clientX:x,clientY:y,shiftKey:false,altKey:false,...extra});
  return{view,board,stats,snapBoards,edgeInputs,rendered,move};
 }

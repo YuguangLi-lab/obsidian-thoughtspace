@@ -2,6 +2,8 @@
 
 [English](README.md) · **简体中文**
 
+**预发布 [1.3.36-beta.2](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/tag/1.3.36-beta.2)。** 在“新建白板或脑图…”中选择第三种类型 **手写白板**。此 beta 增加手机/平板布局、触控阅读与导航、resize 草稿保留和保存恢复。操作与边界见[移动适配说明](docs/MOBILE-ADAPTATION.zh-CN.md)、[手写指南](docs/HANDWRITING-IPAD.zh-CN.md)及[本轮验证说明](qa/RELEASE-1.3.36-beta.2.md)。**验收采用隔离桌面测试和移动输入/加载模拟，真实 iOS/Android、Pencil、系统输入法、WKWebView 未测。** 稳定最新版仍为 **1.3.35**；试用请使用上面的 beta 链接。
+
 在 Obsidian 中收集材料、梳理关系，再编排成文章。笔记、白板和生成的草稿都留在你的仓库中。
 
 **1.3.35 · 桌面端 Obsidian 1.13.7+ · MIT**
