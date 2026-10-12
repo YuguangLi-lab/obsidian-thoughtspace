@@ -28,4 +28,8 @@ export default defineConfig([
       '@typescript-eslint/no-duplicate-type-constituents': 'warn',
     },
   },
+  {
+    files: ['package.json'],
+    rules: { 'depend/ban-dependencies': ['error', { allowed: ['js-yaml'] }] },
+  },
 ]);

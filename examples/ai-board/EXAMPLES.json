@@ -1,0 +1,3580 @@
+{
+  "schemaVersion": 1,
+  "status": "10 format/parser roundtrips and public beta.2 parser compatibility passed; 6 CLI passed, 4 format_only; historical native roundtrips qualified separately",
+  "sampleVault": "sample-vault",
+  "sourceNote": {
+    "relativePath": "sample-vault/notes/source.md",
+    "vaultRelativePath": "notes/source.md",
+    "sha256": "56f6c98151a549dd0749d6a332d3b0d03f819dfb3d5aaafebc8283133531d673",
+    "synthetic": true
+  },
+  "referencePolicy": "Structured node.file existence and direct child document format checked only under this explicit synthetic sample-vault root. Inline Markdown and opaque destinations are not resolved; direct children with any detected references remain not_checked because traversal is not recursive. Note semantics, anchors, codecs, pages, timestamps, capture IDs and remote resources are outside the check. No real vault was read.",
+  "examples": [
+    {
+      "name": "ordinary-v3",
+      "relativePath": "sample-vault/ordinary-v3.thoughtspace",
+      "vaultRelativePath": "ordinary-v3.thoughtspace",
+      "boardVersion": 3,
+      "presentation": "ordinary",
+      "wrapper": "thoughtspace",
+      "envelopeVersion": null,
+      "expectedNodeIds": [
+        "ordinary-example-group",
+        "ordinary-example-text",
+        "ordinary-example-note"
+      ],
+      "expectedEdgeIds": [
+        "ordinary-example-relation"
+      ],
+      "expectedStrokeIds": [],
+      "inkPointSha256": null,
+      "expectedBoard": {
+        "version": 3,
+        "viewport": {
+          "x": 60.123456789012344,
+          "y": 60.23456789012346,
+          "zoom": 0.9876543210987654
+        },
+        "aiExampleOpaque": {
+          "sentinel": "AI-OPAQUE-PRESERVE-ordinary-v3",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "mode": "free",
+        "nodes": [
+          {
+            "id": "ordinary-example-group",
+            "kind": "section",
+            "title": "自制样例分组",
+            "x": 40.125,
+            "y": 40.25,
+            "width": 900.5,
+            "height": 700.75,
+            "color": "sand",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ordinary-example-group",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "ordinary-example-text",
+            "kind": "text",
+            "title": "从来源整理的想法",
+            "text": "这是一份自制样例。\n\n[[notes/source]] 是来源链接；原文仍保存在笔记中。",
+            "x": 120.125,
+            "y": 160.25,
+            "width": 320.5,
+            "height": 180.125,
+            "color": "slate",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ordinary-example-text",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "ordinary-example-note",
+            "kind": "card",
+            "file": "notes/source.md",
+            "title": "自制来源笔记",
+            "x": 500.375,
+            "y": 180.625,
+            "width": 320.125,
+            "height": 240.0625,
+            "color": "blue",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ordinary-example-note",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "ordinary-example-relation",
+            "from": "ordinary-example-text",
+            "to": "ordinary-example-note",
+            "label": "来源支持",
+            "direction": "both",
+            "style": "curve",
+            "fromSide": "right",
+            "toSide": "left",
+            "aiEdgeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ordinary-example-relation",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ]
+      },
+      "expectedPreserved": {
+        "opaqueBoard": {
+          "sentinel": "AI-OPAQUE-PRESERVE-ordinary-v3",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "opaqueNodes": [
+          {
+            "id": "ordinary-example-group",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ordinary-example-group",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "ordinary-example-text",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ordinary-example-text",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "ordinary-example-note",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ordinary-example-note",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "opaqueEdges": [
+          {
+            "id": "ordinary-example-relation",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ordinary-example-relation",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "opaqueInk": null,
+        "opaqueStrokes": [],
+        "yamlSentinel": null,
+        "bodyBefore": null,
+        "bodyAfter": null,
+        "envelopeExtras": null,
+        "markdownPrefix": null,
+        "markdownSuffix": null
+      },
+      "references": [
+        {
+          "nodeId": "ordinary-example-note",
+          "file": "notes/source.md",
+          "kind": "card"
+        }
+      ],
+      "frozenRaw": {
+        "sha256": "6779bce520e68ced8eb49ed18c392df6caa2b89c908e0a79b8ffcfadc0a77f6a",
+        "utf8Bytes": 2556,
+        "lineEnding": "LF",
+        "utf8Bom": false
+      },
+      "validation": {
+        "productionParser": true,
+        "productionDocumentReplace": true,
+        "referenceFilesChecked": true,
+        "nativeOpenSaveRestart": false,
+        "referenceFilesCheckedScope": "Structured node.file regular-file existence and direct child board document parse only; not complete inline, recursive or semantic checks.",
+        "allReferenceSemanticsValidated": false
+      },
+      "id": "ordinary-v3-thoughtspace",
+      "path": "sample-vault/ordinary-v3.thoughtspace",
+      "format": "legacy",
+      "sourceBoardVersion": 3,
+      "sha256": "6779bce520e68ced8eb49ed18c392df6caa2b89c908e0a79b8ffcfadc0a77f6a",
+      "expectedNormalizedBoard": {
+        "version": 3,
+        "viewport": {
+          "x": 60.123456789012344,
+          "y": 60.23456789012346,
+          "zoom": 0.9876543210987654
+        },
+        "aiExampleOpaque": {
+          "sentinel": "AI-OPAQUE-PRESERVE-ordinary-v3",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "mode": "free",
+        "nodes": [
+          {
+            "id": "ordinary-example-group",
+            "kind": "section",
+            "title": "自制样例分组",
+            "x": 40.125,
+            "y": 40.25,
+            "width": 900.5,
+            "height": 700.75,
+            "color": "sand",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ordinary-example-group",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "ordinary-example-text",
+            "kind": "text",
+            "title": "从来源整理的想法",
+            "text": "这是一份自制样例。\n\n[[notes/source]] 是来源链接；原文仍保存在笔记中。",
+            "x": 120.125,
+            "y": 160.25,
+            "width": 320.5,
+            "height": 180.125,
+            "color": "slate",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ordinary-example-text",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "ordinary-example-note",
+            "kind": "card",
+            "file": "notes/source.md",
+            "title": "自制来源笔记",
+            "x": 500.375,
+            "y": 180.625,
+            "width": 320.125,
+            "height": 240.0625,
+            "color": "blue",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ordinary-example-note",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "ordinary-example-relation",
+            "from": "ordinary-example-text",
+            "to": "ordinary-example-note",
+            "label": "来源支持",
+            "direction": "both",
+            "style": "curve",
+            "fromSide": "right",
+            "toSide": "left",
+            "aiEdgeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ordinary-example-relation",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ]
+      },
+      "normalizationChanges": [],
+      "referencedFiles": [
+        {
+          "path": "notes/source.md",
+          "kind": "card",
+          "sha256": "56f6c98151a549dd0749d6a332d3b0d03f819dfb3d5aaafebc8283133531d673"
+        }
+      ],
+      "markdownLayoutRange": null,
+      "cliValidation": {
+        "toolVersion": "1.0.0-local",
+        "command": "validate --vault-root examples/ai-board/sample-vault --json",
+        "exitCode": 2,
+        "overall": "format_only",
+        "formatStatus": "passed",
+        "references": {
+          "status": "not_checked",
+          "totalCount": 2,
+          "checkedCount": 1,
+          "details": [
+            {
+              "kind": "inline-markdown",
+              "target": "Inline Markdown destinations",
+              "pointer": "/nodes/1/text",
+              "status": "not_checked",
+              "message": "Inline Markdown destinations are not resolved."
+            },
+            {
+              "kind": "card",
+              "target": "notes/source.md",
+              "pointer": "/nodes/2/file",
+              "status": "checked",
+              "message": "Regular file exists; content semantics are outside this check."
+            }
+          ],
+          "limitations": [
+            "Checks structured direct references only; child boards are parsed once, without recursively checking their references or cross-board cycles.",
+            "Ordinary note and attachment checks establish regular-file existence only; no codecs, PDF pages, timestamps, anchors, capture IDs or remote resources are resolved.",
+            "Markdown inline links and references hidden in opaque unknown fields are not resolved. This report does not certify the whole vault or a concurrent future state."
+          ]
+        },
+        "normalizationCount": 0
+      },
+      "historicalNative": {
+        "baseline": "local 1.3.36-beta.5",
+        "openSessionSaveNewPIDReopenPassed": true
+      }
+    },
+    {
+      "name": "ordinary-v3",
+      "relativePath": "sample-vault/ordinary-v3.md",
+      "vaultRelativePath": "ordinary-v3.md",
+      "boardVersion": 3,
+      "presentation": "ordinary",
+      "wrapper": "md",
+      "envelopeVersion": 1,
+      "expectedNodeIds": [
+        "ordinary-example-group",
+        "ordinary-example-text",
+        "ordinary-example-note"
+      ],
+      "expectedEdgeIds": [
+        "ordinary-example-relation"
+      ],
+      "expectedStrokeIds": [],
+      "inkPointSha256": null,
+      "expectedBoard": {
+        "version": 3,
+        "viewport": {
+          "x": 60.123456789012344,
+          "y": 60.23456789012346,
+          "zoom": 0.9876543210987654
+        },
+        "aiExampleOpaque": {
+          "sentinel": "AI-OPAQUE-PRESERVE-ordinary-v3",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "mode": "free",
+        "nodes": [
+          {
+            "id": "ordinary-example-group",
+            "kind": "section",
+            "title": "自制样例分组",
+            "x": 40.125,
+            "y": 40.25,
+            "width": 900.5,
+            "height": 700.75,
+            "color": "sand",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ordinary-example-group",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "ordinary-example-text",
+            "kind": "text",
+            "title": "从来源整理的想法",
+            "text": "这是一份自制样例。\n\n[[notes/source]] 是来源链接；原文仍保存在笔记中。",
+            "x": 120.125,
+            "y": 160.25,
+            "width": 320.5,
+            "height": 180.125,
+            "color": "slate",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ordinary-example-text",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "ordinary-example-note",
+            "kind": "card",
+            "file": "notes/source.md",
+            "title": "自制来源笔记",
+            "x": 500.375,
+            "y": 180.625,
+            "width": 320.125,
+            "height": 240.0625,
+            "color": "blue",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ordinary-example-note",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "ordinary-example-relation",
+            "from": "ordinary-example-text",
+            "to": "ordinary-example-note",
+            "label": "来源支持",
+            "direction": "both",
+            "style": "curve",
+            "fromSide": "right",
+            "toSide": "left",
+            "aiEdgeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ordinary-example-relation",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ]
+      },
+      "expectedPreserved": {
+        "opaqueBoard": {
+          "sentinel": "AI-OPAQUE-PRESERVE-ordinary-v3",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "opaqueNodes": [
+          {
+            "id": "ordinary-example-group",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ordinary-example-group",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "ordinary-example-text",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ordinary-example-text",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "ordinary-example-note",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ordinary-example-note",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "opaqueEdges": [
+          {
+            "id": "ordinary-example-relation",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ordinary-example-relation",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "opaqueInk": null,
+        "opaqueStrokes": [],
+        "yamlSentinel": "AI-YAML-PRESERVE-ordinary-v3",
+        "bodyBefore": "AI-BODY-BEFORE-ordinary-v3",
+        "bodyAfter": "AI-BODY-AFTER-ordinary-v3",
+        "envelopeExtras": {
+          "aiEnvelopeOpaque": {
+            "sentinel": "AI-OPAQUE-PRESERVE-ordinary-v3-envelope",
+            "precision": 0.12345678901234568,
+            "nested": {
+              "labels": [
+                "自制",
+                "保留"
+              ],
+              "flag": true
+            }
+          }
+        },
+        "markdownPrefix": "﻿---\r\nthoughtspace: board\r\nai_example: ordinary-v3\r\ncustom_sentinel: \"AI-YAML-PRESERVE-ordinary-v3\"\r\ntags: [ai-board-example, synthetic]\r\n---\r\n\r\n# ordinary-v3 自制白板\r\n\r\n<!-- AI-BODY-BEFORE-ordinary-v3 -->\r\n\r\n布局区外的正文和 YAML 交由原生 Markdown 编辑器管理。\r\n\r\n",
+        "markdownSuffix": "\r\n\r\n<!-- AI-BODY-AFTER-ordinary-v3 -->\r\n\r\n此文件只用于自制样例库；不包含真实用户资料。\r\n"
+      },
+      "references": [
+        {
+          "nodeId": "ordinary-example-note",
+          "file": "notes/source.md",
+          "kind": "card"
+        }
+      ],
+      "frozenRaw": {
+        "sha256": "db36710617e0bbe8c63db4371c0b59b848ef701a85df752eb92b5fda7102d70f",
+        "utf8Bytes": 3687,
+        "lineEnding": "CRLF",
+        "utf8Bom": true
+      },
+      "validation": {
+        "productionParser": true,
+        "productionDocumentReplace": true,
+        "referenceFilesChecked": true,
+        "nativeOpenSaveRestart": false,
+        "referenceFilesCheckedScope": "Structured node.file regular-file existence and direct child board document parse only; not complete inline, recursive or semantic checks.",
+        "allReferenceSemanticsValidated": false
+      },
+      "id": "ordinary-v3-md",
+      "path": "sample-vault/ordinary-v3.md",
+      "format": "md",
+      "sourceBoardVersion": 3,
+      "sha256": "db36710617e0bbe8c63db4371c0b59b848ef701a85df752eb92b5fda7102d70f",
+      "expectedNormalizedBoard": {
+        "version": 3,
+        "viewport": {
+          "x": 60.123456789012344,
+          "y": 60.23456789012346,
+          "zoom": 0.9876543210987654
+        },
+        "aiExampleOpaque": {
+          "sentinel": "AI-OPAQUE-PRESERVE-ordinary-v3",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "mode": "free",
+        "nodes": [
+          {
+            "id": "ordinary-example-group",
+            "kind": "section",
+            "title": "自制样例分组",
+            "x": 40.125,
+            "y": 40.25,
+            "width": 900.5,
+            "height": 700.75,
+            "color": "sand",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ordinary-example-group",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "ordinary-example-text",
+            "kind": "text",
+            "title": "从来源整理的想法",
+            "text": "这是一份自制样例。\n\n[[notes/source]] 是来源链接；原文仍保存在笔记中。",
+            "x": 120.125,
+            "y": 160.25,
+            "width": 320.5,
+            "height": 180.125,
+            "color": "slate",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ordinary-example-text",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "ordinary-example-note",
+            "kind": "card",
+            "file": "notes/source.md",
+            "title": "自制来源笔记",
+            "x": 500.375,
+            "y": 180.625,
+            "width": 320.125,
+            "height": 240.0625,
+            "color": "blue",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ordinary-example-note",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "ordinary-example-relation",
+            "from": "ordinary-example-text",
+            "to": "ordinary-example-note",
+            "label": "来源支持",
+            "direction": "both",
+            "style": "curve",
+            "fromSide": "right",
+            "toSide": "left",
+            "aiEdgeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ordinary-example-relation",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ]
+      },
+      "normalizationChanges": [],
+      "referencedFiles": [
+        {
+          "path": "notes/source.md",
+          "kind": "card",
+          "sha256": "56f6c98151a549dd0749d6a332d3b0d03f819dfb3d5aaafebc8283133531d673"
+        }
+      ],
+      "markdownLayoutRange": {
+        "startUtf16": 244,
+        "endUtf16": 3385
+      },
+      "cliValidation": {
+        "toolVersion": "1.0.0-local",
+        "command": "validate --vault-root examples/ai-board/sample-vault --json",
+        "exitCode": 2,
+        "overall": "format_only",
+        "formatStatus": "passed",
+        "references": {
+          "status": "not_checked",
+          "totalCount": 2,
+          "checkedCount": 1,
+          "details": [
+            {
+              "kind": "inline-markdown",
+              "target": "Inline Markdown destinations",
+              "pointer": "/board/nodes/1/text",
+              "status": "not_checked",
+              "message": "Inline Markdown destinations are not resolved."
+            },
+            {
+              "kind": "card",
+              "target": "notes/source.md",
+              "pointer": "/board/nodes/2/file",
+              "status": "checked",
+              "message": "Regular file exists; content semantics are outside this check."
+            }
+          ],
+          "limitations": [
+            "Checks structured direct references only; child boards are parsed once, without recursively checking their references or cross-board cycles.",
+            "Ordinary note and attachment checks establish regular-file existence only; no codecs, PDF pages, timestamps, anchors, capture IDs or remote resources are resolved.",
+            "Markdown inline links and references hidden in opaque unknown fields are not resolved. This report does not certify the whole vault or a concurrent future state."
+          ]
+        },
+        "normalizationCount": 0
+      },
+      "historicalNative": {
+        "baseline": "local 1.3.36-beta.5",
+        "openSessionSaveNewPIDReopenPassed": true
+      }
+    },
+    {
+      "name": "brain-v3",
+      "relativePath": "sample-vault/brain-v3.thoughtspace",
+      "vaultRelativePath": "brain-v3.thoughtspace",
+      "boardVersion": 3,
+      "presentation": "brain",
+      "wrapper": "thoughtspace",
+      "envelopeVersion": null,
+      "expectedNodeIds": [
+        "brain-example-idea",
+        "brain-example-note"
+      ],
+      "expectedEdgeIds": [
+        "brain-example-edge-child"
+      ],
+      "expectedStrokeIds": [],
+      "inkPointSha256": null,
+      "expectedBoard": {
+        "version": 3,
+        "presentation": "brain",
+        "brain": {
+          "version": 1,
+          "centerId": "brain-example-idea",
+          "descendantDepth": 2,
+          "expandedIds": [
+            "brain-example-idea"
+          ],
+          "pins": [
+            "brain-example-note"
+          ],
+          "history": {
+            "entries": [
+              "brain-example-idea"
+            ],
+            "index": 0
+          }
+        },
+        "nodes": [
+          {
+            "id": "brain-example-idea",
+            "kind": "text",
+            "brainIdea": true,
+            "title": "一个想法",
+            "text": "想法正文保存在本白板。来源笔记通过独立卡片引用。",
+            "x": 120.125,
+            "y": 160.25,
+            "width": 320.5,
+            "height": 180.125,
+            "color": "slate",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-brain-example-idea",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "brain-example-note",
+            "kind": "card",
+            "file": "notes/source.md",
+            "title": "自制来源笔记",
+            "x": 120.375,
+            "y": 440.625,
+            "width": 320.125,
+            "height": 240.0625,
+            "color": "blue",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-brain-example-note",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "brain-example-edge-child",
+            "from": "brain-example-idea",
+            "to": "brain-example-note",
+            "kind": "branch",
+            "direction": "forward",
+            "fromSide": "bottom",
+            "toSide": "top",
+            "label": "展开说明",
+            "aiEdgeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-brain-example-edge-child",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "viewport": {
+          "x": 60.123456789012344,
+          "y": 60.23456789012346,
+          "zoom": 0.9876543210987654
+        },
+        "aiExampleOpaque": {
+          "sentinel": "AI-OPAQUE-PRESERVE-brain-v3",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "brainViewport": {
+          "x": 180.12345678901235,
+          "y": 160.23456789012346,
+          "zoom": 0.9876543210987654
+        }
+      },
+      "expectedPreserved": {
+        "opaqueBoard": {
+          "sentinel": "AI-OPAQUE-PRESERVE-brain-v3",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "opaqueNodes": [
+          {
+            "id": "brain-example-idea",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-brain-example-idea",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "brain-example-note",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-brain-example-note",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "opaqueEdges": [
+          {
+            "id": "brain-example-edge-child",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-brain-example-edge-child",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "opaqueInk": null,
+        "opaqueStrokes": [],
+        "yamlSentinel": null,
+        "bodyBefore": null,
+        "bodyAfter": null,
+        "envelopeExtras": null,
+        "markdownPrefix": null,
+        "markdownSuffix": null
+      },
+      "references": [
+        {
+          "nodeId": "brain-example-note",
+          "file": "notes/source.md",
+          "kind": "card"
+        }
+      ],
+      "frozenRaw": {
+        "sha256": "40dbb1e2221ea00714cba1fba51ecc4522f2fd7ecd6f310e3e795d1a61312d3d",
+        "utf8Bytes": 2460,
+        "lineEnding": "LF",
+        "utf8Bom": false
+      },
+      "validation": {
+        "productionParser": true,
+        "productionDocumentReplace": true,
+        "referenceFilesChecked": true,
+        "nativeOpenSaveRestart": false,
+        "referenceFilesCheckedScope": "Structured node.file regular-file existence and direct child board document parse only; not complete inline, recursive or semantic checks.",
+        "allReferenceSemanticsValidated": false
+      },
+      "id": "brain-v3-thoughtspace",
+      "path": "sample-vault/brain-v3.thoughtspace",
+      "format": "legacy",
+      "sourceBoardVersion": 3,
+      "sha256": "40dbb1e2221ea00714cba1fba51ecc4522f2fd7ecd6f310e3e795d1a61312d3d",
+      "expectedNormalizedBoard": {
+        "version": 3,
+        "presentation": "brain",
+        "brain": {
+          "version": 1,
+          "centerId": "brain-example-idea",
+          "descendantDepth": 2,
+          "expandedIds": [
+            "brain-example-idea"
+          ],
+          "pins": [
+            "brain-example-note"
+          ],
+          "history": {
+            "entries": [
+              "brain-example-idea"
+            ],
+            "index": 0
+          }
+        },
+        "nodes": [
+          {
+            "id": "brain-example-idea",
+            "kind": "text",
+            "brainIdea": true,
+            "title": "一个想法",
+            "text": "想法正文保存在本白板。来源笔记通过独立卡片引用。",
+            "x": 120.125,
+            "y": 160.25,
+            "width": 320.5,
+            "height": 180.125,
+            "color": "slate",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-brain-example-idea",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "brain-example-note",
+            "kind": "card",
+            "file": "notes/source.md",
+            "title": "自制来源笔记",
+            "x": 120.375,
+            "y": 440.625,
+            "width": 320.125,
+            "height": 240.0625,
+            "color": "blue",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-brain-example-note",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "brain-example-edge-child",
+            "from": "brain-example-idea",
+            "to": "brain-example-note",
+            "kind": "branch",
+            "direction": "forward",
+            "fromSide": "bottom",
+            "toSide": "top",
+            "label": "展开说明",
+            "aiEdgeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-brain-example-edge-child",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "viewport": {
+          "x": 60.123456789012344,
+          "y": 60.23456789012346,
+          "zoom": 0.9876543210987654
+        },
+        "aiExampleOpaque": {
+          "sentinel": "AI-OPAQUE-PRESERVE-brain-v3",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "brainViewport": {
+          "x": 180.12345678901235,
+          "y": 160.23456789012346,
+          "zoom": 0.9876543210987654
+        }
+      },
+      "normalizationChanges": [],
+      "referencedFiles": [
+        {
+          "path": "notes/source.md",
+          "kind": "card",
+          "sha256": "56f6c98151a549dd0749d6a332d3b0d03f819dfb3d5aaafebc8283133531d673"
+        }
+      ],
+      "markdownLayoutRange": null,
+      "cliValidation": {
+        "toolVersion": "1.0.0-local",
+        "command": "validate --vault-root examples/ai-board/sample-vault --json",
+        "exitCode": 0,
+        "overall": "passed",
+        "formatStatus": "passed",
+        "references": {
+          "status": "checked",
+          "totalCount": 1,
+          "checkedCount": 1,
+          "details": [
+            {
+              "kind": "card",
+              "target": "notes/source.md",
+              "pointer": "/nodes/1/file",
+              "status": "checked",
+              "message": "Regular file exists; content semantics are outside this check."
+            }
+          ],
+          "limitations": [
+            "Checks structured direct references only; child boards are parsed once, without recursively checking their references or cross-board cycles.",
+            "Ordinary note and attachment checks establish regular-file existence only; no codecs, PDF pages, timestamps, anchors, capture IDs or remote resources are resolved.",
+            "Markdown inline links and references hidden in opaque unknown fields are not resolved. This report does not certify the whole vault or a concurrent future state."
+          ]
+        },
+        "normalizationCount": 0
+      },
+      "historicalNative": {
+        "baseline": "local 1.3.36-beta.5",
+        "openSessionSaveNewPIDReopenPassed": true
+      }
+    },
+    {
+      "name": "brain-v3",
+      "relativePath": "sample-vault/brain-v3.md",
+      "vaultRelativePath": "brain-v3.md",
+      "boardVersion": 3,
+      "presentation": "brain",
+      "wrapper": "md",
+      "envelopeVersion": 1,
+      "expectedNodeIds": [
+        "brain-example-idea",
+        "brain-example-note"
+      ],
+      "expectedEdgeIds": [
+        "brain-example-edge-child"
+      ],
+      "expectedStrokeIds": [],
+      "inkPointSha256": null,
+      "expectedBoard": {
+        "version": 3,
+        "presentation": "brain",
+        "brain": {
+          "version": 1,
+          "centerId": "brain-example-idea",
+          "descendantDepth": 2,
+          "expandedIds": [
+            "brain-example-idea"
+          ],
+          "pins": [
+            "brain-example-note"
+          ],
+          "history": {
+            "entries": [
+              "brain-example-idea"
+            ],
+            "index": 0
+          }
+        },
+        "nodes": [
+          {
+            "id": "brain-example-idea",
+            "kind": "text",
+            "brainIdea": true,
+            "title": "一个想法",
+            "text": "想法正文保存在本白板。来源笔记通过独立卡片引用。",
+            "x": 120.125,
+            "y": 160.25,
+            "width": 320.5,
+            "height": 180.125,
+            "color": "slate",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-brain-example-idea",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "brain-example-note",
+            "kind": "card",
+            "file": "notes/source.md",
+            "title": "自制来源笔记",
+            "x": 120.375,
+            "y": 440.625,
+            "width": 320.125,
+            "height": 240.0625,
+            "color": "blue",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-brain-example-note",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "brain-example-edge-child",
+            "from": "brain-example-idea",
+            "to": "brain-example-note",
+            "kind": "branch",
+            "direction": "forward",
+            "fromSide": "bottom",
+            "toSide": "top",
+            "label": "展开说明",
+            "aiEdgeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-brain-example-edge-child",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "viewport": {
+          "x": 60.123456789012344,
+          "y": 60.23456789012346,
+          "zoom": 0.9876543210987654
+        },
+        "aiExampleOpaque": {
+          "sentinel": "AI-OPAQUE-PRESERVE-brain-v3",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "brainViewport": {
+          "x": 180.12345678901235,
+          "y": 160.23456789012346,
+          "zoom": 0.9876543210987654
+        }
+      },
+      "expectedPreserved": {
+        "opaqueBoard": {
+          "sentinel": "AI-OPAQUE-PRESERVE-brain-v3",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "opaqueNodes": [
+          {
+            "id": "brain-example-idea",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-brain-example-idea",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "brain-example-note",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-brain-example-note",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "opaqueEdges": [
+          {
+            "id": "brain-example-edge-child",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-brain-example-edge-child",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "opaqueInk": null,
+        "opaqueStrokes": [],
+        "yamlSentinel": "AI-YAML-PRESERVE-brain-v3",
+        "bodyBefore": "AI-BODY-BEFORE-brain-v3",
+        "bodyAfter": "AI-BODY-AFTER-brain-v3",
+        "envelopeExtras": {
+          "aiEnvelopeOpaque": {
+            "sentinel": "AI-OPAQUE-PRESERVE-brain-v3-envelope",
+            "precision": 0.12345678901234568,
+            "nested": {
+              "labels": [
+                "自制",
+                "保留"
+              ],
+              "flag": true
+            }
+          }
+        },
+        "markdownPrefix": "---\nthoughtspace: board\nai_example: brain-v3\ncustom_sentinel: \"AI-YAML-PRESERVE-brain-v3\"\ntags: [ai-board-example, synthetic]\n---\n\n# brain-v3 自制白板\n\n<!-- AI-BODY-BEFORE-brain-v3 -->\n\n布局区外的正文和 YAML 交由原生 Markdown 编辑器管理。\n\n",
+        "markdownSuffix": "\n\n<!-- AI-BODY-AFTER-brain-v3 -->\n\n此文件只用于自制样例库；不包含真实用户资料。\n"
+      },
+      "references": [
+        {
+          "nodeId": "brain-example-note",
+          "file": "notes/source.md",
+          "kind": "card"
+        }
+      ],
+      "frozenRaw": {
+        "sha256": "e31d4e906edf2c1e817e24a4360febc70858827199e19e944b7b95ba6d5a3fe1",
+        "utf8Bytes": 3428,
+        "lineEnding": "LF",
+        "utf8Bom": false
+      },
+      "validation": {
+        "productionParser": true,
+        "productionDocumentReplace": true,
+        "referenceFilesChecked": true,
+        "nativeOpenSaveRestart": false,
+        "referenceFilesCheckedScope": "Structured node.file regular-file existence and direct child board document parse only; not complete inline, recursive or semantic checks.",
+        "allReferenceSemanticsValidated": false
+      },
+      "id": "brain-v3-md",
+      "path": "sample-vault/brain-v3.md",
+      "format": "md",
+      "sourceBoardVersion": 3,
+      "sha256": "e31d4e906edf2c1e817e24a4360febc70858827199e19e944b7b95ba6d5a3fe1",
+      "expectedNormalizedBoard": {
+        "version": 3,
+        "presentation": "brain",
+        "brain": {
+          "version": 1,
+          "centerId": "brain-example-idea",
+          "descendantDepth": 2,
+          "expandedIds": [
+            "brain-example-idea"
+          ],
+          "pins": [
+            "brain-example-note"
+          ],
+          "history": {
+            "entries": [
+              "brain-example-idea"
+            ],
+            "index": 0
+          }
+        },
+        "nodes": [
+          {
+            "id": "brain-example-idea",
+            "kind": "text",
+            "brainIdea": true,
+            "title": "一个想法",
+            "text": "想法正文保存在本白板。来源笔记通过独立卡片引用。",
+            "x": 120.125,
+            "y": 160.25,
+            "width": 320.5,
+            "height": 180.125,
+            "color": "slate",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-brain-example-idea",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "brain-example-note",
+            "kind": "card",
+            "file": "notes/source.md",
+            "title": "自制来源笔记",
+            "x": 120.375,
+            "y": 440.625,
+            "width": 320.125,
+            "height": 240.0625,
+            "color": "blue",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-brain-example-note",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "brain-example-edge-child",
+            "from": "brain-example-idea",
+            "to": "brain-example-note",
+            "kind": "branch",
+            "direction": "forward",
+            "fromSide": "bottom",
+            "toSide": "top",
+            "label": "展开说明",
+            "aiEdgeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-brain-example-edge-child",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "viewport": {
+          "x": 60.123456789012344,
+          "y": 60.23456789012346,
+          "zoom": 0.9876543210987654
+        },
+        "aiExampleOpaque": {
+          "sentinel": "AI-OPAQUE-PRESERVE-brain-v3",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "brainViewport": {
+          "x": 180.12345678901235,
+          "y": 160.23456789012346,
+          "zoom": 0.9876543210987654
+        }
+      },
+      "normalizationChanges": [],
+      "referencedFiles": [
+        {
+          "path": "notes/source.md",
+          "kind": "card",
+          "sha256": "56f6c98151a549dd0749d6a332d3b0d03f819dfb3d5aaafebc8283133531d673"
+        }
+      ],
+      "markdownLayoutRange": {
+        "startUtf16": 218,
+        "endUtf16": 3166
+      },
+      "cliValidation": {
+        "toolVersion": "1.0.0-local",
+        "command": "validate --vault-root examples/ai-board/sample-vault --json",
+        "exitCode": 0,
+        "overall": "passed",
+        "formatStatus": "passed",
+        "references": {
+          "status": "checked",
+          "totalCount": 1,
+          "checkedCount": 1,
+          "details": [
+            {
+              "kind": "card",
+              "target": "notes/source.md",
+              "pointer": "/board/nodes/1/file",
+              "status": "checked",
+              "message": "Regular file exists; content semantics are outside this check."
+            }
+          ],
+          "limitations": [
+            "Checks structured direct references only; child boards are parsed once, without recursively checking their references or cross-board cycles.",
+            "Ordinary note and attachment checks establish regular-file existence only; no codecs, PDF pages, timestamps, anchors, capture IDs or remote resources are resolved.",
+            "Markdown inline links and references hidden in opaque unknown fields are not resolved. This report does not certify the whole vault or a concurrent future state."
+          ]
+        },
+        "normalizationCount": 0
+      },
+      "historicalNative": {
+        "baseline": "local 1.3.36-beta.5",
+        "openSessionSaveNewPIDReopenPassed": true
+      }
+    },
+    {
+      "name": "handwriting-v3",
+      "relativePath": "sample-vault/handwriting-v3.thoughtspace",
+      "vaultRelativePath": "handwriting-v3.thoughtspace",
+      "boardVersion": 3,
+      "presentation": "handwriting",
+      "wrapper": "thoughtspace",
+      "envelopeVersion": null,
+      "expectedNodeIds": [],
+      "expectedEdgeIds": [],
+      "expectedStrokeIds": [
+        "ink-example-line",
+        "ink-example-dot"
+      ],
+      "inkPointSha256": "862d8d38739852ffe2960f5991aef77aca9dbd44126bf32e401965ceb0f6435a",
+      "expectedBoard": {
+        "version": 3,
+        "viewport": {
+          "x": 60.123456789012344,
+          "y": 60.23456789012346,
+          "zoom": 0.9876543210987654
+        },
+        "aiExampleOpaque": {
+          "sentinel": "AI-OPAQUE-PRESERVE-handwriting-v3",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "presentation": "handwriting",
+        "nodes": [],
+        "edges": [],
+        "ink": {
+          "version": 1,
+          "aiInkOpaque": {
+            "sentinel": "AI-OPAQUE-PRESERVE-handwriting-v3-ink",
+            "precision": 0.12345678901234568,
+            "nested": {
+              "labels": [
+                "自制",
+                "保留"
+              ],
+              "flag": true
+            }
+          },
+          "strokes": [
+            {
+              "id": "ink-example-line",
+              "color": "#2764ab",
+              "width": 3.125,
+              "points": [
+                [
+                  140.12345678901235,
+                  180.23456789012346,
+                  0
+                ],
+                [
+                  175.375,
+                  155.625,
+                  0.25
+                ],
+                [
+                  210.0625,
+                  188.3125,
+                  0.875
+                ],
+                [
+                  245.23456789012346,
+                  158.12345678901235,
+                  1
+                ]
+              ],
+              "aiStrokeOpaque": {
+                "sentinel": "AI-OPAQUE-PRESERVE-ink-example-line",
+                "precision": 0.12345678901234568,
+                "nested": {
+                  "labels": [
+                    "自制",
+                    "保留"
+                  ],
+                  "flag": true
+                }
+              }
+            },
+            {
+              "id": "ink-example-dot",
+              "color": "#a24862",
+              "width": 6.0625,
+              "points": [
+                [
+                  280.1234567890123,
+                  210.23456789012346,
+                  0.3333333333333333
+                ]
+              ],
+              "aiStrokeOpaque": {
+                "sentinel": "AI-OPAQUE-PRESERVE-ink-example-dot",
+                "precision": 0.12345678901234568,
+                "nested": {
+                  "labels": [
+                    "自制",
+                    "保留"
+                  ],
+                  "flag": true
+                }
+              }
+            }
+          ]
+        }
+      },
+      "expectedPreserved": {
+        "opaqueBoard": {
+          "sentinel": "AI-OPAQUE-PRESERVE-handwriting-v3",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "opaqueNodes": [],
+        "opaqueEdges": [],
+        "opaqueInk": {
+          "sentinel": "AI-OPAQUE-PRESERVE-handwriting-v3-ink",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "opaqueStrokes": [
+          {
+            "id": "ink-example-line",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ink-example-line",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "ink-example-dot",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ink-example-dot",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "yamlSentinel": null,
+        "bodyBefore": null,
+        "bodyAfter": null,
+        "envelopeExtras": null,
+        "markdownPrefix": null,
+        "markdownSuffix": null
+      },
+      "references": [],
+      "frozenRaw": {
+        "sha256": "28838561d2fbd3bb395a8464ad1a902fe8988b97f1a0ae6f3ecbafd7fc0ecf38",
+        "utf8Bytes": 2050,
+        "lineEnding": "LF",
+        "utf8Bom": false
+      },
+      "validation": {
+        "productionParser": true,
+        "productionDocumentReplace": true,
+        "referenceFilesChecked": true,
+        "nativeOpenSaveRestart": false,
+        "referenceFilesCheckedScope": "Structured node.file regular-file existence and direct child board document parse only; not complete inline, recursive or semantic checks.",
+        "allReferenceSemanticsValidated": false
+      },
+      "id": "handwriting-v3-thoughtspace",
+      "path": "sample-vault/handwriting-v3.thoughtspace",
+      "format": "legacy",
+      "sourceBoardVersion": 3,
+      "sha256": "28838561d2fbd3bb395a8464ad1a902fe8988b97f1a0ae6f3ecbafd7fc0ecf38",
+      "expectedNormalizedBoard": {
+        "version": 3,
+        "viewport": {
+          "x": 60.123456789012344,
+          "y": 60.23456789012346,
+          "zoom": 0.9876543210987654
+        },
+        "aiExampleOpaque": {
+          "sentinel": "AI-OPAQUE-PRESERVE-handwriting-v3",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "presentation": "handwriting",
+        "nodes": [],
+        "edges": [],
+        "ink": {
+          "version": 1,
+          "aiInkOpaque": {
+            "sentinel": "AI-OPAQUE-PRESERVE-handwriting-v3-ink",
+            "precision": 0.12345678901234568,
+            "nested": {
+              "labels": [
+                "自制",
+                "保留"
+              ],
+              "flag": true
+            }
+          },
+          "strokes": [
+            {
+              "id": "ink-example-line",
+              "color": "#2764ab",
+              "width": 3.125,
+              "points": [
+                [
+                  140.12345678901235,
+                  180.23456789012346,
+                  0
+                ],
+                [
+                  175.375,
+                  155.625,
+                  0.25
+                ],
+                [
+                  210.0625,
+                  188.3125,
+                  0.875
+                ],
+                [
+                  245.23456789012346,
+                  158.12345678901235,
+                  1
+                ]
+              ],
+              "aiStrokeOpaque": {
+                "sentinel": "AI-OPAQUE-PRESERVE-ink-example-line",
+                "precision": 0.12345678901234568,
+                "nested": {
+                  "labels": [
+                    "自制",
+                    "保留"
+                  ],
+                  "flag": true
+                }
+              }
+            },
+            {
+              "id": "ink-example-dot",
+              "color": "#a24862",
+              "width": 6.0625,
+              "points": [
+                [
+                  280.1234567890123,
+                  210.23456789012346,
+                  0.3333333333333333
+                ]
+              ],
+              "aiStrokeOpaque": {
+                "sentinel": "AI-OPAQUE-PRESERVE-ink-example-dot",
+                "precision": 0.12345678901234568,
+                "nested": {
+                  "labels": [
+                    "自制",
+                    "保留"
+                  ],
+                  "flag": true
+                }
+              }
+            }
+          ]
+        }
+      },
+      "normalizationChanges": [],
+      "referencedFiles": [],
+      "markdownLayoutRange": null,
+      "cliValidation": {
+        "toolVersion": "1.0.0-local",
+        "command": "validate --vault-root examples/ai-board/sample-vault --json",
+        "exitCode": 0,
+        "overall": "passed",
+        "formatStatus": "passed",
+        "references": {
+          "status": "not_applicable",
+          "totalCount": 0,
+          "checkedCount": 0,
+          "details": [],
+          "limitations": [
+            "Checks structured direct references only; child boards are parsed once, without recursively checking their references or cross-board cycles.",
+            "Ordinary note and attachment checks establish regular-file existence only; no codecs, PDF pages, timestamps, anchors, capture IDs or remote resources are resolved.",
+            "Markdown inline links and references hidden in opaque unknown fields are not resolved. This report does not certify the whole vault or a concurrent future state."
+          ]
+        },
+        "normalizationCount": 0
+      },
+      "historicalNative": {
+        "baseline": "local 1.3.36-beta.5",
+        "openSessionSaveNewPIDReopenPassed": true
+      }
+    },
+    {
+      "name": "handwriting-v3",
+      "relativePath": "sample-vault/handwriting-v3.md",
+      "vaultRelativePath": "handwriting-v3.md",
+      "boardVersion": 3,
+      "presentation": "handwriting",
+      "wrapper": "md",
+      "envelopeVersion": 1,
+      "expectedNodeIds": [],
+      "expectedEdgeIds": [],
+      "expectedStrokeIds": [
+        "ink-example-line",
+        "ink-example-dot"
+      ],
+      "inkPointSha256": "862d8d38739852ffe2960f5991aef77aca9dbd44126bf32e401965ceb0f6435a",
+      "expectedBoard": {
+        "version": 3,
+        "viewport": {
+          "x": 60.123456789012344,
+          "y": 60.23456789012346,
+          "zoom": 0.9876543210987654
+        },
+        "aiExampleOpaque": {
+          "sentinel": "AI-OPAQUE-PRESERVE-handwriting-v3",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "presentation": "handwriting",
+        "nodes": [],
+        "edges": [],
+        "ink": {
+          "version": 1,
+          "aiInkOpaque": {
+            "sentinel": "AI-OPAQUE-PRESERVE-handwriting-v3-ink",
+            "precision": 0.12345678901234568,
+            "nested": {
+              "labels": [
+                "自制",
+                "保留"
+              ],
+              "flag": true
+            }
+          },
+          "strokes": [
+            {
+              "id": "ink-example-line",
+              "color": "#2764ab",
+              "width": 3.125,
+              "points": [
+                [
+                  140.12345678901235,
+                  180.23456789012346,
+                  0
+                ],
+                [
+                  175.375,
+                  155.625,
+                  0.25
+                ],
+                [
+                  210.0625,
+                  188.3125,
+                  0.875
+                ],
+                [
+                  245.23456789012346,
+                  158.12345678901235,
+                  1
+                ]
+              ],
+              "aiStrokeOpaque": {
+                "sentinel": "AI-OPAQUE-PRESERVE-ink-example-line",
+                "precision": 0.12345678901234568,
+                "nested": {
+                  "labels": [
+                    "自制",
+                    "保留"
+                  ],
+                  "flag": true
+                }
+              }
+            },
+            {
+              "id": "ink-example-dot",
+              "color": "#a24862",
+              "width": 6.0625,
+              "points": [
+                [
+                  280.1234567890123,
+                  210.23456789012346,
+                  0.3333333333333333
+                ]
+              ],
+              "aiStrokeOpaque": {
+                "sentinel": "AI-OPAQUE-PRESERVE-ink-example-dot",
+                "precision": 0.12345678901234568,
+                "nested": {
+                  "labels": [
+                    "自制",
+                    "保留"
+                  ],
+                  "flag": true
+                }
+              }
+            }
+          ]
+        }
+      },
+      "expectedPreserved": {
+        "opaqueBoard": {
+          "sentinel": "AI-OPAQUE-PRESERVE-handwriting-v3",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "opaqueNodes": [],
+        "opaqueEdges": [],
+        "opaqueInk": {
+          "sentinel": "AI-OPAQUE-PRESERVE-handwriting-v3-ink",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "opaqueStrokes": [
+          {
+            "id": "ink-example-line",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ink-example-line",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "ink-example-dot",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-ink-example-dot",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "yamlSentinel": "AI-YAML-PRESERVE-handwriting-v3",
+        "bodyBefore": "AI-BODY-BEFORE-handwriting-v3",
+        "bodyAfter": "AI-BODY-AFTER-handwriting-v3",
+        "envelopeExtras": {
+          "aiEnvelopeOpaque": {
+            "sentinel": "AI-OPAQUE-PRESERVE-handwriting-v3-envelope",
+            "precision": 0.12345678901234568,
+            "nested": {
+              "labels": [
+                "自制",
+                "保留"
+              ],
+              "flag": true
+            }
+          }
+        },
+        "markdownPrefix": "---\nthoughtspace: board\nai_example: handwriting-v3\ncustom_sentinel: \"AI-YAML-PRESERVE-handwriting-v3\"\ntags: [ai-board-example, synthetic]\n---\n\n# handwriting-v3 自制白板\n\n<!-- AI-BODY-BEFORE-handwriting-v3 -->\n\n布局区外的正文和 YAML 交由原生 Markdown 编辑器管理。\n\n",
+        "markdownSuffix": "\n\n<!-- AI-BODY-AFTER-handwriting-v3 -->\n\n此文件只用于自制样例库；不包含真实用户资料。\n"
+      },
+      "references": [],
+      "frozenRaw": {
+        "sha256": "2336107b77d2227da0688c4c7861dfa65cce19b0fa070c7bb181300abdeac0ea",
+        "utf8Bytes": 3028,
+        "lineEnding": "LF",
+        "utf8Bom": false
+      },
+      "validation": {
+        "productionParser": true,
+        "productionDocumentReplace": true,
+        "referenceFilesChecked": true,
+        "nativeOpenSaveRestart": false,
+        "referenceFilesCheckedScope": "Structured node.file regular-file existence and direct child board document parse only; not complete inline, recursive or semantic checks.",
+        "allReferenceSemanticsValidated": false
+      },
+      "id": "handwriting-v3-md",
+      "path": "sample-vault/handwriting-v3.md",
+      "format": "md",
+      "sourceBoardVersion": 3,
+      "sha256": "2336107b77d2227da0688c4c7861dfa65cce19b0fa070c7bb181300abdeac0ea",
+      "expectedNormalizedBoard": {
+        "version": 3,
+        "viewport": {
+          "x": 60.123456789012344,
+          "y": 60.23456789012346,
+          "zoom": 0.9876543210987654
+        },
+        "aiExampleOpaque": {
+          "sentinel": "AI-OPAQUE-PRESERVE-handwriting-v3",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "presentation": "handwriting",
+        "nodes": [],
+        "edges": [],
+        "ink": {
+          "version": 1,
+          "aiInkOpaque": {
+            "sentinel": "AI-OPAQUE-PRESERVE-handwriting-v3-ink",
+            "precision": 0.12345678901234568,
+            "nested": {
+              "labels": [
+                "自制",
+                "保留"
+              ],
+              "flag": true
+            }
+          },
+          "strokes": [
+            {
+              "id": "ink-example-line",
+              "color": "#2764ab",
+              "width": 3.125,
+              "points": [
+                [
+                  140.12345678901235,
+                  180.23456789012346,
+                  0
+                ],
+                [
+                  175.375,
+                  155.625,
+                  0.25
+                ],
+                [
+                  210.0625,
+                  188.3125,
+                  0.875
+                ],
+                [
+                  245.23456789012346,
+                  158.12345678901235,
+                  1
+                ]
+              ],
+              "aiStrokeOpaque": {
+                "sentinel": "AI-OPAQUE-PRESERVE-ink-example-line",
+                "precision": 0.12345678901234568,
+                "nested": {
+                  "labels": [
+                    "自制",
+                    "保留"
+                  ],
+                  "flag": true
+                }
+              }
+            },
+            {
+              "id": "ink-example-dot",
+              "color": "#a24862",
+              "width": 6.0625,
+              "points": [
+                [
+                  280.1234567890123,
+                  210.23456789012346,
+                  0.3333333333333333
+                ]
+              ],
+              "aiStrokeOpaque": {
+                "sentinel": "AI-OPAQUE-PRESERVE-ink-example-dot",
+                "precision": 0.12345678901234568,
+                "nested": {
+                  "labels": [
+                    "自制",
+                    "保留"
+                  ],
+                  "flag": true
+                }
+              }
+            }
+          ]
+        }
+      },
+      "normalizationChanges": [],
+      "referencedFiles": [],
+      "markdownLayoutRange": {
+        "startUtf16": 242,
+        "endUtf16": 2836
+      },
+      "cliValidation": {
+        "toolVersion": "1.0.0-local",
+        "command": "validate --vault-root examples/ai-board/sample-vault --json",
+        "exitCode": 0,
+        "overall": "passed",
+        "formatStatus": "passed",
+        "references": {
+          "status": "not_applicable",
+          "totalCount": 0,
+          "checkedCount": 0,
+          "details": [],
+          "limitations": [
+            "Checks structured direct references only; child boards are parsed once, without recursively checking their references or cross-board cycles.",
+            "Ordinary note and attachment checks establish regular-file existence only; no codecs, PDF pages, timestamps, anchors, capture IDs or remote resources are resolved.",
+            "Markdown inline links and references hidden in opaque unknown fields are not resolved. This report does not certify the whole vault or a concurrent future state."
+          ]
+        },
+        "normalizationCount": 0
+      },
+      "historicalNative": {
+        "baseline": "local 1.3.36-beta.5",
+        "openSessionSaveNewPIDReopenPassed": true
+      }
+    },
+    {
+      "name": "legacy-v1",
+      "relativePath": "sample-vault/legacy-v1.thoughtspace",
+      "vaultRelativePath": "legacy-v1.thoughtspace",
+      "boardVersion": 1,
+      "presentation": "ordinary",
+      "wrapper": "thoughtspace",
+      "envelopeVersion": null,
+      "expectedNodeIds": [
+        "legacy-v1-group",
+        "legacy-v1-note"
+      ],
+      "expectedEdgeIds": [
+        "legacy-v1-relation"
+      ],
+      "expectedStrokeIds": [],
+      "inkPointSha256": null,
+      "expectedBoard": {
+        "version": 1,
+        "viewport": {
+          "x": 60.123456789012344,
+          "y": 60.23456789012346,
+          "zoom": 0.9876543210987654
+        },
+        "aiExampleOpaque": {
+          "sentinel": "AI-OPAQUE-PRESERVE-legacy-v1",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "nodes": [
+          {
+            "id": "legacy-v1-group",
+            "kind": "section",
+            "title": "自制样例分组",
+            "x": 40.125,
+            "y": 40.25,
+            "width": 900.5,
+            "height": 700.75,
+            "color": "sand",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v1-group",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "legacy-v1-note",
+            "kind": "card",
+            "file": "notes/source.md",
+            "title": "自制来源笔记",
+            "x": 120.375,
+            "y": 180.625,
+            "width": 320.125,
+            "height": 240.0625,
+            "color": "blue",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v1-note",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "legacy-v1-relation",
+            "from": "legacy-v1-group",
+            "to": "legacy-v1-note",
+            "label": "分组说明",
+            "aiEdgeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v1-relation",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ]
+      },
+      "expectedPreserved": {
+        "opaqueBoard": {
+          "sentinel": "AI-OPAQUE-PRESERVE-legacy-v1",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "opaqueNodes": [
+          {
+            "id": "legacy-v1-group",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v1-group",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "legacy-v1-note",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v1-note",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "opaqueEdges": [
+          {
+            "id": "legacy-v1-relation",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v1-relation",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "opaqueInk": null,
+        "opaqueStrokes": [],
+        "yamlSentinel": null,
+        "bodyBefore": null,
+        "bodyAfter": null,
+        "envelopeExtras": null,
+        "markdownPrefix": null,
+        "markdownSuffix": null
+      },
+      "references": [
+        {
+          "nodeId": "legacy-v1-note",
+          "file": "notes/source.md",
+          "kind": "card"
+        }
+      ],
+      "frozenRaw": {
+        "sha256": "0eeb4d95fa4c1358162a1ece059b396a7e32bf4aaf024b19e364ef50c97d11e5",
+        "utf8Bytes": 1771,
+        "lineEnding": "LF",
+        "utf8Bom": false
+      },
+      "validation": {
+        "productionParser": true,
+        "productionDocumentReplace": true,
+        "referenceFilesChecked": true,
+        "nativeOpenSaveRestart": false,
+        "referenceFilesCheckedScope": "Structured node.file regular-file existence and direct child board document parse only; not complete inline, recursive or semantic checks.",
+        "allReferenceSemanticsValidated": false
+      },
+      "id": "legacy-v1-thoughtspace",
+      "path": "sample-vault/legacy-v1.thoughtspace",
+      "format": "legacy",
+      "sourceBoardVersion": 1,
+      "sha256": "0eeb4d95fa4c1358162a1ece059b396a7e32bf4aaf024b19e364ef50c97d11e5",
+      "expectedNormalizedBoard": {
+        "version": 1,
+        "viewport": {
+          "x": 60.123456789012344,
+          "y": 60.23456789012346,
+          "zoom": 0.9876543210987654
+        },
+        "aiExampleOpaque": {
+          "sentinel": "AI-OPAQUE-PRESERVE-legacy-v1",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "nodes": [
+          {
+            "id": "legacy-v1-group",
+            "kind": "section",
+            "title": "自制样例分组",
+            "x": 40.125,
+            "y": 40.25,
+            "width": 900.5,
+            "height": 700.75,
+            "color": "sand",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v1-group",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "legacy-v1-note",
+            "kind": "card",
+            "file": "notes/source.md",
+            "title": "自制来源笔记",
+            "x": 120.375,
+            "y": 180.625,
+            "width": 320.125,
+            "height": 240.0625,
+            "color": "blue",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v1-note",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "legacy-v1-relation",
+            "from": "legacy-v1-group",
+            "to": "legacy-v1-note",
+            "label": "分组说明",
+            "aiEdgeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v1-relation",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ]
+      },
+      "normalizationChanges": [],
+      "referencedFiles": [
+        {
+          "path": "notes/source.md",
+          "kind": "card",
+          "sha256": "56f6c98151a549dd0749d6a332d3b0d03f819dfb3d5aaafebc8283133531d673"
+        }
+      ],
+      "markdownLayoutRange": null,
+      "cliValidation": {
+        "toolVersion": "1.0.0-local",
+        "command": "validate --vault-root examples/ai-board/sample-vault --json",
+        "exitCode": 0,
+        "overall": "passed",
+        "formatStatus": "passed",
+        "references": {
+          "status": "checked",
+          "totalCount": 1,
+          "checkedCount": 1,
+          "details": [
+            {
+              "kind": "card",
+              "target": "notes/source.md",
+              "pointer": "/nodes/1/file",
+              "status": "checked",
+              "message": "Regular file exists; content semantics are outside this check."
+            }
+          ],
+          "limitations": [
+            "Checks structured direct references only; child boards are parsed once, without recursively checking their references or cross-board cycles.",
+            "Ordinary note and attachment checks establish regular-file existence only; no codecs, PDF pages, timestamps, anchors, capture IDs or remote resources are resolved.",
+            "Markdown inline links and references hidden in opaque unknown fields are not resolved. This report does not certify the whole vault or a concurrent future state."
+          ]
+        },
+        "normalizationCount": 0
+      },
+      "historicalNative": {
+        "baseline": "local 1.3.36-beta.5",
+        "openSessionSaveNewPIDReopenPassed": true
+      }
+    },
+    {
+      "name": "legacy-v1",
+      "relativePath": "sample-vault/legacy-v1.md",
+      "vaultRelativePath": "legacy-v1.md",
+      "boardVersion": 1,
+      "presentation": "ordinary",
+      "wrapper": "md",
+      "envelopeVersion": 1,
+      "expectedNodeIds": [
+        "legacy-v1-group",
+        "legacy-v1-note"
+      ],
+      "expectedEdgeIds": [
+        "legacy-v1-relation"
+      ],
+      "expectedStrokeIds": [],
+      "inkPointSha256": null,
+      "expectedBoard": {
+        "version": 1,
+        "viewport": {
+          "x": 60.123456789012344,
+          "y": 60.23456789012346,
+          "zoom": 0.9876543210987654
+        },
+        "aiExampleOpaque": {
+          "sentinel": "AI-OPAQUE-PRESERVE-legacy-v1",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "nodes": [
+          {
+            "id": "legacy-v1-group",
+            "kind": "section",
+            "title": "自制样例分组",
+            "x": 40.125,
+            "y": 40.25,
+            "width": 900.5,
+            "height": 700.75,
+            "color": "sand",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v1-group",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "legacy-v1-note",
+            "kind": "card",
+            "file": "notes/source.md",
+            "title": "自制来源笔记",
+            "x": 120.375,
+            "y": 180.625,
+            "width": 320.125,
+            "height": 240.0625,
+            "color": "blue",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v1-note",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "legacy-v1-relation",
+            "from": "legacy-v1-group",
+            "to": "legacy-v1-note",
+            "label": "分组说明",
+            "aiEdgeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v1-relation",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ]
+      },
+      "expectedPreserved": {
+        "opaqueBoard": {
+          "sentinel": "AI-OPAQUE-PRESERVE-legacy-v1",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "opaqueNodes": [
+          {
+            "id": "legacy-v1-group",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v1-group",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "legacy-v1-note",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v1-note",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "opaqueEdges": [
+          {
+            "id": "legacy-v1-relation",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v1-relation",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "opaqueInk": null,
+        "opaqueStrokes": [],
+        "yamlSentinel": "AI-YAML-PRESERVE-legacy-v1",
+        "bodyBefore": "AI-BODY-BEFORE-legacy-v1",
+        "bodyAfter": "AI-BODY-AFTER-legacy-v1",
+        "envelopeExtras": {
+          "aiEnvelopeOpaque": {
+            "sentinel": "AI-OPAQUE-PRESERVE-legacy-v1-envelope",
+            "precision": 0.12345678901234568,
+            "nested": {
+              "labels": [
+                "自制",
+                "保留"
+              ],
+              "flag": true
+            }
+          }
+        },
+        "markdownPrefix": "---\nthoughtspace: board\nai_example: legacy-v1\ncustom_sentinel: \"AI-YAML-PRESERVE-legacy-v1\"\ntags: [ai-board-example, synthetic]\n---\n\n# legacy-v1 自制白板\n\n<!-- AI-BODY-BEFORE-legacy-v1 -->\n\n布局区外的正文和 YAML 交由原生 Markdown 编辑器管理。\n\n",
+        "markdownSuffix": "\n\n<!-- AI-BODY-AFTER-legacy-v1 -->\n\n此文件只用于自制样例库；不包含真实用户资料。\n"
+      },
+      "references": [
+        {
+          "nodeId": "legacy-v1-note",
+          "file": "notes/source.md",
+          "kind": "card"
+        }
+      ],
+      "frozenRaw": {
+        "sha256": "f5dc404e486fc87a16453edf395585700fdfb622eef21bc484cf3156f43e1a94",
+        "utf8Bytes": 2687,
+        "lineEnding": "LF",
+        "utf8Bom": false
+      },
+      "validation": {
+        "productionParser": true,
+        "productionDocumentReplace": true,
+        "referenceFilesChecked": true,
+        "nativeOpenSaveRestart": false,
+        "referenceFilesCheckedScope": "Structured node.file regular-file existence and direct child board document parse only; not complete inline, recursive or semantic checks.",
+        "allReferenceSemanticsValidated": false
+      },
+      "id": "legacy-v1-md",
+      "path": "sample-vault/legacy-v1.md",
+      "format": "md",
+      "sourceBoardVersion": 1,
+      "sha256": "f5dc404e486fc87a16453edf395585700fdfb622eef21bc484cf3156f43e1a94",
+      "expectedNormalizedBoard": {
+        "version": 1,
+        "viewport": {
+          "x": 60.123456789012344,
+          "y": 60.23456789012346,
+          "zoom": 0.9876543210987654
+        },
+        "aiExampleOpaque": {
+          "sentinel": "AI-OPAQUE-PRESERVE-legacy-v1",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "nodes": [
+          {
+            "id": "legacy-v1-group",
+            "kind": "section",
+            "title": "自制样例分组",
+            "x": 40.125,
+            "y": 40.25,
+            "width": 900.5,
+            "height": 700.75,
+            "color": "sand",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v1-group",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "legacy-v1-note",
+            "kind": "card",
+            "file": "notes/source.md",
+            "title": "自制来源笔记",
+            "x": 120.375,
+            "y": 180.625,
+            "width": 320.125,
+            "height": 240.0625,
+            "color": "blue",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v1-note",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "legacy-v1-relation",
+            "from": "legacy-v1-group",
+            "to": "legacy-v1-note",
+            "label": "分组说明",
+            "aiEdgeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v1-relation",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ]
+      },
+      "normalizationChanges": [],
+      "referencedFiles": [
+        {
+          "path": "notes/source.md",
+          "kind": "card",
+          "sha256": "56f6c98151a549dd0749d6a332d3b0d03f819dfb3d5aaafebc8283133531d673"
+        }
+      ],
+      "markdownLayoutRange": {
+        "startUtf16": 222,
+        "endUtf16": 2468
+      },
+      "cliValidation": {
+        "toolVersion": "1.0.0-local",
+        "command": "validate --vault-root examples/ai-board/sample-vault --json",
+        "exitCode": 0,
+        "overall": "passed",
+        "formatStatus": "passed",
+        "references": {
+          "status": "checked",
+          "totalCount": 1,
+          "checkedCount": 1,
+          "details": [
+            {
+              "kind": "card",
+              "target": "notes/source.md",
+              "pointer": "/board/nodes/1/file",
+              "status": "checked",
+              "message": "Regular file exists; content semantics are outside this check."
+            }
+          ],
+          "limitations": [
+            "Checks structured direct references only; child boards are parsed once, without recursively checking their references or cross-board cycles.",
+            "Ordinary note and attachment checks establish regular-file existence only; no codecs, PDF pages, timestamps, anchors, capture IDs or remote resources are resolved.",
+            "Markdown inline links and references hidden in opaque unknown fields are not resolved. This report does not certify the whole vault or a concurrent future state."
+          ]
+        },
+        "normalizationCount": 0
+      },
+      "historicalNative": {
+        "baseline": "local 1.3.36-beta.5",
+        "openSessionSaveNewPIDReopenPassed": true
+      }
+    },
+    {
+      "name": "legacy-v2",
+      "relativePath": "sample-vault/legacy-v2.thoughtspace",
+      "vaultRelativePath": "legacy-v2.thoughtspace",
+      "boardVersion": 2,
+      "presentation": "ordinary",
+      "wrapper": "thoughtspace",
+      "envelopeVersion": null,
+      "expectedNodeIds": [
+        "legacy-v2-note",
+        "legacy-v2-board"
+      ],
+      "expectedEdgeIds": [
+        "legacy-v2-relation"
+      ],
+      "expectedStrokeIds": [],
+      "inkPointSha256": null,
+      "expectedBoard": {
+        "version": 2,
+        "viewport": {
+          "x": 60.123456789012344,
+          "y": 60.23456789012346,
+          "zoom": 0.9876543210987654
+        },
+        "aiExampleOpaque": {
+          "sentinel": "AI-OPAQUE-PRESERVE-legacy-v2",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "nodes": [
+          {
+            "id": "legacy-v2-note",
+            "kind": "card",
+            "file": "notes/source.md",
+            "title": "自制来源笔记",
+            "x": 120.375,
+            "y": 180.625,
+            "width": 320.125,
+            "height": 240.0625,
+            "color": "blue",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v2-note",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "legacy-v2-board",
+            "kind": "board",
+            "file": "ordinary-v3.md",
+            "title": "同库普通白板",
+            "x": 500.375,
+            "y": 180.625,
+            "width": 320.125,
+            "height": 240.0625,
+            "color": "green",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v2-board",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "legacy-v2-relation",
+            "from": "legacy-v2-note",
+            "to": "legacy-v2-board",
+            "label": "进一步整理",
+            "aiEdgeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v2-relation",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ]
+      },
+      "expectedPreserved": {
+        "opaqueBoard": {
+          "sentinel": "AI-OPAQUE-PRESERVE-legacy-v2",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "opaqueNodes": [
+          {
+            "id": "legacy-v2-note",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v2-note",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "legacy-v2-board",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v2-board",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "opaqueEdges": [
+          {
+            "id": "legacy-v2-relation",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v2-relation",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "opaqueInk": null,
+        "opaqueStrokes": [],
+        "yamlSentinel": null,
+        "bodyBefore": null,
+        "bodyAfter": null,
+        "envelopeExtras": null,
+        "markdownPrefix": null,
+        "markdownSuffix": null
+      },
+      "references": [
+        {
+          "nodeId": "legacy-v2-note",
+          "file": "notes/source.md",
+          "kind": "card"
+        },
+        {
+          "nodeId": "legacy-v2-board",
+          "file": "ordinary-v3.md",
+          "kind": "board"
+        }
+      ],
+      "frozenRaw": {
+        "sha256": "9f66fa8376aad932ae1e66370dae34f96a5d4bf80e8fa461ee06fd6b22d64e67",
+        "utf8Bytes": 1812,
+        "lineEnding": "LF",
+        "utf8Bom": false
+      },
+      "validation": {
+        "productionParser": true,
+        "productionDocumentReplace": true,
+        "referenceFilesChecked": true,
+        "nativeOpenSaveRestart": false,
+        "referenceFilesCheckedScope": "Structured node.file regular-file existence and direct child board document parse only; not complete inline, recursive or semantic checks.",
+        "allReferenceSemanticsValidated": false
+      },
+      "id": "legacy-v2-thoughtspace",
+      "path": "sample-vault/legacy-v2.thoughtspace",
+      "format": "legacy",
+      "sourceBoardVersion": 2,
+      "sha256": "9f66fa8376aad932ae1e66370dae34f96a5d4bf80e8fa461ee06fd6b22d64e67",
+      "expectedNormalizedBoard": {
+        "version": 2,
+        "viewport": {
+          "x": 60.123456789012344,
+          "y": 60.23456789012346,
+          "zoom": 0.9876543210987654
+        },
+        "aiExampleOpaque": {
+          "sentinel": "AI-OPAQUE-PRESERVE-legacy-v2",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "nodes": [
+          {
+            "id": "legacy-v2-note",
+            "kind": "card",
+            "file": "notes/source.md",
+            "title": "自制来源笔记",
+            "x": 120.375,
+            "y": 180.625,
+            "width": 320.125,
+            "height": 240.0625,
+            "color": "blue",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v2-note",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "legacy-v2-board",
+            "kind": "board",
+            "file": "ordinary-v3.md",
+            "title": "同库普通白板",
+            "x": 500.375,
+            "y": 180.625,
+            "width": 320.125,
+            "height": 240.0625,
+            "color": "green",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v2-board",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "legacy-v2-relation",
+            "from": "legacy-v2-note",
+            "to": "legacy-v2-board",
+            "label": "进一步整理",
+            "aiEdgeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v2-relation",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ]
+      },
+      "normalizationChanges": [],
+      "referencedFiles": [
+        {
+          "path": "notes/source.md",
+          "kind": "card",
+          "sha256": "56f6c98151a549dd0749d6a332d3b0d03f819dfb3d5aaafebc8283133531d673"
+        },
+        {
+          "path": "ordinary-v3.md",
+          "kind": "board",
+          "sha256": "db36710617e0bbe8c63db4371c0b59b848ef701a85df752eb92b5fda7102d70f"
+        }
+      ],
+      "markdownLayoutRange": null,
+      "cliValidation": {
+        "toolVersion": "1.0.0-local",
+        "command": "validate --vault-root examples/ai-board/sample-vault --json",
+        "exitCode": 2,
+        "overall": "format_only",
+        "formatStatus": "passed",
+        "references": {
+          "status": "not_checked",
+          "totalCount": 2,
+          "checkedCount": 1,
+          "details": [
+            {
+              "kind": "card",
+              "target": "notes/source.md",
+              "pointer": "/nodes/0/file",
+              "status": "checked",
+              "message": "Regular file exists; content semantics are outside this check."
+            },
+            {
+              "kind": "board",
+              "target": "ordinary-v3.md",
+              "pointer": "/nodes/1/file",
+              "status": "not_checked",
+              "message": "Regular file exists. Direct child document passed the real parser, but its known references remain unchecked. No recursive reads are performed."
+            }
+          ],
+          "limitations": [
+            "Checks structured direct references only; child boards are parsed once, without recursively checking their references or cross-board cycles.",
+            "Ordinary note and attachment checks establish regular-file existence only; no codecs, PDF pages, timestamps, anchors, capture IDs or remote resources are resolved.",
+            "Markdown inline links and references hidden in opaque unknown fields are not resolved. This report does not certify the whole vault or a concurrent future state."
+          ]
+        },
+        "normalizationCount": 0
+      },
+      "historicalNative": {
+        "baseline": "local 1.3.36-beta.5",
+        "openSessionSaveNewPIDReopenPassed": true
+      }
+    },
+    {
+      "name": "legacy-v2",
+      "relativePath": "sample-vault/legacy-v2.md",
+      "vaultRelativePath": "legacy-v2.md",
+      "boardVersion": 2,
+      "presentation": "ordinary",
+      "wrapper": "md",
+      "envelopeVersion": 1,
+      "expectedNodeIds": [
+        "legacy-v2-note",
+        "legacy-v2-board"
+      ],
+      "expectedEdgeIds": [
+        "legacy-v2-relation"
+      ],
+      "expectedStrokeIds": [],
+      "inkPointSha256": null,
+      "expectedBoard": {
+        "version": 2,
+        "viewport": {
+          "x": 60.123456789012344,
+          "y": 60.23456789012346,
+          "zoom": 0.9876543210987654
+        },
+        "aiExampleOpaque": {
+          "sentinel": "AI-OPAQUE-PRESERVE-legacy-v2",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "nodes": [
+          {
+            "id": "legacy-v2-note",
+            "kind": "card",
+            "file": "notes/source.md",
+            "title": "自制来源笔记",
+            "x": 120.375,
+            "y": 180.625,
+            "width": 320.125,
+            "height": 240.0625,
+            "color": "blue",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v2-note",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "legacy-v2-board",
+            "kind": "board",
+            "file": "ordinary-v3.md",
+            "title": "同库普通白板",
+            "x": 500.375,
+            "y": 180.625,
+            "width": 320.125,
+            "height": 240.0625,
+            "color": "green",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v2-board",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "legacy-v2-relation",
+            "from": "legacy-v2-note",
+            "to": "legacy-v2-board",
+            "label": "进一步整理",
+            "aiEdgeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v2-relation",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ]
+      },
+      "expectedPreserved": {
+        "opaqueBoard": {
+          "sentinel": "AI-OPAQUE-PRESERVE-legacy-v2",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "opaqueNodes": [
+          {
+            "id": "legacy-v2-note",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v2-note",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "legacy-v2-board",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v2-board",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "opaqueEdges": [
+          {
+            "id": "legacy-v2-relation",
+            "value": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v2-relation",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "opaqueInk": null,
+        "opaqueStrokes": [],
+        "yamlSentinel": "AI-YAML-PRESERVE-legacy-v2",
+        "bodyBefore": "AI-BODY-BEFORE-legacy-v2",
+        "bodyAfter": "AI-BODY-AFTER-legacy-v2",
+        "envelopeExtras": {
+          "aiEnvelopeOpaque": {
+            "sentinel": "AI-OPAQUE-PRESERVE-legacy-v2-envelope",
+            "precision": 0.12345678901234568,
+            "nested": {
+              "labels": [
+                "自制",
+                "保留"
+              ],
+              "flag": true
+            }
+          }
+        },
+        "markdownPrefix": "---\nthoughtspace: board\nai_example: legacy-v2\ncustom_sentinel: \"AI-YAML-PRESERVE-legacy-v2\"\ntags: [ai-board-example, synthetic]\n---\n\n# legacy-v2 自制白板\n\n<!-- AI-BODY-BEFORE-legacy-v2 -->\n\n布局区外的正文和 YAML 交由原生 Markdown 编辑器管理。\n\n",
+        "markdownSuffix": "\n\n<!-- AI-BODY-AFTER-legacy-v2 -->\n\n此文件只用于自制样例库；不包含真实用户资料。\n"
+      },
+      "references": [
+        {
+          "nodeId": "legacy-v2-note",
+          "file": "notes/source.md",
+          "kind": "card"
+        },
+        {
+          "nodeId": "legacy-v2-board",
+          "file": "ordinary-v3.md",
+          "kind": "board"
+        }
+      ],
+      "frozenRaw": {
+        "sha256": "c8fab59c96935ca2bfb07e3a9b2250fd7db51f4e5ea185023fa42c678662f39d",
+        "utf8Bytes": 2730,
+        "lineEnding": "LF",
+        "utf8Bom": false
+      },
+      "validation": {
+        "productionParser": true,
+        "productionDocumentReplace": true,
+        "referenceFilesChecked": true,
+        "nativeOpenSaveRestart": false,
+        "referenceFilesCheckedScope": "Structured node.file regular-file existence and direct child board document parse only; not complete inline, recursive or semantic checks.",
+        "allReferenceSemanticsValidated": false
+      },
+      "id": "legacy-v2-md",
+      "path": "sample-vault/legacy-v2.md",
+      "format": "md",
+      "sourceBoardVersion": 2,
+      "sha256": "c8fab59c96935ca2bfb07e3a9b2250fd7db51f4e5ea185023fa42c678662f39d",
+      "expectedNormalizedBoard": {
+        "version": 2,
+        "viewport": {
+          "x": 60.123456789012344,
+          "y": 60.23456789012346,
+          "zoom": 0.9876543210987654
+        },
+        "aiExampleOpaque": {
+          "sentinel": "AI-OPAQUE-PRESERVE-legacy-v2",
+          "precision": 0.12345678901234568,
+          "nested": {
+            "labels": [
+              "自制",
+              "保留"
+            ],
+            "flag": true
+          }
+        },
+        "nodes": [
+          {
+            "id": "legacy-v2-note",
+            "kind": "card",
+            "file": "notes/source.md",
+            "title": "自制来源笔记",
+            "x": 120.375,
+            "y": 180.625,
+            "width": 320.125,
+            "height": 240.0625,
+            "color": "blue",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v2-note",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          },
+          {
+            "id": "legacy-v2-board",
+            "kind": "board",
+            "file": "ordinary-v3.md",
+            "title": "同库普通白板",
+            "x": 500.375,
+            "y": 180.625,
+            "width": 320.125,
+            "height": 240.0625,
+            "color": "green",
+            "aiNodeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v2-board",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ],
+        "edges": [
+          {
+            "id": "legacy-v2-relation",
+            "from": "legacy-v2-note",
+            "to": "legacy-v2-board",
+            "label": "进一步整理",
+            "aiEdgeOpaque": {
+              "sentinel": "AI-OPAQUE-PRESERVE-legacy-v2-relation",
+              "precision": 0.12345678901234568,
+              "nested": {
+                "labels": [
+                  "自制",
+                  "保留"
+                ],
+                "flag": true
+              }
+            }
+          }
+        ]
+      },
+      "normalizationChanges": [],
+      "referencedFiles": [
+        {
+          "path": "notes/source.md",
+          "kind": "card",
+          "sha256": "56f6c98151a549dd0749d6a332d3b0d03f819dfb3d5aaafebc8283133531d673"
+        },
+        {
+          "path": "ordinary-v3.md",
+          "kind": "board",
+          "sha256": "db36710617e0bbe8c63db4371c0b59b848ef701a85df752eb92b5fda7102d70f"
+        }
+      ],
+      "markdownLayoutRange": {
+        "startUtf16": 222,
+        "endUtf16": 2509
+      },
+      "cliValidation": {
+        "toolVersion": "1.0.0-local",
+        "command": "validate --vault-root examples/ai-board/sample-vault --json",
+        "exitCode": 2,
+        "overall": "format_only",
+        "formatStatus": "passed",
+        "references": {
+          "status": "not_checked",
+          "totalCount": 2,
+          "checkedCount": 1,
+          "details": [
+            {
+              "kind": "card",
+              "target": "notes/source.md",
+              "pointer": "/board/nodes/0/file",
+              "status": "checked",
+              "message": "Regular file exists; content semantics are outside this check."
+            },
+            {
+              "kind": "board",
+              "target": "ordinary-v3.md",
+              "pointer": "/board/nodes/1/file",
+              "status": "not_checked",
+              "message": "Regular file exists. Direct child document passed the real parser, but its known references remain unchecked. No recursive reads are performed."
+            }
+          ],
+          "limitations": [
+            "Checks structured direct references only; child boards are parsed once, without recursively checking their references or cross-board cycles.",
+            "Ordinary note and attachment checks establish regular-file existence only; no codecs, PDF pages, timestamps, anchors, capture IDs or remote resources are resolved.",
+            "Markdown inline links and references hidden in opaque unknown fields are not resolved. This report does not certify the whole vault or a concurrent future state."
+          ]
+        },
+        "normalizationCount": 0
+      },
+      "historicalNative": {
+        "baseline": "local 1.3.36-beta.5",
+        "openSessionSaveNewPIDReopenPassed": true
+      }
+    }
+  ],
+  "qualification": {
+    "publicBeta2": "actual production parser + document replacement, 10 formal and 3 CLI nonempty outputs; no UI run in this check",
+    "historicalNative": "local beta.5: all 10 formal + 3 CLI nonempty actual plugin open/Session save/new PID reopen passed",
+    "referenceSemanticsFullyValidated": false
+  }
+}

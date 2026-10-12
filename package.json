@@ -6,7 +6,13 @@
     "build": "tsc --noEmit && node esbuild.mjs",
     "test": "tsx --test tests/*.test.ts",
     "lint": "eslint src/ package.json",
-    "lint:report": "eslint src/ package.json --format json --output-file dist/eslint-report.json"
+    "lint:report": "eslint src/ package.json --format json --output-file dist/eslint-report.json",
+    "board-tool:build": "node tools/board-tool/build.mjs",
+    "board-tool:typecheck": "tsc -p tools/board-tool/tsconfig.json",
+    "board-tool:lint": "eslint -c tools/board-tool/eslint.config.mjs tools/board-tool/",
+    "board-tool": "node tools/dist/thoughtspace-board.mjs",
+    "board-tool:test": "tsx --test tests/ai_board_tool_*.test.ts",
+    "board-tool:verify": "node tools/board-tool/verify-examples.mjs"
   },
   "devDependencies": {
     "@codemirror/state": "6.5.0",
@@ -22,7 +28,8 @@
     "postcss-selector-parser": "7.1.6",
     "tsx": "^4.20.0",
     "typescript": "^5.8.0",
-    "typescript-eslint": "8.70.1"
+    "typescript-eslint": "8.70.1",
+    "js-yaml": "4.3.2"
   },
   "dependencies": {
     "@radix-ui/colors": "^3.0.0"

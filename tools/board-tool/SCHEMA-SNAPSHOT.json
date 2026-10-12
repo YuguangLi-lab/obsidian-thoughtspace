@@ -1,0 +1,360 @@
+{
+  "schemaSnapshotVersion": 1,
+  "publicPluginBaseCommit": "08e911fb7bb1b96794bf232c356eeab07fbd5d7c",
+  "formatBaseline": "Board v1/v2/v3, Markdown envelope v1, brain v1, ink v1",
+  "toolVersion": "1.0.0-local",
+  "sourceParserTestedCommit": "14c1c84d3ef9d63ff949425dd727f537dcdd1998",
+  "modules": [
+    {
+      "path": "schema/background-image.ts",
+      "upstreamPath": "src/background-image.ts",
+      "originalSHA256": "c2334c2b994044759839fd166916e615bd5f2f0219b314531e7d28e235a16de4",
+      "deliveredSHA256": "c2334c2b994044759839fd166916e615bd5f2f0219b314531e7d28e235a16de4",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/board-background.ts",
+      "upstreamPath": "src/board-background.ts",
+      "originalSHA256": "64870924e3278056f928445258431235ecd499d0f85acee4deef989f9aa8784f",
+      "deliveredSHA256": "64870924e3278056f928445258431235ecd499d0f85acee4deef989f9aa8784f",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/board-document.ts",
+      "upstreamPath": "src/board-document.ts",
+      "originalSHA256": "69b38658e96663065f81f4692efefba8790e1a7d1bb7b4da862f47309d2ba8e5",
+      "deliveredSHA256": "69b38658e96663065f81f4692efefba8790e1a7d1bb7b4da862f47309d2ba8e5",
+      "identicalToPublicBeta2": false,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/board-mindmap.ts",
+      "upstreamPath": "src/board-mindmap.ts",
+      "originalSHA256": "b4d540f4c1c11227f0a7f2c52425ee55e18b73e528476981a02ab8dd878aeffa",
+      "deliveredSHA256": "b4d540f4c1c11227f0a7f2c52425ee55e18b73e528476981a02ab8dd878aeffa",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/board-path.ts",
+      "upstreamPath": "src/board-path.ts",
+      "originalSHA256": "53d2394651b21995abe73843dd40e61a16bfa4c8bda62b687ba24f4255770236",
+      "deliveredSHA256": "53d2394651b21995abe73843dd40e61a16bfa4c8bda62b687ba24f4255770236",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/board-studio.ts",
+      "upstreamPath": "src/board-studio.ts",
+      "originalSHA256": "c8df7ae83f8bd77c2e34c903415c185bd3e6e092909ec9da62fdcad6e7a56fea",
+      "deliveredSHA256": "c8df7ae83f8bd77c2e34c903415c185bd3e6e092909ec9da62fdcad6e7a56fea",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/board-tools.ts",
+      "upstreamPath": "src/board-tools.ts",
+      "originalSHA256": "92ef21efe4277e0225b184c9931702ed32821e6d312be0ff8524b2699eab08da",
+      "deliveredSHA256": "92ef21efe4277e0225b184c9931702ed32821e6d312be0ff8524b2699eab08da",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/brain-colors.ts",
+      "upstreamPath": "src/brain-colors.ts",
+      "originalSHA256": "968057ffbb8ab976c6f26606d91ee89d1ebe8f553430133ae41381671f609920",
+      "deliveredSHA256": "968057ffbb8ab976c6f26606d91ee89d1ebe8f553430133ae41381671f609920",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/brain-reading-positions.ts",
+      "upstreamPath": "src/brain-reading-positions.ts",
+      "originalSHA256": "fb8b8f728ab444aa518d67f81f82c423195408d4bf2d2abbbd7da725f3e1c2e3",
+      "deliveredSHA256": "9ed028c207b1ef0d110d2a028b0589b48c9cf6c166dfe64c768539b3df148621",
+      "identicalToPublicBeta2": false,
+      "transformation": "retain validator/types only; remove unpublished actions and their unused Board import"
+    },
+    {
+      "path": "schema/connections.ts",
+      "upstreamPath": "src/connections.ts",
+      "originalSHA256": "324b0a9708fbe3ebeb6dce02ca5e28dd8c3e9889f5a936dbd9c8620fc979a00c",
+      "deliveredSHA256": "324b0a9708fbe3ebeb6dce02ca5e28dd8c3e9889f5a936dbd9c8620fc979a00c",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/evidence.ts",
+      "upstreamPath": "src/evidence.ts",
+      "originalSHA256": "9a289ca70bb60b7243c2c2886560c42c8223ef7008afae344abbaf3535cb7a8d",
+      "deliveredSHA256": "9a289ca70bb60b7243c2c2886560c42c8223ef7008afae344abbaf3535cb7a8d",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/excerpt-sources.ts",
+      "upstreamPath": "src/excerpt-sources.ts",
+      "originalSHA256": "10c88fe6b3ad0319188f1c3efdecb01e8c9f2dc3a19c7bb74a556858201aed02",
+      "deliveredSHA256": "10c88fe6b3ad0319188f1c3efdecb01e8c9f2dc3a19c7bb74a556858201aed02",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/expansion-checkpoint.ts",
+      "upstreamPath": "src/expansion-checkpoint.ts",
+      "originalSHA256": "6a9341bbb06fb1fdd1aaebd0cdbef95ee1fdc81cf186ad59ca7b75172e946a77",
+      "deliveredSHA256": "6a9341bbb06fb1fdd1aaebd0cdbef95ee1fdc81cf186ad59ca7b75172e946a77",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/filing.ts",
+      "upstreamPath": "src/filing.ts",
+      "originalSHA256": "df81c5bce3f38a0a25f073f81b8780d90bfaafa8d9f164704f0629bf5bfb5e40",
+      "deliveredSHA256": "df81c5bce3f38a0a25f073f81b8780d90bfaafa8d9f164704f0629bf5bfb5e40",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/image-host.ts",
+      "upstreamPath": "src/image-host.ts",
+      "originalSHA256": "1977fe4e747cd2523dd2a3b8434c95fa6552397884ae47a53b7c7cf5f495b7cd",
+      "deliveredSHA256": "1977fe4e747cd2523dd2a3b8434c95fa6552397884ae47a53b7c7cf5f495b7cd",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/ink-model.ts",
+      "upstreamPath": "src/ink-model.ts",
+      "originalSHA256": "bc1538bde86b34402d1530aaf2c27ef4a9d563250c73b053c79944fd42524bd9",
+      "deliveredSHA256": "bc1538bde86b34402d1530aaf2c27ef4a9d563250c73b053c79944fd42524bd9",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/journal-links-model.ts",
+      "upstreamPath": "src/journal-links-model.ts",
+      "originalSHA256": "2fa8d1139345a78a7da953086c788424196b3be148edc2189669b8efb76bca8b",
+      "deliveredSHA256": "2fa8d1139345a78a7da953086c788424196b3be148edc2189669b8efb76bca8b",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/markdown-context.ts",
+      "upstreamPath": "src/markdown-context.ts",
+      "originalSHA256": "2aac2223b26ba319bb2f0ed890ce95cab49aa284a9430441120a54a27936dfa1",
+      "deliveredSHA256": "2aac2223b26ba319bb2f0ed890ce95cab49aa284a9430441120a54a27936dfa1",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/markdown-links.ts",
+      "upstreamPath": "src/markdown-links.ts",
+      "originalSHA256": "acc1f9781fc5857ed3c7638cba1555c0402d6c2b65a6cacbe87aca6ea8965a44",
+      "deliveredSHA256": "acc1f9781fc5857ed3c7638cba1555c0402d6c2b65a6cacbe87aca6ea8965a44",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/markdown-literals.ts",
+      "upstreamPath": "src/markdown-literals.ts",
+      "originalSHA256": "c56d4a5988abf8f157c33cd34b33c601235e49b50115164ca41e9f4a3b6510aa",
+      "deliveredSHA256": "c56d4a5988abf8f157c33cd34b33c601235e49b50115164ca41e9f4a3b6510aa",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/materials.ts",
+      "upstreamPath": "src/materials.ts",
+      "originalSHA256": "9ac5624dec7cb8af149e791f7b55a4f19faa6aaaae1d7ef577b3fe4892a9a900",
+      "deliveredSHA256": "9ac5624dec7cb8af149e791f7b55a4f19faa6aaaae1d7ef577b3fe4892a9a900",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/media-export.ts",
+      "upstreamPath": "src/media-export.ts",
+      "originalSHA256": "a1abb4a904331a3dc41424569121c5c98fa505d73265ecb0c32849182f8e5899",
+      "deliveredSHA256": "a1abb4a904331a3dc41424569121c5c98fa505d73265ecb0c32849182f8e5899",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/media-notes.ts",
+      "upstreamPath": "src/media-notes.ts",
+      "originalSHA256": "d3c5b70bbe8fb84ce70d1776d3fa66b589ed4fd77617b054b16027bb391f5b86",
+      "deliveredSHA256": "d3c5b70bbe8fb84ce70d1776d3fa66b589ed4fd77617b054b16027bb391f5b86",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/media-source.ts",
+      "upstreamPath": "src/media-source.ts",
+      "originalSHA256": "31d70fc8d6229dae222964e43c58ccc61869b3ead5757f80e6feb5e7d049bd4f",
+      "deliveredSHA256": "31d70fc8d6229dae222964e43c58ccc61869b3ead5757f80e6feb5e7d049bd4f",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/mindmap.ts",
+      "upstreamPath": "src/mindmap.ts",
+      "originalSHA256": "2569d1f0880ce4c712d525dc1d4c5b23f952965afabe59650ac685711c3a027a",
+      "deliveredSHA256": "2569d1f0880ce4c712d525dc1d4c5b23f952965afabe59650ac685711c3a027a",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/model.ts",
+      "upstreamPath": "src/model.ts",
+      "originalSHA256": "612d223c92c8d2e808548112c5afbcebd0594cf7aece28362210766435f01ae1",
+      "deliveredSHA256": "612d223c92c8d2e808548112c5afbcebd0594cf7aece28362210766435f01ae1",
+      "identicalToPublicBeta2": false,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/note-fragments.ts",
+      "upstreamPath": "src/note-fragments.ts",
+      "originalSHA256": "c90148311d611a7451a899eaeba92fd1f2596724e2ed851b175136922adb1acc",
+      "deliveredSHA256": "c90148311d611a7451a899eaeba92fd1f2596724e2ed851b175136922adb1acc",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/online-video.ts",
+      "upstreamPath": "src/online-video.ts",
+      "originalSHA256": "121c5bc9e99110c3c2d9bae8776b633c9c19478e7a413fe7c4da5056854ff0e8",
+      "deliveredSHA256": "121c5bc9e99110c3c2d9bae8776b633c9c19478e7a413fe7c4da5056854ff0e8",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/paper-appearance.ts",
+      "upstreamPath": "src/paper-appearance.ts",
+      "originalSHA256": "97aa08b96bdfd525ed93cf8d27843727480add8e800991cc769a622a623d9256",
+      "deliveredSHA256": "97aa08b96bdfd525ed93cf8d27843727480add8e800991cc769a622a623d9256",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/paragraph-card.ts",
+      "upstreamPath": "src/paragraph-card.ts",
+      "originalSHA256": "03a47ca61fcbdea5f3f5b4ee5d48202f1ce52f0992f171fbbde8ac527ecc03ec",
+      "deliveredSHA256": "03a47ca61fcbdea5f3f5b4ee5d48202f1ce52f0992f171fbbde8ac527ecc03ec",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/pdf-quote.ts",
+      "upstreamPath": "src/pdf-quote.ts",
+      "originalSHA256": "8d307785e70fd04073cad741640ac182f83640ea31737c8e0a370204918d344e",
+      "deliveredSHA256": "8d307785e70fd04073cad741640ac182f83640ea31737c8e0a370204918d344e",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/portable-sha256.ts",
+      "upstreamPath": "src/portable-sha256.ts",
+      "originalSHA256": "8f898fa854538e532183665eab1ddc73b7f0d43d38b16d5807d5bfd08df62027",
+      "deliveredSHA256": "8f898fa854538e532183665eab1ddc73b7f0d43d38b16d5807d5bfd08df62027",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/reference-reading.ts",
+      "upstreamPath": "src/reference-reading.ts",
+      "originalSHA256": "5d59d71c508aeec41bbb0e14e098717f81bd802538c3391fdefcc2862d92224e",
+      "deliveredSHA256": "5d59d71c508aeec41bbb0e14e098717f81bd802538c3391fdefcc2862d92224e",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/relation-geometry-checkpoint.ts",
+      "upstreamPath": "src/relation-geometry-checkpoint.ts",
+      "originalSHA256": "ad5df69b1c73988d4197643056e3a6f5001234f92adcf01a86354b3561b11232",
+      "deliveredSHA256": "ad5df69b1c73988d4197643056e3a6f5001234f92adcf01a86354b3561b11232",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/saved-searches.ts",
+      "upstreamPath": "src/saved-searches.ts",
+      "originalSHA256": "ae73c641f4607d8ee58d7c8a54098046b629fd7d0d22922d4694c977c94bf319",
+      "deliveredSHA256": "ae73c641f4607d8ee58d7c8a54098046b629fd7d0d22922d4694c977c94bf319",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/sections.ts",
+      "upstreamPath": "src/sections.ts",
+      "originalSHA256": "4f962d4ae114614afbe3a16460fcbd6329910c3af521313656285dffed764e07",
+      "deliveredSHA256": "4f962d4ae114614afbe3a16460fcbd6329910c3af521313656285dffed764e07",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/text-sizing.ts",
+      "upstreamPath": "src/text-sizing.ts",
+      "originalSHA256": "7216cba3627ea5eed1631fd5a1056a676b11112542cef022de8feb92b1818a72",
+      "deliveredSHA256": "7216cba3627ea5eed1631fd5a1056a676b11112542cef022de8feb92b1818a72",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/value-guards.ts",
+      "upstreamPath": "src/value-guards.ts",
+      "originalSHA256": "5e1e72ac8be7445d323c9032fbbf0c87139bbe65a5e0c05c158d95359e68bd23",
+      "deliveredSHA256": "5e1e72ac8be7445d323c9032fbbf0c87139bbe65a5e0c05c158d95359e68bd23",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/web-card.ts",
+      "upstreamPath": "src/web-card.ts",
+      "originalSHA256": "862e07cb85ec31a08c7df89e43cbe717fd01ccab1921a8edc29e4ea15a9317eb",
+      "deliveredSHA256": "862e07cb85ec31a08c7df89e43cbe717fd01ccab1921a8edc29e4ea15a9317eb",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/workspace.ts",
+      "upstreamPath": "src/workspace.ts",
+      "originalSHA256": "86c07f51308928d4af2ca18a13d6ccd86af0b4da3c5550cfacf8dbe610c0b42e",
+      "deliveredSHA256": "86c07f51308928d4af2ca18a13d6ccd86af0b4da3c5550cfacf8dbe610c0b42e",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/writing-reference.ts",
+      "upstreamPath": "src/writing-reference.ts",
+      "originalSHA256": "c9e3c8b40c0cd0088e0a33e5f4019a2aae88934cc634ddf7edbe376bc02a4ff9",
+      "deliveredSHA256": "c9e3c8b40c0cd0088e0a33e5f4019a2aae88934cc634ddf7edbe376bc02a4ff9",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/writing.ts",
+      "upstreamPath": "src/writing.ts",
+      "originalSHA256": "f0ad8d9cb6513c6e39ed53efba67964a668fc222c787185b0b6d7a96c16d0cf0",
+      "deliveredSHA256": "f0ad8d9cb6513c6e39ed53efba67964a668fc222c787185b0b6d7a96c16d0cf0",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    },
+    {
+      "path": "schema/yingjian.ts",
+      "upstreamPath": "src/yingjian.ts",
+      "originalSHA256": "929365544f6dac947305e4cac83758606b8392d395acdce939379c58dad268bd",
+      "deliveredSHA256": "929365544f6dac947305e4cac83758606b8392d395acdce939379c58dad268bd",
+      "identicalToPublicBeta2": true,
+      "transformation": "exact copy"
+    }
+  ],
+  "unpublishedDifferences": [
+    "src/board-document.ts",
+    "src/brain-reading-positions.ts",
+    "src/model.ts"
+  ],
+  "pluginSourceChanged": false,
+  "unpublishedPositionActionsIncluded": false
+}

@@ -1,0 +1,153 @@
+import type {MaterialPoint} from './evidence';
+import {textExcerptPresentation} from './excerpt-sources';
+import {Board, Card, colors} from './model';
+import {layoutMindmap} from './mindmap';
+import {markdownRows} from './markdown-context';
+export type FragmentKind='paragraph'|'quote'|'task'|'code';
+export interface Fragment {id:string;kind:FragmentKind;title:string;heading:string;body:string;start:number;end:number;selection?:{from:number;to:number}}
+export const fragmentLabels:Record<FragmentKind,string>={paragraph:'段落',quote:'引用',task:'待办',code:'代码'};
+export interface OutlineTopic {title:string;parent:number|null;depth:number}
+const plain=(s:string)=>s.replace(/!?\[([^\]]+)\]\([^)]*\)/g,'$1').replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g,(_match:string,a:string,b:string|undefined)=>b||a).replace(/[*`~]/g,'').trim();
+const fenceMarker=(line:string)=>{const marker=/^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);return marker&&!(marker[1][0]==='`'&&marker[2].includes('`'))?marker:undefined;};
+/** Line numbers remain tied to the source. Fenced blocks and frontmatter never become fake headings. */
+function sourceLines(raw:string){
+ if(raw.length>500000)throw Error('材料超过 500,000 字符，请先选取一个章节');
+ const lines=raw.replace(/\r\n?/g,'\n').split('\n');let start=0;
+ if(lines[0]?.trim()==='---'){const end=lines.findIndex((s,i)=>i>0&&/^(---|\.\.\.)\s*$/.test(s));if(end<0)throw Error('笔记属性区未闭合，请先修复 Markdown');start=end+1;}
+ return{lines,start};
+}
+// Keep source coordinates, but prevent skipped properties from opening Markdown
+// fences/comments or a body-leading separator from becoming another properties block.
+const sourceRows=(lines:string[],start:number)=>markdownRows(lines.map((line,i)=>i<start?'':line).join('\n'));
+export function extractFragments(raw:string):{fragments:Fragment[];truncated:boolean}{
+ const {lines,start}=sourceLines(raw),contexts=[...sourceRows(lines,start)],fragments:Fragment[]=[];let heading='',block:string[]=[],begin=start,fence='';
+ const flush=(end:number)=>{const body=block.join('\n');if(body.trim()&&fragments.length<200){const kind:FragmentKind=(fenceMarker(body.split('\n',1)[0])||/^(?: {4}|\t)/.test(body))?'code':/^\s*>/.test(body)?'quote':/^\s*(?:[-*+]|\d+[.)])\s+\[[ xX]\]/.test(body)?'task':'paragraph';fragments.push({id:`${begin+1}:${end}`,kind,title:plain(body.replace(/^\s*(>|[-*+]\s+\[[ xX]\])\s*/,'').split('\n')[0].replace(/^\[![^\]]+\][+-]?\s*/,'')).slice(0,96)||heading||'材料片段',heading,body,start:begin+1,end});}else if(body.trim())truncated=true;block=[];};
+ let truncated=false;
+ for(let i=start;i<lines.length;i++){
+  const line=lines[i],context=contexts[i],marker=!context.commentBefore?fenceMarker(line):undefined;
+  if(fence){block.push(line);if(marker&&marker[1][0]===fence[0]&&marker[1].length>=fence.length&&!marker[2].trim()){fence='';flush(i+1);}continue;}
+  if(marker){flush(i);begin=i;block=[line];fence=marker[1];continue;}
+  const h=!context.code&&context.visible.match(/^ {0,3}#{1,6}[ \t]+(.*)$/);
+  if(h){flush(i);heading=plain(h[1].replace(/^[#]+[ \t]*$|[ \t]+#+[ \t]*$/,''));continue;}
+  if(!line.trim()){flush(i);continue;}
+  if(fragments.length>=200&&!block.length){truncated=true;break;}
+  if(!block.length)begin=i;block.push(line);
+ }
+ flush(lines.length);return{fragments,truncated};
+}
+export function parseOutline(raw:string):OutlineTopic[]{
+ const {lines,start}=sourceLines(raw),topics:OutlineTopic[]=[],headings:{level:number;index:number}[]=[],lists:{indent:number;index:number}[]=[];
+ for(const row of sourceRows(lines,start)){
+  if(row.line<start||row.code)continue;const line=row.visible;
+  // Breaks are block separators even when their first character resembles a list marker.
+  if(/^ {0,3}(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3,})$/.test(line)){lists.length=0;continue;}
+  const h=line.match(/^ {0,3}(#{1,6})[ \t]+(.*)$/),list=line.match(/^(\s*)(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?(.+)$/);
+  if(list&&!lists.length&&list[1].replace(/\t/g,'    ').length>=4)continue;
+  if(!h&&!list){if(line.trim())lists.length=0;continue;}
+  if(topics.length>=200)throw Error('大纲最多支持 200 个主题，请分章节导入');
+  let parent:number|null,title:string;
+  if(h){lists.length=0;while(headings.length&&headings.at(-1)!.level>=h[1].length)headings.pop();parent=headings.at(-1)?.index??null;title=plain(h[2].replace(/^[#]+[ \t]*$|[ \t]+#+[ \t]*$/,''));headings.push({level:h[1].length,index:topics.length});}
+  else{const indent=list![1].replace(/\t/g,'    ').length;while(lists.length&&lists.at(-1)!.indent>=indent)lists.pop();parent=lists.at(-1)?.index??headings.at(-1)?.index??null;title=plain(list![2]);lists.push({indent,index:topics.length});}
+  topics.push({title:title.slice(0,500)||'未命名主题',parent,depth:parent===null?0:topics[parent].depth+1});
+ }
+ return topics;
+}
+export function outlineBoard(topics:OutlineTopic[],title:string,point:{x:number;y:number},direction:'right'|'down'|'up',id:()=>string):Board{
+ if(!topics.length||topics.length>200)throw Error('需要 1–200 个标题或列表项');
+ const b:Board={version:3,mode:'mindmap',mindmapDirection:direction,nodes:[],edges:[],viewport:{x:0,y:0,zoom:1}};
+ const roots=topics.filter(t=>t.parent===null).length;let root:Card|undefined;
+ const make=(text:string,depth:number):Card=>({id:id(),kind:'text',topic:true,text,x:point.x,y:point.y,width:Math.min(360,Math.max(160,text.length*9+32)),height:Math.max(60,Math.min(240,Math.ceil(text.length/28)*24+24)),color:depth===0?'green':colors[(depth-1)%colors.length],autoSize:true});
+ if(roots>1){root=make(title.trim()||'材料大纲',0);b.nodes.push(root);}
+ const nodes:Card[]=[];
+ topics.forEach((t,i)=>{if(t.parent!==null&&(!Number.isInteger(t.parent)||t.parent<0||t.parent>=i))throw Error('大纲层级无效');const n=make(t.title,t.depth+(root?1:0));nodes.push(n);b.nodes.push(n);const parent=t.parent===null?root:nodes[t.parent];if(parent)b.edges.push({id:id(),from:parent.id,to:n.id,label:'',kind:'branch',style:'curve',direction:'none',color:n.color});});
+ // A tree imported beside another one retains its own direction when continued.
+ b.nodes[0].mindmapRules={layout:direction,density:'standard',automatic:false};layoutMindmap(b,b.nodes[0].id,direction);return b;
+}
+
+/** Exact native-editor offsets; never expand a sentence selection to its whole paragraph. */
+export function selectionFragment(raw:string,from:number,to:number):Fragment{
+ if(!Number.isInteger(from)||!Number.isInteger(to)||from<0||to>raw.length||to<=from)throw Error('请选择一段文字');
+ const body=raw.slice(from,to);if(!body.trim())throw Error('选区没有正文');if(body.length>100000)throw Error('一次最多摘录 100,000 字符，请分段拖入');
+ let start=1,end=1;const last=to-(body.endsWith('\n')?1:0);
+ for(let at=raw.indexOf('\n');at>=0&&at<last;at=raw.indexOf('\n',at+1)){if(at<from)start++;end++;}
+ let title='摘录';for(let at=0;at<body.length;){const next=body.indexOf('\n',at),line=body.slice(at,next<0?body.length:next);if(line.trim()){title=line;break;}if(next<0)break;at=next+1;}
+ return{id:`selection:${from}:${to}`,kind:'paragraph',title:plain(title).slice(0,96)||'摘录',heading:'',body,start,end,selection:{from,to}};
+}
+export interface MaterialReference {original:string;replacement:string;start:{line:number;col:number};end:{line:number;col:number}}
+type ReferenceEdit={a:number;b:number;replacement:string};
+/** Assemble disjoint source ranges once; preserve legacy ordering for overlapping metadata. */
+function applyReferenceEdits(body:string,edits:ReferenceEdit[]){
+ let cursor=body.length;const parts:string[]=[];
+ for(const edit of edits){
+  if(!Number.isInteger(edit.a)||!Number.isInteger(edit.b)||edit.a<0||edit.b<edit.a||edit.b>cursor){let result=body;for(const item of edits)result=result.slice(0,item.a)+item.replacement+result.slice(item.b);return result;}
+  parts.push(body.slice(edit.b,cursor),edit.replacement);cursor=edit.a;
+ }
+ if(!edits.length)return body;parts.push(body.slice(0,cursor));return parts.reverse().join('');
+}
+const sliceIndex=(value:number,length:number)=>{const n=Math.trunc(value)||0;return n<0?Math.max(length+n,0):Math.min(n,length);};
+/** Source and link preparation lives only for one import, never in a vault-wide cache. */
+export function createFragmentRebaser(raw:string,references:MaterialReference[]){
+ let normalizedLines:string[]|undefined,selectionEdits:(MaterialReference&{a:number;b:number})[]|undefined;
+ let sorted:MaterialReference[]|undefined,indexable:boolean|undefined;
+ const inLines=(start:number,end:number)=>{
+  indexable??=references.every(r=>Number.isInteger(r.start.line)&&r.start.line>=0&&Number.isInteger(r.end.line)&&r.end.line>=r.start.line);
+  if(!indexable||!Number.isInteger(start)||!Number.isInteger(end))return references.filter(r=>r.start.line>=start&&r.end.line<end);
+  sorted??=[...references].sort((a,b)=>a.start.line-b.start.line);
+  let low=0,high=sorted.length;while(low<high){const mid=(low+high)>>>1;if(sorted[mid].start.line<start)low=mid+1;else high=mid;}
+  const result:MaterialReference[]=[];for(let i=low;i<sorted.length&&sorted[i].start.line<end;i++)if(sorted[i].end.line<end)result.push(sorted[i]);return result;
+ };
+ return(f:Fragment)=>{
+  if(f.selection){
+   const {from,to}=f.selection;if(selectionFragment(raw,from,to).body!==f.body)throw Error('文字选区已变化，请重新选择');
+   if(!selectionEdits){const offsets=[0];for(let at=raw.indexOf('\n');at>=0;at=raw.indexOf('\n',at+1))offsets.push(at+1);selectionEdits=references.map(r=>({...r,a:offsets[r.start.line]+r.start.col,b:offsets[r.end.line]+r.end.col}));}
+   const edits=selectionEdits.filter(r=>r.a>=from&&r.b<=to).sort((a,b)=>b.a-a.a),relative:ReferenceEdit[]=[];
+   for(const r of edits){if(raw.slice(r.a,r.b)!==r.original)throw Error('原文链接索引已变化，请稍后重新拖入');relative.push({a:r.a-from,b:r.b-from,replacement:r.replacement});}
+   return applyReferenceEdits(f.body,relative);
+  }
+  normalizedLines??=raw.replace(/\r\n?/g,'\n').split('\n');const lines=normalizedLines.slice(f.start-1,f.end),region=lines.join('\n'),offsets=[0];for(const line of lines)offsets.push(offsets.at(-1)!+line.length+1);
+  const offset=(line:number,col:number)=>offsets[sliceIndex(line-(f.start-1),lines.length)]+col;
+  const edits=inLines(f.start-1,f.end).sort((a,b)=>b.start.line-a.start.line||b.start.col-a.start.col),relative:ReferenceEdit[]=[];
+  for(const r of edits){const a=offset(r.start.line,r.start.col),b=offset(r.end.line,r.end.col);if(region.slice(a,b)!==r.original)throw Error('原文链接索引已变化，请刷新材料后再试');relative.push({a,b,replacement:r.replacement});}
+  if(region!==f.body)throw Error('材料片段已变化，请刷新后再试');return applyReferenceEdits(region,relative);
+ };
+}
+/** Rebase only source-indexed links whose exact original text still matches; code and prose remain untouched. */
+export function rebaseFragment(raw:string,f:Fragment,references:MaterialReference[]){return createFragmentRebaser(raw,references)(f);}
+
+export interface MaterialImportOptions {asText?:boolean;position?:MaterialPoint;mergeTitle?:string;title?:string;groupId?:string;focus?:boolean;insight?:string}
+export interface MaterialImportResult {ids:string[];files:string[];boardPath:string;groupId?:string}
+export function materialKey(f:Fragment){return JSON.stringify([f.heading,f.body]);}
+export function excerptDocuments(fragments:Fragment[],sourceLink:string,options:MaterialImportOptions={}){
+ const clean=(text:string)=>text.replace(/[\r\n]+/g,' ').trim().slice(0,100);
+ const insight=options.insight?.trim();const reflection=insight?`## 我的理解\n\n${insight}\n\n## 来源摘录\n\n`:'';
+ const citation=(f:Fragment)=>`> 来源：${sourceLink} · 第 ${f.start}–${f.end} 行${f.heading?' · '+f.heading:''}`;
+ const part=(f:Fragment)=>`${f.body}\n\n${citation(f)}`;
+ if(options.mergeTitle!==undefined){const title=clean(options.mergeTitle);if(!title)throw Error('请为合并后的概念笔记填写标题');return[{title,kind:fragments[0].kind,body:`# ${title}\n\n${reflection}${fragments.map(f=>f.body).join('\n\n---\n\n')}\n\n${fragments.map(citation).join('\n\n')}\n`}];}
+ return fragments.map(f=>{const title=clean(fragments.length===1&&options.title?options.title:f.title);return{title,kind:f.kind,body:`# ${title}\n\n${reflection}${part(f)}\n`};});
+}
+/** The cache is intentionally per-workbench and bounded, never a vault-wide content index. */
+export class MaterialProgress {
+ private sources=new Map<object,Map<string,MaterialImportResult>>();
+ constructor(readonly limit=6){}
+ record(source:object,fragments:Fragment[],result:MaterialImportResult){const entries=this.sources.get(source)||new Map<string,MaterialImportResult>();this.sources.delete(source);this.sources.set(source,entries);for(const f of fragments)entries.set(result.boardPath+'\n'+materialKey(f),result);while(entries.size>600)entries.delete(entries.keys().next().value!);while(this.sources.size>this.limit)this.sources.delete(this.sources.keys().next().value!);}
+ get(source:object,fragment:Fragment,boardPath:string){return this.sources.get(source)?.get(boardPath+'\n'+materialKey(fragment));}
+ get size(){return this.sources.size;}
+ clear(){this.sources.clear();}
+}
+
+export const pdfLiteralText=(text:string)=>text.replace(/([!-/:-@[-`{-~])/g,'\\$1');
+
+/** Plain PDF text stays plain on the board; escape it only when creating Markdown. */
+export function excerptNoteMarkdown(raw:string){
+ const {body,sources}=textExcerptPresentation(raw);if(!sources.length||sources.some(source=>!source.page))return raw;
+ return pdfLiteralText(body.trimEnd())+'\n\n'+sources.map(source=>'> '+source.citation).join('\n\n')+'\n';
+}
+
+/** PDF text is literal source text, not executable Markdown supplied by the document. */
+export function pdfExcerptDocument(text:string,sourceLink:string,page:number,endPage=page){
+ if(!text.trim()||text.length>100000)throw Error('请选择 1–100,000 字符的 PDF 正文');
+ if(!Number.isInteger(page)||!Number.isInteger(endPage)||page<1||endPage<page)throw Error('无法确定 PDF 页码，请在正文中重新选择');
+ const literal=pdfLiteralText;
+ const title=text.trim().split('\n')[0].slice(0,80).replace(/[\r\n]/g,' '),pages=page===endPage?`${page}`:`${page}–${endPage}`;
+ return{title,body:`# ${literal(title)}\n\n${text.trim().split('\n').map(line=>'> '+literal(line)).join('\n')}\n\n来源：${sourceLink} · PDF 第 ${pages} 页\n`};
+}

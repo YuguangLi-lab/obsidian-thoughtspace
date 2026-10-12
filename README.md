@@ -1,5 +1,7 @@
 # ThoughtSpace Whiteboard
 
+**AI board CLI phase 1 (`1.0.0-local`, Node 22)**: validate or inspect a file and exclusively create an ordinary, brain or handwriting board. Download the repository ZIP to run the committed CLI without installing dependencies. Read the [usage guide](docs/AI-BOARD-GUIDE.zh-CN.md), [format contract](docs/AI-BOARD-FORMAT.zh-CN.md), [synthetic examples](examples/ai-board/README.zh-CN.md), and [tool entry](tools/README.md). Handwriting examples require the published 1.3.36-beta.2 plugin; `format_only` (exit 2) keeps unchecked references explicit.
+
 **English** · [简体中文](README.zh-CN.md)
 
 **Prerelease [1.3.36-beta.2](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/tag/1.3.36-beta.2).** Choose **Handwriting board (手写白板)** as the third type in **New board or brain board (新建白板或脑图…)**. This beta adds phone/tablet layouts, touch reading and navigation, draft preservation during resize, and saving recovery. See the [mobile guide (Chinese)](docs/MOBILE-ADAPTATION.zh-CN.md), [handwriting guide (Chinese)](docs/HANDWRITING-IPAD.zh-CN.md) and [validation report](qa/RELEASE-1.3.36-beta.2.md). **Acceptance uses isolated desktop tests and simulated mobile input/loading; physical iOS/Android, Pencil, system IME and WKWebView remain untested.** Stable latest remains **1.3.35**; use the explicit beta link to try this prerelease.

@@ -1,5 +1,7 @@
 # ThoughtSpace Whiteboard
 
+**AI 白板工具第一期（`1.0.0-local`，Node 22）**：只读校验/检查，并排他创建普通、脑图或手写新文件。下载仓库 ZIP 后可直接运行已构建工具，无需安装依赖。见[AI指南](docs/AI-BOARD-GUIDE.zh-CN.md)、[格式规范](docs/AI-BOARD-FORMAT.zh-CN.md)、[自制示例](examples/ai-board/README.zh-CN.md)和[工具入口](tools/README.md)。手写示例需要已公开的 1.3.36-beta.2 插件；`format_only`（退出2）明确保留引用未检查状态。
+
 [English](README.md) · **简体中文**
 
 **预发布 [1.3.36-beta.2](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/tag/1.3.36-beta.2)。** 在“新建白板或脑图…”中选择第三种类型 **手写白板**。此 beta 增加手机/平板布局、触控阅读与导航、resize 草稿保留和保存恢复。操作与边界见[移动适配说明](docs/MOBILE-ADAPTATION.zh-CN.md)、[手写指南](docs/HANDWRITING-IPAD.zh-CN.md)及[本轮验证说明](qa/RELEASE-1.3.36-beta.2.md)。**验收采用隔离桌面测试和移动输入/加载模拟，真实 iOS/Android、Pencil、系统输入法、WKWebView 未测。** 稳定最新版仍为 **1.3.35**；试用请使用上面的 beta 链接。

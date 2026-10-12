@@ -20,4 +20,9 @@ jobs:
       - run: npm test
       - run: python3 -m unittest discover -s scripts -p 'test_*.py'
       - run: npm run build
+      - run: npm run board-tool:typecheck
+      - run: npm run board-tool:lint
+      - run: npm run board-tool:build
+      - run: npm run board-tool:verify
+      - run: git diff --exit-code -- tools/dist/thoughtspace-board.mjs tools/dist/board-tool.mjs
       - run: python3 scripts/package.py

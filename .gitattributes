@@ -1,0 +1,2 @@
+# This synthetic preservation fixture intentionally stores UTF-8 BOM + CRLF.
+examples/ai-board/sample-vault/ordinary-v3.md -text whitespace=cr-at-eol

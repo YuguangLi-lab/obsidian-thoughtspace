@@ -6,3 +6,9 @@ dist/
 .env.*
 *.log
 __pycache__/
+
+# Committed standalone AI board CLI/API; metadata stays local.
+!tools/dist/
+tools/dist/*
+!tools/dist/thoughtspace-board.mjs
+!tools/dist/board-tool.mjs
