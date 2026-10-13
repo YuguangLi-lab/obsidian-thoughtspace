@@ -20,6 +20,25 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      - name: Preserve the tested stylesheet section order
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import {readFile,writeFile} from 'node:fs/promises';
+          import {createHash} from 'node:crypto';
+          const sha=value=>createHash('sha256').update(value).digest('hex');
+          let css=await readFile('styles.css','utf8');
+          assert.equal(sha(css),'380c0d27a443571c273607d764c9ef8258bf96766cb78ef1eb639395a0babab3');
+          const marker=/\n\n\/\* BEGIN board-modal-viewport generated \*\/[\s\S]*?\/\* END board-modal-viewport generated \*\//g;
+          const matches=[...css.matchAll(marker)];
+          assert.equal(matches.length,1);
+          const anchor='/* END handwriting-export generated */';
+          assert.equal(css.split(anchor).length,2);
+          assert.ok(matches[0].index<css.indexOf(anchor));
+          css=css.replace(matches[0][0],'').replace(anchor,anchor+matches[0][0]);
+          assert.equal(sha(css),'2b4e8ad104d9f5fe34e93c225fe67373e308480779af8d19a43a2b91a19d71a4');
+          await writeFile('styles.css',css);
+          NODE
       - name: Require exact tested bytes and final source tree
         run: |
           printf '%s\n' \
