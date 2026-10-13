@@ -2,20 +2,36 @@ import {App,Component,Modal,Notice,TFile,getAllTags,setIcon} from 'obsidian';
 import {nativeRelations} from './native-bridge';
 import {themeSurface} from './ui-tokens';
 import {isWorkspaceFile} from './workspace';
+import {bindBoardModalViewport} from './board-modal-viewport';
+import {referenceOccurrenceGroups,type ReferenceOccurrence} from './reference-occurrences';
 export interface NativeBridgeHost {
   open:(file:TFile)=>unknown; add:(files:TFile[])=>unknown;
   usages:(file:TFile,active:()=>boolean)=>Promise<{files:TFile[];errors:number}>;
   openBoard:(file:TFile)=>unknown;
+  /** Exact card instances, including explicit heading/block/snapshot provenance. */
+  occurrences?:(file:TFile,active:()=>boolean)=>Promise<{items:ReferenceOccurrence[];errors:number}>;
+  /** Root validates the retained TFile, node stamp, source, native owner and origin. */
+  locateOccurrence?:(item:ReferenceOccurrence,items:readonly ReferenceOccurrence[],current:()=>boolean)=>Promise<void>;
+  current?:()=>boolean;document?:Document;
+  closed?:()=>void;watchCurrent?:(invalidate:()=>void)=>(()=>void);
+  /** Explicit direct placement chosen in Collection; fresh scan still verifies it. */
+  initialOccurrence?:{boardPath:string;nodeId:string};
 }
 type Tab='outgoing'|'incoming'|'boards'|'properties'|'unresolved';
 const labels:Record<Tab,string>={outgoing:'出链',incoming:'反向链接',boards:'所在白板',properties:'属性与标签',unresolved:'未解析链接'};
 export class NativeBridgeModal extends Modal {
-  private life=new Component();private active=false;private generation=0;private tab:Tab='outgoing';private query='';private page=0;private selected=new Set<string>();
+  private life=new Component();private active=false;private generation=0;private openEpoch=0;private tab:Tab='outgoing';private query='';private page=0;private selected=new Set<string>();
   private nav!:HTMLElement;private list!:HTMLElement;private footer!:HTMLElement;private state!:HTMLElement;
   private relations={outgoing:[] as string[],incoming:[] as string[],unresolved:[] as string[]};private boards:TFile[]=[];private errors=0;
+  private occurrences:ReferenceOccurrence[]=[];private locating=false;private viewport?:()=>void;private closedReported=false;
   constructor(app:App,readonly file:TFile,private host:NativeBridgeHost){super(app);}
   onOpen(){
+    this.openEpoch++;this.closedReported=false;this.locating=false;this.shouldRestoreSelection=true;this.modalEl.removeAttribute('aria-busy');
+    const doc=this.host.document;if(this.host.current&&!this.host.current()||doc?.defaultView?.closed){this.closeWithoutRestoringSelection();return;}
+    if(doc&&this.containerEl.ownerDocument!==doc)doc.body.appendChild(this.containerEl);
     this.active=true;this.life.load();this.modalEl.addClass('ts-native-bridge');themeSurface(this.modalEl);
+    if(this.host.watchCurrent)this.life.register(this.host.watchCurrent(()=>{if(this.active)this.closeWithoutRestoringSelection();}));
+    if(this.host.occurrences){this.modalEl.addClass('ts-reference-occurrences-modal');this.viewport=bindBoardModalViewport(this.containerEl);}
     this.titleEl.setText('Obsidian 关联');const intro=this.contentEl.createDiv('ts-native-intro');intro.createEl('h2',{text:this.file.basename});intro.createEl('p',{text:this.file.path});
     const tools=this.contentEl.createDiv('ts-native-tools');this.action(tools,'右侧编辑原文','panel-right',()=>this.host.open(this.file));this.action(tools,'加入白板…','plus',()=>this.host.add([this.file]));this.action(tools,'刷新关联','refresh-cw',()=>this.refresh());
     this.state=this.contentEl.createDiv({cls:'ts-native-state',attr:{role:'status','aria-live':'polite'}});
@@ -23,30 +39,52 @@ export class NativeBridgeModal extends Modal {
     const search=this.contentEl.createEl('input',{cls:'ts-native-search',type:'search',attr:{'aria-label':'筛选关联内容',placeholder:'搜索标题、路径或属性…'}});search.oninput=()=>{this.query=search.value;this.page=0;this.render();};
     this.list=this.contentEl.createDiv('ts-native-list');this.footer=this.contentEl.createDiv('ts-native-footer');
     for(const event of ['changed','resolved'] as const)this.life.registerEvent(this.app.metadataCache.on(event as 'resolved',()=>{this.markStale('原生索引已更新，点击刷新查看。');}));
-    this.life.registerEvent(this.app.vault.on('rename',()=>{this.markStale('文件路径已变化，请刷新关联。');}));
-    this.life.registerEvent(this.app.vault.on('delete',()=>{this.markStale('文件已删除，请刷新关联。');}));
+    this.life.registerEvent(this.app.vault.on('rename',()=>{this.markStale('文件路径已变化，请刷新关联。',true);}));
+    this.life.registerEvent(this.app.vault.on('delete',()=>{this.markStale('文件已删除，请刷新关联。',true);}));
     void this.refresh();
   }
-  private markStale(message:string){
+  private current(){const doc=this.host.document??this.containerEl.ownerDocument;return this.active&&this.containerEl.isConnected&&this.containerEl.ownerDocument===doc&&!!doc.defaultView&&!doc.defaultView.closed&&(!this.host.current||this.host.current());}
+  private markStale(message:string,invalidate=false){
     if(!this.active)return;
+    if(invalidate){this.generation++;this.boards=[];this.occurrences=[];this.selected.clear();this.render();}
     if(this.app.vault.getAbstractFileByPath(this.file.path)!==this.file){this.state.setText('原笔记已删除，请关闭面板');return;}
     this.state.setText((this.errors?`${this.errors} 块白板未能读取，所在白板列表可能不完整。 `:'')+message);
   }
   private action(el:HTMLElement,label:string,icon:string,fn:()=>unknown){const b=el.createEl('button',{attr:{'aria-label':label,title:label}});setIcon(b.createSpan(),icon);b.createSpan({text:label});b.onclick=async()=>{b.disabled=true;try{await fn();}catch(e){new Notice(String(e));}finally{b.disabled=false;}};return b;}
   async refresh(){
+    if(this.locating||!this.current())return;
     const gen=++this.generation;this.state.setText('读取原生链接索引…');
     try{
       if(this.app.vault.getAbstractFileByPath(this.file.path)!==this.file)throw Error('原笔记已删除，请关闭面板');
+      this.contentEl.querySelector('h2')?.setText(this.file.basename);this.contentEl.querySelector('.ts-native-intro p')?.setText(this.file.path);
       const valid=new Set(this.app.vault.getMarkdownFiles().filter(isWorkspaceFile).map(f=>f.path));
       this.relations=nativeRelations(this.file.path,this.app.metadataCache.resolvedLinks,this.app.metadataCache.unresolvedLinks,valid);
-      const usages=await this.host.usages(this.file,()=>this.active&&gen===this.generation);if(!this.active||gen!==this.generation)return;
-      this.boards=usages.files;this.errors=usages.errors;this.selected.clear();this.page=0;
+      const sourcePath=this.file.path,current=()=>this.current()&&gen===this.generation&&this.file.path===sourcePath&&this.app.vault.getAbstractFileByPath(sourcePath)===this.file;
+      if(this.host.occurrences){const usages=await this.host.occurrences(this.file,current);if(!current())return;this.occurrences=usages.items;this.errors=usages.errors;this.boards=[];}
+      else{const usages=await this.host.usages(this.file,current);if(!current())return;this.boards=usages.files;this.errors=usages.errors;}
+      this.selected.clear();this.page=0;
       this.state.setText(this.errors?`${this.errors} 块白板未能读取，所在白板列表可能不完整。`:'来自 Obsidian 原生索引 · 加入白板保留原文');this.render();
-    }catch(e){if(this.active&&gen===this.generation){this.list.empty();this.nav.empty();this.footer.empty();this.state.setText(String(e));}}
+      const requested=this.host.initialOccurrence;this.host.initialOccurrence=undefined;
+      if(requested){const item=this.occurrences.find(value=>value.boardPath===requested.boardPath&&value.nodeId===requested.nodeId);if(item)await this.locate(item,this.occurrences);else this.state.setText('这处白板引用已移除或暂时无法确认。请刷新记录后重试。');}
+    }catch(e){if(this.current()&&gen===this.generation){this.list.empty();this.nav.empty();this.footer.empty();this.state.setText(String(e));}}
   }
+  /** Reopen the shared native association panel directly at exact reference places. */
+  focusOccurrences(){this.tab='boards';this.page=0;this.selected.clear();if(this.active&&this.list)this.render();}
+  private async locate(item:ReferenceOccurrence,items:readonly ReferenceOccurrence[]){
+    if(this.locating||!this.current()||!this.host.locateOccurrence)return;
+    const generation=this.generation,openEpoch=this.openEpoch,path=this.file.path,current=()=>this.current()&&generation===this.generation&&this.file.path===path&&this.app.vault.getAbstractFileByPath(path)===this.file;
+    this.locating=true;this.modalEl.setAttribute('aria-busy','true');for(const button of Array.from(this.contentEl.querySelectorAll<HTMLButtonElement>('button')))button.disabled=true;
+    try{await this.host.locateOccurrence(item,items,current);if(current())this.closeWithoutRestoringSelection();}
+    catch(error){if(current()){const text=error instanceof Error?error.message:String(error);this.state.setText(text);new Notice(text);}}
+    finally{if(openEpoch===this.openEpoch){this.locating=false;this.modalEl.removeAttribute('aria-busy');if(this.active){for(const button of Array.from(this.contentEl.querySelectorAll<HTMLButtonElement>('button')))button.disabled=false;this.render();}}}
+  }
+  /** A completed handoff or revoked origin must not restore the old opener and
+   * cancel the target's navigation lease. Explicit user cancellation keeps the
+   * native Modal default, including editor selection restoration. */
+  private closeWithoutRestoringSelection(){this.shouldRestoreSelection=false;this.close();}
   private render(){
     this.nav.empty();const cache=this.app.metadataCache.getFileCache(this.file);const props=Object.entries(cache?.frontmatter||{}).filter(([k])=>k!=='position');const tags=getAllTags(cache||{})||[];
-    const counts={outgoing:this.relations.outgoing.length,incoming:this.relations.incoming.length,boards:this.boards.length,properties:props.length,unresolved:this.relations.unresolved.length};
+    const counts={outgoing:this.relations.outgoing.length,incoming:this.relations.incoming.length,boards:this.host.occurrences?this.occurrences.length:this.boards.length,properties:props.length,unresolved:this.relations.unresolved.length};
     for(const tab of Object.keys(labels) as Tab[]){const b=this.action(this.nav,`${labels[tab]} ${counts[tab]}`,'',()=>{this.tab=tab;this.page=0;this.selected.clear();this.render();});b.setAttribute('role','tab');b.setAttribute('aria-selected',String(tab===this.tab));}
     this.list.empty();this.footer.empty();const q=this.query.trim().toLocaleLowerCase();
     if(this.tab==='properties'){
@@ -54,6 +92,7 @@ export class NativeBridgeModal extends Modal {
       const dl=this.list.createEl('dl');for(const [key,value] of props){const text=typeof value==='string'?value:JSON.stringify(value);if(!`${key} ${text}`.toLocaleLowerCase().includes(q))continue;dl.createEl('dt',{text:key});dl.createEl('dd',{text:(text??'').slice(0,2000)});}
       if(!props.length&&!tags.length)this.empty('还没有属性或标签','可在右侧原文的 Obsidian 属性区域编辑。');this.footer.createSpan({text:'属性只读展示；修改请使用右侧原文。'});return;
     }
+    if(this.tab==='boards'&&this.host.occurrences){this.renderOccurrences(q);return;}
     const paths=(this.tab==='boards'?this.boards.map(f=>f.path):this.relations[this.tab]).filter(p=>p.toLocaleLowerCase().includes(q));
     this.page=Math.min(this.page,Math.max(0,Math.ceil(paths.length/60)-1));
     if(!paths.length)this.empty('没有匹配的关联',this.tab==='unresolved'?'此笔记没有未解析链接。':'可以调整搜索条件，或在原文中添加 [[双向链接]]。');
@@ -72,6 +111,24 @@ export class NativeBridgeModal extends Modal {
       const add=this.action(this.footer,`加入所选 ${this.selected.size} 篇…`,'plus',()=>{const files=[...this.selected].map(p=>this.app.vault.getAbstractFileByPath(p));if(files.some(f=>!(f instanceof TFile)))throw Error('所选笔记已变化，请刷新');return this.host.add(files as TFile[]);});add.disabled=!this.selected.size;
     }
   }
+  private renderOccurrences(query:string){
+    const items=this.occurrences.filter(item=>`${item.boardTitle} ${item.boardPath} ${item.nodeTitle} ${referenceOccurrenceGroups(item)} ${item.usages.map(usage=>usage.location+' '+usage.subpath).join(' ')}`.toLocaleLowerCase().includes(query));
+    this.page=Math.min(this.page,Math.max(0,Math.ceil(items.length/60)-1));
+    if(!items.length)this.empty('没有匹配的引用位置','仅列直接笔记卡及明确的动态引用、来源摘录；普通出链不算使用位置。');
+    let previousBoard='';
+    for(const item of items.slice(this.page*60,(this.page+1)*60)){
+      if(item.boardPath!==previousBoard){this.list.createDiv({cls:'ts-reference-occurrence-heading',text:item.boardTitle});previousBoard=item.boardPath;}
+      const row=this.list.createDiv({cls:'ts-reference-occurrence-row',attr:{'data-reference-node':item.nodeId,'data-reference-board':item.boardPath}});
+      const locate=this.action(row,item.nodeTitle,'locate-fixed',()=>this.locate(item,items));locate.disabled=this.locating||!this.host.locateOccurrence;
+      row.createDiv({cls:'ts-reference-occurrence-description',text:`${item.boardPath} · ${referenceOccurrenceGroups(item)}`});
+      const modes={note:'整篇原文',embed:'动态引用',snapshot:'来源摘录'};
+      row.createDiv({cls:'ts-reference-occurrence-description',text:item.usages.map(usage=>`${modes[usage.mode]} · ${usage.location||usage.subpath||'整篇笔记'}`).join('；')});
+    }
+    const controls=this.footer.createDiv(),previous=this.action(controls,'上一页','chevron-left',()=>{this.page--;this.render();});previous.disabled=this.locating||this.page===0;
+    controls.createSpan({text:`${this.page+1} / ${Math.max(1,Math.ceil(items.length/60))} · ${items.length} 处`});
+    const next=this.action(controls,'下一页','chevron-right',()=>{this.page++;this.render();});next.disabled=this.locating||(this.page+1)*60>=items.length;
+    this.footer.createSpan({text:'定位后可逐处查看并返回出发位置；原笔记持续共用。'});
+  }
   private empty(title:string,text:string){const el=this.list.createDiv('ts-native-empty');setIcon(el.createDiv(),'network');el.createEl('h3',{text:title});el.createEl('p',{text});}
-  onClose(){this.active=false;this.generation++;this.life.unload();this.contentEl.empty();}
+  onClose(){this.active=false;this.generation++;this.viewport?.();this.viewport=undefined;this.life.unload();this.occurrences=[];this.contentEl.empty();if(!this.closedReported){this.closedReported=true;this.host.closed?.();}}
 }

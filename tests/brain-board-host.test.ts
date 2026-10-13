@@ -40,7 +40,9 @@ function fixture(initial=initialBoard()){
  let disk=JSON.stringify(initial),writes=0,reflows=0,boardClones=0,nextId=0;const notices:string[]=[],errors:unknown[]=[],opens:any[]=[],leaves:{view:any}[]=[],focused:unknown[]=[],pickers:any[]=[],created:unknown[][]=[],nesting:unknown[][]=[],actions:Promise<unknown>[]=[],views:any[]=[];
  const hooks:{create?:()=>Promise<TFile>;nest?:()=>Promise<void>}={};
  const noteBytes=new Map<string,string>(),trashed:string[]=[];
- const app={vault:{getAbstractFileByPath:(path:string)=>files.get(path),read:async(target:TFile)=>target===file?disk:noteBytes.get(target.path)??'',process:async(_file:TFile,change:(raw:string)=>string)=>{disk=change(disk);writes++;}},fileManager:{trashFile:async(file:TFile)=>{trashed.push(file.path);files.delete(file.path);noteBytes.delete(file.path);}},workspace:{getLeavesOfType:()=>leaves,setActiveLeaf:(leaf:unknown)=>focused.push(leaf),trigger:()=>{}}};
+ const workspaceListeners=new Map<string,Set<(arg:unknown)=>void>>();let activeLeaf:any;
+ const triggerWorkspace=(name:string,arg:unknown)=>{for(const callback of workspaceListeners.get(name)||[])callback(arg);};
+ const app={vault:{getAbstractFileByPath:(path:string)=>files.get(path),read:async(target:TFile)=>target===file?disk:noteBytes.get(target.path)??'',process:async(_file:TFile,change:(raw:string)=>string)=>{disk=change(disk);writes++;}},fileManager:{trashFile:async(file:TFile)=>{trashed.push(file.path);files.delete(file.path);noteBytes.delete(file.path);}},workspace:{getLeavesOfType:()=>leaves,getActiveViewOfType:()=>activeLeaf?.view,on:(name:string,callback:(arg:unknown)=>void)=>{const callbacks=workspaceListeners.get(name)||new Set<(arg:unknown)=>void>();callbacks.add(callback);workspaceListeners.set(name,callbacks);return{name,callback};},offref:(ref:{name:string;callback:(arg:unknown)=>void})=>{workspaceListeners.get(ref.name)?.delete(ref.callback);},setActiveLeaf:(leaf:unknown)=>{focused.push(leaf);activeLeaf=leaf;triggerWorkspace('active-leaf-change',leaf);},trigger:triggerWorkspace}};
  const plugin={app,settings:{cardFolder:'Notes'},createUnique:async(...args:unknown[])=>{created.push(args);return hooks.create?.()||new TFile('Notes/New.md');},hierarchy:async(run:()=>Promise<void>)=>run(),assertCanNestReachable:async(...args:unknown[])=>{nesting.push(args);await hooks.nest?.();}};
  const Notice=class{constructor(message:string){notices.push(message);}};
  class Picker {opened=false;closed=false;containerEl=new Element();onOpen(){}onClose(){}open(){this.opened=true;this.onOpen();}close(){this.closed=true;this.onClose();}constructor(){pickers.push(this);}}
@@ -51,10 +53,10 @@ function fixture(initial=initialBoard()){
  class BrainNodeRenameModal extends Picker {constructor(_app:unknown,public host:any){super();}commit(name:string){return this.host.commit(name,()=>!this.closed);}}
  class BrainRelationCreateModal extends Picker {constructor(_app:unknown,public host:any){super();}commit(target:unknown){return this.host.commit(target,()=>!this.closed&&this.host.current());}}
  class MarkdownView {}
- class BrainBoardView {refreshSaveFeedback(){}refreshes=0;searches=0;fits=0;resets=0;closed=false;focused:string[]=[];revealed:string[]=[];constructor(_app:unknown,public el:Element,public host:any){}refresh(){this.refreshes++;}revealRelation(id:string){this.revealed.push(id);}focusNode(id:string){this.focused.push(id);}focusSearch(){this.searches++;}fitToCanvas(){this.fits++;}resetZoom(){this.resets++;}unload(){this.closed=true;}}
+ class BrainBoardView {refreshSaveFeedback(){}refreshes=0;searches=0;fits=0;resets=0;closed=false;focused:string[]=[];revealed:string[]=[];revealedOrigins:(string|undefined)[]=[];constructor(_app:unknown,public el:Element,public host:any){}refresh(){this.refreshes++;}revealRelation(id:string,originId?:string){this.revealed.push(id);this.revealedOrigins.push(originId);}focusNode(id:string){this.focused.push(id);}focusSearch(){this.searches++;}fitToCanvas(){this.fits++;}resetZoom(){this.resets++;}unload(){this.closed=true;}}
  const Session=compile(take('class Session {','\ntype BoardGraph=')+';return Session',{...model,...mindmap,...geometry,...state,...brain,clone:(value:any)=>{if(Array.isArray(value?.nodes)&&Array.isArray(value?.edges))boardClones++;return model.clone(value);},EXT:'thoughtspace',Notice,report:(error:unknown)=>errors.push(error),reflowReadingContent:(...args:Parameters<typeof reflowReadingContent>)=>{reflows++;return reflowReadingContent(...args);}});
  const methods=take('  private requireOwner(','  private canCreateBlankText(')+take('  showAsBrainBoard(){','  addMindmap(')+take('  private mindmapSource(','  private mindmapNative(')+take('  get localRelationSelectedId(){','  localRelationSource(')+take('  findOnBoard()','  async copyDeepLink(')+take('  private paint =','  private scheduleRender(')+take('  private renderBoard(','  private pdfTotals=')+take('  inputCommandTarget():','  private setSelectionFold(');
- const View=compile('class BoardView{'+methods+'};return BoardView',{...ideas,...model,...brain,...state,...creation,...relationEdits,localRelationNode,supportsLocalRelations,sectionContains,BrainBoardView,BrainRelationCreateModal,BrainNodeRenameModal,MarkdownView,TFile,Notice,NotePicker,BoardPicker,Prompt,ActionPicker,themeSurface:()=>{},VIEW:'board',ROOT:'ThoughtSpace',EXT:'thoughtspace',uid:()=>`new-${++nextId}`,act:(run:()=>unknown)=>{const action=Promise.resolve().then(run);actions.push(action);void action.catch(error=>errors.push(error));}});
+ const View=compile('class BoardView{'+methods+'};return BoardView',{...ideas,...model,...brain,...state,...creation,...relationEdits,localRelationNode,supportsLocalRelations,sectionContains,BrainBoardView,BrainRelationCreateModal,BrainNodeRenameModal,MarkdownView,View:class{},TFile,Notice,NotePicker,BoardPicker,Prompt,ActionPicker,themeSurface:()=>{},VIEW:'board',ROOT:'ThoughtSpace',EXT:'thoughtspace',uid:()=>`new-${++nextId}`,act:(run:()=>unknown)=>{const action=Promise.resolve().then(run);actions.push(action);void action.catch(error=>errors.push(error));}});
  const owner=new Session(plugin,file,disk);
  function makeView(session=owner){
   const view=new View(),contentEl=new Element(),leaf={view};
@@ -63,7 +65,7 @@ function fixture(initial=initialBoard()){
    world:{},clearCanvasGesture(){},clearNodes(){view.clears++;},renderSidebar(){},renderBoard(){if(brain.isBrainBoard(view.session?.board))View.prototype.renderBoard.call(view);else view.clearBrainBoard();},
    applyBoardBackground(){},addChild:(child:BrainBoardView)=>child,removeChild:(child:BrainBoardView)=>child.unload(),mindmapNative:()=>({relations:[],tagsByNode:new Map(),pendingPaths:[]}),
    openLocalRelationSource:async(...args:unknown[])=>{opens.push(args);},renameBoard:()=>{},copyDeepLink:async()=>{},
-  });leaves.push(leaf);views.push(view);session.listeners.add(view.paint);if(brain.isBrainBoard(session.board))view.renderBrainBoard();return view;
+  });leaves.push(leaf);if(!activeLeaf)activeLeaf=leaf;views.push(view);session.listeners.add(view.paint);if(brain.isBrainBoard(session.board))view.renderBrainBoard();return view;
  }
  const view=makeView(),mount=()=>{if(!view.brainBoardView)view.renderBrainBoard();return view.brainBoardView as BrainBoardView;};
  const drain=async()=>{await Promise.allSettled(actions);await owner.flush();await settled();};
@@ -560,4 +562,47 @@ test('idea rename commits the name alone, allows duplicate titles, and saves/reo
 });
 test('rename cancellation and stale node stamps cannot rename a later source or alter relations',async()=>{
  const b=brain.createBrainBoard('idea');b.nodes=[ideas.brainIdeaNode('idea','Original')];const f=fixture(b);f.mount().host.renameNode('idea',()=>true);const modal=f.pickers.at(-1);modal.close();await assert.rejects(modal.commit('Canceled'),/取消/);assert.equal(f.owner.board.nodes[0].title,'Original');f.mount().host.renameNode('idea',()=>true);const next=f.pickers.at(-1);f.owner.board.nodes[0].title='Concurrent';await assert.rejects(next.commit('Stale'),/变化/);assert.equal(f.owner.board.nodes[0].title,'Concurrent');
+});
+
+for(const side of ['top','bottom','left','right'])test(`selected non-center ${side} relation reveals its origin only after a successful save`,async()=>{
+ const f=fixture();f.owner.board.edges=[];const view=f.mount(),gate=deferred(),entered=deferred(),process=f.app.vault.process;
+ f.app.vault.process=async(file,edit)=>{entered.resolve();await gate.promise;return process(file,edit);};
+ view.host.createRelation('b',side,()=>true);const modal=f.pickers.at(-1),pending=modal.commit({kind:'idea',name:'Selected relation '+side});await entered.promise;
+ assert.equal(f.owner.board.brain.centerId,'a');assert.deepEqual(view.revealed,[]);gate.resolve();await pending;await f.drain();
+ assert.deepEqual(view.revealed,[f.owner.board.nodes.at(-1).id]);assert.deepEqual(view.revealedOrigins,['b']);assert.equal(JSON.parse(f.disk()).nodes.at(-1).title,'Selected relation '+side);
+});
+test('a selected non-center creation save failure keeps the original retry lease and reveals after retry',async()=>{
+ const f=saveRetryFixture(),view=f.mount();f.owner.board.edges=[];view.host.createRelation('b','right',()=>true);const modal=f.pickers.at(-1);
+ await assert.rejects(modal.commit({kind:'idea',name:'Retained selected relation'}),/保存失败/);assert.equal(f.owner.board.brain.centerId,'a');assert.deepEqual(view.revealed,[]);assert.equal(modal.host.canRetry(),true);
+ await modal.host.retry(()=>true);await f.drain();assert.equal(f.owner.blocked,false);assert.deepEqual(view.revealedOrigins,['b']);assert.equal(JSON.parse(f.disk()).nodes.at(-1).title,'Retained selected relation');
+});
+test('a selection change during selected relation saving cannot reveal an obsolete origin',async()=>{
+ const f=fixture(),view=f.mount(),gate=deferred(),entered=deferred(),process=f.app.vault.process;let current=true;
+ f.app.vault.process=async(file,edit)=>{entered.resolve();await gate.promise;return process(file,edit);};view.host.createRelation('b','right',()=>current);const pending=f.pickers.at(-1).commit({kind:'idea',name:'Saved without stealing navigation'});await entered.promise;current=false;gate.resolve();await pending;await f.drain();
+ assert.deepEqual(view.revealed,[]);assert.equal(f.owner.board.brain.centerId,'a');assert.equal(JSON.parse(f.disk()).nodes.at(-1).title,'Saved without stealing navigation');
+});
+
+test('brain host navigation subscription invalidates departure immediately and releases both listeners',()=>{
+ const f=fixture(),host=f.mount().host;let invalidations=0;const release=host.subscribeNavigation(()=>invalidations++);
+ f.app.workspace.trigger('active-leaf-change',f.view.leaf);assert.equal(invalidations,0);
+ const other={view:{}};f.app.workspace.setActiveLeaf(other);f.app.workspace.setActiveLeaf(f.view.leaf);assert.equal(invalidations,1);
+ f.app.workspace.trigger('file-open',new TFile('Notes/Background.md'));assert.equal(invalidations,1);
+ f.view.closing=true;f.app.workspace.trigger('file-open',f.file);assert.equal(invalidations,2);
+ release();f.app.workspace.setActiveLeaf(other);f.app.workspace.trigger('file-open',f.file);assert.equal(invalidations,2);
+});
+test('same-window leave and return while selected relation save is pending cannot reveal the stale origin',async()=>{
+ const f=fixture(),view=f.mount(),entered=deferred(),gate=deferred(),process=f.app.vault.process;let current=true;
+ const release=view.host.subscribeNavigation(()=>{current=false;});
+ f.app.vault.process=async(file,edit)=>{entered.resolve();await gate.promise;return process(file,edit);};
+ view.host.createRelation('b','right',()=>current);const pending=f.pickers.at(-1).commit({kind:'idea',name:'Accepted source persists without old reveal'});await entered.promise;
+ f.app.workspace.setActiveLeaf({view:{}});f.app.workspace.setActiveLeaf(f.view.leaf);assert.equal(current,false);gate.resolve();await pending;await f.drain();release();
+ assert.equal(f.owner.board.brain.centerId,'a');assert.deepEqual(view.revealed,[]);assert.equal(model.parseBoard(f.disk()).nodes.at(-1)?.title,'Accepted source persists without old reveal');
+});
+test('same-window leave and return during selected relation preflight permanently cancels new creation',async()=>{
+ const f=fixture(),view=f.mount(),entered=deferred(),gate=deferred(),flush=f.owner.flush.bind(f.owner),before=model.clone(f.owner.board);let current=true,first=true;
+ const release=view.host.subscribeNavigation(()=>{current=false;});
+ f.owner.flush=async()=>{if(first){first=false;entered.resolve();await gate.promise;}return flush();};
+ view.host.createRelation('b','right',()=>current);const pending=f.pickers.at(-1).commit({kind:'idea',name:'Cancelled before acceptance'});await entered.promise;
+ f.app.workspace.setActiveLeaf({view:{}});f.app.workspace.setActiveLeaf(f.view.leaf);gate.resolve();await assert.rejects(pending,/已取消/);release();
+ assert.deepEqual(f.owner.board,before);assert.equal(f.created.length,0);assert.deepEqual(view.revealed,[]);
 });

@@ -299,37 +299,40 @@
 
 /* The compatibility view puts the graph first. Secondary controls are revealed
    explicitly by the view; native focus rings and visible source errors remain. */
-.ts-local-relations,.ts-local-relations[data-density=compact]{position:relative;gap:4px;padding:6px 8px;min-height:0;overflow:hidden}
-.ts-local-relations .ts-local-relations-toolbar{position:relative;z-index:6;align-items:center;flex-wrap:nowrap;gap:4px;min-height:28px;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
+.ts-local-relations,.ts-local-relations[data-density=compact]{position:relative;--ts-relations-hit-size:28px;gap:4px;padding:6px 8px;min-height:0;overflow:hidden}
+.ts-local-relations .ts-local-relations-toolbar{position:relative;z-index:6;align-items:center;flex-wrap:nowrap;gap:4px;min-height:var(--ts-relations-hit-size);overflow-x:auto;overflow-y:hidden;scrollbar-width:thin}
 .ts-local-relations :is(.ts-local-relations-navigation,.ts-local-relations-toolbar-tools){display:flex;align-items:center;flex:0 0 auto;gap:2px}
-.ts-local-relations .ts-local-relations-toolbar>input.ts-local-relations-search{flex:1 1 auto;min-width:76px;width:0;height:28px;padding-inline:8px;border-color:transparent;background:var(--background-secondary);font-size:var(--font-ui-small)}
+.ts-local-relations .ts-local-relations-toolbar>input.ts-local-relations-search{flex:1 1 auto;min-width:76px;width:0;height:var(--ts-relations-hit-size);padding-inline:8px;border-color:transparent;background:var(--background-secondary);font-size:var(--font-ui-small)}
 .ts-local-relations .ts-local-relations-toolbar>input.ts-local-relations-search:focus{border-color:var(--ts-accent,var(--interactive-accent))}
 .ts-local-relations .ts-local-relations-toolbar>input.ts-local-relations-search[hidden]{display:none}
-.ts-local-relations .ts-local-relations-toolbar button{height:28px;min-width:28px;padding:5px;border:0;border-radius:var(--radius-s);background:transparent;color:var(--text-muted)}
+.ts-local-relations .ts-local-relations-toolbar button{height:var(--ts-relations-hit-size);min-width:var(--ts-relations-hit-size);padding:5px;border:0;border-radius:var(--radius-s);background:transparent;color:var(--text-muted)}
 .ts-local-relations .ts-local-relations-toolbar button:hover:not(:disabled){background:var(--background-modifier-hover);color:var(--text-normal)}
 .ts-local-relations .ts-local-relations-toolbar button[aria-expanded=true],.ts-local-relations .ts-local-relations-toolbar button[aria-pressed=true]{background:var(--background-modifier-hover);color:var(--ts-accent,var(--interactive-accent))}
 .ts-local-relations .ts-local-relations-toolbar button:disabled{opacity:.4}
 .ts-local-relations .ts-local-relations-toolbar button svg{width:15px;height:15px}
 .ts-local-relations .ts-local-relations-toolbar button>span:last-child{display:none}
-.ts-local-relations .ts-local-relations-toolbar button:is([data-relation-focus=filter-toggle],[data-relation-focus=more-toggle]){width:28px;flex-shrink:0}
+.ts-local-relations .ts-local-relations-toolbar button:is([data-relation-focus=filter-toggle],[data-relation-focus=more-toggle]){width:var(--ts-relations-hit-size);flex-shrink:0}
 .ts-local-relations .ts-local-relations-toolbar button[data-relation-focus=filter-toggle][aria-pressed=true]{box-shadow:inset 0 -2px var(--ts-accent,var(--interactive-accent))}
-.ts-local-relations :is(.ts-local-relations-picker,.ts-local-relations-filter-panel,.ts-local-relations-more-panel){position:absolute;z-index:10;inset-inline:8px;top:42px;min-width:0;max-height:min(320px,calc(100% - 88px));overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;border:1px solid var(--background-modifier-border);border-radius:var(--radius-m);background:var(--background-primary);box-shadow:var(--shadow-s);padding:8px 16px 8px 9px}
+.ts-local-relations :is(.ts-local-relations-picker,.ts-local-relations-filter-panel,.ts-local-relations-more-panel){position:absolute;z-index:10;inset-inline:8px;top:42px;min-width:0;max-height:min(320px,calc(100% - 88px - var(--ts-relations-popover-bottom-inset,0px)));box-sizing:border-box;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;border:1px solid var(--background-modifier-border);border-radius:var(--radius-m);background:var(--background-primary);box-shadow:var(--shadow-s);padding:8px 16px 8px 9px}
 .ts-local-relations .ts-local-relations-filter-panel{display:flex;flex-direction:column;gap:6px}
-.ts-local-relations .ts-local-relations-filter-panel>.ts-local-relations-search{height:28px;font-size:var(--font-ui-small)}
+.ts-local-relations .ts-local-relations-filter-panel>.ts-local-relations-search{height:var(--ts-relations-hit-size);font-size:var(--font-ui-small)}
 .ts-local-relations .ts-local-relations-filter-panel .ts-local-relations-options-body{max-height:none;overflow:visible;padding-bottom:0}
-.ts-local-relations .ts-local-relations-more-panel{max-height:min(200px,calc(100% - 88px))}
-.ts-local-relations .ts-local-relations-secondary-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px}
-.ts-local-relations .ts-local-relations-secondary-toolbar :is(button,select){min-width:0;max-width:100%;min-height:28px;height:auto;border:0;border-radius:var(--radius-s);background:transparent;box-shadow:none;color:var(--text-muted);font-size:var(--font-ui-smaller)}
+.ts-local-relations .ts-local-relations-more-panel{max-height:min(360px,calc(100% - 64px - var(--ts-relations-popover-bottom-inset,0px)))}
+.ts-local-relations .ts-local-relations-secondary-toolbar{display:flex;flex-direction:column;align-items:stretch;gap:12px}
+.ts-local-relations .ts-local-relations-tool-group{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;min-width:0}
+.ts-local-relations .ts-local-relations-tool-group+.ts-local-relations-tool-group{padding-top:12px;border-top:1px solid var(--background-modifier-border)}
+.ts-local-relations .ts-local-relations-tool-group-label{flex:0 0 100%;font-size:var(--font-ui-smaller);font-weight:var(--font-medium);color:var(--text-muted);line-height:1.5;padding-inline:7px}
+.ts-local-relations .ts-local-relations-secondary-toolbar :is(button,select){min-width:0;max-width:100%;min-height:var(--ts-relations-hit-size);height:auto;border:0;border-radius:var(--radius-s);background:transparent;box-shadow:none;color:var(--text-muted);font-size:var(--font-ui-smaller)}
 .ts-local-relations .ts-local-relations-secondary-toolbar button{display:flex;align-items:center;gap:5px;padding:5px 7px}
 .ts-local-relations .ts-local-relations-secondary-toolbar select{padding:4px 6px;background:var(--background-secondary)}
 .ts-local-relations .ts-local-relations-secondary-toolbar button:hover:not(:disabled){background:var(--background-modifier-hover);color:var(--text-normal)}
 .ts-local-relations .ts-local-relations-secondary-toolbar button:is([aria-pressed=true],[aria-expanded=true]){background:var(--background-modifier-hover);color:var(--ts-accent,var(--interactive-accent))}
 .ts-local-relations :is(.ts-local-relations-filter-panel,.ts-local-relations-more-panel,.ts-local-relations-inspectors,.ts-local-relations-recent)[hidden]{display:none}
-.ts-local-relations .ts-local-relations-center{grid-template-columns:minmax(0,1fr) 28px 28px;gap:4px 3px}
+.ts-local-relations .ts-local-relations-center{grid-template-columns:minmax(0,1fr) var(--ts-relations-hit-size) var(--ts-relations-hit-size);gap:4px 3px}
 .ts-local-relations .ts-local-relations-center>h3{grid-column:1/-1;grid-row:1;justify-self:center;max-width:100%}
-.ts-local-relations .ts-local-relations-center>button{grid-column:2;grid-row:2;width:28px;height:28px;transform:none}
+.ts-local-relations .ts-local-relations-center>button{grid-column:2;grid-row:2;width:var(--ts-relations-hit-size);height:var(--ts-relations-hit-size);transform:none}
 .ts-local-relations .ts-local-center-info:not([open]){grid-column:3;grid-row:2;transform:none}
-.ts-local-relations .ts-local-center-info>summary{min-width:28px;min-height:28px}
+.ts-local-relations .ts-local-center-info>summary{min-width:var(--ts-relations-hit-size);min-height:var(--ts-relations-hit-size)}
 .ts-local-relations .ts-local-center-info[open]{grid-area:auto;position:absolute;z-index:10;inset-inline-end:0;top:50%;transform:translateY(-50%);width:min(310px,calc(100cqw - 32px));max-height:220px;overflow:auto;overscroll-behavior:contain;padding:8px 16px 8px 9px;border:1px solid var(--background-modifier-border);background:var(--background-primary);box-shadow:var(--shadow-s)}
 .ts-local-relations .ts-local-relations-center:has(>.ts-local-center-info[open]){z-index:9}
 .ts-local-relations .ts-local-relations-center-actions{grid-column:1;grid-row:2;display:flex;align-items:center;justify-content:center;min-width:0;gap:3px}
@@ -346,17 +349,17 @@
 .ts-local-relations .ts-local-relations-actions button:hover:not(:disabled){background:var(--background-modifier-hover);color:var(--text-normal)}
 .ts-local-relations .ts-local-relations-recent{gap:4px;min-height:0;max-height:32px;font-size:var(--font-ui-smaller)}
 .ts-local-relations .ts-local-relations-recent-list{flex:1;min-width:0;padding:1px 0;scrollbar-width:thin}
-.ts-local-relations .ts-local-relations-recent-list button{height:28px;background:transparent;padding:4px 7px}
-.ts-local-relations .ts-local-relations-recent>button{display:flex;align-items:center;justify-content:center;flex:0 0 28px;width:28px;height:28px;padding:5px;border:0;background:transparent;color:var(--text-muted)}
+.ts-local-relations .ts-local-relations-recent-list button{height:var(--ts-relations-hit-size);background:transparent;padding:4px 7px}
+.ts-local-relations .ts-local-relations-recent>button{display:flex;align-items:center;justify-content:center;flex:0 0 var(--ts-relations-hit-size);width:var(--ts-relations-hit-size);height:var(--ts-relations-hit-size);padding:5px;border:0;background:transparent;color:var(--text-muted)}
 .ts-local-relations .ts-local-relations-recent>button>span:last-child{display:none}
 .ts-local-relations .ts-local-relations-groups{min-height:0}
 .ts-local-relations .ts-local-relations-inspectors{grid-area:auto;position:absolute;z-index:8;inset:8px 8px auto;max-height:calc(100% - 16px);overflow:auto;padding:8px 16px 9px 9px;border:1px solid var(--background-modifier-border);border-radius:var(--radius-m);background:var(--background-primary);box-shadow:var(--shadow-s)}
-.ts-local-relations .ts-local-relations-inspectors>button[data-relation-focus=inspectors-close]{position:sticky;top:0;display:flex;align-items:center;justify-content:center;flex:0 0 28px;width:28px;height:28px;margin-inline-start:auto;padding:5px;border:0;background:var(--background-primary);color:var(--text-muted)}
+.ts-local-relations .ts-local-relations-inspectors>button[data-relation-focus=inspectors-close]{position:sticky;top:0;display:flex;align-items:center;justify-content:center;flex:0 0 var(--ts-relations-hit-size);width:var(--ts-relations-hit-size);height:var(--ts-relations-hit-size);margin-inline-start:auto;padding:5px;border:0;background:var(--background-primary);color:var(--text-muted)}
 .ts-local-relations .ts-local-relations-inspectors>button[data-relation-focus=inspectors-close]>span:last-child{display:none}
 .ts-local-relations .ts-local-relations-groups[data-relation-editing=true]>.ts-local-relations-inspectors{max-height:calc(100% - 16px);overflow:auto;padding:8px 16px 9px 9px;border:1px solid var(--background-modifier-border)}
-.ts-local-relations .ts-local-relations-neighbor{grid-template-columns:minmax(0,auto) 28px}
-.ts-local-relations .ts-local-relations-proof>summary{min-width:28px;min-height:28px}
-.ts-local-relations :is(.ts-local-relations-pager,.ts-local-relations-ports,.ts-local-relations-center-actions,.ts-local-relations-actions) button{min-height:28px;min-width:28px}
+.ts-local-relations .ts-local-relations-neighbor{grid-template-columns:minmax(0,auto) var(--ts-relations-hit-size)}
+.ts-local-relations .ts-local-relations-proof>summary{min-width:var(--ts-relations-hit-size);min-height:var(--ts-relations-hit-size)}
+.ts-local-relations :is(.ts-local-relations-pager,.ts-local-relations-ports,.ts-local-relations-center-actions,.ts-local-relations-actions) button{min-height:var(--ts-relations-hit-size);min-width:var(--ts-relations-hit-size)}
 @container (min-width:760px){
  .ts-local-relations .ts-local-relations-groups{grid-template-columns:minmax(0,220px) minmax(180px,220px) minmax(0,220px);grid-template-rows:minmax(0,max-content) minmax(156px,max-content) minmax(0,max-content);align-content:center;justify-content:center;gap:12px 24px;padding:12px 16px}
  .ts-local-relations .ts-local-relations-center{align-self:center;margin-top:0}
@@ -368,4 +371,34 @@
  .ts-local-relations .ts-local-relations-side-right>.ts-local-relations-group{align-self:flex-start}
  .ts-local-relations .ts-local-relations-neighbors{max-height:180px}
  .ts-local-relations .ts-local-relations-groups[data-has-relations=false]{grid-template-rows:minmax(156px,max-content)}
+}
+
+/* Empty filtered views keep recovery beside the center they refer to. */
+.ts-local-relations .ts-local-relations-empty-result{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;gap:8px;max-width:100%;margin-top:8px;text-align:center}
+.ts-local-relations .ts-local-relations-empty-result>button{display:flex;align-items:center;gap:4px;min-height:var(--ts-relations-hit-size);height:auto;padding:4px 8px;background:transparent;border:1px solid var(--background-modifier-border);color:var(--text-normal);font-size:var(--font-ui-small)}
+
+/* Move secondary commands into the existing tools disclosure in narrow panes.
+   The stable inline search keeps its native selection and composition state. */
+.ts-local-relations[data-relations-compact=true]{--ts-relations-hit-size:44px}
+.ts-local-relations[data-relations-compact=true] .ts-local-relations-toolbar{overflow:visible}
+.ts-local-relations[data-relations-compact=true] .ts-local-relations-navigation:empty{display:none}
+.ts-local-relations[data-relations-compact=true] .ts-local-relations-toolbar>input.ts-local-relations-search{min-width:0;font-size:16px}
+.ts-local-relations[data-relations-compact=true] .ts-local-relations-toolbar button[data-relation-focus=more-toggle]>span:first-child{display:none}
+.ts-local-relations[data-relations-compact=true] .ts-local-relations-toolbar button[data-relation-focus=more-toggle]>span:last-child{display:inline}
+.ts-local-relations[data-relations-compact=true] :is(.ts-local-relations-picker,.ts-local-relations-filter-panel,.ts-local-relations-more-panel){top:58px;max-height:min(360px,calc(100% - 72px - var(--ts-relations-popover-bottom-inset,0px)))}
+.ts-local-relations[data-relations-compact=true] .ts-local-relations-recent{min-height:48px;max-height:48px}
+/* This translation changes no graph geometry, even when only close overlaps. */
+.ts-local-relations .ts-local-relations-recent{position:relative;z-index:5;transform:translateY(calc(-1 * var(--ts-relations-bottom-lift,0px)))}
+.ts-local-relations .ts-local-relations-recent button{background:var(--background-primary)}
+
+/* Keep the compact mouse layout; touch and hybrid devices get usable targets. */
+@media (any-pointer:coarse){
+ .ts-local-relations,.ts-local-relations[data-density=compact]{--ts-relations-hit-size:44px}
+ .ts-local-relations :is(button,summary){min-width:44px;min-height:44px;touch-action:manipulation}
+ .ts-local-relations .ts-local-relations-neighbor>button[data-relation-kind]{min-height:44px}
+ .ts-local-relations :is(input:not([type=checkbox]),select),.ts-local-relations .ts-local-relations-toolbar>input.ts-local-relations-search{min-height:44px;font-size:16px}
+ .ts-local-relations-options label{min-height:44px}
+ .ts-local-relations .ts-local-heading-row>button[aria-expanded],.ts-local-relations .ts-local-heading-spacer{flex-basis:44px}
+ .ts-local-relations .ts-local-relations-recent{min-height:48px;max-height:48px}
+ .ts-local-relations :is(.ts-local-relations-picker,.ts-local-relations-filter-panel,.ts-local-relations-more-panel){top:58px;max-height:min(360px,calc(100% - 72px - var(--ts-relations-popover-bottom-inset,0px)))}
 }

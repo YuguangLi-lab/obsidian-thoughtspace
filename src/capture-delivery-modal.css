@@ -1,0 +1,18 @@
+.ts-capture-delivery {display:flex;flex-direction:column;width:min(580px,100%);min-width:0}
+.ts-capture-delivery [hidden] {display:none!important}
+.ts-capture-delivery .modal-content {flex:1 1 auto;min-width:0;min-height:0;overflow:auto;overscroll-behavior:contain}
+.ts-capture-delivery p,.ts-capture-delivery label,.ts-capture-delivery [role=status] {overflow-wrap:anywhere}
+.ts-capture-field {display:flex;flex-direction:column;gap:6px;margin:12px 0;min-width:0}
+.ts-capture-field>input,.ts-capture-field>textarea,.ts-capture-field>select {width:100%;box-sizing:border-box;min-width:0}
+.ts-capture-field>textarea {min-height:100px;resize:vertical}
+.ts-capture-destination-row {display:flex;gap:8px;align-items:stretch;min-width:0}
+.ts-capture-destination-row select {flex:1 1 0;min-width:0}
+.ts-capture-destination-row button {flex:none;max-width:45%;white-space:normal}
+.ts-capture-target-path {font-size:var(--font-ui-small);color:var(--text-muted);margin:4px 0}
+.ts-capture-footer {flex:none;min-width:0;padding-top:8px}
+.ts-capture-footer [role=status] {max-height:72px;overflow:auto;margin:0 0 8px}
+.ts-capture-footer [role=status]:empty {display:none}
+.ts-capture-actions {display:flex;flex-wrap:wrap;gap:8px}
+.ts-capture-actions button,.ts-capture-destination-row button,.ts-capture-field select,.ts-capture-field input {min-height:44px}
+.ts-capture-actions button {min-width:44px;white-space:normal;flex:1 1 auto}
+@media (any-pointer:coarse),(max-width:600px) {.ts-capture-field input,.ts-capture-field textarea,.ts-capture-field select {font-size:16px}}

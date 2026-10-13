@@ -1,3 +1,4 @@
+import {bindBoardHostInset} from './board-chrome';
 import {renderBoardSaveFeedback,type BoardSaveFeedback,type BoardSaveFeedbackAction} from './board-save-feedback';
 import {BrainBranchIndex,BrainDescendantPager,type BrainDescendantPage} from './brain-board-descendants';
 import {Component,Menu,setIcon,type App,type MenuItem} from 'obsidian';
@@ -7,12 +8,12 @@ import type {BoardMindmapHost,BoardMindmapSource} from './board-mindmap-view';
 import {localRelationNode,searchLocalCenters,type LocalRelationNode,type LocalRelationKind} from './local-relations';
 import type {NativeLocalRelation,NativeLocalRelations} from './local-relations-native';
 import {brainBoardLayout,brainBoardDescendantLayout,type BrainBoardLayout} from './brain-board-layout';
-import {brainPortPositions,brainScreenObstacles,type BrainScreenRect} from './brain-board-ports';
 import {BrainRefreshCache} from './brain-refresh-cache';
 import {LocalRelationMotion} from './local-relations-motion';
 import {brainRelationLabels,type BrainRelationSide} from './brain-board-create';
 import type {BrainRelationCommandTarget} from './brain-relation-commands';
 import {cleanBrainColors,brainColorsStamp,brainStateInk,type BrainColors} from './brain-colors';
+import {captureBrainReadingPosition,type BrainReadingPositionState} from './brain-reading-positions';
 
 export interface BrainBoardSnapshot {board:Board;path:string;key?:object;readOnly?:boolean;saveFeedback?:BoardSaveFeedback;graphRevision?:number;nativeRevision?:number;native?:(id:string)=>NativeLocalRelations|readonly NativeLocalRelation[];}
 export interface BrainBoardViewportIntent {key?:object;path:string;board:Board;value:{x:number;y:number;zoom:number};}
@@ -24,34 +25,21 @@ export interface BrainBoardHost {
  fileMenu?:BoardMindmapHost['fileMenu'];relate?:BoardMindmapHost['relate'];shortcut?:BoardMindmapHost['shortcut'];
  add:()=>void;addObject?:(kind:'section'|'board')=>void;rename?:()=>void;settings?:()=>void;isActive?:()=>boolean;activate?:()=>void;viewport?:(value:{x:number;y:number;zoom:number})=>void;
  background?:(anchor:HTMLElement)=>void;colors?:()=>void;nativeProperties?:()=>unknown;
+ readingPositions?:(current:()=>boolean)=>void;
+ /** Notify real departure synchronously; returning to the leaf cannot revive issued leases. */
+ subscribeNavigation?:(invalidate:()=>void)=>(()=>void);
  organizeIdea?:(id:string,current:()=>boolean)=>void;
  associateExisting?:(id:string,current:()=>boolean)=>void;
  renameNode?:(id:string,current:()=>boolean)=>void;
  finalizeViewport?:(intent:BrainBoardViewportIntent)=>void;
  createRelation?:(id:string,side:BrainRelationSide,current:()=>boolean,initial?:'board')=>unknown;
 }
-interface NodeElement {root:HTMLElement;pill:HTMLElement;title:HTMLButtonElement;label:HTMLElement;actions:HTMLElement;expand:HTMLButtonElement;open:HTMLButtonElement;menu:HTMLButtonElement;anchors:HTMLButtonElement[];status:HTMLElement;scope:Component;expandIcon?:string;}
+interface NodeElement {root:HTMLElement;pill:HTMLElement;title:HTMLButtonElement;label:HTMLElement;status:HTMLElement;scope:Component;}
+interface SelectionControls {root:HTMLElement;name:HTMLElement;center:HTMLButtonElement;expand:HTMLButtonElement;open:HTMLButtonElement;menu:HTMLButtonElement;relations:HTMLElement;relationsToggle:HTMLButtonElement;anchors:HTMLButtonElement[];expandIcon?:string;}
 interface Preview {body:HTMLElement;scope:Component;stamp:string;}
 const roleLabels:Record<LocalRelationKind,string>={parents:'上级',children:'下级',siblings:'同级',associated:'关联',incoming:'引用此对象',outgoing:'此对象引用'};
 let brainSvgSequence=0;
 const clampZoom=(value:number)=>Math.max(.15,Math.min(2.5,value));
-type SideActionPosition='left'|'right'|'compact';
-function sideActionPositions(layout:BrainBoardLayout,camera:{x:number;y:number;zoom:number},size:{width:number;height:number},obstacles:readonly BrainScreenRect[]=brainScreenObstacles(layout,camera),targetSize:32|44=32){
- const positions=new Map<string,SideActionPosition>(),zoom=camera.zoom,scale=Math.max(1,zoom),width=(targetSize+6)*scale,height=(targetSize*3+8)*scale,gap=6*scale;
- for(const node of layout.nodes){
-  if(!['associated','incoming','outgoing','siblings'].includes(node.role))continue;
-  const center=camera.x+(node.x+node.width/2)*zoom,halfWidth=(node.previewWidth??node.width)*zoom/2,y=camera.y+(node.y+node.height/2)*zoom-height/2;
-  const candidates:SideActionPosition[]=node.role==='siblings'?['left','right']:['right','left'];let position:SideActionPosition='compact';
-  for(const side of candidates){const x=side==='left'?center-halfWidth-gap-width:center+halfWidth+gap;
-   if(x<4||x+width>size.width-4||y<4||y+height>size.height-4)continue;
-   if(obstacles.some(rect=>x<rect.x+rect.width&&rect.x<x+width&&y<rect.y+rect.height&&rect.y<y+height))continue;
-   position=side;break;
-  }
-  positions.set(node.id,position);
- }
- return positions;
-}
-
 /** A separate, full-canvas projection. Node coordinates and native sources are never
  * written by rendering, searching, resizing or previewing. Only explicit intents save. */
 export class BrainBoardView extends Component {
@@ -59,9 +47,11 @@ export class BrainBoardView extends Component {
  private alive=false;private generation=0;private renders=0;private nodeSequence=0;private context?:object|string;private boardPath?:string;private document?:Document;private center?:string;private error='';
  private shell!:HTMLElement;private topbar!:HTMLElement;private title!:HTMLElement;private stage!:HTMLElement;private scene!:HTMLElement;private svg!:SVGSVGElement;private labels!:HTMLElement;private empty!:HTMLElement;private status!:HTMLElement;private recent!:HTMLElement;private pager!:HTMLElement;
  private input!:HTMLInputElement;private search!:HTMLElement;private searchResults!:HTMLElement;private back!:HTMLButtonElement;private forward!:HTMLButtonElement;private more!:HTMLButtonElement;private colorButton?:HTMLButtonElement;private zoomLabel!:HTMLButtonElement;
- private searchVisible=false;private query='';private searchPage=0;private searchIndex=0;private searchIds:string[]=[];private page=0;private layout?:ReturnType<typeof brainBoardLayout>;private nativePending=false;private composing=false;private compositionDocument?:Document;private compositionScope?:Component;private touchMedia?:MediaQueryList;
+ private footer!:HTMLElement;private historyButton!:HTMLButtonElement;private zoom!:HTMLElement;private stopHostInset?:()=>void;
+ private searchVisible=false;private query='';private searchPage=0;private searchIndex=0;private searchIds:string[]=[];private page=0;private layout?:ReturnType<typeof brainBoardLayout>;private nativePending=false;private composing=false;private compositionDocument?:Document;private compositionScope?:Component;
  private searchRender?:{key?:object;path:string;doc:Document;signature:string};
  private revealId?:string;
+ private activeNodeId?:string;private selectionEpoch=0;private selection!:SelectionControls;
  private branchCache?:{board:Board;revision?:number;fallback?:string;index:BrainBranchIndex};private descendants?:BrainDescendantPager;private descendantPage?:BrainDescendantPage;
  private nodes=new Map<string,NodeElement>();private previews=new Map<string,Preview>();private activeMenu?:Menu;private observer?:ResizeObserver;
  private camera={x:0,y:0,zoom:1};private cameraReady=false;private cameraStored='';private cameraBoard?:Board;private fitCamera=true;private fitAll=false;private viewportTimer=0;private viewportWindow?:Window;private viewportIntent?:BrainBoardViewportIntent;
@@ -82,32 +72,34 @@ export class BrainBoardView extends Component {
   const brand=this.topbar.createDiv('ts-brain-brand'),icon=brand.createSpan('ts-brain-brand-icon');setIcon(icon,'network');this.title=brand.createSpan({text:'脑图白板'});
   const navigation=this.topbar.createDiv('ts-brain-navigation');this.back=this.button(navigation,'arrow-left','后退',()=>{this.update({type:'history',direction:'back'});this.focusNode();},'back');this.forward=this.button(navigation,'arrow-right','前进',()=>{this.update({type:'history',direction:'forward'});this.focusNode();},'forward');
   this.search=this.topbar.createDiv('ts-brain-search');setIcon(this.search.createSpan('ts-brain-search-icon'),'search');this.input=this.search.createEl('input',{cls:'ts-brain-query',type:'search',attr:{placeholder:'搜索节点…','aria-label':'搜索本板节点',role:'combobox','aria-autocomplete':'list','aria-expanded':'false'}});this.search.createSpan({cls:'ts-brain-search-shortcut',text:'⌘K / Ctrl K'});
-  this.searchResults=this.search.createDiv({cls:'ts-brain-search-results',attr:{role:'listbox','aria-label':'本板节点'}});this.searchResults.hidden=true;
+  this.searchResults=this.search.createDiv({cls:'ts-brain-search-results',attr:{id:`${this.markerId}-search-panel`,role:'group','aria-label':'节点搜索结果'}});this.searchResults.hidden=true;this.input.setAttribute('aria-controls',`${this.markerId}-search`);
   this.registerDomEvent(this.input,'focus',()=>this.toggleSearch(true));this.registerDomEvent(this.input,'input',()=>{this.query=this.input.value;this.searchPage=0;this.searchIndex=0;this.toggleSearch(true);});this.registerDomEvent(this.input,'keydown',event=>this.searchKey(event));
   this.registerDomEvent(this.search,'focusout',event=>{const next=event.relatedTarget as Node|null;if(!next||next.ownerDocument!==this.search.ownerDocument||!this.search.contains(next))this.toggleSearch(false);});
-  const actions=this.topbar.createDiv('ts-brain-top-actions');if(this.host.colors){this.colorButton=this.button(actions,'palette','脑图配色',()=>this.openColors(),'colors');this.colorButton.setAttribute('aria-haspopup','dialog');}this.more=this.button(actions,'ellipsis','脑图菜单',event=>this.boardMenu(event),'more');this.button(actions,'settings-2','脑图设置',()=>{if(this.host.settings)this.host.settings();else this.boardMenu(undefined);},'settings');
+  const actions=this.topbar.createDiv('ts-brain-top-actions');if(this.host.colors){this.colorButton=this.button(actions,'palette','脑图配色',()=>this.openColors(),'colors');this.colorButton.setAttribute('aria-haspopup','dialog');}this.more=this.button(actions,'ellipsis','脑图菜单',event=>this.boardMenu(event),'more');this.more.setAttribute('aria-haspopup','menu');this.button(actions,'settings-2','脑图设置',()=>{if(this.host.settings)this.host.settings();else this.boardMenu(undefined);},'settings');
   this.stage=this.shell.createDiv({cls:'ts-brain-stage',attr:{'aria-label':'节点关系图'}});this.stage.createDiv({cls:'ts-brain-pan-surface',attr:{'aria-hidden':'true'}});this.scene=this.stage.createDiv('ts-brain-scene');this.svg=this.scene.createSvg('svg',{cls:'ts-brain-links',attr:{'aria-hidden':'true'}});this.labels=this.scene.createDiv('ts-brain-labels');this.empty=this.stage.createDiv('ts-brain-empty');
   this.status=this.stage.createDiv({cls:'ts-brain-status',attr:{role:'status','aria-live':'polite'}});this.pager=this.stage.createDiv('ts-brain-pager');
-  const zoom=this.stage.createDiv('ts-brain-zoom');if(this.host.background)this.button(zoom,'palette','白板背景',event=>this.host.background?.(event.currentTarget as HTMLElement),'background');this.button(zoom,'layers','关系显示层级',()=>this.showDepthMenu(),'depth');zoom.createSpan({cls:'ts-brain-object-count'});this.button(zoom,'minus','缩小',()=>this.zoomAt(this.camera.zoom/1.2),'zoom-out');this.zoomLabel=this.button(zoom,'','恢复 100% 缩放',()=>this.zoomAt(1),'zoom-reset');this.button(zoom,'plus','放大',()=>this.zoomAt(this.camera.zoom*1.2),'zoom-in');this.button(zoom,'maximize','适应画布',()=>this.fitToCanvas(),'fit');this.button(zoom,'search','节点导航',()=>this.focusSearch(),'navigate');
-  const controls=this.shell.createDiv('ts-brain-controls');controls.appendChild(this.pager);controls.appendChild(zoom);
-  const footer=this.shell.createDiv('ts-brain-footer'),caption=footer.createDiv('ts-brain-recent-caption');setIcon(caption.createSpan(),'history');caption.createSpan({text:'最近浏览'});this.recent=footer.createDiv('ts-brain-recent');
+  const zoom=this.zoom=this.stage.createDiv('ts-brain-zoom');if(this.host.background)this.button(zoom,'palette','白板背景',event=>this.host.background?.(event.currentTarget as HTMLElement),'background');this.button(zoom,'layers','关系显示层级',()=>this.showDepthMenu(),'depth');zoom.createSpan({cls:'ts-brain-object-count'});this.button(zoom,'minus','缩小',()=>this.zoomAt(this.camera.zoom/1.2),'zoom-out');this.zoomLabel=this.button(zoom,'','恢复 100% 缩放',()=>this.zoomAt(1),'zoom-reset');this.button(zoom,'plus','放大',()=>this.zoomAt(this.camera.zoom*1.2),'zoom-in');this.button(zoom,'maximize','适应画布',()=>this.fitToCanvas(),'fit');this.button(zoom,'search','节点导航',()=>this.focusSearch(),'navigate');
+  this.createSelectionControls();
+  this.footer=this.shell.createDiv({cls:'ts-brain-footer',attr:{id:`${this.markerId}-history`,role:'region','aria-label':'最近浏览'}});this.footer.hidden=true;this.recent=this.footer.createDiv('ts-brain-recent');
+  const controls=this.shell.createDiv('ts-brain-controls');this.historyButton=this.button(controls,'history','最近浏览',event=>this.toggleHistory(this.footer.hidden,event.detail===0),'history');this.historyButton.setAttribute('aria-controls',`${this.markerId}-history`);this.historyButton.setAttribute('aria-expanded','false');controls.appendChild(this.pager);controls.appendChild(zoom);
   this.registerDomEvent(this.shell,'keydown',event=>this.keydown(event));this.registerDomEvent(this.shell,'dblclick',event=>{if(!(event.target as HTMLElement)?.closest('.ts-brain-preview'))event.stopPropagation();});this.registerDomEvent(this.shell,'click',event=>{if(!(event.target as HTMLElement)?.closest('.ts-brain-preview'))event.stopPropagation();});
   this.registerDomEvent(this.shell,'pointerdown',event=>{if(event.isTrusted)this.host.activate?.();if(!(event.target as HTMLElement)?.closest('.ts-brain-preview'))event.stopPropagation();if(!this.search.contains(event.target as Node))this.toggleSearch(false);});
   this.registerDomEvent(this.stage,'pointerdown',event=>this.pointerDown(event));this.registerDomEvent(this.stage,'pointermove',event=>this.pointerMove(event));this.registerDomEvent(this.stage,'pointerup',event=>this.pointerEnd(event));this.registerDomEvent(this.stage,'pointercancel',event=>this.pointerEnd(event));this.registerDomEvent(this.stage,'lostpointercapture',event=>this.pointerEnd(event));
   this.registerDomEvent(this.stage,'wheel',event=>this.wheel(event),{passive:false});this.registerDomEvent(this.searchResults,'wheel',event=>event.stopPropagation(),{passive:true});this.registerDomEvent(this.recent,'wheel',event=>event.stopPropagation(),{passive:true});
+  const unsubscribe=this.host.subscribeNavigation?.(()=>{if(this.alive){this.selectionEpoch++;this.closeMenu();}});if(unsubscribe)this.register(unsubscribe);
   this.observe();this.refresh();
  }
- onunload(){this.cancelPointers(true);this.motion.cancel();this.cancelCameraFrame();this.cancelColorFrame();this.colorPreview=undefined;this.alive=false;this.finalizeViewport();this.generation++;this.closeMenu();this.cancelResize();this.observer?.disconnect();this.observer=undefined;this.clearPreviews();for(const item of this.nodes.values())this.removeChild(item.scope);this.nodes.clear();this.branchCache=undefined;this.descendants=undefined;this.descendantPage=undefined;this.refreshCache.clear();this.projection=undefined;this.layout=undefined;this.refreshSources=undefined;this.transformLayout=undefined;this.shell?.remove();}
+ onunload(){this.cancelPointers(true);this.motion.cancel();this.cancelCameraFrame();this.cancelColorFrame();this.colorPreview=undefined;this.alive=false;this.finalizeViewport();this.generation++;this.closeMenu();this.cancelResize();this.observer?.disconnect();this.observer=undefined;this.stopHostInset?.();this.stopHostInset=undefined;this.clearPreviews();for(const item of this.nodes.values())this.removeChild(item.scope);this.nodes.clear();this.branchCache=undefined;this.descendants=undefined;this.descendantPage=undefined;this.refreshCache.clear();this.projection=undefined;this.layout=undefined;this.refreshSources=undefined;this.transformLayout=undefined;this.shell?.remove();}
  refresh(){
   if(!this.alive)return;this.trackCommandComposition();this.cancelCameraFrame();this.cancelColorFrame();this.renders++;const snapshot=this.host.snapshot(),doc=this.el.ownerDocument;
-  if(!snapshot||snapshot.board.presentation!=='brain'){this.cancelPointers();this.motion.cancel();this.generation++;this.closeMenu();this.clearPreviews();this.searchRender=undefined;this.refreshCache.clear();this.projection=undefined;this.paintStamp='';this.stage.hidden=true;return;}
+  if(!snapshot||snapshot.board.presentation!=='brain'){this.cancelPointers();this.motion.cancel();this.generation++;this.closeMenu();this.clearPreviews();this.searchRender=undefined;this.refreshCache.clear();this.projection=undefined;this.paintStamp='';this.stage.hidden=true;this.activeNodeId=undefined;this.selectionEpoch++;this.selection.root.hidden=true;return;}
   this.stage.hidden=false;const state=snapshot.board.brain||createBoardMindmapState(),context=snapshot.key||snapshot.path,ownerChanged=this.context!==context||this.boardPath!==snapshot.path||this.document!==doc,centerChanged=this.center!==state.centerId;
   if(this.colorPreview&&(snapshot.readOnly||this.colorPreview.key!==context||this.colorPreview.path!==snapshot.path||this.colorPreview.stamp!==brainColorsStamp(snapshot.board.brainColors)))this.colorPreview=undefined;
   const motion= centerChanged&&!ownerChanged?this.motion.capture(this.scene):undefined;if(ownerChanged)this.motion.cancel();
-  if(ownerChanged||centerChanged){this.cancelPointers();this.generation++;this.closeMenu();this.page=0;if(ownerChanged){this.searchRender=undefined;this.clearPreviews();this.cancelViewport();this.cameraReady=false;this.fitCamera=true;this.fitAll=false;if(this.document!==doc){this.cancelResize();this.observe();}}this.context=context;this.boardPath=snapshot.path;this.document=doc;this.center=state.centerId;this.error='';}
+  if(ownerChanged||centerChanged){this.toggleRelations(false);if(ownerChanged)this.toggleHistory(false);this.cancelPointers();this.generation++;this.closeMenu();this.page=0;if(ownerChanged){this.searchRender=undefined;this.clearPreviews();this.cancelViewport();this.cameraReady=false;this.fitCamera=true;this.fitAll=false;if(this.document!==doc){this.cancelResize();this.observe();}}this.context=context;this.boardPath=snapshot.path;this.document=doc;this.center=state.centerId;this.activeNodeId=state.centerId;this.selectionEpoch++;this.error='';}
   // Re-read saved cameras after an owner rename, undo or external replacement.
   if(ownerChanged||this.cameraBoard!==snapshot.board){this.cancelViewport();this.cancelPointers();this.cameraBoard=snapshot.board;this.cameraStored='';}
-  if(!this.visible()){this.cancelPointers(true);this.motion.cancel();this.generation++;this.closeMenu();this.clearPreviews();return;}
+  if(!this.visible()){this.cancelPointers(true);this.motion.cancel();this.generation++;this.selectionEpoch++;this.closeMenu();this.clearPreviews();return;}
   // Read the viewport before history, SVG and node writes; fit shares this one refresh snapshot.
   const pane=this.host.container??this.el,previousPane=this.paneSize,paneSize={width:pane.clientWidth,height:pane.clientHeight},paneResized=previousPane.width>0&&previousPane.height>0&&(previousPane.width!==paneSize.width||previousPane.height!==paneSize.height);this.paneSize=paneSize;
   const previousSize=this.stageSize,stageSize={width:this.stage.clientWidth,height:this.stage.clientHeight},resized=previousSize.width>0&&previousSize.height>0&&(previousSize.width!==stageSize.width||previousSize.height!==stageSize.height);
@@ -131,7 +123,7 @@ export class BrainBoardView extends Component {
   this.revealId=undefined;this.page=this.layout.page;
   this.statusHint=matches.invalidBranches?'父子关系无效，已隐藏无法核实的分支':this.nativePending?'原生引用索引更新中':'';this.refreshSaveFeedback(snapshot);
   const paintStamp=JSON.stringify([state,!!snapshot.readOnly,snapshot.nativeRevision,snapshot.path,brainColorsStamp(snapshot.board.brainColors),this.colorPreview?.value,this.error]);
-  if(!ownerChanged&&previousLayout===this.layout&&this.paintStamp===paintStamp){this.refreshSources=undefined;if(!this.cameraReady||this.fitCamera)this.fit(stageSize);else this.transform();return;}
+  if(!ownerChanged&&previousLayout===this.layout&&this.paintStamp===paintStamp){this.renderSelection(snapshot,state);this.refreshSources=undefined;if(!this.cameraReady||this.fitCamera)this.fit(stageSize);else this.transform();return;}
   this.paintStamp=paintStamp;const historyStamp=JSON.stringify([state.history,state.centerId,!!snapshot.readOnly,snapshot.graphRevision,snapshot.path]);if(ownerChanged||snapshot.graphRevision===undefined||historyStamp!==this.historyStamp){this.historyStamp=historyStamp;this.renderHistory(snapshot,state);}
   this.shell.querySelector('.ts-brain-object-count')?.setText(`${snapshot.board.nodes.length} 个对象`);
   if(!centerChanged&&this.motion.active&&JSON.stringify(previousLayout?.nodes)!==JSON.stringify(this.layout.nodes))this.motion.cancel();
@@ -147,7 +139,13 @@ export class BrainBoardView extends Component {
   for(const [id]of this.previews)if(!visible.has(id)||!state.expandedIds.includes(id)||!this.source(id).available)this.dropPreview(id);
   this.empty.hidden=!!matches.center;if(!matches.center){this.empty.empty();setIcon(this.empty.createDiv('ts-brain-empty-icon'),'network');this.empty.createEl('h3',{text:state.centerId?'中心节点已移除':'从已有知识开始'});this.empty.createEl('p',{text:state.centerId?'后退或搜索本板节点，继续浏览。':'引用仓库中的笔记或子白板，也可新建笔记与分组；第一个节点将成为中心。'});const label=state.centerId?'添加节点':'添加知识节点',button=this.button(this.empty,'plus',label,()=>this.host.add(),'add');button.createSpan({text:label});button.disabled=!!snapshot.readOnly;}
   this.refreshSaveFeedback(snapshot);this.pager.empty();this.pager.hidden=this.layout.pages<=1&&!this.descendantPage;if(this.layout.pages>1){this.button(this.pager,'chevron-left','上一页关系',()=>{this.page--;this.refresh();},'previous-page').disabled=this.layout.page===0;this.pager.createSpan({text:`${this.layout.page+1} / ${this.layout.pages} · ${this.layout.total} 个关系节点`});this.button(this.pager,'chevron-right','下一页关系',()=>{this.page++;this.refresh();},'next-page').disabled=this.layout.page===this.layout.pages-1;}
-  if(this.descendantPage){const page=this.descendantPage;this.pager.createSpan({text:`关系 ${depth} 层 · 第 ${page.page+1} 段 · 当前投影 ${this.layout.nodes.length} / ${this.branchCache.index.nodes.size} 个本板节点 · 已浏览 ${page.visited} 个${page.hasNext?' · 仍有关系节点待浏览':''}`});this.button(this.pager,'chevron-left','上一段关系',()=>this.pageDescendants('previous'),'previous-branches').disabled=page.page===page.firstPage;this.button(this.pager,'chevron-right','继续浏览关系',()=>this.pageDescendants('next'),'next-branches').disabled=!page.hasNext;if(page.page>0)this.button(this.pager,'rotate-ccw','返回首段关系',()=>this.pageDescendants('reset'),'reset-branches');const hidden=(this.layout as BrainBoardLayout&{hiddenEdges?:number}).hiddenEdges;if(hidden)this.pager.createSpan({text:`${hidden} 条可见端点关系未绘制；节点菜单可查看本板关系`});}
+  if(this.descendantPage){
+   const page=this.descendantPage,paged=page.hasNext||page.page>0;
+   this.pager.createSpan({text:`关系 ${depth} 层${paged?` · 第 ${page.page+1} 段`:''} · 显示 ${this.layout.nodes.length}/${this.branchCache.index.nodes.size} 个节点`});
+   if(paged){this.button(this.pager,'chevron-left','上一段关系',()=>this.pageDescendants('previous'),'previous-branches').disabled=page.page===page.firstPage;this.button(this.pager,'chevron-right','继续浏览关系',()=>this.pageDescendants('next'),'next-branches').disabled=!page.hasNext;if(page.page>0)this.button(this.pager,'rotate-ccw','返回首段关系',()=>this.pageDescendants('reset'),'reset-branches');}
+  }
+  if(!this.activeNodeId||!visible.has(this.activeNodeId)){this.activeNodeId=visible.has(state.centerId||'')?state.centerId:undefined;this.selectionEpoch++;this.closeMenu();}
+  this.renderSelection(snapshot,state);
   this.applyColors(this.colorPreview?.value??snapshot.board.brainColors);
   if(!this.cameraReady||this.fitCamera)this.fit(stageSize);else this.transform();
   if(motion)this.motion.play(this.scene,motion);
@@ -188,23 +186,38 @@ export class BrainBoardView extends Component {
   const style=win.getComputedStyle(probe),samples={background:win.getComputedStyle(this.stage).backgroundColor,node:nodeStyle?.backgroundColor||style.backgroundColor,border:nodeStyle?.borderTopColor||style.borderBottomColor,text:style.color,line:style.borderTopColor};probe.remove();return samples;
  }
  private pageDescendants(action:'previous'|'next'|'reset'){if(!this.descendants||!this.visible())return;this.cancelPointers(true);this.motion.cancel();this.descendants[action]();this.fitCamera=true;this.fitAll=false;this.refresh();this.queueViewport();}
- showDepthMenu(){this.boardMenu(undefined);}
+ showDepthMenu(){const snapshot=this.host.snapshot();if(!snapshot)return;const menu=this.makeMenu();this.fillDepthMenu(menu,snapshot,this.boardMenuCurrent(snapshot));this.showMenu(menu,undefined,this.shell.querySelector<HTMLElement>('[data-brain-action="depth"]')||this.more);}
  private openColors(){const snapshot=this.host.snapshot();if(this.alive&&this.visible()&&snapshot?.board.presentation==='brain'&&!snapshot.readOnly)this.host.colors?.();}
  focusSearch(){if(!this.visible())return;this.cancelPointers(true);this.input.focus({preventScroll:true});if(!this.searchVisible)this.toggleSearch(true);}
- revealRelation(id:string){this.cancelPointers(true);this.revealId=id;this.fitCamera=true;this.fitAll=true;this.refresh();this.queueViewport();}
+ revealRelation(id:string,originId?:string){
+  const snapshot=this.host.snapshot();
+  if(originId){
+   // The host calls this only after its creation transaction has saved. Failed
+   // saves retain the original selection/navigation so their dialog can retry.
+   if(snapshot?.readOnly||!snapshot?.board.nodes.some(node=>node.id===id&&supportsBoardMindmapTarget(node))||!this.current(originId)())return;
+   if(originId!==snapshot?.board.brain?.centerId){this.update({type:'center',id:originId});if(this.host.snapshot()?.board.brain?.centerId!==originId)return;}
+  }
+  this.cancelPointers(true);this.revealId=id;this.fitCamera=true;this.fitAll=true;this.refresh();this.queueViewport();
+ }
  fitToCanvas(){this.cancelPointers(true);this.motion.cancel();this.fitCamera=true;this.fitAll=true;this.fit();this.queueViewport();}
  resetZoom(){this.zoomAt(1);}
  flushPendingViewport(){this.flushViewport();}
+ captureReadingPosition():BrainReadingPositionState {
+  const snapshot=this.host.snapshot();if(!this.alive||!this.visible()||!snapshot||snapshot.board.presentation!=='brain'||snapshot.readOnly||!this.cameraReady)throw Error('当前脑图不可保存阅读位置');
+  return captureBrainReadingPosition(snapshot.board,this.camera);
+ }
+ /** Cancel old asynchronous camera writes before the host restores state and
+  * camera together. A delayed pan must never replace the reviewed location. */
+ prepareReadingPositionRestore(){this.cancelPointers(false);this.motion.cancel();this.cancelCameraFrame();this.cancelViewport();this.cameraStored='';}
  private trackCommandComposition(){
   const doc=this.el.ownerDocument;if(this.compositionDocument===doc)return;
   if(this.compositionScope)this.removeChild(this.compositionScope);
   this.composing=false;this.compositionDocument=doc;const scope=this.compositionScope=this.addChild(new Component());
   scope.registerDomEvent(doc,'compositionstart',()=>{this.composing=true;},{capture:true});scope.registerDomEvent(doc,'compositionend',()=>{this.composing=false;},{capture:true});
-  if(doc.defaultView)scope.registerDomEvent(doc.defaultView,'blur',()=>{this.composing=false;this.cancelPointers(true);});
-  const touch=this.touchMedia=doc.defaultView?.matchMedia?.('(any-pointer: coarse)');if(touch?.addEventListener){const change=()=>this.transform();touch.addEventListener('change',change);scope.register(()=>touch.removeEventListener('change',change));}
+  if(doc.defaultView)scope.registerDomEvent(doc.defaultView,'blur',()=>{this.composing=false;this.selectionEpoch++;this.closeMenu();this.cancelPointers(true);});
  }
  relationCommandTarget(checking=false):BrainRelationCommandTarget|undefined{
-  const snapshot=this.host.snapshot(),doc=this.el.ownerDocument,id=snapshot?.board.brain?.centerId;
+  const snapshot=this.host.snapshot(),doc=this.el.ownerDocument,id=this.activeNodeId,epoch=this.selectionEpoch,center=snapshot?.board.brain?.centerId;
   if(!snapshot||!id||snapshot.board.presentation!=='brain'||!this.alive||!this.visible()||!this.host.createRelation)return;
   this.trackCommandComposition();
   // Palette enumeration must remain discoverable while its native prompt is
@@ -213,7 +226,7 @@ export class BrainBoardView extends Component {
   const editing=(enumerating=checking)=>this.composing||!!doc.activeElement&&!!doc.activeElement.closest('input,textarea,select,[contenteditable]:not([contenteditable=false])')&&!(enumerating&&doc.activeElement.closest('.prompt'));
   const canRun=()=>{
    const live=this.host.snapshot();
-   return !editing()&&this.alive&&this.visible()&&this.el.ownerDocument===doc&&!doc.defaultView?.closed&&doc.hasFocus()&&(this.host.isActive?.()??true)&&!!live&&!live.readOnly&&live.key===snapshot.key&&live.path===snapshot.path&&live.board.presentation==='brain'&&live.board.brain?.centerId===id&&live.board.nodes.some(node=>node.id===id&&supportsBoardMindmapTarget(node)&&!node.locked);
+   return !editing()&&this.alive&&this.visible()&&this.el.ownerDocument===doc&&!doc.defaultView?.closed&&doc.hasFocus()&&(this.host.isActive?.()??true)&&!!live&&!live.readOnly&&live.key===snapshot.key&&live.path===snapshot.path&&live.board.presentation==='brain'&&live.board.brain?.centerId===center&&this.activeNodeId===id&&this.selectionEpoch===epoch&&live.board.nodes.some(node=>node.id===id&&supportsBoardMindmapTarget(node)&&!node.locked);
   };
   return{editing:editing(),canRun,run:side=>{if(canRun()&&!editing(false))this.createRelation(id,side);}};
  }
@@ -227,25 +240,66 @@ export class BrainBoardView extends Component {
    const {x,y,zoom}=this.camera,left=x+position.x*zoom,top=y+position.y*zoom;
    if(left<12||left+position.width*zoom>width-12||top<12||top+position.height*zoom>height-12){this.camera={zoom,x:width/2-(position.x+position.width/2)*zoom,y:height/2-(position.y+position.height/2)*zoom};this.fitCamera=false;this.transform();this.queueViewport();}
   }
+  if(item&&id)this.selectNode(id);
   (item?.title||this.shell).focus({preventScroll:true});
  }
+ /** Reused toolbar buttons keep the node lease from press through activation. A
+  * pointer/keyboard press cannot silently retarget after another node is selected. */
+ private selectionButton(parent:HTMLElement,icon:string,label:string,fn:(id:string,event:MouseEvent)=>unknown,action:string){
+  let pressed:{id?:string;epoch:number;current:()=>boolean}|undefined;
+  const arm=()=>{const id=this.activeNodeId;pressed={id,epoch:this.selectionEpoch,current:id?this.current(id):()=>false};};
+  const button=this.button(parent,icon,label,event=>{const lease=pressed;pressed=undefined;const id=lease?lease.id:this.activeNodeId;if(!id||lease&&(lease.epoch!==this.selectionEpoch||!lease.current())||!this.current(id)())return;fn(id,event);},action);
+  this.registerDomEvent(button,'pointerdown',arm);this.registerDomEvent(button,'pointercancel',()=>{pressed={id:this.activeNodeId,epoch:-1,current:()=>false};});
+  this.registerDomEvent(button,'keydown',event=>{if(event.key==='Enter'||event.key===' ')arm();});return button;
+ }
+ private createSelectionControls(){
+  const root=this.shell.createDiv({cls:'ts-brain-selection',attr:{role:'group','aria-label':'选中节点操作'}}),name=root.createSpan('ts-brain-selection-name'),actions=root.createDiv('ts-brain-selection-actions');
+  const center=this.selectionButton(actions,'focus','设为中心',id=>{this.update({type:'center',id});if(this.host.snapshot()?.board.brain?.centerId===id)this.focusNode(id);},'center');
+  const expand=this.selectionButton(actions,'chevron-down','展开正文',id=>this.update({type:'expand',id}),'expand'),open=this.selectionButton(actions,'arrow-up-right','打开来源',id=>this.open(id),'open'),menu=this.selectionButton(actions,'ellipsis','节点菜单',(id,event)=>this.nodeMenu(id,event),'node-menu');
+  const relationsToggle=this.button(actions,'plus','新建关系',()=>this.toggleRelations(this.selection.relations.hidden),'relations-toggle');relationsToggle.createSpan({text:'新建关系'});actions.insertBefore(relationsToggle,menu);relationsToggle.setAttribute('aria-expanded','false');relationsToggle.setAttribute('aria-controls',`${this.markerId}-relations`);
+  const relations=root.createDiv({cls:'ts-brain-selection-relations',attr:{id:`${this.markerId}-relations`,role:'group','aria-label':'为选中节点新建关系'}}),anchors:HTMLButtonElement[]=[];relations.hidden=true;
+  for(const [side,icon,label]of [['top','arrow-up','上方 · 父节点'],['bottom','arrow-down','下方 · 子节点'],['left','arrow-left','左侧 · 关联'],['right','arrow-right','右侧 · 关联']] as const){const anchor=this.selectionButton(relations,icon,brainRelationLabels[side],id=>this.createRelation(id,side),`add-${side}`);anchor.setAttribute('aria-haspopup','dialog');anchor.createSpan({cls:'ts-brain-selection-direction',text:label.split(' · ')[1]});anchors.push(anchor);}
+  menu.setAttribute('aria-haspopup','menu');this.selection={root,name,center,expand,open,menu,relations,relationsToggle,anchors};root.hidden=true;
+ }
+ private toggleHistory(show:boolean,keyboard=false){this.footer.hidden=!show;this.historyButton.setAttribute('aria-expanded',String(show));const doc=this.el.ownerDocument;if(show&&keyboard&&doc.activeElement===this.historyButton&&doc.hasFocus()&&(this.host.isActive?.()??true)&&this.visible())Array.from(this.recent.querySelectorAll<HTMLButtonElement>('[data-brain-recent-id]')).find(button=>!button.disabled&&button.getClientRects().length)?.focus({preventScroll:true});}
+ private toggleRelations(show:boolean){this.selection.relations.hidden=!show;this.selection.relationsToggle.setAttribute('aria-expanded',String(show));}
+ private selectNode(id:string){
+  const snapshot=this.host.snapshot();if(!snapshot||this.activeNodeId!==id&&!this.visible()||this.document!==this.el.ownerDocument||this.context!==(snapshot.key||snapshot.path)||this.boardPath!==snapshot.path||this.center!==snapshot.board.brain?.centerId||snapshot.board.presentation!=='brain'||!this.nodes.has(id)||!snapshot.board.nodes.some(node=>node.id===id&&supportsBoardMindmapTarget(node)))return;
+  this.cancelPointers(true);if(this.activeNodeId!==id){this.activeNodeId=id;this.selectionEpoch++;this.closeMenu();this.toggleRelations(false);}
+  this.renderSelection(snapshot,snapshot.board.brain||createBoardMindmapState());
+ }
+ private renderSelection(snapshot:BrainBoardSnapshot,state:BoardMindmapState){
+  const id=this.activeNodeId,node=snapshot.board.nodes.find(node=>node.id===id&&supportsBoardMindmapTarget(node)),controls=this.selection;
+  controls.root.hidden=!node||!id||!this.nodes.has(id);controls.root.dataset.brainSelectedId=id||'';
+  for(const [key,item]of this.nodes){const selected=key===id;if(item.root.classList.contains('is-selected')!==selected)item.root.classList.toggle('is-selected',selected);if(item.title.getAttribute('aria-pressed')!==String(selected))item.title.setAttribute('aria-pressed',String(selected));}
+  if(controls.root.hidden||!node)return;
+  const descriptor=localRelationNode(node),source=this.source(node.id),expanded=state.expandedIds.includes(node.id),label=this.contentLabel(node.kind),readOnly=!!snapshot.readOnly;
+  const caption=`选中：${descriptor.title}`;if(controls.name.textContent!==caption)controls.name.setText(caption);controls.name.title=descriptor.title;
+  controls.center.disabled=readOnly;controls.center.setAttribute('aria-label',node.id===state.centerId?'定位当前中心':`设为中心：${descriptor.title}`);controls.center.title=controls.center.getAttribute('aria-label')!;
+  controls.expand.disabled=readOnly||!expanded&&!source.available;controls.expand.title=expanded?`收起${label}`:source.available?`展开${label}`:source.reason||'来源不可用';controls.expand.setAttribute('aria-label',`${expanded?'收起':'展开'}${label}：${descriptor.title}`);controls.expand.setAttribute('aria-expanded',String(expanded));const icon=expanded?'chevron-up':'chevron-down';if(controls.expandIcon!==icon){setIcon(controls.expand,icon);controls.expand.createSpan({text:expanded?'收起':'展开'});controls.expandIcon=icon;}
+  controls.open.disabled=!source.available;controls.open.title=source.available?this.openLabel(node.kind,source):source.reason||'来源不可用';controls.open.setAttribute('aria-label',controls.open.title);
+  for(const anchor of controls.anchors){anchor.hidden=!this.host.createRelation;anchor.disabled=readOnly||!!node.locked;}
+  controls.relationsToggle.hidden=!this.host.createRelation;controls.relationsToggle.disabled=readOnly||!!node.locked;if(controls.relationsToggle.hidden||controls.relationsToggle.disabled)this.toggleRelations(false);
+ }
  private node(descriptor:LocalRelationNode,role:string,snapshot:BrainBoardSnapshot,state:BoardMindmapState,roles:string[]){
-  const {id}=descriptor;let item=this.nodes.get(id);if(!item){const root=this.scene.createDiv('ts-brain-node');root.dataset.brainNodeId=id;root.dataset.relationMotionId=id;const pill=root.createDiv('ts-brain-pill'),title=this.button(pill,'',descriptor.title,()=>{this.update({type:'center',id});this.focusNode(id);});title.classList.add('ts-brain-node-title');const label=title.createSpan({cls:'ts-brain-node-label',attr:{id:`${this.markerId}-title-${++this.nodeSequence}`}});const actions=root.createDiv('ts-brain-node-actions');const expand=this.button(actions,'chevron-down','展开正文',()=>this.update({type:'expand',id}),'expand'),open=this.button(actions,'arrow-up-right','打开来源',()=>this.open(id),'open'),menu=this.button(actions,'ellipsis','节点菜单',event=>this.nodeMenu(id,event),'node-menu');const status=root.createDiv('ts-brain-source-status'),scope=this.addChild(new Component()),anchors:HTMLButtonElement[]=[];item={root,pill,title,label,actions,expand,open,menu,anchors,status,scope};this.nodes.set(id,item);for(const side of ['top','bottom','left','right'] as const){const anchor=this.button(root,'plus',brainRelationLabels[side],()=>this.createRelation(id,side),`add-${side}`);anchor.classList.add('ts-brain-anchor',`is-${side}`);anchor.setAttribute('aria-haspopup','dialog');anchor.removeAttribute('title');anchor.createSpan('ts-brain-port-dot');anchor.createSpan({cls:'ts-brain-port-tip',text:({top:'上方 · 父节点',bottom:'下方 · 子节点',left:'左侧 · 关联',right:'右侧 · 关联'})[side]});anchors.push(anchor);}scope.registerDomEvent(root,'contextmenu',event=>{event.preventDefault();event.stopPropagation();this.nodeMenu(id,event);});scope.registerDomEvent(root,'keydown',event=>{if(event.key==='ContextMenu'||event.shiftKey&&event.key==='F10'){event.preventDefault();event.stopPropagation();this.nodeMenu(id,undefined,item!.menu);}});}
-  for(const anchor of item.anchors){anchor.hidden=role!=='center';anchor.disabled=!!snapshot.readOnly||!this.host.createRelation||snapshot.board.nodes.find(node=>node.id===id)?.locked===true;}
-  const expanded=state.expandedIds.includes(id),source=this.source(id),label=this.contentLabel(descriptor.kind),readOnly=!!snapshot.readOnly;item.root.dataset.relationMotionCenter=String(role==='center');item.root.dataset.brainRole=role;item.root.dataset.kind=descriptor.kind;item.root.dataset.brainRoles=roles.join('、');item.root.classList.toggle('is-center',role==='center');item.root.classList.toggle('is-expanded',expanded);item.root.classList.toggle('is-missing',!source.available);item.root.classList.toggle('is-pinned',state.pins.includes(id));item.root.classList.toggle('has-long-title',descriptor.title.length>12);item.root.classList.toggle('has-extended-title',descriptor.title.length>20);if(item.label.textContent!==descriptor.title)item.label.setText(descriptor.title);item.title.disabled=readOnly;item.title.title=`${descriptor.title}\n${descriptor.detail}${roles.length?'\n关系：'+roles.join('、'):''}`;item.title.setAttribute('aria-current',String(role==='center'));item.title.setAttribute('aria-label',`${role==='center'?'当前中心':'设为中心'}：${descriptor.title}`);item.title.setAttribute('aria-description',roles.join('、'));item.expand.disabled=readOnly||!expanded&&!source.available;item.expand.title=expanded?`收起${label}`:source.available?`展开${label}`:source.reason||'来源不可用';item.expand.setAttribute('aria-label',`${expanded?'收起':'展开'}${label}：${descriptor.title}`);item.expand.setAttribute('aria-expanded',String(expanded));const expandIcon=expanded?'chevron-up':'chevron-down';if(item.expandIcon!==expandIcon){setIcon(item.expand,expandIcon);item.expandIcon=expandIcon;}item.open.disabled=!source.available;item.open.title=source.available?this.openLabel(descriptor.kind,source):source.reason||'来源不可用';item.open.setAttribute('aria-label',item.open.title);item.status.setText(source.available?'':source.reason||'来源已失效');item.status.hidden=source.available;
+  const {id}=descriptor;let item=this.nodes.get(id);if(!item){const root=this.scene.createDiv('ts-brain-node');root.dataset.brainNodeId=id;root.dataset.relationMotionId=id;const pill=root.createDiv('ts-brain-pill'),title=this.button(pill,'',descriptor.title,()=>{this.selectNode(id);title.focus({preventScroll:true});});title.classList.add('ts-brain-node-title');const label=title.createSpan({cls:'ts-brain-node-label',attr:{id:`${this.markerId}-title-${++this.nodeSequence}`}}),status=root.createDiv('ts-brain-source-status'),scope=this.addChild(new Component());item={root,pill,title,label,status,scope};this.nodes.set(id,item);
+   scope.registerDomEvent(title,'focus',()=>this.selectNode(id));scope.registerDomEvent(root,'focusin',()=>this.selectNode(id));
+   scope.registerDomEvent(root,'contextmenu',event=>{event.preventDefault();event.stopPropagation();this.selectNode(id);this.nodeMenu(id,event);});scope.registerDomEvent(root,'keydown',event=>{if(event.key==='ContextMenu'||event.shiftKey&&event.key==='F10'){event.preventDefault();event.stopPropagation();this.selectNode(id);this.nodeMenu(id,undefined,title);}else if(event.key==='ArrowDown'&&event.altKey&&event.target===title){event.preventDefault();event.stopPropagation();this.selectNode(id);[this.selection.center,this.selection.expand,this.selection.open,this.selection.menu].find(button=>!button.disabled)?.focus();}});
+  }
+  const expanded=state.expandedIds.includes(id),source=this.source(id),label=this.contentLabel(descriptor.kind);item.root.dataset.relationMotionCenter=String(role==='center');item.root.dataset.brainRole=role;item.root.dataset.kind=descriptor.kind;item.root.dataset.brainRoles=roles.join('、');item.root.classList.toggle('is-center',role==='center');item.root.classList.toggle('is-expanded',expanded);item.root.classList.toggle('is-missing',!source.available);item.root.classList.toggle('is-pinned',state.pins.includes(id));item.root.classList.toggle('has-long-title',descriptor.title.length>12);item.root.classList.toggle('has-extended-title',descriptor.title.length>20);if(item.label.textContent!==descriptor.title)item.label.setText(descriptor.title);item.title.disabled=false;item.title.title=`${descriptor.title}\n${descriptor.detail}${roles.length?'\n关系：'+roles.join('、'):''}\n单击选择 · 工具栏设为中心`;item.title.setAttribute('aria-current',String(role==='center'));item.title.setAttribute('aria-label',`选择${role==='center'?'当前中心':''}节点：${descriptor.title}`);item.title.setAttribute('aria-keyshortcuts','Alt+ArrowDown');item.title.setAttribute('aria-description',`${roles.join('、')}；Alt+下方向键进入选中节点操作`);item.status.setText(source.available?'':source.reason||'来源已失效');item.status.hidden=source.available;
   if(expanded&&source.available){const stamp=JSON.stringify([source.path,source.stamp,descriptor.kind]);let preview=this.previews.get(id);if(preview?.stamp!==stamp){this.dropPreview(id);const scope=this.addChild(new Component()),body=item.root.createDiv({cls:'ts-brain-preview',attr:{tabindex:'0',role:'region','aria-labelledby':item.label.getAttribute('id')!,'aria-description':label}});preview={body,scope,stamp};this.previews.set(id,preview);const record=preview,doc=this.el.ownerDocument,key=snapshot.key,path=snapshot.path;const current=()=>{const now=this.host.snapshot();return this.alive&&this.el.ownerDocument===doc&&this.visible()&&now?.key===key&&now?.path===path&&now.board.presentation==='brain'&&this.previews.get(id)===record&&body.isConnected&&!!now.board.brain?.expandedIds.includes(id)&&now.board.nodes.some(node=>node.id===id&&supportsBoardMindmapTarget(node))&&this.source(id).available&&JSON.stringify([this.source(id).path,this.source(id).stamp,descriptor.kind])===stamp;};try{this.host.preview(id,body,scope,current);}catch(error){if(current())body.setText(this.message(error));}}}
   return item;
  }
  private update(action:BoardMindmapAction){const snapshot=this.host.snapshot();if(!snapshot||snapshot.readOnly||!this.visible())return;try{const hadFeedback=!!this.error||!!this.status.textContent;this.error='';const state=snapshot.board.brain||createBoardMindmapState(),next=updateBoardMindmapState(state,action,snapshot.board.nodes),changed=JSON.stringify(next)!==JSON.stringify(state);if(!changed&&!hadFeedback)return;const render=this.renders;if(changed)this.host.change(next);if(this.renders===render)this.refresh();}catch(error){this.showError(error);}}
  private source(id:string):BoardMindmapSource{const cached=this.refreshSources?.get(id);if(cached)return cached;let source:BoardMindmapSource;try{source=this.host.source(id);}catch(error){source={label:'来源',available:false,reason:this.message(error)};}this.refreshSources?.set(id,source);return source;}
  private createRelation(id:string,side:BrainRelationSide,initial?:'board'){const current=this.current(id),snapshot=this.host.snapshot();if(!current()||snapshot?.readOnly||snapshot?.board.nodes.find(node=>node.id===id)?.locked||!this.host.createRelation)return;try{void Promise.resolve(this.host.createRelation(id,side,current,initial)).catch(error=>{if(current())this.showError(error);});}catch(error){if(current())this.showError(error);}}
- private current(id:string){const snapshot=this.host.snapshot(),generation=this.generation,doc=this.el.ownerDocument,key=snapshot?.key,path=snapshot?.path,center=snapshot?.board.brain?.centerId;let valid=true;return()=>{const now=this.host.snapshot();valid=valid&&this.alive&&this.generation===generation&&this.el.ownerDocument===doc&&this.visible()&&now?.key===key&&now?.path===path&&now?.board.presentation==='brain'&&now.board.brain?.centerId===center&&!!now.board.nodes.some(node=>node.id===id&&supportsBoardMindmapTarget(node));return valid;};}
+ private current(id:string){const snapshot=this.host.snapshot(),generation=this.generation,epoch=this.selectionEpoch,doc=this.el.ownerDocument,key=snapshot?.key,path=snapshot?.path,center=snapshot?.board.brain?.centerId;let valid=true;return()=>{const now=this.host.snapshot();valid=valid&&this.alive&&this.generation===generation&&this.selectionEpoch===epoch&&this.activeNodeId===id&&this.el.ownerDocument===doc&&this.document===doc&&this.visible()&&doc.hasFocus()&&(this.host.isActive?.()??true)&&!!now&&now.key===key&&this.context===(now.key||now.path)&&this.boardPath===now.path&&this.center===now.board.brain?.centerId&&now?.path===path&&now?.board.presentation==='brain'&&now.board.brain?.centerId===center&&!!now.board.nodes.some(node=>node.id===id&&supportsBoardMindmapTarget(node));return valid;};}
  private open(id:string,edit=false){const current=this.current(id);if(!current())return;try{void Promise.resolve(this.host.open(id,current,edit)).catch(error=>{if(current())this.showError(error);});}catch(error){if(current())this.showError(error);}}
  private submenu(menu:Menu,title:string,icon:string,fill:(menu:Menu)=>void){
   menu.addItem(item=>{item.setTitle(title).setIcon(icon);fill((item as MenuItem&{setSubmenu:()=>Menu}).setSubmenu().setUseNativeMenu(false));});
  }
  private nodeMenu(id:string,event?:MouseEvent,anchor?:HTMLElement){
-  const snapshot=this.host.snapshot(),node=snapshot?.board.nodes.find(node=>node.id===id&&supportsBoardMindmapTarget(node));if(!snapshot||!node)return;
+  const snapshot=this.host.snapshot(),node=snapshot?.board.nodes.find(node=>node.id===id&&supportsBoardMindmapTarget(node));if(!snapshot||!node||!this.current(id)())return;
   const state=snapshot.board.brain||createBoardMindmapState(),source=this.source(id),current=this.current(id),readOnly=!!snapshot.readOnly,menu=this.makeMenu();
   const add=(target:Menu,title:string,icon:string,enabled:boolean,run:()=>unknown,reason?:string)=>target.addItem(item=>item.setTitle(!enabled&&reason?`${title}（${reason}）`:title).setIcon(icon).setDisabled(!enabled).onClick(()=>{if(current())run();}));
   add(menu,'设为中心','focus',!readOnly,()=>this.update({type:'center',id}));
@@ -255,7 +309,7 @@ export class BrainBoardView extends Component {
   if(node.brainIdea&&this.host.organizeIdea)add(menu,'整理成笔记','file-plus',!readOnly&&!node.locked,()=>this.host.organizeIdea?.(id,current));
   else add(menu,'编辑实际笔记','pencil',source.available&&!!source.canEdit,()=>this.open(id,true),source.available?source.editReason||'此对象没有独立笔记正文':source.reason);
   if(this.host.associateExisting)add(menu,'关联已有笔记…','file-input',!readOnly&&!node.locked,()=>{try{this.host.associateExisting?.(id,current);}catch(error){if(current())this.showError(error);}});
-  if(id===state.centerId&&this.host.createRelation)this.submenu(menu,'新建节点','plus',sub=>{
+  if(this.host.createRelation)this.submenu(menu,'新建节点','plus',sub=>{
    for(const side of ['top','bottom','left','right'] as const)add(sub,brainRelationLabels[side],'plus',!readOnly&&!node.locked,()=>this.createRelation(id,side));
    sub.addSeparator();add(sub,'新建白板…','panels-top-left',!readOnly&&!node.locked,()=>this.createRelation(id,'bottom','board'));
   });
@@ -265,18 +319,42 @@ export class BrainBoardView extends Component {
    if(this.host.relate){sub.addSeparator();for(const [kind,label]of [['child','添加子级关系'],['parent','添加父级关系'],['associate','添加关联'],['remove','移除本板关系']] as const)add(sub,label,kind==='remove'?'unlink':'git-branch',!readOnly,()=>{try{void Promise.resolve(this.host.relate!(id,kind,current)).catch(error=>{if(current())this.showError(error);});}catch(error){if(current())this.showError(error);}});}
   });
   if(node.file&&source.available&&this.host.fileMenu)this.submenu(menu,'文件操作','file-cog',sub=>this.host.fileMenu?.(sub,id));
-  this.showMenu(menu,event,anchor||this.nodes.get(id)?.menu||this.more);
+  this.showMenu(menu,event,anchor||this.selection.menu||this.more);
  }
- private boardMenu(event?:MouseEvent){const snapshot=this.host.snapshot();if(!snapshot)return;const menu=this.makeMenu(),generation=this.generation,key=snapshot.key,path=snapshot.path,current=()=>{const now=this.host.snapshot();return this.alive&&this.visible()&&this.generation===generation&&now?.key===key&&now?.path===path&&now.board.presentation==='brain';};menu.addItem(item=>item.setTitle('添加节点').setIcon('plus').setDisabled(!!snapshot.readOnly).onClick(()=>{if(current())this.host.add();}));if(this.host.rename)menu.addItem(item=>item.setTitle('重命名白板').setIcon('pencil').setDisabled(!!snapshot.readOnly).onClick(()=>{if(current())this.host.rename?.();}));menu.addItem(item=>item.setTitle('适应画布').setIcon('maximize').onClick(()=>{if(current()){this.fitCamera=true;this.fitAll=true;this.fit();this.queueViewport();}}));
-  if(this.host.nativeProperties&&/\.md$/i.test(snapshot.path))menu.addItem(item=>item.setTitle('原生属性与 Markdown').setIcon('file-pen-line').setDisabled(!!snapshot.readOnly).onClick(()=>{if(current()&&!this.host.snapshot()?.readOnly)this.host.nativeProperties?.();}));
-  menu.addSeparator();for(let depth=1;depth<=5;depth++)menu.addItem(item=>item.setTitle(`显示 ${depth} 层${(snapshot.board.brain?.descendantDepth??1)===depth?' ✓':''}`).setIcon('layers').setDisabled(!!snapshot.readOnly).onClick(()=>{if(current()){this.motion.cancel();this.update({type:'depth',value:depth});}}));
-  if(this.host.background)menu.addItem(item=>item.setTitle('白板背景').setIcon('palette').setDisabled(!!snapshot.readOnly).onClick(()=>{if(current())this.host.background?.(this.more);}));
-  if(this.host.colors)menu.addItem(item=>item.setTitle('脑图配色…').setIcon('palette').setDisabled(!!snapshot.readOnly).onClick(()=>{if(current())this.openColors();}));
-  if(this.host.addObject)for(const [kind,title]of [['section','添加分组'],['board','引用子白板']] as const)menu.addItem(item=>item.setTitle(title).setDisabled(!!snapshot.readOnly).onClick(()=>{if(current())this.host.addObject?.(kind);}));
-  const state=snapshot.board.brain;for(const id of state?.pins||[]){const node=snapshot.board.nodes.find(node=>node.id===id&&supportsBoardMindmapTarget(node));menu.addItem(item=>item.setTitle(node?`固定：${localRelationNode(node).title}`:'清理失效固定').setIcon('pin').setDisabled(!!snapshot.readOnly).onClick(()=>{if(current())this.update(node?{type:'center',id}:{type:'pin',id,pinned:false});}));}for(const id of state?.expandedIds||[])if(!snapshot.board.nodes.some(node=>node.id===id&&supportsBoardMindmapTarget(node)))menu.addItem(item=>item.setTitle(`清理失效展开：${id}`).setIcon('x').setDisabled(!!snapshot.readOnly).onClick(()=>{if(current())this.update({type:'expand',id,expanded:false});}));this.showMenu(menu,event,this.more);
+ private boardMenuCurrent(snapshot:BrainBoardSnapshot){
+  const generation=this.generation,epoch=this.selectionEpoch,key=snapshot.key,path=snapshot.path;
+  return()=>{const now=this.host.snapshot();return this.alive&&this.visible()&&this.generation===generation&&this.selectionEpoch===epoch&&now?.key===key&&now?.path===path&&now.board.presentation==='brain';};
  }
- private renderHistory(snapshot:BrainBoardSnapshot,state:BoardMindmapState){const active=this.el.ownerDocument.activeElement,focusedId=this.recent.contains(active)?(active as HTMLElement).dataset.brainRecentId:undefined;this.recent.empty();const ids=[...new Set([...state.history.entries].reverse())];for(const id of ids){const node=snapshot.board.nodes.find(node=>node.id===id&&supportsBoardMindmapTarget(node)),name=node?localRelationNode(node).title:'已移除节点';const button=this.button(this.recent,'',name,()=>{this.update({type:'center',id});this.focusNode(id);});button.setText(name);button.dataset.brainRecentId=id;button.classList.toggle('is-active',id===state.centerId);button.setAttribute('aria-current',String(id===state.centerId));button.disabled=!!snapshot.readOnly||!node;}if(focusedId&&this.visible()&&this.el.ownerDocument.hasFocus()&&(this.host.isActive?.()??true))Array.from(this.recent.querySelectorAll<HTMLButtonElement>('[data-brain-recent-id]')).find(button=>button.dataset.brainRecentId===focusedId)?.focus({preventScroll:true});}
- private toggleSearch(show:boolean){this.searchVisible=show;this.searchResults.hidden=!show;this.input.setAttribute('aria-expanded',String(show));if(show)this.renderSearch();}
+ private fillDepthMenu(menu:Menu,snapshot:BrainBoardSnapshot,current:()=>boolean){
+  if(this.descendantPage){
+   const page=this.descendantPage;menu.addItem(item=>item.setTitle(`已浏览 ${page.visited} 个节点 · 本板共 ${this.branchCache?.index.nodes.size??0} 个${page.hasNext?' · 仍有关系待浏览':''}`).setIcon('info').setDisabled(true));
+   const hidden=this.layout&&'hiddenEdges'in this.layout?this.layout.hiddenEdges:0;if(typeof hidden==='number'&&hidden>0)menu.addItem(item=>item.setTitle(`${hidden} 条可见端点关系未绘制；节点菜单可查看本板关系`).setIcon('info').setDisabled(true));
+   menu.addSeparator();
+  }
+  for(let depth=1;depth<=5;depth++)menu.addItem(item=>item.setTitle(`显示 ${depth} 层${(snapshot.board.brain?.descendantDepth??1)===depth?' ✓':''}`).setIcon('layers').setDisabled(!!snapshot.readOnly).onClick(()=>{if(current()){this.motion.cancel();this.update({type:'depth',value:depth});}}));
+ }
+ private boardMenu(event?:MouseEvent){
+  const snapshot=this.host.snapshot();if(!snapshot)return;const menu=this.makeMenu(),current=this.boardMenuCurrent(snapshot),readOnly=!!snapshot.readOnly;
+  const add=(target:Menu,title:string,icon:string,run:()=>void,disabled=readOnly)=>target.addItem(item=>item.setTitle(title).setIcon(icon).setDisabled(disabled).onClick(()=>{if(current())run();}));
+  add(menu,'添加节点','plus',()=>this.host.add());
+  if(this.host.addObject)this.submenu(menu,'添加其他对象','shapes',sub=>{add(sub,'添加分组','group',()=>this.host.addObject?.('section'));add(sub,'引用子白板','panels-top-left',()=>this.host.addObject?.('board'));});
+  if(this.host.rename)add(menu,'重命名白板','pencil',()=>this.host.rename?.());
+  menu.addSeparator();
+  add(menu,'适应画布','maximize',()=>this.fitToCanvas(),false);
+  this.submenu(menu,'关系显示层级','layers',sub=>this.fillDepthMenu(sub,snapshot,current));
+  if(this.host.readingPositions)add(menu,'脑图阅读位置…','bookmark',()=>{if(!this.host.snapshot()?.readOnly)this.host.readingPositions?.(current);});
+  const state=snapshot.board.brain;
+  if(state?.pins.length)this.submenu(menu,'固定节点','pin',sub=>{for(const id of state.pins){const node=snapshot.board.nodes.find(node=>node.id===id&&supportsBoardMindmapTarget(node));add(sub,node?`固定：${localRelationNode(node).title}`:'清理失效固定','pin',()=>this.update(node?{type:'center',id}:{type:'pin',id,pinned:false}));}});
+  if(this.host.background||this.host.colors)this.submenu(menu,'外观','palette',sub=>{if(this.host.background)add(sub,'白板背景','image',()=>this.host.background?.(this.more));if(this.host.colors)add(sub,'脑图配色…','palette',()=>this.openColors());});
+  menu.addSeparator();
+  if(this.host.settings)add(menu,'脑图设置','settings-2',()=>this.host.settings?.(),false);
+  if(this.host.nativeProperties&&/\.md$/i.test(snapshot.path))add(menu,'原生属性与 Markdown','file-pen-line',()=>{if(!this.host.snapshot()?.readOnly)this.host.nativeProperties?.();});
+  const staleExpanded=state?.expandedIds.filter(id=>!snapshot.board.nodes.some(node=>node.id===id&&supportsBoardMindmapTarget(node)))||[];
+  if(staleExpanded.length)this.submenu(menu,'清理失效展开','list-restart',sub=>{for(const id of staleExpanded)add(sub,`清理失效展开：${id}`,'x',()=>this.update({type:'expand',id,expanded:false}));});
+  this.showMenu(menu,event,this.more);
+ }
+ private renderHistory(snapshot:BrainBoardSnapshot,state:BoardMindmapState){const active=this.el.ownerDocument.activeElement,focusedId=this.recent.contains(active)?(active as HTMLElement).dataset.brainRecentId:undefined;this.recent.empty();const ids=[...new Set([...state.history.entries].reverse())];for(const id of ids){const node=snapshot.board.nodes.find(node=>node.id===id&&supportsBoardMindmapTarget(node)),name=node?localRelationNode(node).title:'已移除节点';const button=this.button(this.recent,'',name,()=>{this.update({type:'center',id});this.toggleHistory(false);this.focusNode(id);});button.setText(name);button.dataset.brainRecentId=id;button.classList.toggle('is-active',id===state.centerId);button.setAttribute('aria-current',String(id===state.centerId));button.disabled=!!snapshot.readOnly||!node;}if(focusedId&&this.visible()&&this.el.ownerDocument.hasFocus()&&(this.host.isActive?.()??true))Array.from(this.recent.querySelectorAll<HTMLButtonElement>('[data-brain-recent-id]')).find(button=>button.dataset.brainRecentId===focusedId)?.focus({preventScroll:true});}
+ private toggleSearch(show:boolean){this.searchVisible=show;this.searchResults.hidden=!show;this.input.setAttribute('aria-expanded',String(show));if(show)this.renderSearch();else this.input.removeAttribute('aria-activedescendant');}
  private renderSearch(){
   if(!this.searchVisible)return;const snapshot=this.host.snapshot();if(!snapshot)return;
   // Every input searches the current board. Only identical displayed DOM is
@@ -284,9 +362,10 @@ export class BrainBoardView extends Component {
   const result=searchLocalCenters(snapshot.board,this.query,{page:this.searchPage,pageSize:10});this.searchPage=result.page;this.searchIds=result.items.map(node=>node.id);this.searchIndex=Math.min(this.searchIndex,Math.max(0,result.items.length-1));
   const signature=JSON.stringify([result.items,result.matched,result.page,result.pages,!!snapshot.readOnly]),doc=this.el.ownerDocument,previous=this.searchRender;
   if(previous&&previous.key===snapshot.key&&previous.path===snapshot.path&&previous.doc===doc&&previous.signature===signature){this.selectSearchRow();return;}
-  this.searchRender={key:snapshot.key,path:snapshot.path,doc,signature};this.searchResults.empty();this.searchResults.createDiv({cls:'ts-brain-search-count',text:result.matched?`${result.matched} 个节点`:'没有匹配的节点'});
-  for(const [index,node]of result.items.entries()){const button=this.button(this.searchResults,node.kind==='section'?'group':node.kind==='board'?'network':'file-text',node.title,()=>this.chooseSearch(node.id));button.classList.add('ts-brain-search-result');button.classList.toggle('is-active',index===this.searchIndex);button.setAttribute('role','option');button.setAttribute('aria-selected',String(index===this.searchIndex));button.disabled=!!snapshot.readOnly;button.createSpan({text:node.title});button.title=node.detail;}
+  this.searchRender={key:snapshot.key,path:snapshot.path,doc,signature};this.searchResults.empty();this.searchResults.createDiv({cls:'ts-brain-search-count',text:result.matched?`${result.matched} 个节点`:'没有匹配的节点，试试其他名称或路径',attr:{role:'status','aria-live':'polite'}});const list=this.searchResults.createDiv({attr:{id:`${this.markerId}-search`,role:'listbox','aria-label':'本板节点'}});
+  for(const [index,node]of result.items.entries()){const button=this.button(list,node.kind==='section'?'group':node.kind==='board'?'network':'file-text',node.title,()=>this.chooseSearch(node.id));button.classList.add('ts-brain-search-result');button.classList.toggle('is-active',index===this.searchIndex);button.setAttribute('role','option');button.setAttribute('id',`${this.markerId}-search-row-${index}`);button.setAttribute('aria-selected',String(index===this.searchIndex));button.disabled=!!snapshot.readOnly;button.createSpan({text:node.title});button.title=node.detail;}
   if(result.pages>1){const pager=this.searchResults.createDiv('ts-brain-search-pager');this.button(pager,'chevron-left','搜索上一页',()=>this.pageSearch(-1)).disabled=result.page===0;pager.createSpan({text:`${result.page+1} / ${result.pages}`});this.button(pager,'chevron-right','搜索下一页',()=>this.pageSearch(1)).disabled=result.page+1===result.pages;}
+  this.selectSearchRow();
  }
  private pageSearch(direction:-1|1){
   const snapshot=this.host.snapshot(),doc=this.el.ownerDocument,active=doc.activeElement,restore=!!snapshot&&this.alive&&!!active&&this.searchResults.contains(active)&&doc.hasFocus()&&(this.host.isActive?.()??true);
@@ -297,10 +376,14 @@ export class BrainBoardView extends Component {
   const buttons=Array.from(this.searchResults.querySelector('.ts-brain-search-pager')?.querySelectorAll<HTMLButtonElement>('button')||[]),label=direction<0?'搜索上一页':'搜索下一页';
   (buttons.find(button=>!button.disabled&&button.getAttribute('aria-label')===label)||buttons.find(button=>!button.disabled))?.focus({preventScroll:true});
  }
- private selectSearchRow(){this.searchResults.querySelectorAll<HTMLElement>('.ts-brain-search-result').forEach((row,index)=>{const active=index===this.searchIndex;if(row.classList.contains('is-active')!==active){row.classList.toggle('is-active',active);row.setAttribute('aria-selected',String(active));}});}
+ private selectSearchRow(scroll=false){
+  let selected:HTMLElement|undefined;this.searchResults.querySelectorAll<HTMLElement>('.ts-brain-search-result').forEach((row,index)=>{const active=index===this.searchIndex;if(row.classList.contains('is-active')!==active){row.classList.toggle('is-active',active);row.setAttribute('aria-selected',String(active));}if(active)selected=row;});
+  // Keep keyboard navigation local: scrollIntoView can also scroll the clipped leaf.
+  if(selected){this.input.setAttribute('aria-activedescendant',selected.getAttribute('id')!);if(scroll){const viewport=this.searchResults.getBoundingClientRect(),row=selected.getBoundingClientRect(),top=viewport.top+this.searchResults.clientTop,bottom=top+this.searchResults.clientHeight;if(row.top<top)this.searchResults.scrollTop+=row.top-top;else if(row.bottom>bottom)this.searchResults.scrollTop+=row.bottom-bottom;}}else this.input.removeAttribute('aria-activedescendant');
+ }
  private chooseSearch(id:string){this.update({type:'center',id});this.toggleSearch(false);this.focusNode(id);}
- private searchKey(event:KeyboardEvent){if(event.isComposing)return;if(event.key==='Escape'){event.preventDefault();event.stopPropagation();this.toggleSearch(false);this.focusNode();}else if(event.key==='Enter'){event.preventDefault();event.stopPropagation();const id=this.searchIds[this.searchIndex];if(id)this.chooseSearch(id);}else if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();event.stopPropagation();this.searchIndex=Math.max(0,Math.min(this.searchIds.length-1,this.searchIndex+(event.key==='ArrowDown'?1:-1)));if(!this.searchVisible)this.toggleSearch(true);else this.selectSearchRow();}}
- private keydown(event:KeyboardEvent){if(event.isComposing)return;const editing=!!(event.target as HTMLElement)?.closest('input,textarea,select,[contenteditable="true"]');if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='k'&&(!editing||event.target===this.input)){event.preventDefault();event.stopPropagation();this.focusSearch();return;}if(editing)return;if(event.altKey&&(event.key==='ArrowLeft'||event.key==='ArrowRight')){event.preventDefault();event.stopPropagation();this.update({type:'history',direction:event.key==='ArrowLeft'?'back':'forward'});this.focusNode();return;}if(event.key==='Escape'){this.closeMenu();this.toggleSearch(false);event.stopPropagation();return;}if(this.host.shortcut?.(event)){event.preventDefault();event.stopPropagation();return;}event.stopPropagation();}
+ private searchKey(event:KeyboardEvent){if(event.isComposing)return;if(event.key==='Escape'){event.preventDefault();event.stopPropagation();this.toggleSearch(false);this.focusNode();}else if(event.key==='Enter'){event.preventDefault();event.stopPropagation();const id=this.searchIds[this.searchIndex];if(id)this.chooseSearch(id);}else if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();event.stopPropagation();this.searchIndex=Math.max(0,Math.min(this.searchIds.length-1,this.searchIndex+(event.key==='ArrowDown'?1:-1)));if(!this.searchVisible)this.toggleSearch(true);this.selectSearchRow(true);}}
+ private keydown(event:KeyboardEvent){if(event.isComposing)return;const editing=!!(event.target as HTMLElement)?.closest('input,textarea,select,[contenteditable="true"]');if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='k'&&(!editing||event.target===this.input)){event.preventDefault();event.stopPropagation();this.focusSearch();return;}if(editing)return;if(event.altKey&&(event.key==='ArrowLeft'||event.key==='ArrowRight')){event.preventDefault();event.stopPropagation();this.update({type:'history',direction:event.key==='ArrowLeft'?'back':'forward'});this.focusNode();return;}if(event.key==='Escape'){this.closeMenu();this.toggleSearch(false);const doc=this.el.ownerDocument,restoreFocus=this.shell.contains(doc.activeElement)&&doc.hasFocus()&&(this.host.isActive?.()??true);if(!this.selection.relations.hidden){this.toggleRelations(false);if(restoreFocus)this.selection.relationsToggle.focus({preventScroll:true});}else if(!this.footer.hidden){this.toggleHistory(false);if(restoreFocus)this.historyButton.focus({preventScroll:true});}event.stopPropagation();return;}if(this.host.shortcut?.(event)){event.preventDefault();event.stopPropagation();return;}event.stopPropagation();}
  private pointerDown(event:PointerEvent){
   if(event.button!==0)return;
   if((event.target as HTMLElement)?.closest('button,input,textarea,select,a,[contenteditable],.ts-brain-preview,.ts-brain-pager,.ts-brain-zoom')){this.cancelPointers(true);return;}
@@ -345,7 +428,8 @@ export class BrainBoardView extends Component {
  private zoomAt(zoom:number,x=this.stage.clientWidth/2,y=this.stage.clientHeight/2,defer=false){this.cancelPointers(true);this.motion.cancel();const next=clampZoom(zoom),scale=next/this.camera.zoom;this.camera={x:x-(x-this.camera.x)*scale,y:y-(y-this.camera.y)*scale,zoom:next};this.fitCamera=false;this.cameraReady=true;if(defer)this.queueCameraFrame();else{this.cancelCameraFrame();this.transform();}this.queueViewport();}
  // Inputs update the logical camera immediately; only the DOM projection is
  // coalesced. A later input in the same frame therefore keeps its exact anchor
- // and accumulated delta, while ports and action positions run once per frame.
+ // and accumulated delta. Only the scene projects once per frame; selection
+ // controls stay outside the camera and keep their screen-space geometry.
  private queueCameraFrame(){const win=this.el.ownerDocument.defaultView;if(this.cameraFrame||!win)return;this.cameraWindow=win;this.cameraFrame=win.requestAnimationFrame(()=>{this.cameraFrame=0;this.cameraWindow=undefined;if(this.alive&&this.el.ownerDocument.defaultView===win)this.transform();});}
  private cancelCameraFrame(){if(this.cameraFrame)this.cameraWindow?.cancelAnimationFrame(this.cameraFrame);this.cameraFrame=0;this.cameraWindow=undefined;}
  private preserveResizeCamera(previous:BrainBoardLayout,size:{width:number;height:number},next:{width:number;height:number}){
@@ -359,22 +443,11 @@ export class BrainBoardView extends Component {
   this.camera={...this.camera,x:this.camera.x+(next.width-size.width)/2-dx*this.camera.zoom,y:this.camera.y+(next.height-size.height)/2-dy*this.camera.zoom};
   if(this.viewportIntent)this.viewportIntent.value={...this.camera};
  }
- private fit(size?:{width:number;height:number}){if(!this.layout)return;const width=(size?.width??this.stage.clientWidth)||this.layout.width,height=(size?.height??this.stage.clientHeight)||this.layout.height;const readingHeight=this.fitAll?Math.max(160,height-(this.pager.hidden?76:144)):height,fitted=Math.min(1,width/this.layout.width,readingHeight/this.layout.height),zoom=clampZoom(this.fitAll?fitted:Math.max(.72,fitted));this.stageSize={width,height};const center=!this.fitAll&&this.layout.nodes.some(node=>(node.depth??0)>1)?this.layout.nodes.find(node=>node.role==='center'):undefined;this.camera=center?{x:width/2-(center.x+center.width/2)*zoom,y:height*.35-(center.y+center.height/2)*zoom,zoom}:{x:(width-this.layout.width*zoom)/2,y:(readingHeight-this.layout.height*zoom)/2,zoom};this.cameraReady=true;this.transform();}
+ // Selection, history and paging controls sit outside the measured stage.
+ private fit(size?:{width:number;height:number}){if(!this.layout)return;const width=(size?.width??this.stage.clientWidth)||this.layout.width,height=(size?.height??this.stage.clientHeight)||this.layout.height;const fitted=Math.min(1,width/this.layout.width,height/this.layout.height),zoom=clampZoom(this.fitAll?fitted:Math.max(.72,fitted));this.stageSize={width,height};const center=!this.fitAll&&this.layout.nodes.some(node=>(node.depth??0)>1)?this.layout.nodes.find(node=>node.role==='center'):undefined;this.camera=center?{x:width/2-(center.x+center.width/2)*zoom,y:height*.35-(center.y+center.height/2)*zoom,zoom}:{x:(width-this.layout.width*zoom)/2,y:(height-this.layout.height*zoom)/2,zoom};this.cameraReady=true;this.transform();}
  private transform(){
-  const targetSize=this.stageSize.width>0&&this.stageSize.width<=540||this.touchMedia?.matches?44:32,stamp=JSON.stringify([this.camera,this.stageSize,targetSize]),same=this.transformStamp===stamp;if(same&&this.transformLayout===this.layout)return;this.transformStamp=stamp;this.transformLayout=this.layout;
-  if(this.shell.style.getPropertyValue('--ts-brain-action-size')!==`${targetSize}px`)this.shell.style.setProperty('--ts-brain-action-size',`${targetSize}px`);
-  const actionScale=String(1/Math.min(1,this.camera.zoom));this.scene.style.transform=`translate(${this.camera.x}px, ${this.camera.y}px) scale(${this.camera.zoom})`;const label=`${Math.round(this.camera.zoom*100)}%`;if(this.zoomLabel.textContent!==label)this.zoomLabel.setText(label);
-  if(!this.layout)return;const portScale=String(1/this.camera.zoom),obstacles=brainScreenObstacles(this.layout,this.camera),ports=brainPortPositions(this.layout,this.camera,this.stageSize,obstacles,targetSize);const positions=sideActionPositions(this.layout,this.camera,this.stageSize,obstacles,targetSize),focused=this.el.ownerDocument.activeElement;
-  for(const [id,item]of this.nodes){
-   // Compact tools overlay the pill; title padding is now fixed and no longer
-   // consumes this variable. Keep scale writes on the controls so zooming does
-   // not invalidate the title and label subtree on every frame.
-   if(item.actions.style.getPropertyValue('--brain-action-scale')!==actionScale)item.actions.style.setProperty('--brain-action-scale',actionScale);
-   if(item.root.dataset.brainRole==='center')for(const anchor of item.anchors){const side=anchor.dataset.brainAction?.slice(4) as BrainRelationSide,port=ports.get(side);anchor.hidden=!port;if(port){if(anchor.style.getPropertyValue('--brain-port-scale')!==portScale)anchor.style.setProperty('--brain-port-scale',portScale);anchor.style.left=`${port.x}px`;anchor.style.top=`${port.y}px`;}}
-   const position=positions.get(id)||'',compact=position==='compact',restore=compact&&(focused===item.expand||focused===item.open);
-   if(item.root.dataset.brainActionsSide!==position)item.root.dataset.brainActionsSide=position;if(item.root.classList.contains('is-compact-actions')!==compact)item.root.classList.toggle('is-compact-actions',compact);if(item.expand.hidden!==compact)item.expand.hidden=compact;if(item.open.hidden!==compact)item.open.hidden=compact;
-   if(restore&&this.visible()&&this.el.ownerDocument.hasFocus()&&(this.host.isActive?.()??true))item.menu.focus({preventScroll:true});
-  }
+  const stamp=JSON.stringify([this.camera,this.stageSize]);if(this.transformStamp===stamp&&this.transformLayout===this.layout)return;this.transformStamp=stamp;this.transformLayout=this.layout;
+  this.scene.style.transform=`translate(${this.camera.x}px, ${this.camera.y}px) scale(${this.camera.zoom})`;const label=`${Math.round(this.camera.zoom*100)}%`;if(this.zoomLabel.textContent!==label)this.zoomLabel.setText(label);
  }
  private transformLayout?:BrainBoardLayout;
  private queueViewport(){const snapshot=this.host.snapshot(),win=this.el.ownerDocument.defaultView;if(!snapshot||snapshot.readOnly||!this.host.viewport||!win)return;this.cancelViewport();this.viewportIntent={key:snapshot.key,path:snapshot.path,board:snapshot.board,value:{...this.camera}};this.viewportWindow=win;this.viewportTimer=win.setTimeout(()=>this.flushViewport(),160);}
@@ -386,14 +459,20 @@ export class BrainBoardView extends Component {
   try{this.host.finalizeViewport(intent);}catch(error){this.showError(error);}
  }
  private cancelViewport(){if(this.viewportTimer)this.viewportWindow?.clearTimeout(this.viewportTimer);this.viewportTimer=0;this.viewportWindow=undefined;this.viewportIntent=undefined;}
- private observe(){this.observer?.disconnect();const win=this.el.ownerDocument.defaultView as (Window&{ResizeObserver?:typeof ResizeObserver})|null;if(win?.ResizeObserver){this.observer=new win.ResizeObserver(()=>{if(this.resizeFrame)return;this.resizeWindow=win;this.resizeFrame=win.requestAnimationFrame(()=>{this.resizeFrame=0;this.resizeWindow=undefined;if(this.alive&&this.el.ownerDocument.defaultView===win)this.refresh();});});this.observer.observe(this.stage);}}
+ private observe(){this.observer?.disconnect();this.stopHostInset?.();this.stopHostInset=bindBoardHostInset(this.shell,this.zoom,()=>{});const win=this.el.ownerDocument.defaultView as (Window&{ResizeObserver?:typeof ResizeObserver})|null;if(win?.ResizeObserver){this.observer=new win.ResizeObserver(()=>{if(this.resizeFrame)return;this.resizeWindow=win;this.resizeFrame=win.requestAnimationFrame(()=>{this.resizeFrame=0;this.resizeWindow=undefined;if(this.alive&&this.el.ownerDocument.defaultView===win)this.refresh();});});this.observer.observe(this.stage);}}
  private cancelResize(){if(this.resizeFrame)this.resizeWindow?.cancelAnimationFrame(this.resizeFrame);this.resizeFrame=0;this.resizeWindow=undefined;}
  private dropPreview(id:string){const preview=this.previews.get(id);if(preview){this.removeChild(preview.scope);preview.body.remove();this.previews.delete(id);}}
  private clearPreviews(){for(const id of this.previews.keys())this.dropPreview(id);}
  private makeMenu(){this.closeMenu();const menu=new Menu().setUseNativeMenu(false);this.activeMenu=menu;menu.onHide(()=>{if(this.activeMenu===menu)this.activeMenu=undefined;});return menu;}
  private closeMenu(){const menu=this.activeMenu;this.activeMenu=undefined;try{menu?.hide();}catch{/* Owning popout may already be closing. */}}
  private showMenu(menu:Menu,event:MouseEvent|undefined,anchor:HTMLElement){if(event)menu.showAtMouseEvent(event);else{const rect=anchor.getBoundingClientRect();menu.showAtPosition({x:rect.left,y:rect.bottom},this.el.ownerDocument);}}
- private button(parent:HTMLElement,icon:string,label:string,run:(event:MouseEvent)=>unknown,action?:string){const button=parent.createEl('button',{cls:'clickable-icon',attr:{type:'button','aria-label':label,title:label}});if(action)button.dataset.brainAction=action;if(icon)setIcon(button,icon);button.onclick=event=>{event.stopPropagation();this.cancelPointers(true);run(event);};return button;}
+ private button(parent:HTMLElement,icon:string,label:string,run:(event:MouseEvent)=>unknown,action?:string){
+  const button=parent.createEl('button',{cls:'clickable-icon',attr:{type:'button','aria-label':label,title:label}});if(action)button.dataset.brainAction=action;if(icon)setIcon(button,icon);
+  // A held press belongs to the navigation/selection that issued it. Property
+  // handlers leave discarded search, history and node buttons collectible.
+  let pressedEpoch:number|undefined;const arm=()=>{pressedEpoch=this.selectionEpoch;};button.onpointerdown=arm;button.onpointercancel=()=>{pressedEpoch=-1;};button.onkeydown=event=>{if(event.key==='Enter'||event.key===' ')arm();};
+  button.onclick=event=>{event.stopPropagation();const epoch=pressedEpoch;pressedEpoch=undefined;if(!this.alive||epoch!==undefined&&epoch!==this.selectionEpoch)return;this.cancelPointers(true);run(event);};return button;
+ }
  private contentLabel(kind:Card['kind']){return kind==='text'?'想法': kind==='section'?'分组内容':kind==='board'?'子白板概览':'正文';}
  private openLabel(kind:Card['kind'],source:BoardMindmapSource){return kind==='section'?'查看分组内容':/^(打开|定位)/.test(source.label)?source.label:`打开 ${source.label}`;}
  private visible(){const win=this.el.ownerDocument.defaultView;return this.alive&&this.el.isConnected&&!!this.el.getClientRects().length&&!!win&&!win.closed;}

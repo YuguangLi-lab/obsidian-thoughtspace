@@ -22,7 +22,12 @@ if version != '1.3.35':
 # The changelog retains the distinct handwriting-only prerelease evidence.
 if version != '1.3.36-beta.1':
     files.append('qa/RELEASE-1.3.36-beta.1.md')
-# Synthetic screenshots linked by the current public validation report.
+# Keep the linked published mobile baseline alongside local candidate evidence.
+if version != '1.3.36-beta.2':
+    files.append('qa/RELEASE-1.3.36-beta.2.md')
+# Current stable feature guides; local migration/session evidence is not distributed.
+files += ['docs/CONVENIENCE.zh-CN.md', 'docs/STARTUP-BRAIN.zh-CN.md', 'docs/UI-REFINEMENT.zh-CN.md', 'docs/COLLECTION-WORKSPACE.zh-CN.md']
+# Synthetic screenshots linked by the current validation reports.
 files += [f'qa/assets/mobile-beta2/{name}-SIMULATION.png' for name in ['brain-short-reopen', 'media-short-save', 'writing-fallback', 'recovery-copy', 'ipad-brain-500', 'ipad-handwriting-reopen']]
 for name in files:
     assert (root / name).is_file(), f'Missing {name}; run npm run build first'

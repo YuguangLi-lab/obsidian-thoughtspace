@@ -1,3 +1,4 @@
+import {bindBoardModalViewport} from '../src/board-modal-viewport';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -24,9 +25,9 @@ class Element{
  createEl(_tag:string,options:any={}){const el=new Element(options);this.children.push(el);return el;}createDiv(options:any={}){return this.createEl('div',options);}createSpan(options:any={}){return this.createEl('span',options);}empty(){this.children=[];}setText(text:string){this.text=text;}addClass(){}toggleClass(){}querySelectorAll(){return[];}get options(){return this.children;}
 }
 class Component{events:any[]=[];load(){}registerEvent(event:any){this.events.push(event);}unload(){for(const event of this.events)event.off?.();this.events=[];}}
-class Modal{modalEl=new Element();contentEl=new Element();titleEl=new Element();constructor(readonly app:any){}open(){}close(){this.modalEl.isConnected=false;(this as any).onClose?.();}}
+class Modal{containerEl=new Element();modalEl=new Element();contentEl=new Element();titleEl=new Element();constructor(readonly app:any){}open(){}close(){this.modalEl.isConnected=false;(this as any).onClose?.();}}
 const viewSource=readFileSync('src/yingjian-view.ts','utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
-const viewDeps={App:class{},Component,Modal,Notice:class{},TFile,setIcon:()=>{},parseYaml,themeSurface:()=>{},yingjianNoteSource,yingjianMoments,isWorkspaceFile};
+const viewDeps={App:class{},Component,Modal,Notice:class{},TFile,setIcon:()=>{},parseYaml,themeSurface:()=>{},bindBoardModalViewport,yingjianNoteSource,yingjianMoments,isWorkspaceFile};
 const YingjianModal=new Function(...Object.keys(viewDeps),transformSync(viewSource+'\nreturn YingjianModal;',{loader:'ts'}).code)(...Object.values(viewDeps));
 function fixture(raw=header+moment){
  const file=new TFile(),files=new Map<string,TFile>([[file.path,file]]),contents=new Map<TFile,string>([[file,raw]]);const listeners=new Map<string,Function[]>();

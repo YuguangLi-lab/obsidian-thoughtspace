@@ -7,6 +7,12 @@ export default defineConfig([
   { ignores: ['node_modules/**', 'dist/**', 'main.js', 'tests/**', 'qa/**', 'scripts/**', '*.mjs'] },
   ...obsidianmd.configs.recommended,
   {
+    files: ['package.json'],
+    // The standalone tool deliberately reuses the existing locked YAML parser
+    // to match the plugin document reader, rather than changing YAML semantics.
+    rules: { 'depend/ban-dependencies': ['error', { allowed: ['js-yaml'] }] },
+  },
+  {
     files: ['src/**/*.{ts,mts,mjs}'],
     languageOptions: { parserOptions: { projectService: {allowDefaultProject:['src/online-platform/*.mjs']} } },
     // The directory reports these general JS/TS diagnostics as warnings.

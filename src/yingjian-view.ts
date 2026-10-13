@@ -1,5 +1,6 @@
 import {App,Component,Modal,Notice,TFile,setIcon,parseYaml} from 'obsidian';
 import {themeSurface} from './ui-tokens';
+import {bindBoardModalViewport} from './board-modal-viewport';
 import {yingjianNoteSource,yingjianMoments,type VideoMoment} from './yingjian';
 import type {YingjianPlayerAction} from './yingjian-player-adapter';
 import {isWorkspaceFile} from './workspace';
@@ -10,13 +11,14 @@ export interface YingjianHost {
  addNote?:(file:TFile)=>Promise<unknown>;addMoments?:(file:TFile,raw:string,moments:VideoMoment[])=>Promise<unknown>;
 }
 export class YingjianModal extends Modal {
+ private viewport?:()=>void;
  private query!:HTMLInputElement;private notes!:HTMLSelectElement;private list!:HTMLElement;private status!:HTMLElement;private error!:HTMLElement;private footer!:HTMLElement;
  private file?:TFile;private path='';private source='';private raw='';private moments:VideoMoment[]=[];private selected=new Set<string>();private closed=false;private loading=false;private busy=false;private generation=0;private limit=40;
  private lifecycle=new Component();private refreshTimer?:number;private refreshPending=false;private reloadPending=false;
  constructor(app:App,private host:YingjianHost,private done:()=>void){super(app);}
  private action(el:HTMLElement,title:string,icon:string,run:()=>unknown,disabled=false){const b=el.createEl('button',{attr:{'aria-label':title,title}});setIcon(b.createSpan(),icon);b.createSpan({text:title});b.disabled=disabled;b.onclick=()=>void this.run(run);return b;}
  private async run(action:()=>unknown){if(this.closed||this.busy||this.loading)return;this.busy=true;this.error.empty();this.render();try{await action();}catch(e){if(!this.closed)this.error.setText(e instanceof Error?e.message:String(e));}finally{this.busy=false;if(!this.closed){this.render();this.drainRefresh();}}}
- onOpen(){
+ onOpen(){this.viewport?.();this.viewport=bindBoardModalViewport(this.containerEl);
   themeSurface(this.modalEl);this.modalEl.addClass('ts-yingjian');this.titleEl.setText('影笺 · 视频与白板');this.lifecycle.load();
   const overview=this.contentEl.createDiv('ts-yingjian-overview'),connection=this.host.connection;
   overview.createSpan({cls:'ts-yingjian-connection',text:connection?.nativePlayback?`影笺 ${connection.version||''} · 已连接`:connection?.installed?'影笺已启用 · 使用桌面链接回看':'未启用影笺 · 可整理已保存笔记'});
@@ -80,5 +82,5 @@ export class YingjianModal extends Modal {
   this.action(imports,'整篇引用','file-plus',async()=>{const count=await this.host.addNote?.(await this.validate());new Notice(count===0?'白板已有此笔记，无需重复添加':'视频笔记已加入白板，原文共用');},!this.file||!this.host.addNote||this.busy||this.loading);
   this.action(imports,this.selected.size?`加入 ${this.selected.size} 条摘录`:'加入摘录','plus',async()=>{const file=await this.validate();await this.host.addMoments?.(file,this.raw,this.moments.filter(m=>this.selected.has(m.id)));this.selected.clear();new Notice('视频摘录已加入白板，可撤销');},!this.file||!this.selected.size||!this.host.addMoments||this.busy||this.loading).addClass('mod-cta');
  }
- onClose(){this.closed=true;this.generation++;if(this.refreshTimer)this.contentEl.ownerDocument.defaultView?.clearTimeout(this.refreshTimer);this.lifecycle.unload();this.raw='';this.file=undefined;this.moments=[];this.selected.clear();this.contentEl.empty();this.done();}
+ onClose(){this.viewport?.();this.viewport=undefined;this.closed=true;this.generation++;if(this.refreshTimer)this.contentEl.ownerDocument.defaultView?.clearTimeout(this.refreshTimer);this.lifecycle.unload();this.raw='';this.file=undefined;this.moments=[];this.selected.clear();this.contentEl.empty();this.done();}
 }

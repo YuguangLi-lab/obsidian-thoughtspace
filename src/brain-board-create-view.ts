@@ -1,3 +1,4 @@
+import {bindBoardModalViewport} from './board-modal-viewport';
 import {Modal,type App,type TFile} from 'obsidian';
 import {brainRelationLabels,type BrainRelationSide} from './brain-board-create';
 import {safeName} from './model';
@@ -14,13 +15,14 @@ export interface BrainRelationCreateHost {
 /** Native modal, explicit name/target and confirmation. Closing invalidates the
  * pending request; the host owns safe cleanup before its board transaction. */
 export class BrainRelationCreateModal extends Modal {
+ private unbindViewport?:()=>void;
  private alive=false;private busy=false;private picker?:Modal;private focusFrame=0;
  constructor(app:App,private readonly host:BrainRelationCreateHost){super(app);}
  onOpen(){
   const doc=this.host.document;
   if(!this.host.current()||!doc.defaultView||doc.defaultView.closed){this.close();return;}
   if(this.containerEl.ownerDocument!==doc)doc.body.appendChild(this.containerEl);
-  this.alive=true;this.modalEl.addClass('ts-brain-create-modal');this.host.decorate?.(this.modalEl);
+  this.alive=true;this.unbindViewport=bindBoardModalViewport(this.containerEl);this.modalEl.addClass('ts-brain-create-modal');this.host.decorate?.(this.modalEl);
   this.contentEl.createEl('h2',{text:this.host.convert?'整理成笔记':this.host.chooseAssociationSide?'关联已有笔记':this.host.side?brainRelationLabels[this.host.side]:'添加知识节点'});
   const meaning=this.contentEl.createEl('p',{cls:'setting-item-description'});
   const modeLabel=this.contentEl.createEl('label',{cls:'ts-brain-field-label',text:'节点来源',attr:{for:'ts-brain-create-source'}});
@@ -63,9 +65,9 @@ export class BrainRelationCreateModal extends Modal {
   save.onclick=()=>{
    if(this.busy||save.disabled||!(retrySave?connected():current()))return;
    const target:BrainNoteTarget=mode.value==='existing'?{kind:'existing',...selected!,...(this.host.chooseAssociationSide?{side:side.value==='left'?'left' as const:'right' as const}:{})}:mode.value==='idea'?{kind:'idea',name:input.value.trim()}:mode.value==='board'?{kind:'board',name:input.value.trim(),folder:folder.value,presentation:boardType.value==='brain'?'brain':'board'}:{kind:'new',name:input.value.trim(),folder:folder.value};
-   this.busy=true;status.setText(retrySave?'正在重试保存…':'正在添加…');render();
+   this.busy=true;status.setAttribute('data-state','busy');status.setText(retrySave?'正在重试保存…':'正在添加…');render();
    const submit=retrySave&&this.host.retry?this.host.retry(connected):this.host.commit(target,current);
-   void submit.then(()=>{if(this.alive)this.close();}).catch(error=>{if(connected()){failed=true;retrySave=!!this.host.retry&&!!this.host.canRetry?.();status.setText(error instanceof Error?error.message:String(error));}}).finally(()=>{this.busy=false;if(this.alive)render();});
+   void submit.then(()=>{if(this.alive)this.close();}).catch(error=>{if(connected()){status.setAttribute('data-state','error');failed=true;retrySave=!!this.host.retry&&!!this.host.canRetry?.();status.setText(error instanceof Error?error.message:String(error));}}).finally(()=>{this.busy=false;if(this.alive)render();});
   };
   input.onkeydown=event=>{if(event.key==='Enter'&&!event.isComposing){event.preventDefault();save.click();}};
   render();(mode.value==='existing'?save:input).focus();
@@ -73,5 +75,5 @@ export class BrainRelationCreateModal extends Modal {
   // the originating window's next frame, and cancel it when the modal closes.
   this.focusFrame=doc.defaultView.requestAnimationFrame(()=>{this.focusFrame=0;if(current())(mode.value==='existing'?(selected?save:choose):input).focus({preventScroll:true});});
  }
- onClose(){this.alive=false;if(this.focusFrame)this.host.document.defaultView?.cancelAnimationFrame(this.focusFrame);this.focusFrame=0;this.picker?.close();this.picker=undefined;this.contentEl.empty();}
+ onClose(){this.unbindViewport?.();this.unbindViewport=undefined;this.alive=false;if(this.focusFrame)this.host.document.defaultView?.cancelAnimationFrame(this.focusFrame);this.focusFrame=0;this.picker?.close();this.picker=undefined;this.contentEl.empty();}
 }

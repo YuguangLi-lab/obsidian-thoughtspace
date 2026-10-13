@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
+import {bindBoardModalViewport} from '../src/board-modal-viewport';
 import {cleanPaperPreferences,paperAppearanceStamp,paperBaseColor,paperPresets,type PaperPreferences} from '../src/paper-appearance';
 type Options={cls?:string;text?:string;attr?:Record<string,string>;type?:string;value?:string};
 class Element {
@@ -12,11 +13,11 @@ class Element {
  addClass(...names:string[]){for(const name of names)this.classes.add(name);}setAttribute(name:string,value:string){this.writes++;this.attributes[name]=value;}getAttribute(name:string){return this.attributes[name]??null;}setText(text:string){this.writes++;this.text=text;this.children=[];}empty(){this.writes++;this.children=[];this.text='';}prepend(child:Element){this.children=this.children.filter(item=>item!==child);this.children.unshift(child);}click(){if(!this.disabled)this.onclick?.();}
  matches(selector:string){if(selector.startsWith('.'))return this.classes.has(selector.slice(1));const attr=/^\[([^=]+)=([^\]]+)\]$/.exec(selector);return attr?this.getAttribute(attr[1])===attr[2]:this.tagName===selector.toUpperCase();}querySelectorAll(selector:string):Element[]{return this.children.flatMap(child=>[...(child.matches(selector)?[child]:[]),...child.querySelectorAll(selector)]);}querySelector(selector:string){return this.querySelectorAll(selector)[0];}
 }
-class Modal {readonly modalEl=new Element('DIV');readonly titleEl=this.modalEl.createEl('h2');readonly contentEl=this.modalEl.createDiv();selection:unknown;closeCount=0;constructor(readonly app:unknown){}open(){this.selection={win:{document:{}},range:null,focusEl:null};(this as unknown as {onOpen:()=>void}).onOpen();}close(){this.closeCount++;(this as unknown as {onClose:()=>void}).onClose();}}
+class Modal {readonly containerEl={ownerDocument:{defaultView:null}};readonly modalEl=new Element('DIV');readonly titleEl=this.modalEl.createEl('h2');readonly contentEl=this.modalEl.createDiv();selection:unknown;closeCount=0;constructor(readonly app:unknown){}open(){this.selection={win:{document:{}},range:null,focusEl:null};(this as unknown as {onOpen:()=>void}).onOpen();}close(){this.closeCount++;(this as unknown as {onClose:()=>void}).onClose();}}
 const notices:string[]=[];
 class Notice {constructor(message:string){notices.push(message);}}
 const source=readFileSync('src/paper-settings-view.ts','utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
-const deps={Modal,Notice,setIcon:()=>{},themeSurface:()=>{},cleanPaperPreferences,paperAppearanceStamp,paperBaseColor,paperPresets};
+const deps={Modal,Notice,bindBoardModalViewport,setIcon:()=>{},themeSurface:()=>{},cleanPaperPreferences,paperAppearanceStamp,paperBaseColor,paperPresets};
 const PaperSettingsModal=new Function(...Object.keys(deps),transformSync(source+'\nreturn PaperSettingsModal;',{loader:'ts'}).code)(...Object.values(deps));
 function deferred(){let resolve!:()=>void,reject!:(error:Error)=>void;const promise=new Promise<void>((yes,no)=>{resolve=yes;reject=no;});return{promise,resolve,reject};}
 function fixture(raw:unknown={},initialError=false){let current=cleanPaperPreferences(raw),readError=initialError;const saves:PaperPreferences[]=[],pending:ReturnType<typeof deferred>[]=[];const host={preferences:()=>{if(readError)throw Error('暂时无法读取设置');return current;},save:(prefs:PaperPreferences)=>{saves.push({...prefs});const save=deferred();pending.push(save);return save.promise;}};const modal=new PaperSettingsModal({},host);modal.open();const root=modal.contentEl as Element;return{modal,root,saves,pending,get current(){return current;},setCurrent:(prefs:Partial<PaperPreferences>)=>{current={...current,...prefs};},readError:(fail:boolean)=>{readError=fail;},button:(label:string)=>root.querySelectorAll('button').find(button=>button.getAttribute('aria-label')===label||button.textContent===label)!,input:(label:string)=>root.querySelectorAll('input').find(input=>input.getAttribute('aria-label')===label)!,get preview(){return root.querySelector('.ts-paper-preview')!;},get status(){return root.querySelector('.ts-paper-settings-status')!;}};}

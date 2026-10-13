@@ -1,8 +1,10 @@
 import {App,Component,MarkdownRenderer,Modal,setIcon} from 'obsidian';
 import {themeSurface} from './ui-tokens';
+import {bindBoardModalViewport} from './board-modal-viewport';
 import {referenceReading} from './reference-reading';
 
 export class ReferenceReadingModal extends Modal {
+ private viewport?:()=>void;
  private renderScope=new Component();
  private closed=false;
  private busy=false;
@@ -10,7 +12,7 @@ export class ReferenceReadingModal extends Modal {
  private error?:HTMLElement;
  private actions:HTMLButtonElement[]=[];
  constructor(app:App,private sourcePath:string,private content:ReturnType<typeof referenceReading>,private done:()=>void,private insert?:(embed:boolean)=>Promise<void>,private preferredEmbed=false){super(app);}
- onOpen(){
+ onOpen(){this.viewport?.();this.viewport=bindBoardModalViewport(this.containerEl);
   themeSurface(this.modalEl);this.modalEl.addClass('ts-reference-reading');this.titleEl.setText('引用原文');
   const head=this.contentEl.createDiv('ts-reference-reading-head');
   setIcon(head.createSpan({cls:'ts-reference-reading-source-icon',attr:{'aria-hidden':'true'}}),'file-text');
@@ -45,5 +47,5 @@ export class ReferenceReadingModal extends Modal {
   finally{this.busy=false;if(!this.closed)this.actions.forEach(b=>b.disabled=false);}
  }
  private async render(){const prose=this.prose!;try{await MarkdownRenderer.render(this.app,this.content.markdown,prose,this.sourcePath,this.renderScope);if(this.closed){this.renderScope.unload();return;}prose.querySelectorAll<HTMLInputElement>('input').forEach(input=>input.disabled=true);prose.querySelectorAll<HTMLElement>('[contenteditable]').forEach(el=>el.setAttribute('contenteditable','false'));}catch(e){if(!this.closed)prose.createDiv({text:'原文预览暂不可用：'+String(e)});}}
- onClose(){this.closed=true;this.renderScope.unload();this.content.markdown='';this.contentEl.empty();this.prose=undefined;this.error=undefined;this.actions=[];this.insert=undefined;this.done();}
+ onClose(){this.viewport?.();this.viewport=undefined;this.closed=true;this.renderScope.unload();this.content.markdown='';this.contentEl.empty();this.prose=undefined;this.error=undefined;this.actions=[];this.insert=undefined;this.done();}
 }

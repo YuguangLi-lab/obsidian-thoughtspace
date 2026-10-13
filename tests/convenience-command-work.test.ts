@@ -16,7 +16,7 @@ class BoardView extends FileView {session?:unknown;closed=false;}
 class TFile {constructor(public path:string,public valid=true){}}
 const notices:string[]=[];
 class Notice {constructor(message:string){notices.push(message);}}
-const Plugin=new Function('resumeRecentBoard','isBoardPath','isWorkspaceFile','View','FileView','BoardView','TFile','Notice',transformSync(`return class Plugin{${take('  openRecentBoard():','  openSpaceHub()')}}`,{loader:'ts'}).code)(resumeRecentBoard,isBoardPath,isWorkspaceFile,View,FileView,BoardView,TFile,Notice);
+const Plugin=new Function('resumeRecentBoard','isBoardPath','isWorkspaceFile','View','FileView','BoardView','TFile','Notice',transformSync(`return class Plugin{${take('  openRecentBoard():','  openSpaceHub(')}}`,{loader:'ts'}).code)(resumeRecentBoard,isBoardPath,isWorkspaceFile,View,FileView,BoardView,TFile,Notice);
 const CommandView=new Function('isBrainBoard','BoardView','VIEW',transformSync(`return class CommandView extends BoardView{${take('  brainRelationCommandTarget(checking','  inputCommandTarget():')}}`,{loader:'ts'}).code)(isBrainBoard,BoardView,'board');
 function deferred(){let resolve!:()=>void;return{promise:new Promise<void>(done=>{resolve=done;}),resolve:()=>resolve()};}
 function fixture(){

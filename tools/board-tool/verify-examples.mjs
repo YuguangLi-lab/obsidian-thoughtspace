@@ -10,6 +10,7 @@ import {build} from 'esbuild';
 const root=fileURLToPath(new URL('../../',import.meta.url));
 const digest=data=>createHash('sha256').update(data).digest('hex');
 const manifest=JSON.parse(await readFile(path.join(root,'examples/ai-board/EXAMPLES.json'),'utf8'));
+const pluginVersion=JSON.parse(await readFile(path.join(root,'manifest.json'),'utf8')).version;
 const snapshot=JSON.parse(await readFile(path.join(root,'tools/board-tool/SCHEMA-SNAPSHOT.json'),'utf8'));
 for(const record of snapshot.modules){
  const data=await readFile(path.join(root,'tools/board-tool',record.path));
@@ -53,7 +54,7 @@ try{
   }
   const expected=example.cliValidation.overall,report=run(['validate',p,'--vault-root',vault,'--json'],expected==='format_only'?2:0);
   assert.equal(report.overall,expected);assert.equal(report.format.status,'passed');
-  results.push({file:example.vaultRelativePath,publicBeta2ParserRoundtrip:true,schemaParserRoundtrip:true,cliOverall:report.overall});
+  results.push({file:example.vaultRelativePath,currentPluginParserRoundtrip:true,schemaParserRoundtrip:true,cliOverall:report.overall});
  }
  for(const [kind,name] of [['ordinary','ordinary-v3.md'],['brain','brain-v3.md'],['ink','handwriting-v3.md']]){
   const example=manifest.examples.find(x=>x.vaultRelativePath===name);
@@ -67,15 +68,15 @@ try{
   assert.deepEqual(readers.schemaRead(data,'.md',readers.load).board,example.expectedNormalizedBoard);
   const rejected=run(['create',kind,output,'--board-json',rawInput,'--vault-root',vault,'--json'],1);
   assert.equal(rejected.created,false);assert.equal(await readFile(output,'utf8'),data);
-  created.push({kind,created:true,publicBeta2Parser:true,schemaParser:true,cliOverall:expected,noOverwrite:true});
+  created.push({kind,created:true,currentPluginParser:true,schemaParser:true,cliOverall:expected,noOverwrite:true});
  }
  const inspection=run(['inspect',path.join(vault,'handwriting-v3.md'),'--json'],0);
  assert.equal(inspection.command,'inspect');assert.equal(inspection.summary.points,5);
  for(const [p,hash] of before)assert.equal(digest(await readFile(p)),hash,'Read-only example changed');
  const passed=results.filter(x=>x.cliOverall==='passed').length,formatOnly=results.filter(x=>x.cliOverall==='format_only').length;
  assert.equal(passed,6);assert.equal(formatOnly,4);assert.equal(results.length,10);
- console.log(JSON.stringify({passed:true,formalExamples:10,cliPassed:passed,cliFormatOnly:formatOnly,
-  publicBeta2ParserRoundtrips:10,schemaParserRoundtrips:10,actualCLICreateCases:3,
+ console.log(JSON.stringify({passed:true,currentPluginVersion:pluginVersion,formalExamples:10,cliPassed:passed,cliFormatOnly:formatOnly,
+  currentPluginParserRoundtrips:10,schemaParserRoundtrips:10,actualCLICreateCases:3,
   noNodeModulesInPortableDirectory:true,sourceExamplesUnchanged:true,results,created,
   actualPluginUIValidationPerformedByThisVerifier:false},null,2));
 }finally{await rm(temporary,{recursive:true,force:true});}

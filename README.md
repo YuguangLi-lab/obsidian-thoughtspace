@@ -1,14 +1,14 @@
 # ThoughtSpace Whiteboard
 
-**AI board CLI phase 1 (`1.0.0-local`, Node 22)**: validate or inspect a file and exclusively create an ordinary, brain or handwriting board. Download the repository ZIP to run the committed CLI without installing dependencies. Read the [usage guide](docs/AI-BOARD-GUIDE.zh-CN.md), [format contract](docs/AI-BOARD-FORMAT.zh-CN.md), [synthetic examples](examples/ai-board/README.zh-CN.md), and [tool entry](tools/README.md). Handwriting examples require the published 1.3.36-beta.2 plugin; `format_only` (exit 2) keeps unchecked references explicit.
+**AI board CLI phase 1 (`1.0.0-local`, Node 22)**: validate or inspect a file and exclusively create an ordinary, brain or handwriting board. Download the repository ZIP to run the committed CLI without installing dependencies. Read the [usage guide](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/docs/AI-BOARD-GUIDE.zh-CN.md), [format contract](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/docs/AI-BOARD-FORMAT.zh-CN.md), [synthetic examples](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/examples/ai-board/README.zh-CN.md), and [tool entry](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/tools/README.md). Handwriting examples work with 1.3.36 or the previously published 1.3.36-beta.2 plugin; `format_only` (exit 2) keeps unchecked references explicit.
 
 **English** · [简体中文](README.zh-CN.md)
 
-**Prerelease [1.3.36-beta.2](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/tag/1.3.36-beta.2).** Choose **Handwriting board (手写白板)** as the third type in **New board or brain board (新建白板或脑图…)**. This beta adds phone/tablet layouts, touch reading and navigation, draft preservation during resize, and saving recovery. See the [mobile guide (Chinese)](docs/MOBILE-ADAPTATION.zh-CN.md), [handwriting guide (Chinese)](docs/HANDWRITING-IPAD.zh-CN.md) and [validation report](qa/RELEASE-1.3.36-beta.2.md). **Acceptance uses isolated desktop tests and simulated mobile input/loading; physical iOS/Android, Pencil, system IME and WKWebView remain untested.** Stable latest remains **1.3.35**; use the explicit beta link to try this prerelease.
+**1.3.36** brings editable handwriting, SVG export, saved reading positions, a collection workspace with board round trips, and a consistent phone/tablet UI. See the [UI guide](docs/UI-REFINEMENT.zh-CN.md), [collection guide](docs/COLLECTION-WORKSPACE.zh-CN.md), [handwriting guide](docs/HANDWRITING-IPAD.zh-CN.md) and [validation summary](qa/RELEASE-1.3.36.md). Local release validation is complete; public build and asset status are available on the [1.3.36 Release](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/tag/1.3.36). Physical iOS/Android, Pencil, system mobile IME and mobile WebViews remain untested.
 
 Collect material, connect ideas, and shape an article inside Obsidian. Notes, boards, and generated drafts stay in your vault.
 
-**1.3.35 · Obsidian desktop 1.13.7+ · MIT**
+**1.3.36 · Obsidian 1.13.7+ · MIT**
 
 **[完整中文教程](docs/USER-GUIDE.zh-CN.md) · [Install or update](docs/USER-GUIDE.md#installation) · [Ten-minute start](docs/USER-GUIDE.md#quick-start) · [Complete English guide](docs/USER-GUIDE.md) · [Latest release](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/latest)**
 
@@ -38,7 +38,9 @@ Open the writing workspace, order cards, groups, and chapters, pin references, w
 
 | Your goal | Guide |
 | --- | --- |
-| Create an ordinary or brain board and choose its file format | [Boards and files](docs/USER-GUIDE.md#boards) |
+| Create an ordinary, brain or handwriting board and choose its file format | [Boards and files](docs/USER-GUIDE.md#boards) |
+| Capture body-first notes and navigate to their exact board references | [Collection workspace](docs/COLLECTION-WORKSPACE.zh-CN.md) |
+| Select and edit whole ink strokes, export SVG or compare recovery versions | [Handwriting](docs/HANDWRITING-IPAD.zh-CN.md) |
 | Insert notes, PDFs and images; edit cards and groups | [Board objects](docs/USER-GUIDE.md#objects) |
 | Organize relationships and fold or expand reading | [Mind maps and brain boards](docs/USER-GUIDE.md#mind-maps) |
 | Read sources, take excerpts and find unread material | [Reading](docs/USER-GUIDE.md#reading) · [Search and material lists](docs/USER-GUIDE.md#search) |
@@ -46,22 +48,22 @@ Open the writing workspace, order cards, groups, and chapters, pin references, w
 | Order an outline, pin references and generate a draft | [Writing](docs/USER-GUIDE.md#writing) |
 | Find commands, set hotkeys or resolve saving problems | [Controls](docs/USER-GUIDE.md#controls) · [Troubleshooting](docs/USER-GUIDE.md#troubleshooting) |
 
-## Everyday conveniences in 1.3.35
+## Everyday work in 1.3.36
 
-- **New board or brain board (新建白板或脑图…)** chooses presentation and legacy/Markdown format in one dialog, remembering successful choices. Four explicit format commands remain available.
-- **Native Properties round trips** use Obsidian's own Properties and Markdown view for valid Markdown boards. Open it from the ordinary title menu or brain menu, then return in the same tab. The toggle command **切换白板与原生属性** can be bound to a hotkey.
-- **Saving feedback** explains read-only, pending native saves, and conflicts. Context actions locate an actual native page or open an existing recovery draft.
-- **Ideas and existing notes:** **整理成笔记** can create a note or preserve the full idea and its relationships while linking an existing note. **关联已有笔记…** opens the native file picker directly, followed by a left/right confirmation.
-- **Resume the last board (继续上次白板)** opens the latest valid recent record or the space hub, restoring saved state.
-- **Four relationship commands** add a parent, child, left-associated or right-associated node in a dedicated brain board. They have no default hotkeys and keep text-input, locking and save protection.
+- **Collect first, organize later.** Open **打开收集**, write the body, and save with ⌘/Ctrl+Enter. Native tags, existing attachments and board/group delivery are optional. Records remain in a creation-time stream after delivery; old notes are not automatically relabeled.
+- **Follow a record to each board occurrence and back.** Choose the exact card when a note appears more than once. Return with filters and the current browsing position intact, including a temporary reveal of hidden records. Renames are rechecked; obsolete requests and other windows do not take over focus.
+- **Write and edit ink.** Choose **Handwriting board (手写白板)** in the creation dialog. Lasso whole strokes, move, copy or delete them, and export an SVG to an existing note with a backlink. SVG is a visual copy, not an editable-ink import format. Read-only disk/local/recovery comparison helps investigate saving failures.
+- **Resume reading and navigate sources.** Name brain reading positions, copy their links, browse each note occurrence across boards/groups, and return to the departure point. Four-direction brain actions remain available outside the zoomed scene. Optional cluster compaction preserves internal geometry.
+- **Use smaller screens without changing the content model.** Container layouts, visible-keyboard space and touch controls cover boards, media, writing, reading, materials, PDF and settings. The collection follows the selected accent and density. Editors, players and drafts keep their existing ownership.
+- **Keep native Properties and save protection.** Markdown boards retain Obsidian Properties and prose; read-only states, pending native saves and conflicts remain explicit. Existing-note linking, resume-last-board and four relationship commands remain available.
 
-See the [guide](docs/USER-GUIDE.md) for steps and the [Markdown board guide (Chinese)](docs/markdown-boards.zh-CN.md) for file structure, copies between formats, and Properties limits.
+Read the [complete guide](docs/USER-GUIDE.md), [mobile guide](docs/MOBILE-ADAPTATION.zh-CN.md) and [Markdown board guide](docs/markdown-boards.zh-CN.md). The independent [AI board CLI](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/tools/README.md) continues to validate/inspect and exclusively create files; it does not add an AI service, npm release or MCP server to the plugin.
 
 ## Install or update
 
 1. In Obsidian **Settings → Community plugins**, search for **ThoughtSpace Whiteboard**, install, and enable it. The community directory and GitHub releases can update at different times.
 2. For manual installation, download **`main.js`, `manifest.json`, and `styles.css`** from the [Release](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/latest), and place them in your vault's `.obsidian/plugins/thoughtspace/`. Use the corresponding folder if you have a custom configuration directory.
-3. To update, replace only those three runtime files, retain `data.json`, and reload the plugin. ZIP and checksums are manual download, extraction and verification aids; Obsidian installs the three runtime files.
+3. To update, replace only those three runtime files, retain `data.json`, `collection-drafts/` and other plugin data, and reload the plugin. ZIP and checksums are manual download, extraction and verification aids; Obsidian installs the three runtime files.
 4. Open the command palette and run **新建白板或脑图…**. For the tutorial, choose an ordinary Markdown board and name it “Urban cooling research”.
 
 ## Files and saving
@@ -70,7 +72,9 @@ Existing `.thoughtspace` boards remain supported and are not automatically migra
 
 Note cards reference source files; in-place editing saves to that note. Built-in text and layout stay in the current board. Dynamic material lists belong to the ordinary board's full search dialog: they save filters and recalculate when reopened. Saved camera views retain position and zoom. Neither is a prose backup.
 
-Save protection does not automatically merge whole-document copies or unlock read-only content. Unsaved native input may be lost on forced exit. IME composition guards have been checked, but a complete trusted IME-end flow was not confirmed through CDP. No claim covers every input method, theme, plugin, or a general speedup. See [saving and recovery](docs/USER-GUIDE.md#troubleshooting), [1.3.35 validation limits](qa/RELEASE-1.3.35.md), and [security and data access](SECURITY.md).
+Save protection does not automatically merge whole-document copies or unlock read-only content. Collection journals can restore confirmed draft checkpoints across normal reopening; other memory-only drafts do not gain that guarantee. Handwriting preserves an unfinished stroke across normal resize, but a submission exceeding the sample budget is rejected: the source file stays intact and the rejected draft is cleared. Unsaved native input can be lost on forced exit.
+
+The no-Node mobile probe covers module evaluation and plugin construction only, not `onload`, a mobile WebView, UI or storage. Physical devices, Pencil, system mobile IME, complete palm rejection and device performance remain unverified. See [saving and recovery](docs/USER-GUIDE.md#troubleshooting), [1.3.36 validation and release checks](qa/RELEASE-1.3.36.md), and [security and data access](SECURITY.md).
 
 ## Project
 

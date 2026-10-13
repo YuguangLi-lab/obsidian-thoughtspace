@@ -3,6 +3,7 @@ export interface ToolPaletteEntry{
  trigger:HTMLElement;
  actions:HTMLElement;
  onOpen?:()=>void;
+ returnFocus?:()=>HTMLElement;
 }
 export interface ToolPaletteBinding{
  open(panel:HTMLElement):void;
@@ -73,13 +74,16 @@ export function installToolPalettes(main:HTMLElement,rail:HTMLElement,entries:To
  const owns=(entry:ToolPaletteEntry,target:Node|null)=>!!target&&(entry.panel.contains(target)||entry.trigger.contains(target));
  const close=(restoreFocus=false)=>{
   cancelFocus();const previous=active;active=undefined;if(!previous)return;
+  const ownedFocus=owns(previous,doc.activeElement);
   previous.panel.hidden=true;previous.trigger.setAttribute('aria-expanded','false');
   if(restoreFocus&&!disposed){
-   previous.trigger.focus({preventScroll:true});
+   const target=previous.returnFocus?.()||previous.trigger;
+   if(previous.returnFocus&&(!ownedFocus||!target.isConnected||target.ownerDocument!==doc||!target.getClientRects().length||doc.hasFocus&&!doc.hasFocus()))return;
+   target.focus({preventScroll:true});
    // Closing a palette restores the footer, which can shorten the left rail.
    // The user may also have scrolled that rail while its palette was open.
    // Restore a visible trigger using the final local viewport only.
-   revealToolPaletteControl(previous.trigger,rail);
+   revealToolPaletteControl(target,rail);
   }
  };
  const open=(panel:HTMLElement)=>{

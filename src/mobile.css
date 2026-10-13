@@ -18,7 +18,7 @@
 .ts-brain-node.is-center .ts-brain-node-actions{bottom:calc(100% + (var(--ts-brain-action-size,32px) + 8px) * var(--brain-action-scale,1))}
 .ts-brain-node.is-center .ts-brain-node-actions::after{height:calc(var(--ts-brain-action-size,32px) + 10px)}
 .ts-brain-preview{touch-action:pan-y;overscroll-behavior:contain}
-.ts-brain-controls{position:relative;display:flex;flex:none;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;padding:6px max(10px,env(safe-area-inset-right,0px)) 6px max(10px,env(safe-area-inset-left,0px));border-top:1px solid var(--background-modifier-border);background:var(--background-primary)}
+.ts-brain-controls{position:relative;display:flex;flex:none;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;padding:4px max(12px,env(safe-area-inset-right,0px)) max(4px,env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px));border-top:1px solid var(--background-modifier-border);background:var(--background-primary)}
 .ts-brain-controls :is(.ts-brain-pager,.ts-brain-zoom){position:static;transform:none;margin:0;max-width:100%;flex-wrap:wrap}
 .ts-brain-controls [hidden]{display:none!important}
 .ts-writing{container-name:ts-writing}
@@ -28,6 +28,11 @@
 .ts-writing-manuscript>.ts-writing-source-editor{flex:1 0 100px;min-height:100px;height:auto}
 :is(.ts-materials-modal,.ts-materials-panel){container:ts-materials / inline-size}
 .ts-materials-modal .modal-content{flex:1 1 auto;min-height:0;max-height:none;overflow:auto;overscroll-behavior:contain}
+/* Keep the sidebar's scrollport above its own window's actual host overlay.
+   The root stays fixed, so content scrolling cannot feed back into the inset. */
+.ts-materials-panel.view-content{overflow:hidden;padding-bottom:max(24px,calc(var(--ts-host-bottom-inset,0px) + 8px),env(safe-area-inset-bottom,0px))}
+.ts-materials-panel.view-content>.ts-materials-panel-title{flex:none}
+.ts-materials-panel.view-content>.ts-materials-panel-content{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;scroll-padding-block:4px}
 .ts-materials-list{overflow-anchor:none}
 .ts-settings-v2{container:ts-settings / inline-size}
 .ts-database-modal{container:ts-database / inline-size}
@@ -42,19 +47,17 @@
 @container ts-handwriting (max-width:700px){
  .ts-handwriting-toolbar{gap:6px;padding-inline:6px}
  .ts-handwriting-actions .ts-handwriting-caption,.ts-handwriting-navigation-hint{display:none}
- .ts-handwriting-footer{gap:6px;font-size:10px}
+ .ts-handwriting-footer{gap:6px;font-size:12px}
 }
 @container ts-brain (max-width:540px){
- .ts-brain-topbar{height:auto;min-height:48px;flex-wrap:wrap;padding:4px 8px}
- .ts-brain-search{order:3;flex:1 0 100%;width:100%;margin:0;min-height:40px}
- .ts-brain-search-results{left:0;right:0}
+ .ts-brain-topbar{height:auto;min-height:48px;flex-wrap:nowrap;padding:4px 8px}
+ .ts-brain-search{flex:1 1 auto;min-width:64px;margin:0}
  .ts-brain-top-actions{margin-left:auto}
- .ts-brain-top-actions .clickable-icon,.ts-brain-controls .clickable-icon{min-width:40px;min-height:40px}
  .ts-brain-controls{padding-inline:6px}
  .ts-brain-footer{height:auto;min-height:36px;overflow-x:auto}
 }
 @container ts-brain (max-height:420px){
- .ts-brain-stage{min-height:min(100px,40cqh)}
+ .ts-brain-stage{min-height:0}
  .ts-brain-controls{flex:0 1 auto;min-height:48px;max-height:min(116px,35cqh);overflow-y:auto;overscroll-behavior:contain;align-content:flex-start;scroll-padding-block:6px;touch-action:pan-y}
  .ts-brain-controls>:is(.ts-brain-pager,.ts-brain-zoom){flex-shrink:0}
 }
@@ -66,6 +69,7 @@
  .ts-board-search-results{min-height:0;flex:1}
 }
 @container ts-materials (max-width:760px){
+ :is(.ts-materials-modal,.ts-materials-panel) :is(.ts-materials-tabs button,.ts-materials-source-actions button,.ts-materials-reading-block-tools button,button.ts-materials-quick,.ts-materials-preview-nav button,.ts-materials-commit .mod-cta){min-inline-size:44px;min-block-size:44px;touch-action:manipulation}
  .ts-materials-pane-switch{display:flex;flex:none;grid-area:1/1;gap:6px;padding:6px 0}
  .ts-materials-pane-switch button{flex:1;min-height:44px}
  :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-body:not(.is-reading){display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);min-height:280px;flex:1 0 280px;height:auto;overflow:hidden}
@@ -87,11 +91,10 @@
  .setting-item-control :is(input[type=text],select){max-width:100%;min-width:0}
 }
 @container ts-settings (max-width:320px){
- .ts-settings-v2 .ts-settings-nav{grid-template-columns:minmax(0,1fr)}
  .ts-settings-v2 .ts-settings-nav button{min-height:44px}
  .ts-settings-v2 .ts-settings-nav button>span:last-child{min-width:0;overflow-wrap:normal}
  .ts-settings-v2 .ts-settings-header>.setting-item{width:100%}
- .ts-settings-v2 .ts-settings-header>.setting-item .setting-item-name{font-size:16px}
+ .ts-settings-v2 .ts-settings-header>.setting-item .setting-item-name{font-size:22px}
  .ts-settings-v2 .ts-settings-panel-heading{flex-wrap:wrap;gap:4px}
 }
 @container ts-media (max-width:760px){
@@ -129,8 +132,31 @@
  .ts-writing-action-group{flex-wrap:wrap}
 }
 @media (any-pointer:coarse),(max-width:600px){
+ :is(.ts-materials-modal,.ts-materials-panel) :is(.ts-materials-tabs button,.ts-materials-source-actions button,.ts-materials-reading-block-tools button,button.ts-materials-quick,.ts-materials-preview-nav button,.ts-materials-commit .mod-cta){min-inline-size:44px;min-block-size:44px;touch-action:manipulation}
  .ts-media-workspace .ts-media-workspace__action,.ts-media-workspace .ts-media-card__toolbar :is(button,select),.ts-online-workspace .ts-online-workspace__action,.ts-writing :is(.ts-writing-button,.ts-md-button,.ts-md-select){min-height:44px!important;min-width:44px!important;touch-action:manipulation}
  :is(.ts-prompt-modal,.ts-board-creation-modal,.ts-board-search,.ts-settings-confirm-modal,.ts-workspace-settings-modal,.ts-settings-v2,.ts-materials-panel,.ts-materials-modal,.ts-database-modal,.ts-writing,.ts-media-workspace,.ts-online-workspace) :is(button,select){min-height:44px;touch-action:manipulation}
+ /* Match the desktop settings selectors so tablet touch targets win the cascade. */
+ .ts-settings-v2 .ts-settings-nav button,.ts-settings-v2 .setting-item-control button,.ts-settings-v2 .ts-settings-search input{min-height:44px}
+ .ts-settings-v2 .setting-item-control :is(select,input[type=text]){font-size:16px}
  :is(.ts-root,.ts-prompt-modal,.ts-board-search,.ts-settings-v2,.ts-writing,.ts-media-workspace,.ts-online-workspace,.ts-materials-modal,.ts-materials-panel,.ts-database-modal) :is(input[type=text],input[type=search],textarea){font-size:16px}
- .ts-root :is(.ts-header-action,.ts-board-rail button,.ts-canvas-controls button){min-width:40px;min-height:40px;touch-action:manipulation}
+ .ts-root .ts-main>.ts-board-rail{--ts-board-control:44px;width:54px}
+ .ts-root .ts-footer :is(.ts-view-dock,.ts-canvas-controls) .ts-button{min-width:44px;min-height:44px;height:44px;touch-action:manipulation}
+ .ts-root .ts-footer .ts-view-dock .ts-zoom [role=button]{min-height:44px;display:flex;align-items:center;justify-content:center}
+ .ts-root .ts-footer .ts-grid-spacing{height:44px}
+ .ts-root .ts-footer .ts-grid-spacing select{height:44px;min-height:44px;font-size:16px;width:80px}
+ .ts-native-header .ts-header-action{flex-basis:44px;width:44px;height:44px;min-width:44px;min-height:44px;touch-action:manipulation}
+ .ts-save-feedback-action{min-width:44px!important;min-height:44px!important;white-space:normal;touch-action:manipulation}
+ .ts-native-header .ts-save-status.has-save-action{min-height:44px;height:auto;max-width:none;overflow:visible;flex-wrap:nowrap}
+ .ts-native-header .ts-save-status.has-save-action .ts-save-feedback-action{font-size:12px}
+ .ts-root .ts-main>.ts-floating-formatbar{--ts-board-format-control:44px}
+ .ts-root .ts-floating-formatbar .ts-format-heading .ts-format-mode-button,.ts-root .ts-floating-formatbar .ts-batch-format-switch .ts-button{height:44px;min-height:44px;min-width:44px}
+ .ts-root .ts-floating-formatbar :is(.ts-format-mode,.ts-batch-format-switch){flex-wrap:nowrap;flex:none}
+ .ts-root .ts-floating-formatbar .ts-format-heading{flex-wrap:nowrap}
+ .ts-root .ts-floating-formatbar :is(.ts-style-transfer,.ts-edge-format-actions) .ts-icon-button,.ts-root .ts-floating-formatbar .ts-format-row>.ts-format-scroll{width:44px;min-width:44px;flex-basis:44px}
+ .ts-root .ts-floating-formatbar .ts-commandbar :is(.ts-appearance-group,.ts-edge-format-group) .ts-format-field select{height:44px;min-height:44px;font-size:16px}
+ .ts-root .ts-floating-formatbar .ts-appearance-group .ts-fill-custom input[type=color]{width:44px;height:44px;min-height:44px}
+ :is(.ts-root,.ts-root[data-toolbar-density="comfortable"],.ts-note-markdown-toolbar,.ts-writing) .ts-markdown-tools{--ts-md-control:44px}
+ :is(.ts-root,.ts-note-markdown-toolbar,.ts-writing) .ts-markdown-tools .ts-md-dropdown.is-icon,
+ :is(.ts-root,.ts-note-markdown-toolbar,.ts-writing) .ts-markdown-tools .is-icon .ts-md-select,
+ .ts-root .ts-floating-formatbar .ts-markdown-tools .is-icon .ts-md-select{width:44px;min-width:44px;max-width:44px}
 }

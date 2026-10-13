@@ -1,0 +1,42 @@
+name: Verify stable generated stylesheet
+on:
+  push:
+    branches:
+      - 'publish/stable-1.3.36-transfer-20261013'
+permissions:
+  contents: write
+jobs:
+  transfer:
+    if: github.repository == 'YuguangLi-lab/obsidian-thoughtspace'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Require exact tested bytes and final source tree
+        run: |
+          printf '%s\n' \
+            '36068ff1942b6161f2a1e065b19d65aa2142f076d213a1651afc9fff6527c4b2  main.js' \
+            '2b4e8ad104d9f5fe34e93c225fe67373e308480779af8d19a43a2b91a19d71a4  styles.css' \
+            '9d4b0c2268c8596a458ecac4722eeeee169475fb33db0d4e0b74075bf3b93450  manifest.json' | sha256sum --check
+          git add styles.css
+          transport_tree=$(git write-tree)
+          git update-index --force-remove .github/workflows/stable-source-transfer.yml
+          test "$(git write-tree)" = '3f72bcb0ef864f01efbf464a62469dac95f858bb'
+          git read-tree "$transport_tree"
+          test "$(git diff --cached --name-only)" = 'styles.css'
+      - name: Transfer only the verified generated stylesheet
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git -c core.hooksPath=/dev/null -c commit.gpgSign=false -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Transfer verified 1.3.36 generated stylesheet'
+          gh auth setup-git
+          git -c core.hooksPath=/dev/null push origin 'HEAD:refs/heads/publish/stable-1.3.36-transfer-20261013'
+          printf '%s\n' 'Generated stylesheet and all three runtime SHA-256 checks match the tested stable build.' 'Final source tree (excluding this transfer-only workflow): 3f72bcb0ef864f01efbf464a62469dac95f858bb' >> "$GITHUB_STEP_SUMMARY"

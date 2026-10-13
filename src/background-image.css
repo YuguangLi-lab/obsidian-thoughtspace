@@ -21,40 +21,51 @@
  opacity:clamp(0,var(--ts-background-image-opacity,.35),1);
 }
 .ts-root[data-background=image] .ts-stage > .ts-world {z-index:1}
-.ts-background-settings.modal {width:min(730px,94vw);max-height:88vh}
-.ts-background-settings .modal-content {overflow:auto}
-.ts-background-settings .modal-title {font-size:22px;letter-spacing:-.025em}
+.ts-background-settings.modal {width:min(730px,94vw);max-height:100%;container:ts-background-settings / inline-size}
+.ts-background-settings .modal-content {min-width:0;min-height:0;overflow:auto;overscroll-behavior:contain}
+.ts-background-settings .modal-title {font-size:24px;line-height:1.3;letter-spacing:-.025em}
 .ts-background-intro {margin:0 0 22px;color:var(--text-muted);font-size:13px;line-height:1.65}
-.ts-background-settings-body {display:grid;grid-template-columns:minmax(225px,1fr) minmax(0,1.15fr);gap:28px}
-.ts-background-controls h3 {margin:0 0 10px;font-size:12px;font-weight:600;color:var(--text-muted)}
-.ts-background-source {display:flex;align-items:center;gap:10px;min-height:57px;padding:12px;border:1px solid var(--background-modifier-border);border-radius:10px;background:var(--background-primary-alt)}
+.ts-background-settings-body {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:24px}
+.ts-background-controls {min-width:0}
+.ts-background-controls h3 {margin:0 0 12px;font-size:13px;font-weight:600;color:var(--text-muted)}
+.ts-background-source {display:flex;align-items:center;gap:10px;min-height:44px;padding:4px 0 12px;border-bottom:1px solid var(--background-modifier-border);background:transparent}
 .ts-background-source-icon {display:flex;flex:none;color:var(--text-muted)}
 .ts-background-source-icon svg {width:20px;height:20px}
-.ts-background-source-name {min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:12px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
-.ts-background-source-actions {display:flex;gap:8px;margin-top:10px}
-.ts-background-source-actions button {font-size:12px;flex:1}
+.ts-background-source-name {min-width:0;font-size:13px;line-height:1.5;overflow-wrap:anywhere;max-height:6em;overflow:auto}
+.ts-background-source-actions {display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.ts-background-source-actions button {font-size:12px;flex:1;min-height:36px;height:auto;white-space:normal;max-width:100%}
 .ts-background-controls input[hidden],.ts-background-reload[hidden] {display:none!important}
-.ts-background-file-hint {margin:10px 0 21px;color:var(--text-faint);font-size:10px;line-height:1.7}
-.ts-background-fit-options {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px;padding:3px;border-radius:8px;background:var(--background-secondary)}
-.ts-background-settings .ts-background-fit-options button {height:30px;padding:0 5px;min-width:0;background:transparent;box-shadow:none;font-size:11px;color:var(--text-muted)}
-.ts-background-settings .ts-background-fit-options button[aria-pressed=true] {background:var(--background-primary);color:var(--ts-accent);box-shadow:0 1px 3px rgb(0 0 0 / .08)}
+.ts-background-file-hint {margin:10px 0 21px;color:var(--text-muted);font-size:11px;line-height:1.7}
+.ts-background-fit-options {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;border-bottom:1px solid var(--background-modifier-border);background:transparent}
+.ts-background-settings .ts-background-fit-options button {height:auto;min-height:36px;padding:8px 4px;min-width:0;white-space:normal;border:0;border-radius:0;background:transparent;box-shadow:none;font-size:12px;color:var(--text-muted)}
+.ts-background-settings .ts-background-fit-options button[aria-pressed=true] {background:transparent;color:var(--ts-accent);box-shadow:inset 0 -2px var(--ts-accent)}
 .ts-background-opacity-control {margin-top:24px}
 .ts-background-opacity-control>label {display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;font-size:12px;color:var(--text-muted)}
 .ts-background-opacity-control output {color:var(--text-normal);font-variant-numeric:tabular-nums}
 .ts-background-opacity-control>input {width:100%;margin:0;accent-color:var(--ts-accent,var(--interactive-accent))}
-.ts-background-opacity-limits {display:flex;justify-content:space-between;margin-top:7px;font-size:10px;color:var(--text-faint)}
+.ts-background-opacity-limits {display:flex;justify-content:space-between;margin-top:7px;font-size:11px;color:var(--text-muted)}
 .ts-background-preview-pane {display:flex;flex-direction:column;gap:10px;min-width:0}
 .ts-background-preview-heading {font-size:12px;font-weight:600;color:var(--text-muted)}
-.ts-background-settings .ts-background-preview {min-height:302px;flex:1;border:1px solid var(--background-modifier-border);border-radius:13px;overflow:hidden}
+.ts-background-settings .ts-background-preview {min-height:280px;flex:1;border:1px solid var(--background-modifier-border);border-radius:8px;overflow:hidden}
 .ts-background-preview-content {position:relative;z-index:1;padding:25px 23px}
 .ts-background-preview-caption {display:inline-block;padding:4px 8px;background:var(--background-primary);border-radius:5px;font-size:10px;letter-spacing:.06em;color:var(--text-muted);opacity:.9}
-.ts-background-preview-note {margin-top:48px;padding:19px 17px;border:1px solid var(--background-modifier-border);border-radius:8px;background:var(--background-primary);box-shadow:0 2px 7px rgb(0 0 0 / .06);transform:rotate(-1deg)}
-.ts-background-preview-note h3 {margin:0 0 12px;font-family:var(--font-text);font-size:17px;font-weight:500;line-height:1.5;color:var(--text-normal)}
-.ts-background-preview-note p {margin:0;font-size:11px;line-height:1.9;color:var(--text-muted)}
+.ts-background-preview-note {margin-top:32px;padding:19px 17px;border:1px solid var(--background-modifier-border);border-radius:8px;background:var(--background-primary);box-shadow:0 2px 4px rgb(0 0 0 / .04)}
+.ts-background-preview-note h3 {margin:0 0 12px;font-family:var(--font-text);font-size:20px;font-weight:500;line-height:1.5;color:var(--text-normal)}
+.ts-background-preview-note p {margin:0;font-size:12px;line-height:1.7;color:var(--text-muted)}
 .ts-background-preview-hint {text-align:center;font-size:10px;line-height:1.6;color:var(--text-faint)}
-.ts-background-settings-status {min-height:18px;margin-top:18px;font-size:12px;line-height:1.6;color:var(--text-muted)}
-.ts-background-settings-footer {display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:12px;padding-top:16px;border-top:1px solid var(--background-modifier-border)}
+.ts-background-settings-status {min-height:18px;margin-top:16px;font-size:13px;line-height:1.6;color:var(--text-muted);overflow-wrap:anywhere;max-height:8em;overflow:auto}
+.ts-background-settings-footer {display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-top:12px;padding-top:16px;border-top:1px solid var(--background-modifier-border)}
+.ts-background-settings-footer button {min-height:36px;height:auto;max-width:100%;white-space:normal;padding:8px 12px}
 .ts-background-reload {margin-right:auto;font-size:12px}
 .ts-background-settings :is(button,input):focus-visible {outline:2px solid var(--ts-accent,var(--interactive-accent));outline-offset:2px}
-@media(max-width:600px){.ts-background-settings-body{grid-template-columns:1fr;gap:22px}.ts-background-settings .ts-background-preview{min-height:220px}.ts-background-preview-note{margin-top:25px}.ts-background-file-hint{margin-bottom:16px}.ts-background-opacity-control{margin-top:19px}}
+@container ts-background-settings (max-width:600px){
+ .ts-background-settings-body{grid-template-columns:minmax(0,1fr);gap:24px}
+ .ts-background-settings .ts-background-preview{min-height:208px}
+ .ts-background-preview-content{padding:20px 24px}
+ .ts-background-preview-note{margin-top:20px;padding:16px}
+ .ts-background-file-hint{margin-bottom:16px}
+ .ts-background-opacity-control{margin-top:20px}
+ .ts-background-settings button,.ts-background-settings .ts-background-fit-options button,.ts-background-settings input{min-height:44px;touch-action:manipulation}
+}
+@media(any-pointer:coarse){.ts-background-settings button,.ts-background-settings .ts-background-fit-options button,.ts-background-settings input{min-height:44px;touch-action:manipulation}}
 @media(prefers-contrast:more){.ts-root[data-background=image] :is(.ts-main > .ts-stage,.ts-brain-stage)::before,.ts-background-preview::before{display:none}}

@@ -11,6 +11,9 @@
  --ts-design-shadow:0 1px 2px #00000005,0 4px 16px #00000009;
  --ts-design-overlay-shadow:0 2px 8px #00000008,0 18px 48px #00000018;
  --ts-design-radius:10px;
+ --ts-space-1:4px;--ts-space-2:8px;--ts-space-3:12px;--ts-space-4:16px;--ts-space-6:24px;--ts-space-8:32px;
+ --ts-chrome-title:15px;--ts-chrome-label:12px;--ts-chrome-caption:11px;
+ --ts-chrome-radius:8px;--ts-chrome-rule:1px solid var(--ts-design-line);
 }
 .theme-dark :is(.ts-root,.ts-journal,.ts-ui-modal,.ts-space-modal,.ts-settings,.ts-native-header,.ts-writing,.ts-note-markdown-toolbar,.ts-media-workspace,.ts-online-workspace,.ts-materials-panel,.ts-materials-modal){--ts-design-shadow:0 1px 2px #00000024,0 3px 10px #00000018;--ts-design-overlay-shadow:0 2px 8px #00000035,0 18px 48px #00000042;}
 /* Sidebar presentation is owned by sidebar.css. */
@@ -24,12 +27,12 @@
 /* Writing chrome follows the same 8/12 px rhythm. Article and native editor
    geometry/typography remain owned by the writing module. */
 .ts-writing{--writing-line:var(--ts-design-line);--writing-soft:var(--background-secondary);--writing-gutter:var(--ts-ui-panel-pad);}
-.ts-writing .ts-writing-header{background:var(--background-primary);border-color:var(--ts-design-line);padding-inline:16px;gap:12px;}
+.ts-writing .ts-writing-header{background:var(--background-primary);border-color:var(--ts-design-line);}
 .ts-writing .ts-writing-header-actions{gap:4px;}
-.ts-writing .ts-writing-switch{padding:3px;border:0;border-radius:8px;background:var(--background-secondary);}
-.ts-writing .ts-writing-switch .ts-writing-button{height:28px;border-radius:5px;}
+.ts-writing .ts-writing-switch{padding:0;border:0;border-radius:0;background:transparent;}
+.ts-writing .ts-writing-switch .ts-writing-button{height:32px;border-radius:0;}
 .ts-writing .ts-writing-button.mod-cta{height:32px;border-radius:7px;}
-.ts-writing :is(.ts-writing-composer,.ts-writing-dock){border-radius:10px;border-color:var(--ts-design-line);box-shadow:none;}
+.ts-writing :is(.ts-writing-composer,.ts-writing-dock){border-radius:0;border-color:var(--ts-design-line);box-shadow:none;}
 .ts-writing :is(.ts-writing-formatbar,.ts-writing-dock-head){background:var(--background-primary);border-bottom-color:var(--ts-design-line);}
 .ts-writing .ts-writing-dock-head{min-height:calc(var(--ts-ui-control) + var(--ts-ui-row-pad)*2);padding:var(--ts-ui-row-pad) 8px;gap:4px;}
 .ts-writing .ts-writing-dock-head .is-active{background:var(--ts-design-hover);box-shadow:none;}
@@ -54,7 +57,7 @@
 .ts-writing .ts-writing-entry{border-radius:8px;border-color:var(--ts-design-line);}
 .ts-writing .ts-writing-entry.is-selected{border-radius:8px;}
 .ts-writing :is(.ts-writing-ref-label,.ts-writing-name small,.ts-writing-panel-foot,.ts-writing-reference-kind,.ts-writing-status-mode,.ts-writing-status-text,.ts-writing-preview-summary){font-size:var(--ts-ui-secondary,11px);color:var(--text-muted);}
-@container(max-width:450px){.ts-writing .ts-writing-header{padding-inline:8px;gap:8px;}.ts-writing .ts-writing-filters{padding-inline:8px;gap:4px;}.ts-writing .ts-writing-filters button{padding-inline:6px;}}
+@container(max-width:450px){.ts-writing .ts-writing-header{padding-inline:8px;gap:2px 6px;}.ts-writing .ts-writing-filters{padding-inline:8px;gap:4px;}.ts-writing .ts-writing-filters button{padding-inline:6px;}}
 /* Shared secondary workspaces: settings, property views and reading materials. */
 .ts-settings .setting-item{padding:16px 0;border-color:var(--ts-design-line);}
 .ts-settings .setting-item-name{font-weight:550;}

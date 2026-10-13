@@ -1,18 +1,20 @@
 import {App,Modal,Notice,setIcon} from 'obsidian';
 import {PaperPreferences,cleanPaperPreferences,paperAppearanceStamp,paperBaseColor,paperPresets} from './paper-appearance';
 import {themeSurface} from './ui-tokens';
+import {bindBoardModalViewport} from './board-modal-viewport';
 
 export interface PaperSettingsHost {stamp?:()=>string;language?:'zh-CN'|'en';preferences:()=>PaperPreferences;save:(preferences:PaperPreferences)=>Promise<void>;}
 const paperPresetEnglish:Record<PaperPreferences['paperPreset'],string>={cream:'Cream paper',white:'White paper',ivory:'Ivory paper',kraft:'Kraft paper',recycled:'Recycled paper',custom:'Custom'};
 const previewInk=(color:string)=>{const channels=[1,3,5].map(at=>parseInt(color.slice(at,at+2),16)/255).map(value=>value<=.04045?value/12.92:Math.pow((value+.055)/1.055,2.4));return channels[0]*.2126+channels[1]*.7152+channels[2]*.0722>.179?'#403b32':'#f4f0e6';};
 /** Changes stay in this dialog until Apply; native Modal selection state is untouched. */
 export class PaperSettingsModal extends Modal {
+ private viewport?:()=>void;
  private paperDraft:PaperPreferences=cleanPaperPreferences(undefined);private paperBaseline='';private paperBusy=false;private paperClosed=false;private paperInvalidColor=false;private paperConflict=false;private paperLoadFailed=false;private paperRun=0;
  private paperSwatches=new Map<PaperPreferences['paperPreset'],HTMLButtonElement>();private paperCustom!:HTMLButtonElement;private paperPicker!:HTMLInputElement;private paperHex!:HTMLInputElement;private paperSlider!:HTMLInputElement;private paperStrength!:HTMLOutputElement;private paperPreview!:HTMLElement;private paperStatus!:HTMLElement;private paperApply!:HTMLButtonElement;private paperReload!:HTMLButtonElement;
  constructor(app:App,private paperHost:PaperSettingsHost){super(app);}
  private paperText(zh:string,en:string){return this.paperHost.language==='en'?en:zh;}
  private paperButton(parent:HTMLElement,label:string,run:()=>void,cls=''){const button=parent.createEl('button',{text:label,cls,attr:{'aria-label':label}});button.onclick=()=>{if(!this.paperClosed&&!this.paperBusy)run();};return button;}
- onOpen(){const t=(zh:string,en:string)=>this.paperText(zh,en);this.paperRun++;this.paperClosed=false;this.paperBusy=false;this.paperInvalidColor=false;this.paperConflict=false;this.paperLoadFailed=false;this.paperSwatches.clear();this.contentEl.empty();themeSurface(this.modalEl);this.modalEl.addClass('ts-paper-settings');this.titleEl.setText(t('纸张与纹理','Paper and texture'));
+ onOpen(){const t=(zh:string,en:string)=>this.paperText(zh,en);this.paperRun++;this.paperClosed=false;this.paperBusy=false;this.paperInvalidColor=false;this.paperConflict=false;this.paperLoadFailed=false;this.paperSwatches.clear();this.contentEl.empty();this.viewport?.();this.viewport=bindBoardModalViewport(this.containerEl);themeSurface(this.modalEl);this.modalEl.addClass('ts-paper-settings');this.titleEl.setText(t('纸张与纹理','Paper and texture'));
   const body=this.contentEl.createDiv('ts-paper-settings-body'),controls=body.createDiv('ts-paper-controls');controls.createEl('h3',{text:t('纸张颜色','Paper color')});
   const swatches=controls.createDiv({cls:'ts-paper-swatches',attr:{role:'group','aria-label':t('纸张颜色预设','Paper color presets')}});
   for(const preset of Object.keys(paperPresets) as PaperPreferences['paperPreset'][]){if(preset==='custom')continue;const item=paperPresets[preset],button=this.paperButton(swatches,t(item.name,paperPresetEnglish[preset]),()=>{this.paperDraft.paperPreset=preset;this.paperInvalidColor=false;this.paperHex.value=this.paperDraft.paperColor;this.paperStatus.setText('');this.paperSync();},'ts-paper-swatch');button.style.setProperty('--ts-paper-swatch-color',item.color);button.setAttribute('data-paper-preset',preset);const chip=button.createSpan('ts-paper-swatch-chip');button.prepend(chip);this.paperSwatches.set(preset,button);}
@@ -39,5 +41,5 @@ export class PaperSettingsModal extends Modal {
   try{await this.paperHost.save(next);if(this.paperClosed||run!==this.paperRun)return;this.paperBusy=false;this.close();}
   catch(error){const message=`${this.paperText('纸张设置保存失败：','Could not save paper settings: ')}${String(error).replace(/^Error: /,'')}`;if(this.paperClosed||run!==this.paperRun){new Notice(message);return;}this.paperBusy=false;this.paperStatus.setText(`${message}${this.paperText('。可以重试。','. You can retry.')}`);this.paperSync();}
  }
- onClose(){this.paperRun++;this.paperClosed=true;this.paperSwatches.clear();this.contentEl.onkeydown=null;this.contentEl.empty();}
+ onClose(){this.viewport?.();this.viewport=undefined;this.paperRun++;this.paperClosed=true;this.paperSwatches.clear();this.contentEl.onkeydown=null;this.contentEl.empty();}
 }

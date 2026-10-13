@@ -1,0 +1,21 @@
+.ts-brain-reading-positions {width:min(640px,100%);display:flex;flex-direction:column;min-height:0}
+.ts-brain-reading-positions .modal-content {display:flex;flex-direction:column;gap:16px;overflow:hidden}
+.ts-brain-reading-positions h2 {flex:none;margin:0;font-size:20px;line-height:1.4}
+.ts-brain-position-scroll {min-height:0;overflow:auto;overscroll-behavior:contain;flex:1}
+.ts-brain-position-create {display:flex;align-items:end;flex-wrap:wrap;gap:8px;flex:none}
+.ts-brain-position-create label {flex:1;min-width:140px}
+.ts-brain-reading-positions label {display:flex;flex-direction:column;gap:6px}
+.ts-brain-reading-positions input {width:100%;min-width:0;font-size:16px;min-height:44px}
+.ts-brain-position-body {margin-top:24px}
+.ts-brain-position-row {padding:16px 0;border-top:1px solid var(--background-modifier-border)}
+.ts-brain-position-meta {margin:0 0 12px;font-size:12px;line-height:1.6;color:var(--text-muted);overflow-wrap:anywhere}
+.ts-brain-position-actions,.ts-brain-position-footer {display:flex;gap:8px;flex-wrap:wrap}
+.ts-brain-position-actions {margin-top:12px}
+.ts-brain-position-actions button:not(.mod-cta) {background:transparent;box-shadow:none}
+.ts-brain-position-actions [data-brain-position-action="移除"] {margin-inline-start:auto;color:var(--text-error)}
+.ts-brain-position-footer {padding-top:12px;border-top:1px solid var(--background-modifier-border)}
+.ts-brain-position-footer,.ts-brain-position-status {flex:none}
+.ts-brain-position-status {overflow-wrap:anywhere;color:var(--text-muted);max-height:4.5em;overflow:auto;font-size:13px;line-height:1.6}
+.ts-brain-position-status:empty {display:none}
+.ts-brain-reading-positions button {min-height:44px;white-space:normal;overflow-wrap:anywhere}
+@media(max-width:540px){.ts-brain-position-actions button {flex:1 1 42%;min-width:0}.ts-brain-position-create>.mod-cta {width:100%}.ts-brain-position-footer button {flex:1 1 28%;min-width:0}.ts-brain-position-row {padding:16px 0}}

@@ -1,17 +1,23 @@
+import {bindBoardModalViewport} from './board-modal-viewport';
 import {App, Component, Modal, Notice, TFile, getAllTags, setIcon} from 'obsidian';
 import {Board} from './model';
 import {themeSurface} from './ui-tokens';
 import {isWorkspaceFile} from './workspace';
 import {HubPreferences, HubFilter, HubIndex, HubBoard, HubNote, HubScope, cleanHubFilter, defaultHubFilter, hubIndex, hubResults, summarizeBoard, saveHubFilter} from './space-hub';
+export interface SpaceHubTarget {title:string;groups?:readonly {id:string;title:string}[];add:(paths:string[],groupId?:string,current?:()=>boolean)=>Promise<number>}
 
 export interface SpaceHubHost {
+  initialScope?:HubScope;
   preferences:()=>HubPreferences;save:(prefs:HubPreferences)=>Promise<void>;favorites:()=>string[];
   journalFolder:string;readBoard:(file:TFile)=>Promise<Board>;
   /** Discovery only: readBoard still validates each source's full document. */
   isBoardFile?:(file:TFile)=>boolean;
   openBoard:(file:TFile)=>Promise<void>;openNote:(file:TFile)=>unknown;favorite:(file:TFile)=>Promise<void>;
   capture:()=>void;createBoard:()=>void;calendar:()=>unknown;
-  target?:{title:string;add:(paths:string[])=>Promise<number>};
+  target?:SpaceHubTarget;
+  chooseTarget?:(current:()=>boolean)=>Promise<SpaceHubTarget|undefined>;
+  showOccurrences?:(file:TFile)=>void;
+  document?:Document;current?:()=>boolean;watchCurrent?:(invalidate:()=>void)=>()=>void;closed?:()=>void;
 }
 const scopes:{id:HubScope;label:string;icon:string}[]=[{id:'boards',label:'全部白板',icon:'panels-top-left'},{id:'favorites',label:'收藏白板',icon:'star'},{id:'recent',label:'最近打开',icon:'history'},{id:'notes',label:'全部笔记',icon:'files'},{id:'inbox',label:'笔记收件箱',icon:'inbox'},{id:'shared',label:'跨白板笔记',icon:'network'}];
 const palette={sand:'#d9c68c',blue:'#9dc8df',green:'#a8cdbb',rose:'#dfb3c1',purple:'#b9a9d4',orange:'#dcad79',red:'#d68e89',teal:'#83bdb0',cyan:'#91c7d0',lime:'#b9c98b',slate:'#a9b5c4',brown:'#b69c87'};
@@ -23,14 +29,17 @@ export class SpaceHubModal extends Modal {
   private nav!:HTMLElement;private main!:HTMLElement;private detail!:HTMLElement;private footer!:HTMLElement;private state!:HTMLElement;private metrics!:HTMLElement;
   private search!:HTMLInputElement;private tag!:HTMLSelectElement;private sort!:HTMLSelectElement;private journals!:HTMLInputElement;
   private refreshButton!:HTMLButtonElement;private loaded=false;
+  private targetGroup='';private choosingTarget=false;private unwatch?:()=>void;private viewport?:()=>void;
   private scopeTitle!:HTMLElement;private scopeCount!:HTMLElement;private viewButtons=new Map<string,HTMLButtonElement>();private detailReturnFocus?:HTMLElement;
-  constructor(app:App,private host:SpaceHubHost){super(app);}
+  constructor(app:App,private host:SpaceHubHost){super(app);if(host.initialScope)this.filter.scope=host.initialScope;}
   private action(parent:HTMLElement,label:string,icon:string,fn:()=>unknown,cls=''){
     const b=parent.createEl('button',{cls:`ts-hub-button ${cls}`,attr:{'aria-label':label,title:label}});if(icon)setIcon(b.createSpan(),icon);b.createSpan({text:label});b.onclick=()=>{try{Promise.resolve(fn()).catch(e=>this.error(e));}catch(e){this.error(e);}};return b;
   }
   private error(e:unknown){if(this.active)this.state.setText(e instanceof Error?e.message:String(e));new Notice(String(e));}
   private file(path:string){const f=this.app.vault.getAbstractFileByPath(path);if(!(f instanceof TFile)||!isWorkspaceFile(f))throw Error('文件已移动或删除，请刷新总览');return f;}
   onOpen(){
+    if(this.host.current&&!this.host.current()){this.close();return;}
+    if(this.host.document){if(this.host.document.defaultView?.closed){this.close();return;}if(this.containerEl.ownerDocument!==this.host.document)this.host.document.body.appendChild(this.containerEl);this.viewport=bindBoardModalViewport(this.containerEl);}
     this.active=true;this.life.load();this.modalEl.addClass('ts-space-hub');themeSurface(this.modalEl);this.titleEl.setText('空间总览');
     const body=this.contentEl.createDiv('ts-hub-body');this.nav=body.createEl('nav',{cls:'ts-hub-nav',attr:{'aria-label':'空间总览导航'}});
     const workspace=body.createDiv('ts-hub-workspace');
@@ -51,8 +60,9 @@ export class SpaceHubModal extends Modal {
     this.footer=this.contentEl.createDiv('ts-hub-footer');
     const dirty=()=>{if(!this.active)return;this.changes++;if(this.loaded&&!this.busy)this.state.setText('资料已变化，点击刷新索引获取最新内容。');};this.life.registerEvent(this.app.vault.on('create',dirty));this.life.registerEvent(this.app.vault.on('modify',dirty));this.life.registerEvent(this.app.vault.on('delete',dirty));this.life.registerEvent(this.app.vault.on('rename',dirty));
     this.life.registerEvent(this.app.metadataCache.on('changed',dirty));this.renderNav();this.renderDetail();void this.load();this.search.focus();
+    this.unwatch=this.host.watchCurrent?.(()=>this.close());
   }
-  onClose(){this.active=false;this.generation++;this.life.unload();this.contentEl.empty();}
+  onClose(){this.active=false;this.generation++;this.unwatch?.();this.unwatch=undefined;this.viewport?.();this.viewport=undefined;this.life.unload();this.contentEl.empty();this.host.closed?.();}
   async load(){
     const run=++this.generation,changes=this.changes;this.busy=true;this.refreshButton.disabled=true;this.state.setText('正在整理白板与笔记索引…');
     try{
@@ -146,13 +156,15 @@ export class SpaceHubModal extends Modal {
     if(!item){this.detail.createEl('h3',{text:'给材料找到位置'});this.detail.createEl('p',{text:'选择一张白板查看内容概况，或选择笔记查看它在哪些白板中使用。'});if(this.host.target)this.detail.createDiv({cls:'ts-hub-target',text:'当前白板\n'+this.host.target.title});}
     else{const board='objects'in item;this.detail.createEl('h3',{text:item.title});this.detail.createDiv({cls:'ts-hub-detail-path',text:item.path});this.action(this.detail,board?'打开白板':'右侧打开笔记',board?'arrow-up-right':'panel-right',()=>this.openItem(item.path,board),'is-primary');
       if(board){this.action(this.detail,this.host.favorites().includes(item.path)?'取消收藏':'收藏白板','star',async()=>{await this.host.favorite(this.file(item.path));if(this.active){this.renderResults();this.renderDetail();}});this.detail.createEl('p',{text:`${item.objects} 个内容对象，${item.edges} 条连接；缩略图显示前 80 个对象。`});this.references('上级白板',this.index.boards.filter(b=>b.children.includes(item.path)));this.references('子白板',this.index.boards.filter(b=>item.children.includes(b.path)));if(item.missing.length){this.detail.createEl('h4',{text:'缺失引用'});for(const path of item.missing.slice(0,30))this.detail.createDiv({cls:'ts-hub-warning',text:path});}}
-      else{this.detail.createEl('p',{text:'只统计白板的直接笔记引用；原生笔记反向链接可在 Obsidian 中查看。'});this.references('使用这篇笔记的白板',this.index.usage.get(item.path)||[]);if(this.host.target)this.action(this.detail,'放入当前白板','file-plus-2',()=>this.add([item.path]));}
+      else{this.detail.createEl('p',{text:'白板概况统计直接笔记引用；引用位置列表也包含明确的动态引用与来源摘录。'});this.references('使用这篇笔记的白板',this.index.usage.get(item.path)||[]);if(this.host.showOccurrences)this.action(this.detail,'查看每处引用位置','locate-fixed',()=>{const file=this.file(item.path);this.close();this.host.showOccurrences?.(file);});if(this.host.target)this.action(this.detail,'放入目标白板','file-plus-2',()=>this.add([item.path]));}
     }
     if(this.index.errors.length){const issues=this.detail.createEl('details',{cls:'ts-hub-issues'});issues.createEl('summary',{text:`索引问题 · ${this.index.errors.length}`});for(const e of this.index.errors.slice(0,50)){issues.createDiv({text:e.path,cls:'ts-hub-detail-path'});issues.createEl('p',{text:e.message});}}
   }
   private references(label:string,boards:HubBoard[]){this.detail.createEl('h4',{text:label});if(!boards.length)this.detail.createEl('p',{text:'没有已索引的直接引用'});for(const board of boards.slice(0,50))this.action(this.detail,board.title,'panels-top-left',()=>this.focus(board.path),'ts-hub-reference');if(boards.length>50)this.detail.createEl('p',{text:'显示前 50 张；可在全部白板中搜索更多。'});}
-  private async add(paths:string[]){if(!this.host.target)throw Error('请先打开目标白板');if(this.busy)return;this.busy=true;this.renderFooter();try{for(const path of paths)this.file(path);const added=await this.host.target.add(paths);if(!this.active)return;this.selected.clear();this.state.setText(`已放入 ${added} 篇笔记；跳过 ${paths.length-added} 个已有引用。可在白板撤销。`);await this.load();this.state.setText(`已放入 ${added} 篇笔记；跳过 ${paths.length-added} 个已有引用。可在白板撤销。`);}finally{this.busy=false;if(this.active)this.renderFooter();}}
+  private async add(paths:string[]){if(!this.host.target)throw Error('请先选择目标白板');if(this.busy||this.choosingTarget)return;const current=()=>this.active&&(!this.host.current||this.host.current());if(!current())throw Error('页面已变化，投递已取消');this.busy=true;this.renderFooter();try{for(const path of paths)this.file(path);const added=await this.host.target.add(paths,this.targetGroup||undefined,current);if(!current())return;for(const path of paths)this.selected.delete(path);this.state.setText(`已放入 ${added} 篇笔记；跳过 ${paths.length-added} 个已有引用。可在白板撤销。`);await this.load();if(current())this.state.setText(`已放入 ${added} 篇笔记；跳过 ${paths.length-added} 个已有引用。可在白板撤销。`);}finally{this.busy=false;if(this.active)this.renderFooter();}}
+  private async chooseTarget(){if(this.busy||this.choosingTarget||!this.host.chooseTarget)return;this.choosingTarget=true;this.renderFooter();const current=()=>this.active&&(!this.host.current||this.host.current());try{const target=await this.host.chooseTarget(current);if(current()&&target){this.host.target=target;this.targetGroup='';this.renderDetail();}}finally{this.choosingTarget=false;if(this.active)this.renderFooter();}}
   private renderFooter(){this.footer.empty();this.footer.createSpan({text:`${this.results.length} 项结果 · 第 ${this.page+1} / ${Math.max(1,Math.ceil(this.results.length/48))} 页`});this.action(this.footer,'上一页','chevron-left',()=>{this.page--;this.renderResults();},'ts-hub-icon').disabled=this.page===0;this.action(this.footer,'下一页','chevron-right',()=>{this.page++;this.renderResults();},'ts-hub-icon').disabled=(this.page+1)*48>=this.results.length;
+    if(this.host.chooseTarget){const controls=this.footer.createDiv('ts-hub-delivery-target');this.action(controls,this.host.target?'更换目标白板…':'选择目标白板…','panels-top-left',()=>this.chooseTarget()).disabled=this.busy||this.choosingTarget;if(this.host.target){const label=controls.createEl('label');label.createSpan({text:'目标分组'});const select=label.createEl('select',{attr:{'aria-label':'总览目标分组'}});select.createEl('option',{value:'',text:'白板空白处'});for(const group of this.host.target.groups||[])select.createEl('option',{value:group.id,text:group.title});select.value=this.targetGroup;select.disabled=this.busy||this.choosingTarget;select.onchange=()=>{this.targetGroup=select.value;};controls.createSpan({cls:'ts-hub-batch-hint',text:'目标：'+this.host.target.title});}}
     if(['notes','inbox','shared'].includes(this.filter.scope)){this.action(this.footer,'选择本页','check-check',()=>{const next=new Set([...this.selected,...this.results.slice(this.page*48,(this.page+1)*48).map(n=>n.path)]);if(next.size>100)throw Error('跨页选择超过 100 篇，请先清空选择');this.selected=next;this.renderResults();});}
     if(this.selected.size){this.action(this.footer,'清空选择','x',()=>{this.selected.clear();this.renderResults();});const b=this.action(this.footer,`放入 ${this.selected.size} 篇笔记`,'file-plus-2',()=>this.add([...this.selected]),'is-primary');b.disabled=this.busy||!this.host.target;this.footer.createSpan({cls:'ts-hub-batch-hint',text:this.host.target?`目标：${this.host.target.title} · 选择包含其他页`:'请先打开目标白板'});}
   }

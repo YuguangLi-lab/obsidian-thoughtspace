@@ -1,8 +1,10 @@
 # ThoughtSpace Whiteboard user guide
 
+In 1.3.36, node titles select without changing the center. Use the screen-space selection toolbar to set the center, or expand **新建关系** (New relationship) for parent, child or left/right associations. Actions use a valid selection, otherwise the center. On ordinary and handwriting boards, reference navigation stays outside the visible creation rails and follows layout changes; short views retain internal scrolling at unchanged bounds. See the [brain and long-ink guide](STARTUP-BRAIN.zh-CN.md), [collection guide](COLLECTION-WORKSPACE.zh-CN.md), and [1.3.36 validation limits](../qa/RELEASE-1.3.36.md).
+
 [English](USER-GUIDE.md) · [中文完整教程](USER-GUIDE.zh-CN.md) · [Project home](../README.md)
 
-This guide covers **ThoughtSpace Whiteboard 1.3.35** for **Obsidian desktop 1.13.7 or newer**. Follow the *Urban cooling research* project below, then use the later sections as a reference. Settings support Chinese and English; most workspace controls currently use Chinese. Their exact Chinese names appear beside the English instructions so you can find them in menus or the command palette. Narrow panes may show icons instead of text; hover for the tooltip.
+This guide covers **ThoughtSpace Whiteboard 1.3.36** for **Obsidian desktop 1.13.7 or newer**. Follow the *Urban cooling research* project below, then use the later sections as a reference. Settings support Chinese and English; most workspace controls currently use Chinese. Their exact Chinese names appear beside the English instructions so you can find them in menus or the command palette. Narrow panes may show icons instead of text; hover for the tooltip.
 
 ## Contents
 
@@ -66,6 +68,7 @@ Use your own source notes, a research PDF, a street photograph and, optionally, 
 | **脑图白板** (Dedicated brain board) | **Markdown (.md)** | Browse relationships around a changing center, with native Properties in the same file |
 | **普通白板** | **旧格式 (.thoughtspace)** (Legacy format) | Continue an existing free-layout workflow in the original board format |
 | **脑图白板** | **旧格式 (.thoughtspace)** | Use the same dedicated relationship view in the original format |
+| **手写白板** (Handwriting board) | Either format | Draw and edit whole strokes, with camera state stored in the board |
 
 On a fresh installation, the unified dialog starts with an ordinary board in legacy format. It remembers choices only after successful creation and opening; existing boards keep their format. The explicit **新建 Markdown 白板**, **新建 Markdown 脑图白板**, **新建旧格式白板** and **新建旧格式脑图白板** commands remain available. A dedicated brain board is different from the ordinary whiteboard's topic-tree templates under **新建思维导图**; [section 9](#mind-maps) explains both.
 
@@ -86,9 +89,9 @@ Actual 1.3.35 UI in a dedicated synthetic tutorial vault; the example illustrate
 
 1. Create a second board named `Urban cooling relationships`, choosing **脑图白板** and **Markdown (.md)**.
 2. Click **添加知识节点** (Add knowledge node), choose **引用已有笔记** (Reference existing note), select `Tree canopy`, then confirm. The first node becomes the center.
-3. Use its bottom **添加子节点** (Add child) control, choose **先记想法** (Record an idea first), and enter `Compare maintenance needs`. Click **确定** (Confirm).
+3. Select the node, expand **新建关系** (New relationship) in the selection toolbar, and choose **添加子节点** (Add child). Choose **先记想法** (Record an idea first), enter `Compare maintenance needs`, then click **确定** (Confirm).
 4. Open the idea's node menu → **整理成笔记** (Organize as note). Choose **新建笔记** to give it its own Markdown file, or **保留想法并关联已有笔记** to keep the complete idea and link it to `Cooling comparison`. The latter does not rewrite that note's body.
-5. Click another node's title to make it the center. Use **关系显示层级** (Relationship depth) to explore 1–5 hops, and the node's expand action to read its content. **后退** and **最近浏览** return to earlier centers.
+5. Click another node's title, then choose **设为中心** (Set as center) in the selection toolbar. Use **关系显示层级** (Relationship depth) to explore 1–5 hops, and **展开正文** (Expand body) to read its content. **后退** and **最近浏览** return to earlier centers.
 
 ![Brain board: two relationship levels, an association and expanded ideas](https://raw.githubusercontent.com/YuguangLi-lab/obsidian-thoughtspace/main/docs/images/brain-research.png)
 
@@ -139,13 +142,14 @@ Markdown boards declare `thoughtspace: board` in their native Properties and sto
 | --- | --- |
 | **ThoughtSpace 侧边栏** ribbon icon / **打开 ThoughtSpace 侧边栏** command | Browse cards, boards, tasks, and the outline |
 | **打开空间总览** command | Browse your knowledge space and boards |
+| **打开收集** command / sidebar **收集** | Write a Markdown record, browse the timeline, or deliver it to an existing board |
 | **继续上次白板** command | Open the latest valid recently visited board, or fall back to the space hub |
 | **打开研究工作台** command | Open the research workspace |
 | **新建白板或脑图…** / **从模板创建白板** commands | Create a board |
 | **新建思维导图** command | Start a mind map with a preset |
 | **ThoughtSpace 音视频笔记** ribbon icon | Play and annotate media without opening a board |
 
-Ordinary whiteboards retain Obsidian's title bar. A compact vertical toolbar floats on the left of the canvas for selection, connections, **新建卡片** (New card), text, insertion, grouping and arrangement. The top formatting toolbar appears for the selected objects; its extra style parameters start collapsed. Bottom view controls handle background, grid snapping, zoom, fit and overview, with horizontal scrolling in narrow panes. The sidebar keeps **卡片 / 白板 / 任务 / 大纲** above search. The board header includes undo/redo, search, **常用视角**, focus mode and **工作区**. Dedicated brain boards use their own center navigation, node search and relationship controls instead; they also show save and protection status.
+Ordinary whiteboards retain Obsidian's title bar. A compact vertical toolbar floats on the left of the canvas for selection, connections, **新建卡片** (New card), text, insertion, grouping and arrangement. The top formatting toolbar appears for the selected objects; its extra style parameters start collapsed. Bottom view controls handle background, grid snapping, zoom, fit and overview, with horizontal scrolling in narrow panes. The sidebar keeps **卡片 / 白板 / 任务 / 大纲** above search. On narrow boards, **框选 / 新建卡片 / 工具** (Select / New card / Tools) stay directly available; search Tools for secondary creation and arrangement actions. The header keeps search and **工作区** (Workspace), whose menu contains undo/redo, **常用视角** (Saved views), favorites and focus mode when they are folded away. Expand **画布** (Canvas) for snapping, spacing and background controls. Dedicated brain boards use their own center navigation, node search and relationship controls instead; they also show save and protection status.
 
 The interface follows Obsidian's theme, including light and dark colors. Paper and image backgrounds are optional. Plugin-control accents do not replace Markdown link, task-checkbox or user-selected node colors.
 
@@ -160,7 +164,7 @@ The interface follows Obsidian's theme, including light and dark colors. Paper a
 - Double-click the board title, or right-click it and choose **重命名白板**, to rename the board.
 - Use **复制白板链接** or an object's location-link action to return to a specific board or item later.
 
-For `Urban cooling research`, save an ordinary-board view named `Evidence` before focusing on the comparison. Alt + Left/Right returns through that view's current navigation trail. The board's last saved camera survives reopening; the temporary free-board navigation trail is cleared when its session changes. Dedicated brain boards save their latest center, camera, expanded nodes, pins, relationship depth and bounded center history. Their **后退 / 前进 / 最近浏览** controls revisit centers; named multiple brain reading positions are not included in 1.3.35.
+For `Urban cooling research`, save an ordinary-board view named `Evidence` before focusing on the comparison. Alt + Left/Right returns through that view's current navigation trail. The board's last saved camera survives reopening; the temporary free-board navigation trail is cleared when its session changes. Dedicated brain boards save their latest center, camera, expanded nodes, pins, relationship depth and bounded center history. Their **后退 / 前进 / 最近浏览** controls revisit centers. Use **脑图菜单 → 脑图阅读位置** to name a saved center, camera, expansion and depth state; positions can be renamed, updated, removed and shared by link. After several jumps, **返回原位置** returns to the first departure point. See the [reading-position guide](CONVENIENCE.zh-CN.md#脑图阅读位置).
 
 To continue after closing a project, run **继续上次白板**. It validates recent files, skips missing or damaged candidates and opens the space hub when none remain usable. To choose a different project, open **打开空间总览 → 最近打开** (Space hub → Recently opened). Recent visits and **最近修改** (Recently modified) sorting answer different questions. You can bind the resume command in Obsidian's Hotkeys settings; it has no default shortcut.
 
@@ -213,7 +217,7 @@ F, Shift + F, F2, and free-board Enter can be disabled with **启用白板快捷
 
 ### Commands for a dedicated brain board
 
-Click a node's title to make it the brain board's current center first. These commands act on that center. Open Obsidian's command palette, or bind them in **Settings → Hotkeys**. All four have **no default hotkey**:
+Click a node's title to select it. These commands act on the valid selected node, otherwise the current center. Open Obsidian's command palette, or bind them in **Settings → Hotkeys**. All four have **no default hotkey**:
 
 | Command | Relationship to the current node |
 | --- | --- |
@@ -224,7 +228,7 @@ Click a node's title to make it the brain board's current center first. These co
 
 Each opens the same source/confirmation dialog as the matching node control. It can record an idea or reference/create a file. Left/right associations are not sibling or parent/child relationships. Commands are unavailable while editing text, composing IME input, saving a creation, or working on a protected/locked target. The focused item must still be valid when the command executes after the palette closes.
 
-Automated composition guards and real keyboard checks exist, but the complete trusted native IME start/commit/end sequence was not confirmed in the 1.3.35 CDP probe. Do not interpret it as verification of every OS input method or keyboard layout; see [the input-validation boundary](../qa/RELEASE-1.3.35.md#完整进程重开与输入边界).
+Composition guards and desktop keyboard checks do not verify the complete start/commit/end sequence of a physical mobile system IME. Real iOS/Android input methods remain unverified; see [1.3.36 input-validation limits](../qa/RELEASE-1.3.36.md).
 
 <a id="cards"></a>
 <a id="objects"></a>
@@ -398,8 +402,8 @@ An ordinary whiteboard's new/extracted child board inherits its parent's Markdow
 
 Create it with **新建白板或脑图… → 脑图白板**, choosing either file format. **添加知识节点** can reference an existing note or child board, create a note, or create a group. The first supported node becomes the center. On its relationship controls, **先记想法** stores a local idea before you decide whether it needs a note file.
 
-1. Click a node's title to make it the center; this does not rename its source.
-2. Use the top/bottom controls to add parents or children. Use left/right controls for bidirectional ordinary associations. Review **节点来源** (Node source) and **目标文件夹** (Destination folder), then **确定**.
+1. Click a node's title to select it without changing the center or source name. Choose **设为中心** (Set as center) in the selection toolbar to navigate.
+2. Expand **新建关系** (New relationship) in that toolbar. Choose a parent, child or left/right bidirectional association for the selected node. Review **节点来源** (Node source) and **目标文件夹** (Destination folder), then **确定**.
 3. Open a node's **节点菜单** → **关联已有笔记…** (Associate existing note) to go directly to the native file picker. Choose **左侧 · 双向关联** or **右侧 · 双向关联**, review the target and confirm.
 4. Expand a node to read its available content; use its source action to open the original. Fold it again to reclaim reading space. Narrow/low-zoom layouts can put some actions in the node menu.
 5. Search with **搜索节点…** or Ctrl/Cmd + K while the brain board owns focus. Increase **关系显示层级** from 1 to 5 hops when you need more context. Large neighborhoods are paged; follow the pager rather than assuming every node is rendered at once.
@@ -665,6 +669,19 @@ Before a major rearrangement, open **工作区 → 快照与导出 → 保存布
 
 Exports are separate representations, not a complete replacement for the original board and files. Plugin-only behavior such as live media controls and workspace editing should be checked in the target format before sharing. External-media exports preserve player/time links; those links still need ThoughtSpace and access to the original local file.
 
+
+### Handwriting tools, SVG export and version comparison
+
+Create a standalone handwriting board. Five primary buttons provide pen, eraser, undo, pen settings and more. Colors and widths are secondary settings. **More → Lasso** selects whole strokes; drag visible selected ink for one move transaction. Copy, Delete and Cancel also appear beside a valid selection. Cancellation, a second finger, resize or navigation cancels uncommitted selection-move previews. An unfinished pen stroke retains sampled world coordinates across resize; Escape, lost capture, a tool change, lost focus or navigation cancels that stroke. History has a memory budget and starts fresh after reopening a file.
+
+**更多 → 导出 SVG** (More → Export SVG) creates an attachment and can append an embed plus a source-board backlink to an existing native Markdown note. SVG is a visual copy, not a file for reimporting editable strokes; continue editing the original handwriting board. **仅保存 SVG** (Save SVG only) saves an attachment without appending to a note. Original samples stay intact. If note insertion fails after attachment creation, keep the reported SVG path; retry reuses the attachment. An uncertain save result or changed target requires checking the note before retrying. Incomplete YAML or a code fence blocks insertion.
+
+**Compare versions** beside a save error compares actual disk, local-window and available recovery content, including ink, objects, cameras, properties and Markdown. It never merges or overwrites. Disk/recovery Markdown opens in a separate native leaf; legacy files show complete read-only text. The protected local draft can be copied. Unpersisted local content has no force-quit recovery guarantee; preserve it in a separate file before closing.
+
+Each stroke supports up to 8,192 samples; a board supports up to 65,536 samples and 2,000 strokes. Exceeding the stroke or document budget rejects the new stroke, clears its preview and leaves existing ink unchanged; the rejected stroke is not a recoverable saved draft. Full-precision saved samples remain intact. See the [long-ink limits](STARTUP-BRAIN.zh-CN.md#验收边界).
+
+Mobile/tablet checks use desktop size, touch and keyboard simulation. Physical iOS, Android, Pencil, WKWebView, palm rejection and system IME remain unverified. The no-Node probe covers module evaluation and plugin construction only, not `onload`, full host initialization or mobile device operation. See [1.3.36 validation limits](../qa/RELEASE-1.3.36.md).
+
 <a id="troubleshooting"></a>
 
 ## 16. Troubleshooting and practical limits
@@ -702,7 +719,7 @@ If recovery creation also failed, keep the current page open, copy visible unsav
 
 ### Will force-quitting recover my latest input?
 
-Unsaved native Markdown input can be lost during forced termination, including before its normal save starts or while a save is pending. A File recovery snapshot may contain only an earlier saved baseline. ThoughtSpace does not maintain a cross-process backup of arbitrary native Properties or body drafts and does not merge two native whole-document drafts. Save, wait for confirmed completion and keep regular vault backups. The separate local-media staging feature also has unfinished-write limits; it is not a general Markdown recovery guarantee. See the [1.3.34 recovery boundaries](../qa/RELEASE-1.3.34.md) and [1.3.35 validation limits](../qa/RELEASE-1.3.35.md).
+Unsaved native Markdown input can be lost during forced termination, including before its normal save starts or while a save is pending. A File recovery snapshot may contain only an earlier saved baseline. ThoughtSpace does not maintain a cross-process backup of arbitrary native Properties or body drafts and does not merge two native whole-document drafts. Save, wait for confirmed completion and keep regular vault backups. The separate local-media staging feature also has unfinished-write limits; it is not a general Markdown recovery guarantee. See the [1.3.36 recovery and validation limits](../qa/RELEASE-1.3.36.md).
 
 Large boards deliberately simplify distant previews and limit simultaneously detailed content. The reading desk previews at most 80,000 characters of a note and directs notes larger than 2 MB to the original; writing references preview up to 60,000 characters. Always open the original when you need complete source content. Avoid concurrent external edits to the same board while reorganizing it, and let vault sync settle before reopening a conflicting version.
 

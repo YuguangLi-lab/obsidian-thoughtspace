@@ -27,9 +27,9 @@
   display:flex;
   align-items:center;
   flex:none;
-  gap:2px;
-  min-height:32px;
-  padding:3px 6px;
+  gap:4px;
+  min-height:36px;
+  padding:4px 8px;
   background:transparent;
 }
 .ts-mindmap-node .ts-mindmap-heading {
@@ -37,8 +37,8 @@
   flex:1;
   padding:4px 6px;
   overflow:hidden;
-  color:var(--text-muted);
-  font-size:12px;
+  color:var(--text-normal);
+  font-size:13px;
   font-weight:600;
   line-height:1.4;
   text-overflow:ellipsis;
@@ -78,11 +78,11 @@
 .ts-mindmap-node .ts-mindmap-search {
   position:absolute;
   z-index:5;
-  top:34px;
-  left:6px;
-  right:6px;
+  top:40px;
+  left:8px;
+  right:8px;
   min-height:0;
-  padding:8px 10px;
+  padding:12px;
   overflow:auto;
   max-height:min(210px,calc(100% - 42px));
   border:1px solid var(--background-modifier-border);
@@ -91,14 +91,14 @@
   box-shadow:var(--shadow-s);
 }
 .ts-mindmap-node .ts-mindmap-header input.ts-mindmap-query { flex:1; width:0; min-width:0; height:26px; margin:0 4px; font-size:12px; }
-.ts-mindmap-node .ts-mindmap-search-results { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:3px 8px; padding-top:6px; }
-.ts-mindmap-node .ts-mindmap-search-count { grid-column:1 / -1; color:var(--text-faint); font-size:11px; padding:2px 4px; }
+.ts-mindmap-node .ts-mindmap-search-results { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px 8px; padding-top:8px; }
+.ts-mindmap-node .ts-mindmap-search-count { grid-column:1 / -1; color:var(--text-faint); font-size:12px; padding:0 4px 8px; }
 .ts-mindmap-node .ts-mindmap-shell .ts-mindmap-search-result {
   display:block;
   width:100%;
   height:auto;
-  min-height:28px;
-  padding:5px 7px;
+  min-height:32px;
+  padding:6px 8px;
   overflow:hidden;
   color:var(--text-normal);
   font-size:12px;
@@ -110,8 +110,8 @@
   display:flex;
   align-items:center;
   flex:none;
-  gap:4px;
-  padding:5px 16px 5px 10px;
+  gap:8px;
+  padding:4px 12px 8px;
   overflow:auto;
   border-bottom:1px solid var(--background-modifier-border);
 }
@@ -173,7 +173,7 @@
 .ts-mindmap-node .ts-mindmap-group-heading {
   align-self:stretch;
   padding:0 5px;
-  color:var(--text-faint);
+  color:var(--text-muted);
   font-size:11px;
   line-height:17px;
 }
@@ -243,7 +243,7 @@
   border-top:1px solid var(--background-modifier-border);
   background:var(--background-primary);
   color:var(--text-normal);
-  font:13px/1.65 var(--font-text);
+  font:14px/1.7 var(--font-text);
   overflow-wrap:anywhere;
   user-select:text;
 }
@@ -278,4 +278,15 @@
 @media (forced-colors:active) {
   .ts-mindmap-node .ts-mindmap-item.is-center { outline:2px solid Highlight; outline-offset:-2px; }
   .ts-mindmap-node .ts-mindmap-links path { stroke:CanvasText; opacity:1; }
+}
+
+@media (any-pointer:coarse) {
+ .ts-mindmap-node .ts-mindmap-node-actions :is([data-mindmap-action=open],[data-mindmap-action=menu]),.ts-mindmap-node .ts-mindmap-header > [data-mindmap-action=search] { opacity:1; pointer-events:auto; }
+ .ts-mindmap-node .ts-mindmap-shell button.clickable-icon { min-width:44px; min-height:44px; touch-action:manipulation; }
+ .ts-mindmap-node .ts-mindmap-header { flex-wrap:wrap; }
+ .ts-mindmap-node .ts-mindmap-header input.ts-mindmap-query { min-height:44px; font-size:16px; }
+ .ts-mindmap-node .ts-mindmap-search { top:56px; max-height:calc(100% - 64px); }
+ .ts-mindmap-node .ts-mindmap-pill { flex-wrap:wrap; }
+ .ts-mindmap-node .ts-mindmap-shell button.ts-mindmap-title { flex-basis:100%; max-height:none; }
+ .ts-mindmap-node .ts-mindmap-node-actions { justify-content:flex-end; width:100%; }
 }

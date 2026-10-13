@@ -1,14 +1,14 @@
 # ThoughtSpace Whiteboard
 
-**AI 白板工具第一期（`1.0.0-local`，Node 22）**：只读校验/检查，并排他创建普通、脑图或手写新文件。下载仓库 ZIP 后可直接运行已构建工具，无需安装依赖。见[AI指南](docs/AI-BOARD-GUIDE.zh-CN.md)、[格式规范](docs/AI-BOARD-FORMAT.zh-CN.md)、[自制示例](examples/ai-board/README.zh-CN.md)和[工具入口](tools/README.md)。手写示例需要已公开的 1.3.36-beta.2 插件；`format_only`（退出2）明确保留引用未检查状态。
+**AI 白板工具第一期（`1.0.0-local`，Node 22）**：只读校验/检查，并排他创建普通、脑图或手写新文件。下载仓库 ZIP 后可直接运行已构建工具，无需安装依赖。见[AI指南](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/docs/AI-BOARD-GUIDE.zh-CN.md)、[格式规范](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/docs/AI-BOARD-FORMAT.zh-CN.md)、[自制示例](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/examples/ai-board/README.zh-CN.md)和[工具入口](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/tools/README.md)。手写示例可使用 1.3.36 或此前已公开的 1.3.36-beta.2 插件；`format_only`（退出2）明确保留引用未检查状态。
 
 [English](README.md) · **简体中文**
 
-**预发布 [1.3.36-beta.2](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/tag/1.3.36-beta.2)。** 在“新建白板或脑图…”中选择第三种类型 **手写白板**。此 beta 增加手机/平板布局、触控阅读与导航、resize 草稿保留和保存恢复。操作与边界见[移动适配说明](docs/MOBILE-ADAPTATION.zh-CN.md)、[手写指南](docs/HANDWRITING-IPAD.zh-CN.md)及[本轮验证说明](qa/RELEASE-1.3.36-beta.2.md)。**验收采用隔离桌面测试和移动输入/加载模拟，真实 iOS/Android、Pencil、系统输入法、WKWebView 未测。** 稳定最新版仍为 **1.3.35**；试用请使用上面的 beta 链接。
+**1.3.36** 带来手写编辑与 SVG 导出、阅读位置与引用导航、收集页和白板双向定位，以及统一的手机／平板界面。见[界面指南](docs/UI-REFINEMENT.zh-CN.md)、[收集页](docs/COLLECTION-WORKSPACE.zh-CN.md)、[手写指南](docs/HANDWRITING-IPAD.zh-CN.md)和[验证摘要](qa/RELEASE-1.3.36.md)。正式本地复核已完成；公开构建与资产状态见 [1.3.36 Release](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/tag/1.3.36)。 真实 iOS／Android、Pencil、系统移动输入法及移动 WebView 尚未验证。
 
 在 Obsidian 中收集材料、梳理关系，再编排成文章。笔记、白板和生成的草稿都留在你的仓库中。
 
-**1.3.35 · 桌面端 Obsidian 1.13.7+ · MIT**
+**1.3.36 · Obsidian 1.13.7+ · MIT**
 
 **[安装与更新](docs/USER-GUIDE.zh-CN.md#installation) · [十分钟上手](docs/USER-GUIDE.zh-CN.md#quick-start) · [完整中文教程](docs/USER-GUIDE.zh-CN.md) · [下载最新版](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/latest)**
 
@@ -38,7 +38,9 @@
 
 | 想做什么 | 教程 |
 | --- | --- |
-| 新建普通白板或独立脑图，选择文件格式 | [新建与文件](docs/USER-GUIDE.zh-CN.md#boards) |
+| 新建普通白板、独立脑图或手写白板，选择文件格式 | [新建与文件](docs/USER-GUIDE.zh-CN.md#boards) |
+| 随手记录正文，再定位具体白板引用并返回 | [收集页](docs/COLLECTION-WORKSPACE.zh-CN.md) |
+| 整笔圈选编辑、导出 SVG、核对恢复版本 | [手写白板](docs/HANDWRITING-IPAD.zh-CN.md) |
 | 插入笔记、PDF、图片，编辑卡片与分组 | [白板对象](docs/USER-GUIDE.zh-CN.md#objects) |
 | 理清主题与关系，折叠或展开阅读 | [思维导图与独立脑图](docs/USER-GUIDE.zh-CN.md#mind-maps) |
 | 读原文、做摘录、找待读材料 | [阅读与来源](docs/USER-GUIDE.zh-CN.md#reading) · [搜索与材料清单](docs/USER-GUIDE.zh-CN.md#search) |
@@ -46,22 +48,22 @@
 | 编排结构、固定参考、生成草稿 | [白板写作](docs/USER-GUIDE.zh-CN.md#writing) |
 | 找命令、设置快捷键或解决保存问题 | [操作设置](docs/USER-GUIDE.zh-CN.md#controls) · [常见问题](docs/USER-GUIDE.zh-CN.md#troubleshooting) |
 
-## 新版的常用入口
+## 1.3.36 的常用入口
 
-- **新建白板或脑图…**：在一个小弹窗选择普通/脑图与旧格式/Markdown；成功创建并打开后记住选择。四条明确格式命令仍可用。
-- **原生属性往返**：Markdown 白板使用 Obsidian 原生 Properties 与正文；从普通标题菜单或脑图菜单打开，再从原生页返回同一标签。可绑定 **切换白板与原生属性**。
-- **准确的保存提示**：仅查看、原生保存等待和冲突会说明原因；按实际情况定位原生页或打开已经生成的恢复草稿。
-- **想法与已有笔记**：**整理成笔记** 可生成新笔记，也可保留想法、正文和原关系并关联已有笔记。节点菜单的 **关联已有笔记…** 直达原生文件选择器，再确认左右关联。
-- **继续上次白板**：打开最近有效记录，无有效记录时进入空间总览；恢复已保存状态。
-- **四向关系命令**：独立脑图可绑定添加父节点、子节点、左侧关联节点与右侧关联节点的命令，没有默认快捷键。输入、锁定与保存保护继续生效。
+- **先记录，后整理**：运行「打开收集」，直接输入正文，点击「记录」或按 ⌘／Ctrl + Enter。原生标签、已有附件和白板／分组投递均可选。投递后仍留在创建时间流；不会自动给旧笔记回填属性。
+- **收集与白板往返**：同一笔记有多个引用时选择具体卡片，返回保留筛选和当前会话浏览位置；隐藏记录可临时显露。改名重新核对，过期请求不抢回焦点，主窗口与弹出窗口分别路由。
+- **手写与整笔编辑**：新建时选择「手写白板」，使用套索移动、复制或删除整笔，导出 SVG 到已有笔记并保留回链。SVG 是视觉副本，不提供可编辑笔迹回导。保存失败可只读对照磁盘、本地和恢复版本。
+- **阅读位置与引用导航**：给脑图阅读位置命名、复制链接，逐张查看同源笔记在各白板／分组的引用，并返回原位置。四向关系操作保持在缩放画布外；可选的簇整理保留内部几何。
+- **窄屏与分屏**：白板、媒体、写作、阅读、材料、PDF 与设置按容器和可见键盘区域布局；收集继承当前强调色与密度。编辑器、播放器、草稿及原生输入保持各自归属。
+- **原生属性与保存保护**：Markdown 白板保留 Obsidian Properties 和正文；只读、等待原生保存、冲突与恢复入口继续明确显示。已有笔记关联、继续上次白板和四向关系命令仍保留。
 
-详细步骤见[教程](docs/USER-GUIDE.zh-CN.md)；文件结构、格式另存与属性边界见[单文件 Markdown 白板说明](docs/markdown-boards.zh-CN.md)。
+详细步骤见[完整教程](docs/USER-GUIDE.zh-CN.md)、[移动适配](docs/MOBILE-ADAPTATION.zh-CN.md)及[单文件 Markdown 白板](docs/markdown-boards.zh-CN.md)。独立 [AI 白板 CLI](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/tools/README.md)继续提供只读检查和排他创建；插件不自动调用 AI 服务，本版不新增 npm 或 MCP 发布。
 
 ## 安装或更新
 
 1. 在 Obsidian 的 **设置 → 第三方插件** 搜索 **ThoughtSpace Whiteboard**，安装并启用；社区目录与 GitHub 版本可能不同步。
 2. 手动安装时，从 [Release](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/latest) 下载 **`main.js`、`manifest.json`、`styles.css`**，放进仓库的 `.obsidian/plugins/thoughtspace/`。使用自定义配置目录时，改为对应目录。
-3. 更新只替换这三个运行文件，保留已有 `data.json`；重新加载插件。ZIP 和校验和用于人工下载、解压和核对，Obsidian 不靠它们安装。
+3. 更新只替换这三个运行文件，保留已有 `data.json`、`collection-drafts/` 及其他插件数据；重新加载插件。ZIP 和校验和用于人工下载、解压和核对，Obsidian 不靠它们安装。
 4. 打开命令面板，运行 **新建白板或脑图…**。本例选择普通白板与 Markdown，命名“城市降温研究”。
 
 ## 文件与保存
@@ -70,7 +72,9 @@
 
 笔记卡片引用原文件；原位编辑会保存回该笔记。内置文本与布局保存在当前白板中。动态材料清单属于普通白板完整搜索窗口，保存筛选条件、重开重新计算；常用视角只保存相机位置，二者都不是正文备份。
 
-保存保护不会自动合并两份全文或解除只读。未落盘的原生输入在强制退出时可能丢失。四向命令的组合输入防护已有检查，但完整 IME 可信结束流程未由 CDP 确认；不宣称覆盖全部输入法、主题、插件或通用提速。见[保存与恢复说明](docs/USER-GUIDE.zh-CN.md#troubleshooting)、[1.3.35 验证边界](qa/RELEASE-1.3.35.md)和[安全与数据访问](SECURITY.md)。
+保存保护不会自动合并两份全文或解除只读。收集检查点可在正常重开后恢复已写入的草稿，其他仅存于内存的输入不因此获得同样保证。手写正常 resize 保留未抬笔草稿，但超过采样预算会拒绝新提交：保留原源文件，并清空被拒草稿。未落盘的原生输入在强制退出时可能丢失。
+
+无 Node 移动探针仅覆盖模块执行与插件构造函数，不含 `onload`、移动 WebView、UI 或存储。真实设备、Pencil、系统移动输入法、完整掌拒及设备性能未验。见[保存与恢复说明](docs/USER-GUIDE.zh-CN.md#troubleshooting)、[1.3.36 验证及发行复核](qa/RELEASE-1.3.36.md)和[安全与数据访问](SECURITY.md)。
 
 ## 项目
 

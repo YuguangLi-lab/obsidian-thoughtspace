@@ -33,10 +33,10 @@
 .ts-section-catalog .ts-catalog-open:is(:hover, :focus-visible) .ts-catalog-preview { border-color: color-mix(in srgb, var(--ts-accent) 50%, var(--ts-catalog-line)); background-color: color-mix(in srgb, var(--ts-accent) 4%, var(--background-primary)); }
 .ts-section-catalog .ts-catalog-preview svg { height: 100%; width: 100%; }
 .ts-section-catalog .ts-catalog-preview rect { fill-opacity: .6; stroke: currentColor; stroke-opacity: .45; stroke-width: 1; vector-effect: non-scaling-stroke; }
-.ts-section-catalog .ts-catalog-preview-note { position: absolute; inset-block-end: 6px; inset-inline-end: 7px; padding: 2px 5px; border-radius: 4px; background: var(--background-primary); color: var(--text-muted); font-size: 9px; }
+.ts-section-catalog .ts-catalog-preview-note { position: absolute; inset-block-end: 6px; inset-inline-end: 7px; padding: 2px 5px; border-radius: 4px; background: var(--background-primary); color: var(--text-muted); font-size: 11px; }
 .ts-section-catalog .ts-catalog-info { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 8px; min-width: 0; padding-top: 8px; color: var(--text-muted); font-size: 11px; line-height: 1.6; }
 .ts-section-catalog .ts-catalog-info > span:first-child { color: var(--text-normal); font-weight: 500; white-space: nowrap; }
-.ts-section-catalog .ts-catalog-actions { display: flex; align-items: center; justify-content: flex-end; align-self: end; gap: 4px; min-width: 0; padding-top: 5px; color: var(--text-muted); font-size: 10px; }
+.ts-section-catalog .ts-catalog-actions { display: flex; align-items: center; justify-content: flex-end; align-self: end; gap: 4px; min-width: 0; padding-top: 5px; color: var(--text-muted); font-size: 11px; }
 .ts-section-catalog .ts-catalog-actions > span { max-width: 75px; overflow-wrap: anywhere; }
 .ts-section-catalog .ts-catalog-footer { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 28px; border-top: 1px solid var(--ts-catalog-line); background: var(--background-primary); }
 .ts-section-catalog .ts-catalog-footer > span { color: var(--text-muted); font-size: 11px; line-height: 1.6; }
@@ -60,14 +60,14 @@
   .ts-section-catalog .ts-catalog-toolbar select { flex: 1; max-width: none; height: 30px; }
   .ts-section-catalog .ts-catalog-filters { padding-bottom: 12px; }
   .ts-section-catalog .ts-catalog-list { grid-template-columns: minmax(0, 1fr); gap: 14px; }
-  .ts-section-catalog .ts-catalog-card { position: relative; grid-template-columns: minmax(0, 1fr) 32px; gap: 0 5px; padding-bottom: 14px; }
-  .ts-section-catalog .ts-catalog-open { display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: start; gap: 12px; padding-inline-end: 32px; }
+  .ts-section-catalog .ts-catalog-card { position: relative; grid-template-columns: minmax(0, 1fr) 44px; gap: 0 5px; padding-bottom: 14px; }
+  .ts-section-catalog .ts-catalog-open { display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: start; gap: 12px; padding-inline-end: 44px; }
   .ts-section-catalog .ts-catalog-open > span { font-size: 13px; line-height: 1.6; }
   .ts-section-catalog .ts-catalog-preview { height: 78px; padding: 8px; border-radius: 7px; }
-  .ts-section-catalog .ts-catalog-info { grid-column: 1 / -1; padding-top: 8px; font-size: 10px; }
+  .ts-section-catalog .ts-catalog-info { grid-column: 1 / -1; padding-top: 8px; font-size: 11px; }
   .ts-section-catalog .ts-catalog-actions { position: absolute; inset-inline-end: 0; inset-block-start: 0; padding: 0; }
   .ts-section-catalog .ts-catalog-footer { gap: 8px; padding: 10px 18px; }
-  .ts-section-catalog .ts-catalog-footer > span { font-size: 10px; }
+  .ts-section-catalog .ts-catalog-footer > span { font-size: 11px; }
   .ts-section-catalog .ts-catalog-footer button { font-size: 11px; padding-inline: 7px; }
 }
 @media (max-height: 540px) {
@@ -84,3 +84,19 @@
 }
 @media (prefers-reduced-motion: reduce) { .ts-section-catalog .ts-catalog-preview { transition: none; } }
 @media (prefers-contrast: more) { .ts-ui-modal.ts-section-catalog { --ts-catalog-line: var(--text-muted); } }
+
+/* Touch targets belong to controls; preview geometry remains unchanged. */
+@container ts-section-catalog (max-width:700px){
+ .ts-section-catalog :is(.ts-catalog-toolbar input,.ts-catalog-toolbar select){height:44px;min-height:44px;font-size:16px}
+ .ts-section-catalog :is(.ts-catalog-icon,.ts-catalog-footer button,.ts-catalog-more){min-height:44px}
+ .ts-section-catalog .ts-catalog-icon{width:44px;min-width:44px;height:44px;justify-content:center}
+ .ts-section-catalog .ts-catalog-filters label{min-height:44px}
+ .ts-section-catalog .ts-catalog-actions{min-width:44px}
+}
+@media(any-pointer:coarse){
+ .ts-section-catalog :is(.ts-catalog-toolbar input,.ts-catalog-toolbar select){height:44px;min-height:44px;font-size:16px}
+ .ts-section-catalog :is(.ts-catalog-icon,.ts-catalog-footer button,.ts-catalog-more){min-height:44px}
+ .ts-section-catalog .ts-catalog-icon{width:44px;min-width:44px;height:44px;justify-content:center}
+ .ts-section-catalog .ts-catalog-filters label{min-height:44px}
+ .ts-section-catalog .ts-catalog-actions{min-width:44px}
+}

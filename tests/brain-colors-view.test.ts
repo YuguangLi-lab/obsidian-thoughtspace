@@ -37,7 +37,7 @@ class Setting {
 }
 class Observer {constructor(_callback:()=>void){}observe(){}disconnect(){}}
 const source=readFileSync('src/brain-colors-view.ts','utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
-const deps={...colors,Modal,Setting,MutationObserver:Observer,themeSurface:(el:Element)=>{el.addClass('ts-ui-modal');el.dataset.accent='blue';}};
+const deps={bindBoardModalViewport:()=>()=>{},...colors,Modal,Setting,MutationObserver:Observer,themeSurface:(el:Element)=>{el.addClass('ts-ui-modal');el.dataset.accent='blue';}};
 const View=new Function(...Object.keys(deps),transformSync(source+'\nreturn BrainColorsModal;',{loader:'ts'}).code)(...Object.values(deps));
 const settle=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
 function fixture(){

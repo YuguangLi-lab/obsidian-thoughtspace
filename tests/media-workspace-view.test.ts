@@ -25,7 +25,10 @@ class ObjectURLs {
 class Element {
  children:Element[]=[];dataset:Record<string,string>={};attributes=new Map<string,string>();
  parentElement?:Element;
- ownerDocument:{defaultView:{setTimeout:typeof setTimeout;clearTimeout:typeof clearTimeout;URL:ObjectURLs};activeElement?:Element}={defaultView:{setTimeout,clearTimeout,URL:new ObjectURLs()}};
+ ownerDocument:{defaultView:{setTimeout:typeof setTimeout;clearTimeout:typeof clearTimeout;URL:ObjectURLs;closed:boolean};activeElement?:Element}={defaultView:{setTimeout,clearTimeout,URL:new ObjectURLs(),closed:false}};
+ connected=true;visible=true;
+ get isConnected():boolean{return this.parentElement?this.parentElement.isConnected:this.connected;}
+ getClientRects(){return this.isConnected&&this.visible?[this.rect]:[];}
  className='';textContent='';title='';value='';disabled=false;readOnly=false;hidden=false;scrollTop=0;clientWidth=1024;
  scrollCalls:unknown[]=[];style={values:new Map<string,string>(),setProperty(key:string,value:string){this.values.set(key,value);},getPropertyValue(key:string){return this.values.get(key)||'';}};
  get src(){return this.attributes.get('src')||'';}set src(value:string){this.attributes.set('src',value);}
@@ -38,7 +41,7 @@ class Element {
  getBoundingClientRect(){return this.rect;}
  createDiv(options?:unknown){return this.createEl('div',options);}
  createSpan(options?:unknown){return this.createEl('span',options);}
- createEl(tag:string,options?:unknown){const node=new Element();node.parentElement=this;node.ownerDocument=this.ownerDocument;node.attributes.set('tag',tag);if(typeof options==='string')node.className=options;else if(options&&typeof options==='object'){const o=options as {cls?:string;text?:string;value?:string;type?:string;attr?:Record<string,string>};node.className=o.cls||'';node.textContent=o.text||'';node.value=o.value||'';if(o.type)node.setAttribute('type',o.type);for(const[k,v]of Object.entries(o.attr||{}))node.setAttribute(k,v);}this.children.push(node);return node;}
+ createEl(tag:string,options?:unknown){const node=new Element();node.connected=false;node.parentElement=this;node.ownerDocument=this.ownerDocument;node.attributes.set('tag',tag);if(typeof options==='string')node.className=options;else if(options&&typeof options==='object'){const o=options as {cls?:string;text?:string;value?:string;type?:string;attr?:Record<string,string>};node.className=o.cls||'';node.textContent=o.text||'';node.value=o.value||'';if(o.type)node.setAttribute('type',o.type);for(const[k,v]of Object.entries(o.attr||{}))node.setAttribute(k,v);}this.children.push(node);return node;}
  all():Element[]{return[this,...this.children.flatMap(child=>child.all())];}
  contains(node:Element){return this.all().includes(node);}
  querySelector(selector:string){return this.all().find(node=>selector.startsWith('.')?node.className.split(' ').includes(selector.slice(1)):node.attributes.get('tag')===selector);}
@@ -62,9 +65,20 @@ type Draft={id:string;time:number;text:string;image?:Blob;source?:{path:string;m
 async function frame(hooks:Hooks,image:Blob,time:number){try{hooks.frameCaptureState?.(true,time);await hooks.frame(image,time);}finally{hooks.frameCaptureState?.(false,time);}}
 function deferred<T>(){let resolve!:(value:T)=>void,reject!:(error:unknown)=>void;const promise=new Promise<T>((yes,no)=>{resolve=yes;reject=no;});return{promise,resolve,reject};}
 const notices:string[]=[];
+type ShortcutHandler={modifiers:string[];key:string;func:(event:any)=>unknown};
+class Scope {
+ handlers:ShortcutHandler[]=[];
+ constructor(readonly parent?:Scope){}
+ register(modifiers:string[],key:string,func:ShortcutHandler['func']){const handler={modifiers,key,func};this.handlers.push(handler);return handler;}
+ unregister(handler:ShortcutHandler){this.handlers=this.handlers.filter(value=>value!==handler);}
+ dispatch(event:any):unknown {
+  for(const handler of this.handlers)if(handler.key===event.key&&handler.modifiers.includes('Mod')&&(event.metaKey||event.ctrlKey)&&!event.altKey&&!event.shiftKey&&handler.func(event)===false)return false;
+  return this.parent?.dispatch(event);
+ }
+}
 class ItemView {
  app:any;contentEl=new Element();containerEl=new Element();events:unknown[]=[];
- constructor(leaf:{app:unknown}){this.app=leaf.app;}
+ constructor(readonly leaf:{app:unknown}){this.app=leaf.app;}
  registerEvent(event:unknown){this.events.push(event);}
 }
 class Modal {
@@ -98,14 +112,14 @@ function menuItem(menu:Menu,title:string){const item=menu.items.find(value=>valu
 async function settled(){await new Promise<void>(resolve=>setImmediate(resolve));}
 const compiled=transformSync(readFileSync('src/media-workspace-view.ts','utf8'),{loader:'ts',format:'cjs'}).code;
 const module={exports:{}};
-new Function('require','module','exports',compiled)((name:string)=>name==='obsidian'?{ItemView,Menu,Modal,TFile,setIcon:()=>{},Notice:class{constructor(text:string){notices.push(text);}}}:name==='./workspace-density'?density:name==='./mobile-viewport'?viewport:name==='./media-source'?mediaSource:name==='./media-preview-source'?previewSource:undefined,module,module.exports);
+new Function('require','module','exports',compiled)((name:string)=>name==='obsidian'?{ItemView,Menu,Modal,Scope,TFile,setIcon:()=>{},Notice:class{constructor(text:string){notices.push(text);}}}:name==='./workspace-density'?density:name==='./mobile-viewport'?viewport:name==='./media-source'?mediaSource:name==='./media-preview-source'?previewSource:undefined,module,module.exports);
 const {MediaWorkspaceView} = module.exports as {MediaWorkspaceView:new(leaf:unknown,host:unknown)=>any};
 function fixture(drafts?:MediaDraftStore){
  const a=new TFile('media/A.mp4'),b=new TFile('media/B.mp3'),noteA=new TFile('notes/A.md'),noteB=new TFile('notes/B.md');
  const files=new Map([a,b,noteA,noteB].map(file=>[file.path,file]));
  const events=new Map<string,((...args:any[])=>void)[]>();
  const resourceReads:TFile[]=[];let layoutSaves=0;
- const app={modals:[] as Modal[],failModalOpen:false,vault:{getAbstractFileByPath:(path:string)=>files.get(path),getResourcePath:(file:TFile)=>{resourceReads.push(file);return`app://vault/${encodeURIComponent(file.path)}`;},on:(type:string,fn:(...args:any[])=>void)=>{const list=events.get(type)||[];list.push(fn);events.set(type,list);return{type,fn};}},workspace:{requestSaveLayout:()=>{layoutSaves++;}}};
+ const app={scope:new Scope(),modals:[] as Modal[],failModalOpen:false,vault:{getAbstractFileByPath:(path:string)=>files.get(path),getResourcePath:(file:TFile)=>{resourceReads.push(file);return`app://vault/${encodeURIComponent(file.path)}`;},on:(type:string,fn:(...args:any[])=>void)=>{const list=events.get(type)||[];list.push(fn);events.set(type,list);return{type,fn};}},workspace:{activeLeaf:undefined as unknown,mostRecentLeaf:undefined as unknown,getMostRecentLeaf(){return this.mostRecentLeaf;},getActiveViewOfType(type:new(...args:any[])=>any){const view=(this.activeLeaf as {view?:unknown}|undefined)?.view;return view instanceof type?view:null;},requestSaveLayout:()=>{layoutSaves++;}}};
  const mounts:{file:TFile;hooks:Hooks;disposed:number;plays:number;seeks:number[]}[]=[],saves:{file:TFile;data:Draft}[]=[],opens:unknown[][]=[],sent:{file:TFile;moment?:Moment}[]=[];
  let pick:((file:TFile)=>void)|undefined,pickCount=0;
  let read=(file:TFile):Promise<{note?:TFile;entries:Moment[];warnings?:string[]}>=>(Promise.resolve({entries:[],note:file===a?noteA:noteB}));
@@ -116,9 +130,105 @@ function fixture(drafts?:MediaDraftStore){
   mount:(_el:unknown,file:TFile,hooks:Hooks)=>{const mount={file,hooks,disposed:0,plays:0,seeks:[] as number[]};mounts.push(mount);return{dispose:()=>{mount.disposed++;hooks.frameCaptureState?.(false,0);hooks.state({time:33,rate:1.5,volume:.4});},seek:(time:number)=>{mount.seeks.push(time);hooks.state({...hooks.initialState||{rate:1,volume:1},time} as MediaCardState);},play:()=>mount.plays++,pause:()=>{}};},
   moments:(file:TFile)=>read(file),saveMoment:(file:TFile,data:Draft)=>{saves.push({file,data});return write(file,data);},openNote:async()=>{},sendToBoard:async(file:TFile,moment?:Moment)=>{sent.push({file,moment});},
  };
- const view=()=>new MediaWorkspaceView({app},host);
+ const view=()=>{const leaf:{app:typeof app;view?:unknown}={app};app.workspace.activeLeaf=leaf;app.workspace.mostRecentLeaf=leaf;const instance=new MediaWorkspaceView(leaf,host);leaf.view=instance;return instance;};
  return{a,b,noteA,noteB,app,files,events,host,view,mounts,saves,opens,sent,resourceReads,get layoutSaves(){return layoutSaves;},get pickCount(){return pickCount;},choose:(file:TFile)=>pick?.(file),setRead:(fn:typeof read)=>{read=fn;},setWrite:(fn:typeof write)=>{write=fn;}};
 }
+
+async function shortcutFixture(placement:'tab'|'sidebar'|'window'='tab'){
+ const f=fixture(),v=f.view();let nativeEffects=0;
+ f.app.scope.register(['Mod'],'Enter',event=>{nativeEffects++;event.preventDefault();event.stopPropagation();return false;});
+ await v.onOpen();await v.setState({file:f.a.path,placement});v.input.value='精确保存的草稿';v.input.oninput();v.input.focus();
+ const event=(patch:Record<string,unknown>={})=>({key:'Enter',metaKey:true,ctrlKey:false,altKey:false,shiftKey:false,repeat:false,isComposing:false,keyCode:13,defaultPrevented:false,stopped:false,target:v.input,view:v.contentEl.ownerDocument.defaultView,preventDefault(){this.defaultPrevented=true;},stopPropagation(){this.stopped=true;},...patch});
+ const dispatch=(key:ReturnType<typeof event>)=>{const result=v.scope.dispatch(key);if(!key.stopped)v.input.onkeydown(key);return result;};
+ return{...f,v,event,dispatch,nativeEffects:()=>nativeEffects};
+}
+for(const modifier of ['metaKey','ctrlKey'])test(`media view scope saves ${modifier}+Enter before the host capture shortcut`,async()=>{
+ const f=await shortcutFixture(),key=f.event({metaKey:false,[modifier]:true}),input=f.v.input;
+ assert.equal(f.v.scope.parent,f.app.scope);assert.equal(f.dispatch(key),false);assert.equal(key.defaultPrevented,true);assert.equal(f.nativeEffects(),0);
+ // Force the same event through the DOM fallback too: it must not duplicate.
+ input.onkeydown(key);await settled();assert.equal(f.saves.length,1);assert.equal(f.saves[0].data.text,'精确保存的草稿');assert.equal(f.v.memory.draft,undefined);assert.equal(input.ownerDocument.activeElement,input);await f.v.onClose();
+});
+for(const entry of ['scope','dom'])test(`focused sidebar shortcut saves through ${entry} even when most recent root leaf is the main editor`,async()=>{
+ const f=await shortcutFixture('sidebar'),mainLeaf={name:'main editor'},key=f.event();f.app.workspace.mostRecentLeaf=mainLeaf;
+ assert.equal(f.v.getState().placement,'sidebar');assert.equal(f.app.workspace.activeLeaf,f.v.leaf);assert.equal(f.app.workspace.getMostRecentLeaf(),mainLeaf);
+ if(entry==='scope')assert.equal(f.dispatch(key),false);else f.v.input.onkeydown(key);
+ await settled();assert.equal(key.defaultPrevented,true);assert.equal(f.saves.length,1);assert.equal(f.saves[0].data.text,'精确保存的草稿');assert.equal(f.nativeEffects(),0);await f.v.onClose();
+});
+for(const target of ['document','missing'])test(`media scope accepts a ${target} event target when its own textarea has focus`,async()=>{
+ const f=await shortcutFixture(),doc=f.v.contentEl.ownerDocument;doc.nodeType=9;
+ f.dispatch(f.event({target:target==='document'?doc:null}));await settled();assert.equal(f.saves.length,1);assert.equal(f.nativeEffects(),0);await f.v.onClose();
+});
+test('media DOM fallback saves when the host has not dispatched the scope',async()=>{
+ const f=await shortcutFixture(),key=f.event();f.v.input.onkeydown(key);assert.equal(key.defaultPrevented,true);assert.equal(key.stopped,true);await settled();assert.equal(f.saves.length,1);await f.v.onClose();
+});
+for(const reason of ['save-button','timeline-search','other-textarea','other-leaf','foreign-target','foreign-event-window','closed-window','hidden-input','detached-input','event-ime','legacy-ime','view-ime','prevented','alt','shift','plain-enter'])test(`media scope leaves ${reason} untouched`,async()=>{
+ const f=await shortcutFixture(),v=f.v,key=f.event(),draft=v.memory.draft,handler=v.scope.handlers[0];
+ if(reason==='save-button')v.saveButton.focus();if(reason==='timeline-search')v.searchInput.focus();if(reason==='other-textarea')v.contentEl.createEl('textarea').focus();
+ if(reason==='other-leaf')f.app.workspace.activeLeaf={};if(reason==='foreign-target')key.target=new Element();if(reason==='foreign-event-window')key.view=new Element().ownerDocument.defaultView;
+ if(reason==='closed-window')v.contentEl.ownerDocument.defaultView.closed=true;if(reason==='hidden-input')v.input.visible=false;if(reason==='detached-input')v.input.remove();
+ if(reason==='event-ime')key.isComposing=true;if(reason==='legacy-ime')key.keyCode=229;if(reason==='view-ime')v.composing=true;if(reason==='prevented')key.defaultPrevented=true;
+ if(reason==='alt')key.altKey=true;if(reason==='shift')key.shiftKey=true;if(reason==='plain-enter')key.metaKey=false;
+ assert.equal(handler.func(key),undefined);assert.equal(key.stopped,false);assert.equal(key.defaultPrevented,reason==='prevented');await settled();assert.equal(f.saves.length,0);assert.equal(v.memory.draft,draft);assert.equal(draft.text,'精确保存的草稿');await v.onClose();
+});
+test('pending save and held media shortcut remain consumed without a second write',async()=>{
+ const f=await shortcutFixture(),gate=deferred<{note:TFile}>();f.setWrite(()=>gate.promise);
+ f.dispatch(f.event());await settled();assert.equal(f.saves.length,1);assert.equal(f.v.input.readOnly,true);
+ for(const repeat of [false,true]){const key=f.event({repeat});assert.equal(f.dispatch(key),false);assert.equal(key.defaultPrevented,true);}
+ await settled();assert.equal(f.saves.length,1);assert.equal(f.nativeEffects(),0);gate.resolve({note:f.noteA});await settled();await f.v.onClose();
+});
+test('media capture and other-editor guards consume the key but retain the draft',async()=>{
+ for(const blocked of ['capture','editor']){
+  const f=await shortcutFixture(),draft=f.v.memory.draft;
+  if(blocked==='capture')f.v.memory.capturePending=Symbol('capture');else f.v.memory.editor=Symbol('another editor');
+  f.v.paintComposer();const key=f.event();assert.equal(f.dispatch(key),false);await settled();assert.equal(key.defaultPrevented,true);assert.equal(f.nativeEffects(),0);assert.equal(f.saves.length,0);assert.equal(f.v.memory.draft,draft);
+  f.v.memory.capturePending=undefined;await f.v.onClose();
+ }
+});
+test('failed media shortcut save retains the exact snapshot and permits an explicit locked retry',async()=>{
+ const f=await shortcutFixture(),image=new Blob(['frame'],{type:'image/png'});f.v.memory.draft.image=image;f.v.memory.draft.time=8.75;const draft=f.v.memory.draft;
+ f.setWrite(async()=>{throw Error('disk failure');});const failedEvent=f.event();f.dispatch(failedEvent);await settled();assert.equal(f.saves.length,1);assert.equal(draft.locked,true);assert.equal(f.v.memory.draft,draft);assert.equal(draft.image,image);assert.equal(f.v.input.value,'精确保存的草稿');assert.match(f.v.status.textContent,/文字、截图与记录时间已保留/);
+ f.v.input.onkeydown(failedEvent);await settled();assert.equal(f.saves.length,1,'a delayed DOM fallback cannot retry the failed scope event');
+ const first=f.saves[0].data;f.setWrite(async()=>({note:f.noteA}));f.dispatch(f.event());await settled();assert.equal(f.saves.length,2);assert.deepEqual(f.saves[1].data,first);assert.equal(f.nativeEffects(),0);assert.equal(f.v.memory.draft,undefined);await f.v.onClose();
+});
+test('closing unregisters the media scope and retained native and DOM callbacks cannot save',async()=>{
+ const f=await shortcutFixture(),handler=f.v.scope.handlers[0],input=f.v.input;await f.v.onOpen();assert.equal(f.v.scope.handlers.length,1);
+ await f.v.onClose();assert.equal(f.v.scope.handlers.length,0);const key=f.event();assert.equal(handler.func(key),undefined);input.onkeydown(key);await settled();assert.equal(f.saves.length,0);assert.equal(key.defaultPrevented,false);
+ await f.v.onOpen();assert.equal(f.v.scope.handlers.length,0,'closed views do not reinstall shortcut ownership');
+});
+test('a retired textarea callback cannot save a later media source or draft',async()=>{
+ const f=await shortcutFixture(),oldInput=f.v.input;f.v.clearDraft();await f.v.setState({file:f.b.path});f.v.input.value='新的媒体草稿';f.v.input.oninput();f.v.input.focus();const next=f.v.memory.draft,key=f.event();
+ oldInput.onkeydown(key);await settled();assert.equal(key.defaultPrevented,false);assert.equal(f.saves.length,0);assert.equal(f.v.memory.draft,next);
+ f.dispatch(f.event());await settled();assert.equal(f.saves.length,1);assert.equal(f.saves[0].file,f.b);assert.equal(f.saves[0].data.text,'新的媒体草稿');await f.v.onClose();
+});
+for(const composing of [false,true])test(`late editor events after close cannot reclaim a draft or lock its reopened editor (composing=${composing})`,async()=>{
+ const f=await shortcutFixture(),old=f.v,input=old.input;
+ if(composing){input.dispatch('compositionstart');input.value='关闭前尚在合成的正文';}
+ await old.onClose();const draft=old.memory.draft,snapshot=structuredClone(draft),state=old.getState();assert.equal(old.memory.editor,undefined);
+ input.value='迟到的旧编辑器内容';input.dispatch('compositionend');input.oninput();input.dispatch('compositionstart');input.onfocus();
+ assert.equal(old.memory.editor,undefined,'closed editor must never regain shared draft ownership');assert.deepEqual(draft,snapshot);
+ const reopened=f.view();await reopened.onOpen();await reopened.setState(state);assert.equal(reopened.memory.draft,draft);assert.equal(reopened.input.value,snapshot.text);assert.equal(reopened.input.readOnly,false);
+ reopened.input.focus();reopened.input.value=snapshot.text+' · 继续编辑';reopened.input.oninput();const currentEditor=reopened.memory.editor;
+ input.dispatch('compositionend');input.oninput();input.onfocus();input.onblur();assert.equal(reopened.memory.editor,currentEditor);assert.equal(reopened.input.readOnly,false);assert.equal(draft.text,snapshot.text+' · 继续编辑');assert.equal(f.saves.length,0);await reopened.onClose();
+});
+test('retired input and composition callbacks cannot claim the next media source',async()=>{
+ const f=await shortcutFixture(),input=f.v.input;f.v.clearDraft();await f.v.setState({file:f.b.path});const current=f.v.input;
+ input.value='旧媒体迟到内容';input.dispatch('compositionstart');input.dispatch('compositionend');input.oninput();input.onfocus();input.onblur();
+ assert.equal(f.v.memory.editor,undefined);assert.equal(f.v.memory.draft,undefined);assert.equal(f.v.composing,false);assert.equal(current.value,'');assert.equal(current.readOnly,false);assert.equal(f.saves.length,0);await f.v.onClose();
+});
+test('separate owner windows cannot dispatch one another’s focused media draft',async()=>{
+ const a=await shortcutFixture(),b=await shortcutFixture(),key=b.event();assert.equal(a.v.scope.handlers[0].func(key),undefined);assert.equal(key.defaultPrevented,false);
+ b.dispatch(key);await settled();assert.equal(a.saves.length,0);assert.equal(b.saves.length,1);assert.equal(a.v.input.value,'精确保存的草稿');await a.v.onClose();await b.v.onClose();
+});
+test('media shortcut consumes pending recovery without activating or writing the stored draft',async()=>{
+ const disk=localDrafts();disk.rows.set('recovery',{version:1,id:'recovery',text:'尚未选择恢复的内容',time:12,updatedAt:1,source:{path:'media/A.mp4',mtime:100,size:1000}});const store=disk.create();await store.load();
+ const f=fixture(store),v=f.view();await v.onOpen();await v.setState({file:f.a.path});v.input.focus();assert.equal(v.input.readOnly,true);assert.equal(v.memory.draft,undefined);
+ const key={key:'Enter',metaKey:true,defaultPrevented:false,target:v.input,view:v.contentEl.ownerDocument.defaultView,preventDefault(){this.defaultPrevented=true;},stopPropagation(){}};
+ assert.equal(v.scope.handlers[0].func(key),false);await settled();assert.equal(key.defaultPrevented,true);assert.equal(f.saves.length,0);assert.equal(store.pending()[0].text,'尚未选择恢复的内容');assert.equal(v.memory.draft,undefined);await v.onClose();
+});
+test('media shortcut preserves a source-changed draft and its specific save guidance',async()=>{
+ const f=await shortcutFixture(),draft=f.v.memory.draft;f.a.stat.mtime++;
+ const key=f.event();assert.equal(f.dispatch(key),false);await settled();assert.equal(key.defaultPrevented,true);assert.equal(f.saves.length,0);assert.equal(f.v.memory.draft,draft);assert.match(f.v.status.textContent,/媒体来源已更新，摘录未保存/);assert.equal(f.nativeEffects(),0);await f.v.onClose();
+});
 
 test('changing workspace accent and density preserves a live decoder and unsaved draft',async()=>{
  const f=fixture();let accent='blue',densityValue='compact';Object.assign(f.host,{accent:()=>accent,density:()=>densityValue});

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
+import {bindBoardModalViewport} from '../src/board-modal-viewport';
 import {cleanPluginSettings,type ThoughtSpacePreferences} from '../src/plugin-settings';
 import {exportSettingsProfile,parseSettingsProfile,resolveSettingsLanguage,settingsCategoryDefaults} from '../src/settings-preferences';
 
@@ -27,11 +28,21 @@ const tick=()=>new Promise<void>(resolve=>setImmediate(resolve));
 const source=readFileSync('src/settings-view.ts','utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
 const compiled=transformSync(source+'\nreturn ThoughtSpaceSettings;',{loader:'ts'}).code;
 
+function dialogViewportFixture(){
+ const listeners=new Map<string,Set<()=>void>>(),frames=new Map<number,()=>void>();let id=0;
+ const emitter=(prefix:string)=>({addEventListener:(type:string,fn:()=>void)=>{const key=prefix+type;if(!listeners.has(key))listeners.set(key,new Set());listeners.get(key)!.add(fn);},removeEventListener:(type:string,fn:()=>void)=>listeners.get(prefix+type)?.delete(fn)});
+ const viewport={...emitter('viewport:'),height:800,offsetTop:0,scale:1},win={...emitter('window:'),visualViewport:viewport,innerHeight:800,requestAnimationFrame:(fn:()=>void)=>{frames.set(++id,fn);return id;},cancelAnimationFrame:(key:number)=>frames.delete(key)};
+ const doc={...emitter('doc:'),defaultView:win,activeElement:undefined},values=new Map<string,string>(),attrs=new Map<string,string>(),classes=new Set<string>();
+ const root={ownerDocument:doc,dataset:{},classList:{contains:(name:string)=>classes.has(name),add:(name:string)=>classes.add(name),remove:(name:string)=>classes.delete(name)},style:{getPropertyValue:(key:string)=>values.get(key)||'',setProperty:(key:string,value:string)=>values.set(key,value),removeProperty:(key:string)=>values.delete(key)},getAttribute:(key:string)=>attrs.get(key)??null,setAttribute:(key:string,value:string)=>attrs.set(key,value),removeAttribute:(key:string)=>attrs.delete(key),contains:()=>false,getBoundingClientRect:()=>({top:parseFloat(values.get('--ts-modal-visible-top')||'0'),width:390})};
+ const event=(name:string)=>{for(const fn of listeners.get(name)||[])fn();},flush=()=>{const tasks=[...frames.values()];frames.clear();for(const fn of tasks)fn();};
+ return{root,viewport,values,classes,frames,listeners,event,flush};
+}
+
 function fixture(raw:unknown={}){
  const modals:any[]=[],delegated:{prefs:ThoughtSpacePreferences;persist:()=>Promise<void>}[]=[];
- class Modal {modalEl=new Element('DIV');titleEl=this.modalEl.createEl('h2');contentEl=this.modalEl.createDiv();closeCount=0;onOpen(){}onClose(){}constructor(readonly app:unknown){modals.push(this);}open(){this.onOpen();}close(){this.closeCount++;this.onClose();}}
+ class Modal {viewportState=dialogViewportFixture();containerEl=this.viewportState.root;modalEl=new Element('DIV');titleEl=this.modalEl.createEl('h2');contentEl=this.modalEl.createDiv();closeCount=0;onOpen(){}onClose(){}constructor(readonly app:unknown){modals.push(this);}open(){this.onOpen();}close(){this.closeCount++;this.onClose();}}
  class PluginSettingTab {containerEl=new Element('DIV');constructor(readonly app:unknown){}hide(){}}
- const deps={Modal,PluginSettingTab,Setting,Notice:class{},setIcon:()=>{},getLanguage:()=> 'en',themeSurface:()=>{},bindMobileViewport:(root:Element)=>{root.bindings++;return()=>{root.bindings--;};},resolveSettingsLanguage,settingsCategoryDefaults,exportSettingsProfile,parseSettingsProfile,boardPreferenceControls:(_el:unknown,prefs:ThoughtSpacePreferences,persist:()=>Promise<void>)=>delegated.push({prefs,persist}),mousePreferenceControls:(_el:unknown,prefs:ThoughtSpacePreferences,persist:()=>Promise<void>)=>delegated.push({prefs,persist}),hostSettings:()=>undefined,imageHostApi:()=>undefined,validateFolders:()=>({})};
+ const deps={Modal,PluginSettingTab,bindBoardModalViewport,Setting,Notice:class{},setIcon:()=>{},getLanguage:()=> 'en',themeSurface:()=>{},bindMobileViewport:(root:Element)=>{root.bindings++;return()=>{root.bindings--;};},resolveSettingsLanguage,settingsCategoryDefaults,exportSettingsProfile,parseSettingsProfile,boardPreferenceControls:(_el:unknown,prefs:ThoughtSpacePreferences,persist:()=>Promise<void>)=>delegated.push({prefs,persist}),mousePreferenceControls:(_el:unknown,prefs:ThoughtSpacePreferences,persist:()=>Promise<void>)=>delegated.push({prefs,persist}),hostSettings:()=>undefined,imageHostApi:()=>undefined,validateFolders:()=>({})};
  const ThoughtSpaceSettings=new Function(...Object.keys(deps),compiled)(...Object.values(deps));
  const saves:ThoughtSpacePreferences[]=[],pending:ReturnType<typeof deferred<void>>[]=[];
  let disk=cleanPluginSettings(raw),rendered=cleanPluginSettings(raw),refreshes=0,rebuilds=0,displays=0,reports=0;
@@ -107,9 +118,18 @@ function profileFixture(){
 }
 const json=(accent:string)=>JSON.stringify({format:'thoughtspace-preferences',version:1,preferences:{accent}});
 
-test('profile and confirmation modals release their viewport bindings on cancellation',()=>{
- const f=profileFixture();assert.equal(f.modal.modalEl.bindings,1);f.modal.close();f.modal.close();assert.equal(f.modal.modalEl.bindings,0);
- f.tab.confirmFiling(false);const confirm=f.modals.at(-1);assert.equal(confirm.modalEl.bindings,1);confirm.close();confirm.close();assert.equal(confirm.modalEl.bindings,0);
+test('profile and confirmation bind the centering container and release real viewport listeners on close',()=>{
+ const f=profileFixture();f.tab.confirmFiling(false);
+ for(const modal of [f.modal,f.modals.at(-1)]){
+  const v=modal.viewportState as ReturnType<typeof dialogViewportFixture>;
+  assert.equal(v.classes.has('ts-board-modal-viewport'),true);assert.equal(v.values.get('--ts-visible-height'),'800px');
+  v.viewport.height=300;v.viewport.offsetTop=80;v.event('viewport:resize');v.flush();
+  assert.equal(v.values.get('--ts-visible-height'),'300px');assert.equal(v.values.get('--ts-modal-visible-top'),'80px');
+  for(const offset of [0,100,0]){v.viewport.offsetTop=offset;v.event('viewport:scroll');v.flush();assert.equal(v.values.get('--ts-visible-height'),'300px');}
+  v.event('viewport:resize');assert.equal(v.frames.size,2);modal.close();modal.close();
+  assert.equal(v.frames.size,0);assert.equal([...v.listeners.values()].reduce((count,set)=>count+set.size,0),0);
+  assert.equal(v.classes.has('ts-board-modal-viewport'),false);assert.equal(v.values.size,0);assert.equal(modal.modalEl.bindings,0);
+ }
 });
 
 test('profile edits and oversized or unreadable file selections revoke an earlier validation immediately',async()=>{

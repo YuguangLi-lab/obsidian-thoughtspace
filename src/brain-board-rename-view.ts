@@ -1,3 +1,4 @@
+import {bindBoardModalViewport} from './board-modal-viewport';
 import {Modal,type App} from 'obsidian';
 
 export interface BrainNodeRenameHost {
@@ -6,12 +7,13 @@ export interface BrainNodeRenameHost {
 }
 /** Keep failed names editable and visible; closing invalidates pending writes. */
 export class BrainNodeRenameModal extends Modal {
+ private unbindViewport?:()=>void;
  private alive=false;private busy=false;private frame=0;
  constructor(app:App,private readonly host:BrainNodeRenameHost){super(app);}
  onOpen(){
   const doc=this.host.document;if(!this.host.current()||!doc.defaultView||doc.defaultView.closed){this.close();return;}
   if(this.containerEl.ownerDocument!==doc)doc.body.appendChild(this.containerEl);
-  this.alive=true;this.modalEl.addClass('ts-brain-rename-modal');this.host.decorate?.(this.modalEl);
+  this.alive=true;this.unbindViewport=bindBoardModalViewport(this.containerEl);this.modalEl.addClass('ts-brain-rename-modal');this.host.decorate?.(this.modalEl);
   this.contentEl.createEl('h2',{text:this.host.title});this.contentEl.createEl('p',{text:this.host.description,cls:'setting-item-description'});
   this.contentEl.createEl('label',{cls:'ts-brain-field-label',text:'新名称',attr:{for:'ts-brain-rename-name'}});
   const input=this.contentEl.createEl('input',{type:'text',value:this.host.name,cls:'ts-wide',attr:{id:'ts-brain-rename-name','aria-label':'新名称',maxlength:'160'}});
@@ -20,9 +22,9 @@ export class BrainNodeRenameModal extends Modal {
   const live=()=>this.alive&&this.containerEl.isConnected&&this.containerEl.ownerDocument===doc&&!doc.defaultView?.closed;
   const render=()=>{save.disabled=this.busy||!live()||!this.host.current()||!input.value.trim();input.disabled=this.busy||!!this.host.retrying?.();if(this.host.retrying?.())save.setText('重试保存');};
   cancel.onclick=()=>this.close();input.oninput=render;
-  save.onclick=()=>{if(save.disabled||this.busy||!live()||!this.host.current())return;this.busy=true;status.setText('正在重命名…');render();void this.host.commit(input.value.trim(),live).then(()=>{if(live())this.close();}).catch(error=>{if(live()){status.setText(error instanceof Error?error.message:String(error));save.setText('重试');}}).finally(()=>{this.busy=false;if(live())render();});};
+  save.onclick=()=>{if(save.disabled||this.busy||!live()||!this.host.current())return;this.busy=true;status.setAttribute('data-state','busy');status.setText('正在重命名…');render();void this.host.commit(input.value.trim(),live).then(()=>{if(live())this.close();}).catch(error=>{if(live()){status.setAttribute('data-state','error');status.setText(error instanceof Error?error.message:String(error));save.setText('重试');}}).finally(()=>{this.busy=false;if(live())render();});};
   input.onkeydown=event=>{if(event.key==='Enter'&&!event.isComposing){event.preventDefault();save.click();}};
   render();input.focus();input.select();this.frame=doc.defaultView.requestAnimationFrame(()=>{this.frame=0;if(live()){input.focus();input.select();}});
  }
- onClose(){this.alive=false;if(this.frame)this.host.document.defaultView?.cancelAnimationFrame(this.frame);this.frame=0;this.contentEl.empty();}
+ onClose(){this.unbindViewport?.();this.unbindViewport=undefined;this.alive=false;if(this.frame)this.host.document.defaultView?.cancelAnimationFrame(this.frame);this.frame=0;this.contentEl.empty();}
 }

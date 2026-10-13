@@ -3,9 +3,9 @@
 .ts-root {
   --ts-object-line: color-mix(in srgb, var(--background-modifier-border) 88%, var(--text-muted) 12%);
   --ts-object-active: color-mix(in srgb, var(--ts-accent) 6%, var(--background-primary));
-  --ts-object-shadow: 0 1px 3px #0000000a, 0 4px 14px #0000000b;
+  --ts-object-shadow: 0 2px 8px #0000000d;
 }
-.theme-dark .ts-root { --ts-object-shadow: 0 1px 3px #00000028, 0 4px 14px #00000022; }
+.theme-dark .ts-root { --ts-object-shadow: 0 2px 8px #00000030; }
 
 /* A single quiet outline follows the object without covering its document. */
 .ts-root .ts-node:is(.is-selected,.is-inline-editing) {
