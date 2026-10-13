@@ -191,3 +191,23 @@
   .ts-ui-modal.ts-board-search .ts-board-search-row.is-active { border-color: var(--ts-accent); }
   .ts-ui-modal.ts-board-search .ts-board-search-excerpt { opacity: 1; }
 }
+
+/* Override fixed desktop control heights as well as their flex basis. */
+@container ts-search-panel (max-width:660px){
+ .ts-ui-modal.ts-board-search .ts-board-search-bar > input[type=search],
+ .ts-ui-modal.ts-board-search .ts-board-search-name > input,
+ .ts-ui-modal.ts-board-search .ts-board-search-review {height:44px;min-height:44px;font-size:16px}
+ .ts-ui-modal.ts-board-search .modal-content .ts-board-search-filter > select {height:44px;min-height:44px;flex-basis:44px;font-size:16px}
+ .ts-ui-modal.ts-board-search .ts-board-search-bar > button {width:44px;min-width:44px;height:44px;min-height:44px}
+ .ts-ui-modal.ts-board-search .ts-board-search-row-actions > button {width:auto;min-width:44px;height:44px;min-height:44px}
+ .ts-ui-modal.ts-board-search :is(.ts-board-search-saved > summary,.ts-board-search-saved-actions > button,.ts-board-search-fulltext) {min-height:44px}
+}
+@media(any-pointer:coarse){
+ .ts-ui-modal.ts-board-search .ts-board-search-bar > input[type=search],
+ .ts-ui-modal.ts-board-search .ts-board-search-name > input,
+ .ts-ui-modal.ts-board-search .ts-board-search-review {height:44px;min-height:44px;font-size:16px}
+ .ts-ui-modal.ts-board-search .modal-content .ts-board-search-filter > select {height:44px;min-height:44px;flex-basis:44px;font-size:16px}
+ .ts-ui-modal.ts-board-search .ts-board-search-bar > button {width:44px;min-width:44px;height:44px;min-height:44px}
+ .ts-ui-modal.ts-board-search .ts-board-search-row-actions > button {width:auto;min-width:44px;height:44px;min-height:44px}
+ .ts-ui-modal.ts-board-search :is(.ts-board-search-saved > summary,.ts-board-search-saved-actions > button,.ts-board-search-fulltext) {min-height:44px}
+}

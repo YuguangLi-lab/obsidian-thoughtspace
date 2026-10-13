@@ -15,8 +15,11 @@ function value(){const board=emptyBoard();board.version=3;board.nodes=[{id:'hit'
 function fixture(){
  const source=readFileSync('src/main.ts','utf8'),begin=source.indexOf('  private setupBoardSearch()'),end=source.indexOf('  async ensureDock(',begin),readBegin=source.indexOf('  async readBoard(file: TFile)'),readEnd=source.indexOf('\n  async boardGraph(',readBegin),classification=source.slice(source.indexOf('function isBoardFile('),source.indexOf('\nconst report ='));
  assert.ok(begin>0&&end>begin&&readBegin>0&&readEnd>readBegin,'actual main search and source validation methods must be available');
- class TFile{extension:string;constructor(public path:string){this.extension=path.split('.').pop()!;}}
+ let fileClock=0;
+ class TFile{extension:string;stat:{mtime:number};constructor(public path:string){this.extension=path.split('.').pop()!;this.stat={mtime:++fileClock};}}
  const files=new Map<string,TFile>(),content=new Map<string,string>(),tasks:Promise<unknown>[]=[],errors:unknown[]=[],notices:string[]=[],warnings:unknown[][]=[],opened:string[]=[],revealed:string[]=[],states:unknown[]=[],writes:string[]=[],removed:string[]=[],reads:string[]=[],cleanup:(()=>void)[]=[],vaultEvents=new Map<string,Function>(),workspaceEvents=new Map<string,Function>(),ready:Function[]=[];
+ const missingCache=new Map<TFile,null|undefined>(),metadataEvents=new Map<string,Function>(),timers=new Set<number>();
+ const subscribe=(events:Map<string,Function>,name:string,fn:Function)=>{events.set(name,fn);return{dispose:()=>{if(events.get(name)===fn)events.delete(name);}};};
  let frames=0,timerId=0,active:any,plugin:any,readHook:((file:TFile)=>Promise<string>)|undefined;
  const add=(path:string,text:string)=>{const file=new TFile(path);files.set(path,file);content.set(path,text);return file;};
  const disk=(file:TFile)=>{const text=content.get(file.path);if(text===undefined)throw Error('File disappeared');return text;};
@@ -25,21 +28,23 @@ function fixture(){
  const leaf:any={view:null,async setViewState(state:{type:string;state:{file:string;tsSearchRedirect?:boolean}}){states.push(state);opened.push(state.state.file);const file=files.get(state.state.file);assert.ok(file);active=new BoardView(file,{board:await plugin.readBoard(file)});leaf.view=active;}};
  class MarkdownView{leaf=leaf;draft:string;constructor(public file:TFile,public line:number){this.draft=disk(file);}editor={getValue:()=>this.draft,getCursor:()=>({line:this.line})};getEphemeralState(){return{line:this.line};}}
  const app={
-  metadataCache:{getFileCache:(file:TFile)=>({frontmatter:frontmatter(file)})},
-  workspace:{on:(name:string,fn:Function)=>{workspaceEvents.set(name,fn);return{};},onLayoutReady:(fn:Function)=>ready.push(fn),getActiveFile:()=>active?.file,getActiveViewOfType:(type:any)=>active instanceof type?active:null},
-  vault:{getName:()=>vaultName,getAbstractFileByPath:(path:string)=>files.get(path),getFiles:()=>[...files.values()],on:(name:string,fn:Function)=>{vaultEvents.set(name,fn);return{};},read:async(file:TFile)=>{reads.push(file.path);return disk(file);},cachedRead:async(file:TFile)=>{reads.push(file.path);return readHook?readHook(file):disk(file);},process:async(file:TFile,fn:(text:string)=>string)=>{content.set(file.path,fn(disk(file)));writes.push(file.path);},create:async(path:string,text:string)=>{assert.equal(files.has(path),false);const file=add(path,text);writes.push(path);return file;}},
+  metadataCache:{getFileCache:(file:TFile)=>missingCache.has(file)?missingCache.get(file):{frontmatter:frontmatter(file)},on:(name:string,fn:Function)=>subscribe(metadataEvents,name,fn)},
+  workspace:{on:(name:string,fn:Function)=>subscribe(workspaceEvents,name,fn),onLayoutReady:(fn:Function)=>ready.push(fn),getActiveFile:()=>active?.file,getActiveViewOfType:(type:any)=>active instanceof type?active:null},
+  vault:{getName:()=>vaultName,getAbstractFileByPath:(path:string)=>files.get(path),getFiles:()=>[...files.values()],on:(name:string,fn:Function)=>subscribe(vaultEvents,name,fn),read:async(file:TFile)=>{reads.push(file.path);return disk(file);},cachedRead:async(file:TFile)=>{reads.push(file.path);return readHook?readHook(file):disk(file);},process:async(file:TFile,fn:(text:string)=>string)=>{content.set(file.path,fn(disk(file)));file.stat.mtime=++fileClock;writes.push(file.path);},create:async(path:string,text:string)=>{assert.equal(files.has(path),false);const file=add(path,text);writes.push(path);return file;}},
   fileManager:{trashFile:async(file:TFile)=>{removed.push(file.path);files.delete(file.path);content.delete(file.path);}}
  };
  const act=(run:()=>unknown)=>{tasks.push(Promise.resolve().then(run).catch(error=>{errors.push(error);}));};
- const deps={...search,readBoardDocument,isMarkdownBoardFrontmatter,isBoardPath,isWorkspaceFile,parseYaml,clone,TFile,MarkdownView,BoardView,EXT:'thoughtspace',VIEW:'thoughtspace-board',window:{setTimeout:()=>++timerId,clearTimeout:()=>{},requestAnimationFrame:(fn:()=>void)=>{frames++;fn();return frames;}},Notice:class{constructor(message:string){notices.push(message);}},console:{warn:(...args:unknown[])=>warnings.push(args)},act};
+ const deps={...search,readBoardDocument,isMarkdownBoardFrontmatter,isBoardPath,isWorkspaceFile,parseYaml,clone,TFile,MarkdownView,BoardView,EXT:'thoughtspace',VIEW:'thoughtspace-board',window:{setTimeout:()=>{timers.add(++timerId);return timerId;},clearTimeout:(id:number)=>timers.delete(id),requestAnimationFrame:(fn:()=>void)=>{frames++;fn();return frames;}},Notice:class{constructor(message:string){notices.push(message);}},console:{warn:(...args:unknown[])=>warnings.push(args)},act};
  const Plugin=new Function(...Object.keys(deps),transformSync(classification+'\nclass Plugin{'+source.slice(readBegin,readEnd)+source.slice(begin,end)+'};return Plugin',{loader:'ts'}).code)(...Object.values(deps));
- plugin=new Plugin();Object.assign(plugin,{app,settings:{},sessions:new Map(),searchNavigationSequence:0,searchNavigationStopped:false,registerEvent(){},register(fn:()=>void){cleanup.push(fn);},addCommand(){},folder:async()=>{}});plugin.setupBoardSearch();
+ plugin=new Plugin();Object.assign(plugin,{app,settings:{},sessions:new Map(),searchNavigationSequence:0,searchNavigationStopped:false,registerEvent(ref:{dispose:()=>void}){cleanup.push(ref.dispose);},register(fn:()=>void){cleanup.push(fn);},addCommand(){},folder:async()=>{}});plugin.setupBoardSearch();
  const setActive=(file:TFile,line=1)=>{active=new MarkdownView(file,line);leaf.view=active;return active as MarkdownView;};
  async function settle(){let complete=0;while(complete<tasks.length){const batch=tasks.slice(complete);complete=tasks.length;await Promise.all(batch);}await plugin.searchSync.flush();}
  async function click(file:TFile,line=1){setActive(file,line);workspaceEvents.get('file-open')?.(file);await settle();}
  async function emit(name:string,file:TFile,old?:string){vaultEvents.get(name)?.(file,old);await plugin.searchSync.flush();await settle();}
+ function notifyMetadataChanged(file:TFile){missingCache.delete(file);metadataEvents.get('changed')?.(file);}
+ async function metadataChanged(file:TFile){notifyMetadataChanged(file);await plugin.searchSync.flush();await settle();}
  function rename(file:TFile,path:string){const old=file.path,text=disk(file);files.delete(old);content.delete(old);file.path=path;file.extension=path.split('.').pop()!;files.set(path,file);content.set(path,text);return old;}
- return {plugin,add,files,content,errors,notices,warnings,opened,revealed,states,writes,removed,reads,cleanup,ready,setActive,click,emit,settle,rename,frames:()=>frames,leave:()=>{active=undefined;},setReadHook:(hook:((file:TFile)=>Promise<string>)|undefined)=>{readHook=hook;},delete:(file:TFile)=>{files.delete(file.path);content.delete(file.path);}};
+ return {plugin,add,files,content,errors,notices,warnings,opened,revealed,states,writes,removed,reads,cleanup,ready,setActive,click,emit,metadataChanged,notifyMetadataChanged,settle,rename,metadataSubscribed:()=>metadataEvents.has('changed'),timerCount:()=>timers.size,frames:()=>frames,leave:()=>{active=undefined;},setMissingCache:(file:TFile,cache:null|undefined)=>{missingCache.set(file,cache);},setReadHook:(hook:((file:TFile)=>Promise<string>)|undefined)=>{readHook=hook;},delete:(file:TFile)=>{files.delete(file.path);content.delete(file.path);}};
 }
 function withBoard(board=value()){
  const f=fixture(),source=f.add(sourcePath,createMarkdownBoardDocument(board,'材料')),text=search.boardSearchDocument(board,source.path,vaultName),index=f.add(search.searchIndexPath(source.path),text);
@@ -108,4 +113,52 @@ test('late source validation cannot steal focus after leaving a generated Markdo
 });
 test('a source deleted during asynchronous Markdown validation is not routed to a missing file',async()=>{
  const f=withBoard(),original=f.content.get(f.source.path)!;let begin!:()=>void,finish!:(text:string)=>void;const reached=new Promise<void>(resolve=>{begin=resolve;});f.setReadHook(async file=>{if(file!==f.source)return f.content.get(file.path)!;begin();return new Promise(resolve=>{finish=resolve;});});const click=f.click(f.index,f.line);await reached;f.delete(f.source);f.setReadHook(undefined);finish(original);await click;assert.deepEqual(f.opened,[]);assert.equal(f.content.get(f.index.path),f.text);
+});
+
+for(const cache of [null,undefined])test(`a ${String(cache)} Markdown cache preserves mirror bytes, checksum, mtime and identity until metadata changed`,async()=>{
+ const f=withBoard(),mtime=f.index.stat.mtime,checksum=f.text.split('\n')[0],updated=value();updated.nodes[0].text='保存后的新节点内容';const document=createMarkdownBoardDocument(updated,'材料');
+ f.content.set(f.source.path,document);f.setMissingCache(f.source,cache);await f.emit('modify',f.source);await f.plugin.searchSync.flush();
+ assert.equal(f.files.get(f.index.path),f.index);assert.equal(f.content.get(f.index.path),f.text);assert.equal(f.content.get(f.index.path)!.split('\n')[0],checksum);assert.equal(f.index.stat.mtime,mtime);assert.deepEqual(f.reads,[]);assert.deepEqual(f.writes,[]);assert.deepEqual(f.removed,[]);assert.deepEqual(f.warnings,[]);
+ await f.metadataChanged(f.source);const text=f.content.get(f.index.path)!;
+ assert.equal(f.files.get(f.index.path),f.index);assert.equal(text,search.boardSearchDocument(updated,f.source.path,vaultName));assert.notEqual(text.split('\n')[0],checksum);assert.ok(search.isManagedSearchIndex(text));assert.ok(f.index.stat.mtime>mtime);assert.deepEqual(f.writes,[f.index.path]);assert.deepEqual(f.removed,[]);assert.equal(f.content.get(f.source.path),document);assert.deepEqual(f.errors,[]);
+});
+
+test('startup rebuild preserves an existing mirror while the source metadata is unavailable',async()=>{
+ const f=withBoard(),mtime=f.index.stat.mtime;f.setMissingCache(f.source,null);for(const callback of f.ready)callback();await f.settle();
+ assert.equal(f.files.get(f.index.path),f.index);assert.equal(f.content.get(f.index.path),f.text);assert.equal(f.index.stat.mtime,mtime);assert.ok(search.isManagedSearchIndex(f.content.get(f.index.path)!));assert.deepEqual(f.writes,[]);assert.deepEqual(f.removed,[]);assert.deepEqual(f.warnings,[]);assert.deepEqual(f.errors,[]);
+ await f.metadataChanged(f.source);assert.equal(f.content.get(f.index.path),f.text);assert.equal(f.index.stat.mtime,mtime);assert.deepEqual(f.writes,[]);assert.deepEqual(f.removed,[]);
+});
+
+test('a newly created uncached Markdown board waits for metadata changed before creating its mirror',async()=>{
+ const f=fixture(),document=createMarkdownBoardDocument(value(),'材料'),source=f.add(sourcePath,document),target=search.searchIndexPath(source.path);f.setMissingCache(source,null);await f.emit('create',source);
+ assert.equal(f.files.has(target),false);assert.deepEqual(f.reads,[]);assert.deepEqual(f.writes,[]);assert.deepEqual(f.removed,[]);
+ await f.metadataChanged(source);assert.ok(search.isManagedSearchIndex(f.content.get(target)!));assert.equal(search.searchBoardPath(target,f.content.get(target)),source.path);assert.deepEqual(f.writes,[target]);assert.equal(f.content.get(source.path),document);
+});
+
+test('metadata changed confirms conversion to ordinary Markdown and recycles the old managed mirror',async()=>{
+ const f=withBoard(),ordinary='# 已转换为普通笔记\n\n原生正文';f.content.set(f.source.path,ordinary);f.setMissingCache(f.source,null);await f.emit('modify',f.source);
+ assert.equal(f.content.get(f.index.path),f.text);assert.deepEqual(f.removed,[]);
+ await f.metadataChanged(f.source);assert.deepEqual(f.removed,[f.index.path]);assert.equal(f.files.has(f.index.path),false);assert.equal(f.content.get(f.source.path),ordinary);assert.deepEqual(f.writes,[]);assert.deepEqual(f.warnings,[]);
+});
+
+test('confirmed source deletion still recycles a managed mirror despite missing prior metadata',async()=>{
+ const f=withBoard();f.setMissingCache(f.source,null);f.delete(f.source);await f.emit('delete',f.source);
+ assert.deepEqual(f.removed,[f.index.path]);assert.equal(f.files.has(f.index.path),false);assert.deepEqual(f.writes,[]);assert.deepEqual(f.warnings,[]);
+});
+
+test('metadata changed for a generated mirror never recursively indexes or recycles it',async()=>{
+ const f=withBoard(),mtime=f.index.stat.mtime;await f.metadataChanged(f.index);
+ assert.equal(f.content.get(f.index.path),f.text);assert.equal(f.index.stat.mtime,mtime);assert.deepEqual(f.reads,[]);assert.deepEqual(f.writes,[]);assert.deepEqual(f.removed,[]);
+});
+
+test('legacy boards remain indexable without Markdown metadata',async()=>{
+ const f=fixture(),document=JSON.stringify(value()),source=f.add('白板/旧.thoughtspace',document),target=search.searchIndexPath(source.path);f.setMissingCache(source,null);await f.emit('create',source);
+ assert.ok(search.isManagedSearchIndex(f.content.get(target)!));assert.deepEqual(f.writes,[target]);assert.equal(f.content.get(source.path),document);assert.deepEqual(f.removed,[]);assert.deepEqual(f.warnings,[]);
+});
+
+test('unload detaches metadata changed and cancels queued retries without touching the mirror',async()=>{
+ const f=withBoard(),mtime=f.index.stat.mtime,updated=value();updated.nodes[0].text='卸载前已保存的节点';f.content.set(f.source.path,createMarkdownBoardDocument(updated,'材料'));f.setMissingCache(f.source,null);
+ assert.equal(f.metadataSubscribed(),true);f.notifyMetadataChanged(f.source);assert.equal(f.timerCount(),1);
+ for(const dispose of f.cleanup)dispose();assert.equal(f.metadataSubscribed(),false);assert.equal(f.timerCount(),0);
+ await f.metadataChanged(f.source);assert.equal(f.timerCount(),0);assert.equal(f.files.get(f.index.path),f.index);assert.equal(f.content.get(f.index.path),f.text);assert.equal(f.index.stat.mtime,mtime);assert.deepEqual(f.reads,[]);assert.deepEqual(f.writes,[]);assert.deepEqual(f.removed,[]);assert.deepEqual(f.warnings,[]);assert.deepEqual(f.errors,[]);
 });

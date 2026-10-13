@@ -21,6 +21,20 @@ test('pen buffers all coalesced samples, schedules one preview and commits once 
  f.input.up(pointer({clientX:60,buttons:0,pressure:0,timeStamp:20}));assert.equal(f.strokes.length,1);assert.equal(f.strokes[0].points.length,22);assert.equal(f.strokes[0].points.at(-1)!.x,50);assert.equal(f.frames.size,0);assert.equal(f.captures.size,0);assert.equal(f.drafts.at(-1),null);assert.equal(f.strokes[0].owner,f.owner);
  f.input.lostCapture(pointer());f.input.up(pointer());assert.equal(f.strokes.length,1);
 });
+test('display loading rejects new pen/lasso/eraser edits but keeps two-finger and mouse navigation',()=>{
+ for(const kind of ['pen','lasso','eraser'] as const){const f=fixture({kind});f.state.canBeginInk=false;f.input.setTouchWriting(true);f.input.down(pointer());f.input.up(pointer({buttons:0}));assert.equal(f.strokes.length,0);assert.equal(f.erases.length,0);assert.equal(f.captures.size,0);
+  const a=pointer({pointerType:'touch',pointerId:8}),b=pointer({pointerType:'touch',pointerId:9,clientX:120});f.input.down(a);f.input.down(b);f.input.move({...b,clientX:180});f.tick();f.input.up({...b,clientX:180,buttons:0});f.input.up({...a,buttons:0});assert.equal(f.cameras.length,1);assert.equal(f.strokes.length,0);assert.equal(f.erases.length,0);
+  f.input.setTool({kind:'pan'});f.input.down(pointer({pointerType:'mouse'}));f.input.move(pointer({pointerType:'mouse',clientX:80}));f.input.up(pointer({pointerType:'mouse',clientX:80,buttons:0}));assert.equal(f.cameras.length,2);
+ }
+});
+test('display loading and resize preserve an already active draft lease and complete samples',()=>{
+ const f=fixture();f.input.down(pointer());f.input.move(pointer({clientX:40}));f.state.canBeginInk=false;f.state.rect={left:50,top:60,width:390,height:300};f.input.layoutChanged();f.tick();assert.equal(f.captures.size,1);
+ f.input.move(pointer({clientX:100,clientY:100}));f.input.up(pointer({clientX:100,clientY:100,buttons:0}));assert.equal(f.strokes.length,1);assert.deepEqual(f.strokes[0].points.map(point=>[point.x,point.y]),[[10,10],[30,10],[50,40]]);assert.equal(f.captures.size,0);
+});
+test('a rejected new pen during display loading does not preempt a live two-finger camera',()=>{
+ const f=fixture(),a=pointer({pointerType:'touch',pointerId:8}),b=pointer({pointerType:'touch',pointerId:9,clientX:120});f.input.down(a);f.input.down(b);f.input.move({...b,clientX:150});f.tick();f.state.canBeginInk=false;
+ f.input.down(pointer());assert.equal(f.cameras.length,0);assert.ok(f.captures.has(8));assert.ok(f.captures.has(9));f.input.move({...b,clientX:180});f.tick();f.input.up({...b,clientX:180,buttons:0});f.input.up({...a,buttons:0});assert.equal(f.cameras.length,1);assert.equal(f.strokes.length,0);
+});
 test('missing throwing and empty coalescing each use the parent exactly once',()=>{
  for(const getCoalescedEvents of [undefined,()=>{throw Error('unavailable');},()=>[]]){
   const f=fixture();f.input.down(pointer());f.input.move(pointer({clientX:50,getCoalescedEvents}));f.input.up(pointer({clientX:50,buttons:0}));assert.equal(f.strokes[0].points.length,2);

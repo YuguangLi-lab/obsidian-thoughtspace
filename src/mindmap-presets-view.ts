@@ -7,6 +7,7 @@ import {mindmapLayouts,mindmapPlan} from './mindmap-studio';
 import {mindmapPresets,presetMindmap} from './mindmap-presets';
 import {topicSvg} from './mindmap-content';
 import {themeSurface} from './ui-tokens';
+import {bindBoardModalViewport} from './board-modal-viewport';
 export function renderPresetGallery(host:HTMLElement,action:string,apply:(board:Board)=>Promise<void>|void){
  const gallery=host.createDiv('ts-mm-presets'),grid=gallery.createDiv('ts-mm-preset-grid'),detail=gallery.createDiv('ts-mm-preset-detail');
  let selected:string=mindmapPresets[0].id,previousName:string=mindmapPresets[0].name,current:Board|undefined,busy=false;
@@ -26,7 +27,8 @@ export function renderPresetGallery(host:HTMLElement,action:string,apply:(board:
  confirm.onclick=async()=>{if(busy||!current)return;busy=true;const board=current;gallery.querySelectorAll<HTMLInputElement|HTMLButtonElement|HTMLSelectElement>('input,button,select').forEach(el=>el.disabled=true);status.setText('正在创建…');try{await apply(board);}catch(e){if(host.isConnected){status.setText(String(e));gallery.querySelectorAll<HTMLInputElement|HTMLButtonElement|HTMLSelectElement>('input,button,select').forEach(el=>el.disabled=false);}}finally{busy=false;}};draw();return gallery;
 }
 export class MindmapPresetsModal extends Modal{
+ private unbindViewport:()=>void=()=>{};
  constructor(app:App,private create:(board:Board)=>Promise<void>){super(app);}
- onOpen(){themeSurface(this.modalEl);this.modalEl.addClass('ts-mindmap-presets-modal');this.titleEl.setText('从一个好结构开始');this.contentEl.createEl('p',{text:'选择结构即可开始。节点按文字自动伸展，分支随编辑保持整齐。',cls:'ts-mm-intro'});renderPresetGallery(this.contentEl,'创建思维导图',async board=>{await this.create(board);this.close();});}
- onClose(){this.contentEl.empty();}
+ onOpen(){themeSurface(this.modalEl);this.unbindViewport();this.unbindViewport=bindBoardModalViewport(this.containerEl);this.modalEl.addClass('ts-mindmap-presets-modal');this.titleEl.setText('从一个好结构开始');this.contentEl.createEl('p',{text:'选择结构即可开始。节点按文字自动伸展，分支随编辑保持整齐。',cls:'ts-mm-intro'});renderPresetGallery(this.contentEl,'创建思维导图',async board=>{await this.create(board);this.close();});}
+ onClose(){this.unbindViewport();this.unbindViewport=()=>{};this.contentEl.empty();}
 }

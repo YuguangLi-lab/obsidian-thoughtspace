@@ -37,13 +37,14 @@ class ReleaseWorkflowTests(unittest.TestCase):
         self.assertIn('--verify-tag', arguments)
         self.assertIn('dist/thoughtspace-1.3.36-beta.1.zip', arguments)
 
-    def test_stable_publication_preserves_the_existing_command_contract(self):
+    def test_stable_publication_marks_latest_and_preserves_standard_assets(self):
         for tag in ('1.3.35', '1.3.35+build-with-hyphen'):
             with self.subTest(tag=tag):
                 arguments = self.run_publish(tag, 'false')
                 self.assertEqual(arguments[:3], ['release', 'create', tag])
                 self.assertNotIn('--prerelease', arguments)
-                self.assertFalse(any(argument.startswith('--latest') for argument in arguments))
+                self.assertIn('--latest', arguments)
+                self.assertNotIn('--latest=false', arguments)
                 self.assertIn('--notes-file', arguments)
                 self.assertIn('dist/release-notes.md', arguments)
 

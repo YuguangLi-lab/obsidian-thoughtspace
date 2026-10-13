@@ -347,7 +347,7 @@
 /* Short editing splits keep formatting, draft actions and camera tools in
    separate bands. The camera row scrolls locally instead of taking two rows. */
 @container ts-board-canvas (max-height:280px) {
- .ts-root .ts-main:has(> .ts-inline-chrome) > .ts-footer {bottom:4px;}
+ .ts-root .ts-main:has(> .ts-inline-chrome) > .ts-footer {bottom:calc(4px + max(env(safe-area-inset-bottom,0px),var(--ts-host-bottom-inset,0px)));}
  .ts-root .ts-main:has(> .ts-inline-chrome) > .ts-footer .ts-view-dock {
   display:flex; flex-wrap:nowrap; justify-content:flex-start; gap:6px;
   overflow-x:auto; overflow-y:hidden; overscroll-behavior:contain;

@@ -1,0 +1,24 @@
+.ts-reference-navigation {position:absolute;z-index:31;inset-inline:12px;bottom:88px;max-width:720px;margin-inline:auto;box-sizing:border-box;display:flex;flex-direction:column;gap:4px;padding:8px 10px;border:1px solid var(--background-modifier-border);border-radius:12px;background:var(--background-primary);color:var(--text-normal);box-shadow:var(--ts-shadow-dialog,0 4px 18px #0002);overflow:auto;overscroll-behavior:contain;touch-action:pan-y}
+.ts-reference-navigation[hidden] {display:none}
+.ts-reference-navigation > * {flex:none}
+/* A 44px stage slice must expose an entire target, without padding/borders
+   reducing its scrollport. Higher specificity also preserves the phone case. */
+.ts-reference-navigation.is-stage-compact {padding:0;border-width:0}
+.ts-reference-navigation-description {font-size:12px;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ts-reference-navigation-status {font-size:12px;color:var(--text-error);overflow-wrap:anywhere}
+.ts-reference-navigation-status:empty {display:none}
+.ts-reference-navigation-actions {display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.ts-reference-navigation-actions button {height:auto;min-height:44px;min-width:44px;padding:6px 9px;display:inline-flex;align-items:center;justify-content:center;gap:5px;box-sizing:border-box;white-space:normal}
+.ts-reference-navigation-actions button svg {width:16px;height:16px}
+.ts-reference-navigation-actions button[aria-label="返回出发位置"] {flex:1;min-width:104px}
+.modal.ts-native-bridge.ts-reference-occurrences-modal {max-height:100%;display:flex;flex-direction:column;box-sizing:border-box}
+.ts-native-bridge.ts-reference-occurrences-modal .modal-content {flex:1;overflow:hidden;min-height:0}
+.ts-native-bridge.ts-reference-occurrences-modal .ts-native-list {flex:1;min-height:0;max-height:none;overflow:auto;overscroll-behavior:contain}
+.ts-native-bridge.ts-reference-occurrences-modal .ts-native-footer {flex:none}
+.ts-native-bridge.ts-reference-occurrences-modal button {min-height:44px}
+.ts-native-bridge.ts-reference-occurrences-modal .ts-native-search {min-height:44px;font-size:16px;flex:none}
+.ts-reference-occurrence-row {display:flex;flex-direction:column;gap:4px;padding-block:8px;border-bottom:1px solid var(--background-modifier-border);overflow-wrap:anywhere}
+.ts-native-bridge .ts-reference-occurrence-row button {justify-content:flex-start;align-items:flex-start;text-align:start;white-space:normal}
+.ts-reference-occurrence-description {font-size:12px;color:var(--text-muted);padding-inline:10px;line-height:1.5;overflow-wrap:anywhere}
+.ts-reference-occurrence-heading {font-weight:600;margin-top:4px}
+@media(max-width:600px){.ts-reference-navigation{inset-inline:8px;padding:6px}.ts-reference-navigation-actions{gap:2px}.ts-reference-navigation-actions button{padding:6px}.ts-native-bridge.ts-reference-occurrences-modal .ts-native-intro h2{font-size:18px}.ts-native-bridge.ts-reference-occurrences-modal .ts-native-tools{flex-wrap:nowrap;overflow-x:auto}.ts-native-bridge.ts-reference-occurrences-modal .ts-native-tools button{flex:none}.ts-native-bridge.ts-reference-occurrences-modal .ts-native-tabs{flex-wrap:nowrap;overflow-x:auto}.ts-native-bridge.ts-reference-occurrences-modal .ts-native-tabs button{flex:none;white-space:nowrap}.ts-native-bridge.ts-reference-occurrences-modal .ts-native-footer>div{gap:4px}.ts-native-bridge.ts-reference-occurrences-modal .ts-native-footer>div>span{font-size:10px}}

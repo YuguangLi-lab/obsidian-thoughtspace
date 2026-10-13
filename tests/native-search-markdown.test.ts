@@ -109,3 +109,20 @@ test('Markdown mirror write failures report the source and allow a later retry',
  sync.enqueue(source);await sync.flush();assert.equal(stored,undefined);assert.equal(errors.length,1);assert.equal(errors[0].path,source);assert.match(String(errors[0].error),/disk temporarily unavailable/);
  fail=false;sync.enqueue(source);await sync.flush();assert.equal(writes,2);assert.ok(search.isManagedSearchIndex(stored!));assert.equal(search.searchBoardPath(search.searchIndexPath(source),stored),source);
 });
+
+test('unknown source metadata preserves the mirror without IO or self-retry until a later enqueue',async()=>{
+ const target=search.searchIndexPath(source),original=search.boardSearchDocument(board(),source,vault),calls:string[]=[];let current:Board|null=null,stored=original,mtime=42,sourceReads=0;
+ const sync=new search.BoardSearchSync({board:async()=>{sourceReads++;return current;},read:async path=>{calls.push('read:'+path);return stored;},write:async(path,text,expected)=>{assert.equal(stored,expected);calls.push('write:'+path);stored=text;mtime++;},remove:async path=>{calls.push('remove:'+path);}},vault,(_path,error)=>assert.fail(String(error)));
+ for(let i=0;i<20;i++)sync.enqueue(source);await sync.flush();await sync.flush();
+ assert.equal(sourceReads,1);assert.deepEqual(calls,[]);assert.equal(stored,original);assert.equal(mtime,42);assert.ok(search.isManagedSearchIndex(stored));
+ current=board();current.nodes[0].text='metadata-ready latest edit';sync.enqueue(source);await sync.flush();
+ assert.equal(sourceReads,2);assert.deepEqual(calls,['read:'+target,'write:'+target]);assert.equal(mtime,43);assert.ok(stored.includes('metadata-ready latest edit'));assert.ok(search.isManagedSearchIndex(stored));
+});
+
+test('an unknown source does not block other verified boards or confirmed orphan cleanup',async()=>{
+ const waiting='白板/等待.md',ready='白板/已知.thoughtspace',missing='白板/已删.md',waitingTarget=search.searchIndexPath(waiting),missingTarget=search.searchIndexPath(missing);
+ const old=search.boardSearchDocument(board(),waiting,vault),files=new Map([[waitingTarget,old],[missingTarget,search.boardSearchDocument(board(),missing,vault)]]),reads:string[]=[],removed:string[]=[];
+ const sync=new search.BoardSearchSync({board:async path=>path===waiting?null:path===ready?board():undefined,read:async path=>{reads.push(path);return files.get(path);},write:async(path,text,expected)=>{assert.equal(files.get(path),expected);files.set(path,text);},remove:async(path,expected)=>{assert.equal(files.get(path),expected);files.delete(path);removed.push(path);}},vault,(_path,error)=>assert.fail(String(error)));
+ for(const path of [waiting,ready,missing])sync.enqueue(path);await sync.flush();
+ assert.equal(files.get(waitingTarget),old);assert.equal(reads.includes(waitingTarget),false);assert.ok(search.isManagedSearchIndex(files.get(search.searchIndexPath(ready))!));assert.deepEqual(removed,[missingTarget]);assert.equal(files.has(missingTarget),false);
+});

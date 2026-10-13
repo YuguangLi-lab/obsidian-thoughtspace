@@ -1,12 +1,14 @@
 import {App,Modal,setIcon} from 'obsidian';
 import {Board,clone,uid} from './model';
 import {themeSurface} from './ui-tokens';
+import {bindBoardModalViewport} from './board-modal-viewport';
 import {SavedView,addSavedView,renameSavedView,removeSavedView,reorderSavedView,savedViewOrderStamp,savedViewStamp,savedViewViewport,updateSavedView} from './saved-views';
 
 interface SavedViewsHost{board:()=>Board;commit:(edit:(board:Board)=>void)=>void;restore:(id:string)=>void;}
 let savedViewPreviewScene=0;
 /** Named camera locations, never a snapshot or restore of note content. */
 export class SavedViewsModal extends Modal{
+ private unbindViewport:()=>void=()=>{};
  private selected?:string;private search!:HTMLInputElement;private list!:HTMLElement;private detail!:HTMLElement;private feedback!:HTMLElement;private closed=false;
  constructor(app:App,private host:SavedViewsHost){super(app);}
  private action(host:HTMLElement,label:string,icon:string,run:()=>void,cls=''){
@@ -15,7 +17,7 @@ export class SavedViewsModal extends Modal{
  }
  private run(fn:()=>void){if(this.closed)return;try{fn();if(!this.closed)this.feedback.empty();}catch(error){if(!this.closed)this.feedback.setText(error instanceof Error?error.message:String(error));}}
  onOpen(){
-  this.closed=false;themeSurface(this.modalEl);this.modalEl.addClass('ts-saved-views');this.titleEl.setText('常用视角');
+  this.closed=false;themeSurface(this.modalEl);this.unbindViewport();this.unbindViewport=bindBoardModalViewport(this.containerEl);this.modalEl.addClass('ts-saved-views');this.titleEl.setText('常用视角');
   this.contentEl.createDiv({cls:'ts-view-intro',text:'保存常看的位置，在白板的不同区域间快速切换。'});
   const toolbar=this.contentEl.createDiv('ts-view-toolbar');this.search=toolbar.createEl('input',{type:'search',attr:{placeholder:'搜索视角…','aria-label':'搜索视角'}});
   this.search.oninput=()=>this.run(()=>this.render());
@@ -24,7 +26,7 @@ export class SavedViewsModal extends Modal{
   const body=this.contentEl.createDiv('ts-view-body');this.list=body.createDiv({cls:'ts-view-list',attr:{role:'listbox','aria-label':'已保存视角'}});this.detail=body.createDiv('ts-view-detail');
   this.feedback=this.contentEl.createDiv({cls:'ts-view-feedback',attr:{role:'status','aria-live':'polite'}});
   this.contentEl.createDiv({cls:'ts-view-footer',text:'仅保存位置和缩放；不会覆盖笔记内容。管理操作可以在白板中撤销。'});
-  this.list.onkeydown=e=>{if(this.closed||e.isComposing||e.keyCode===229||e.shiftKey||e.altKey||e.ctrlKey||e.metaKey)return;const buttons=Array.from(this.list.querySelectorAll<HTMLButtonElement>('[role=option]'));const i=buttons.indexOf(e.target as HTMLButtonElement);if(i<0)return;const next=e.key==='Home'?0:e.key==='End'?buttons.length-1:e.key==='ArrowDown'?Math.min(i+1,buttons.length-1):e.key==='ArrowUp'?Math.max(0,i-1):-1;if(next<0)return;e.preventDefault();e.stopPropagation();buttons[next].click();this.list.querySelector<HTMLButtonElement>('[aria-selected=true]')?.focus({preventScroll:true});};
+  this.list.onkeydown=e=>{if(this.closed||e.isComposing||e.keyCode===229||e.shiftKey||e.altKey||e.ctrlKey||e.metaKey)return;const buttons=Array.from(this.list.querySelectorAll<HTMLButtonElement>('[role=option]'));const i=buttons.indexOf(e.target as HTMLButtonElement);if(i<0)return;const next=e.key==='Home'?0:e.key==='End'?buttons.length-1:e.key==='ArrowDown'?Math.min(i+1,buttons.length-1):e.key==='ArrowUp'?Math.max(0,i-1):-1;if(next<0)return;e.preventDefault();e.stopPropagation();buttons[next].click();const selected=this.list.querySelector<HTMLButtonElement>('[aria-selected=true]');if(!selected)return;selected.focus({preventScroll:true});const row=selected.getBoundingClientRect(),viewport=this.list.getBoundingClientRect();if(row.top<viewport.top)this.list.scrollTop+=row.top-viewport.top;else if(row.bottom>viewport.bottom)this.list.scrollTop+=row.bottom-viewport.bottom;};
   this.run(()=>this.render());
  }
  private render(){
@@ -66,5 +68,5 @@ export class SavedViewsModal extends Modal{
   svg.createSvg('rect',{cls:'ts-view-mini-camera',attr:{x:String(16+(viewport.x-x)*scale),y:String(16+(viewport.y-y)*scale),width:String(viewport.width*scale),height:String(viewport.height*scale),rx:'4'}});
   wrap.createSpan({cls:'ts-view-preview-label',text:`${Math.round(view.viewport.zoom*100)}% · 位置示意${board.nodes.length>400?'（显示前 400 个对象）':''}`});
  }
- onClose(){this.closed=true;this.contentEl.empty();}
+ onClose(){this.unbindViewport();this.unbindViewport=()=>{};this.closed=true;this.contentEl.empty();}
 }

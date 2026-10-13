@@ -62,7 +62,7 @@ class Setting {
   onChange(change:(value:string)=>void){selectEl.change=(value:string)=>{if(selectEl.disabled)return;selectEl.value=value;change(value);};return control;},setDisabled(value:boolean){selectEl.disabled=value;return control;}};make(control);return this;}
 }
 const modalSource=readFileSync(process.env.CREATION_MODAL_SOURCE||'src/board-creation-view.ts','utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
-const BoardCreationModal=execute(modalSource+'\nreturn BoardCreationModal;',{Modal,Setting,View,cleanBoardCreationPreferences,TemplateCreationIncompleteError,bindMobileViewport:(root:Element)=>{root.bindings++;return()=>{root.bindings--;};}});
+const BoardCreationModal=execute(modalSource+'\nreturn BoardCreationModal;',{Modal,Setting,View,cleanBoardCreationPreferences,TemplateCreationIncompleteError,bindBoardModalViewport:(root:Element)=>{root.bindings++;return()=>{root.bindings--;};}});
 const notices:string[]=[];
 const Host=execute(`class Host {${methods(['folder','createUnique','promptNewBoard','promptTemplateBoard','finishBoardCreation','rememberBoardCreation','createFromTemplate','openBoard','readBoard'])}};return Host;`,{...model,BoardCreationModal,BoardView,FileView,isBoardPath,isWorkspaceFile,readBoardDocument,parseYaml,cleanBoardCreationPreferences,TemplateCreationIncompleteError,emptyBoard:model.emptyBoard,createBrainBoard,createMarkdownBoardDocument,boardTemplates,applyDefaultCardStyle,normalizePath:(path:string)=>path.replace(/\/+/g,'/'),ROOT:'ThoughtSpace',EXT:'thoughtspace',VIEW:'thoughtspace-board',themeSurface(){},Notice:class{constructor(message:string){notices.push(message);}}});
 const tick=async()=>{for(let i=0;i<30;i++)await Promise.resolve();};
@@ -111,7 +111,7 @@ test('the common modal uses native dropdowns, has one primary action and keeps n
  const f=fixture({boardCreation:{presentation:'brain',format:'markdown'}});f.host.promptNewBoard();assert.equal(f.modal().titleEl.text,'新建白板');assert.equal(f.all().filter(element=>element.tag==='select').length,2);assert.equal(f.all().filter(element=>element.tag==='button').length,2);assert.equal(f.find('白板名称').selected,true);f.find('白板名称').focused=false;f.fireFrame();assert.equal(f.find('白板名称').focused,true);assert.equal(f.writes.length,0);
 });
 test('creation cancellation releases its viewport binding exactly once',()=>{
- const f=fixture();f.host.promptNewBoard();const modal=f.modal();assert.equal(modal.modalEl.bindings,1);f.button('取消').click();modal.onClose();assert.equal(modal.modalEl.bindings,0);
+ const f=fixture();f.host.promptNewBoard();const modal=f.modal();assert.equal(modal.containerEl.bindings,1);f.button('取消').click();modal.onClose();assert.equal(modal.containerEl.bindings,0);
 });
 test('cancel, blank name, IME Enter and a cancelled next-frame name focus create no files or preferences',async()=>{
  const f=fixture();f.host.promptNewBoard();f.choice('brain','markdown');f.name('   ');assert(f.button('创建').disabled);f.button('创建').click();await tick();assert.equal(f.files.size,0);

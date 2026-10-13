@@ -16,10 +16,11 @@
 /* A local command workspace opens alongside the creation rail. Classification
    is a real filter; search crosses categories without losing the chosen scope. */
 .ts-root .ts-main > .ts-rail-popover {
+  --ts-palette-bottom-space: max(var(--ts-footer-reserve,68px),calc(12px + max(env(safe-area-inset-bottom,0px),var(--ts-palette-host-inset,0px))));
   display: flex; flex-direction: column; box-sizing: border-box;
-  left: 82px; top: var(--ts-format-reserve,28px); bottom: var(--ts-footer-reserve,68px);
+  left: 82px; top: var(--ts-format-reserve,28px); bottom: var(--ts-palette-bottom-space);
   width: 436px; max-width: calc(100% - 98px); height: max-content;
-  max-height: max(48px,min(640px,calc(100% - var(--ts-format-reserve,28px) - var(--ts-footer-reserve,68px))));
+  max-height: max(48px,min(640px,calc(100% - var(--ts-format-reserve,28px) - var(--ts-palette-bottom-space))));
   margin-block: auto; padding: 0; transform: none; overflow: hidden;
   border: 1px solid var(--ts-board-line); border-radius: 12px;
   background: var(--background-primary); box-shadow: var(--ts-board-menu-shadow); backdrop-filter: none;
@@ -226,7 +227,7 @@
    passive view controls here leaves enough room for real, scrollable actions. */
 @container ts-board-canvas (max-height: 420px) {
   .ts-root .ts-main:has(> .ts-rail-popover:not([hidden])) > :is(.ts-footer,.ts-minimap) { display: none !important; }
-  .ts-root .ts-main > .ts-rail-popover { top: 12px; bottom: 12px; max-height: calc(100% - 24px); }
+  .ts-root .ts-main > .ts-rail-popover { --ts-palette-bottom-space:calc(12px + max(env(safe-area-inset-bottom,0px),var(--ts-palette-host-inset,0px))); top: 12px; max-height: calc(100% - 12px - var(--ts-palette-bottom-space)); }
   .ts-root .ts-main > .ts-tools-palette { display: flex; }
   .ts-root .ts-tools-palette > .ts-palette-sections { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); flex: 0 0 auto; padding: 5px 8px; gap: 2px; border: 0; border-bottom: 1px solid var(--ts-board-line); overflow: visible; }
   .ts-root .ts-tools-palette .ts-palette-sections .ts-button { justify-content: center; min-height: 30px; padding: 4px !important; }
@@ -240,7 +241,8 @@
 /* Retain the 1.3.24 short-pane navigation fix without overriding host colors.
    The whole menu scrolls when its search/category header would consume the pane. */
 .ts-root .ts-main.ts-short-canvas > .ts-rail-popover {
-  top:8px; bottom:8px; max-height:calc(100% - 16px);
+  --ts-palette-bottom-space:calc(8px + max(env(safe-area-inset-bottom,0px),var(--ts-palette-host-inset,0px)));
+  top:8px; max-height:calc(100% - 8px - var(--ts-palette-bottom-space));
   overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin;
 }
 .ts-root .ts-main.ts-short-canvas:has(> .ts-rail-popover:not([hidden])) > :is(.ts-footer,.ts-minimap) { display:none!important; }

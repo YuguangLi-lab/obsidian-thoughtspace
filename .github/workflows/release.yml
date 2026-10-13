@@ -48,6 +48,11 @@ jobs:
       - run: npm test
       - run: python3 -m unittest discover -s scripts -p 'test_*.py'
       - run: npm run build
+      - run: npm run board-tool:typecheck
+      - run: npm run board-tool:lint
+      - run: npm run board-tool:build
+      - run: npm run board-tool:verify
+      - run: git diff --exit-code -- tools/dist/thoughtspace-board.mjs tools/dist/board-tool.mjs
       - name: Verify generated styles are committed
         run: git diff --exit-code -- styles.css
       - name: Package installer and checksums
@@ -78,6 +83,8 @@ jobs:
           release_flags=()
           if [ "$RELEASE_PRERELEASE" = true ]; then
             release_flags+=(--prerelease --latest=false)
+          else
+            release_flags+=(--latest)
           fi
           gh release create "$RELEASE_TAG" main.js manifest.json styles.css "dist/thoughtspace-$RELEASE_TAG.zip" dist/SHA256SUMS.txt --verify-tag --title "ThoughtSpace Whiteboard $RELEASE_TAG" --notes-file dist/release-notes.md "${release_flags[@]}"
       - name: Verify public installer endpoints and asset contents

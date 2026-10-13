@@ -1,4 +1,4 @@
-import {parseBoard,type Board} from './model';
+import {parseBoard,parseBoardValue,type Board} from './model';
 import {isRecord} from './value-guards';
 
 export type YamlParser=(yaml:string)=>unknown;
@@ -37,7 +37,15 @@ export function readBoardDocument(text:string,extension:string,parseYaml:YamlPar
  try {envelope=JSON.parse(zone.payload) as unknown;}catch(cause){throw new BoardDocumentError('layout-json-invalid','白板布局区的 JSON 无效，原文未更改',cause);}
  if(!isRecord(envelope)||envelope.format!=='thoughtspace-board'||!Object.hasOwn(envelope,'board'))throw new BoardDocumentError('layout-envelope-invalid','白板布局数据封装无效，原文未更改');
  if(envelope.version!==1)throw new BoardDocumentError('layout-version-unsupported','不支持的白板布局版本，原文未更改');
- const board=validatedBoard(serialize(envelope.board)),extras={...envelope};delete extras.board;delete extras.format;delete extras.version;
+ // The envelope decoder already owns a fresh plain JSON tree. Validate that
+ // same tree rather than serialize and decode a second complete ink board.
+ // Keep the former JSON round-trip semantics for all potentially exceptional
+ // numeric tokens. Any exponent can overflow with a sufficiently large
+ // mantissa, and any negative fraction below one can underflow to negative zero.
+ // Use the old round trip for those whole classes rather than guess thresholds.
+ // Conservative matches inside strings merely take the compatibility path.
+ const exceptionalNumbers=/-0(?:\.\d+)?(?:[eE][+-]?\d+)?(?=[,\]} \t\r\n])|[eE][+-]?\d|\d{309}/.test(zone.payload);
+ const board=exceptionalNumbers?validatedBoard(serialize(envelope.board)):validatedBoardValue(envelope.board),extras={...envelope};delete extras.board;delete extras.format;delete extras.version;
  return remember({format:'markdown',board,source:text,layoutSource:zone.source,layoutStart:zone.start,layoutEnd:zone.end},{extras,eol:zone.eol});
 }
 
@@ -69,6 +77,9 @@ function remember(document:BoardDocument,extra:Pick<Metadata,'extras'|'eol'>):Bo
 }
 function validatedBoard(text:string):Board {
  try {return parseBoard(text);}catch(cause){throw new BoardDocumentError('board-invalid','白板数据无效，原文未更改',cause);}
+}
+function validatedBoardValue(value:unknown):Board {
+ try {return parseBoardValue(value);}catch(cause){throw new BoardDocumentError('board-invalid','白板数据无效，原文未更改',cause);}
 }
 function serialize(value:unknown):string {
  try {const result=JSON.stringify(value,null,2);if(result===undefined)throw Error('No JSON value');return result;}catch(cause){throw new BoardDocumentError('serialization-failed','白板布局无法序列化，原文未更改',cause);}

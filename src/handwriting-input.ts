@@ -2,9 +2,9 @@
 export type HandwritingPoint = {x:number;y:number;pressure:number;time:number};
 export type HandwritingViewport = {x:number;y:number;zoom:number};
 export type HandwritingRect = {left:number;top:number;width:number;height:number};
-export type HandwritingTool = {kind:'pen'|'eraser'|'pan';color:string;width:number;pressure:boolean};
-export type HandwritingDraft = {points:readonly HandwritingPoint[];tool:Readonly<HandwritingTool>};
-export type HandwritingState = {owner:unknown;writable:boolean;rect:HandwritingRect;viewport:HandwritingViewport};
+export type HandwritingTool = {kind:'pen'|'eraser'|'pan'|'lasso';color:string;width:number;pressure:boolean};
+export type HandwritingDraft = {points:readonly HandwritingPoint[];tool:Readonly<HandwritingTool>;context?:unknown};
+export type HandwritingState = {owner:unknown;writable:boolean;canBeginInk?:boolean;rect:HandwritingRect;viewport:HandwritingViewport};
 export type HandwritingPointerEvent = {
  pointerId:number;pointerType:string;clientX:number;clientY:number;
  button?:number;buttons?:number;pressure?:number;timeStamp?:number;ctrlKey?:boolean;
@@ -17,9 +17,11 @@ export interface HandwritingInputHost {
  requestFrame(callback:()=>void):number;
  cancelFrame(frame:number):void;
  preview(draft:HandwritingDraft|null):void;
- commitStroke(points:readonly HandwritingPoint[],tool:Readonly<HandwritingTool>,owner:unknown):void|Promise<void>;
+ beginInk?(point:HandwritingPoint,tool:Readonly<HandwritingTool>,owner:unknown):unknown;
+ commitStroke(points:readonly HandwritingPoint[],tool:Readonly<HandwritingTool>,owner:unknown,context?:unknown):void|Promise<void>;
  hitStrokeIds?(points:readonly HandwritingPoint[],tool:Readonly<HandwritingTool>):readonly string[];
- commitErase?(ids:readonly string[],owner:unknown):void|Promise<void>;
+ commitErase?(ids:readonly string[],owner:unknown,context?:unknown):void|Promise<void>;
+ commitSelection?(points:readonly HandwritingPoint[],context:unknown,owner:unknown):void|Promise<void>;
  previewCamera(viewport:HandwritingViewport):void;
  commitCamera(viewport:HandwritingViewport,owner:unknown):void|Promise<void>;
  restoreCamera(viewport:HandwritingViewport):void;
@@ -28,7 +30,7 @@ export interface HandwritingInputHost {
 export const HANDWRITING_MAX_POINTS=8192;
 export const DEFAULT_HANDWRITING_TOOL:Readonly<HandwritingTool>={kind:'pen',color:'#222222',width:3,pressure:true};
 type Basis={owner:unknown;rect:HandwritingRect;viewport:HandwritingViewport};
-type Ink={basis:Basis;id:number;pointerType:string;points:HandwritingPoint[];tool:HandwritingTool};
+type Ink={basis:Basis;id:number;pointerType:string;points:HandwritingPoint[];tool:HandwritingTool;context?:unknown};
 type Contact={x:number;y:number};
 type Camera={basis:Basis;origin:HandwritingViewport;kind:'touch'|'mouse';ids:number[];centroid:Contact;last:Contact;distance:number;current:HandwritingViewport;projected:HandwritingViewport};
 const finite=(value:number)=>Number.isFinite(value);
@@ -56,7 +58,7 @@ export class HandwritingInputController {
  constructor(private host:HandwritingInputHost,tool:Partial<HandwritingTool>={}){this.tool=this.cleanTool(tool);}
  private cleanTool(tool:Partial<HandwritingTool>):HandwritingTool{
   const current=this.tool??DEFAULT_HANDWRITING_TOOL;
-  return{kind:tool.kind==='pen'||tool.kind==='eraser'||tool.kind==='pan'?tool.kind:current.kind,color:typeof tool.color==='string'&&tool.color?tool.color:current.color,width:typeof tool.width==='number'&&finite(tool.width)?Math.max(.1,Math.min(100,tool.width)):current.width,pressure:typeof tool.pressure==='boolean'?tool.pressure:current.pressure};
+  return{kind:tool.kind==='pen'||tool.kind==='eraser'||tool.kind==='pan'||tool.kind==='lasso'?tool.kind:current.kind,color:typeof tool.color==='string'&&tool.color?tool.color:current.color,width:typeof tool.width==='number'&&finite(tool.width)?Math.max(.1,Math.min(100,tool.width)):current.width,pressure:typeof tool.pressure==='boolean'?tool.pressure:current.pressure};
  }
  private current(b:Basis,viewport=b.viewport):boolean{
   const state=this.host.state();return availableState(state)&&state.owner===b.owner&&sameViewport(state.viewport,viewport);
@@ -77,7 +79,11 @@ export class HandwritingInputController {
  layoutChanged():void{
   if(this.disposed)return;
   if(!this.validActive()){this.reset();return;}
-  const state=this.host.state();if(!validState(state))return;
+  const state=this.host.state();
+  // Ink drawing is rebased, but a selection gesture is deliberately cancelled
+  // on surface geometry change: a late release must not move saved strokes.
+  if(this.ink?.tool.kind==='lasso'&&!sameRect(state.rect,this.ink.basis.rect))this.endInk(false);
+  if(!validState(state))return;
   const camera=this.camera;
   if(camera&&!sameRect(state.rect,camera.basis.rect)){
    this.projectCamera(camera);
@@ -86,7 +92,7 @@ export class HandwritingInputController {
    camera.centroid={...camera.last};
    if(camera.kind==='touch')camera.distance=Math.max(1,distance(this.touches.get(camera.ids[0])!,this.touches.get(camera.ids[1])!));
   }
-  if(this.ink){this.ink.basis.rect={...state.rect};this.host.preview({points:this.ink.points,tool:this.ink.tool});}
+  if(this.ink){this.ink.basis.rect={...state.rect};this.host.preview({points:this.ink.points,tool:this.ink.tool,context:this.ink.context});}
   if(this.touchBasis)this.touchBasis.rect={...state.rect};
  }
  private capture(id:number):boolean{
@@ -105,7 +111,7 @@ export class HandwritingInputController {
    if(generation!==this.generation||this.disposed)return;
    this.frame=undefined;
    if(!this.check()||!validState(this.host.state()))return;
-   if(this.ink)this.host.preview({points:this.ink.points,tool:this.ink.tool});
+   if(this.ink)this.host.preview({points:this.ink.points,tool:this.ink.tool,context:this.ink.context});
    else if(this.camera)this.projectCamera(this.camera);
   });
  }
@@ -123,6 +129,8 @@ export class HandwritingInputController {
   if(!finite(event.clientX)||!finite(event.clientY)||!finite(event.pointerId))return false;
   this.check();
   const state=this.host.state();if(!validState(state))return touch||pen||mouse;
+  // A rejected new pen tap must not preempt an in-progress camera or draft.
+  if(!touch&&state.canBeginInk===false&&!(mouse&&this.tool.kind==='pan'))return true;
   if(touch){
    if(this.touches.has(event.pointerId))return true;
    if(!this.touches.size)this.touchBasis=basis(state);
@@ -135,9 +143,9 @@ export class HandwritingInputController {
    }
    if(this.ink||this.camera?.kind==='mouse')this.quarantine=true;
    if(!this.capture(event.pointerId))return true;
-   if(this.touchWriting&&!this.ink&&!this.camera&&!this.quarantine&&this.touches.size===1&&this.tool.kind!=='pan'){
+   if(state.canBeginInk!==false&&(this.touchWriting||this.tool.kind==='lasso')&&!this.ink&&!this.camera&&!this.quarantine&&this.touches.size===1&&this.tool.kind!=='pan'){
     this.ink={basis:basis(state),id:event.pointerId,pointerType:'touch',points:[],tool:{...this.tool}};
-    this.append(event,false);if(this.ink)this.queue();return true;
+    this.append(event,false);this.beginInk();if(this.ink)this.queue();return true;
    }
    if(!this.ink&&!this.camera&&!this.quarantine&&this.touches.size===2){
     const ids=[...this.touches.keys()],a=this.touches.get(ids[0])!,b=this.touches.get(ids[1])!,d=distance(a,b);
@@ -155,11 +163,19 @@ export class HandwritingInputController {
   if(this.camera){if(!pen)return false;this.endCamera(true);}
   if(this.touches.size)this.quarantine=true;
   const fresh=this.host.state();if(!validState(fresh))return true;
+  // Display loading blocks only a new edit. Existing drafts keep their lease,
+  // and mouse/two-finger camera navigation remains available.
+  if(fresh.canBeginInk===false&&!(mouse&&this.tool.kind==='pan'))return true;
   if(mouse&&this.tool.kind==='pan')this.camera={basis:basis(fresh),origin:{...fresh.viewport},kind:'mouse',ids:[event.pointerId],centroid:contact(event),last:contact(event),distance:1,current:{...fresh.viewport},projected:{...fresh.viewport}};
   else this.ink={basis:basis(fresh),id:event.pointerId,pointerType:event.pointerType,points:[],tool:{...this.tool}};
   if(!this.capture(event.pointerId))return true;
-  if(this.ink){this.append(event,false);if(this.ink)this.queue();}
+  if(this.ink){this.append(event,false);this.beginInk();if(this.ink)this.queue();}
   return true;
+ }
+ private beginInk():void {
+  const ink=this.ink;if(!ink||!ink.points.length||!this.host.beginInk)return;
+  try{ink.context=this.host.beginInk({...ink.points[0]},ink.tool,ink.basis.owner);}
+  catch(error){this.endInk(false);this.host.notice(String(error).replace(/^Error: /,''));}
  }
  private append(event:HandwritingPointerEvent,terminal:boolean):void{
   const ink=this.ink;if(!ink)return;
@@ -217,10 +233,12 @@ export class HandwritingInputController {
   // Recheck after host preview/release hooks: either may acquire a save lock.
   if(generation!==this.generation||!this.current(ink.basis))return;
   const points=ink.points.map(point=>({...point})),tool={...ink.tool};
-  if(tool.kind==='eraser'){
-   try{const ids=[...new Set(this.host.hitStrokeIds?.(points,tool)??[])];if(ids.length&&this.host.commitErase&&generation===this.generation&&this.current(ink.basis))this.save(()=>this.host.commitErase!(ids,ink.basis.owner));}
+  if(tool.kind==='lasso'){
+   if(this.host.commitSelection)this.save(()=>this.host.commitSelection!(points,ink.context,ink.basis.owner));
+  }else if(tool.kind==='eraser'){
+   try{const ids=[...new Set(this.host.hitStrokeIds?.(points,tool)??[])];if(ids.length&&this.host.commitErase&&generation===this.generation&&this.current(ink.basis))this.save(()=>this.host.commitErase!(ids,ink.basis.owner,ink.context));}
    catch(error){this.host.notice(`擦除失败：${String(error).replace(/^Error: /,'')}`);}
-  }else this.save(()=>this.host.commitStroke(points,tool,ink.basis.owner));
+  }else this.save(()=>this.host.commitStroke(points,tool,ink.basis.owner,ink.context));
  }
  private endCamera(commit:boolean):void{
   const camera=this.camera;if(!camera)return;

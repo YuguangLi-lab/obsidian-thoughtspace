@@ -1,5 +1,29 @@
 # 更新记录
 
+## 1.3.36
+
+### 手写编辑、收集双向联动与全界面移动适配（2026-10-13）
+
+- 将独立手写白板纳入正式版：保留笔／鼠标输入、整笔擦除、双指导航与可选手指书写，新增整笔套索选择、移动、复制、删除和一次事务的撤销重做。resize 保留未抬笔草稿与视角；取消、失焦、新导航及写入保护仍取消未提交输入。
+- 手写可导出 SVG 附件到已有原生笔记并保留来源白板回链，保护附件／追加失败后的重试。SVG 是视觉副本，不提供可编辑笔迹回导。保存失败可只读对照磁盘、本地和已保存恢复版本，不自动合并或覆盖。
+- 大笔迹按可见范围和帧分批显示，保留全部全精度源采样、整笔编辑、历史与导出；新的显示规划缓存有独立预算。超过采样预算拒绝新提交并保留原源文件，被拒的未提交草稿会清空；不声称桌面结果代表 Pencil 延迟。
+- 新增脑图命名阅读位置、复制定位链接与返回原位置；逐张定位同源笔记在多个白板／分组中的具体引用实例。低缩放操作集中在画布外的选中栏，保留四向关系、正文、来源与菜单。
+- 快速收集可选择已有白板／分组，保留创建身份和投递回执；布局整理可选择保留整个连接簇的内部几何，继续使用锁定、折叠、分组与撤销保护。
+- 新增正文优先的收集页：原生 Markdown 记录、可选标签／已有附件／投递、稳定创建时间流、分页与可见正文读取。旧笔记收件箱和快速收集入口保留，不自动给旧笔记回填属性。
+- 收集拥有独立会话草稿检查点和固定身份恢复；创建落盘但响应失败、重复提交、保存结果未知和投递失败分别处理，避免误建副本或覆盖原笔记。此机制不扩大其他内存草稿的跨进程恢复能力。
+- 收集与普通白板、独立及嵌入脑图双向定位；保留筛选和会话内浏览位置，临时显露隐藏记录。改名重新核对，删除、同路径替换、新筛选、新导航和晚回调不能复活旧目标；侧栏与弹出窗口不接管另一窗口的输入。
+- 统一普通白板、脑图、手写、收集、媒体、在线、写作、阅读、材料、PDF、设置与弹窗的浅深主题、强调色和舒适／紧凑密度。收紧常驻工具区，保留有名称的完整功能入口、键盘焦点、短屏滚动与触控目标。
+- 手机／平板布局按容器、visualViewport 与安全区调整；普通卡片阅读与拖动分流，媒体和写作保留编辑器、播放器和草稿。在线能力不足时使用手动时间与浏览器来源入口。原生 Markdown／Properties、多窗口保存所有权和冲突保护继续生效。
+- 保留已公开的独立一期 AI 白板 CLI、格式规范、自制示例和 CI 检查；Node 22 工具提供只读校验／检查与排他创建，不在插件内自动调用 AI，不新增 npm 或 MCP 发布。
+
+正式本地检查通过 8,497 项 Node、23 项 Python；插件 lint 0 错误／179 警告，CLI lint 0／0。插件与 CLI 类型、构建、10 例双 parser 往返、3 次 CLI 创建、发行元数据和打包通过。正式隔离原生复核通过 11 组、4,091 项断言，留下 172 张截图并目检 5 张代表图；此前功能候选的 24 组／5,994 项断言／284 张截图单列保留，不重复累计。公开 CI 与发行下载另行核对，见[发行验证摘要](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/qa/RELEASE-1.3.36.md)。
+
+真实 iOS／Android、Pencil、WKWebView／移动 WebView、系统移动输入法、真实软键盘、完整掌拒和设备性能未验。无 Node 探针仅覆盖模块执行与插件构造函数，不含 `onload`。性能观测来自隔离桌面合成样本，不作通用提速或硬件延迟保证。
+
+1.3.36 brings handwriting editing and SVG export, read-only version comparison, saved brain reading positions, occurrence navigation, a durable collection workspace with board round trips, and responsive UI across the plugin. Native note identity, draft ownership and conflict protection remain in place. The stable source passes 8,497 Node tests, 23 Python tests and 11 native smoke groups; public CI and release downloads are checked separately. Physical mobile devices and system IME remain unverified.
+
+操作见[手写指南](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/docs/HANDWRITING-IPAD.zh-CN.md)、[阅读与引用导航](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/docs/CONVENIENCE.zh-CN.md)、[收集页](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/docs/COLLECTION-WORKSPACE.zh-CN.md)、[界面说明](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/docs/UI-REFINEMENT.zh-CN.md)和[AI 工具](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/docs/AI-BOARD-GUIDE.zh-CN.md)。已公开 beta.1／beta.2 的历史记录保留如下；未发布开发阶段的功能统一记入本节。
+
 ## 1.3.36-beta.2
 
 ### 手机与平板适配（2026-10-11，预发布）
@@ -123,7 +147,7 @@ Unsaved native input can be lost on forced termination before it reaches disk, a
 - 大图采用固定预算：每批展开最多 48 个节点，含父级/同级上下文最多 72 个节点、128 条可见关系；分页和搜索继续访问其余对象。修复长关系状态文字遮挡底栏分页按钮。
 - Brain boards keep native note and child-board sources, editable ideas, bounded relation depth, undo/redo and save recovery. Compact node menus retain inherited Obsidian/plugin actions in submenus.
 
-验证与范围见 [脑图菜单和关系层级验收](qa/BRAIN-MENU-RELATIONS.md)。本次提交从公开 1.3.29 重建所需脑图基线，排除材料库、段落卡片创建界面等无关未提交功能；重建构建单独验收。
+验证与范围见 [脑图菜单和关系层级验收](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/qa/BRAIN-MENU-RELATIONS.md)。本次提交从公开 1.3.29 重建所需脑图基线，排除材料库、段落卡片创建界面等无关未提交功能；重建构建单独验收。
 
 ## 1.3.29
 
@@ -136,7 +160,7 @@ Unsaved native input can be lost on forced termination before it reaches disk, a
 - 原生联动测试中修复不同复制语法被误去重、PDF 改名后正文裁剪链接未更新，以及动态裁剪卡片遮住来源按钮的问题；保留原始快照及代码/注释中的字面链接。
 - Shared compact spacing now covers materials, writing and media without rebuilding editors or players. The minimap temporarily avoids active interactions. Explicit PDF/PDF++ quote import preserves original provenance and precise links, with duplicate protection, undo/redo, rename-safe embeds and a native page fallback.
 
-验证：4,598 项自动回归、7 项发布脚本测试通过；lint 0 错误、118 条既有警告，TypeScript 与构建通过。独立 Obsidian 1.13.7 测试库完成 24 项密度/避让检查，以及官方 PDF++ 0.40.31 启用/禁用的 24 项联动检查；后者 297 个 PDF/Markdown 文件在测试操作期间保持 SHA-256 一致。详见 [紧凑与避让验收](qa/DENSITY-MINIMAP-PDF-QUOTE.md) 和 [PDF++ 原生验收](qa/PDF-PLUS-INTEGRATION.md)。
+验证：4,598 项自动回归、7 项发布脚本测试通过；lint 0 错误、118 条既有警告，TypeScript 与构建通过。独立 Obsidian 1.13.7 测试库完成 24 项密度/避让检查，以及官方 PDF++ 0.40.31 启用/禁用的 24 项联动检查；后者 297 个 PDF/Markdown 文件在测试操作期间保持 SHA-256 一致。详见 [紧凑与避让验收](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/qa/DENSITY-MINIMAP-PDF-QUOTE.md) 和 [PDF++ 原生验收](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/qa/PDF-PLUS-INTEGRATION.md)。
 
 限制：矩形定位/裁剪已验证，未覆盖 PDF++ 矩形拖拽复制手势；复杂字体、多栏/旋转 PDF、扫描 OCR、移动端和所有第三方主题未验证。不宣称本轮提升大白板保存性能。此前媒体本机暂存及恢复边界继续适用。仅更新独立发布分支，不合并 main，不安装到实际资料库。
 
@@ -150,7 +174,7 @@ Unsaved native input can be lost on forced termination before it reaches disk, a
 - 修复并发打开选段窗口可能叠加、多行下划线段落被误识别为标题，以及重复插入、非末尾插入或异步编排变化可能误清除未同步提示的问题。保留来源变化检查、输入法组字保护、原生撤销重做和源码编辑后备。
 - Writing now supports source-safe excerpt citations, existing-anchor embeds, a manuscript heading directory with section progress, and non-destructive outline-change notices. Rebuilding remains explicit and requires a successful backup; no automatic merge or source mutation is introduced.
 
-验证和限制见 [写作验收](qa/WRITING-ROUND1.md)。仅在独立桌面测试库验证；未覆盖移动端、所有主题、物理中文输入法候选窗、断电或多进程同库。写作持久化仍使用现有白板保存机制；目录不展开嵌入来源的内部标题，编排提示不自动追踪来源笔记全文变化。保留此前媒体本机暂存及恢复的既有边界。
+验证和限制见 [写作验收](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/qa/WRITING-ROUND1.md)。仅在独立桌面测试库验证；未覆盖移动端、所有主题、物理中文输入法候选窗、断电或多进程同库。写作持久化仍使用现有白板保存机制；目录不展开嵌入来源的内部标题，编排提示不自动追踪来源笔记全文变化。保留此前媒体本机暂存及恢复的既有边界。
 
 ## 1.3.27
 
@@ -164,7 +188,7 @@ Unsaved native input can be lost on forced termination before it reaches disk, a
 - 小地图在结构与样式不变时复用 SVG、只更新变化几何；不删减保存校验、完整历史、冲突保护或原子写入。合成 10k 节点交替对照中，小地图阶段 p50 354.6 → 5.5 ms，整次保存 p50 2378.3 → 2170.0 ms；p95 未改善，1k 未观察到端到端收益，**不宣称所有规模或尾延迟提速**。
 - Media cards share timestamp/source presentation and source-aware board-first playback routing. Search state stays within its board session. Connection ports remain usable at low zoom; equal-gap guides and optional connected-content choices retain existing shortcuts. Minimap geometry reuse reduces repeated SVG work without weakening persistence safeguards.
 
-验证、原生交互范围及已知限制见 [1.3.27 验收](qa/RELEASE-1.3.27.md)；完整性能方法、样本数和不利结果见 [保存实验](qa/experience-performance.md)。仅在独立测试库验证；未覆盖移动端、所有第三方主题或线上平台实际网络播放。旧版装饰文本兼容边界与本机媒体暂存边界继续适用。
+验证、原生交互范围及已知限制见 [1.3.27 验收](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/qa/RELEASE-1.3.27.md)；完整性能方法、样本数和不利结果见 [保存实验](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/qa/experience-performance.md)。仅在独立测试库验证；未覆盖移动端、所有第三方主题或线上平台实际网络播放。旧版装饰文本兼容边界与本机媒体暂存边界继续适用。
 
 ## 1.3.26
 
@@ -178,7 +202,7 @@ Unsaved native input can be lost on forced termination before it reaches disk, a
 
 **降级兼容：** 文本的四种装饰样式需要 1.3.26 或更新版本。1.3.25 会明确报错并拒绝打开含这些样式的白板；实际验证文件不会被覆盖。降级前请在新版中将相关文本切回透明或实色并保存，保留备份。Decorative text styles require 1.3.26+. Before downgrading, switch them to Transparent or Solid and save in the newer version.
 
-验证与范围见 [本轮验收](qa/RELEASE-1.3.26.md)、[阅读与文本样式](qa/READING-MEDIA.md) 和 [折叠控件](qa/FOLD-CONTROLS.md)。未更改真实库，未宣称移动端、任意第三方主题或大白板性能提升；媒体回看验证实际链接的插件处理器，不调用系统级 URL。
+验证与范围见 [本轮验收](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/qa/RELEASE-1.3.26.md)、[阅读与文本样式](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/qa/READING-MEDIA.md) 和 [折叠控件](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/qa/FOLD-CONTROLS.md)。未更改真实库，未宣称移动端、任意第三方主题或大白板性能提升；媒体回看验证实际链接的插件处理器，不调用系统级 URL。
 
 ## 1.3.25
 
@@ -190,9 +214,9 @@ Unsaved native input can be lost on forced termination before it reaches disk, a
 - 白板顶部格式参数默认收起，点击分类展开，再次点击或 Esc 收起并保留键盘焦点；选中对象的编辑入口集中到顶部。减轻媒体引用内层边框和底色，区分悬停、选中与编辑状态，保留自定义边框、表格和 Obsidian 主题配色。
 - Local media drafts now survive plugin/app restarts through device-local staging with explicit recovery/discard. Formal notes still require Save. Saved excerpts use live Markdown block references on boards. Media layout is more compact; board formatting values open on demand with keyboard support.
 
-验证：4,458 项自动回归通过；原生 Obsidian 1.13.7 临时库验证完整进程重启后的文字/PNG/来源/时间/ID、失败重试、重复操作、同源引用更新及宽窄深浅色布局。lint 无错误（118 项既有警告），TypeScript 与构建通过。详细范围见 [本地验收](qa/media-draft-recovery.md) 和 [白板界面验收](qa/board-polish-release.md)。
+验证：4,458 项自动回归通过；原生 Obsidian 1.13.7 临时库验证完整进程重启后的文字/PNG/来源/时间/ID、失败重试、重复操作、同源引用更新及宽窄深浅色布局。lint 无错误（118 项既有警告），TypeScript 与构建通过。详细范围见 [本地验收](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/qa/media-draft-recovery.md) 和 [白板界面验收](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/qa/board-polish-release.md)。
 
-边界：暂存仅本机，不同步、不替代备份；突然终止可能损失最后 350 ms 输入或未完成写入。未验证断电、多进程同库、移动端及存储配额耗尽；本轮不扩展在线视频草稿恢复。媒体回源验证实际 URL 的插件处理器，未发送系统级 URL。1.3.24 原版性能数据为合成库基线，不代表本版性能优化，详见 [性能报告](qa/performance-results.md)。
+边界：暂存仅本机，不同步、不替代备份；突然终止可能损失最后 350 ms 输入或未完成写入。未验证断电、多进程同库、移动端及存储配额耗尽；本轮不扩展在线视频草稿恢复。媒体回源验证实际 URL 的插件处理器，未发送系统级 URL。1.3.24 原版性能数据为合成库基线，不代表本版性能优化，详见 [性能报告](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/qa/performance-results.md)。
 
 ## 1.3.24
 

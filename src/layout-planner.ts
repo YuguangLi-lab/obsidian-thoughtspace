@@ -3,11 +3,12 @@ import {Board,Card,colorNames,colors,uid} from './model';
 import {sectionBounds,sectionContains,sectionMemberQuery} from './sections';
 import {readingTitle,reviewLabels} from './reading-desk';
 import {validateGroupDestination} from './group-organizer';
+import {clusterCompactionSource,clusterCompactionContext,clusterComponents,validateClusterMembership,validatePreservedClusters,type PreservedClusters} from './cluster-compaction';
 export const layoutModes={grid:'整齐网格',row:'横向排列',column:'纵向排列',masonry:'紧凑瀑布流',kind:'按类型分栏',color:'按颜色分栏',review:'按阅读状态分栏',connections:'按连线聚类',distributeX:'横向等距',distributeY:'纵向等距',alignLeft:'左对齐',alignCenter:'水平居中',alignRight:'右对齐',alignTop:'顶端对齐',alignMiddle:'垂直居中',alignBottom:'底端对齐'} as const;
-export interface LayoutOptions{mode:keyof typeof layoutModes;columns:number;gap:number;sort:'position'|'title';anchor:'corner'|'center';createSections?:boolean}
+export interface LayoutOptions{mode:keyof typeof layoutModes;columns:number;gap:number;sort:'position'|'title';anchor:'corner'|'center';createSections?:boolean;preserveClusters?:boolean}
 export interface LayoutSection {title:string;color:Card['color'];ids:string[];x:number;y:number;width:number;height:number}
 export const sectionLayoutModes=new Set<LayoutOptions['mode']>(['kind','color','review','connections']);
-export interface LayoutPlan{newSections?:LayoutSection[];sectionContext?:string;movement?:string;originals:Card[];items:Card[];signature:string;ids:string[];skipped:number;lanes:{label:string;x:number;y?:number;width:number;ids:string[]}[];connections?:string;bounds:{x:number;y:number;width:number;height:number};section?:{original:Card;next:Card;members:string}}
+export interface LayoutPlan{preservedClusters?:PreservedClusters;newSections?:LayoutSection[];sectionContext?:string;movement?:string;originals:Card[];items:Card[];signature:string;ids:string[];skipped:number;lanes:{label:string;x:number;y?:number;width:number;ids:string[]}[];connections?:string;bounds:{x:number;y:number;width:number;height:number};section?:{original:Card;next:Card;members:string}}
 /** Only topology within the movable selection affects clustering; direction and duplicate edges do not. */
 function connectionPairs(board:Board,ids:ReadonlySet<string>){return [...new Set(board.edges.filter(e=>e.from!==e.to&&ids.has(e.from)&&ids.has(e.to)).map(e=>JSON.stringify([e.from,e.to].sort())))].sort();}
 function connectedGroups(nodes:Card[],pairs:readonly string[]){
@@ -23,17 +24,21 @@ function connectedGroups(nodes:Card[],pairs:readonly string[]){
 export const layoutSignature=(nodes:Card[])=>JSON.stringify(nodes.map(n=>[n.id,n.kind,n.x,n.y,n.width,n.height,n.locked,n.color,n.review,readingTitle(n)]));
 const movementSignature=(units:ReturnType<typeof foldedMoveUnits>)=>JSON.stringify(units.map(unit=>[unit.root.id,unit.members.map(n=>[n.id,n.x,n.y,n.width,n.height,!!n.locked,!!n.branchFolded])]));
 export function layoutBounds(nodes:Card[]){const x=Math.min(...nodes.map(n=>n.x)),y=Math.min(...nodes.map(n=>n.y));return {x,y,width:Math.max(...nodes.map(n=>n.x+n.width))-x,height:Math.max(...nodes.map(n=>n.y+n.height))-y};}
-export function planLayout(board:Board,ids:ReadonlySet<string>,options:LayoutOptions):LayoutPlan{
+export function planLayout(board:Board,ids:ReadonlySet<string>,options:LayoutOptions):LayoutPlan{return planLayoutDraft(board,ids,options);}
+/** Only the explicit frame scope may refit its own boundary; public selection
+ * layouts must retain membership of every existing frame. */
+function planLayoutDraft(board:Board,ids:ReadonlySet<string>,options:LayoutOptions,fittedFrameId?:string):LayoutPlan{
  if(!Object.hasOwn(layoutModes,options.mode)||(['grid','masonry','connections'].includes(options.mode)&&(!Number.isInteger(options.columns)||options.columns<1||options.columns>12))||(!options.mode.startsWith('align')&&(!Number.isFinite(options.gap)||options.gap<8||options.gap>240))||!['position','title'].includes(options.sort)||!['corner','center'].includes(options.anchor))throw Error('请设置 1–12 列和 8–240 的间距');
  if(options.createSections!==undefined&&typeof options.createSections!=='boolean')throw Error('自动分组设置无效');
- const selected=board.nodes.filter(n=>ids.has(n.id)),units=foldedMoveUnits(board,ids),source=units.map(unit=>unit.root);
+ if(options.preserveClusters!==undefined&&typeof options.preserveClusters!=='boolean')throw Error('保留簇内位置设置无效');
+ const preserve=options.mode==='connections'&&options.preserveClusters===true,selected=board.nodes.filter(n=>ids.has(n.id)),units=preserve?clusterCompactionSource(board,ids).map(root=>({root,members:[root]})):foldedMoveUnits(board,ids),source=units.map(unit=>unit.root);
  const createSections=!!options.createSections&&sectionLayoutModes.has(options.mode);
  if(createSections){const frames=board.nodes.filter(n=>n.kind==='section');if(frames.length&&units.some(unit=>unit.members.some(n=>frames.some(frame=>sectionContains(frame,n)))))throw Error('自动分组仅适用于散卡，请先将内容移出原分组，或关闭生成分组框');}
  if(source.length<2||source.length>1000)throw Error('请选择 2–1000 个未锁定的内容对象');
  // Keep sorting titles local to these draft objects; the source signature stays fresh.
  const nodes=source.map(n=>({...n})),titles=options.sort==='title'?new Map(nodes.map(n=>[n,readingTitle(n)])):undefined;
  nodes.sort(titles?(a,b)=>titles.get(a)!.localeCompare(titles.get(b)!)||a.id.localeCompare(b.id):(a,b)=>a.y-b.y||a.x-b.x||a.id.localeCompare(b.id));
- const original=layoutBounds(source),lanes:LayoutPlan['lanes']=[],gap=options.gap;let connections:string[]|undefined;
+ const original=layoutBounds(source),lanes:LayoutPlan['lanes']=[],gap=options.gap;let connections:string[]|undefined,preservedClusters:PreservedClusters|undefined;
  if(options.mode.startsWith('align')){
   for(const n of nodes){if(options.mode==='alignLeft')n.x=original.x;else if(options.mode==='alignCenter')n.x=original.x+(original.width-n.width)/2;else if(options.mode==='alignRight')n.x=original.x+original.width-n.width;else if(options.mode==='alignTop')n.y=original.y;else if(options.mode==='alignMiddle')n.y=original.y+(original.height-n.height)/2;else n.y=original.y+original.height-n.height;}
  }else if(options.mode==='distributeX'||options.mode==='distributeY'){
@@ -41,12 +46,14 @@ export function planLayout(board:Board,ids:ReadonlySet<string>,options:LayoutOpt
   for(const n of nodes){if(horizontal){n.x=cursor;cursor+=n.width+gap;}else{n.y=cursor;cursor+=n.height+gap;}}
  }else if(options.mode==='connections'){
   // Clustering and the stale-preview signature share this call's canonical pairs.
-  const groups=connectedGroups(nodes,connections=connectionPairs(board,new Set(nodes.map(n=>n.id)))),blocks=groups.map(group=>{const cols=Math.min(options.columns,group.items.length),width=Math.max(...group.items.map(n=>n.width));let y=0;
+  connections=connectionPairs(board,new Set(nodes.map(n=>n.id)));
+  const byId=new Map(nodes.map(n=>[n.id,n])),groups=preserve?clusterComponents(board,nodes).map((group,i)=>({items:group.map(id=>byId.get(id)!),label:group.length>1?`关联组 ${i+1} · ${group.length} 项`:'未连接 · 1 项'})):connectedGroups(nodes,connections),blocks=groups.map(group=>{if(preserve)return {...group,bounds:layoutBounds(group.items)};const cols=Math.min(options.columns,group.items.length),width=Math.max(...group.items.map(n=>n.width));let y=0;
    for(let i=0;i<group.items.length;i+=cols){const row=group.items.slice(i,i+cols);row.forEach((n,j)=>{n.x=j*(width+gap);n.y=y;});y+=Math.max(...row.map(n=>n.height))+gap;}
    return {...group,bounds:layoutBounds(group.items)};
   });
-  const cols=Math.ceil(Math.sqrt(blocks.length));let y=original.y;
-  for(let i=0;i<blocks.length;i+=cols){const row=blocks.slice(i,i+cols);let x=original.x;for(const block of row){for(const n of block.items){n.x+=x;n.y+=y;}lanes.push({label:block.label,x,y,width:block.bounds.width,ids:block.items.map(n=>n.id)});x+=block.bounds.width+gap*2+32;}y+=Math.max(...row.map(g=>g.bounds.height))+gap*2+56;}
+  if(preserve)preservedClusters={context:clusterCompactionContext(board),groups:groups.map(group=>group.items.map(n=>n.id))};
+  const cols=preserve?Math.min(options.columns,blocks.length):Math.ceil(Math.sqrt(blocks.length));let y=original.y;
+  for(let i=0;i<blocks.length;i+=cols){const row=blocks.slice(i,i+cols);let x=original.x;for(const block of row){const dx=preserve?x-block.bounds.x:x,dy=preserve?y-block.bounds.y:y;for(const n of block.items){n.x+=dx;n.y+=dy;}lanes.push({label:block.label,x,y,width:block.bounds.width,ids:block.items.map(n=>n.id)});x+=block.bounds.width+gap*2+32;}y+=Math.max(...row.map(g=>g.bounds.height))+gap*2+56;}
  }else if(options.mode==='row'||options.mode==='column'){let x=original.x,y=original.y;for(const n of nodes){n.x=x;n.y=y;if(options.mode==='row')x+=n.width+gap;else y+=n.height+gap;}}
  else if(options.mode==='grid'||options.mode==='masonry'){
   const cols=Math.min(options.columns,nodes.length),width=Math.max(...nodes.map(n=>n.width)),bottoms=Array.from({length:cols},()=>original.y);let rowY=original.y;
@@ -60,7 +67,8 @@ export function planLayout(board:Board,ids:ReadonlySet<string>,options:LayoutOpt
  const packed=layoutBounds(nodes),keepCenter=options.anchor==='center'&&!options.mode.startsWith('align'),dx=keepCenter?(original.width-packed.width)/2:0,dy=keepCenter?(original.height-packed.height)/2:0;
  for(const n of nodes){n.x+=dx;n.y+=dy;}for(const lane of lanes){lane.x+=dx;if(lane.y!==undefined)lane.y+=dy;}
  const newSections=createSections?planNewSections(board,nodes,lanes,units,options):undefined;
- return {...(newSections?{newSections,sectionContext:sectionContext(board)}:{}),originals:source.map(n=>({...n})),items:nodes,signature:layoutSignature(source),movement:movementSignature(units),ids:source.map(n=>n.id),skipped:selected.length-source.length,lanes,bounds:layoutBounds(newSections?[...nodes,...newSections.map((s,i)=>({...s,id:`preview-section-${i}`,kind:'section' as const}))]:nodes),...(options.mode==='connections'?{connections:JSON.stringify(connections)}:{})};
+ if(preserve)validateClusterMembership(board,nodes,fittedFrameId);
+ return {...(preservedClusters?{preservedClusters}:{}),...(newSections?{newSections,sectionContext:sectionContext(board)}:{}),originals:source.map(n=>({...n})),items:nodes,signature:layoutSignature(source),movement:movementSignature(units),ids:source.map(n=>n.id),skipped:selected.length-source.length,lanes,bounds:layoutBounds(newSections?[...nodes,...newSections.map((s,i)=>({...s,id:`preview-section-${i}`,kind:'section' as const}))]:nodes),...(options.mode==='connections'?{connections:JSON.stringify(connections)}:{})};
 }
 /** Outside geometry is part of a grouping proposal because containment is spatial. */
 const sectionContext=(board:Board)=>JSON.stringify(board.nodes.map(n=>[n.id,n.kind,n.x,n.y,n.width,n.height,!!n.locked,!!n.branchFolded,!!n.sectionFolded]));
@@ -91,7 +99,7 @@ function validateNewSections(board:Board,plan:LayoutPlan,units:ReturnType<typeof
 }
 /** Validate the whole proposal before any write, including asynchronous auto-fit or newly locked objects. */
 export function applyLayout(board:Board,plan:LayoutPlan){
- const ids=new Set(plan.ids);let units:ReturnType<typeof foldedMoveUnits>|undefined;if(plan.movement!==undefined&&movementSignature(units=foldedMoveUnits(board,ids))!==plan.movement)throw Error('折叠分支或锁定状态已变化，请重新预览');const current=board.nodes.filter(n=>ids.has(n.id));if(layoutSignature(current)!==plan.signature)throw Error('对象已变化，请重新生成布局预览');
+ const ids=new Set(plan.ids);if(plan.preservedClusters)validatePreservedClusters(board,ids,plan.items,plan.preservedClusters,plan.section?.original.id);let units:ReturnType<typeof foldedMoveUnits>|undefined;if(plan.movement!==undefined&&movementSignature(units=plan.preservedClusters?board.nodes.filter(n=>ids.has(n.id)).map(root=>({root,members:[root]})):foldedMoveUnits(board,ids))!==plan.movement)throw Error('折叠分支或锁定状态已变化，请重新预览');const current=board.nodes.filter(n=>ids.has(n.id));if(layoutSignature(current)!==plan.signature)throw Error('对象已变化，请重新生成布局预览');
  if(plan.connections!==undefined&&JSON.stringify(connectionPairs(board,ids))!==plan.connections)throw Error('连线关系已变化，请重新生成布局预览');
  if(plan.section&&(![plan.section.next.x,plan.section.next.y,plan.section.next.width,plan.section.next.height].every(Number.isFinite)||plan.section.next.width<=0||plan.section.next.height<=0))throw Error('分组布局无效，请重新预览');
  if(plan.section){const section=board.nodes.find(n=>n.id===plan.section!.original.id);if(!section||layoutSignature([section])!==layoutSignature([plan.section.original])||sectionMembersSignature(board,section)!==plan.section.members)throw Error('分组或框内内容已变化，请重新预览');}
@@ -113,8 +121,8 @@ export function planSectionLayout(board:Board,sectionId:string,options:LayoutOpt
  if(members.some(n=>n.kind==='section'))throw Error('分组内还有子分组，请先选择内层分组整理');
  // Fixed objects are obstacles. Keeping the original section avoids moving a locked card indirectly.
  if(members.some(n=>n.locked))throw Error('分组内有锁定对象，请先解锁后整理分组');
- const plan=planLayout(board,new Set(members.map(n=>n.id)),{...options,anchor:'corner',createSections:false});
- const units=foldedMoveUnits(board,new Set(plan.ids)),logicalBounds=layoutBounds(projectedMembers(plan.items,units));
+ const plan=planLayoutDraft(board,new Set(members.map(n=>n.id)),{...options,anchor:'corner',createSections:false},section.id);
+ const units=plan.preservedClusters?board.nodes.filter(n=>plan.ids.includes(n.id)).map(root=>({root,members:[root]})):foldedMoveUnits(board,new Set(plan.ids)),logicalBounds=layoutBounds(projectedMembers(plan.items,units));
  const dx=section.x+30-logicalBounds.x,dy=section.y+60-logicalBounds.y;
  for(const n of plan.items){n.x+=dx;n.y+=dy;}for(const lane of plan.lanes){lane.x+=dx;if(lane.y!==undefined)lane.y+=dy;}
  // Hidden descendants and members pinned by an external lock remain part of the
@@ -122,6 +130,7 @@ export function planSectionLayout(board:Board,sectionId:string,options:LayoutOpt
  const projected=projectedMembers(plan.items,units),positions=new Map(projected.map(n=>[n.id,n])),logical=[...projected,...members.filter(n=>!positions.has(n.id))],bounds=layoutBounds(logical);
  plan.bounds=layoutBounds(plan.items);const next={...section,x:bounds.x-30,y:bounds.y-60,width:bounds.width+60,height:bounds.height+90};
  validateGroupDestination(board,new Set(projected.map(n=>n.id)),section,next,projected);
+ if(plan.preservedClusters)validateClusterMembership(board,plan.items,section.id);
  plan.section={original:{...section},next,members:sectionMembersSignature(board,section)};
  return plan;
 }

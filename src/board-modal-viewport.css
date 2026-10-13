@@ -1,0 +1,32 @@
+.modal-container.ts-board-modal-viewport {top:var(--ts-modal-visible-top,0px);bottom:auto;height:min(100dvh,var(--ts-visible-height,100dvh));box-sizing:border-box;padding:max(12px,env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) max(12px,env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px))}
+.ts-board-modal-viewport>.modal {max-width:100%;max-height:100%;margin:0;min-height:0}
+.ts-board-modal-viewport .modal-content {min-height:0;overflow:auto;overscroll-behavior:contain}
+.ts-board-modal-viewport .suggestion-item {min-height:44px;box-sizing:border-box}
+/* New-board choices stay compact; secondary file-format details remain
+   available without competing with the type and name of the new board. */
+.ts-board-creation-modal {width:min(480px,100%);font-family:var(--font-interface)}
+.ts-board-creation-modal .modal-title {font-size:24px;line-height:1.3;font-weight:600;letter-spacing:-.025em}
+.ts-board-creation-modal .modal-content {padding-top:8px}
+.ts-board-creation-modal .setting-item {border:0;padding:12px 0;gap:16px}
+.ts-board-creation-modal .setting-item-name {font-size:13px}
+.ts-board-creation-purpose {margin:0 0 24px;color:var(--text-muted);font-size:13px;line-height:1.7}
+.ts-board-creation-name {display:flex;flex-direction:column;gap:8px;margin-bottom:24px;font-size:13px;font-weight:500}
+.ts-board-creation-name input {width:100%;height:40px;font-size:15px;font-weight:400;border-radius:6px}
+.ts-board-creation-format {border-top:1px solid var(--background-modifier-border);padding:12px 0}
+.ts-board-creation-format summary {width:fit-content;max-width:100%;padding:6px 0;color:var(--text-muted);font-size:12px;line-height:1.5;cursor:pointer}
+.ts-board-creation-format summary:focus-visible {outline:2px solid var(--ts-accent,var(--interactive-accent));outline-offset:3px;border-radius:2px}
+.ts-board-creation-format .setting-item-description {margin:0;color:var(--text-muted);font-size:12px;line-height:1.6}
+.ts-board-creation-modal [role=status] {font-size:13px;line-height:1.6;overflow-wrap:anywhere;max-height:120px;overflow:auto}
+.ts-board-creation-modal [role=status]:not(:empty) {padding-block:8px}
+.ts-board-creation-modal .modal-button-container {margin-top:16px;gap:8px;flex-wrap:wrap}
+.ts-board-creation-modal .modal-button-container button {min-height:36px;height:auto;padding:8px 16px;border-radius:6px}
+/* Obsidian uses a DIV for the native dialog close affordance. Scope enlarged
+   targets to plugin-owned visible-viewport dialogs, preserving wide desktop UI. */
+@media(any-pointer:coarse),(max-width:760px){
+ .ts-board-modal-viewport>.modal :is(.modal-header-button,.modal-close-button){width:44px;height:44px;min-width:44px;min-height:44px;box-sizing:border-box;touch-action:manipulation}
+ .ts-board-creation-modal :is(input,select,.modal-button-container button,.ts-board-creation-format summary){min-height:44px}
+ .ts-board-creation-modal :is(input,select){font-size:16px}
+ .ts-board-creation-modal .setting-item{flex-wrap:wrap;gap:8px}
+ .ts-board-creation-modal .setting-item-control{min-width:0;max-width:100%}
+ .ts-board-creation-modal select{max-width:100%}
+}

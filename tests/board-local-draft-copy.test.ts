@@ -7,6 +7,8 @@ import * as mindmap from '../src/mindmap';
 import * as documents from '../src/board-document';
 import * as geometry from '../src/relation-geometry-checkpoint';
 import {createHandwritingBoard,isHandwritingBoard} from '../src/handwriting-board';
+import {HandwritingHistory} from '../src/handwriting-history';
+import {applyInkEdit} from '../src/handwriting-ink-edit';
 import {reflowReadingContent} from '../src/expansion-reading-state';
 import {renderBoardSaveFeedback} from '../src/board-save-feedback';
 import type {InkStroke} from '../src/ink-model';
@@ -39,7 +41,7 @@ class Doc {
 }
 const main=readFileSync('src/main.ts','utf8'),take=(from:string,to:string)=>main.slice(main.indexOf(from),main.indexOf(to,main.indexOf(from)));
 const parseYaml=(raw:string)=>raw.includes('thoughtspace: board')?{thoughtspace:'board'}:{};
-const deps={...model,...mindmap,...documents,...geometry,reflowReadingContent,isHandwritingBoard,parseYaml,Notice:class{},EXT:'thoughtspace',report:()=>{},
+const deps={...model,...mindmap,...documents,...geometry,reflowReadingContent,isHandwritingBoard,HandwritingHistory,applyInkEdit,parseYaml,Notice:class{},EXT:'thoughtspace',report:()=>{},
  hasNativeBoardEditor:(app:{nativeOpen:boolean})=>app.nativeOpen,assertBoardEditorOwnership:()=>{}};
 const Session=new Function(...Object.keys(deps),transformSync(take('class Session {','\nexport default class ThoughtSpace')+';return Session',{loader:'ts'}).code)(...Object.values(deps));
 const sample:InkStroke={id:'ink-1',color:'#315e9b',width:3,points:[[1,2,.5],[40,80,.8]]};

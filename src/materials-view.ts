@@ -2,6 +2,7 @@ import {App,Component,MarkdownRenderer,Modal,Notice,TFile,setIcon} from 'obsidia
 import {Fragment,FragmentKind,OutlineTopic,extractFragments,fragmentLabels,parseOutline,MaterialImportOptions,MaterialImportResult,MaterialProgress} from './materials';
 import {themeSurface} from './ui-tokens';
 import {bindMobileViewport} from './mobile-viewport';
+import {bindBoardHostInset} from './board-chrome';
 export type MaterialImporter=(file:TFile,raw:string,fragments:Fragment[],group:boolean,link:boolean,options?:MaterialImportOptions)=>Promise<MaterialImportResult>;
 export interface MaterialAdapter {
  docked?:boolean;
@@ -31,6 +32,7 @@ export class MaterialsWorkbench {
   const hero=this.contentEl.createDiv('ts-materials-intro');hero.createDiv({cls:'ts-materials-eyebrow',text:'READ · EXTRACT · CONNECT'});hero.createEl('p',{text:'让阅读留下线索，让材料生长为结构。'});
   if(this.adapter.docked){this.targetEl=this.contentEl.createDiv('ts-materials-target');this.refreshTarget();this.lifetime.registerEvent(this.app.vault.on('modify',file=>{if(file===this.file){this.stale=true;this.renderFooter();}}));this.lifetime.registerEvent(this.app.vault.on('rename',()=>{this.renderSource();this.refreshTarget();}));this.lifetime.registerDomEvent(this.contentEl,'keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();e.stopPropagation();void this.apply();}});}
   this.tabs=this.contentEl.createDiv({cls:'ts-materials-tabs',attr:{role:'tablist','aria-label':'材料工作流'}});this.source=this.contentEl.createDiv('ts-materials-source');this.body=this.contentEl.createDiv('ts-materials-body');this.footer=this.contentEl.createDiv('ts-materials-footer');this.renderTabs();this.renderSource();this.render();
+  if(this.adapter.docked)this.lifetime.register(bindBoardHostInset(this.modalEl,this.footer,()=>{}));
   if(this.adapter.initial)void this.load(this.adapter.initial);
  }
  get sourceFile(){return this.file;}

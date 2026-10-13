@@ -36,14 +36,15 @@
   font-family:var(--ts-card-body-font,var(--font-text));
 }
 
-/* Footer chips share a quiet surface, with source symbols and status dots intact. */
+/* Metadata reads as one line, with source symbols and status dots intact.
+   Transparent borders preserve the document's measured footer geometry. */
 .ts-root .ts-node.ts-card > .ts-card-meta {
   gap:5px; border:0; background:transparent; box-shadow:none; color:var(--text-muted);
 }
 .ts-root .ts-node.ts-card > .ts-card-meta > :is(.ts-tag,.ts-state-pill,.ts-source-trigger) {
   display:inline-flex; align-items:center; gap:4px; min-width:0; max-width:100%;
-  padding:2px 7px; border:1px solid var(--ts-card-chip-line); border-radius:5px;
-  background:var(--ts-card-chip-wash); box-shadow:none; font-family:var(--font-interface);
+  padding:2px 7px; border:1px solid transparent; border-radius:3px;
+  background:transparent; box-shadow:none; font-family:var(--font-interface);
   font-size:10px!important; font-weight:400; line-height:1.6;
 }
 .ts-root .ts-node.ts-card > .ts-card-meta > .ts-tag {
@@ -72,7 +73,7 @@
 
 /* Clear primary actions without changing document geometry. */
 .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions {
-  border-radius:8px; border-color:var(--ts-object-line);
+  border-radius:6px; border-color:var(--ts-object-line);
   box-shadow:var(--ts-object-shadow);
 }
 .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-icon-button.ts-card-action-primary {

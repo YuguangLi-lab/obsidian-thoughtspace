@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
+import {bindBoardModalViewport} from '../src/board-modal-viewport';
 import {cleanPaperPreferences,paperAppearanceStamp,paperBaseColor,paperPresets} from '../src/paper-appearance';
 import {cleanBackgroundImagePreferences,backgroundImageStamp,MAX_BACKGROUND_IMAGE_BYTES} from '../src/background-image';
 
@@ -19,9 +20,9 @@ class Element {
  setCssProps(values:Record<string,string>){Object.assign(this.style.values,values);}click(){if(!this.disabled)this.onclick?.();}
  all():Element[]{return[this,...this.children.flatMap(child=>child.all())];}
 }
-class Modal {readonly modalEl=new Element('DIV');readonly titleEl=this.modalEl.createEl('h2');readonly contentEl=this.modalEl.createDiv();closeCount=0;constructor(readonly app:unknown){}close(){this.closeCount++;(this as unknown as {onClose:()=>void}).onClose();}}
+class Modal {readonly containerEl={ownerDocument:{defaultView:null}};readonly modalEl=new Element('DIV');readonly titleEl=this.modalEl.createEl('h2');readonly contentEl=this.modalEl.createDiv();closeCount=0;constructor(readonly app:unknown){}close(){this.closeCount++;(this as unknown as {onClose:()=>void}).onClose();}}
 const notices:string[]=[];
-const dependencies={Modal,Notice:class {constructor(text:string){notices.push(text);}},themeSurface:()=>{},setIcon:()=>{},cleanPaperPreferences,paperAppearanceStamp,paperBaseColor,paperPresets,cleanBackgroundImagePreferences,backgroundImageStamp,MAX_BACKGROUND_IMAGE_BYTES};
+const dependencies={Modal,bindBoardModalViewport,Notice:class {constructor(text:string){notices.push(text);}},themeSurface:()=>{},setIcon:()=>{},cleanPaperPreferences,paperAppearanceStamp,paperBaseColor,paperPresets,cleanBackgroundImagePreferences,backgroundImageStamp,MAX_BACKGROUND_IMAGE_BYTES};
 function load(filename:string,name:string){const source=readFileSync(`src/${filename}.ts`,'utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'');return new Function(...Object.keys(dependencies),transformSync(`${source}\nreturn ${name};`,{loader:'ts'}).code)(...Object.values(dependencies));}
 const Paper=load('paper-settings-view','PaperSettingsModal'),Background=load('background-image-view','BackgroundImageModal');
 function fixture(kind:'paper'|'background',language?:'zh-CN'|'en'){

@@ -75,8 +75,8 @@ export function boardSearchDocument(board:Board,path:string,vault:string){
  const body=chunks.join('\n\n')+'\n';return markdown?`<!-- thoughtspace-search-v2:${checksum(path+'\n'+body)}:${encodeURIComponent(path)} -->\n${body}`:`<!-- thoughtspace-search-v1:${checksum(body)} -->\n${body}`;
 }
 export interface SearchIndexIO {
- /** Only verified source boards; ordinary Markdown and generated mirrors return undefined. */
- board(path:string):Promise<Board|undefined>;
+ /** Verified boards; null means metadata is not ready, undefined means absent or known non-board. */
+ board(path:string):Promise<Board|null|undefined>;
  read(path:string):Promise<string|undefined>;
  write(path:string,content:string,expected:string|undefined):Promise<void>;
  remove(path:string,expected:string):Promise<void>;
@@ -91,6 +91,8 @@ export class BoardSearchSync {
  private async drain(){while(this.pending.size&&!this.stopped){const path=this.pending.values().next().value!;this.pending.delete(path);try{
   if(markdownSourcePath(path)&&!safeSourcePath(path))throw Error('白板搜索来源路径无效');
   const board=await this.io.board(path);if(this.stopped)return;
+  // A metadata change will enqueue a retry; an unknown source must never recycle its mirror.
+  if(board===null)continue;
   const target=searchIndexPath(path),old=await this.io.read(target);if(this.stopped)return;
   const identity=old===undefined?undefined:searchDocumentIdentity(old);
   if(old!==undefined&&(!identity||markdownSourcePath(path)&&(identity.version!==2||identity.source!==path)))throw Error('搜索索引有手动修改或来源不匹配，已保留；移开该文件后可重建索引');

@@ -1,7 +1,7 @@
 import {Modal,Setting,View,type App,type TFile,type EventRef,type WorkspaceLeaf} from 'obsidian';
 import type {BoardOpenNavigation} from './board-opening-navigation';
 import {cleanBoardCreationPreferences,TemplateCreationIncompleteError,type BoardCreationPreferences} from './board-creation';
-import {bindMobileViewport} from './mobile-viewport';
+import {bindBoardModalViewport} from './board-modal-viewport';
 
 export interface BoardCreationHost {
  initial:BoardCreationPreferences;name?:string;title?:string;template?:boolean;
@@ -21,19 +21,25 @@ export class BoardCreationModal extends Modal {
   this.alive=true;this.modalEl.addClass('ts-prompt-modal','ts-board-creation-modal');this.host.decorate?.(this.modalEl);
   this.titleEl.setText(this.host.title||'新建白板');
   const originDocument=this.app.workspace.getActiveViewOfType(View)?.containerEl.ownerDocument;if(originDocument&&this.containerEl.ownerDocument!==originDocument)originDocument.body.appendChild(this.containerEl);
-  this.viewport?.();this.viewport=bindMobileViewport(this.modalEl);
+  this.viewport?.();this.viewport=bindBoardModalViewport(this.containerEl);
   const initial=cleanBoardCreationPreferences(this.host.initial);
   let presentation=initial.presentation,format=initial.format;
+  const typeDescriptions={board:'把笔记、图片和想法放在同一张画布上。',brain:'围绕一个主题，展开想法与笔记之间的关系。',handwriting:'用笔或鼠标自由书写，也可开启手指书写。'};
   let typeControl:{setDisabled:(disabled:boolean)=>unknown}|undefined;
   if(!this.host.template)new Setting(this.contentEl).setName('白板类型').addDropdown(control=>{
-   typeControl=control;control.selectEl.setAttribute('aria-label','白板类型');control.addOption('board','普通白板').addOption('brain','脑图白板').addOption('handwriting','手写白板').setValue(presentation).onChange(value=>{presentation=value==='handwriting'?'handwriting':value==='brain'?'brain':'board';});
+   typeControl=control;control.selectEl.setAttribute('aria-label','白板类型');control.addOption('board','普通白板').addOption('brain','脑图白板').addOption('handwriting','手写白板').setValue(presentation).onChange(value=>{presentation=value==='handwriting'?'handwriting':value==='brain'?'brain':'board';typeHint.setText(typeDescriptions[presentation]);});
   });
+  const typeHint=this.contentEl.createEl('p',{cls:'ts-board-creation-purpose',text:this.host.template?'从模板开始，创建独立的白板与笔记。':typeDescriptions[presentation]});
+  const nameField=this.contentEl.createEl('label',{cls:'ts-board-creation-name'});nameField.createSpan({text:'白板名称'});
+  const input=nameField.createEl('input',{cls:'ts-wide',type:'text',value:this.host.name||(presentation==='handwriting'?'新的手写白板':presentation==='brain'?'新的脑图':'新的研究主题'),attr:{'aria-label':'白板名称'}});
+  const advanced=this.contentEl.createEl('details',{cls:'ts-board-creation-format'});
+  const formatName=()=>format==='markdown'?'Markdown':'旧格式';
+  const formatSummary=advanced.createEl('summary',{text:'文件格式 · '+formatName()});
   let formatControl:{setDisabled:(disabled:boolean)=>unknown}|undefined;
-  new Setting(this.contentEl).setName('文件格式').addDropdown(control=>{
-   formatControl=control;control.selectEl.setAttribute('aria-label','文件格式');control.addOption('legacy','旧格式 (.thoughtspace)').addOption('markdown','Markdown (.md)').setValue(format).onChange(value=>{format=value==='markdown'?'markdown':'legacy';});
+  new Setting(advanced).setName('文件格式').addDropdown(control=>{
+   formatControl=control;control.selectEl.setAttribute('aria-label','文件格式');control.addOption('legacy','旧格式 (.thoughtspace)').addOption('markdown','Markdown (.md)').setValue(format).onChange(value=>{format=value==='markdown'?'markdown':'legacy';formatSummary.setText('文件格式 · '+formatName());});
   });
-  this.contentEl.createEl('p',{cls:'setting-item-description',text:this.host.template?'模板创建独立白板与 Markdown 卡片。成功后记住所选格式。':'成功创建后记住类型与格式；已有文件保持原格式。'});
-  const input=this.contentEl.createEl('input',{cls:'ts-wide',type:'text',value:this.host.name||(presentation==='handwriting'?'新的手写白板':presentation==='brain'?'新的脑图':'新的研究主题'),attr:{'aria-label':'白板名称'}});
+  advanced.createEl('p',{cls:'setting-item-description',text:this.host.template?'模板创建独立白板与 Markdown 卡片。成功后记住所选格式。':'成功创建后记住类型与格式；已有文件保持原格式。'});
   const status=this.contentEl.createDiv({attr:{role:'status','aria-live':'polite'}}),actions=this.contentEl.createDiv('modal-button-container');
   const cancel=actions.createEl('button',{text:'取消',attr:{type:'button'}}),save=actions.createEl('button',{cls:'mod-cta',text:'创建',attr:{type:'button'}});
   const origin=this.app.workspace.getActiveViewOfType(View),leaf=origin?.leaf,doc=origin?.containerEl.ownerDocument||this.containerEl.ownerDocument,win=doc.defaultView;

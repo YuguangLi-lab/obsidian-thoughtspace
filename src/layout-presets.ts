@@ -8,7 +8,8 @@ export const MAX_LAYOUT_PRESETS=20;
 export function cleanLayoutOptions(raw:unknown):LayoutOptions|undefined{
  if(!isRecord(raw)||typeof raw.mode!=='string'||!Object.hasOwn(layoutModes,raw.mode)||!Number.isInteger(raw.columns)||typeof raw.columns!=='number'||raw.columns<1||raw.columns>12||typeof raw.gap!=='number'||!Number.isFinite(raw.gap)||raw.gap<8||raw.gap>240||(raw.sort!=='position'&&raw.sort!=='title')||(raw.anchor!=='corner'&&raw.anchor!=='center'))return;
  const mode=raw.mode as LayoutOptions['mode'];
- return{mode,columns:raw.columns,gap:raw.gap,sort:raw.sort as LayoutOptions['sort'],anchor:raw.anchor as LayoutOptions['anchor'],...(raw.createSections===true&&sectionLayoutModes.has(mode)?{createSections:true}:{})};
+ if(raw.preserveClusters!==undefined&&typeof raw.preserveClusters!=='boolean')return;
+ return{mode,columns:raw.columns,gap:raw.gap,sort:raw.sort as LayoutOptions['sort'],anchor:raw.anchor as LayoutOptions['anchor'],...(raw.createSections===true&&sectionLayoutModes.has(mode)?{createSections:true}:{}),...(raw.preserveClusters===true&&mode==='connections'?{preserveClusters:true}:{})};
 }
 export function cleanLayoutPresets(raw:unknown):LayoutPreset[]{
  if(!isUnknownArray(raw))return[];const result:LayoutPreset[]=[],ids=new Set<string>(),names=new Set<string>();

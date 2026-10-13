@@ -1,3 +1,4 @@
+import {bindBoardModalViewport} from './board-modal-viewport';
 import {Modal,Setting,type App} from 'obsidian';
 import {brainColor,brainColorKeys,brainContrast,cleanBrainColors,type BrainColors,type BrainColorKey} from './brain-colors';
 import {themeSurface} from './ui-tokens';
@@ -10,12 +11,13 @@ export interface BrainColorsHost {
 const labels:Record<BrainColorKey,string>={background:'背景',node:'节点底色',border:'节点边框',text:'文字',line:'连线'};
 /** One transaction per confirmation; drafts remain local to this view. */
 export class BrainColorsModal extends Modal {
+ private unbindViewport?:()=>void;
  private alive=false;private busy=false;private frame=0;private observer?:MutationObserver;
  constructor(app:App,private readonly host:BrainColorsHost){super(app);}
  onOpen(){
   const doc=this.host.document;if(!this.host.current()||!doc.defaultView||doc.defaultView.closed){this.close();return;}
   if(this.containerEl.ownerDocument!==doc)doc.body.appendChild(this.containerEl);
-  this.alive=true;themeSurface(this.modalEl);this.modalEl.addClass('ts-brain-colors-modal');
+  this.alive=true;this.unbindViewport=bindBoardModalViewport(this.containerEl);themeSurface(this.modalEl);this.modalEl.addClass('ts-brain-colors-modal');
   this.contentEl.createEl('h2',{text:'脑图配色'});
   this.contentEl.createEl('p',{cls:'setting-item-description',text:`仅用于「${this.host.name}」。留空跟随主题，节点边框可单独配色。保留已有背景纹理和图片。`});
   const preview=this.contentEl.createDiv({cls:'ts-brain-colors-preview',attr:{'aria-label':'脑图配色预览'}});
@@ -31,8 +33,8 @@ export class BrainColorsModal extends Modal {
   const update=()=>{
    const bad=invalid();save.disabled=this.busy||!live()||!this.host.current()||!!bad.length;reset.disabled=this.busy;cancel.disabled=this.busy;
    for(const [key,input]of inputs){input.disabled=this.busy;input.setAttribute('aria-invalid',String(bad.includes(key)));pickers.get(key)!.disabled=this.busy;}
-   if(bad.length){status.setText(`「${labels[bad[0]]}」请输入 #RGB 或 #RRGGBB，或留空跟随主题。`);return;}
-   if(!live())return;if(!this.host.current()){status.setText('脑图或配色已变化，或写入已暂停。请检查白板保存提示并重新打开设置。');return;}status.setText('');
+   if(bad.length){status.setAttribute('data-state','error');status.setText(`「${labels[bad[0]]}」请输入 #RGB 或 #RRGGBB，或留空跟随主题。`);return;}
+   if(!live())return;if(!this.host.current()){status.setAttribute('data-state','error');status.setText('脑图或配色已变化，或写入已暂停。请检查白板保存提示并重新打开设置。');return;}status.setText('');
    this.host.preview(cleanBrainColors(draft));
    if(this.frame)doc.defaultView!.cancelAnimationFrame(this.frame);
    this.frame=doc.defaultView!.requestAnimationFrame(()=>{
@@ -57,9 +59,9 @@ export class BrainColorsModal extends Modal {
    row.addExtraButton(component=>component.setIcon('rotate-ccw').setTooltip(`${labels[key]}跟随主题`).onClick(()=>{if(this.busy)return;draft[key]='';inputs.get(key)!.value='';update();}));
   }
   reset.onclick=()=>{if(this.busy)return;for(const key of brainColorKeys){draft[key]='';inputs.get(key)!.value='';}update();};cancel.onclick=()=>this.close();
-  save.onclick=()=>{if(save.disabled||this.busy||!live())return;if(!this.host.current()){status.setText('脑图或配色已变化，请重新打开配色设置');save.disabled=true;return;}this.busy=true;update();status.setText('正在保存…');void this.host.save(cleanBrainColors(draft)).then(()=>{if(live())this.close();}).catch(error=>{if(live())status.setText(error instanceof Error?error.message:String(error));}).finally(()=>{this.busy=false;if(live()){save.disabled=!!invalid().length||!this.host.current();reset.disabled=false;cancel.disabled=false;for(const input of [...inputs.values(),...pickers.values()])input.disabled=false;}});};
+  save.onclick=()=>{if(save.disabled||this.busy||!live())return;if(!this.host.current()){status.setAttribute('data-state','error');status.setText('脑图或配色已变化，请重新打开配色设置');save.disabled=true;return;}this.busy=true;update();status.setAttribute('data-state','busy');status.setText('正在保存…');void this.host.save(cleanBrainColors(draft)).then(()=>{if(live())this.close();}).catch(error=>{if(live()){status.setAttribute('data-state','error');status.setText(error instanceof Error?error.message:String(error));}}).finally(()=>{this.busy=false;if(live()){save.disabled=!!invalid().length||!this.host.current();reset.disabled=false;cancel.disabled=false;for(const input of [...inputs.values(),...pickers.values()])input.disabled=false;}});};
   this.observer=new MutationObserver(()=>{if(!this.busy)update();});this.observer.observe(doc.body,{attributes:true,attributeFilter:['class']});
   update();inputs.get('border')!.focus();
  }
- onClose(){this.alive=false;this.observer?.disconnect();this.observer=undefined;if(this.frame)this.host.document.defaultView?.cancelAnimationFrame(this.frame);this.frame=0;this.host.preview(null);this.contentEl.empty();}
+ onClose(){this.unbindViewport?.();this.unbindViewport=undefined;this.alive=false;this.observer?.disconnect();this.observer=undefined;if(this.frame)this.host.document.defaultView?.cancelAnimationFrame(this.frame);this.frame=0;this.host.preview(null);this.contentEl.empty();}
 }

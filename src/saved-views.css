@@ -1,13 +1,14 @@
-.ts-saved-views{width:min(800px,94vw);max-height:85vh;}
-.ts-saved-views .modal-content{display:flex;flex-direction:column;min-height:0;gap:16px;overflow:hidden;}
+.ts-saved-views{display:flex;flex-direction:column;width:min(800px,94vw);max-height:85vh;container:ts-saved-views / inline-size;}
+.ts-saved-views .modal-content{display:flex;flex-direction:column;flex:1;min-height:0;gap:16px;overflow:auto;}
 .ts-view-intro,.ts-view-footer{color:var(--text-muted);font-size:var(--font-ui-small);line-height:1.6;}
 .ts-view-toolbar{display:flex;align-items:center;gap:10px;}.ts-view-toolbar input{flex:1;min-width:0;}
 .ts-saved-views button{display:inline-flex;align-items:center;justify-content:center;gap:7px;box-shadow:none;}
 .ts-saved-views button svg{width:16px;height:16px;flex:none;}
-.ts-view-body{display:grid;grid-template-columns:minmax(180px,230px) minmax(0,1fr);gap:20px;min-height:0;overflow:hidden;}
+/* Keep the two-column content intrinsic so a keyboard-shortened modal can scroll it. */
+.ts-view-body{display:grid;grid-template-columns:minmax(180px,230px) minmax(0,1fr);gap:20px;flex:none;min-height:0;overflow:visible;}
 .ts-view-list{min-height:180px;max-height:450px;overflow:auto;display:flex;flex-direction:column;gap:5px;padding:3px;}
-.ts-saved-views .ts-view-row{width:100%;min-height:60px;justify-content:flex-start;text-align:left;padding:10px;border:1px solid transparent;background:transparent;color:var(--text-normal);border-radius:9px;flex-shrink:0;}
-.ts-view-row:hover{background:var(--background-modifier-hover);}.ts-saved-views .ts-view-row[aria-selected=true]{background:var(--ts-accent-soft,var(--background-modifier-hover));border-color:var(--ts-border,var(--background-modifier-border));}
+.ts-saved-views .ts-view-row{width:100%;min-height:60px;justify-content:flex-start;text-align:left;padding:10px;border:1px solid transparent;background:transparent;color:var(--text-normal);border-radius:6px;flex-shrink:0;}
+.ts-view-row:hover{background:var(--background-modifier-hover);}.ts-saved-views .ts-view-row[aria-selected=true]{background:var(--ts-accent-soft,var(--background-modifier-hover));border-color:transparent;box-shadow:inset 2px 0 var(--ts-accent,var(--interactive-accent));}
 .ts-view-row-icon{color:var(--ts-accent,var(--text-accent));display:flex;}.ts-view-row-copy{display:flex;flex-direction:column;gap:4px;overflow:hidden;}.ts-view-row-copy>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}.ts-view-row-meta{font-size:11px;color:var(--text-muted);}
 .ts-view-detail{min-width:0;overflow:auto;display:flex;flex-direction:column;gap:16px;padding:3px;}
 .ts-view-preview{position:relative;background:var(--background-secondary);border:1px solid var(--background-modifier-border);border-radius:12px;overflow:hidden;flex-shrink:0;}
@@ -19,4 +20,16 @@
 .ts-view-empty{min-height:270px;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:22px;color:var(--text-muted);}.ts-view-empty>span>svg{width:32px;height:32px;}.ts-view-empty h3{font-size:var(--font-ui-medium);color:var(--text-normal);}.ts-view-empty p{font-size:var(--font-ui-small);line-height:1.6;margin:0;}
 .ts-view-feedback{color:var(--text-error);font-size:12px;}.ts-view-feedback:empty{display:none;}.ts-view-footer{font-size:11px;}
 .ts-saved-views :is(button,input):focus-visible{outline:2px solid var(--ts-accent,var(--interactive-accent));outline-offset:2px;}
-@media(max-width:600px){.ts-saved-views .modal-content{overflow:auto;}.ts-view-body{grid-template-columns:1fr;overflow:visible;}.ts-view-list{max-height:180px;min-height:70px;}.ts-view-detail{overflow:visible;}.ts-view-preview>svg{height:140px;}.ts-view-toolbar{flex-wrap:wrap;}.ts-view-toolbar input{flex-basis:100%;}.ts-view-empty{min-height:130px;}}
+@container ts-saved-views (max-width:600px){.ts-saved-views .modal-content{overflow:auto;}.ts-view-body{grid-template-columns:1fr;overflow:visible;}.ts-view-list{max-height:180px;min-height:70px;}.ts-view-detail{overflow:visible;}.ts-view-preview>svg{height:140px;}.ts-view-toolbar{flex-wrap:wrap;}.ts-view-toolbar input{flex-basis:100%;}.ts-view-empty{min-height:130px;}}
+
+@container ts-saved-views (max-width:600px){
+ .ts-saved-views button{min-height:44px}
+ .ts-saved-views .ts-view-icon{width:44px;height:44px;flex:none}
+ .ts-saved-views input{min-height:44px;font-size:16px}
+ .ts-view-bottom{flex-wrap:wrap}
+}
+@media(any-pointer:coarse){
+ .ts-saved-views button{min-height:44px}
+ .ts-saved-views .ts-view-icon{width:44px;height:44px;flex:none}
+ .ts-saved-views input{min-height:44px;font-size:16px}
+}

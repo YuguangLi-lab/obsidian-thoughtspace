@@ -7,6 +7,7 @@ import {imageHostApi} from './image-host';
 import {validateFolders} from './filing';
 import {themeSurface} from './ui-tokens';
 import {bindMobileViewport} from './mobile-viewport';
+import {bindBoardModalViewport} from './board-modal-viewport';
 
 type Page=SettingsCategory|'filing'|'images'|'profiles';
 type Pair=readonly [string,string];
@@ -38,9 +39,9 @@ class SettingsConfirm extends Modal {
  constructor(app:App,private label:string,private detail:string,private confirmLabel:string,private language:SettingsLanguage,private apply:()=>Promise<void>){super(app);}
  onOpen(){
   this.closed=false;
-  themeSurface(this.modalEl);this.modalEl.addClass('ts-settings-confirm-modal');this.viewport?.();this.viewport=bindMobileViewport(this.modalEl);this.titleEl.setText(this.label);
+  themeSurface(this.modalEl);this.modalEl.addClass('ts-settings-confirm-modal');this.viewport?.();this.viewport=bindBoardModalViewport(this.containerEl);this.titleEl.setText(this.label);
   this.contentEl.createEl('p',{text:this.detail});
-  const status=this.contentEl.createDiv({attr:{role:'status'}});
+  const status=this.contentEl.createDiv({cls:'ts-settings-confirm-status',attr:{role:'status','aria-live':'polite'}});
   const row=new Setting(this.contentEl);
   row.addButton(b=>b.setButtonText(this.language==='en'?'Cancel':'取消').onClick(()=>this.close()));
   row.addButton(b=>b.setButtonText(this.confirmLabel).setCta().onClick(async()=>{
@@ -210,7 +211,7 @@ export class ThoughtSpaceSettings extends PluginSettingTab {
   const input=modal.contentEl.createEl('textarea',{attr:{'aria-label':t(['偏好配置 JSON','Preference profile JSON']),spellcheck:'false'}});input.value=importing?'':exportSettingsProfile(this.host.settings);input.readOnly=!importing;
   const status=modal.contentEl.createDiv({cls:'ts-settings-profile-status',attr:{role:'status','aria-live':'polite'}});
   const actions=new Setting(modal.contentEl);let patch:Partial<ThoughtSpacePreferences>|undefined;let generation=0,closed=false,loading=false,busy=false;let validateButton:HTMLButtonElement;let viewport:(()=>void)|undefined;
-  modal.onOpen=()=>{viewport?.();viewport=bindMobileViewport(modal.modalEl);};
+  modal.onOpen=()=>{viewport?.();viewport=bindBoardModalViewport(modal.containerEl);};
   modal.onClose=()=>{closed=true;generation++;viewport?.();viewport=undefined;modal.contentEl.empty();};
   if(importing){
    const file=modal.contentEl.createEl('input',{type:'file',attr:{accept:'.json,application/json','aria-label':t(['选择配置文件','Choose profile file'])}});file.hidden=true;

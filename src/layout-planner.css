@@ -242,3 +242,28 @@
   .ts-layout-planner .ts-layout-modes button[aria-pressed=true] { border-color: var(--ts-layout-accent); }
   .ts-layout-planner .ts-layout-preview-status { color: var(--text-normal); }
 }
+
+/* Scoped touch targets follow the dialog's actual width, including splits.
+   Wide fine-pointer desktop dialogs retain their existing density. */
+@container ts-layout-planner (max-width: 760px) {
+  .ts-ui-modal.ts-layout-planner :is(button, summary), .ts-ui-modal.ts-layout-planner .ts-layout-controls :is(input:not([type=checkbox]), select), .ts-ui-modal.ts-layout-planner .ts-layout-search-row input { min-height: 44px; }
+  .ts-ui-modal.ts-layout-planner button { min-width: 44px; touch-action: manipulation; }
+  .ts-ui-modal.ts-layout-planner :is(.ts-layout-preview-tools, .ts-layout-navigation, .ts-layout-search-row) button { width: 44px; height: 44px; }
+  .ts-ui-modal.ts-layout-planner .ts-layout-alignments { grid-template-columns: repeat(6, minmax(44px, 1fr)); }
+  .ts-ui-modal.ts-layout-planner .ts-layout-controls :is(input:not([type=checkbox]), select), .ts-ui-modal.ts-layout-planner .ts-layout-search-row input { font-size: 16px; }
+  .ts-ui-modal.ts-layout-planner :is(.ts-layout-create-sections, .ts-layout-follow) { min-height: 44px; align-items: center; }
+  .ts-ui-modal.ts-layout-planner .ts-layout-scope { min-height: 52px; }
+  .ts-ui-modal.ts-layout-planner .ts-layout-controls .ts-layout-scope select { height: 44px; }
+  .ts-ui-modal.ts-layout-planner :is(.modal-close-button, .modal-header-button) { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
+}
+@media (any-pointer: coarse) {
+  .ts-ui-modal.ts-layout-planner :is(button, summary), .ts-ui-modal.ts-layout-planner .ts-layout-controls :is(input:not([type=checkbox]), select), .ts-ui-modal.ts-layout-planner .ts-layout-search-row input { min-height: 44px; }
+  .ts-ui-modal.ts-layout-planner button { min-width: 44px; touch-action: manipulation; }
+  .ts-ui-modal.ts-layout-planner :is(.ts-layout-preview-tools, .ts-layout-navigation, .ts-layout-search-row) button { width: 44px; height: 44px; }
+  .ts-ui-modal.ts-layout-planner .ts-layout-alignments { grid-template-columns: repeat(6, minmax(44px, 1fr)); }
+  .ts-ui-modal.ts-layout-planner .ts-layout-controls :is(input:not([type=checkbox]), select), .ts-ui-modal.ts-layout-planner .ts-layout-search-row input { font-size: 16px; }
+  .ts-ui-modal.ts-layout-planner :is(.ts-layout-create-sections, .ts-layout-follow) { min-height: 44px; align-items: center; }
+  .ts-ui-modal.ts-layout-planner .ts-layout-scope { min-height: 52px; }
+  .ts-ui-modal.ts-layout-planner .ts-layout-controls .ts-layout-scope select { height: 44px; }
+  .ts-ui-modal.ts-layout-planner :is(.modal-close-button, .modal-header-button) { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
+}

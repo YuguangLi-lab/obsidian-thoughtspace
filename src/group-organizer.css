@@ -28,7 +28,7 @@
 .ts-group-organizer .ts-group-existing { fill: var(--background-modifier-border); stroke: var(--text-faint); stroke-width: .7; opacity: .55; vector-effect: non-scaling-stroke; }
 .ts-group-organizer .ts-group-moving { stroke: var(--ts-accent,var(--interactive-accent)); stroke-width: 1; fill-opacity: .7; vector-effect: non-scaling-stroke; }
 .ts-group-organizer .ts-group-moving-frame { fill: none; stroke: var(--ts-accent,var(--interactive-accent)); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
-.ts-group-organizer .ts-group-legend { display: flex; flex: none; flex-wrap: wrap; gap: 5px 14px; color: var(--text-muted); font-size: 10px; line-height: 1.5; }
+.ts-group-organizer .ts-group-legend { display: flex; flex: none; flex-wrap: wrap; gap: 5px 14px; color: var(--text-muted); font-size: 11px; line-height: 1.5; }
 .ts-group-organizer .ts-group-legend span { display: flex; align-items: center; gap: 5px; }
 .ts-group-organizer .ts-group-legend span::before { content: ''; display: block; width: 8px; height: 8px; border-radius: 2px; background: var(--ts-accent,var(--interactive-accent)); opacity: .7; }
 .ts-group-organizer .ts-group-legend .ts-group-legend-existing::before { background: var(--text-faint); }
@@ -36,7 +36,7 @@
 .ts-group-organizer .ts-group-status { flex: none; color: var(--text-muted); font-size: 11px; line-height: 1.7; }
 .ts-group-organizer .ts-group-status.is-error { color: var(--text-error); }
 .ts-group-organizer .ts-group-empty { max-width: 280px; padding: 30px 20px; text-align: center; line-height: 1.7; color: var(--text-muted); }
-.ts-group-organizer .ts-group-preview-note { position: absolute; inset-block-end: 8px; inset-inline-end: 10px; font-size: 10px; color: var(--text-muted); }
+.ts-group-organizer .ts-group-preview-note { position: absolute; inset-block-end: 8px; inset-inline-end: 10px; font-size: 11px; color: var(--text-muted); }
 .ts-group-organizer .ts-group-footer { display: flex; flex: none; align-items: center; gap: 8px; margin: 0; padding: 12px 24px; border-top: 1px solid var(--ts-group-line); background: var(--background-primary); }
 .ts-group-organizer .ts-group-footer button { display: inline-flex; flex: none; align-items: center; gap: 6px; min-height: 35px; padding-inline: 12px; border-radius: 7px; font: 400 12px/1.5 var(--font-interface); box-shadow: none; }
 .ts-group-organizer .ts-group-footer button[aria-label='取消'] { border: 0; background: transparent; color: var(--text-muted); }
@@ -62,10 +62,22 @@
   .ts-group-organizer .ts-group-intro { display: none; }
   .ts-group-organizer .ts-group-body { grid-template-rows: minmax(340px, 1fr); overflow: auto; }
   .ts-group-organizer .ts-group-footer { padding-block: 8px; }
-  .ts-group-organizer .ts-group-footnote { font-size: 10px; }
+  .ts-group-organizer .ts-group-footnote { font-size: 11px; }
   @container ts-group-organizer (max-width: 700px) {
     .ts-group-organizer .ts-group-body { grid-template-rows: 220px minmax(330px, 1fr); }
     .ts-group-organizer .ts-group-footnote { display: none; }
   }
 }
 @media (prefers-contrast: more) { .ts-ui-modal.ts-group-organizer { --ts-group-line: var(--text-muted); } }
+
+/* Touch targets belong to controls; preview geometry remains unchanged. */
+@container ts-group-organizer (max-width:700px){
+ .ts-group-organizer .ts-group-picker > input{height:44px;min-height:44px;font-size:16px}
+ .ts-group-organizer .ts-group-footer button{min-height:44px;min-inline-size:44px}
+ .ts-group-organizer .ts-group-targets{font-size:16px}
+}
+@media(any-pointer:coarse){
+ .ts-group-organizer .ts-group-picker > input{height:44px;min-height:44px;font-size:16px}
+ .ts-group-organizer .ts-group-footer button{min-height:44px;min-inline-size:44px}
+ .ts-group-organizer .ts-group-targets{font-size:16px}
+}

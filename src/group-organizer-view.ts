@@ -3,14 +3,16 @@ import {Board,Card,cardFillHex} from './model';
 import {GroupMovePlan,applyGroupMove,groupNodeName,outlineTree,planGroupMove} from './group-organizer';
 import {sectionContains} from './sections';
 import {themeSurface} from './ui-tokens';
+import {bindBoardModalViewport} from './board-modal-viewport';
 export interface GroupOrganizerHost {board:()=>Board;ids:Set<string>;commit:(edit:(board:Board)=>void)=>void;}
 const ns='http://www.w3.org/2000/svg';
 let previewNumber=0;
 export class GroupOrganizerModal extends Modal {
+ private unbindViewport:()=>void=()=>{};
  private selectedNodeIds:Set<string>;private search!:HTMLInputElement;private targets!:HTMLSelectElement;private count!:HTMLElement;private preview!:HTMLElement;private status!:HTMLElement;private apply!:HTMLButtonElement;private plan?:GroupMovePlan;private targetId='';private closed=false;private busy=false;
  constructor(app:App,private host:GroupOrganizerHost){super(app);this.selectedNodeIds=new Set(host.ids);}
  private button(parent:HTMLElement,label:string,icon:string,run:()=>void){const button=parent.createEl('button',{attr:{'aria-label':label}});if(icon)setIcon(button.createSpan(),icon);button.createSpan({text:label});button.onclick=run;return button;}
- onOpen(){this.closed=false;themeSurface(this.modalEl);this.modalEl.addClass('ts-group-organizer');this.titleEl.setText('移入已有分组');
+ onOpen(){this.closed=false;themeSurface(this.modalEl);this.unbindViewport();this.unbindViewport=bindBoardModalViewport(this.containerEl);this.modalEl.addClass('ts-group-organizer');this.titleEl.setText('移入已有分组');
   this.contentEl.createEl('p',{cls:'ts-group-intro',text:'把所选内容作为一个整体收进分组，保留相对位置与连线。'});
   const body=this.contentEl.createDiv('ts-group-body'),picker=body.createDiv('ts-group-picker');picker.createEl('label',{text:'目标分组',attr:{for:'ts-group-target-choice'}});
   this.search=picker.createEl('input',{type:'search',attr:{placeholder:'搜索分组…','aria-label':'搜索目标分组'}});this.search.oninput=()=>this.refresh();
@@ -47,5 +49,5 @@ export class GroupOrganizerModal extends Modal {
   catch(error){this.apply.disabled=true;this.status.addClass('is-error');this.status.setText(`${String(error).replace(/^Error: /,'')}。点击“刷新预览”后重试。`);}
   finally{this.busy=false;}
  }
- onClose(){this.closed=true;this.plan=undefined;this.contentEl.empty();}
+ onClose(){this.unbindViewport();this.unbindViewport=()=>{};this.closed=true;this.plan=undefined;this.contentEl.empty();}
 }

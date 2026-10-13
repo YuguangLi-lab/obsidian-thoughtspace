@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
-import {emptyBoard,type Board} from '../src/model';
+import {emptyBoard,parseBoard,type Board} from '../src/model';
 import {BoardDocumentError,isMarkdownBoardFrontmatter,readBoardDocument,createMarkdownBoardDocument,replaceBoardDocumentLayout,type YamlParser} from '../src/board-document';
 
 const parseYaml=(createRequire(import.meta.url)('js-yaml') as {load:YamlParser}).load;
@@ -85,6 +85,38 @@ for(const version of [0,2,'1',undefined,null])test(`unknown envelope version is 
 });
 for(const value of [{...board(),version:4},{...board(),viewport:{x:0,y:0,zoom:0}},{...board(),nodes:[{...board().nodes[0],width:NaN}]},{...board(),edges:[{...board().edges[0],to:'missing'}]}])test('initial reads validate all untrusted Board data',()=>{
  error('board-invalid',()=>readBoardDocument(note(value),'md',parseYaml));
+});
+test('ordinary Markdown ink decoding validates one fresh JSON tree without a second conversion',()=>{
+ const value={...emptyBoard(),version:3,presentation:'handwriting',ink:{version:1,strokes:[{id:'precise',color:'#123456',width:2.75,points:Array.from({length:128},(_,i)=>[i/7+100,i/11+200,i/127])}]},future:{nested:['完整',42]}};
+ const source=note(value),expected=parseBoard(JSON.stringify(value)),originalParse=JSON.parse,originalStringify=JSON.stringify;let parses=0,serializes=0;
+ try {
+  JSON.parse=(...args:Parameters<typeof JSON.parse>)=>{parses++;return originalParse(...args) as unknown;};
+  JSON.stringify=((...args:Parameters<typeof JSON.stringify>)=>{serializes++;return originalStringify(...args);}) as typeof JSON.stringify;
+  const document=readBoardDocument(source,'md',()=>({thoughtspace:'board'}));
+  assert.equal(parses,1);assert.equal(serializes,0);assert.deepEqual(document.board,expected);assert.equal(document.source,source);assert.equal(document.layoutSource,zone(value));
+ } finally {JSON.parse=originalParse;JSON.stringify=originalStringify;}
+});
+test('fresh Markdown value validation keeps the same normalization as legacy Board parsing',()=>{
+ const value={...board(),background:{canvasBackground:'paper'},brainColors:{node:'#ABC',text:'javascript:bad'},readingLayout:{invalid:true},relationGeometry:{invalid:true},future:{keep:[null,'extra']}};
+ const expected=parseBoard(JSON.stringify(value)),source=note(value),document=readBoardDocument(source,'md',parseYaml);
+ assert.deepEqual(document.board,expected);assert.equal(document.source,source);assert.equal(document.layoutSource,zone(value));
+});
+test('Markdown numeric compatibility preserves former JSON round-trip semantics in unknown fields',()=>{
+ for(const raw of ['-0','-0.000e2','1e999','-1e-999','9'.repeat(400),'9'.repeat(250)+'e99','-'+ '9'.repeat(250)+'e99','-0.'+'0'.repeat(300)+'1e-99','-0.'+'0'.repeat(400)+'1','1e-7','-0.125']){
+  const source=note(Object.assign(board(),{future:0})).replace('"future": 0',`"future": ${raw}`),decoded=JSON.parse(raw) as unknown;
+  const expected=JSON.parse(JSON.stringify(decoded)) as unknown,document=readBoardDocument(source,'md',parseYaml);
+  assert.deepEqual((document.board as unknown as {future:unknown}).future,expected);assert.equal(document.source,source);
+ }
+});
+test('Markdown negative underflow in a valid camera preserves positive-zero normalization',()=>{
+ const source=note({...emptyBoard(),viewport:{x:0,y:0,zoom:1}}).replace('"x": 0','"x": -0.'+'0'.repeat(400)+'1'),document=readBoardDocument(source,'md',parseYaml);
+ assert.equal(document.board.viewport.x,0);assert.equal(Object.is(document.board.viewport.x,-0),false);assert.equal(document.source,source);
+});
+test('fresh Markdown ink validation rejects a complete invalid collection without partial samples',()=>{
+ const stroke={id:'invalid',color:'#123456',width:2,points:[[100,200,.123456789]]};
+ for(const invalid of [null,{},[1],{...emptyBoard(),presentation:'handwriting',ink:{version:1,strokes:[{...stroke,points:[[100,200,1.01]]}]}},{...emptyBoard(),presentation:'handwriting',ink:{version:1,strokes:[{...stroke,points:Array.from({length:8193},()=>[100,200,.5])}]}}]){
+  const source=note(invalid);error('board-invalid',()=>readBoardDocument(source,'md',parseYaml));assert.equal(source,note(invalid));
+ }
 });
 test('unknown Board, node, edge and envelope fields survive a layout save',()=>{
  const value=Object.assign(board(),{future:{x:['保留',7]}});Object.assign(value.nodes[0],{futureNode:{a:true}});Object.assign(value.edges[0],{futureEdge:'retain'});

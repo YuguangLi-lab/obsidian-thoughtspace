@@ -4,7 +4,7 @@
   --ts-nav-gutter: 12px;
   --ts-nav-surface: var(--background-primary);
   --ts-nav-subtle: var(--background-primary);
-  --ts-nav-line: color-mix(in srgb, var(--background-modifier-border) 72%, transparent);
+  --ts-nav-line: color-mix(in srgb, var(--background-modifier-border) 62%, transparent);
   --ts-nav-hover: var(--background-modifier-hover);
   --ts-nav-accent: var(--ts-accent,var(--interactive-accent));
   --ts-nav-active: color-mix(in srgb, var(--ts-accent,var(--interactive-accent)) 6%, var(--background-primary));
@@ -31,9 +31,9 @@
   flex: none;
   min-width: 0;
   margin: 0;
-  padding: 12px var(--ts-nav-gutter) 10px;
+  padding: 16px var(--ts-nav-gutter) 12px;
   border: 0;
-  border-bottom: 1px solid var(--ts-nav-line);
+  border-bottom: 0;
   border-radius: 0;
   background: var(--background-primary);
   box-shadow: none;
@@ -42,7 +42,7 @@
 .ts-root.ts-dock .ts-dock-quick > .ts-button { min-width: 0; height: 37px !important; min-height: 37px; gap: 7px; padding: 0 11px !important; border-radius: var(--ts-nav-radius) !important; box-shadow: none !important; font-size: var(--font-ui-small, 13px) !important; }
 .ts-root.ts-dock .ts-dock-quick > .ts-primary { justify-content: flex-start; border: 1px solid transparent !important; background: var(--ts-nav-active) !important; color: var(--ts-accent) !important; font-weight: var(--font-semibold, 600); }
 .ts-root.ts-dock .ts-dock-quick > .ts-primary:is(:hover,:focus-visible):not(:disabled) { background: color-mix(in srgb,var(--ts-accent) 6%,var(--background-primary)) !important; color: var(--ts-accent) !important; }
-.ts-root.ts-dock .ts-dock-quick > .ts-dock-create { flex-direction: row-reverse; border: 1px solid var(--ts-nav-line) !important; background: var(--background-primary) !important; color: var(--text-normal) !important; }
+.ts-root.ts-dock .ts-dock-quick > .ts-dock-create { flex-direction: row-reverse; border: 1px solid transparent !important; background: var(--background-primary) !important; color: var(--text-normal) !important; }
 .ts-root.ts-dock .ts-dock-quick > .ts-dock-create:is(:hover, [aria-expanded='true']) { background: var(--ts-nav-hover) !important; border-color: var(--text-faint) !important; }
 .ts-root.ts-dock .ts-dock-create svg { width: 12px; height: 12px; }
 .ts-root.ts-dock .ts-dock-shortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; margin: 7px 0 0; padding: 0; }
@@ -70,7 +70,7 @@
   border: 0 !important;
   border-bottom: 1px solid var(--ts-nav-line) !important;
   border-radius: 0 !important;
-  background: var(--background-secondary) !important;
+  background: var(--background-primary) !important;
   overflow: visible;
 }
 .ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'] {
@@ -93,11 +93,11 @@
 }
 .ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab']::after { content: none; display: none !important; }
 .ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab']:hover { background: var(--ts-nav-hover) !important; color: var(--text-normal) !important; }
-.ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'].is-active { background: var(--ts-nav-active) !important; color: var(--ts-accent,var(--interactive-accent)) !important; font-weight: var(--font-semibold, 600); box-shadow: none !important; }
+.ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'].is-active { background: transparent !important; color: var(--ts-accent,var(--interactive-accent)) !important; font-weight: var(--font-semibold, 600); box-shadow: none !important; }
 .ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'].is-active::before { content: ''; position: absolute; inset-inline-start: 12px; top: auto; bottom: -5px; right: 12px; width: auto; height: 2px; border-radius: 2px 2px 0 0; background: var(--ts-nav-accent); pointer-events: none; }
 .ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'] > span:first-child { display: flex; flex: none; }
 .ts-root.ts-dock .ts-sidebar > .ts-tabs[role='tablist'] > .ts-button[role='tab'] svg { width: 15px; height: 15px; stroke-width: 1.65; }
-.ts-root.ts-dock .ts-sidebar-search { grid-area: search; display: flex; align-items: center; flex: none; min-width: 0; height: 35px; margin: 8px 10px 6px; border: 1px solid transparent; border-radius: 6px; background: color-mix(in srgb, var(--background-modifier-hover) 70%, var(--background-secondary)); }
+.ts-root.ts-dock .ts-sidebar-search { grid-area: search; display: flex; align-items: center; flex: none; min-width: 0; height: 35px; margin: 8px 12px 6px; border: 1px solid var(--ts-nav-line); border-radius: 6px; background: transparent; }
 .ts-root.ts-dock .ts-sidebar-search > .ts-search { min-width: 0; height: 33px !important; font-size: var(--font-ui-small, 13px); color: var(--text-normal); }
 .ts-root.ts-dock .ts-sidebar-search > .ts-search::placeholder { color: var(--text-muted); opacity: 1; }
 .ts-root.ts-dock .ts-sidebar-search-icon { margin-left: 10px; color: var(--text-muted); }
@@ -106,7 +106,7 @@
 .ts-root.ts-dock .ts-sidebar-search > .ts-search:focus { border: 0 !important; outline: none !important; box-shadow: none !important; }
 .ts-root.ts-dock .ts-search-clear { margin-right: 3px; }
 .ts-root.ts-dock .ts-search-clear[hidden] { display: none !important; }
-.ts-root.ts-dock .ts-library { grid-area: content; flex: 1; min-width: 0; min-height: 0; padding: 0 10px 12px; scrollbar-gutter: auto; scrollbar-width: thin; scroll-padding-block: 8px; container: ts-sidebar-content / inline-size; }
+.ts-root.ts-dock .ts-library { grid-area: content; flex: 1; min-width: 0; min-height: 0; padding: 0 12px 16px; scrollbar-gutter: auto; scrollbar-width: thin; scroll-padding-block: 8px; container: ts-sidebar-content / inline-size; }
 
 /* Scope and sorting are quiet controls within the content column. */
 .ts-root.ts-dock .ts-board-browser-head { position: static; margin: 0 0 6px; padding: 0 0 7px; border: 0; border-bottom: 1px solid var(--ts-nav-line); background: transparent; }
@@ -123,10 +123,10 @@
 .ts-root.ts-dock .ts-board-list-controls > select:hover { background-color: var(--ts-nav-hover) !important; }
 .ts-root.ts-dock .ts-board-list-controls > .ts-icon-button { flex: 0 0 26px; width: 26px; height: 27px; min-height: 27px; }
 .ts-root.ts-dock :is(.ts-library-controls, .ts-outline-controls) { display: flex; gap: 5px; margin-bottom: 7px; }
-.ts-root.ts-dock .ts-library :is(.ts-tag-select, .ts-library-controls select, .ts-outline-controls select) { min-width: 0; height: 31px; border: 1px solid var(--ts-nav-line); border-radius: 7px !important; background-color: var(--background-primary) !important; font-size: var(--font-ui-smaller, 12px) !important; box-shadow: none; }
+.ts-root.ts-dock .ts-library :is(.ts-tag-select, .ts-library-controls select, .ts-outline-controls select) { min-width: 0; height: 31px; border: 1px solid transparent; border-bottom-color:var(--ts-nav-line); border-radius: 0 !important; background-color: transparent !important; font-size: var(--font-ui-smaller, 12px) !important; box-shadow: none; }
 .ts-root.ts-dock .ts-outline-controls > select { flex: 1; width: 0; }
 .ts-root.ts-dock .ts-outline-controls > .ts-icon-button { flex: 0 0 27px; width: 27px; }
-.ts-root.ts-dock .ts-list-heading { min-height: 28px; margin: 4px 5px 5px; color: var(--text-muted); font-size: var(--font-ui-smaller, 12px) !important; font-weight: 400; line-height: 1.5; }
+.ts-root.ts-dock .ts-list-heading { min-height: 32px; margin: 8px 5px 8px; color: var(--text-normal); font-size: var(--font-ui-small, 13px) !important; font-weight: 600; line-height: 1.5; }
 .ts-root.ts-dock .ts-list-heading-actions { gap: 2px; }
 
 /* A real hierarchy, with a restrained guide and enough room for long titles.
@@ -161,18 +161,18 @@
 
 /* Library previews read as excerpts, with file location below and both native
    open/preview controls always available in a stable right-hand column. */
-.ts-root.ts-dock .ts-library[role='tabpanel'] > .ts-library-card { position: relative; min-width: 0; margin: 0; padding: 12px 4px 13px; border: 0 !important; border-bottom: 1px solid var(--ts-nav-line) !important; border-radius: 0 !important; background: var(--background-primary) !important; box-shadow: none !important; }
+.ts-root.ts-dock .ts-library[role='tabpanel'] > .ts-library-card { position: relative; min-width: 0; margin: 0; padding: 16px 4px; border: 0 !important; border-bottom: 1px solid var(--ts-nav-line) !important; border-radius: 0 !important; background: var(--background-primary) !important; box-shadow: none !important; }
 .ts-root.ts-dock .ts-library[role='tabpanel'] > .ts-library-card:is(:hover, :focus-within) { border-bottom-color: color-mix(in srgb, var(--ts-nav-accent) 40%, var(--ts-nav-line)) !important; background: var(--ts-nav-hover) !important; }
 .ts-root.ts-dock .ts-library[role='tabpanel'] > .ts-library-card.is-on-board { border-left: 2px solid color-mix(in srgb, var(--ts-nav-accent) 65%, var(--ts-nav-line)) !important; padding-left: 7px; }
 .ts-root.ts-dock .ts-library-card-head { display: grid; grid-template-columns: 17px minmax(0, 1fr) 25px 25px; align-items: start; gap: 4px; min-width: 0; }
-.ts-root.ts-dock .ts-library-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; min-width: 0; padding-top: 2px; white-space: normal; overflow-wrap: anywhere; font-size: var(--font-ui-small, 13px); line-height: 1.5; font-weight: var(--font-semibold, 600); color: var(--text-normal); }
+.ts-root.ts-dock .ts-library-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; min-width: 0; padding-top: 2px; white-space: normal; overflow-wrap: anywhere; font-size: 14px; line-height: 1.5; font-weight: var(--font-semibold, 600); color: var(--text-normal); }
 .ts-root.ts-dock .ts-library-note-icon { display: flex; align-items: center; padding-top: 5px; color: var(--text-muted); }
 .ts-root.ts-dock .ts-library-note-icon svg { width: 14px; height: 14px; margin: 0; }
 .ts-root.ts-dock .ts-library-excerpt { margin-top: 7px; font-family: var(--font-text, var(--font-interface)); font-size: var(--font-ui-small, 13px); line-height: 1.65; -webkit-line-clamp: 2; color: var(--text-muted); }
 .ts-root.ts-dock .ts-library-card-meta { display: flex; align-items: center; min-width: 0; gap: 6px; margin-top: 9px; padding-top: 0; border: 0; }
 .ts-root.ts-dock .ts-library-card-meta .ts-library-path { flex: 1; min-width: 0; margin: 0; font-size: var(--font-ui-smaller, 12px); color: var(--text-muted); }
 .ts-root.ts-dock .ts-library-tags { margin-top: 6px; font-size: var(--font-ui-smaller, 12px); color: var(--text-muted); }
-.ts-root.ts-dock .ts-on-board { flex: none; padding: 2px 5px; border-radius: 5px; background: var(--ts-nav-active); color: var(--text-accent); font-size: 10px; font-weight: 500; }
+.ts-root.ts-dock .ts-on-board { flex: none; padding: 2px 0; border-radius: 0; background: transparent; color: var(--ts-nav-accent); font-size: 11px; font-weight: 500; }
 .ts-root.ts-dock :is(.ts-library-preview, .ts-library-open) { width: 25px; height: 25px; min-height: 25px; margin: 0; padding: 0 !important; color: var(--text-muted) !important; opacity: 1; }
 
 .ts-root.ts-dock .ts-task-filters { margin-bottom: 8px !important; }
@@ -205,7 +205,7 @@
 .ts-root.ts-dock .ts-dock-board-link:hover { background: var(--ts-nav-hover) !important; }
 .ts-root.ts-dock .ts-sidebar-refresh-error { box-shadow: none; font-size: var(--font-ui-smaller, 12px); }
 .ts-root.ts-dock :is(button, .ts-library-card, select, input[type='checkbox']):focus-visible { outline: 2px solid var(--ts-nav-accent) !important; outline-offset: -2px !important; }
-.ts-root.ts-dock .ts-dock-quick > .ts-primary:focus-visible { outline-color: var(--text-on-accent) !important; outline-offset: -4px !important; }
+.ts-root.ts-dock .ts-dock-quick > .ts-primary:focus-visible { outline-color: var(--ts-nav-accent) !important; outline-offset: -2px !important; }
 .ts-root.ts-dock :is(.ts-tree-row, .ts-favorite-row):focus-within :is(.ts-tree-add, .ts-icon-button) { opacity: 1; }
 .ts-root.ts-dock .ts-outline-row:focus-within .ts-outline-read { opacity: 1; }
 

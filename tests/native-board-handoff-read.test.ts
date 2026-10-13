@@ -6,12 +6,14 @@ import * as model from '../src/model';
 import * as mindmap from '../src/mindmap';
 import * as documents from '../src/board-document';
 import {createHandwritingBoard,isHandwritingBoard} from '../src/handwriting-board';
+import {HandwritingHistory} from '../src/handwriting-history';
+import {applyInkEdit} from '../src/handwriting-ink-edit';
 import {reflowReadingContent} from '../src/expansion-reading-state';
 
 const parseYaml=(text:string)=>text.includes('thoughtspace: board')?{thoughtspace:'board'}:{};
 const source=readFileSync('src/main.ts','utf8');
 const sessionStart=source.indexOf('class Session {'),sessionEnd=source.indexOf('\nexport default class ThoughtSpace',sessionStart);
-const deps={...model,...mindmap,...documents,reflowReadingContent,isHandwritingBoard,parseYaml,Notice:class{},EXT:'thoughtspace',report:()=>{},
+const deps={...model,...mindmap,...documents,reflowReadingContent,isHandwritingBoard,HandwritingHistory,applyInkEdit,parseYaml,Notice:class{},EXT:'thoughtspace',report:()=>{},
  hasNativeBoardEditor:(app:{nativeOpen:boolean})=>app.nativeOpen,
  assertBoardEditorOwnership:(app:{nativeOpen:boolean})=>{if(app.nativeOpen)throw Error('Native Markdown owns the document');}};
 const Session=new Function(...Object.keys(deps),transformSync(source.slice(sessionStart,sessionEnd)+';return Session',{loader:'ts'}).code)(...Object.values(deps));

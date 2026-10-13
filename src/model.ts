@@ -1,3 +1,4 @@
+import {validBrainReadingPositions} from './brain-reading-positions';
 import {assertInkData,type InkData} from './ink-model';
 import {cleanBoardBackground,type BoardBackground} from './board-background';
 import {cleanBrainColors,type BrainColors} from './brain-colors';
@@ -44,7 +45,11 @@ export const uid = () => {
 // Internal snapshots deliberately use JSON semantics, including omitted undefined fields.
 export const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 export function parseBoard(text: string): Board {
-  const b:unknown = JSON.parse(text);
+  return parseBoardValue(JSON.parse(text) as unknown);
+}
+/** Validate and normalize a freshly decoded JSON value without decoding it again.
+ * As with parseBoard, normalization owns and may update the decoded object. */
+export function parseBoardValue(b:unknown):Board {
   assertBoardData(b);if(b.background!==undefined)b.background=cleanBoardBackground(b.background);if(b.brainColors!==undefined){const colors=cleanBrainColors(b.brainColors);if(Object.keys(colors).length)b.brainColors=colors;else delete b.brainColors;}validateBranches(b);if(b.readingLayout!==undefined&&!validReadingCheckpoint(b.readingLayout,b.nodes))delete b.readingLayout;if(b.relationGeometry!==undefined&&!validRelationGeometryCheckpoint(b.relationGeometry,b.nodes))delete b.relationGeometry;return b;
 }
 function assertBoardData(b:unknown):asserts b is Board {
@@ -101,6 +106,7 @@ function assertBoardData(b:unknown):asserts b is Board {
   if (!isRecord(b.viewport) || ![b.viewport.x,b.viewport.y].every(isFiniteNumber) || !isFiniteNumber(b.viewport.zoom) || b.viewport.zoom < .15 || b.viewport.zoom > 2.5) throw new Error('白板视口数据不完整');
   if(b.presentation!==undefined&&(b.version!==3||!isOneOf(b.presentation,['brain','handwriting'])))throw Error('白板展示模式无效');
   if(b.presentation==='brain'?!validBoardMindmapState(b.brain):b.brain!==undefined)throw Error('脑图白板状态无效');
+  if(b.brainReadingPositions!==undefined&&(b.version!==3||b.presentation!=='brain'||!validBrainReadingPositions(b.brainReadingPositions)))throw Error('脑图阅读位置数据无效');
   if(b.brainViewport!==undefined&&(b.presentation!=='brain'||!validBrainViewport(b.brainViewport)))throw Error('脑图白板视口无效');
   if((b.mode !== undefined && (b.version !== 3 || !isOneOf(b.mode,['free','mindmap']))) || (b.mindmapDirection !== undefined && (b.version !== 3 || !isOneOf(b.mindmapDirection,['right','down','up'])))) throw new Error('导图设置不完整');
   if((b.mindmapLayout!==undefined&&(b.version!==3||!isOneOf(b.mindmapLayout,['right','left','down','up','bilateral'])))||(b.mindmapDensity!==undefined&&(b.version!==3||!isOneOf(b.mindmapDensity,['compact','standard','relaxed']))))throw Error('思维导图布局设置无效');
@@ -133,6 +139,7 @@ export function assertBoardGeometry(board:Board):void {
 
  for(const n of board.nodes)if(!Number.isFinite(n.x)||!Number.isFinite(n.y)||!Number.isFinite(n.width)||!Number.isFinite(n.height)||n.width<80||n.height<nodeMinimumHeight(n.kind))throw Error('白板尺寸无效，已阻止写入');
  const v=board.viewport;if(!v||!Number.isFinite(v.x)||!Number.isFinite(v.y)||!Number.isFinite(v.zoom)||v.zoom<.15||v.zoom>2.5)throw Error('白板视口无效，已阻止写入');
+ if(board.brainReadingPositions!==undefined&&(board.version!==3||board.presentation!=='brain'||!validBrainReadingPositions(board.brainReadingPositions)))throw Error('脑图阅读位置数据无效，已阻止写入');
  if(board.brainViewport!==undefined&&(board.presentation!=='brain'||!validBrainViewport(board.brainViewport)))throw Error('脑图白板视口无效，已阻止写入');
 }
 function validBrainViewport(value:unknown):boolean {

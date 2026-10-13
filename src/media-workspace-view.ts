@@ -1,6 +1,6 @@
 import {applyWorkspaceDensity} from './workspace-density';
 import {bindMobileViewport} from './mobile-viewport';
-import {ItemView,Menu,Modal,Notice,TFile,WorkspaceLeaf,setIcon,type App,type ViewStateResult} from 'obsidian';
+import {ItemView,Menu,Modal,Notice,Scope,TFile,WorkspaceLeaf,setIcon,type App,type KeymapEventHandler,type ViewStateResult} from 'obsidian';
 import type {MediaCardHandle,MediaCardState} from './media-card-player';
 import type {MediaDraft,MediaDraftStore} from './media-draft-store';
 import type {MediaMoment} from './media-notes';
@@ -123,8 +123,9 @@ export class MediaWorkspaceView extends ItemView {
  private unsubscribeDrafts?:()=>void;
  private recoveryPrompt=false;
  private stopViewport?:()=>void;
+ private submitHotkey?:KeymapEventHandler;
 
- constructor(leaf:WorkspaceLeaf,private host:MediaWorkspaceHost){super(leaf);this.stopViewport=bindMobileViewport(this.contentEl);this.unsubscribeDrafts=host.drafts?.subscribe(()=>{
+ constructor(leaf:WorkspaceLeaf,private host:MediaWorkspaceHost){super(leaf);this.scope=new Scope(this.app.scope);this.stopViewport=bindMobileViewport(this.contentEl);this.unsubscribeDrafts=host.drafts?.subscribe(()=>{
   if(this.file&&this.memory&&!this.closed){if(!this.memory.draft)this.memory.draft=host.drafts?.activeFor(this.file.path);this.paintComposer();}
  });}
  getViewType(){return MEDIA_WORKSPACE;}
@@ -137,7 +138,8 @@ export class MediaWorkspaceView extends ItemView {
  hasPendingDraft(){return!!(this.memory?.draft||this.memory?.pending||this.memory?.capturePending);}
  canMove(){if(this.hasPendingDraft()){new Notice('请先保存或清空当前摘录，再切换媒体或播放位置');return false;}return!this.closed;}
  async onOpen(){
-  if(this.opened)return;this.opened=true;
+  if(this.opened||this.closed)return;this.opened=true;
+  this.bindSubmitHotkey();
   this.registerEvent(this.app.vault.on('modify',file=>{if(file===this.note)this.scheduleRefresh();if(file===this.file)this.sourceChanged();}));
   this.registerEvent(this.app.vault.on('rename',file=>{if(file===this.note)this.scheduleRefresh();if(file===this.file)this.sourceChanged();}));
   this.registerEvent(this.app.vault.on('delete',file=>{if(file===this.note)this.scheduleRefresh();if(file===this.file){this.disposePlayer();this.message('媒体文件已移除，未保存的摘录仍保留在此窗口。');}}));
@@ -334,7 +336,7 @@ export class MediaWorkspaceView extends ItemView {
   const messageArea=header.createDiv('ts-media-workspace__message-area');
   this.status=messageArea.createDiv({cls:'ts-media-workspace__status',attr:{role:'status','aria-live':'polite'}});
   if(this.host.recoverDrafts){this.recoveryButton=this.action(messageArea,'恢复 / 丢弃','history',()=>this.host.recoverDrafts?.());this.recoveryButton.hidden=true;this.recoveryButton.title='查看暂存草稿，选择恢复或丢弃；恢复不会自动写入笔记。';}
-  if(!this.file){const empty=el.createDiv('ts-media-workspace__empty');setIcon(empty.createDiv('ts-media-workspace__empty-icon'),'clapperboard');empty.createSpan({cls:'ts-media-workspace__eyebrow',text:'从一段声音或影像开始'});empty.createEl('h2',{text:'把值得留下的瞬间，写成笔记'});empty.createEl('p',{text:'打开仓库中的音视频，或链接电脑上的外部文件，边播放边摘录。文字、画面与时间点保存在同一份笔记里。'});this.action(empty,'选择媒体','folder-open',()=>this.pick());if(this.host.pickOnline)this.action(empty,'B 站 / YouTube','globe',()=>this.host.pickOnline?.(this.placement));return;}
+  if(!this.file){const empty=el.createDiv('ts-media-workspace__empty');setIcon(empty.createDiv('ts-media-workspace__empty-icon'),'clapperboard');empty.createSpan({cls:'ts-media-workspace__eyebrow',text:'媒体笔记'});empty.createEl('h2',{text:'留下值得回看的瞬间'});empty.createEl('p',{text:'选择音频或视频，边播放边记录。文字、画面与时间点保存在同一份笔记里。'});const actions=empty.createDiv('ts-media-workspace__empty-actions');this.action(actions,'选择媒体','folder-open',()=>this.pick()).addClass('mod-cta');if(this.host.pickOnline)this.action(actions,'B 站 / YouTube','globe',()=>this.host.pickOnline?.(this.placement));return;}
   const layout=el.createDiv('ts-media-workspace__layout'),main=layout.createDiv('ts-media-workspace__main');
   const playerHost=main.createDiv('ts-media-workspace__player');
   const desk=layout.createDiv('ts-media-workspace__desk');
@@ -362,12 +364,14 @@ export class MediaWorkspaceView extends ItemView {
   this.draftImage=this.draftAttachment.createEl('button',{cls:'ts-media-workspace__draft-image',attr:{type:'button','aria-label':'放大当前截图'}});this.draftImage.hidden=true;
   this.draftImageEl=this.draftImage.createEl('img',{attr:{alt:'当前摘录的视频截图',decoding:'async'}});
   this.draftImage.onclick=()=>{const draft=this.memory?.draft;if(draft?.image)this.openPreview(draft.image,draft.time);};
-  this.input.onfocus=()=>{if(this.memory&&!this.memory.editor&&!this.memory.pending&&!this.memory.draft?.locked){this.memory.editor=this.editorKey;broadcast(this.memory);}};
-  this.input.onblur=()=>{if(this.memory&&!this.memory.draft&&!this.memory.pending&&!this.memory.capturePending)this.releaseEditor();};
-  this.input.addEventListener('compositionstart',()=>{try{this.beginDraft(this.currentPlayback().time);this.composing=true;if(this.memory)broadcast(this.memory);}catch{this.paintComposer();}});
-  this.input.addEventListener('compositionend',()=>{this.composing=false;this.updateDraftInput();});
-  this.input.oninput=()=>this.updateDraftInput();
-  this.input.onkeydown=event=>{if((event.ctrlKey||event.metaKey)&&event.key==='Enter'&&!compositionKey(event)&&!this.composing){event.preventDefault();event.stopPropagation();void this.saveDraft().catch(()=>{});}};
+  const input=this.input,inputGeneration=this.generation;
+  const currentInput=()=>!this.closed&&this.input===input&&this.generation===inputGeneration;
+  input.onfocus=()=>{if(currentInput()&&this.memory&&!this.memory.editor&&!this.memory.pending&&!this.memory.draft?.locked){this.memory.editor=this.editorKey;broadcast(this.memory);}};
+  input.onblur=()=>{if(currentInput()&&this.memory&&!this.memory.draft&&!this.memory.pending&&!this.memory.capturePending)this.releaseEditor();};
+  input.addEventListener('compositionstart',()=>{if(!currentInput())return;try{this.beginDraft(this.currentPlayback().time);this.composing=true;if(this.memory)broadcast(this.memory);}catch{this.paintComposer();}});
+  input.addEventListener('compositionend',()=>{if(currentInput()){this.composing=false;this.updateDraftInput();}});
+  input.oninput=()=>{if(currentInput())this.updateDraftInput();};
+  input.onkeydown=event=>{if(currentInput())this.handleSubmitHotkey(event);};
   const attachmentInfo=this.draftAttachment.createDiv('ts-media-workspace__attachment-info');
   attachmentInfo.createEl('strong',{text:'画面已附加'});
   this.imageLabel=attachmentInfo.createDiv('ts-media-workspace__image-label');
@@ -440,7 +444,7 @@ export class MediaWorkspaceView extends ItemView {
  private claimEditor(){if(!this.memory||this.memory.editor&&this.memory.editor!==this.editorKey)return false;this.memory.editor=this.editorKey;return true;}
  private releaseEditor(){this.composing=false;if(this.memory?.editor===this.editorKey){this.memory.editor=undefined;broadcast(this.memory);}}
  private updateDraftInput(){
-  if(!this.input||!this.file||!this.memory||this.memory.pending||this.memory.draft?.locked||!this.claimEditor())return;
+  if(this.closed||!this.input||!this.file||!this.memory||this.memory.pending||this.memory.draft?.locked||!this.claimEditor())return;
   try{const draft=this.beginDraft(this.currentPlayback().time);draft.text=this.input.value;this.stashDraft();broadcast(this.memory);}catch{this.paintComposer();this.message('媒体来源已更新，当前摘录已保留，请重新选择媒体。');}
  }
  private stashDraft(){
@@ -482,6 +486,29 @@ export class MediaWorkspaceView extends ItemView {
   if(this.imageLabel){this.imageLabel.textContent=draft?.image?(this.previewUrl?'点击缩略图预览 · 随摘录保存':'截图将随摘录保存'):'';this.imageLabel.hidden=!draft?.image;}
   if(this.clearButton)this.clearButton.disabled=this.composing||pending||capturing||elsewhere||!draft;
   if(this.saveButton){this.saveButton.disabled=this.composing||pending||capturing||elsewhere||stale||!draft;this.saveButton.setAttribute('aria-busy',String(pending||capturing));}
+ }
+ private bindSubmitHotkey(){
+  if(this.submitHotkey||!this.scope)return;
+  // The host dispatches a leaf's scope before native shortcuts in capture;
+  // the textarea handler remains a fallback for events that reach the DOM.
+  this.submitHotkey=this.scope.register(['Mod'],'Enter',event=>{
+   if(this.handleSubmitHotkey(event))return false;
+  });
+ }
+ private handleSubmitHotkey(event:KeyboardEvent):boolean {
+  if(event.defaultPrevented||compositionKey(event)||this.composing||event.key!=='Enter'||!(event.metaKey||event.ctrlKey)||event.altKey||event.shiftKey)return false;
+  const input=this.input,doc=this.contentEl.ownerDocument,owner=doc.defaultView;
+  // getMostRecentLeaf excludes sidebars by default even while one is active.
+  if(this.closed||!this.opened||!input||input.ownerDocument!==doc||doc.activeElement!==input||!input.isConnected||!input.getClientRects().length||!owner||owner.closed||this.app.workspace.getActiveViewOfType(MediaWorkspaceView)!==this)return false;
+  // Scope events may target the document. Focus is authoritative; any exposed
+  // event document/window must still belong to this editor's owner window.
+  const target=event.target as Node|null,eventDocument=target?.ownerDocument||(target?.nodeType===9?target:null);
+  if(event.view&&event.view!==owner||eventDocument&&eventDocument!==doc)return false;
+  event.preventDefault();event.stopPropagation();
+  // Consume while pending/locked too, so the host cannot act on this key.
+  // saveDraft owns pending, recovery, source and exact-snapshot retry guards.
+  if(!event.repeat)void this.saveDraft().catch(()=>{});
+  return true;
  }
  private async saveDraft(){
   const file=this.file,memory=this.memory,draft=memory?.draft;
@@ -555,6 +582,7 @@ export class MediaWorkspaceView extends ItemView {
  private disposePlayer(){const player=this.player;try{if(player&&this.memory)this.memory.state=playback(player.getState?.(),this.memory.state);}finally{this.player=undefined;player?.dispose();}}
  async onClose(){
   if(this.closed)return;
+  if(this.submitHotkey)this.scope?.unregister(this.submitHotkey);this.submitHotkey=undefined;
   // Closing or mobile navigation can end composition without a final input event.
   // Preserve this editor's visible text before decoder disposal broadcasts state.
   if(this.composing&&this.input&&this.memory?.draft&&this.memory.editor===this.editorKey&&!this.memory.pending&&!this.memory.draft.locked){this.memory.draft.text=this.input.value;this.stashDraft();}

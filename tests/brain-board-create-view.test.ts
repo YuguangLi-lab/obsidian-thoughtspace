@@ -22,7 +22,7 @@ class Modal {
  open(){(this as unknown as {onOpen:()=>void}).onOpen();}close(){this.closeCount++;(this as unknown as {onClose:()=>void}).onClose();this.containerEl.isConnected=false;}
 }
 const source=readFileSync('src/brain-board-create-view.ts','utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
-const BrainRelationCreateModal=new Function('Modal','brainRelationLabels','safeName',transformSync(source+'\nreturn BrainRelationCreateModal;',{loader:'ts'}).code)(Modal,brainRelationLabels,safeName);
+const BrainRelationCreateModal=new Function('Modal','brainRelationLabels','safeName','bindBoardModalViewport',transformSync(source+'\nreturn BrainRelationCreateModal;',{loader:'ts'}).code)(Modal,brainRelationLabels,safeName,()=>()=>{});
 const tick=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
 function deferred(){let resolve!:()=>void,reject!:(error:Error)=>void;const promise=new Promise<void>((yes,no)=>{resolve=yes;reject=no;});return{promise,resolve,reject};}
 function fixture(){
@@ -61,7 +61,7 @@ test('an invalid owner without a safe retry still exposes the error and leaves c
 });
 
 const renameSource=readFileSync('src/brain-board-rename-view.ts','utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
-const RenameModal=new Function('Modal',transformSync(renameSource+'\nreturn BrainNodeRenameModal;',{loader:'ts'}).code)(Modal);
+const RenameModal=new Function('Modal','bindBoardModalViewport',transformSync(renameSource+'\nreturn BrainNodeRenameModal;',{loader:'ts'}).code)(Modal,()=>()=>{});
 function renameFixture(){
  const doc:any={defaultView:{closed:false,requestAnimationFrame:()=>1,cancelAnimationFrame(){}},activeElement:null};doc.body=new Element('BODY',doc);(Element.prototype as any).select=function(){};
  let current=true,retry=false;const pending:ReturnType<typeof deferred>[]=[];const commits:any[]=[];

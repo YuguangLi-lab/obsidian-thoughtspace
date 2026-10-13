@@ -18,6 +18,7 @@ class Doc extends Surface{
  flush(){for(const [id,run]of [...this.timers]){this.timers.delete(id);run();}}
 }
 class Element extends Surface{
+ isConnected=true;
  children:Element[]=[];parentElement:Element|null=null;hidden=false;disabled=false;isContentEditable=false;attributes=new Map<string,string>();focuses:unknown[]=[];scrollTop=0;scrollLeft=0;scrollHeight=100;scrollWidth=100;clientHeight=100;clientWidth=100;offsetHeight=100;offsetWidth=100;clientLeft=0;clientTop=0;
  rect={left:0,top:0,width:0,height:0};
  constructor(public ownerDocument:Doc,public tagName='DIV'){super();ownerDocument.elements.push(this);}
@@ -38,12 +39,12 @@ class Element extends Surface{
  click(){if(!this.disabled)this.dispatch('click');}
 }
 const html=(element:Element)=>element as unknown as HTMLElement;
-function fixture(){
+function fixture(compact=false){
  const doc=new Doc(),main=new Element(doc),rail=main.append(new Element(doc)),triggerA=rail.append(new Element(doc,'BUTTON')),railAction=rail.append(new Element(doc,'BUTTON')),triggerB=rail.append(new Element(doc,'BUTTON'));
  const panelA=main.append(new Element(doc)),panelB=main.append(new Element(doc)),actionsA=panelA.append(new Element(doc)),actionsB=panelB.append(new Element(doc)),input=panelB.append(new Element(doc,'INPUT')),headerButton=panelA.append(new Element(doc,'BUTTON'));
  const buttons=Array.from({length:4},(_,i)=>{const button=actionsA.append(new Element(doc,'BUTTON'));button.rect={left:20+(i%2)*50,top:30+Math.floor(i/2)*50,width:40,height:40};return button;});
  const other=actionsB.append(new Element(doc,'BUTTON')),editor=main.append(new Element(doc,'TEXTAREA')),external=new Element(doc,'INPUT');let opens=0;
- const binding=installToolPalettes(html(main),html(rail),[{panel:html(panelA),trigger:html(triggerA),actions:html(actionsA)},{panel:html(panelB),trigger:html(triggerB),actions:html(actionsB),onOpen:()=>{opens++;input.focus();}}]);
+ const binding=installToolPalettes(html(main),html(rail),[{panel:html(panelA),trigger:html(triggerA),actions:html(actionsA),...(compact?{returnFocus:()=>html(triggerA.hidden?triggerB:triggerA)}:{})},{panel:html(panelB),trigger:html(triggerB),actions:html(actionsB),onOpen:()=>{opens++;input.focus();}}]);
  const key=(target:Element,key:string,extra:Record<string,unknown>={})=>target.dispatch('keydown',{key,...extra});
  return{doc,main,rail,triggerA,railAction,triggerB,panelA,panelB,actionsA,actionsB,input,headerButton,buttons,other,editor,external,binding,key,opens:()=>opens};
 }
@@ -52,6 +53,21 @@ test('trigger toggles one panel at a time and synchronizes disclosure state',()=
  const f=fixture();assert.equal(f.panelA.hidden,true);assert.equal(f.panelB.hidden,true);f.triggerA.click();assert.equal(f.panelA.hidden,false);assert.equal(f.triggerA.getAttribute('aria-expanded'),'true');assert.equal(f.doc.activeElement,f.buttons[0]);
  f.triggerB.click();assert.equal(f.panelA.hidden,true);assert.equal(f.triggerA.getAttribute('aria-expanded'),'false');assert.equal(f.panelB.hidden,false);assert.equal(f.doc.activeElement,f.input);assert.equal(f.opens(),1);
  f.triggerB.click();assert.equal(f.panelB.hidden,true);assert.equal(f.triggerB.getAttribute('aria-expanded'),'false');f.binding.dispose();
+});
+test('compact tools open insertion through the real hidden trigger and Escape returns to visible tools',()=>{
+ const f=fixture(true);f.triggerA.hidden=true;f.other.addEventListener('click',()=>f.triggerA.click());
+ f.triggerB.click();f.other.click();assert.equal(f.panelB.hidden,true);assert.equal(f.panelA.hidden,false);assert.equal(f.doc.activeElement,f.buttons[0]);
+ f.key(f.buttons[0],'Escape');assert.equal(f.panelA.hidden,true);assert.equal(f.doc.activeElement,f.triggerB);assert.equal(f.triggerA.focuses.length,0);
+ f.triggerB.click();f.other.click();f.triggerA.hidden=false;f.key(f.buttons[0],'Escape');assert.equal(f.doc.activeElement,f.triggerA,'widening restores the now-visible direct insertion trigger');f.binding.dispose();
+});
+test('compact return focus never steals an outside input or targets detached/hidden controls',()=>{
+ const f=fixture(true);f.triggerA.hidden=true;f.binding.open(html(f.panelA));f.external.focus();f.buttons[0].dispatch('focusout');f.binding.close(true);assert.equal(f.doc.activeElement,f.external,'even before the delayed focusout check runs');f.doc.flush();
+ f.binding.open(html(f.panelA));f.triggerB.isConnected=false;f.key(f.buttons[0],'Escape');assert.notEqual(f.doc.activeElement,f.triggerB);f.triggerB.isConnected=true;f.triggerB.hidden=true;f.binding.open(html(f.panelA));f.key(f.buttons[0],'Escape');assert.notEqual(f.doc.activeElement,f.triggerB);f.binding.dispose();
+});
+test('custom return focus captures ownership before hiding the dialog blurs its active control',()=>{
+ const f=fixture(true);f.triggerA.hidden=true;let hidden=true;
+ Object.defineProperty(f.panelA,'hidden',{get:()=>hidden,set:value=>{hidden=value;if(value&&f.panelA.contains(f.doc.activeElement))f.doc.activeElement=null;}});
+ f.binding.open(html(f.panelA));f.key(f.buttons[0],'Escape');assert.equal(f.doc.activeElement,f.triggerB);f.binding.dispose();
 });
 test('reopening a scrolled insert palette resets its viewport before focusing the first action',()=>{
  const f=fixture();f.actionsA.rect={left:10,top:20,width:100,height:80};f.actionsA.clientHeight=80;f.actionsA.offsetHeight=80;f.actionsA.scrollHeight=300;

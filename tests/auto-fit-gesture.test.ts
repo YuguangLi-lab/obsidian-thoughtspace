@@ -24,9 +24,10 @@ test('a hidden connected card defers measuring until the actual stage resize cal
  const {v,node,preview,measurements,counts}=fixture();preview.offsetWidth=0;measurements.set('a',{width:2,height:150});
  v.queueCardFit(node,preview);v.flushNodeFits();
  assert.equal(counts().measured,0);assert.equal(counts().saves,0);assert.deepEqual([...v.deferredCardFits],['a']);
- const source=readFileSync('src/main.ts','utf8'),start=source.indexOf('    const chromeWindow=root.ownerDocument.defaultView||window;'),observer=source.indexOf('    const resizeObserver=new ResizeObserver(',start),end=source.indexOf('\n',observer);
+ const source=readFileSync('src/main.ts','utf8'),start=source.indexOf('    const chromeWindow=root.ownerDocument.defaultView||window'),observer=source.indexOf('    const resizeObserver=new ResizeObserver(',start),end=source.indexOf('\n',observer);
+ assert.ok(start>=0&&observer>start&&end>observer,'exercise the current production stage resize observer');
  const frames=new Map<number,()=>void>(),cleanups:(()=>void)[]=[];let nextFrame=0,notify!:()=>void;
- const clock={requestAnimationFrame(fn:()=>void){frames.set(++nextFrame,fn);return nextFrame;},cancelAnimationFrame(id:number){frames.delete(id);}};
+ const clock={matchMedia:()=>({matches:false}),requestAnimationFrame(fn:()=>void){frames.set(++nextFrame,fn);return nextFrame;},cancelAnimationFrame(id:number){frames.delete(id);}};
  const flush=()=>{const pending=[...frames.values()];frames.clear();pending.forEach(fn=>fn());};v.register=(fn:()=>void)=>cleanups.push(fn);
  new Function('root','ResizeObserver',source.slice(start,end)).call(v,{ownerDocument:{defaultView:clock}},class{constructor(callback:()=>void){notify=callback;}observe(){}disconnect(){}});
  v.stage.clientWidth=0;notify();flush();assert.equal(counts().measured,0,'hidden resize must not probe');

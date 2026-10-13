@@ -1,4 +1,4 @@
-import {Component,ItemView,MarkdownRenderer,Notice,TFile,WorkspaceLeaf,setIcon,type ViewStateResult} from 'obsidian';
+import {Component,ItemView,MarkdownRenderer,Notice,Scope,TFile,WorkspaceLeaf,setIcon,type KeymapEventHandler,type ViewStateResult} from 'obsidian';
 import {applyWorkspaceDensity} from './workspace-density';
 import {bindMobileViewport} from './mobile-viewport';
 import type {MediaMoment} from './media-notes';
@@ -114,8 +114,9 @@ export class OnlineWorkspaceView extends ItemView {
  private nextButton?:HTMLButtonElement;
  private positionButtons=new Map<MediaPlacement,HTMLButtonElement>();
  private stopViewport?:()=>void;
+ private submitHotkey?:KeymapEventHandler;
 
- constructor(leaf:WorkspaceLeaf,private host:OnlineWorkspaceHost){super(leaf);this.stopViewport=bindMobileViewport(this.contentEl);}
+ constructor(leaf:WorkspaceLeaf,private host:OnlineWorkspaceHost){super(leaf);this.scope=new Scope(this.app.scope);this.stopViewport=bindMobileViewport(this.contentEl);}
  applyPreferences(){applyWorkspaceDensity(this.contentEl,this.host.density?.());this.contentEl.dataset.accent=this.host.accent?.()||'forest';}
  getViewType(){return ONLINE_WORKSPACE;}
  getDisplayText(){return this.source?`${this.source.name} · 在线视频笔记`:'在线视频笔记';}
@@ -139,6 +140,7 @@ export class OnlineWorkspaceView extends ItemView {
  }
  async onOpen(){
   if(this.opened||this.closed)return;this.opened=true;
+  this.bindSubmitHotkey();
   this.subscription=this.host.subscribe(state=>{if(this.closed)return;this.live=state;this.invalidateCapture();this.paintPlayback();this.paintComposer();});
   this.live=this.host.state();if(!this.input)this.render();else{this.paintPlayback();this.paintComposer();}
  }
@@ -238,7 +240,7 @@ export class OnlineWorkspaceView extends ItemView {
   this.removeImageButton=this.action(this.imageBox,'移除截图','image-minus',()=>this.removeScreenshot(),true);
   this.input=composer.createEl('textarea',{cls:'ts-online-workspace__input',attr:{'aria-label':'摘录内容',placeholder:'记录想法，支持 Markdown。首次输入时固定摘录时间。'}});
   this.composing=false;this.input.oninput=()=>{if(current())this.edit();};this.input.addEventListener('compositionstart',()=>{if(!current()||this.input?.readOnly)return;this.composing=true;if(this.memory&&!this.memory.editor){this.memory.editor=this.editor;notify(this.memory);}else this.paintComposer();});this.input.addEventListener('compositionend',()=>{if(current()){this.composing=false;this.edit();this.paintComposer();}});
-  this.input.onkeydown=event=>{if(current()&&(event.metaKey||event.ctrlKey)&&event.key==='Enter'&&!compositionKey(event)&&!this.composing){event.preventDefault();void this.saveDraft().catch(error=>{if(current())this.failure('保存摘录',error);});}};
+  const input=this.input;input.onkeydown=event=>{if(current()&&this.input===input)this.handleSubmitHotkey(event);};
   const actions=composer.createDiv('ts-online-workspace__composer-actions');actions.createSpan({cls:'ts-online-workspace__hint',text:'⌘ / Ctrl + Enter 保存'});
   this.clearButton=this.action(actions,'取消摘录','x',()=>this.cancelDraft());this.saveButton=this.action(actions,'保存摘录','check',()=>this.saveDraft());this.saveButton.addClass('mod-cta');
   const records=layout.createDiv('ts-online-workspace__records'),recordsHeading=records.createDiv('ts-online-workspace__section-heading');
@@ -357,6 +359,28 @@ export class OnlineWorkspaceView extends ItemView {
   const memory=this.memory;if(this.composing||this.closed||!memory||memory.pending||memory.capture||memory.editor&&memory.editor!==this.editor)return;
   memory.draft=undefined;memory.manualTime=undefined;memory.editor=undefined;if(this.manual)this.manual.value='';notify(memory);this.message('已取消当前摘录。');
  }
+ private bindSubmitHotkey(){
+  if(this.submitHotkey||!this.scope)return;
+  // Native view scopes run before the host's capture shortcuts. Keep the
+  // textarea listener as a fallback for events that still reach the DOM.
+  this.submitHotkey=this.scope.register(['Mod'],'Enter',event=>{
+   if(this.handleSubmitHotkey(event))return false;
+  });
+ }
+ private handleSubmitHotkey(event:KeyboardEvent):boolean {
+  if(event.defaultPrevented||compositionKey(event)||this.composing||event.key!=='Enter'||!(event.metaKey||event.ctrlKey)||event.altKey||event.shiftKey)return false;
+  const input=this.input,doc=this.contentEl.ownerDocument,owner=doc.defaultView;
+  // The active view API includes sidebars; the most recent root leaf does not.
+  if(this.closed||!this.opened||!input||input.ownerDocument!==doc||doc.activeElement!==input||!input.isConnected||!input.getClientRects().length||!owner||owner.closed||this.app.workspace.getActiveViewOfType(OnlineWorkspaceView)!==this)return false;
+  const target=event.target as Node|null,eventDocument=target?.ownerDocument||(target?.nodeType===9?target:null);
+  if(event.view&&event.view!==owner||eventDocument&&eventDocument!==doc)return false;
+  event.preventDefault();event.stopPropagation();
+  // Consume pending/locked keys as well; saveDraft retains ownership of the
+  // exact snapshot, pending/capture protection and explicit failed-save retry.
+  const generation=this.generation;
+  if(!event.repeat)void this.saveDraft().catch(error=>{if(!this.closed&&this.generation===generation)this.failure('保存摘录',error);});
+  return true;
+ }
  private async saveDraft(){
   const source=this.source,memory=this.memory,draft=memory?.draft;
   if(this.composing||this.closed||!source||!memory||!draft||memory.pending||memory.capture||memory.editor&&memory.editor!==this.editor)return;
@@ -411,5 +435,5 @@ export class OnlineWorkspaceView extends ItemView {
  private async command(action:OnlineAction,value?:number){if(this.source&&this.verified())await this.host.command(this.source.path,action,value);}
  private async seekBy(delta:number){const state=this.verified();if(!state)return;await this.command('seek',Math.max(0,Math.min(validMediaTime(state.duration)&&state.duration>0?state.duration:100000000,state.time+delta)));}
  private async seekTo(){const time=parseMediaTime(this.seek?.value||'');if(time===undefined){this.message('请输入有效的跳转时间。');return;}await this.command('seek',time);}
- async onClose(){if(this.closed)return;if(this.composing)this.edit();this.stopViewport?.();this.stopViewport=undefined;this.closed=true;this.generation++;this.timelineRun++;this.subscription?.();this.subscription=undefined;this.release();this.contentEl.empty();}
+ async onClose(){if(this.closed)return;if(this.composing)this.edit();if(this.submitHotkey)this.scope?.unregister(this.submitHotkey);this.submitHotkey=undefined;this.stopViewport?.();this.stopViewport=undefined;this.closed=true;this.generation++;this.timelineRun++;this.subscription?.();this.subscription=undefined;this.release();this.contentEl.empty();}
 }

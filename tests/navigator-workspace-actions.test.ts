@@ -26,7 +26,7 @@ class Menu {
 }
 function fixture(){
  const calls:{name:string;value?:unknown}[]=[],vault={on:()=>({}),getFiles:()=>[]};
- const plugin={settings:{surfaceStyle:'soft',glassEffects:false,accent:'forest',density:'comfortable',favoriteBoards:[]},app:{vault},currentBoard:undefined,boardForDocument:()=>undefined,quickCapture:()=>calls.push({name:'capture'}),promptBoard:()=>calls.push({name:'legacy'}),promptNewBoard:()=>calls.push({name:'new'}),promptBrainBoard:()=>calls.push({name:'brain'}),promptMarkdownBoard:(brain=false)=>calls.push({name:brain?'markdown-brain':'markdown'}),openSpaceHub:()=>calls.push({name:'hub'}),openExcerptNote:()=>calls.push({name:'excerpt'}),openBoardOrganizer:(value:unknown)=>calls.push({name:'organize',value}),openSectionCatalog:(value:unknown)=>calls.push({name:'sections',value})};
+ const plugin={settings:{surfaceStyle:'soft',glassEffects:false,accent:'forest',density:'comfortable',favoriteBoards:[]},app:{vault},currentBoard:undefined,boardForDocument:()=>undefined,openCollection:()=>calls.push({name:'collection'}),quickCapture:()=>calls.push({name:'capture'}),promptBoard:()=>calls.push({name:'legacy'}),promptNewBoard:()=>calls.push({name:'new'}),promptBrainBoard:()=>calls.push({name:'brain'}),promptMarkdownBoard:(brain=false)=>calls.push({name:brain?'markdown-brain':'markdown'}),openSpaceHub:()=>calls.push({name:'hub'}),openExcerptNote:()=>calls.push({name:'excerpt'}),openBoardOrganizer:(value:unknown)=>calls.push({name:'organize',value}),openSectionCatalog:(value:unknown)=>calls.push({name:'sections',value})};
  class ItemView {contentEl=new Element();app={vault};registerEvent(_event:unknown){};}
  class TemplatePicker {constructor(_app:unknown,_plugin:unknown){}open(){calls.push({name:'template'});}}
  const button=(parent:Element,label:string,_icon:string,action:()=>unknown,cls='')=>{const b=parent.createDiv({cls:'ts-button '+cls,text:label,attr:{'aria-label':label}});b.action=action;return b;};
@@ -34,7 +34,7 @@ function fixture(){
  assert.ok(start>=0&&end>start);
  const View=new Function('ItemView','Menu','button','TemplatePicker','DOCK','isWorkspaceFile','EXT',transformSync(source.slice(start,end)+'\nreturn NavigatorView;',{loader:'ts'}).code)(ItemView,Menu,button,TemplatePicker,'dock',()=>true,'thoughtspace');
  const view=new View({},plugin),find=(label:string)=>view.contentEl.all().find((e:Element)=>e.attrs['aria-label']===label) as Element;
- return{view,find,calls};
+ return{view,find,calls,plugin};
 }
 test('named creation menu retains new-board and template actions and closes with its navigator',async()=>{
  const f=fixture();await f.view.onOpen();const create=f.find('新建白板或使用模板');assert.equal(create.attrs['aria-haspopup'],'menu');assert.equal(create.attrs['aria-expanded'],'false');
@@ -43,9 +43,16 @@ test('named creation menu retains new-board and template actions and closes with
  create.action?.();const second=Menu.items.at(-1)!;assert(first.hidden);first.hideCallback?.();assert.equal(create.attrs['aria-expanded'],'true','an old menu cannot collapse the current menu state');
  await f.view.onClose();assert(second.hidden);assert.equal(create.attrs['aria-expanded'],'false');
 });
-test('capture and named workspace entries remain directly reachable',async()=>{
- const f=fixture();await f.view.onOpen();for(const name of ['收集笔记','空间总览','打开笔记摘录'])f.find(name).action?.();assert.deepEqual(f.calls.map(c=>c.name),['capture','hub','excerpt']);
+test('collection and named workspace entries remain directly reachable',async()=>{
+ const f=fixture();await f.view.onOpen();for(const name of ['收集','空间总览','打开笔记摘录'])f.find(name).action?.();assert.deepEqual(f.calls.map(c=>c.name),['collection','hub','excerpt']);
  const children=f.view.contentEl.all() as Element[];assert(children.findIndex(e=>e.className==='ts-dock-host')<children.findIndex(e=>e.className==='ts-dock-workspace-tools'),'board tools follow the working list in DOM and keyboard order');
+});
+test('the original quick capture command still invokes its separate modal workflow',()=>{
+ const f=fixture(),source=readFileSync('src/main.ts','utf8'),registration=source.split('\n').find(line=>line.includes("{id:'quick-capture'"));assert.ok(registration,'existing quick-capture command registration remains present');
+ const commands:{id:string;name:string;callback:()=>void}[]=[];
+ const install=new Function(transformSync(`return function(){${registration}}`,{loader:'ts'}).code)();
+ install.call({...f.plugin,addCommand:(command:{id:string;name:string;callback:()=>void})=>commands.push(command)});
+ assert.equal(commands.length,1);assert.equal(commands[0].id,'quick-capture');assert.equal(commands[0].name,'快速收集一条笔记');commands[0].callback();assert.deepEqual(f.calls.map(call=>call.name),['capture']);
 });
 test('persistent board tools follow the latest bound board instead of the board at creation',async()=>{
  const f=fixture();await f.view.onOpen();const board=()=>({closed:false,session:{},sidebar:new Element(),refreshNavigation(){}}),first=board(),second=board();

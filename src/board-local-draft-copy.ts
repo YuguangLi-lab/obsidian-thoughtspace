@@ -3,7 +3,7 @@ import {bindMobileViewport} from './mobile-viewport';
 import {themeSurface} from './ui-tokens';
 
 export interface BoardLocalDraftCopyHost {
- document:Document;name:string;source:string;current():boolean;closed():void;
+ document:Document;name:string;source:string;title?:string;description?:string;ariaLabel?:string;current():boolean;closed():void;
 }
 
 /** An explicit copy surface for a protected in-memory board. Never writes files. */
@@ -15,10 +15,10 @@ export class BoardLocalDraftCopyModal extends Modal {
  onOpen(){
   const doc=this.host.document;if(!this.host.current()||!doc.defaultView||doc.defaultView.closed){this.close();return;}
   if(this.containerEl.ownerDocument!==doc)doc.body.appendChild(this.containerEl);
-  this.alive=true;themeSurface(this.modalEl);this.modalEl.addClass('ts-prompt-modal','ts-local-draft-copy-modal');this.titleEl.setText('复制未保存白板');
+  this.alive=true;themeSurface(this.modalEl);this.modalEl.addClass('ts-prompt-modal','ts-local-draft-copy-modal');this.titleEl.setText(this.host.title||'复制未保存白板');
   this.viewport=bindMobileViewport(this.modalEl);
-  this.contentEl.createEl('p',{text:`${this.host.name} 的完整本地副本。复制后可粘贴到同一格式的新文件保存；原白板仍暂停写入。`});
-  const textarea=this.contentEl.createEl('textarea',{cls:'ts-wide',attr:{readonly:'',rows:'14','aria-label':'完整未保存白板内容'}});textarea.readOnly=true;textarea.value=this.host.source;this.textarea=textarea;
+  this.contentEl.createEl('p',{text:this.host.description||`${this.host.name} 的完整本地副本。复制后可粘贴到同一格式的新文件保存；原白板仍暂停写入。`});
+  const textarea=this.contentEl.createEl('textarea',{cls:'ts-wide',attr:{readonly:'',rows:'14','aria-label':this.host.ariaLabel||'完整未保存白板内容'}});textarea.readOnly=true;textarea.value=this.host.source;this.textarea=textarea;
   const status=this.contentEl.createDiv({attr:{role:'status','aria-live':'polite'}});this.status=status;
   status.setText('内容仅在此处显示。可手动选择复制，或点击“复制内容”。');
   const actions=this.contentEl.createDiv('modal-button-container');

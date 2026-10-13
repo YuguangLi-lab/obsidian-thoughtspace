@@ -1,6 +1,7 @@
 import {App,Modal,Notice,setIcon} from 'obsidian';
 import {BackgroundImagePreferences,cleanBackgroundImagePreferences,backgroundImageStamp,MAX_BACKGROUND_IMAGE_BYTES} from './background-image';
 import {themeSurface} from './ui-tokens';
+import {bindBoardModalViewport} from './board-modal-viewport';
 
 export interface BackgroundImageHost {
  stamp?:()=>string;
@@ -14,13 +15,14 @@ const imageTypes=new Set(['image/png','image/jpeg','image/webp','image/gif']);
 const cssImage=(url:string)=>`url("${url.replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/[\r\n\f]/g,'')}")`;
 /** An image is decoded locally; only Apply copies it into the vault via the host. */
 export class BackgroundImageModal extends Modal {
+ private viewport?:()=>void;
  private imageDraft=cleanBackgroundImagePreferences({});private imageBaseline='';private imageHadSource=false;private imageReadFailed=false;private imageBusy=false;private imageClosed=false;private imageConflict=false;private imageLoading=false;private imageRun=0;private imageLoadRun=0;
  private imageFile?:File;private imageObjectUrl='';private imageUrls=new Set<string>();
  private imageInput!:HTMLInputElement;private imageChoose!:HTMLButtonElement;private imageRemove!:HTMLButtonElement;private imageName!:HTMLElement;private imageSlider!:HTMLInputElement;private imageStrength!:HTMLOutputElement;private imagePreview!:HTMLElement;private imageStatus!:HTMLElement;private imageApply!:HTMLButtonElement;private imageReload!:HTMLButtonElement;private imageFits=new Map<BackgroundImagePreferences['backgroundImageFit'],HTMLButtonElement>();
  constructor(app:App,private imageHost:BackgroundImageHost){super(app);}
  private imageText(zh:string,en:string){return this.imageHost.language==='en'?en:zh;}
  private imageButton(parent:HTMLElement,label:string,run:()=>void,cls=''){const button=parent.createEl('button',{text:label,cls,attr:{'aria-label':label}});button.onclick=()=>{if(!this.imageClosed&&!this.imageBusy)run();};return button;}
- onOpen(){const t=(zh:string,en:string)=>this.imageText(zh,en);this.imageRun++;this.imageClosed=false;this.imageBusy=false;this.imageLoading=false;this.imageConflict=false;this.imageReadFailed=false;this.imageFits.clear();this.contentEl.empty();themeSurface(this.modalEl);this.modalEl.addClass('ts-background-settings');this.titleEl.setText(t('自定义背景图片','Custom background image'));
+ onOpen(){const t=(zh:string,en:string)=>this.imageText(zh,en);this.imageRun++;this.imageClosed=false;this.imageBusy=false;this.imageLoading=false;this.imageConflict=false;this.imageReadFailed=false;this.imageFits.clear();this.contentEl.empty();this.viewport?.();this.viewport=bindBoardModalViewport(this.containerEl);themeSurface(this.modalEl);this.modalEl.addClass('ts-background-settings');this.titleEl.setText(t('自定义背景图片','Custom background image'));
   const body=this.contentEl.createDiv('ts-background-settings-body'),controls=body.createDiv('ts-background-controls');controls.createEl('h3',{text:t('背景图片','Background image')});
   const source=controls.createDiv('ts-background-source');setIcon(source.createSpan('ts-background-source-icon'),'image');this.imageName=source.createDiv('ts-background-source-name');
   const actions=controls.createDiv('ts-background-source-actions');this.imageChoose=this.imageButton(actions,t('选择图片','Choose image'),()=>this.imageInput.click(),'mod-cta');this.imageRemove=this.imageButton(actions,t('移除','Remove'),()=>this.imageClear());
@@ -62,5 +64,5 @@ export class BackgroundImageModal extends Modal {
   try{await this.imageHost.save(next,file);if(this.imageClosed||run!==this.imageRun)return;this.imageBusy=false;this.close();}
   catch(error){const message=`${this.imageText('背景图片保存失败：','Could not save background image: ')}${String(error).replace(/^Error: /,'')}`;if(this.imageClosed||run!==this.imageRun){new Notice(message);return;}this.imageBusy=false;this.imageStatus.setText(`${message}${this.imageText('。可以重试。','. You can retry.')}`);this.imageSync();}
  }
- onClose(){this.imageRun++;this.imageClosed=true;this.imageDiscard();this.imageFits.clear();this.contentEl.onkeydown=null;this.contentEl.empty();}
+ onClose(){this.viewport?.();this.viewport=undefined;this.imageRun++;this.imageClosed=true;this.imageDiscard();this.imageFits.clear();this.contentEl.onkeydown=null;this.contentEl.empty();}
 }

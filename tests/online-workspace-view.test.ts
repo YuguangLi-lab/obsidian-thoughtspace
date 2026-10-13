@@ -19,7 +19,10 @@ class ObjectURLs {
 }
 class Element {
  children:Element[]=[];parentElement?:Element;dataset:Record<string,string>={};attributes=new Map<string,string>();
- ownerDocument:{defaultView:{setTimeout:typeof setTimeout;clearTimeout:typeof clearTimeout;URL:ObjectURLs;Blob:typeof Blob};activeElement?:Element}={defaultView:{setTimeout,clearTimeout,URL:new ObjectURLs(),Blob}};
+ ownerDocument:{nodeType?:number;defaultView:{setTimeout:typeof setTimeout;clearTimeout:typeof clearTimeout;URL:ObjectURLs;Blob:typeof Blob;closed:boolean};activeElement?:Element}={defaultView:{setTimeout,clearTimeout,URL:new ObjectURLs(),Blob,closed:false}};
+ connected=true;visible=true;
+ get isConnected():boolean{return this.parentElement?this.parentElement.isConnected:this.connected;}
+ getClientRects(){return this.isConnected&&this.visible?[{}]:[];}
  className='';textContent='';value='';title='';placeholder='';type='';disabled=false;readOnly=false;hidden=false;open=false;
  listeners=new Map<string,((event:any)=>unknown)[]>();
  onclick?:((event:any)=>unknown)|null;oninput?:((event:any)=>unknown)|null;onchange?:((event:any)=>unknown)|null;onkeydown?:((event:any)=>unknown)|null;
@@ -28,7 +31,7 @@ class Element {
  createDiv(options?:unknown){return this.createEl('div',options);}
  createSpan(options?:unknown){return this.createEl('span',options);}
  createEl(tag:string,options?:unknown){
-  const node=new Element();node.parentElement=this;node.ownerDocument=this.ownerDocument;node.attributes.set('tag',tag);
+  const node=new Element();node.connected=false;node.parentElement=this;node.ownerDocument=this.ownerDocument;node.attributes.set('tag',tag);
   if(typeof options==='string')node.className=options;
   else if(options&&typeof options==='object'){
    const data=options as {cls?:string;text?:string;value?:string;type?:string;attr?:Record<string,string>};
@@ -73,6 +76,17 @@ class TFile {
  get basename(){return this.path.split('/').at(-1)!.replace(/\.[^.]+$/,'');}
  get extension(){return this.path.split('.').at(-1)!;}
 }
+type ShortcutHandler={modifiers:string[];key:string;func:(event:any)=>unknown};
+class Scope {
+ handlers:ShortcutHandler[]=[];
+ constructor(readonly parent?:Scope){}
+ register(modifiers:string[],key:string,func:ShortcutHandler['func']){const handler={modifiers,key,func};this.handlers.push(handler);return handler;}
+ unregister(handler:ShortcutHandler){this.handlers=this.handlers.filter(value=>value!==handler);}
+ dispatch(event:any):unknown {
+  for(const handler of this.handlers)if(handler.key===event.key&&handler.modifiers.includes('Mod')&&(event.metaKey||event.ctrlKey)&&!event.altKey&&!event.shiftKey&&handler.func(event)===false)return false;
+  return this.parent?.dispatch(event);
+ }
+}
 class ItemView {
  app:any;contentEl=new Element();containerEl=new Element();
  constructor(public leaf:{app:unknown}){this.app=leaf.app;}
@@ -93,7 +107,7 @@ const errorsLogged:unknown[][]=[];
 const compiled=transformSync(readFileSync('src/online-workspace-view.ts','utf8'),{loader:'ts',format:'cjs'}).code;
 const module={exports:{}};
 new Function('require','module','exports','console',compiled)((name:string)=>{
- if(name==='obsidian')return{ItemView,TFile,Component,MarkdownRenderer,setIcon:()=>{},Notice:class{constructor(message:string){notices.push(message);}}};
+ if(name==='obsidian')return{ItemView,Scope,TFile,Component,MarkdownRenderer,setIcon:()=>{},Notice:class{constructor(message:string){notices.push(message);}}};
  if(name==='./online-platform')return onlinePlatform;
  if(name==='./media-source')return mediaSource;
  if(name==='./workspace-density')return density;
@@ -111,7 +125,7 @@ const button=(view:any,label:string)=>find(view.contentEl,'button',label);
 const editor=(view:any)=>{const node=view.contentEl.querySelector('textarea');assert.ok(node,'draft editor exists');return node as Element;};
 async function settle(){await new Promise<void>(resolve=>setImmediate(resolve));}
 async function click(view:any,label:string){button(view,label).click();await settle();}
-function type(node:Element,value:string){assert.equal(node.disabled||node.readOnly,false,'input is editable');node.value=value;node.dispatch('input');}
+function type(node:Element,value:string){assert.equal(node.disabled||node.readOnly,false,'input is editable');node.focus();node.value=value;node.dispatch('input');}
 function deferred<T>(){let resolve!:(value:T)=>void,reject!:(error:unknown)=>void;const promise=new Promise<T>((yes,no)=>{resolve=yes;reject=no;});return{promise,resolve,reject};}
 type Moment={id:string;time:number;text:string;line:number;image?:string};
 type Draft={id:string;time:number;text:string;image?:Blob};
@@ -137,10 +151,10 @@ function fixture(){
   capture:(source:string)=>{captures.push(source);return capture(source);},
   send:async(source:string,time?:number,text?:string,image?:string)=>{sent.push({source,time,text,image});},openNote:async()=>{},
  };
- const app={workspace:{requestSaveLayout:()=>{layoutSaves++;}}};
- const view=()=>new OnlineWorkspaceView({app},host);
+ const app={scope:new Scope(),workspace:{activeLeaf:undefined as unknown,mostRecentLeaf:undefined as unknown,getMostRecentLeaf(){return this.mostRecentLeaf;},getActiveViewOfType(type:new(...args:any[])=>any){const view=(this.activeLeaf as {view?:unknown}|undefined)?.view;return view instanceof type?view:null;},requestSaveLayout:()=>{layoutSaves++;}}};
+ const view=()=>{const leaf:{app:typeof app;view?:unknown}={app};app.workspace.activeLeaf=leaf;app.workspace.mostRecentLeaf=leaf;const instance=new OnlineWorkspaceView(leaf,host);leaf.view=instance;return instance;};
  const publish=(state:OnlineState)=>{live=state;for(const fn of listeners)fn(state);};
- return{view,host,publish,noteA,noteB,saves,commands,opens,reads,adoptions,captures,sent,subscriptions,listeners,mounts,mountEvents,
+ return{view,app,host,publish,noteA,noteB,saves,commands,opens,reads,adoptions,captures,sent,subscriptions,listeners,mounts,mountEvents,
   get layoutSaves(){return layoutSaves;},setRead:(fn:typeof read)=>{read=fn;},setWrite:(fn:typeof write)=>{write=fn;},setCapture:(fn:typeof capture)=>{capture=fn;}};
 }
 async function open(f:ReturnType<typeof fixture>,value=youtube,state:Record<string,unknown>={}){const view=f.view();await view.onOpen();await view.setState({source:value.path,...state});return view;}
@@ -148,6 +162,79 @@ const rows=(view:any):Element[]=>(view.contentEl as Element).querySelectorAll('.
 const status=(view:any)=>(view.contentEl as Element).querySelector('.ts-online-workspace__status')!.textContent;
 const urls=(view:any):ObjectURLs=>(view.contentEl as Element).ownerDocument.defaultView.URL;
 const preview=(view:any):Element|null=>(view.contentEl as Element).querySelector('.ts-online-workspace__draft-image');
+
+async function shortcutFixture(placement:'tab'|'sidebar'|'window'='tab'){
+ const f=fixture();let nativeEffects=0;
+ Object.assign(f.host,{playbackAvailable:()=>false});
+ f.app.scope.register(['Mod'],'Enter',event=>{nativeEffects++;event.preventDefault();event.stopPropagation();return false;});
+ const v=await open(f,youtube,{placement});type(find(v.contentEl,'input','手动摘录时间'),'1:23');await click(v,'确认时间');type(editor(v),'把这一段里的城市观察，留给下一次散步。');
+ const event=(patch:Record<string,unknown>={})=>({key:'Enter',metaKey:true,ctrlKey:false,altKey:false,shiftKey:false,repeat:false,isComposing:false,keyCode:13,defaultPrevented:false,stopped:false,target:v.input,view:v.contentEl.ownerDocument.defaultView,preventDefault(){this.defaultPrevented=true;},stopPropagation(){this.stopped=true;},...patch});
+ const dispatch=(key:ReturnType<typeof event>)=>{const result=v.scope.dispatch(key);if(!key.stopped)v.input.onkeydown(key);return result;};
+ return{...f,v,event,dispatch,nativeEffects:()=>nativeEffects};
+}
+for(const modifier of ['metaKey','ctrlKey'])test(`online scope saves manual 83-second draft with ${modifier}+Enter before the native parent shortcut`,async()=>{
+ const f=await shortcutFixture(),input=f.v.input,key=f.event({metaKey:false,[modifier]:true}),draft={...f.v.memory.draft};
+ assert.equal(f.v.scope.parent,f.app.scope);assert.equal(f.dispatch(key),false);assert.equal(key.defaultPrevented,true);assert.equal(key.stopped,true);assert.equal(f.nativeEffects(),0);
+ input.onkeydown(key);await settle();assert.equal(f.saves.length,1);assert.deepEqual(f.saves[0],{source:youtube.path,data:{id:draft.id,time:83,text:draft.text},note:undefined});assert.equal(input.value,'');assert.equal(input.ownerDocument.activeElement,input);assert.equal(f.mounts.length,0);assert.deepEqual(f.opens,[]);assert.deepEqual(f.commands,[]);assert.equal(f.captures.length,0);await f.v.onClose();
+});
+for(const entry of ['scope','dom'])test(`online sidebar ${entry} shortcut uses the actual focused view while mostRecentLeaf remains main`,async()=>{
+ const f=await shortcutFixture('sidebar'),main={view:{}},key=f.event();f.app.workspace.mostRecentLeaf=main;
+ assert.equal(f.app.workspace.activeLeaf,f.v.leaf);assert.equal(f.app.workspace.getMostRecentLeaf(),main);
+ if(entry==='scope')assert.equal(f.dispatch(key),false);else f.v.input.onkeydown(key);
+ await settle();assert.equal(f.saves.length,1);assert.equal(f.saves[0].data.time,83);assert.equal(f.nativeEffects(),0);assert.equal(key.defaultPrevented,true);await f.v.onClose();
+});
+for(const target of ['document','missing'])test(`online scope accepts ${target} event target with exact owned textarea focus`,async()=>{
+ const f=await shortcutFixture(),doc=f.v.contentEl.ownerDocument;doc.nodeType=9;f.dispatch(f.event({target:target==='document'?doc:null}));await settle();assert.equal(f.saves.length,1);assert.equal(f.nativeEffects(),0);await f.v.onClose();
+});
+test('online DOM fallback independently saves and consumes a valid event',async()=>{
+ const f=await shortcutFixture(),key=f.event();f.v.input.onkeydown(key);await settle();assert.equal(f.saves.length,1);assert.equal(key.defaultPrevented,true);assert.equal(key.stopped,true);await f.v.onClose();
+});
+for(const reason of ['save-button','manual-time','other-textarea','other-leaf','foreign-target','foreign-event-window','foreign-input-document','closed-window','hidden-input','detached-input','event-ime','legacy-ime','view-ime','prevented','alt','shift','plain-enter'])test(`online scope leaves ${reason} untouched without altering its draft`,async()=>{
+ const f=await shortcutFixture(),v=f.v,key=f.event(),draft=v.memory.draft,handler=v.scope.handlers[0];
+ if(reason==='save-button')v.saveButton.focus();if(reason==='manual-time')v.manual.focus();if(reason==='other-textarea')v.contentEl.createEl('textarea').focus();
+ if(reason==='other-leaf')f.app.workspace.activeLeaf={};if(reason==='foreign-target')key.target=new Element();if(reason==='foreign-event-window')key.view=new Element().ownerDocument.defaultView;if(reason==='foreign-input-document')v.input.ownerDocument=new Element().ownerDocument;
+ if(reason==='closed-window')v.contentEl.ownerDocument.defaultView.closed=true;if(reason==='hidden-input')v.input.visible=false;if(reason==='detached-input')v.input.remove();
+ if(reason==='event-ime')key.isComposing=true;if(reason==='legacy-ime')key.keyCode=229;if(reason==='view-ime')v.composing=true;if(reason==='prevented')key.defaultPrevented=true;if(reason==='alt')key.altKey=true;if(reason==='shift')key.shiftKey=true;if(reason==='plain-enter')key.metaKey=false;
+ assert.equal(handler.func(key),undefined);assert.equal(key.stopped,false);assert.equal(key.defaultPrevented,reason==='prevented');await settle();assert.equal(f.saves.length,0);assert.equal(v.memory.draft,draft);assert.equal(draft.time,83);await v.onClose();
+});
+test('online pending save and repeated keys stay consumed without creating another attempt',async()=>{
+ const f=await shortcutFixture(),gate=deferred<{note:TFile}>();f.setWrite(()=>gate.promise);
+ const held=f.event({repeat:true});assert.equal(f.dispatch(held),false);await settle();assert.equal(f.saves.length,0,'holding a key cannot start a fresh save');
+ f.dispatch(f.event());await settle();assert.equal(f.saves.length,1);assert.equal(f.v.input.readOnly,true);const draft=f.v.memory.draft;
+ for(const repeat of [false,true]){const key=f.event({repeat});assert.equal(f.dispatch(key),false);assert.equal(key.defaultPrevented,true);assert.equal(key.stopped,true);}
+ await settle();assert.equal(f.saves.length,1);assert.equal(f.v.memory.draft,draft);assert.equal(f.nativeEffects(),0);gate.resolve({note:f.noteA});await settle();assert.equal(f.v.input.value,'');await f.v.onClose();
+});
+test('online capture and another editor retain saveDraft ownership while consuming the focused shortcut',async()=>{
+ for(const blocked of ['capture','editor']){
+  const f=await shortcutFixture(),draft=f.v.memory.draft;if(blocked==='capture')f.v.memory.capture={owner:Symbol('capture'),source:youtube.path,invalid:false};else f.v.memory.editor=Symbol('another editor');f.v.paintComposer();
+  const key=f.event();assert.equal(f.dispatch(key),false);await settle();assert.equal(f.saves.length,0);assert.equal(f.v.memory.draft,draft);assert.equal(f.nativeEffects(),0);assert.equal(key.defaultPrevented,true);f.v.memory.capture=undefined;f.v.memory.editor=undefined;await f.v.onClose();
+ }
+});
+test('online failed shortcut saves retain and retry the exact locked snapshot without DOM duplicate',async()=>{
+ const f=await shortcutFixture(),image=new Blob(['owned fixture frame'],{type:'image/png'});f.v.memory.draft.image=image;const draft=f.v.memory.draft,snapshot={id:draft.id,time:draft.time,text:draft.text,image};let attempts=0;
+ f.setWrite(async()=>{if(++attempts===1)throw Error('controlled storage failure');return{note:f.noteA};});const failedEvent=f.event();f.dispatch(failedEvent);await settle();
+ assert.equal(f.v.memory.draft,draft);assert.equal(draft.locked,true);assert.equal(f.v.input.readOnly,true);assert.match(status(f.v),/controlled storage failure/);f.v.input.onkeydown(failedEvent);await settle();assert.equal(f.saves.length,1,'same event cannot retry after failure');
+ f.dispatch(f.event({repeat:true}));await settle();assert.equal(f.saves.length,1);f.dispatch(f.event());await settle();assert.equal(f.saves.length,2);assert.deepEqual(f.saves.map(save=>save.data),[snapshot,snapshot]);assert.equal(f.v.memory.draft,undefined);assert.equal(f.nativeEffects(),0);await f.v.onClose();
+});
+test('closing online view unregisters its scope and retained native or DOM callbacks cannot save',async()=>{
+ const f=await shortcutFixture(),input=f.v.input,handler=f.v.scope.handlers[0];await f.v.onOpen();assert.equal(f.v.scope.handlers.length,1);await f.v.onClose();assert.equal(f.v.scope.handlers.length,0);
+ const key=f.event();assert.equal(handler.func(key),undefined);input.onkeydown(key);await settle();assert.equal(f.saves.length,0);assert.equal(key.defaultPrevented,false);await f.v.onOpen();assert.equal(f.v.scope.handlers.length,0);
+});
+test('old online DOM key callback cannot submit a newly selected source generation',async()=>{
+ const f=await shortcutFixture(),oldInput=f.v.input;await click(f.v,'取消摘录');await f.v.setState({source:another.path});type(f.v.manual,'2:10');await click(f.v,'确认时间');type(f.v.input,'新的来源摘录');const draft=f.v.memory.draft,key=f.event();
+ oldInput.onkeydown(key);await settle();assert.equal(f.saves.length,0);assert.equal(key.defaultPrevented,false);assert.equal(f.v.memory.draft,draft);f.dispatch(key);await settle();assert.equal(f.saves.length,1);assert.equal(f.saves[0].source,another.path);assert.equal(f.saves[0].data.time,130);assert.equal(f.saves[0].data.text,'新的来源摘录');await f.v.onClose();
+});
+test('a foreign window shortcut cannot consume or save another online view draft',async()=>{
+ const a=await shortcutFixture(),b=await shortcutFixture('window'),key=b.event();assert.equal(a.v.scope.handlers[0].func(key),undefined);assert.equal(key.defaultPrevented,false);b.dispatch(key);await settle();assert.equal(a.saves.length,0);assert.equal(b.saves.length,1);assert.notEqual(a.v.memory,b.v.memory);assert.equal(a.v.input.value,'把这一段里的城市观察，留给下一次散步。');await a.v.onClose();await b.v.onClose();
+});
+test('online shortcut in a second view cannot take the original shared editor ownership',async()=>{
+ const f=await shortcutFixture(),owner=f.v.memory.editor,draft=f.v.memory.draft,other=await open(f,youtube,{placement:'sidebar'});other.input.focus();assert.equal(other.input.readOnly,true);
+ const key=f.event({target:other.input,view:other.contentEl.ownerDocument.defaultView});assert.equal(other.scope.handlers[0].func(key),false);await settle();assert.equal(f.saves.length,0);assert.equal(other.memory.editor,owner);assert.equal(other.memory.draft,draft);assert.equal(key.defaultPrevented,true);await other.onClose();await f.v.onClose();
+});
+test('online DOM shortcut before onOpen leaves the prepared draft untouched',async()=>{
+ const f=fixture(),v=f.view();await v.setState({source:youtube.path});f.publish(synchronized(youtube));v.live=synchronized(youtube);v.paintComposer();type(editor(v),'尚未打开的来源草稿');const input=editor(v);let prevented=false;
+ input.onkeydown?.({key:'Enter',metaKey:true,target:input,view:input.ownerDocument.defaultView,preventDefault(){prevented=true;},stopPropagation(){}});await settle();assert.equal(f.saves.length,0);assert.equal(prevented,false);assert.equal(v.scope.handlers.length,0);await v.onClose();
+});
 
 test('changing online workspace accent and density preserves the player, draft and subscription',async()=>{
  const f=fixture();let accent='blue',density='compact';Object.assign(f.host,{accent:()=>accent,density:()=>density});

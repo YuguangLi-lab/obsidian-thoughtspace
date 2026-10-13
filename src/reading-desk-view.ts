@@ -4,14 +4,16 @@ import {Board,Card} from './model';
 import {AppearanceSettings} from './workspace';
 import {ReadingOptions,readingTitle,readingItems,readingProgress,readingDigest,markReading,reviewLabels,ReviewState,readingRelations,readingWindow} from './reading-desk';
 import {themeSurface} from './ui-tokens';
+import {bindBoardModalViewport} from './board-modal-viewport';
 interface ReadingHost{sourcePath?:()=>string;board:()=>Board;ids:Set<string>;title:string;settings:AppearanceSettings;commit:(edit:(b:Board)=>void)=>void;reveal:(id:string)=>void;open:(file:TFile)=>Promise<unknown>;}
 export class ReadingDesk extends Modal{
+ private viewport?:()=>void;
  private options:ReadingOptions={query:'',status:'all',sort:'board',onlySelected:false};private activeId?:string;private list!:HTMLElement;private page!:HTMLElement;private reader!:HTMLElement;private commandBar!:HTMLElement;private pageNav!:HTMLElement;private progress!:HTMLElement;private counter!:HTMLElement;private previewScope?:Component;private lifecycle?:Component;private generation=0;private pageKey='';private alive=false;private statusSelect!:HTMLSelectElement;private filterCaption?:HTMLElement;private companion!:HTMLElement;private asideTab:'queue'|'outline'|'relations'='queue';private asideTabs!:HTMLElement;private headings:HTMLElement[]=[];
  constructor(app:App,private host:ReadingHost){super(app);this.options.onlySelected=host.ids.size>0;}
  private run(fn:()=>unknown){if(!this.alive)return;try{Promise.resolve(fn()).catch(e=>new Notice(String(e)));}catch(e){new Notice(String(e));}}
  private button(el:HTMLElement,label:string,icon:string,fn:()=>unknown){const b=el.createEl('button',{attr:{'aria-label':label,title:label}});if(icon)setIcon(b.createSpan(),icon);b.createSpan({text:label});b.onclick=()=>this.run(fn);return b;}
  private items(){return readingItems(this.host.board(),this.host.ids,this.options);}
- onOpen(){this.alive=true;themeSurface(this.modalEl);this.modalEl.addClass('ts-reading-desk');this.modalEl.dataset.surface=this.host.settings.surfaceStyle;this.modalEl.style.setProperty('--ts-reading-size',`${this.host.settings.readingSize}px`);this.modalEl.dataset.readingWidth=this.host.settings.readingWidth;this.titleEl.empty();
+ onOpen(){this.viewport?.();this.viewport=bindBoardModalViewport(this.containerEl);this.alive=true;themeSurface(this.modalEl);this.modalEl.addClass('ts-reading-desk');this.modalEl.dataset.surface=this.host.settings.surfaceStyle;this.modalEl.style.setProperty('--ts-reading-size',`${this.host.settings.readingSize}px`);this.modalEl.dataset.readingWidth=this.host.settings.readingWidth;this.titleEl.empty();
  const heading=this.titleEl.createDiv('ts-reading-heading'),identity=heading.createDiv('ts-reading-identity');setIcon(identity.createSpan('ts-reading-mark'),'book-open');const title=identity.createDiv();title.createDiv({cls:'ts-reading-title',text:'阅读桌'});title.createDiv({cls:'ts-reading-context',text:this.host.title,attr:{title:this.host.title}});this.progress=heading.createDiv('ts-reading-progress');
  const body=this.contentEl.createDiv('ts-reading-layout'),aside=body.createDiv('ts-reading-aside');
  const tools=aside.createDiv('ts-reading-tools'),search=tools.createEl('input',{type:'search',attr:{placeholder:'搜索标题、路径或文本…','aria-label':'搜索阅读内容'}});search.oninput=()=>this.run(()=>{this.options.query=search.value;this.renderList();});
@@ -108,5 +110,5 @@ export class ReadingDesk extends Modal{
   }
   if(relations.length>100)this.companion.createDiv({cls:'ts-reading-context-hint',text:'仅显示前 100 条关联，其余请在白板查看。'});
  }
- onClose(){this.alive=false;this.pageKey='';this.generation++;this.previewScope?.unload();this.lifecycle?.unload();this.contentEl.empty();}
+ onClose(){this.viewport?.();this.viewport=undefined;this.alive=false;this.pageKey='';this.generation++;this.previewScope?.unload();this.lifecycle?.unload();this.contentEl.empty();}
 }
