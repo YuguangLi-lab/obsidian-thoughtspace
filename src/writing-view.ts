@@ -106,11 +106,11 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
  }
 
  applyPreferences(){applyWorkspaceDensity(this.contentEl,this.host.settings?.density);}
- private action(el:HTMLElement,label:string,fn:()=>unknown,icon?:string,iconOnly=false,cls='') {
+ private action(el:HTMLElement,label:string,fn:(event:MouseEvent)=>unknown,icon?:string,iconOnly=false,cls='') {
   const b=el.createEl('button',{cls:('ts-writing-button '+cls+(iconOnly?' is-icon':'')).trim(),attr:{'aria-label':label,title:label,type:'button'}});
   if(icon)setIcon(b.createSpan('ts-writing-icon'),icon);
   if(!iconOnly)b.createSpan({text:label});
-  b.onclick=()=>{try{Promise.resolve(fn()).catch(e=>new Notice(String(e)));}catch(e){new Notice(String(e));}};
+  b.onclick=event=>{try{Promise.resolve(fn(event)).catch(e=>new Notice(String(e)));}catch(e){new Notice(String(e));}};
   return b;
  }
  private ensure(){if(!this.owner||this.owner.blocked||this.app.vault.getAbstractFileByPath(this.file!.path)!==this.file)throw Error('白板不可写，请返回白板检查');return this.owner;}
@@ -208,6 +208,7 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   if(!this.dock)return;const compact=this.contentEl.clientWidth<=900,visible=this.dockOpen&&(!compact||this.compactDockRequested);
   this.contentEl.style.setProperty('--writing-dock-width',this.dockWidth+'px');if(this.dockResize)this.dockResize.hidden=!visible||compact;
   this.dock.hidden=!visible;this.contentEl.toggleClass('is-focus',!visible);
+  const composer=this.contentEl.querySelector<HTMLElement>('.ts-writing-composer');if(composer)composer.inert=compact&&visible;
   this.dock.querySelector<HTMLElement>('.ts-writing-source')!.hidden=this.resourceMode!=='library';this.dock.querySelector<HTMLElement>('.ts-writing-reference')!.hidden=this.resourceMode!=='reference';
   this.dock.querySelectorAll<HTMLButtonElement>('[data-resource-mode]').forEach(b=>{b.toggleClass('is-active',b.dataset.resourceMode===this.resourceMode);b.setAttribute('aria-pressed',String(b.dataset.resourceMode===this.resourceMode));});
   const toggle=this.contentEl.querySelector<HTMLButtonElement>('.ts-writing-dock-toggle');toggle?.setAttribute('aria-expanded',String(visible));toggle?.toggleClass('is-active',visible);if(toggle)toggle.title=visible?'收起参考资料，专注写作':'打开参考资料';this.fitTitle();
@@ -253,7 +254,7 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
    const option=board.writing?.options?.[id],chapter=board.writing?.chapters?.find(c=>c.id===id),name=option?.title||writingName(n);
    const row=this.outline.createDiv({cls:'ts-writing-entry',attr:{'data-writing-node':id}});row.toggleClass('is-excluded',!!option?.excluded);row.toggleClass('is-selected',this.selected===id);this.dragRow(row,id,index);
    const top=row.createDiv('ts-writing-entry-top');top.createSpan({cls:'ts-writing-number',text:String(index+1).padStart(2,'0')});
-   const main=this.action(top,name,()=>{this.selected=this.selected===id?undefined:id;this.renderLists();},undefined,false,'ts-writing-entry-name');main.createEl('small',{text:chapter?'自建章节':n.kind==='section'?'分组章节 · '+Math.max(0,writingParts(board,[id]).length-1)+' 份材料':kinds[n.kind]+(option?.excluded?' · 暂不纳入正文':'')});
+   const main=this.action(top,name,event=>this.selectOutline(id,event),undefined,false,'ts-writing-entry-name');main.dataset.writingOutlineKey=JSON.stringify(['title',id]);main.createEl('small',{text:chapter?'自建章节':n.kind==='section'?'分组章节 · '+Math.max(0,writingParts(board,[id]).length-1)+' 份材料':kinds[n.kind]+(option?.excluded?' · 暂不纳入正文':'')});
    const controls=top.createDiv('ts-writing-entry-actions');
    this.action(controls,'参考 '+name,()=>this.showReference(id),'book-open',true);
    this.action(controls,'上移 '+name,()=>this.add(id,index-1),'chevron-up',true).disabled=index===0;
@@ -263,7 +264,7 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
     const unfiltered=clone(board);if(unfiltered.writing)unfiltered.writing.options=undefined;
     const children=writingParts(unfiltered,[id]).slice(1),summary=row.createDiv('ts-writing-children');
     for(const child of children.slice(0,this.expandedGroups.has(id)?children.length:4)){
-     const button=this.action(summary,board.writing?.options?.[child.node.id]?.title||writingName(child.node),()=>{this.selected=this.selected===child.node.id?undefined:child.node.id;this.renderLists();},undefined,false,'ts-writing-child');
+     const button=this.action(summary,board.writing?.options?.[child.node.id]?.title||writingName(child.node),event=>this.selectOutline(child.node.id,event),undefined,false,'ts-writing-child');button.dataset.writingOutlineKey=JSON.stringify(['child',id,child.node.id]);
      button.toggleClass('is-excluded',!!board.writing?.options?.[child.node.id]?.excluded);button.toggleClass('is-active',this.selected===child.node.id);
     }
     if(children.length>4)this.action(summary,this.expandedGroups.has(id)?'收起':'＋'+(children.length-4),()=>{this.expandedGroups.has(id)?this.expandedGroups.delete(id):this.expandedGroups.add(id);this.renderLists();});
@@ -276,6 +277,15 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   else this.action(this.outline,'添加章节',()=>this.newChapter(),'plus',false,'ts-writing-add-chapter');
   this.totals.setText(order.length+' 个编排项 · '+parts.filter(p=>p.node.kind!=='section').length+' 份材料');
   this.renderStatus();
+ }
+ private selectOutline(id:string,event:MouseEvent){
+  const control=event.currentTarget as HTMLElement|null,doc=this.contentEl.ownerDocument,owner=this.owner,file=this.file,mode=this.mode;
+  const key=control?.dataset.writingOutlineKey,restore=event.detail===0&&!!owner&&!!file&&!!key&&!!control&&doc.activeElement===control&&control.matches(':focus-visible')&&this.outline.contains(control)&&mode==='outline';
+  this.selected=this.selected===id?undefined:id;this.renderLists();
+  // A keyboard activation replaces its own row. Restore only that removed
+  // launcher, synchronously; never steal focus moved by another handler.
+  if(!restore||!control||control.isConnected||this.closed||this.owner!==owner||this.file!==file||this.mode!==mode||!this.outline.isConnected||doc.activeElement!==doc.body)return;
+  Array.from(this.outline.querySelectorAll<HTMLElement>('[data-writing-outline-key]')).find(button=>button.dataset.writingOutlineKey===key)?.focus({preventScroll:true});
  }
  private renderEntryEditor(row:HTMLElement,n:Card,custom:boolean){
   const editor=row.createDiv('ts-writing-editor'),state=this.state(),option=state.options?.[n.id],chapter=state.chapters?.find(c=>c.id===n.id);

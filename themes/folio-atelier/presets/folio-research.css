@@ -1,0 +1,5 @@
+/* Folio Atelier 3.0 · Enable only one preset. Requires Folio Atelier theme. */
+body { --atelier-reading-width: 980px; --atelier-line-height: 1.75; --atelier-code-size: 13px; }
+body .markdown-preview-view table { width: 100%; }
+body .markdown-preview-view tbody tr:nth-child(even) { background: var(--atelier-sidebar); }
+body .markdown-preview-view pre>code { white-space: pre-wrap; overflow-wrap: anywhere; }

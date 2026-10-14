@@ -1,0 +1,1104 @@
+/* Folio Atelier · ThoughtSpace 1.3.35-folio.2 interface finish.
+ * Loaded after thoughtspace-current.css. Only plugin-owned chrome is styled.
+ * The renderer retains object colors, borders, geometry, zoom and typography;
+ * native Markdown/PDF, draft editors and image/video surfaces remain untouched.
+ */
+
+@media screen {
+
+/* 1. Chrome tokens. Keep these local to UI surfaces, away from board objects. */
+body.atelier-plugin-polish :is(
+  .ts-ui-modal, .ts-settings, .ts-native-header, .ts-writing,
+  .ts-materials-panel, .ts-materials-modal, .ts-media-workspace,
+  .ts-online-workspace, .ts-root .ts-sidebar, .ts-root .ts-commandbar,
+  .ts-root .ts-rail-popover, .ts-root .ts-tools-palette
+):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  --ts-design-line: var(--atelier-ui-line) !important;
+  --ts-design-panel: var(--atelier-ui-panel) !important;
+  --ts-design-wash: var(--atelier-soft) !important;
+  --ts-design-hover: var(--atelier-ui-subtle) !important;
+  --ts-design-shadow: var(--atelier-ui-shadow-sm) !important;
+  --ts-design-overlay-shadow: var(--atelier-ui-shadow-lg) !important;
+  --ts-design-radius: var(--atelier-ui-radius-md) !important;
+  --ts-work-line: var(--atelier-ui-line) !important;
+  --ts-work-panel: var(--atelier-ui-panel) !important;
+  --ts-work-raised: var(--atelier-ui-raised) !important;
+  --ts-work-hover: var(--atelier-ui-subtle) !important;
+  --ts-work-shadow: var(--atelier-ui-shadow-md) !important;
+}
+body.atelier-plugin-polish .ts-root.ts-dock .ts-sidebar:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  --ts-nav-surface: var(--atelier-ui-panel);
+  --ts-nav-subtle: var(--atelier-ui-subtle);
+  --ts-nav-line: var(--atelier-ui-line);
+  --ts-nav-hover: var(--atelier-ui-subtle);
+}
+body.atelier-plugin-polish .ts-brain-shell:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  --brain-chrome-line: var(--atelier-ui-line);
+  --brain-chrome-shadow: var(--atelier-ui-shadow-sm);
+}
+body.atelier-plugin-polish .ts-writing:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  --writing-line: var(--atelier-ui-line);
+  --writing-soft: var(--atelier-ui-canvas);
+}
+body.atelier-plugin-polish .ts-space-hub:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  --ts-hub-line: var(--atelier-ui-line);
+  --ts-hub-panel: var(--atelier-ui-panel);
+  --ts-hub-soft: var(--atelier-ui-subtle);
+  --ts-hub-active: var(--atelier-soft);
+}
+body.atelier-plugin-polish .ts-board-search:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  --ts-search-line: var(--atelier-ui-line);
+  --ts-search-active: var(--atelier-soft);
+}
+body.atelier-plugin-polish .ts-reference-reading:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  --ts-reference-line: var(--atelier-ui-line);
+}
+body.atelier-plugin-polish .workspace-leaf-content[data-type="thoughtspace-media-player"] .view-content.ts-media-workspace:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  --ts-mw-line: var(--atelier-ui-line);
+  --ts-mw-soft: var(--atelier-ui-subtle);
+  --ts-mw-accent-soft: var(--atelier-soft);
+  --ts-mw-page: var(--atelier-ui-canvas);
+  --ts-mw-shadow: var(--atelier-ui-shadow-sm);
+  --ts-mw-radius: var(--atelier-ui-radius-md);
+}
+body.atelier-plugin-polish :is(.ts-media-workspace, .ts-online-workspace):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  --ts-accent: var(--atelier-accent);
+}
+
+/* 2. Board tools. No positioning, pane split, canvas or node declarations. */
+body.atelier-plugin-polish .ts-root :is(.ts-commandbar, .ts-rail-popover, .ts-tools-palette):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background: var(--atelier-ui-raised) !important;
+  border-color: var(--atelier-ui-line-strong) !important;
+  border-radius: var(--atelier-ui-radius-md) !important;
+  box-shadow: var(--atelier-ui-shadow-md) !important;
+}
+body.atelier-plugin-polish .ts-root .ts-commandbar:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  gap: 5px !important;
+  padding: 5px !important;
+}
+body.atelier-plugin-polish .ts-root .ts-commandbar > .ts-toolbar:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  gap: 4px !important;
+}
+body.atelier-plugin-polish .ts-root :is(.ts-board-rail, .ts-canvas-controls):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background: var(--atelier-ui-raised) !important;
+  border-color: var(--atelier-ui-line) !important;
+  border-radius: var(--atelier-ui-radius-md) !important;
+  box-shadow: var(--atelier-ui-shadow-sm) !important;
+}
+/* This caption otherwise inherits the native button's muted color; resolve
+ * the theme's UI ink directly so a dark surface cannot retain light-mode ink. */
+body.atelier-plugin-polish .ts-root .ts-canvas-controls .ts-background-entry > .ts-background-caption:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-muted);
+}
+body.atelier-plugin-polish .ts-root :is(.ts-topbar, .ts-footer):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),
+body.atelier-plugin-polish .ts-native-header:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-ui-panel);
+  border-color: var(--atelier-ui-line);
+}
+body.atelier-plugin-polish .ts-root :is(.ts-toolbar-divider, .ts-rail-group):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+}
+body.atelier-plugin-polish .ts-root :is(.ts-rail-popover, .ts-tools-palette) > .ts-rail-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background: transparent;
+  box-shadow: none;
+}
+body.atelier-plugin-polish .ts-root :is(.ts-tool-description, .ts-canvas-summary):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),
+body.atelier-plugin-polish .ts-native-header .ts-save-feedback-text:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-muted);
+}
+/* Save errors retain the owning status's semantic color. Normal saving,
+ * paused and saved acknowledgements keep the quiet interface hierarchy. */
+body.atelier-plugin-polish .ts-native-header .ts-save-status.is-error > .ts-save-feedback-text:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--text-error);
+}
+
+/* 3. Brain chrome; the scene, links, pills, previews and action scaling stay native. */
+body.atelier-plugin-polish :is(.ts-brain-topbar, .ts-brain-footer):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-ui-panel);
+  border-color: var(--atelier-ui-line);
+}
+body.atelier-plugin-polish .ts-brain-brand:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-ink);
+  letter-spacing: 0;
+}
+body.atelier-plugin-polish .ts-brain-navigation:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+}
+body.atelier-plugin-polish .ts-brain-search:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-ui-subtle);
+  border-color: var(--atelier-ui-line);
+  border-radius: var(--atelier-ui-radius-sm);
+}
+body.atelier-plugin-polish .ts-brain-search-results:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background: var(--atelier-ui-raised);
+  border-color: var(--atelier-ui-line-strong);
+  border-radius: var(--atelier-ui-radius-md);
+  box-shadow: var(--atelier-ui-shadow-lg);
+  padding: 6px;
+}
+body.atelier-plugin-polish .ts-brain-search-results .ts-brain-search-result:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-radius: var(--atelier-ui-radius-sm);
+  color: var(--atelier-ui-ink);
+}
+body.atelier-plugin-polish .ts-brain-search-results .ts-brain-search-result.is-active:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-accent);
+  background: var(--atelier-soft);
+  box-shadow: inset 2px 0 var(--atelier-accent);
+}
+body.atelier-plugin-polish :is(.ts-brain-search-count, .ts-brain-search-pager, .ts-brain-object-count, .ts-brain-recent-caption):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 4. Dock navigation, real current task lists and material library chrome. */
+body.atelier-plugin-polish .ts-root.ts-dock :is(.ts-tabs, .ts-dock-shortcuts, .ts-dock-workspace-tools):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-ui-subtle);
+  border-color: var(--atelier-ui-line);
+}
+body.atelier-plugin-polish .ts-root.ts-dock :is(.ts-sidebar-search, .ts-library-controls, .ts-outline-controls, .ts-task-filters):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-ui-panel);
+  border-color: var(--atelier-ui-line);
+  border-radius: var(--atelier-ui-radius-sm);
+}
+body.atelier-plugin-polish .ts-root.ts-dock .ts-list-heading:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-ink);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+body.atelier-plugin-polish .ts-root.ts-dock :is(.ts-tree-row, .ts-outline-row, .ts-favorite-row):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-radius: var(--atelier-ui-radius-sm);
+}
+body.atelier-plugin-polish .ts-root.ts-dock .ts-library-card:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+  border-radius: var(--atelier-ui-radius-md);
+  background-color: var(--atelier-ui-panel);
+  box-shadow: none;
+}
+body.atelier-plugin-polish .ts-root.ts-dock .ts-library-card:is(:hover, :focus-within):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line-strong);
+  background-color: var(--atelier-ui-subtle);
+}
+body.atelier-plugin-polish .ts-root.ts-dock :is(.ts-library-title, .ts-outline-title):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-ink);
+}
+body.atelier-plugin-polish .ts-root.ts-dock :is(.ts-library-path, .ts-library-card-meta, .ts-tree-help, .ts-favorite-hint):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-muted);
+}
+body.atelier-plugin-polish .ts-root.ts-dock .ts-task-group:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+}
+body.atelier-plugin-polish .ts-root.ts-dock .ts-task:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  padding-block: 6px;
+  border-radius: var(--atelier-ui-radius-sm);
+}
+body.atelier-plugin-polish .ts-root.ts-dock .ts-task:is(:hover, :focus-within):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-ui-subtle);
+}
+body.atelier-plugin-polish .ts-root.ts-dock :is(.ts-task-progress-label, .ts-task-percent):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 5. Writing: interface framing around the unchanged Markdown manuscript. */
+body.atelier-plugin-polish .ts-writing :is(.ts-writing-header, .ts-writing-status, .ts-writing-dock-head, .ts-writing-reference-heading):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+  background-color: var(--atelier-ui-panel);
+}
+body.atelier-plugin-polish .ts-writing :is(.ts-writing-composer, .ts-writing-dock):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+  border-radius: var(--atelier-ui-radius-md);
+  box-shadow: var(--atelier-ui-shadow-sm);
+}
+body.atelier-plugin-polish .ts-writing :is(.ts-writing-formatbar, .ts-writing-panel-head, .ts-writing-panel-foot, .ts-writing-preview-summary):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+}
+body.atelier-plugin-polish .ts-writing .ts-writing-switch:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+  border-radius: var(--atelier-ui-radius-sm);
+  background: var(--atelier-ui-subtle);
+  padding: 3px;
+}
+body.atelier-plugin-polish .ts-writing .ts-writing-switch .ts-writing-button.is-active:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background: var(--atelier-ui-raised);
+  color: var(--atelier-accent);
+  box-shadow: var(--atelier-ui-shadow-sm);
+}
+body.atelier-plugin-polish .ts-writing :is(.ts-writing-material, .ts-writing-reference-tab):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-radius: var(--atelier-ui-radius-sm);
+}
+body.atelier-plugin-polish .ts-writing :is(.ts-writing-material.is-current-reference, .ts-writing-reference-tab.is-active):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: color-mix(in srgb, var(--atelier-accent) 35%, var(--atelier-ui-line));
+  background-color: var(--atelier-soft);
+}
+body.atelier-plugin-polish .ts-writing :is(.ts-writing-name, .ts-writing-identity):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-ink);
+}
+body.atelier-plugin-polish .ts-writing :is(.ts-writing-ref-label, .ts-writing-reference-kind, .ts-writing-status-text, .ts-writing-panel-foot):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-muted);
+}
+/* Exclusion dims the excerpt, but its action row retains the native flex
+ * layout. Keep the native narrow-row space above the absolute action group. */
+body.atelier-plugin-polish .ts-writing .ts-writing-entry.is-excluded > .ts-writing-entry-top:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  display: flex;
+  padding: 20px 16px 16px;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+}
+@container (max-width: 450px) {
+  body.atelier-plugin-polish .ts-writing .ts-writing-entry.is-excluded > .ts-writing-entry-top:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+    padding-top: 32px;
+  }
+}
+
+/* 6. Reading, source evidence and material management. Prose is excluded. */
+body.atelier-plugin-polish :is(.ts-reading-commandbar, .ts-reading-page-head, .ts-reading-aside, .ts-reading-footer,
+  .ts-reference-reading-head, .ts-reference-reading-footer, .ts-reference-reading-range,
+  .ts-materials-tabs, .ts-materials-library, .ts-materials-footer, .ts-materials-source):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+  background-color: var(--atelier-ui-panel);
+}
+body.atelier-plugin-polish :is(.ts-reading-filter-panel, .ts-reading-companion, .ts-materials-options,
+  .ts-materials-reflection, .ts-materials-receipt):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+  border-radius: var(--atelier-ui-radius-md);
+  background-color: var(--atelier-ui-subtle);
+}
+body.atelier-plugin-polish :is(.ts-reading-aside-tabs, .ts-materials-tabs, .ts-materials-reading-switch):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-radius: var(--atelier-ui-radius-sm);
+  background-color: var(--atelier-ui-subtle);
+}
+body.atelier-plugin-polish :is(.ts-reading-item, .ts-materials-fragment):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-radius: var(--atelier-ui-radius-sm);
+  border-color: transparent;
+  box-shadow: none;
+}
+body.atelier-plugin-polish :is(.ts-reading-item, .ts-materials-fragment):is(:hover, :focus-within):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-ui-subtle);
+  border-color: var(--atelier-ui-line);
+}
+body.atelier-plugin-polish :is(.ts-reading-item[aria-pressed="true"], .ts-materials-fragment.is-active):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-soft);
+  border-color: color-mix(in srgb, var(--atelier-accent) 35%, var(--atelier-ui-line));
+}
+body.atelier-plugin-polish .ts-materials-fragment.is-active:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-inline-start-color: var(--atelier-accent);
+}
+body.atelier-plugin-polish :is(.ts-reading-title, .ts-reading-heading, .ts-materials-source-name, .ts-materials-fragment-title):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-ink);
+}
+body.atelier-plugin-polish :is(.ts-reading-context-hint, .ts-reading-count, .ts-reference-reading-readonly,
+  .ts-materials-preview-cap, .ts-materials-eyebrow):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-muted);
+}
+/* Operators belong to the code's ink hierarchy; the native red is too light
+ * on this material preview's pale code surface. Other syntax colors stay native. */
+body.atelier-plugin-polish :is(.ts-materials-panel, .ts-materials-modal) .ts-materials-markdown {
+  --code-operator: var(--atelier-ink);
+}
+
+/* A narrow fragment library needs space after its filters and batch actions.
+ * Keep the footer outside this local scrollport; reading and outline views
+ * have no direct library/list pair and retain their own layout. */
+@container (width < 650px) {
+  body.atelier-plugin-polish .ts-materials-panel .ts-materials-body:not(.is-reading):has(> .ts-materials-library > .ts-materials-list) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(23rem, 1.7fr) minmax(9rem, 1fr);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  body.atelier-plugin-polish .ts-materials-panel .ts-materials-body:not(.is-reading):has(> .ts-materials-library > .ts-materials-list) > .ts-materials-library {
+    display: grid;
+    grid-template-rows: max-content max-content minmax(0, 1fr);
+    min-block-size: 0;
+    overflow: hidden;
+  }
+}
+
+/* 7. Search and relation inspection: strong focus, quiet refinement panels. */
+body.atelier-plugin-polish .ts-board-search :is(.ts-board-search-refine, .ts-board-search-saved):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-ui-subtle);
+  border-color: var(--atelier-ui-line);
+}
+body.atelier-plugin-polish .ts-board-search :is(.ts-board-search-bar, .ts-board-search-footer):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-ui-panel);
+  border-color: var(--atelier-ui-line);
+}
+body.atelier-plugin-polish .ts-board-search .ts-board-search-bar:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-radius: var(--atelier-ui-radius-sm);
+}
+body.atelier-plugin-polish .ts-board-search .ts-board-search-row:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-radius: var(--atelier-ui-radius-sm);
+  box-shadow: none;
+}
+body.atelier-plugin-polish .ts-board-search .ts-board-search-row:hover:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-ui-subtle);
+}
+body.atelier-plugin-polish .ts-board-search .ts-board-search-row.is-active:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-soft);
+  border-color: color-mix(in srgb, var(--atelier-accent) 35%, var(--atelier-ui-line));
+}
+body.atelier-plugin-polish .ts-board-search :is(.ts-board-search-location, .ts-board-search-path, .ts-board-search-index-status, .ts-board-search-shortcuts):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-muted);
+}
+body.atelier-plugin-polish .ts-local-relations :is(.ts-local-relations-options, .ts-local-relations-actions,
+  .ts-local-relations-secondary-toolbar, .ts-local-relations-pager):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+}
+body.atelier-plugin-polish .ts-local-relations :is(.ts-local-relations-picker, .ts-local-relations-filter-panel,
+  .ts-local-relations-more-panel, .ts-local-relation-editor, .ts-local-relation-remove-confirm):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+  border-radius: var(--atelier-ui-radius-md);
+  background-color: var(--atelier-ui-raised);
+  box-shadow: var(--atelier-ui-shadow-sm);
+}
+body.atelier-plugin-polish .ts-local-relations :is(.ts-local-relations-counts, .ts-local-relations-path, .ts-local-heading-status):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-muted);
+}
+
+/* 8. Space overview and property workspaces: table/list content retains its type. */
+body.atelier-plugin-polish .ts-space-hub :is(.ts-hub-nav, .ts-hub-footer, .ts-hub-detail):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+}
+body.atelier-plugin-polish .ts-space-hub :is(.ts-hub-result, .ts-hub-saved-row, .ts-hub-view-switch):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-radius: var(--atelier-ui-radius-sm);
+  border-color: var(--atelier-ui-line);
+  box-shadow: none;
+}
+body.atelier-plugin-polish .ts-space-hub .ts-hub-result:hover:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-ui-subtle);
+  border-color: var(--atelier-ui-line-strong);
+}
+body.atelier-plugin-polish .ts-space-hub .ts-hub-result.is-focused:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-soft);
+  border-color: color-mix(in srgb, var(--atelier-accent) 35%, var(--atelier-ui-line));
+}
+body.atelier-plugin-polish .ts-space-hub .ts-hub-heading h3:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  font-family: var(--font-interface);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+body.atelier-plugin-polish .ts-space-hub :is(.ts-hub-scope-count, .ts-hub-result-path, .ts-hub-result-meta, .ts-hub-detail-path):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-muted);
+}
+/* The native short-height layout scrolls the whole modal. Its sticky footer
+ * otherwise covers the gallery/list/refresh controls at high UI zoom. */
+@container ts-space-library (max-height: 520px) {
+  body.atelier-plugin-polish .ts-space-hub .ts-hub-footer:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+    position: static;
+  }
+}
+body.atelier-plugin-polish .ts-database-modal :is(.ts-db-top, .ts-db-tabs, .ts-db-filters, .ts-db-saved-views):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+}
+/* Keep all property-workspace actions reachable as the modal becomes narrow.
+ * The table keeps its own original horizontal scrolling region. */
+body.atelier-plugin-polish .ts-database-modal .ts-db-top:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  flex-wrap: wrap;
+  min-inline-size: 0;
+}
+body.atelier-plugin-polish .ts-database-modal .ts-db-tabs:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  flex-wrap: wrap;
+  max-inline-size: 100%;
+}
+body.atelier-plugin-polish .ts-database-modal .ts-db-count:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+body.atelier-plugin-polish .ts-database-modal .ts-db-top > .ts-button:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  max-inline-size: 100%;
+  white-space: normal;
+}
+body.atelier-plugin-polish .ts-database-modal .modal-content.ts-database:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  overflow: auto;
+}
+body.atelier-plugin-polish .ts-database-modal :is(.ts-db-tabs, .ts-db-custom-filters, .ts-db-field-definition, .ts-db-custom-property):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-ui-subtle);
+  border-color: var(--atelier-ui-line);
+  border-radius: var(--atelier-ui-radius-sm);
+}
+body.atelier-plugin-polish .ts-database-modal .ts-db-table :is(th, td):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+}
+body.atelier-plugin-polish .ts-database-modal .ts-db-table th:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-ui-subtle);
+  color: var(--atelier-ui-muted);
+  font-family: var(--font-interface);
+  font-weight: 600;
+}
+body.atelier-plugin-polish .ts-database-modal .ts-kanban-column:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+  border-radius: var(--atelier-ui-radius-md);
+  background-color: var(--atelier-ui-subtle);
+}
+body.atelier-plugin-polish .ts-database-modal .ts-kanban-card:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-radius: var(--atelier-ui-radius-sm);
+  box-shadow: none;
+}
+body.atelier-plugin-polish .ts-database-modal :is(.ts-db-count, .ts-db-path, .ts-db-subtitle, .ts-db-help, .ts-kanban-count, .ts-kanban-empty):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The database's two secondary forms are native Modal hosts with stable
+ * accessible names. Keep their real renderer and handlers, and give controls
+ * and existing fields a consistent rhythm without resizing the dialog. */
+body.atelier-plugin-polish .modal.ts-ui-modal:has(> .modal-content > input:is([aria-label="属性名称"], [aria-label="筛选视图名称"])) > .modal-content:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+body.atelier-plugin-polish .modal.ts-ui-modal:has(> .modal-content > input:is([aria-label="属性名称"], [aria-label="筛选视图名称"])) > .modal-content > p:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  margin: 0;
+  color: var(--atelier-ui-muted);
+  line-height: 1.6;
+}
+body.atelier-plugin-polish .modal.ts-ui-modal:has(> .modal-content > input:is([aria-label="属性名称"], [aria-label="筛选视图名称"])) > .modal-content > :is(input[type="text"], select):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  inline-size: 100%;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  box-sizing: border-box;
+}
+body.atelier-plugin-polish .modal.ts-ui-modal:has(> .modal-content > input[aria-label="属性名称"]) .ts-db-field-definition:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--atelier-ui-line);
+  border-radius: var(--atelier-ui-radius-sm);
+  background: var(--atelier-ui-panel);
+}
+body.atelier-plugin-polish .modal.ts-ui-modal:has(> .modal-content > input[aria-label="属性名称"]) .ts-db-field-definition > span:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  flex: 1 1 0;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+body.atelier-plugin-polish .modal.ts-ui-modal:has(> .modal-content > input[aria-label="属性名称"]) .ts-db-field-definition > button:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  flex: 0 0 auto;
+}
+body.atelier-plugin-polish .modal.ts-ui-modal:has(> .modal-content > input:is([aria-label="属性名称"], [aria-label="筛选视图名称"])) > .modal-content > .ts-button:is([aria-label="添加字段"], [aria-label="保存"]):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  /* Pair both important values: the plugin's base button resets both. */
+  background: var(--atelier-accent) !important;
+  color: var(--atelier-on-accent) !important;
+  border-color: transparent;
+  box-shadow: none;
+}
+body.atelier-plugin-polish .modal.ts-ui-modal:has(> .modal-content > input:is([aria-label="属性名称"], [aria-label="筛选视图名称"])) > .modal-content > .ts-button:is([aria-label="添加字段"], [aria-label="保存"]):is(:hover, :focus-visible):not(:disabled):not([aria-disabled="true"]):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background: var(--atelier-accent-hover) !important;
+  color: var(--atelier-on-accent) !important;
+}
+
+/* 9. AV and online workspaces. Player stages, media and seek geometry are native. */
+body.atelier-plugin-polish :is(.ts-media-workspace__header, .ts-online-workspace__header,
+  .ts-media-workspace__savebar, .ts-media-workspace__composer-divider,
+  .ts-online-workspace__positions, .ts-online-workspace__composer-actions):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-ui-panel);
+  border-color: var(--atelier-ui-line);
+}
+body.atelier-plugin-polish .ts-online-workspace__layout:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-ui-canvas);
+}
+body.atelier-plugin-polish :is(.ts-media-workspace__composer, .ts-media-workspace__records, .ts-online-workspace__composer):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+  border-radius: var(--atelier-ui-radius-md);
+  background-color: var(--atelier-ui-panel);
+  box-shadow: var(--atelier-ui-shadow-sm);
+}
+body.atelier-plugin-polish .ts-media-workspace__layout-control:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background: var(--atelier-ui-raised);
+  border-color: var(--atelier-ui-line-strong);
+  border-radius: var(--atelier-ui-radius-md);
+  box-shadow: var(--atelier-ui-shadow-md);
+}
+body.atelier-plugin-polish .ts-media-workspace .ts-media-card__toolbar:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-ui-panel);
+  border-color: var(--atelier-ui-line);
+}
+body.atelier-plugin-polish :is(.ts-media-workspace__moment, .ts-online-workspace__moment):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+}
+body.atelier-plugin-polish :is(.ts-media-workspace__title, .ts-online-workspace__title,
+  .ts-media-workspace__section-title, .ts-online-workspace__section-heading):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-ink);
+  letter-spacing: 0;
+}
+body.atelier-plugin-polish :is(.ts-media-workspace__source, .ts-online-workspace__source,
+  .ts-media-workspace__page-info, .ts-media-workspace__no-records, .ts-online-workspace__count,
+  .ts-media-workspace__save-hint, .ts-online-workspace__hint):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-muted);
+}
+/* Record hints need normal small-text contrast. The embed's separate empty
+ * placeholder retains the native foreground for its black media stage. */
+body.atelier-plugin-polish .ts-online-workspace__records :is(.ts-online-workspace__empty, .ts-online-workspace__pagination):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-muted);
+}
+body.atelier-plugin-polish :is(.ts-media-workspace__moment-time, .ts-media-workspace__draft-time,
+  .ts-online-workspace__clock, .ts-online-workspace__draft-time):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  font-variant-numeric: tabular-nums;
+}
+body.atelier-plugin-polish .ts-yingjian :is(.ts-yingjian-overview, .ts-yingjian-footer, .ts-yingjian-list):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+}
+body.atelier-plugin-polish .ts-yingjian .ts-yingjian-player:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-radius: var(--atelier-ui-radius-md);
+  background-color: var(--atelier-ui-subtle);
+}
+body.atelier-plugin-polish .ts-yingjian .ts-yingjian-list:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-radius: var(--atelier-ui-radius-md);
+}
+body.atelier-plugin-polish .ts-yingjian .ts-yingjian-row:hover:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-ui-subtle);
+}
+body.atelier-plugin-polish .ts-yingjian .ts-yingjian-row.is-selected:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-soft);
+}
+body.atelier-plugin-polish .ts-yingjian :is(.ts-yingjian-hint, .ts-yingjian-connection, .ts-yingjian-more):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-muted);
+}
+
+/* 10. Every plugin-owned dialog gets the same shell; no size/scroll overrides. */
+body.atelier-plugin-polish .modal:is(.ts-ui-modal, .ts-prompt-modal, .ts-brain-create-modal,
+  .ts-brain-rename-modal, .ts-brain-colors-modal, .ts-workspace-settings-modal,
+  .ts-tags-modal, .ts-media-image-modal):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-ui-raised) !important;
+  border-color: var(--atelier-ui-line-strong) !important;
+  border-radius: var(--atelier-ui-radius-lg) !important;
+  box-shadow: var(--atelier-ui-shadow-lg) !important;
+}
+body.atelier-plugin-polish .modal:is(.ts-ui-modal, .ts-prompt-modal, .ts-brain-create-modal,
+  .ts-brain-rename-modal, .ts-brain-colors-modal, .ts-workspace-settings-modal, .ts-tags-modal) .modal-title:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-ink);
+  font-family: var(--font-interface);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+body.atelier-plugin-polish .ts-media-image-modal__caption:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-muted);
+  font-family: var(--font-interface);
+}
+body.atelier-plugin-polish :is(.ts-studio-nav, .ts-mm-workflow-bar, .ts-mm-commandbar, .ts-mm-preview-bar,
+  .ts-layout-viewbar, .ts-layout-navigation, .ts-layout-preview-header,
+  .ts-view-toolbar, .ts-catalog-toolbar, .ts-native-tabs, .ts-action-tabs, .ts-fragment-modes):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+  background-color: var(--atelier-ui-subtle);
+  border-radius: var(--atelier-ui-radius-sm);
+}
+body.atelier-plugin-polish :is(.ts-layout-controls, .ts-mm-controls, .ts-mm-tool-sheet, .ts-studio-form,
+  .ts-group-detail, .ts-view-detail, .ts-selection-note-detail):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+  border-radius: var(--atelier-ui-radius-md);
+  background-color: var(--atelier-ui-panel);
+  box-shadow: none;
+}
+body.atelier-plugin-polish .modal.ts-ui-modal :is(.ts-studio-tool, .ts-mm-preset-card, .ts-catalog-card, .ts-template-card):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+  border-radius: var(--atelier-ui-radius-md);
+  background-color: var(--atelier-ui-panel);
+  box-shadow: none;
+}
+body.atelier-plugin-polish .modal.ts-ui-modal :is(.ts-studio-tool, .ts-mm-preset-card, .ts-catalog-card, .ts-template-card):is(:hover, :focus-visible):not(:disabled):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line-strong);
+  background-color: var(--atelier-ui-subtle);
+  box-shadow: none;
+}
+body.atelier-plugin-polish :is(.ts-view-row, .ts-native-row, .ts-selection-note-row, .ts-group-target-choice):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-radius: var(--atelier-ui-radius-sm);
+  border-color: var(--atelier-ui-line);
+  box-shadow: none;
+}
+body.atelier-plugin-polish :is(.ts-view-row, .ts-native-row, .ts-selection-note-row, .ts-group-target-choice):is(:hover, :focus-within):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-ui-subtle);
+}
+body.atelier-plugin-polish :is(.ts-view-row[aria-selected="true"], .ts-group-target-choice:has(input:checked)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-soft);
+  border-color: color-mix(in srgb, var(--atelier-accent) 35%, var(--atelier-ui-line));
+}
+body.atelier-plugin-polish .ts-board-action-list > button:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-radius: var(--atelier-ui-radius-sm);
+}
+body.atelier-plugin-polish .ts-board-action-list > button.is-current:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-soft);
+  color: var(--atelier-accent);
+  box-shadow: inset 2px 0 var(--atelier-accent);
+}
+body.atelier-plugin-polish :is(.ts-action-footer, .ts-view-footer, .ts-group-footer, .ts-layout-footer,
+  .ts-mm-footer, .ts-catalog-footer, .ts-native-footer, .ts-reuse-footer,
+  .ts-selection-note-footer, .ts-editor-search-footer, .ts-paper-settings-footer, .ts-background-settings-footer):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+  color: var(--atelier-ui-muted);
+}
+body.atelier-plugin-polish :is(.ts-studio-intro, .ts-mm-intro, .ts-group-intro, .ts-group-footnote,
+  .ts-view-intro, .ts-catalog-subtitle, .ts-native-intro, .ts-reuse-intro,
+  .ts-template-intro, .ts-editor-search-hint, .ts-writing-reference-hint,
+  .ts-paper-texture-limits, .ts-background-opacity-limits, .ts-brain-field-label):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-muted);
+}
+/* Preview comparison labels and preset captions are readable controls chrome;
+ * the topic text, replacement data and graphical previews keep their colors. */
+body.atelier-plugin-polish :is(.ts-mm-replace-row > small, .ts-mm-preset-card > small):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-muted);
+}
+/* File support/storage guidance is readable chrome, outside the image preview. */
+body.atelier-plugin-polish .ts-background-settings .ts-background-controls > .ts-background-file-hint:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-muted);
+}
+/* Preview text uses the paper's existing ink; avoid fading it into the grain. */
+body.atelier-plugin-polish .ts-paper-settings :is(.ts-paper-preview-caption, .ts-paper-preview-content > p) {
+  opacity: 1;
+}
+/* Keep the preview's empty-state instruction legible over every dot alpha. */
+body.atelier-plugin-polish .ts-group-preview > .ts-group-empty {
+  color: var(--atelier-ui-ink);
+}
+/* The single-column studio has four rows; keep navigation above its scroller. */
+@container (max-width: 550px) {
+  body.atelier-plugin-polish .ts-studio-modal > .modal-content {
+    grid-template-rows: auto auto auto minmax(0, 1fr);
+  }
+  body.atelier-plugin-polish .ts-studio-modal .ts-studio-page {
+    min-height: 0;
+  }
+}
+@container (max-width: 360px) {
+  body.atelier-plugin-polish .ts-studio-modal .ts-studio-nav {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  body.atelier-plugin-polish .ts-studio-modal .ts-studio-nav > button {
+    min-width: 0;
+    flex-direction: column;
+    gap: 3px;
+    padding: 6px 2px;
+  }
+}
+
+/* 11. Settings v2: native setting controls, readable groups, original responsive nav. */
+body.atelier-plugin-polish .ts-settings.ts-settings-v2 .ts-settings-nav:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  padding: 6px;
+  border: 1px solid var(--atelier-ui-line);
+  border-radius: var(--atelier-ui-radius-md);
+  background-color: var(--atelier-ui-subtle);
+}
+body.atelier-plugin-polish .ts-settings.ts-settings-v2 .ts-settings-nav button:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-radius: var(--atelier-ui-radius-sm);
+}
+body.atelier-plugin-polish .ts-settings.ts-settings-v2 .ts-settings-nav button.is-active:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-ui-panel);
+  color: var(--atelier-accent);
+  box-shadow: inset 2px 0 var(--atelier-accent);
+}
+body.atelier-plugin-polish .ts-settings.ts-settings-v2 .ts-settings-panel:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  padding: 14px 16px;
+  border: 1px solid var(--atelier-ui-line);
+  border-radius: var(--atelier-ui-radius-md);
+  background-color: var(--atelier-ui-panel);
+}
+body.atelier-plugin-polish .ts-settings.ts-settings-v2 .ts-settings-panel-heading:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  margin-bottom: 10px;
+}
+body.atelier-plugin-polish .ts-settings.ts-settings-v2 .ts-settings-panel .setting-item:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+  background: transparent;
+  box-shadow: none;
+}
+body.atelier-plugin-polish .ts-settings.ts-settings-v2 .setting-item-name:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-ink);
+}
+body.atelier-plugin-polish .ts-settings.ts-settings-v2 :is(.setting-item-description, .ts-settings-version, .ts-settings-search-count):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-muted);
+}
+body.atelier-plugin-polish .ts-settings.ts-settings-v2 .ts-settings-save-status:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+}
+
+/* Settings v2 preference sections: plain labels, separate from setting rows. */
+body.atelier-plugin-polish .ts-settings.ts-settings-v2 .ts-board-preferences .ts-settings-section:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  margin: 24px 0 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--atelier-ui-muted);
+  font-size: var(--font-ui-small, 13px);
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+
+/* 12. Shared search fields. Their existing native input owns its typography. */
+body.atelier-plugin-polish :is(.ts-writing-search, .ts-settings-search, .ts-hub-search-field):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-ui-subtle);
+  border-color: var(--atelier-ui-line);
+  border-radius: var(--atelier-ui-radius-sm);
+}
+body.atelier-plugin-polish :is(.ts-writing-search, .ts-settings-search, .ts-hub-search-field, .ts-brain-search, .ts-board-search-bar):focus-within:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-ui-panel);
+  border-color: var(--atelier-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--atelier-accent) 20%, transparent);
+}
+/* These composite searches already own focus on the enclosing frame. Keep
+ * their input flat; independent fields and the clear buttons retain rings. */
+body.atelier-plugin-polish :is(
+  .ts-settings.ts-settings-v2 .ts-settings-search > input,
+  .ts-selection-note .ts-selection-note-search > input,
+  .ts-space-hub .ts-hub-search-field > input
+):is(:focus, :focus-visible):not(:disabled):not([aria-disabled="true"]):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Controls: no blanket button reset, so preview objects and color swatches keep
+ * their own sizing/paint. Density remains the plugin's --ts-ui-control. */
+body.atelier-plugin-polish :is(
+  .ts-root .ts-toolbar .ts-button, .ts-root .ts-rail-actions .ts-button,
+  .ts-native-header .ts-header-action, .ts-brain-topbar .clickable-icon,
+  .ts-brain-footer .clickable-icon, .ts-writing .ts-writing-button,
+  .ts-space-hub .ts-hub-button, .ts-media-workspace .ts-media-workspace__action,
+  .ts-online-workspace .ts-online-workspace__action,
+  .ts-ui-modal .modal-button-container button, .ts-yingjian-player button,
+  .ts-action-tabs button, .ts-studio-nav button, .ts-layout-navigation button,
+  .ts-native-tabs button, .ts-db-tabs button, .ts-materials-tabs button,
+  .ts-reading-aside-tabs button, .ts-settings-nav button
+):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-radius: var(--atelier-ui-radius-sm);
+  transition: color var(--atelier-ui-speed) var(--atelier-ui-ease),
+    background-color var(--atelier-ui-speed) var(--atelier-ui-ease),
+    border-color var(--atelier-ui-speed) var(--atelier-ui-ease);
+}
+body.atelier-plugin-polish :is(
+  .ts-media-workspace__action, .ts-online-workspace__action,
+  .ts-ui-modal .modal-button-container button, .ts-action-tabs button,
+  .ts-native-tabs button, .ts-db-tabs button, .ts-materials-tabs button,
+  .ts-reading-aside-tabs button
+):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  min-block-size: var(--ts-ui-control, 32px);
+}
+body.atelier-plugin-polish :is(
+  .ts-root .ts-toolbar .ts-button, .ts-root .ts-rail-actions .ts-button,
+  .ts-brain-topbar .clickable-icon, .ts-brain-footer .clickable-icon,
+  .ts-writing .ts-writing-button, .ts-space-hub .ts-hub-button,
+  .ts-media-workspace .ts-media-workspace__action, .ts-online-workspace .ts-online-workspace__action,
+  .ts-action-tabs button, .ts-native-tabs button, .ts-db-tabs button,
+  .ts-materials-tabs button, .ts-reading-aside-tabs button
+):is(:hover, :focus-visible):not(:disabled):not([aria-disabled="true"]):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-ui-subtle);
+  color: var(--atelier-ui-ink);
+}
+body.atelier-plugin-polish :is(
+  .ts-writing-filters .ts-writing-button, .ts-materials-tabs button,
+  .ts-reading-aside-tabs button, .ts-action-tabs button, .ts-native-tabs button,
+  .ts-db-tabs button, .ts-mm-workflow-bar button, .ts-layout-navigation button
+):is(.is-active, [aria-pressed="true"], [aria-selected="true"]):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-soft);
+  color: var(--atelier-accent);
+  box-shadow: inset 0 -2px var(--atelier-accent);
+}
+body.atelier-plugin-polish :is(
+  .ts-writing-button.mod-cta, .ts-hub-button.is-primary,
+  .ts-media-workspace__action.mod-cta, .ts-online-workspace__action.mod-cta,
+  .ts-ui-modal button.mod-cta, .ts-root .ts-commandbar .ts-primary
+):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-accent);
+  color: var(--atelier-on-accent);
+  border-color: transparent;
+  box-shadow: none;
+}
+body.atelier-plugin-polish :is(
+  .ts-writing-button.mod-cta, .ts-hub-button.is-primary,
+  .ts-media-workspace__action.mod-cta, .ts-online-workspace__action.mod-cta,
+  .ts-ui-modal button.mod-cta, .ts-root .ts-commandbar .ts-primary
+):is(:hover, :focus-visible):not(:disabled):not([aria-disabled="true"]):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background-color: var(--atelier-accent-hover);
+  color: var(--atelier-on-accent);
+}
+
+/* Pair the dock capture button's foreground and surface. The native plugin
+ * sets both important; a partial override gives dark mode mismatched ink. */
+body.atelier-plugin-polish .ts-root.ts-dock .ts-dock-quick > .ts-button.ts-primary:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background: var(--atelier-accent) !important;
+  color: var(--atelier-on-accent) !important;
+}
+body.atelier-plugin-polish .ts-root.ts-dock .ts-dock-quick > .ts-button.ts-primary:is(:hover, :focus-visible):not(:disabled):not([aria-disabled="true"]):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background: var(--atelier-accent-hover) !important;
+  color: var(--atelier-on-accent) !important;
+}
+
+/* Keyboard focus includes auxiliary dialogs but excludes editors, document
+ * content and every geometric miniature/node surface. Never remove Tab stops. */
+body.atelier-plugin-polish :is(
+  .ts-ui-modal, .ts-prompt-modal, .ts-brain-create-modal, .ts-brain-rename-modal,
+  .ts-brain-colors-modal, .ts-tags-modal, .ts-settings, .ts-writing,
+  .ts-materials-panel, .ts-materials-modal, .ts-local-relations,
+  .ts-media-workspace, .ts-online-workspace, .ts-native-header,
+  .ts-root .ts-sidebar, .ts-root .ts-commandbar, .ts-root .ts-board-rail,
+  .ts-root .ts-rail-popover, .ts-root .ts-tools-palette,
+  .ts-brain-topbar, .ts-brain-footer, .ts-brain-search-results
+) :is(button, select, input, summary, [role="button"]):focus-visible:not(:disabled):not([aria-disabled="true"]):not(:where(.ts-node *, .ts-brain-node *, .ts-mm-scene *, .ts-mm-preview *, .ts-mm-tool-preview *,
+    .ts-mm-preset-preview *, .ts-layout-preview *, .ts-group-preview *, .ts-view-preview *,
+    .ts-catalog-preview *, .ts-brain-colors-preview *, .ts-template-preview *, .ts-reuse-preview *,
+    .markdown-rendered *, .markdown-preview-view *, .markdown-source-view *, .cm-editor *,
+    .pdf-container *, .pdf-viewer *, .ts-writing-editor *, .ts-writing-source-editor *,
+    .ts-reading-prose *, .ts-reference-reading-prose *, .ts-media-workspace__editor *,
+    .ts-settings.ts-settings-v2 .ts-settings-search > input,
+    .ts-selection-note .ts-selection-note-search > input,
+    .ts-space-hub .ts-hub-search-field > input)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),
+body.atelier-plugin-polish .ts-writing .ts-writing-article-head > textarea:focus-visible:not(:disabled):not([aria-disabled="true"]):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  outline: 2px solid var(--atelier-accent);
+  outline-offset: 2px;
+}
+
+/* Flat mode removes elevation while selection edges and focus outlines remain. */
+body.atelier-plugin-polish.atelier-flat :is(
+  .ts-ui-modal, .ts-settings, .ts-native-header, .ts-writing,
+  .ts-materials-panel, .ts-materials-modal, .ts-media-workspace,
+  .ts-online-workspace, .ts-root .ts-sidebar, .ts-root .ts-commandbar,
+  .ts-root .ts-rail-popover, .ts-root .ts-tools-palette
+):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  --ts-design-shadow: none !important;
+  --ts-design-overlay-shadow: none !important;
+  --ts-work-shadow: none !important;
+}
+body.atelier-plugin-polish.atelier-flat .ts-brain-shell:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  --brain-chrome-shadow: none;
+}
+body.atelier-plugin-polish.atelier-flat :is(
+  .modal.ts-ui-modal, .modal.ts-prompt-modal, .modal.ts-brain-create-modal,
+  .modal.ts-brain-rename-modal, .modal.ts-brain-colors-modal,
+  .modal.ts-workspace-settings-modal, .modal.ts-tags-modal, .modal.ts-media-image-modal,
+  .ts-root .ts-commandbar, .ts-root .ts-rail-popover, .ts-root .ts-tools-palette,
+  .ts-root .ts-board-rail, .ts-root .ts-canvas-controls, .ts-brain-search-results,
+  .ts-writing-composer, .ts-writing-dock, .ts-media-workspace__composer,
+  .ts-media-workspace__records, .ts-media-workspace__layout-control, .ts-online-workspace__composer,
+  .ts-local-relations-picker, .ts-local-relations-filter-panel, .ts-local-relations-more-panel,
+  .ts-local-relation-editor, .ts-local-relation-remove-confirm
+):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  box-shadow: none !important;
+}
+body.atelier-plugin-polish.atelier-flat .ts-writing .ts-writing-switch .ts-writing-button.is-active:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  box-shadow: inset 0 -2px var(--atelier-accent);
+}
+
+/* No geometry animation; only short control color transitions were introduced. */
+@media (prefers-reduced-motion: reduce) {
+  body.atelier-plugin-polish :is(
+    .ts-root .ts-toolbar .ts-button, .ts-root .ts-rail-actions .ts-button,
+    .ts-native-header .ts-header-action, .ts-brain-topbar .clickable-icon,
+    .ts-brain-footer .clickable-icon, .ts-writing .ts-writing-button,
+    .ts-space-hub .ts-hub-button, .ts-media-workspace .ts-media-workspace__action,
+    .ts-online-workspace .ts-online-workspace__action,
+    .ts-ui-modal .modal-button-container button, .ts-yingjian-player button,
+    .ts-action-tabs button, .ts-studio-nav button, .ts-layout-navigation button,
+    .ts-native-tabs button, .ts-db-tabs button, .ts-materials-tabs button,
+    .ts-reading-aside-tabs button, .ts-settings-nav button
+  ):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+    transition: none !important;
+  }
+}
+
+/* Preserve the reader's existing request for stronger source/count text. */
+@media (prefers-contrast: more) {
+  body.atelier-plugin-polish .ts-reading-desk :is(.ts-reading-count, .ts-reading-source):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+    color: var(--text-normal);
+  }
+}
+
+/* 3.32.5 · Explicit feedback from the owning renderer. The hook never
+ * guesses severity from translated strings or changes async behavior. */
+body.atelier-plugin-polish {
+  --atelier-feedback-success: #246444;
+  --atelier-feedback-warning: #805715;
+  --atelier-feedback-error: #9e343b;
+}
+body.theme-dark.atelier-plugin-polish {
+  --atelier-feedback-success: #9fd5b1;
+  --atelier-feedback-warning: #e4c383;
+  --atelier-feedback-error: #f4a3a8;
+}
+body.atelier-plugin-polish :is(
+  .ts-settings.ts-settings-v2 .ts-settings-save-status,
+  .ts-settings-profile-modal .ts-settings-profile-status,
+  .ts-ui-modal .ts-settings-confirm-status,
+  .ts-space-hub .ts-hub-state,
+  .ts-database-modal .ts-db-message,
+  .ts-pdf-quote-modal .ts-pdf-quote-status,
+  .ts-writing-reference-picker .ts-writing-reference-error,
+  .ts-reference-reading .ts-reference-reading-error,
+  .ts-reference-reading .ts-reference-render-error
+)[data-feedback]:not(:empty):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  min-width: 0;
+  max-width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--atelier-ui-radius-sm);
+  color: var(--atelier-feedback-ink, var(--atelier-ui-muted));
+  background-color: color-mix(in srgb, var(--atelier-feedback-ink, var(--atelier-ui-muted)) 6%, var(--atelier-ui-panel));
+  box-shadow: inset 3px 0 var(--atelier-feedback-ink, var(--atelier-ui-muted));
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+/* PDF source paths may contain repeated spaces; retain the original renderer's
+ * pre-wrap while the other short feedback lines use pre-line. */
+body.atelier-plugin-polish .ts-ui-modal.ts-pdf-quote-modal .ts-pdf-quote-status[data-feedback]:not(:empty):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  white-space: pre-wrap;
+}
+body.atelier-plugin-polish :is(
+  .ts-settings-save-status, .ts-settings-profile-status, .ts-settings-confirm-status,
+  .ts-hub-state, .ts-db-message, .ts-pdf-quote-status,
+  .ts-writing-reference-error, .ts-reference-reading-error, .ts-reference-render-error
+)[data-feedback="loading"]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  --atelier-feedback-ink: var(--atelier-ui-ink);
+}
+body.atelier-plugin-polish :is(
+  .ts-settings-save-status, .ts-settings-profile-status, .ts-settings-confirm-status,
+  .ts-hub-state, .ts-db-message, .ts-pdf-quote-status,
+  .ts-writing-reference-error, .ts-reference-reading-error, .ts-reference-render-error
+)[data-feedback="success"]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  --atelier-feedback-ink: var(--atelier-feedback-success);
+}
+body.atelier-plugin-polish :is(
+  .ts-settings-save-status, .ts-settings-profile-status, .ts-settings-confirm-status,
+  .ts-hub-state, .ts-db-message, .ts-pdf-quote-status,
+  .ts-writing-reference-error, .ts-reference-reading-error, .ts-reference-render-error
+)[data-feedback="warning"]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  --atelier-feedback-ink: var(--atelier-feedback-warning);
+}
+body.atelier-plugin-polish :is(
+  .ts-settings-save-status, .ts-settings-profile-status, .ts-settings-confirm-status,
+  .ts-hub-state, .ts-db-message, .ts-pdf-quote-status,
+  .ts-writing-reference-error, .ts-reference-reading-error, .ts-reference-render-error
+)[data-feedback="error"]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  --atelier-feedback-ink: var(--atelier-feedback-error);
+}
+@media (prefers-contrast: more) {
+  body.atelier-plugin-polish :is(
+    .ts-settings.ts-settings-v2 .ts-settings-save-status,
+    .ts-settings-profile-modal .ts-settings-profile-status,
+    .ts-ui-modal .ts-settings-confirm-status,
+    .ts-space-hub .ts-hub-state,
+    .ts-database-modal .ts-db-message,
+    .ts-pdf-quote-modal .ts-pdf-quote-status,
+    .ts-writing-reference-picker .ts-writing-reference-error,
+    .ts-reference-reading .ts-reference-reading-error,
+    .ts-reference-reading .ts-reference-render-error
+  )[data-feedback]:not(:empty):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+    background-color: var(--atelier-ui-panel);
+    outline: 1px solid currentColor;
+  }
+}
+
+/* 3.32.6 · The owning renderers distinguish empty searches and unfinished
+ * reads. Give their real title, explanation and recovery action a clear
+ * hierarchy; never generate product text or hide the previous result list. */
+body.atelier-plugin-polish .ts-root.ts-dock .ts-sidebar-empty.ts-task-empty:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px 16px;
+  border-color: var(--atelier-ui-line);
+  border-radius: var(--atelier-ui-radius-md);
+  background-color: var(--atelier-ui-panel);
+  color: var(--atelier-ui-muted);
+  text-align: start;
+}
+body.atelier-plugin-polish .ts-root.ts-dock .ts-task-empty > .ts-task-empty-title:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  display: block;
+  color: var(--atelier-ui-ink);
+  font-size: var(--font-ui-small, 13px);
+  font-weight: 600;
+  line-height: 1.5;
+}
+body.atelier-plugin-polish .ts-root.ts-dock .ts-task-empty > .ts-task-empty-copy:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  display: block;
+  min-inline-size: 0;
+  color: var(--atelier-ui-muted);
+  line-height: 1.7;
+}
+body.atelier-plugin-polish .ts-root.ts-dock .ts-task-empty > button:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  align-self: flex-start;
+  margin-block-start: 4px;
+}
+body.atelier-plugin-polish .ts-database-modal .ts-db-read-status:not(:empty):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  margin-block-end: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--atelier-ui-line);
+  border-radius: var(--atelier-ui-radius-sm);
+  background-color: var(--atelier-ui-subtle);
+  color: var(--atelier-ui-muted);
+  font-size: var(--font-ui-small, 13px);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+body.atelier-plugin-polish .ts-database-modal .ts-db-empty.ts-db-load-state:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px 16px;
+  color: var(--atelier-ui-muted);
+}
+/* Narrow dialog contents can wrap in a wide host as well. The real read
+ * placeholder must keep room even when the surrounding controls grow;
+ * the existing modal-content scrolling keeps both controls and copy reachable.
+ * Populated tables, kanban and retained refresh rows do not match this rule. */
+body.atelier-plugin-polish .ts-database-modal .ts-db-results:has(> .ts-db-load-state):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  flex: 0 0 auto;
+  min-block-size: 160px;
+}
+body.atelier-plugin-polish .ts-database-modal .ts-db-load-state > .ts-db-load-title:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-ink);
+  font-size: var(--font-ui-small, 13px);
+  font-weight: 600;
+  line-height: 1.5;
+}
+body.atelier-plugin-polish .ts-database-modal .ts-db-load-state > .ts-db-load-copy:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  max-inline-size: 34ch;
+  color: var(--atelier-ui-muted);
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+/* A single disclosure keeps secondary database tools together. The plugin
+ * owns native details behavior and its assistive-text structural rules. */
+body.atelier-plugin-polish .ts-database-modal .ts-db-options:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+  border-radius: var(--atelier-ui-radius-md);
+  background-color: var(--atelier-ui-panel);
+}
+body.atelier-plugin-polish .ts-database-modal .ts-db-options > summary:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-ink);
+  font-weight: 500;
+}
+body.atelier-plugin-polish .ts-database-modal .ts-db-options > summary:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::marker {
+  color: var(--atelier-ui-muted);
+}
+body.atelier-plugin-polish .ts-database-modal .ts-db-options > summary:focus-visible:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  outline: 2px solid var(--atelier-ui-focus);
+  outline-offset: 2px;
+}
+body.atelier-plugin-polish .ts-database-modal :is(.ts-db-active-conditions, .ts-db-section-title):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-muted);
+}
+body.atelier-plugin-polish .ts-database-modal .ts-db-options-section + .ts-db-options-section:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border-color: var(--atelier-ui-line);
+}
+body.atelier-plugin-polish .ts-database-modal .ts-db-options .ts-db-saved-views:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  border: 0;
+  background: transparent;
+}
+/* Override the existing visible status panel only for its initial-read
+ * assistive counterpart. It remains in the one polite live region. */
+body.atelier-plugin-polish .ts-database-modal .ts-db-read-status.ts-db-read-status-quiet:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+/* Saved selection names already wrap; allow the hit surface to follow their
+ * actual line count instead of retaining the native button's fixed height. */
+body.atelier-plugin-polish .ts-studio-modal .ts-studio-saved > button:first-child:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  height: auto;
+}
+
+} /* screen */

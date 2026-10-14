@@ -1,0 +1,228 @@
+/* Folio adapter for the installed ThoughtSpace 1.3.35 surface API.
+ * Keep object geometry, chosen card fills/styles, dedicated brain colors,
+ * media sizing and native Obsidian pane controls owned by their modules.
+ * These semantic tokens survive plugin CSS loaded after the theme without
+ * repeating the legacy Radix token bridge in folio.css.
+ */
+body.atelier-plugin-polish .ts-root.ts-dock {
+  --ts-nav-surface: var(--atelier-paper);
+  --ts-nav-subtle: var(--atelier-sidebar);
+  --ts-nav-line: var(--atelier-border);
+  --ts-nav-hover: var(--atelier-soft);
+  --ts-nav-accent: var(--atelier-accent);
+  --ts-nav-active: var(--atelier-soft);
+}
+
+/* The current card renderer consumes these tokens even where its own border
+ * and elevation declarations are important. Explicit model colors still win. */
+body.atelier-plugin-polish .ts-root {
+  --ts-card-surface-line: var(--atelier-border);
+  --ts-card-chip-line: color-mix(in srgb, var(--atelier-border) 80%, transparent);
+  --ts-card-chip-wash: color-mix(in srgb, var(--atelier-sidebar) 60%, transparent);
+  --ts-card-surface-shadow: var(--atelier-shadow);
+}
+body.atelier-plugin-polish.atelier-flat .ts-root {
+  --ts-card-surface-shadow: none;
+}
+
+/* Brain chrome shares the theme finish; explicit brain/node/link colors stay
+ * plugin-owned. Flat mode keeps focus and selection rings, only drops elevation. */
+body.atelier-plugin-polish .ts-brain-shell {
+  --brain-chrome-line: var(--atelier-border);
+  --brain-surface-line: var(--atelier-border);
+  --brain-chrome-shadow: var(--atelier-shadow);
+}
+body.atelier-flat .ts-brain-shell {
+  --brain-chrome-shadow: none;
+}
+body.atelier-flat .ts-brain-shell .ts-brain-search-results {
+  box-shadow: none;
+}
+
+/* The plugin already supplies ts-brain containment at the pane, independently
+ * of the full window. At 360px and below search gets a full second row, while
+ * history, palette, menu and settings remain in the first row and in Tab order. */
+@container ts-brain (max-width: 360px) {
+  body.atelier-plugin-polish .ts-brain-topbar {
+    display: grid;
+    grid-template-columns: auto auto minmax(0,1fr);
+    grid-template-rows: 32px 32px;
+    gap: 6px;
+    height: auto;
+    min-height: 86px;
+    padding: 8px 10px;
+  }
+  body.atelier-plugin-polish .ts-brain-brand {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  body.atelier-plugin-polish .ts-brain-navigation {
+    grid-column: 2;
+    grid-row: 1;
+    margin-left: 0;
+    padding-left: 6px;
+  }
+  body.atelier-plugin-polish .ts-brain-top-actions {
+    grid-column: 3;
+    grid-row: 1;
+    justify-content: flex-end;
+    min-width: 0;
+    margin-left: 0;
+  }
+  body.atelier-plugin-polish .ts-brain-search {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    position: relative;
+    left: auto;
+    transform: none;
+    min-width: 0;
+    width: 100%;
+    margin-left: 0;
+  }
+  body.atelier-plugin-polish .ts-brain-search-results {
+    left: 0;
+    right: 0;
+    top: 38px;
+    max-height: min(320px,50vh);
+  }
+}
+
+/* Task navigation now renders its own simple task list. Use the active class
+ * produced by 1.3.35, rather than the retired journal planner markup. Native
+ * labels and inputs retain their click, checked and disabled behavior. */
+body.atelier-plugin-polish .ts-root.ts-dock .ts-task-filters {
+  border-radius: var(--atelier-radius);
+  background-color: var(--atelier-sidebar);
+}
+body.atelier-plugin-polish .ts-root.ts-dock .ts-task-filters .ts-button.is-active {
+  color: var(--atelier-accent) !important;
+  background-color: var(--atelier-paper) !important;
+  box-shadow: inset 0 -2px var(--atelier-accent);
+}
+body.atelier-plugin-polish .ts-root.ts-dock .ts-task-group {
+  border-color: var(--atelier-border);
+}
+body.atelier-plugin-polish .ts-root.ts-dock .ts-task {
+  border-radius: 5px;
+}
+body.atelier-plugin-polish .ts-root.ts-dock .ts-task:is(:hover,:focus-within) {
+  background-color: var(--atelier-soft);
+}
+body.atelier-plugin-polish .ts-root.ts-dock .ts-task > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+body.atelier-plugin-polish .ts-root.ts-dock .ts-task-progress-label {
+  color: var(--atelier-muted);
+}
+body.atelier-plugin-polish .ts-root.ts-dock .ts-task-percent {
+  color: var(--atelier-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Writing has a separate control surface from its native Markdown editor.
+ * CTA ink must use the on-accent token in light and dark palettes. */
+body.atelier-plugin-polish .ts-writing {
+  container-name: folio-writing;
+  --writing-line: var(--atelier-border);
+  --writing-soft: var(--atelier-sidebar);
+}
+body.atelier-plugin-polish .ts-writing .ts-writing-button.mod-cta {
+  color: var(--atelier-on-accent);
+  background-color: var(--atelier-accent);
+}
+body.atelier-plugin-polish .ts-writing .ts-writing-button.mod-cta:is(:hover,:focus-visible):not(:disabled) {
+  color: var(--atelier-on-accent);
+  background-color: var(--atelier-accent-hover);
+}
+body.atelier-plugin-polish .ts-writing :is(.ts-writing-reference-tab.is-active,.ts-writing-material.is-current-reference,.ts-writing-nav-jump.is-current) {
+  color: var(--atelier-accent);
+  background-color: var(--atelier-soft);
+}
+body.atelier-plugin-polish .ts-writing .ts-writing-search {
+  border-color: var(--atelier-border);
+  background-color: var(--atelier-sidebar);
+}
+body.atelier-plugin-polish .ts-writing .ts-writing-search:focus-within {
+  border-color: var(--atelier-accent);
+  background-color: var(--atelier-paper);
+}
+body.atelier-plugin-polish .ts-writing .ts-writing-search > input {
+  background-color: transparent;
+}
+
+/* New media workspaces have their own semantic surface API. Keep the player
+ * black surface, decoder, seek controls, grid areas and mounted draft intact. */
+body.atelier-plugin-polish .workspace-leaf-content[data-type="thoughtspace-media-player"] .view-content.ts-media-workspace {
+  --ts-mw-line: var(--atelier-border);
+  --ts-mw-soft: var(--atelier-sidebar);
+  --ts-mw-accent-soft: var(--atelier-soft);
+  --ts-mw-page: var(--atelier-sidebar);
+  --ts-mw-shadow: var(--atelier-shadow);
+}
+body.atelier-plugin-polish.atelier-flat .workspace-leaf-content[data-type="thoughtspace-media-player"] .view-content.ts-media-workspace {
+  --ts-mw-shadow: none;
+}
+body.atelier-plugin-polish :is(.ts-media-workspace,.ts-online-workspace) :is(.ts-media-workspace__title,.ts-online-workspace__title) {
+  color: var(--atelier-ink);
+}
+body.atelier-plugin-polish :is(.ts-media-workspace,.ts-online-workspace) :is(.ts-media-workspace__source,.ts-online-workspace__source) {
+  color: var(--atelier-muted);
+}
+
+/* Settings v2 uses a plugin-owned search/navigation shell inside the native
+ * settings dialog. Style that shell without changing the host category list. */
+body.atelier-plugin-polish .ts-settings.ts-settings-v2 .ts-settings-search {
+  border-color: var(--atelier-border);
+  background-color: var(--atelier-paper);
+}
+body.atelier-plugin-polish .ts-settings.ts-settings-v2 .ts-settings-search:focus-within {
+  border-color: var(--atelier-accent);
+  box-shadow: 0 0 0 1px var(--atelier-accent);
+}
+body.atelier-plugin-polish .ts-settings.ts-settings-v2 .ts-settings-nav button.is-active {
+  color: var(--atelier-accent);
+  background-color: var(--atelier-soft);
+  box-shadow: inset 2px 0 var(--atelier-accent);
+}
+body.atelier-plugin-polish .ts-settings.ts-settings-v2 .ts-settings-panel-heading .setting-item-name {
+  color: var(--atelier-ink);
+}
+body.atelier-plugin-polish .ts-settings.ts-settings-v2 :is(.ts-settings-version,.ts-settings-search-count,.ts-settings-save-status) {
+  color: var(--atelier-muted);
+}
+body.atelier-plugin-polish .modal:is(.ts-settings-profile-modal,.ts-brain-create-modal,.ts-brain-rename-modal,.ts-brain-colors-modal) {
+  background-color: var(--atelier-paper);
+  border-color: var(--atelier-border);
+  box-shadow: var(--atelier-shadow);
+}
+body.atelier-plugin-polish.atelier-flat .modal:is(.ts-settings-profile-modal,.ts-brain-create-modal,.ts-brain-rename-modal,.ts-brain-colors-modal) {
+  box-shadow: none;
+}
+
+/* The installed plugin already owns dock/settings/media responsive layouts.
+ * Only the writing header needs label wrapping at a narrow pane width. No
+ * icon is hidden; reference/navigation buttons remain reachable. */
+@container folio-writing (max-width: 450px) {
+  body.atelier-plugin-polish .ts-writing .ts-writing-header {
+    grid-template-columns: minmax(0,1fr) auto;
+  }
+  body.atelier-plugin-polish .ts-writing .ts-writing-header-actions {
+    flex-wrap: wrap;
+    max-width: 100%;
+    justify-content: flex-end;
+  }
+  body.atelier-plugin-polish .ts-writing .ts-writing-header-actions .ts-writing-button:not(.is-icon) {
+    min-height: var(--ts-ui-control,32px);
+    height: auto;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  body.atelier-plugin-polish .ts-writing .ts-writing-header .ts-writing-identity {
+    min-width: 0;
+    max-width: 100%;
+  }
+  body.atelier-plugin-polish .ts-writing .ts-writing-reference-heading {
+    flex-wrap: wrap;
+  }
+}

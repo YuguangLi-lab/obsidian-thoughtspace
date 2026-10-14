@@ -1,0 +1,2244 @@
+/* Folio Atelier 3.32.0 · 纸页工坊
+ * Original CSS. Design references and scope are documented in README.md.
+ * No external fonts or network requests. Stable project colors use the optional ThoughtSpace bridge.
+ */
+/* @settings
+name: Folio Atelier
+id: folio-atelier
+settings:
+  - id: atelier-group-colors
+    title: 颜色与界面
+    type: heading
+    level: 1
+    collapsed: false
+  - id: atelier-palette
+    title: 强调色
+    type: class-select
+    allowEmpty: false
+    default: atelier-ink
+    options:
+      - label: 苔绿 · Moss
+        value: atelier-forest
+      - label: 石墨 · Graphite
+        value: atelier-ink
+      - label: 陶土 · Terracotta
+        value: atelier-rose
+      - label: 海蓝 · Ocean
+        value: atelier-ocean
+      - label: 靛青 · Indigo
+        value: atelier-indigo
+      - label: 鸢紫 · Iris
+        value: atelier-iris
+      - label: 莓红 · Berry
+        value: atelier-berry
+      - label: 琥珀 · Amber
+        value: atelier-amber
+      - label: 松石 · Teal
+        value: atelier-teal
+  - id: atelier-neutral
+    title: 中性背景
+    description: 浅色切换为中性白，深色切换为中性灰。
+    type: class-toggle
+    default: false
+  - id: atelier-tint-strength
+    title: 强调色底纹浓度
+    description: 调整选中区域、标签和柔和底纹的色彩浓度；不改变按钮强调色。
+    type: variable-number-slider
+    default: 10
+    min: 4
+    max: 20
+    step: 1
+    format: '%'
+  - id: atelier-color-headings
+    title: 彩色标题
+    type: class-toggle
+    default: false
+  - id: atelier-heading-rules
+    title: 标题分隔线
+    description: 为阅读模式的二级标题增加细分隔线。
+    type: class-toggle
+    default: false
+    addCommand: true
+  - id: atelier-radius
+    title: 面板圆角
+    type: variable-number-slider
+    default: 8
+    min: 4
+    max: 16
+    step: 1
+    format: px
+  - id: atelier-flat
+    title: 无阴影界面
+    type: class-toggle
+    default: false
+  - id: atelier-chrome-tabs
+    title: 胶囊标签页
+    description: 原生标签页使用圆角选中底色；固定页增加细线和图钉徽标，保留标题、宽度及原生操作。
+    type: class-toggle
+    default: false
+    addCommand: true
+  - id: atelier-chrome-sidebar
+    title: 侧栏层次
+    description: 侧栏柔和分层；强化当前文件、搜索命中和标签数量。
+    type: class-toggle
+    default: false
+    addCommand: true
+  - id: atelier-chrome-panels
+    title: 精致菜单与设置
+    description: 统一菜单、工具提示、链接预览、快捷键提示、新标签页、设置分类与分组标题；突出当前操作的设置行。
+    type: class-toggle
+    default: false
+    addCommand: true
+  - id: atelier-group-reading
+    title: 阅读与排版
+    type: heading
+    level: 1
+    collapsed: false
+  - id: atelier-reading-width
+    title: 阅读宽度
+    type: variable-number-slider
+    default: 760
+    min: 560
+    max: 1040
+    step: 20
+    format: px
+  - id: atelier-line-height
+    title: 正文行距
+    type: variable-number-slider
+    default: 1.8
+    min: 1.5
+    max: 2.2
+    step: 0.05
+  - id: atelier-reading-serif
+    title: 宋体阅读
+    description: 原生笔记阅读模式采用本机宋体或衬线字体；编辑器字体保持原设置。
+    type: class-toggle
+    default: false
+    addCommand: true
+  - id: atelier-prose
+    title: 精致长文排版
+    description: 阅读模式美化高亮、引用、列表和代码；单篇可设置 cssclasses 为 atelier-prose。
+    type: class-toggle
+    default: false
+    addCommand: true
+  - id: atelier-clear-links
+    title: 清晰链接
+    description: 阅读模式美化链接：实线与虚线区分已有和待创建笔记，悬停和键盘聚焦有清晰反馈；单篇可用 atelier-clear-links。
+    type: class-toggle
+    default: false
+    addCommand: true
+  - id: atelier-wrap-code
+    title: 长代码换行
+    description: 阅读模式中的代码块自动折行。
+    type: class-toggle
+    default: false
+    addCommand: true
+  - id: atelier-code-size
+    title: 代码字号
+    type: variable-number-slider
+    default: 14
+    min: 11
+    max: 20
+    step: 1
+    format: px
+  - id: atelier-soft-embeds
+    title: 轻量嵌入笔记
+    description: 美化嵌入笔记的来源标题、打开入口和普通附件卡片；单篇可设置 cssclasses 为 atelier-soft-embeds。
+    type: class-toggle
+    default: false
+    addCommand: true
+  - id: atelier-full-tables
+    title: 表格填满阅读列
+    description: 只改变表格视觉宽度，不改变单元格内容。
+    type: class-toggle
+    default: false
+    addCommand: true
+  - id: atelier-striped-tables
+    title: 表格交替行底色
+    type: class-toggle
+    default: false
+  - id: atelier-table-style
+    title: 表格风格
+    description: 阅读模式可选简报横线或清晰网格；单篇可用 atelier-table-report 或 atelier-table-grid。
+    type: class-select
+    allowEmpty: false
+    default: atelier-table-default
+    options:
+      - label: 原有样式
+        value: atelier-table-default
+      - label: 简报 · Report
+        value: atelier-table-report
+      - label: 网格 · Grid
+        value: atelier-table-grid
+  - id: atelier-table-key
+    title: 表格首列固定
+    description: 阅读模式的宽表格横向滚动时保留第一列；单篇可用 atelier-table-key。
+    type: class-toggle
+    default: false
+    addCommand: true
+  - id: atelier-table-focus
+    title: 表格行聚焦
+    description: 鼠标悬停或键盘聚焦表格链接时突出所在行。
+    type: class-toggle
+    default: false
+    addCommand: true
+  - id: atelier-callout-colors
+    title: 彩色提示块
+    description: 根据提示类型显示柔和色彩，不改变正文文字颜色。
+    type: class-toggle
+    default: false
+    addCommand: true
+  - id: atelier-footnotes
+    title: 脚注阅读区
+    description: 阅读模式脚注增加独立分隔与编号空间。
+    type: class-toggle
+    default: false
+    addCommand: true
+  - id: atelier-focus-line
+    title: 写作聚焦
+    description: 原生 Markdown 编辑器中突出光标所在行；不隐藏其他内容。
+    type: class-toggle
+    default: false
+    addCommand: true
+  - id: atelier-group-tasks
+    title: 任务与资料
+    type: heading
+    level: 1
+    collapsed: false
+  - id: atelier-task-labels
+    title: 任务状态标签
+    description: 原生阅读视图、ThoughtSpace 卡片与只读预览显示六种彩色状态图标和中文标签：/ 进行中、! 重要、? 待确认、- 取消、> 改期、* 星标。可单篇启用；不改变原生完成状态。
+    type: class-toggle
+    default: true
+    addCommand: true
+  - id: atelier-task-rows
+    title: 任务行分隔
+    description: 阅读模式中增加任务间距与分隔线，不改变任务状态。
+    type: class-toggle
+    default: false
+    addCommand: true
+  - id: atelier-dataview
+    title: Dataview 样式适配
+    description: 统一查询表格和内联字段外观；需要 Dataview 插件。
+    type: class-toggle
+    default: false
+    addCommand: true
+  - id: atelier-compact-properties
+    title: 紧凑属性区
+    description: 缩小原生笔记属性区的间距；属性仍可查看和编辑。
+    type: class-toggle
+    default: false
+    addCommand: true
+  - id: atelier-property-cards
+    title: 精致属性卡片
+    description: 为笔记属性添加柔和卡片、类型配色和聚焦反馈；单篇可设置 cssclasses 为 atelier-property-cards。
+    type: class-toggle
+    default: false
+    addCommand: true
+  - id: atelier-gallery-height
+    title: 画廊缩略图高度
+    type: variable-number-slider
+    default: 180
+    min: 100
+    max: 320
+    step: 10
+    format: px
+  - id: atelier-group-thoughtspace
+    title: ThoughtSpace 适配
+    type: heading
+    level: 1
+    collapsed: false
+  - id: atelier-plugin-polish
+    title: ThoughtSpace 精致界面
+    description: 深度匹配 ThoughtSpace：统一导航、空间总览、写作、资料库、日历任务与插件设置；保留白板分类颜色和节点布局。
+    type: class-toggle
+    default: true
+    addCommand: true
+  - id: atelier-plugin-folders
+    title: 插件彩色分组
+    description: 为 ThoughtSpace 中带子白板的文件夹图标分组着色；不改变子白板结构。
+    type: class-toggle
+    default: true
+    addCommand: true
+  - id: atelier-card-feedback
+    title: 卡片悬停反馈
+    description: 资料入口和查询卡片在悬停、键盘聚焦时突出边框，不移动卡片。
+    type: class-toggle
+    default: false
+    addCommand: true
+  - id: atelier-group-navigation
+    title: 目录与工具栏
+    type: heading
+    level: 1
+    collapsed: false
+  - id: atelier-colored-folders
+    title: 彩色文件夹
+    description: 原生目录按顶层项目路径分配固定色，子目录继承；由 ThoughtSpace 集成桥提供，未安装时使用柔和统一色。
+    type: class-toggle
+    default: true
+    addCommand: true
+  - id: atelier-folder-style
+    title: 彩色文件夹样式
+    description: 需启用彩色文件夹或插件彩色分组。
+    type: class-select
+    allowEmpty: false
+    default: atelier-folder-soft
+    options:
+      - label: 淡彩底纹
+        value: atelier-folder-soft
+      - label: 彩色边线
+        value: atelier-folder-line
+      - label: 仅图标着色
+        value: atelier-folder-icons
+  - id: atelier-folder-tint
+    title: 文件夹底纹浓度
+    type: variable-number-slider
+    default: 9
+    min: 4
+    max: 16
+    step: 1
+    format: '%'
+  - id: atelier-compact
+    title: 紧凑文件导航
+    type: class-toggle
+    default: false
+  - id: atelier-large-targets
+    title: 加大导航点击区域
+    description: 原生文件树与菜单更易点选，不改变白板工具几何。
+    type: class-toggle
+    default: false
+    addCommand: true
+  - id: atelier-outline-guides
+    title: 强化大纲层级
+    description: 原生大纲增加缩进引导线和选中指示。
+    type: class-toggle
+    default: false
+    addCommand: true
+  - id: atelier-ribbon-pinned
+    title: 始终显示左侧工具栏
+    description: 默认完全隐藏，靠近窗口左边缘弹出；开启后保持常驻。仅作用于桌面最左侧图标栏，不收起文件树或白板工具。
+    type: class-toggle
+    default: false
+    addCommand: true
+  - id: atelier-ribbon-width
+    title: 左侧图标栏实际宽度
+    description: 调整弹出或常驻时的图标栏宽度；32px 最窄，36px 更容易点击。仅用于桌面鼠标界面。
+    type: variable-number-slider
+    default: 36
+    min: 32
+    max: 48
+    step: 4
+    format: px
+  - id: atelier-ribbon-trigger-width
+    title: 工具栏边缘触发宽度
+    description: 透明触发区的宽度，不是图标栏宽度。收起后完全隐藏，展开时给文件树让出位置。
+    type: variable-number-slider
+    default: 8
+    min: 4
+    max: 16
+    step: 2
+    format: px
+  - id: atelier-ribbon-reveal-delay
+    title: 工具栏展开等待
+    description: 减少鼠标经过边缘时的误触；键盘聚焦立即展开。
+    type: variable-number-slider
+    default: 80
+    min: 0
+    max: 240
+    step: 40
+    format: ms
+  - id: atelier-ribbon-hide-delay
+    title: 工具栏收起等待
+    description: 给鼠标移动到按钮留出时间。
+    type: variable-number-slider
+    default: 240
+    min: 0
+    max: 600
+    step: 40
+    format: ms
+  - id: atelier-group-advanced
+    title: 背景与高级细节
+    type: heading
+    level: 1
+    collapsed: true
+  - id: atelier-grid-off
+    title: 关闭所有主题网格
+    description: 总开关。关闭工作台和笔记上的主题网格；ThoughtSpace 白板自身网格与吸附仍由插件控制。
+    type: class-toggle
+    default: false
+    addCommand: true
+  - id: atelier-grid-workspace-off
+    title: 关闭工作台网格
+    description: 单独关闭新标签页、写作工作台和媒体外围的网格。
+    type: class-toggle
+    default: false
+    addCommand: true
+  - id: atelier-grid-reading-on
+    title: 笔记显示网格
+    description: 默认使用纯净纸面；开启后阅读与编辑视图显示独立细网格。打印时自动移除。
+    type: class-toggle
+    default: false
+    addCommand: true
+  - id: atelier-grid-size
+    title: 工作区网格间距
+    type: variable-number-slider
+    default: 24
+    min: 16
+    max: 40
+    step: 4
+    format: px
+  - id: atelier-grid-strength
+    title: 工作区网格浓度
+    type: variable-number-slider
+    default: 6
+    min: 3
+    max: 12
+    step: 1
+    format: '%'
+  - id: atelier-reading-grid-size
+    title: 笔记网格间距
+    type: variable-number-slider
+    default: 24
+    min: 16
+    max: 48
+    step: 4
+    format: px
+  - id: atelier-reading-grid-strength
+    title: 笔记网格浓度
+    type: variable-number-slider
+    default: 3
+    min: 1
+    max: 8
+    step: 1
+    format: '%'
+*/
+
+/* 01 · Native semantic bindings. Effective palette lives in src/palette.css. */
+body {
+  --atelier-reading-width: 760px;
+  --atelier-line-height: 1.8;
+  --atelier-radius: 8px;
+  --atelier-tint-strength: 10%;
+  --atelier-soft: color-mix(in srgb, var(--atelier-accent) var(--atelier-tint-strength), var(--atelier-paper));
+  --background-primary: var(--atelier-paper);
+  --background-primary-alt: var(--atelier-sidebar);
+  --background-secondary: var(--atelier-sidebar);
+  --background-secondary-alt: var(--atelier-board);
+  --background-modifier-border: var(--atelier-border);
+  --background-modifier-border-hover: color-mix(in srgb, var(--atelier-accent) 40%, var(--atelier-border));
+  --background-modifier-border-focus: var(--atelier-accent);
+  --background-modifier-hover: color-mix(in srgb, var(--atelier-accent) 9%, transparent);
+  --background-modifier-form-field: var(--atelier-raised);
+  --background-modifier-active-hover: var(--atelier-soft);
+  --text-normal: var(--atelier-ink);
+  --text-muted: var(--atelier-muted);
+  --text-faint: var(--atelier-faint);
+  --text-accent: var(--atelier-accent);
+  --text-accent-hover: var(--atelier-accent-hover);
+  --text-on-accent: var(--atelier-on-accent);
+  --text-error: var(--atelier-red);
+  --text-success: var(--atelier-accent);
+  --text-warning: var(--atelier-orange);
+  --text-selection: color-mix(in srgb, var(--atelier-accent) 23%, transparent);
+  --text-highlight-bg: color-mix(in srgb, var(--atelier-orange) 23%, transparent);
+  --interactive-normal: var(--atelier-raised);
+  --interactive-hover: var(--atelier-soft);
+  --interactive-accent: var(--atelier-accent);
+  --interactive-accent-hover: var(--atelier-accent-hover);
+  --color-accent: var(--atelier-accent);
+  --color-accent-1: var(--atelier-accent-hover);
+  --color-accent-2: var(--atelier-accent-hover);
+  --color-green: #438563;
+  --color-blue: var(--atelier-blue);
+  --color-orange: var(--atelier-orange);
+  --color-red: var(--atelier-red);
+  --color-purple: var(--atelier-purple);
+  --font-interface-theme: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-text-theme: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-monospace-theme: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --file-line-width: var(--atelier-reading-width);
+  --line-height-normal: var(--atelier-line-height);
+  --line-height-tight: 1.45;
+  --h1-size: 1.85em; --h2-size: 1.45em; --h3-size: 1.2em;
+  --h4-size: 1.05em; --h5-size: 1em; --h6-size: .95em;
+  --h1-weight: 650; --h2-weight: 600; --h3-weight: 600;
+  --heading-spacing: 1.8em;
+  --inline-title-size: 2em;
+  --inline-title-weight: 650;
+  --inline-title-line-height: 1.35;
+  --p-spacing: 1em;
+  --radius-s: 5px; --radius-m: 7px; --radius-l: var(--atelier-radius); --radius-xl: 14px;
+  --input-radius: 7px;
+  --input-shadow: none; --input-shadow-hover: none;
+  --tab-radius-active: 8px 8px 0 0;
+  --tab-background-active: var(--atelier-paper);
+  --tab-text-color-active: var(--atelier-accent);
+  --tab-text-color-focused-active-current: var(--atelier-accent);
+  --nav-item-color: var(--atelier-muted);
+  --nav-item-color-active: var(--atelier-accent);
+  --nav-item-background-active: var(--atelier-soft);
+  --nav-item-padding: 7px 10px;
+  --nav-item-weight-active: 600;
+  --nav-collapse-icon-color: var(--atelier-faint);
+  --indentation-guide-color: var(--atelier-border);
+  --divider-color: var(--atelier-border);
+  --divider-color-hover: var(--atelier-accent);
+  --titlebar-background: var(--atelier-sidebar);
+  --titlebar-background-focused: var(--atelier-sidebar);
+  --ribbon-background: var(--atelier-sidebar);
+  --status-bar-background: var(--atelier-sidebar);
+  --status-bar-border-width: 1px 0 0 0;
+  --status-bar-border-color: var(--atelier-border);
+  --status-bar-radius: 0;
+  --modal-background: var(--atelier-paper);
+  --modal-radius: 14px;
+  --prompt-border-color: var(--atelier-border);
+  --prompt-radius: 12px;
+  --checkbox-radius: 4px;
+  --checkbox-color: var(--atelier-accent);
+  --checkbox-color-hover: var(--atelier-accent-hover);
+  --checkbox-marker-color: var(--atelier-on-accent);
+  --checklist-done-color: var(--atelier-faint);
+  --tag-background: var(--atelier-soft);
+  --tag-color: var(--atelier-accent);
+  --tag-radius: 5px;
+  --tag-padding-x: .45em;
+  --tag-padding-y: .12em;
+  --link-color: var(--atelier-accent);
+  --link-color-hover: var(--atelier-accent-hover);
+  --link-external-color: var(--atelier-blue);
+  --link-decoration: none;
+  --link-decoration-hover: underline;
+  --blockquote-border-color: var(--atelier-accent);
+  --blockquote-border-thickness: 3px;
+  --blockquote-background-color: var(--atelier-soft);
+  --code-background: var(--atelier-sidebar);
+  --code-normal: var(--atelier-ink);
+  --code-comment: var(--atelier-faint);
+  --code-keyword: var(--atelier-purple);
+  --code-string: var(--atelier-accent);
+  --code-function: var(--atelier-blue);
+  --code-value: var(--atelier-orange);
+  --table-border-color: var(--atelier-border);
+  --table-header-background: var(--atelier-sidebar);
+  --table-header-color: var(--atelier-ink);
+  --table-header-weight: 600;
+  --table-row-background-hover: var(--atelier-soft);
+  --table-cell-padding: 9px 13px;
+  --hr-color: var(--atelier-border);
+  --canvas-background: var(--atelier-board);
+  --canvas-card-label-color: var(--atelier-muted);
+  --graph-text: var(--atelier-muted);
+  --graph-node: var(--atelier-accent);
+  --graph-line: var(--atelier-border);
+}
+
+/* 02 · Native chrome: visible selected/focus states, no hidden controls. */
+.workspace-tab-header.is-active .workspace-tab-header-inner-title { font-weight: 600; }
+.nav-file-title, .nav-folder-title { margin-block: 2px; border-radius: 6px; }
+.nav-file-title.is-active { box-shadow: inset 2px 0 var(--atelier-accent); }
+.nav-folder-title-content { font-weight: 600; }
+.workspace-split.mod-left-split .workspace-leaf-content,
+.workspace-split.mod-right-split .workspace-leaf-content { background-color: var(--atelier-sidebar); }
+.view-header { border-bottom: 1px solid var(--atelier-border); }
+.menu, .suggestion-container, .modal { box-shadow: var(--atelier-shadow); }
+.menu { padding: 6px; border-radius: var(--atelier-radius); }
+.menu-item { border-radius: 5px; }
+.suggestion-item.is-selected { background: var(--atelier-soft); }
+body :is(button, select, input, textarea, [tabindex="0"]):focus-visible {
+  outline: 2px solid var(--atelier-accent); outline-offset: 2px;
+}
+.setting-item { border-color: var(--atelier-border); }
+.setting-item-description { line-height: 1.7; }
+.vertical-tab-nav-item.is-active { background: var(--atelier-soft); color: var(--atelier-accent); }
+body.atelier-compact { --nav-item-padding: 4px 8px; }
+
+/* 03 · Reading + Live Preview share native typography variables. */
+.inline-title { margin-bottom: 1em; letter-spacing: -.025em; }
+.markdown-rendered :is(h1,h2,h3) { letter-spacing: -.02em; }
+.markdown-rendered h2 { padding-bottom: .35em; border-bottom: 1px solid var(--atelier-border); }
+.markdown-rendered blockquote { padding: 12px 18px; border-radius: 0 8px 8px 0; }
+.markdown-rendered pre { border: 1px solid var(--atelier-border); border-radius: var(--atelier-radius); }
+.markdown-rendered :not(pre)>code { padding: .12em .35em; border-radius: 4px; }
+.markdown-rendered table { font-variant-numeric: tabular-nums; }
+body .markdown-rendered :is(th,td) { padding: var(--table-cell-padding); }
+.markdown-rendered img { border-radius: 6px; }
+.metadata-container { border: 1px solid var(--atelier-border); padding: 10px 12px; border-radius: var(--atelier-radius); background: var(--atelier-sidebar); }
+body .callout { border: 1px solid rgba(var(--callout-color),.2); border-left: 3px solid rgb(var(--callout-color)); border-radius: 8px; }
+.callout-title { gap: 9px; }
+.callout-content { line-height: var(--atelier-line-height); }
+body.atelier-color-headings {
+  --h1-color: var(--atelier-accent); --h2-color: var(--atelier-blue);
+  --h3-color: var(--atelier-purple); --h4-color: var(--atelier-orange);
+}
+body.atelier-striped-tables .markdown-rendered tbody tr:nth-child(even) { background: var(--atelier-sidebar); }
+.markdown-preview-view.atelier-wide, .markdown-source-view.atelier-wide { --file-line-width: 1040px; }
+.markdown-preview-view.atelier-serif, .markdown-source-view.atelier-serif {
+  --font-text: "Iowan Old Style", "Songti SC", "Noto Serif CJK SC", serif;
+}
+
+/* 04 · ThoughtSpace adapter. Deliberately avoid node positions, sizes, transforms,
+ * custom card colors and z-index: those are owned by the plugin's geometry model.
+ * Body specificity survives plugin CSS loaded after a theme. Important is only
+ * used for plugin surface variables and existing important surface declarations.
+ */
+body :is(.ts-root,.ts-journal,.ts-ui-modal,.ts-settings,.ts-native-header,.ts-writing,.ts-note-markdown-toolbar,.ts-media-workspace,.ts-online-workspace,.ts-materials-panel,.ts-materials-modal,.ts-space-modal) {
+  --ts-accent: var(--atelier-accent) !important;
+  --ts-selected-ink: var(--atelier-on-accent) !important;
+  --ts-paper: var(--atelier-paper) !important;
+  --ts-panel: var(--atelier-sidebar) !important;
+  --ts-board-bg: var(--atelier-board) !important;
+  --ts-line: var(--atelier-border) !important;
+  --ts-soft: var(--atelier-soft) !important;
+  --ts-muted: var(--atelier-muted) !important;
+  --ts-design-line: var(--atelier-border) !important;
+  --ts-design-panel: var(--atelier-paper) !important;
+  --ts-design-wash: var(--atelier-sidebar) !important;
+  --ts-design-hover: var(--atelier-soft) !important;
+  --ts-design-shadow: var(--atelier-shadow) !important;
+  --ts-design-radius: var(--atelier-radius) !important;
+  --ts-work-line: var(--atelier-border) !important;
+  --ts-work-panel: var(--atelier-paper) !important;
+  --ts-work-raised: var(--atelier-raised) !important;
+  --ts-work-wash: var(--atelier-soft) !important;
+  --ts-work-hover: var(--atelier-soft) !important;
+  --ts-work-shadow: var(--atelier-shadow) !important;
+}
+body .ts-root .ts-button:is(.ts-primary,.mod-cta) { color: var(--atelier-on-accent) !important; }
+body .ts-root .ts-board-rail,
+body .ts-root .ts-commandbar { background: var(--atelier-raised) !important; backdrop-filter: none !important; border-radius: var(--atelier-radius) !important; }
+body .ts-root .ts-card:not(.is-transparent) { box-shadow: var(--atelier-shadow); }
+body .ts-root .ts-library-card:hover { background: var(--atelier-raised); }
+body .ts-root .ts-tree-row.is-current { box-shadow: inset 2px 0 var(--atelier-accent); }
+body .ts-journal[data-calendar-ui=quiet][data-journal-part=calendar] .ts-calendar {
+  background: var(--atelier-soft) !important; border-radius: var(--atelier-radius) !important;
+}
+body .ts-journal[data-calendar-ui=quiet][data-journal-part=entries] { background: var(--atelier-paper) !important; }
+body .ts-journal[data-calendar-ui=quiet] .ts-calendar-day.is-selected { color: var(--atelier-on-accent) !important; }
+body .ts-writing :is(.ts-writing-composer,.ts-writing-dock) { border-radius: var(--atelier-radius); }
+body.atelier-flat { --atelier-shadow: none; }
+body.atelier-flat .ts-root .ts-card:not(.is-transparent) { box-shadow: none; }
+@media (prefers-reduced-motion: reduce) {
+  .nav-file-title,.nav-folder-title,.workspace-tab-header,
+  body :is(.ts-root,.ts-journal,.ts-writing) button { transition: none !important; }
+}
+@media (max-width: 600px) {
+  body { --file-margins: 18px; --inline-title-size: 1.65em; --table-cell-padding: 6px 9px; }
+}
+@media print {
+  body { --background-primary: #fff; --text-normal: #111; --text-muted: #444; --text-accent: #254f3d; }
+  .markdown-rendered pre, .markdown-rendered blockquote { box-shadow: none; }
+}
+
+
+/* 05 · Optional workspace features. No geometry changes to ThoughtSpace nodes. */
+body { --atelier-code-size: 14px; --atelier-gallery-height: 180px; --code-size: var(--atelier-code-size); }
+body.atelier-large-targets { --nav-item-padding: 10px 12px; --menu-item-padding: 10px 12px; }
+body.atelier-colored-folders .nav-folder-title .nav-folder-collapse-indicator { color: inherit; }
+body.atelier-outline-guides .workspace-leaf-content[data-type="outline"] .tree-item-children { border-inline-start: 1px solid var(--atelier-border); margin-inline-start: 13px; padding-inline-start: 8px; }
+body.atelier-outline-guides .workspace-leaf-content[data-type="outline"] .tree-item-self.is-active { box-shadow: inset 2px 0 var(--atelier-accent); background: var(--atelier-soft); }
+/* Focus only on native document leaves, never embedded card editors. */
+body.atelier-focus-line .workspace-leaf-content[data-type="markdown"]>.view-content>.markdown-source-view .cm-active {
+  background: var(--atelier-soft); box-shadow: inset 2px 0 var(--atelier-accent);
+}
+body.atelier-wrap-code .markdown-preview-view pre>code,
+.markdown-preview-view.atelier-code-wrap pre>code { white-space: pre-wrap; overflow-wrap: anywhere; word-break: normal; }
+body.atelier-full-tables .markdown-preview-view table,
+.markdown-preview-view.atelier-tables table { width: 100%; }
+body.atelier-soft-embeds .workspace-leaf-content[data-type="markdown"] .markdown-embed { border: 1px solid var(--atelier-border); border-radius: var(--atelier-radius); background: var(--atelier-soft); padding: 12px 16px; }
+
+/* Custom callouts work without Style Settings. Explicit opt-in syntax. */
+body .callout[data-callout="columns"] {
+  background: transparent; border: 0; padding: 0; container-type: inline-size;
+}
+body .callout[data-callout="columns"]>.callout-content { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+body .callout[data-callout="columns"]>.callout-content>* { min-width: 0; margin-block: 0; }
+body .callout[data-callout="columns"]>.callout-title { margin-bottom: 12px; }
+body .callout[data-callout="columns"]>.callout-content>.callout { align-self: stretch; }
+body .callout[data-callout="gallery"] { container-type: inline-size; }
+body .callout[data-callout="gallery"]>.callout-content>p {
+  display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px;
+}
+body .callout[data-callout="gallery"] .image-embed { display: block; min-width: 0; }
+body .callout[data-callout="gallery"] img {
+  width: 100%; height: var(--atelier-gallery-height); object-fit: contain;
+  background: var(--atelier-sidebar); border: 1px solid var(--atelier-border); border-radius: 7px;
+}
+body .callout[data-callout="gallery"] br { display: none; }
+body .callout[data-callout="summary"] { --callout-color: var(--callout-tip); --callout-icon: lucide-book-open; }
+body .callout[data-callout="evidence"] { --callout-color: var(--callout-info); --callout-icon: lucide-quote; }
+body .callout[data-callout="question"] { --callout-icon: lucide-circle-help; }
+body .callout[data-callout="gallery"] { --callout-icon: lucide-images; }
+body .callout[data-callout="columns"] { --callout-icon: lucide-columns-2; }
+
+/* Task status presentation is defined in section 23. */
+@container (max-width: 520px) {
+  body .callout[data-callout="columns"]>.callout-content,
+  body .callout[data-callout="gallery"]>.callout-content>p { grid-template-columns: minmax(0,1fr); }
+}
+@media print {
+  body .callout[data-callout="columns"]>.callout-content { display: block; }
+  body .callout[data-callout="gallery"] img { height: auto; max-height: 240px; }
+}
+
+/* Folio 3 · Quiet navigation, inset selected markers, and uninterrupted reading.
+   Original design: flat chrome, slim rules, modest radii; never reflow board nodes. */
+body { --tab-radius-active: 5px; --input-radius: 5px; --radius-m: 6px; --radius-l: var(--atelier-radius); }
+.workspace-tab-header.is-active { box-shadow: inset 0 -2px var(--atelier-accent); }
+.workspace-tab-header.is-active .workspace-tab-header-inner-title { color: var(--text-normal); }
+.workspace-split.mod-root>.workspace-tabs>.workspace-tab-container { border-top: 1px solid var(--atelier-border); }
+.markdown-rendered h2 { border-bottom: 0; padding-bottom: 0; }
+.markdown-rendered h2::before { content: ""; display: inline-block; width: 3px; height: .8em; margin-inline-end: .5em; background: var(--atelier-accent); vertical-align: baseline; border-radius: 1px; }
+body .metadata-container { background: transparent; border: 0; border-bottom: 1px solid var(--atelier-border); border-radius: 0; padding: 4px 0 14px; }
+body .callout { --callout-title-color: var(--text-normal); background-color: color-mix(in srgb,var(--background-secondary) 80%,transparent); border-color: var(--atelier-border); }
+body .callout-title { font-size: .95em; }
+body .callout[data-callout="columns"] { background: transparent; }
+body .callout[data-callout="columns"]>.callout-content>.callout { align-self: stretch; }
+body .markdown-preview-view pre { background: var(--background-secondary); }
+body .markdown-rendered th { border-bottom: 2px solid var(--atelier-border); }
+body .markdown-rendered td { border-inline-color: transparent; }
+body .ts-journal[data-calendar-ui=quiet][data-journal-part=calendar] .ts-calendar {
+ background: var(--atelier-paper) !important; border-radius: 8px !important; box-shadow: none !important;
+}
+body .ts-root .ts-tree-row.is-current { background: var(--atelier-soft); }
+/* Redundant visual borders are removed without touching content geometry. */
+body .ts-root :is(.ts-board-rail,.ts-commandbar) { box-shadow: 0 2px 8px #0000000b !important; }
+
+
+/* 06 · Folio 3.1. Original layouts inspired by task, query and board workflows.
+   Markdown callout semantics remain native; no plugin runtime is bundled. */
+body.atelier-task-rows .markdown-preview-view li.task-list-item {
+  padding-block: .45em; border-bottom: 1px solid var(--atelier-border);
+}
+body.atelier-table-focus .markdown-preview-view tbody tr:is(:hover,:focus-within) {
+  background-color: var(--atelier-soft); box-shadow: inset 2px 0 var(--atelier-accent);
+}
+body.atelier-footnotes .markdown-preview-view .footnotes {
+  margin-block-start: 2.5em; padding: 1em 1.2em; border-block-start: 2px solid var(--atelier-accent);
+  background: var(--atelier-sidebar); font-size: .92em; border-radius: 0 0 var(--atelier-radius) var(--atelier-radius);
+}
+body.atelier-footnotes .markdown-preview-view .footnotes ol { padding-inline-start: 1.6em; }
+body.atelier-reading-serif .workspace-leaf-content[data-type="markdown"]>.view-content>.markdown-reading-view>.markdown-preview-view {
+  font-family: "Iowan Old Style", "Songti SC", "Noto Serif CJK SC", serif;
+}
+/* Verified Dataview public CSS class names; dimensions and query semantics untouched. */
+body.atelier-dataview .markdown-preview-view .table-view-table>thead>tr>th {
+  font-size: 1em; font-weight: 600; background: var(--atelier-sidebar); border-color: var(--atelier-border);
+}
+body.atelier-dataview .markdown-preview-view .table-view-table>tbody>tr>td {
+  border-bottom: 1px solid var(--atelier-border);
+}
+body.atelier-dataview .markdown-preview-view .dataview:is(.inline-field-key,.inline-field-value,.inline-field-standalone-value) {
+  font-family: var(--font-text); color: var(--atelier-ink); background: var(--atelier-soft); padding: .1em .4em;
+}
+body.atelier-dataview .markdown-preview-view .dataview.inline-field-key {
+  color: var(--atelier-muted); border-inline-start: 2px solid var(--atelier-accent);
+}
+/* A note can opt into a Dataview LIST card layout without reshaping TABLE results. */
+.markdown-preview-view.atelier-query-cards ul.dataview.list-view-ul {
+  display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,220px),1fr)); gap: 12px; padding-inline-start: 0; list-style: none;
+}
+.markdown-preview-view.atelier-query-cards ul.dataview.list-view-ul>li {
+  margin: 0; padding: 14px; border: 1px solid var(--atelier-border); border-radius: var(--atelier-radius); background: var(--atelier-sidebar);
+}
+/* Project lanes: static Markdown organization; cards remain editable text. */
+body .callout:is([data-callout="board"],[data-callout="dashboard"]) {
+  container-type: inline-size; border: 0; background: transparent; padding: 0;
+}
+body .callout:is([data-callout="board"],[data-callout="dashboard"])>.callout-content {
+  display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 14px;
+}
+body .callout:is([data-callout="board"],[data-callout="dashboard"])>.callout-content>* { min-width: 0; margin-block: 0; }
+body .callout[data-callout="board"] { --callout-icon: lucide-columns-3; }
+body .callout[data-callout="dashboard"] { --callout-icon: lucide-layout-dashboard; }
+body .callout[data-callout="board"]>.callout-content>.callout {
+  border: 1px solid var(--atelier-border); border-top: 3px solid var(--atelier-accent); padding: 12px;
+}
+body .callout[data-callout="board"]>.callout-content>.callout>.callout-content>ul { padding-inline-start: 1.4em; }
+body .callout[data-callout="board"]>.callout-content>.callout>.callout-content>ul>li {
+  margin-block: .6em; padding: .4em; background: var(--atelier-paper); border-radius: 4px; overflow-wrap: anywhere;
+}
+body .callout[data-callout="dashboard"]>.callout-content>.callout {
+  border: 1px solid var(--atelier-border); background: var(--atelier-paper); padding: 16px;
+}
+body .callout[data-callout="timeline"] { --callout-icon: lucide-route; background: transparent; }
+body .callout[data-callout="timeline"]>.callout-content>ol {
+  list-style: none; padding-inline-start: 20px; counter-reset: folio-step;
+}
+body .callout[data-callout="timeline"]>.callout-content>ol>li {
+  position: relative; border-inline-start: 1px solid var(--atelier-border); margin: 0; padding: 0 0 1.4em 24px; counter-increment: folio-step;
+}
+body .callout[data-callout="timeline"]>.callout-content>ol>li::before {
+  content: counter(folio-step); position: absolute; inset-inline-start: -12px; top: 0;
+  width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid var(--atelier-border);
+  border-radius: 50%; background: var(--atelier-paper); color: var(--atelier-accent); font: 12px/1 var(--font-interface);
+}
+body .callout[data-callout="timeline"]>.callout-content>ol>li:last-child { border-color: transparent; padding-bottom: 0; }
+@container (max-width: 640px) {
+  body .callout:is([data-callout="board"],[data-callout="dashboard"])>.callout-content { grid-template-columns: minmax(0,1fr); }
+}
+@media print {
+  body .callout:is([data-callout="board"],[data-callout="dashboard"])>.callout-content { display: block; }
+  body .callout:is([data-callout="board"],[data-callout="dashboard"])>.callout-content>.callout { break-inside: avoid; margin-bottom: 12px; }
+}
+
+
+/* 07 · Folio 3.2 visual refinement. Preserve vault fonts, note data and board geometry.
+   Restrained editorial hierarchy: variance 3 / motion 1 / density 5.
+   Semantic colors derive from one neutral ramp in each mode. */
+/* @folio-source palette.css */
+body {
+  --inline-title-size: 1.65em; --inline-title-weight: 600;
+  --h1-size: 1.65em; --h2-size: 1.3em; --h3-size: 1.13em;
+  --h1-weight: 600; --h2-weight: 600; --h3-weight: 550;
+  --heading-spacing: 1.55em; --p-spacing: .9em;
+  --tab-text-color: var(--atelier-muted); --tab-text-color-active: var(--atelier-accent);
+  --nav-item-weight-active: 550; --tab-radius-active: 6px;
+  --tag-border-color: var(--atelier-border); --tag-border-width: 1px;
+}
+.inline-title { letter-spacing: 0; margin-bottom: .65em; }
+.markdown-rendered :is(h1,h2,h3) { letter-spacing: 0; line-height: 1.5; }
+.markdown-rendered h2::before { height: .7em; width: 2px; margin-inline-end: .6em; }
+/* Native properties stay visible and editable, with less empty space. */
+body .metadata-container { margin-block-end: 1.3em; padding-block: 6px 10px; }
+body .metadata-container .metadata-properties-title { font-size: .85em; color: var(--atelier-muted); margin-block-end: 8px; }
+body .metadata-container .metadata-property { border-radius: 5px; }
+body .metadata-container .metadata-property:hover { background: var(--background-modifier-hover); }
+.workspace-tab-header.is-active { box-shadow: inset 0 -1px var(--atelier-accent); }
+.workspace-tab-header.is-active .workspace-tab-header-inner { background: var(--atelier-paper); }
+.nav-file-title.is-active { box-shadow: inset 2px 0 var(--atelier-accent); }
+.nav-file-title:not(.is-active):hover,.nav-folder-title:hover { background: var(--background-modifier-hover); }
+.view-header { border-bottom-color: color-mix(in srgb,var(--atelier-border) 65%,transparent); }
+body .callout { border-radius: var(--atelier-radius); }
+body .callout-title { font-weight: 600; line-height: 1.6; }
+body .callout:is([data-callout="dashboard"],[data-callout="board"],[data-callout="columns"])>.callout-title {
+  margin-block: 18px 10px; color: var(--atelier-muted); font-size: .87em;
+}
+body .callout[data-callout="dashboard"]>.callout-content>.callout {
+  background: var(--atelier-raised); border-color: var(--atelier-border);
+  padding: 16px 18px; box-shadow: var(--atelier-shadow);
+}
+body .callout[data-callout="dashboard"]>.callout-content>.callout>.callout-title { color: var(--atelier-accent); }
+body .callout[data-callout="dashboard"]>.callout-content>.callout>.callout-content { font-size: .94em; }
+body .callout[data-callout="board"]>.callout-content>.callout {
+  border-top-width: 2px; background: var(--atelier-sidebar); padding: 14px;
+}
+body .callout[data-callout="board"]>.callout-content>.callout>.callout-title .callout-icon { color: var(--atelier-accent); }
+body .callout[data-callout="board"]>.callout-content>.callout>.callout-content>ul>li {
+  background: var(--atelier-raised); border: 1px solid var(--atelier-border); border-radius: 6px; padding: .45em .5em;
+}
+body .callout[data-callout="timeline"] { border-left-width: 1px; padding: 16px 18px; }
+body .callout[data-callout="timeline"]>.callout-content>ol>li::before {
+  background: var(--atelier-soft); border-color: var(--atelier-border); font-weight: 600;
+}
+body .markdown-rendered th { font-size: .92em; color: var(--atelier-muted); border-bottom-width: 1px; }
+body .markdown-rendered pre { border-color: var(--atelier-border); }
+body .markdown-rendered blockquote:not(.callout) { border-radius: 0 6px 6px 0; }
+body .menu { border: 1px solid var(--atelier-border); }
+/* Adapter is paint-only: plugin owns layout and interactive hit areas. */
+body .ts-root .ts-tree-row.is-current { background: var(--atelier-soft); box-shadow: inset 2px 0 var(--atelier-accent); }
+body .ts-root :is(.ts-board-rail,.ts-commandbar) { box-shadow: var(--atelier-shadow) !important; }
+body .ts-journal[data-calendar-ui=quiet][data-journal-part=calendar] .ts-calendar {
+  background: var(--atelier-raised) !important; border-color: var(--atelier-border) !important;
+}
+body.atelier-flat { --atelier-shadow: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .nav-file-title,.nav-folder-title,.menu-item { transition: background-color 120ms ease, color 120ms ease; }
+}
+@media (max-width: 600px) {
+  body { --inline-title-size: 1.45em; --h1-size: 1.45em; }
+}
+
+
+/* 08 · Folio 3.3 opt-in appearance controls. No node geometry or font changes. */
+body.atelier-callout-colors .callout:not([data-callout="columns"]):not([data-callout="board"]):not([data-callout="dashboard"]):not([data-callout="timeline"]):not([data-callout="gallery"]) {
+  background-color: rgba(var(--callout-color), .07);
+  border-color: rgba(var(--callout-color), .26);
+  border-inline-start-color: rgb(var(--callout-color));
+}
+body.atelier-callout-colors .callout>.callout-title .callout-icon { color: rgb(var(--callout-color)); }
+body.atelier-card-feedback .markdown-preview-view .callout[data-callout="dashboard"]>.callout-content>.callout:is(:hover,:focus-within),
+body.atelier-card-feedback .markdown-preview-view.atelier-query-cards ul.dataview.list-view-ul>li:is(:hover,:focus-within) {
+  border-color: var(--atelier-accent); box-shadow: inset 0 0 0 1px var(--atelier-accent);
+}
+body.atelier-compact-properties .workspace-leaf-content[data-type="markdown"]>.view-content .metadata-container {
+  --metadata-property-padding: 2px 6px; --metadata-gap: 2px;
+  padding-block: 2px 6px; margin-block-end: .8em; font-size: .9em;
+}
+body.atelier-compact-properties .workspace-leaf-content[data-type="markdown"]>.view-content .metadata-properties { gap: 2px; }
+body.atelier-compact-properties .workspace-leaf-content[data-type="markdown"]>.view-content .metadata-property { padding-block: 2px; min-height: 28px; }
+body.atelier-heading-rules .markdown-preview-view h2 {
+  border-bottom: 1px solid var(--atelier-border); padding-block-end: .4em;
+}
+
+/* 09 · Optional Obsidian chrome. Paint and shape only; hit areas remain native. */
+body.atelier-chrome-tabs { --tab-radius-active: 8px; }
+body.atelier-chrome-tabs .workspace-tab-header { border-radius: 8px; }
+body.atelier-chrome-tabs .workspace-tab-header.is-active { background: var(--atelier-soft); box-shadow: inset 0 0 0 1px var(--atelier-border); }
+body.atelier-chrome-tabs .workspace-tab-header.is-active .workspace-tab-header-inner { background: transparent; border-radius: inherit; }
+body.atelier-chrome-tabs .workspace-tab-header.is-active .workspace-tab-header-inner-title { color: var(--atelier-accent); }
+body.atelier-chrome-sidebar .workspace-split:is(.mod-left-split,.mod-right-split) .workspace-leaf-content { background-color: var(--atelier-sidebar); }
+body.atelier-chrome-sidebar .workspace-split.mod-left-split { box-shadow: inset -1px 0 var(--atelier-border); }
+body.atelier-chrome-sidebar .workspace-split.mod-right-split { box-shadow: inset 1px 0 var(--atelier-border); }
+body.atelier-chrome-sidebar .nav-file-title.is-active { background: var(--atelier-soft); box-shadow: inset 3px 0 var(--atelier-accent); }
+body.atelier-chrome-sidebar .workspace-split:is(.mod-left-split,.mod-right-split) .workspace-tab-header-container { background: var(--atelier-board); }
+body.atelier-chrome-panels :is(.menu,.suggestion-container,.prompt,.modal) { border-color: var(--atelier-border); border-radius: 12px; box-shadow: var(--atelier-shadow); }
+body.atelier-chrome-panels .menu-item { border-radius: 6px; }
+body.atelier-chrome-panels :is(.suggestion-item.is-selected,.menu-item.selected) { background: var(--atelier-soft); color: var(--atelier-ink); box-shadow: inset 2px 0 var(--atelier-accent); }
+body.atelier-chrome-panels .vertical-tab-header { background: var(--atelier-sidebar); }
+body.atelier-chrome-panels .vertical-tab-nav-item.is-active { border-radius: 6px; box-shadow: inset 2px 0 var(--atelier-accent); }
+body.atelier-chrome-panels .setting-item:hover { background: color-mix(in srgb,var(--atelier-accent) 3%,transparent); }
+
+/* 10 · Folio 3.4 ThoughtSpace finish. Original implementation based on local
+   public selectors; design references documented separately, no upstream CSS. */
+body.atelier-plugin-polish .ts-root .ts-tabs {
+  background: var(--atelier-board); box-shadow: inset 0 0 0 1px var(--atelier-border);
+  border-radius: 8px;
+}
+body.atelier-plugin-polish .ts-root.ts-dock .ts-sidebar>.ts-tabs>.ts-button.is-active {
+  background: var(--atelier-raised) !important; color: var(--atelier-accent) !important;
+  box-shadow: inset 0 0 0 1px var(--atelier-border), 0 1px 3px #00000008 !important;
+}
+body.atelier-plugin-polish .ts-root .ts-search {
+  background: var(--atelier-raised) !important; border-color: var(--atelier-border) !important;
+  box-shadow: none !important;
+}
+body.atelier-plugin-polish .ts-root .ts-search:focus {
+  border-color: var(--atelier-accent) !important; outline: 2px solid var(--atelier-soft); outline-offset: 1px;
+}
+body.atelier-plugin-polish .ts-root .ts-tree-row.is-current {
+  background: var(--atelier-soft); box-shadow: inset 2px 0 var(--atelier-accent);
+}
+body.atelier-plugin-polish .ts-root .ts-tree-row.is-current .ts-tree-title svg { color: var(--atelier-accent); }
+body.atelier-plugin-polish .ts-root .ts-dock-organize-button {
+  background: var(--atelier-paper) !important; border-color: var(--atelier-border) !important;
+}
+body.atelier-plugin-polish .ts-root .ts-library-card {
+  background: var(--atelier-raised); border-color: var(--atelier-border); border-radius: var(--atelier-radius);
+  box-shadow: var(--atelier-shadow);
+}
+body.atelier-plugin-polish .ts-root .ts-library-card:is(:hover,:focus-within) {
+  border-color: var(--atelier-accent); box-shadow: inset 0 0 0 1px var(--atelier-accent);
+}
+body.atelier-plugin-polish .ts-root .ts-library-title { color: var(--atelier-ink); }
+body.atelier-plugin-polish .ts-root :is(.ts-library-path,.ts-library-excerpt) { color: var(--atelier-muted); }
+body.atelier-plugin-polish .ts-root .ts-library-tags { color: var(--atelier-accent); }
+body.atelier-plugin-polish .ts-root :is(.ts-topbar,.ts-commandbar,.ts-board-rail) {
+  background-color: var(--atelier-raised) !important; border-color: var(--atelier-border) !important;
+}
+body.atelier-plugin-polish :is(.ts-root,.ts-journal) .ts-button:is(.ts-primary,.mod-cta) {
+  color: var(--atelier-on-accent) !important; background: var(--atelier-accent) !important;
+}
+body.atelier-plugin-polish .ts-journal .ts-task-summary {
+  background: var(--atelier-sidebar); border-color: var(--atelier-border); border-radius: 8px;
+}
+body.atelier-plugin-polish .ts-journal .ts-task-summary button:is(.is-active,[aria-pressed="true"]) {
+  background: var(--atelier-soft); color: var(--atelier-accent); box-shadow: inset 0 -2px var(--atelier-accent);
+}
+body.atelier-plugin-polish .ts-journal :is(.ts-task-view-switch,.ts-task-quick-tabs) {
+  background: var(--atelier-sidebar); border-radius: 7px;
+}
+body.atelier-plugin-polish .ts-journal .ts-task-view-switch button:is(.is-active,[aria-pressed="true"]) {
+  background: var(--atelier-raised) !important; color: var(--atelier-accent) !important;
+  box-shadow: inset 0 0 0 1px var(--atelier-border);
+}
+body.atelier-plugin-polish .ts-journal :is(.ts-task-result-count,.ts-task-filter-disclosure) { color: var(--atelier-muted); }
+body.atelier-plugin-polish .ts-journal .ts-task-empty {
+  background: var(--atelier-sidebar); border-color: var(--atelier-border); border-radius: var(--atelier-radius);
+}
+body.atelier-plugin-polish .ts-journal .ts-calendar-day.is-today:not(.is-selected) {
+  box-shadow: inset 0 0 0 1px var(--atelier-accent); color: var(--atelier-accent);
+}
+body.atelier-plugin-polish .ts-journal .ts-calendar-day.is-selected {
+  background: var(--atelier-accent) !important; color: var(--atelier-on-accent) !important;
+  box-shadow: 0 1px 3px #00000012;
+}
+body.atelier-plugin-polish .ts-journal .ts-calendar-day:not(.is-selected):hover {
+  background: var(--atelier-soft) !important;
+}
+body.atelier-plugin-polish :is(.ts-root,.ts-journal) :is(button,input,select):focus-visible {
+  outline: 2px solid var(--atelier-accent); outline-offset: 2px;
+}
+body.atelier-plugin-polish.atelier-flat .ts-root .ts-library-card { box-shadow: none; }
+
+/* Current plugin wraps search input with its icon; finish the wrapper surface. */
+body.atelier-plugin-polish .ts-root.ts-dock .ts-sidebar-search {
+  background: var(--atelier-raised) !important; border-color: var(--atelier-border) !important;
+}
+body.atelier-plugin-polish .ts-root.ts-dock .ts-sidebar-search:focus-within {
+  border-color: var(--atelier-accent) !important; box-shadow: inset 0 0 0 1px var(--atelier-accent);
+}
+
+/* 11 · Stable project color slots supplied by the ThoughtSpace Folio bridge.
+   Native child folders inherit their top-level project; flat plugin rows carry
+   the same persisted slot. Without the bridge, use the quiet accent fallback. */
+body { --atelier-folder-tint: 9%; }
+/* Folder colors are defined alongside the mode palette in src/palette.css. */
+body.atelier-colored-folders .nav-folder[data-folio-folder-slot="1"],
+body.atelier-plugin-folders .ts-tree-row[data-folio-folder-slot="1"] { --folio-folder-color: var(--folio-folder-1); }
+body.atelier-colored-folders .nav-folder[data-folio-folder-slot="2"],
+body.atelier-plugin-folders .ts-tree-row[data-folio-folder-slot="2"] { --folio-folder-color: var(--folio-folder-2); }
+body.atelier-colored-folders .nav-folder[data-folio-folder-slot="3"],
+body.atelier-plugin-folders .ts-tree-row[data-folio-folder-slot="3"] { --folio-folder-color: var(--folio-folder-3); }
+body.atelier-colored-folders .nav-folder[data-folio-folder-slot="4"],
+body.atelier-plugin-folders .ts-tree-row[data-folio-folder-slot="4"] { --folio-folder-color: var(--folio-folder-4); }
+body.atelier-colored-folders .nav-folder[data-folio-folder-slot="5"],
+body.atelier-plugin-folders .ts-tree-row[data-folio-folder-slot="5"] { --folio-folder-color: var(--folio-folder-5); }
+body.atelier-colored-folders .nav-folder[data-folio-folder-slot="6"],
+body.atelier-plugin-folders .ts-tree-row[data-folio-folder-slot="6"] { --folio-folder-color: var(--folio-folder-6); }
+
+body.atelier-colored-folders .nav-folder>.nav-folder-title {
+  --folio-folder-wash: color-mix(in srgb,var(--folio-folder-color,var(--atelier-accent)) var(--atelier-folder-tint),var(--atelier-sidebar));
+  color: var(--folio-folder-color,var(--atelier-accent)); border-radius: 6px;
+}
+/* A simple CSS folder silhouette beside the native name; collapse control stays intact. */
+body.atelier-colored-folders .nav-folder-title:not(:has(.lucide-folder,.lucide-folder-open))>.nav-folder-title-content::before {
+  content: ""; display: inline-block; width: 14px; height: 13px; margin-inline-end: 7px;
+  background: var(--folio-folder-color,var(--atelier-accent)); vertical-align: -1px;
+  clip-path: polygon(0 12%,42% 12%,54% 28%,100% 28%,100% 92%,0 92%);
+}
+body.atelier-colored-folders .nav-folder-title .collapse-icon { color: var(--folio-folder-color,var(--atelier-accent)); }
+body.atelier-colored-folders.atelier-folder-soft .nav-folder>.nav-folder-title { background: var(--folio-folder-wash); }
+body.atelier-colored-folders.atelier-folder-line .nav-folder>.nav-folder-title { box-shadow: inset 3px 0 var(--folio-folder-color,var(--atelier-accent)); }
+body.atelier-colored-folders.atelier-folder-icons .nav-folder>.nav-folder-title { color: var(--text-normal); }
+body.atelier-colored-folders .nav-folder>.nav-folder-title:is(:hover,:focus-within) {
+  outline: 1px solid var(--folio-folder-color,var(--atelier-accent)); outline-offset: -1px;
+}
+body.atelier-plugin-folders .ts-root.ts-dock .ts-tree-row {
+  --folio-folder-wash: color-mix(in srgb,var(--folio-folder-color,var(--atelier-accent)) var(--atelier-folder-tint),var(--atelier-sidebar));
+  border-radius: 6px;
+}
+body.atelier-plugin-folders .ts-root.ts-dock .ts-tree-row .ts-tree-title svg,
+body.atelier-plugin-folders .ts-root.ts-dock .ts-tree-row .ts-tree-toggle svg,
+body.atelier-plugin-folders .ts-root.ts-dock .ts-tree-row:has(> .ts-tree-count) .ts-tree-title {
+  color: var(--folio-folder-color,var(--atelier-accent)) !important;
+}
+body.atelier-plugin-folders.atelier-folder-soft .ts-root.ts-dock .ts-tree-row { background: var(--folio-folder-wash) !important; }
+body.atelier-plugin-folders.atelier-folder-line .ts-root.ts-dock .ts-tree-row,
+body.atelier-plugin-folders .ts-root.ts-dock .ts-tree-row.is-current { box-shadow: inset 3px 0 var(--folio-folder-color,var(--atelier-accent)); }
+body.atelier-plugin-folders.atelier-folder-icons .ts-root.ts-dock .ts-tree-row:has(> .ts-tree-count) .ts-tree-title { color: var(--text-normal) !important; }
+body.atelier-plugin-folders .ts-root.ts-dock .ts-tree-row:has(> .ts-tree-count) .ts-tree-count {
+  color: var(--folio-folder-color,var(--atelier-accent)); background: var(--atelier-paper); border-radius: 5px;
+}
+/* Plugin refinement: quieter secondary labels and clearer keyboard access. */
+body.atelier-plugin-polish .ts-root.ts-dock .ts-sidebar-empty,
+body.atelier-plugin-polish .ts-root.ts-dock .ts-dock-welcome p { color: var(--atelier-muted); }
+body.atelier-plugin-polish .ts-root.ts-dock .ts-tree-row:focus-within { outline: 1px solid var(--atelier-accent); outline-offset: -1px; }
+body.atelier-plugin-polish .ts-root.ts-dock .ts-tree-count { font-variant-numeric: tabular-nums; }
+
+/* 12 · Folio 3.6 collections, progress boards and excerpts. Original CSS.
+   Extend the existing plugin finish switch, preserving controls and table semantics. */
+body.atelier-plugin-polish :is(.ts-database-modal,.ts-materials-modal,.ts-materials-panel) {
+  --ts-accent: var(--atelier-accent); --ts-soft: var(--atelier-soft);
+  --ts-work-line: var(--atelier-border); --ts-design-line: var(--atelier-border);
+  border-color: var(--atelier-border); background: var(--atelier-paper);
+}
+body.atelier-plugin-polish .ts-database .ts-db-tabs {
+  background: var(--atelier-sidebar); box-shadow: inset 0 0 0 1px var(--atelier-border); border-radius: 8px;
+}
+body.atelier-plugin-polish .ts-database .ts-db-tabs .is-active {
+  background: var(--atelier-raised) !important; color: var(--atelier-accent) !important;
+  box-shadow: inset 0 -2px var(--atelier-accent) !important;
+}
+body.atelier-plugin-polish .ts-database .ts-db-saved-views {
+  background: var(--atelier-sidebar); border-color: var(--atelier-border); border-radius: 8px;
+}
+body.atelier-plugin-polish .ts-database :is(.ts-db-filters,.ts-db-saved-views) :is(input:not([type=checkbox]),select) {
+  background: var(--atelier-raised); border-color: var(--atelier-border); border-radius: 6px;
+}
+body.atelier-plugin-polish .ts-database .ts-db-condition {
+  background: var(--atelier-soft); color: var(--atelier-ink); border-radius: 6px;
+}
+body.atelier-plugin-polish .ts-database .ts-db-table {
+  font-variant-numeric: tabular-nums; color: var(--atelier-ink);
+}
+body.atelier-plugin-polish .ts-database .ts-db-table th {
+  background: var(--atelier-sidebar); color: var(--atelier-muted); font-weight: 600;
+  box-shadow: inset 0 -1px var(--atelier-border);
+}
+body.atelier-plugin-polish .ts-database .ts-db-table tbody tr:nth-child(even) td {
+  background: color-mix(in srgb,var(--atelier-sidebar) 45%,var(--atelier-paper));
+}
+body.atelier-plugin-polish .ts-database .ts-db-table tbody tr:is(:hover,:focus-within) td { background: var(--atelier-soft); }
+body.atelier-plugin-polish .ts-database .ts-db-table tbody tr:is(:hover,:focus-within) td:first-child { box-shadow: inset 2px 0 var(--atelier-accent); }
+body.atelier-plugin-polish .ts-database :is(.ts-db-path,.ts-db-help,.ts-db-excerpt,.ts-db-count) { color: var(--atelier-muted); }
+body.atelier-plugin-polish .ts-database .ts-db-tags { color: var(--atelier-accent); }
+body.atelier-plugin-polish .ts-database .ts-kanban-column {
+  --folio-lane: var(--atelier-muted); background: var(--atelier-sidebar);
+  border-color: var(--atelier-border); border-radius: var(--atelier-radius);
+}
+body.atelier-plugin-polish .ts-database .ts-kanban-column[data-status=active] { --folio-lane: var(--folio-folder-2); }
+body.atelier-plugin-polish .ts-database .ts-kanban-column[data-status=done] { --folio-lane: var(--folio-folder-1); }
+body.atelier-plugin-polish .ts-database .ts-kanban-heading { color: var(--atelier-ink); box-shadow: inset 0 -2px var(--folio-lane); }
+body.atelier-plugin-polish .ts-database .ts-kanban-heading::before { background: var(--folio-lane); }
+body.atelier-plugin-polish .ts-database .ts-kanban-count { color: var(--atelier-muted); font-variant-numeric: tabular-nums; }
+body.atelier-plugin-polish .ts-database .ts-kanban-card {
+  background: var(--atelier-raised); border-color: var(--atelier-border); box-shadow: var(--atelier-shadow);
+}
+body.atelier-plugin-polish .ts-database .ts-kanban-card:is(:hover,:focus-within) { border-color: var(--atelier-accent); }
+body.atelier-plugin-polish .ts-database .ts-kanban-column.is-drop-target {
+  border-color: var(--atelier-accent); background: var(--atelier-soft); outline: 2px solid var(--atelier-accent); outline-offset: -2px;
+}
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-tabs {
+  background: var(--atelier-sidebar); box-shadow: inset 0 0 0 1px var(--atelier-border);
+}
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-tabs button[aria-selected=true] {
+  background: var(--atelier-raised); color: var(--atelier-accent); box-shadow: inset 0 -2px var(--atelier-accent);
+}
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-library { background: var(--atelier-sidebar); }
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-detail { background: var(--atelier-paper); }
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-fragment {
+  background: var(--atelier-raised); border-color: var(--atelier-border); box-shadow: inset 2px 0 var(--atelier-accent);
+}
+body.atelier-plugin-polish :is(.ts-database,.ts-materials-modal,.ts-materials-panel) :is(button,input,select):focus-visible {
+  outline: 2px solid var(--atelier-accent); outline-offset: 2px;
+}
+body.atelier-plugin-polish.atelier-flat .ts-database .ts-kanban-card { box-shadow: none; }
+
+/* 13 · Folio 3.7 material reading. Original rules; retain plugin workflows. */
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) {
+  --ts-hairline: var(--atelier-border);
+  --checkbox-color: var(--atelier-accent);
+  --checkbox-color-hover: var(--atelier-accent);
+  --checkbox-marker-color: var(--atelier-on-accent);
+}
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-source-name>span {
+  background: color-mix(in srgb,var(--folio-folder-2) 10%,var(--atelier-paper));
+  color: var(--folio-folder-2); border-radius: 8px;
+}
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-reading-switch {
+  background: var(--atelier-sidebar); padding: 6px 8px; gap: 5px;
+}
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-reading-switch button[aria-pressed=true] {
+  background: var(--atelier-raised); color: var(--atelier-accent);
+  box-shadow: inset 0 0 0 1px var(--atelier-border); border-radius: 5px;
+}
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-reader {
+  background: var(--atelier-paper); color: var(--atelier-ink);
+}
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-reader>h2 {
+  letter-spacing: 0; padding-bottom: 16px; border-bottom: 1px solid var(--atelier-border);
+}
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-reader>h3 {
+  color: var(--atelier-ink); padding-inline-start: 10px; border-inline-start: 3px solid var(--folio-folder-2);
+}
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-markdown {
+  line-height: var(--atelier-line-height); color: var(--atelier-ink);
+}
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-markdown :is(pre,table) { max-width: 100%; overflow-x: auto; }
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-reading-block {
+  border-radius: 6px; border-bottom: 1px solid var(--atelier-border);
+}
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-reading-block:is(:hover,:focus-within) {
+  background: color-mix(in srgb,var(--atelier-sidebar) 60%,var(--atelier-paper));
+}
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-reading-block.is-selected {
+  background: var(--atelier-soft); border-inline-start-color: var(--atelier-accent);
+}
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-reading-block-tools button { color: var(--atelier-muted); }
+/* Selected source and imported state use separate visual cues. */
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-fragment {
+  margin-block: 5px; box-shadow: none; border-color: var(--atelier-border);
+}
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-fragment:is(:hover,:focus-within) { border-color: var(--atelier-accent); }
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-fragment.is-active {
+  background: var(--atelier-soft); box-shadow: inset 3px 0 var(--atelier-accent);
+}
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-fragment.is-imported .ts-materials-quick {
+  color: var(--folio-folder-1); background: color-mix(in srgb,var(--folio-folder-1) 10%,var(--atelier-paper));
+}
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) :is(.ts-materials-filters,.ts-materials-compose,.ts-materials-reflection) :is(input:not([type=checkbox]),select,textarea) {
+  background: var(--atelier-raised); border-color: var(--atelier-border); border-radius: 6px;
+}
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) :is(.ts-materials-preview-cap,.ts-materials-empty,.ts-materials-reflection,.ts-materials-commit small) {
+  color: var(--atelier-muted);
+}
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-preview-cap {
+  padding-bottom: 10px; border-bottom: 1px solid var(--atelier-border);
+}
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-commit {
+  font-variant-numeric: tabular-nums; border-color: var(--atelier-border);
+}
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) .ts-materials-commit .mod-cta {
+  background: var(--atelier-accent); color: var(--atelier-on-accent); border-radius: 7px;
+}
+body.atelier-plugin-polish :is(.ts-materials-modal,.ts-materials-panel) textarea:focus-visible {
+  outline: 2px solid var(--atelier-accent); outline-offset: 2px;
+}
+
+/* 14 · Folio 3.8 native discovery surfaces. Original, opt-in paint rules.
+   Preserve virtual-list dimensions and native search/collapse semantics. */
+body.atelier-chrome-sidebar .workspace-leaf-content:is([data-type=search],[data-type=backlink],[data-type=outgoing-link]) {
+  --search-result-background: var(--atelier-paper);
+  --search-result-background-hover: var(--atelier-soft);
+}
+body.atelier-chrome-sidebar .workspace-leaf-content[data-type=search] .search-input-container input {
+  background: var(--atelier-raised); border-color: var(--atelier-border); border-radius: 7px;
+}
+body.atelier-chrome-sidebar .workspace-leaf-content[data-type=search] .search-input-container:focus-within {
+  border-radius: 7px; box-shadow: 0 0 0 2px var(--atelier-accent);
+}
+body.atelier-chrome-sidebar .workspace-leaf-content[data-type=search] .search-results-info {
+  box-shadow: inset 0 -1px var(--atelier-border); color: var(--atelier-muted);
+}
+body.atelier-chrome-sidebar .workspace-leaf-content[data-type=search] .search-results-result-count {
+  color: var(--atelier-accent); font-variant-numeric: tabular-nums;
+}
+body.atelier-chrome-sidebar .workspace-leaf-content:is([data-type=search],[data-type=backlink],[data-type=outgoing-link]) .search-result-file-title {
+  background: var(--atelier-paper); color: var(--atelier-ink); border-radius: 6px;
+  box-shadow: inset 0 -1px var(--atelier-border);
+}
+body.atelier-chrome-sidebar .workspace-leaf-content:is([data-type=search],[data-type=backlink],[data-type=outgoing-link]) .search-result-file-title:is(:hover,:focus-within) {
+  background: var(--atelier-soft); box-shadow: inset 3px 0 var(--atelier-accent);
+}
+body.atelier-chrome-sidebar .workspace-leaf-content:is([data-type=search],[data-type=backlink],[data-type=outgoing-link]) .search-result-file-matches {
+  box-shadow: inset 1px 0 var(--atelier-border);
+}
+body.atelier-chrome-sidebar .workspace-leaf-content:is([data-type=search],[data-type=backlink],[data-type=outgoing-link]) .search-result-file-match {
+  color: var(--atelier-muted); border-radius: 4px;
+}
+body.atelier-chrome-sidebar .workspace-leaf-content:is([data-type=search],[data-type=backlink],[data-type=outgoing-link]) .search-result-file-match:is(:hover,:focus-within) {
+  background: var(--atelier-soft); color: var(--atelier-ink);
+}
+body.atelier-chrome-sidebar .workspace-leaf-content:is([data-type=search],[data-type=backlink],[data-type=outgoing-link]) .search-result-file-matched-text {
+  background: color-mix(in srgb,var(--folio-folder-4) 14%,var(--atelier-paper));
+  color: var(--atelier-ink); border-radius: 2px;
+  box-shadow: inset 0 -1px var(--folio-folder-4);
+}
+body.atelier-chrome-sidebar .workspace-leaf-content:is([data-type=search],[data-type=backlink],[data-type=outgoing-link],[data-type=tag]) .tree-item-flair {
+  background: var(--atelier-paper); color: var(--atelier-muted);
+  border-radius: 5px; font-variant-numeric: tabular-nums;
+  box-shadow: inset 0 0 0 1px var(--atelier-border);
+}
+body.atelier-chrome-sidebar .workspace-leaf-content[data-type=tag] .tree-item-self {
+  border-radius: 6px; color: var(--atelier-ink);
+}
+body.atelier-chrome-sidebar .workspace-leaf-content[data-type=tag] .tree-item-self:is(:hover,.is-active,:focus-within) {
+  background: var(--atelier-soft); box-shadow: inset 2px 0 var(--atelier-accent);
+}
+body.atelier-chrome-sidebar .workspace-leaf-content[data-type=tag] .tree-item-icon { color: var(--atelier-accent); }
+/* Native quick switcher keeps its input, result geometry and key bindings. */
+body.atelier-chrome-panels .prompt .prompt-input {
+  background: var(--atelier-paper); color: var(--atelier-ink); border-bottom-color: var(--atelier-border);
+}
+body.atelier-chrome-panels .prompt .suggestion-item { border-radius: 6px; }
+body.atelier-chrome-panels .prompt .suggestion-item .suggestion-title { color: var(--atelier-ink); }
+body.atelier-chrome-panels .prompt .suggestion-item .suggestion-note { color: var(--atelier-muted); }
+body.atelier-chrome-panels .prompt .suggestion-item.is-selected {
+  background: var(--atelier-soft); box-shadow: inset 3px 0 var(--atelier-accent);
+}
+body.atelier-chrome-panels .prompt .suggestion-highlight {
+  color: var(--atelier-accent); text-decoration: underline;
+  text-decoration-color: var(--atelier-accent); text-underline-offset: 3px;
+}
+body.atelier-chrome-panels .prompt .prompt-instructions {
+  background: var(--atelier-sidebar); border-color: var(--atelier-border); color: var(--atelier-muted);
+}
+body.atelier-chrome-panels .prompt .prompt-instruction-command {
+  background: var(--atelier-raised); color: var(--atelier-ink); border-radius: 4px;
+  box-shadow: inset 0 0 0 1px var(--atelier-border);
+}
+
+/* 15 · Folio 3.9 editorial components. Original implementation.
+   Explicit callout names opt in; captions remain real Markdown text. */
+body .callout:is([data-callout=folio-figure],[data-callout=folio-progress]) {
+  --callout-icon: lucide-image; border: 1px solid var(--atelier-border);
+  background: var(--atelier-paper); border-radius: var(--atelier-radius);
+  padding: 0; overflow: hidden;
+}
+body .callout:is([data-callout=folio-figure],[data-callout=folio-progress])>.callout-title {
+  padding: 12px 16px; background: var(--atelier-sidebar); color: var(--atelier-ink);
+  border-bottom: 1px solid var(--atelier-border); font-size: .9em;
+}
+body .callout:is([data-callout=folio-figure],[data-callout=folio-progress])>.callout-title .callout-icon { color: var(--atelier-accent); }
+body .callout[data-callout=folio-figure]>.callout-content { padding: 16px; }
+body .callout[data-callout=folio-figure]>.callout-content>p { margin-block: 0 12px; }
+body .callout[data-callout=folio-figure]>.callout-content>p:last-child { margin-bottom: 0; }
+body .callout[data-callout=folio-figure] .image-embed { display: block; max-width: 100%; text-align: center; }
+body .callout[data-callout=folio-figure] img {
+  max-width: 100%; height: auto; max-height: 360px; object-fit: contain;
+  display: block; margin-inline: auto; border-radius: 4px;
+}
+body .callout[data-callout=folio-figure]>.callout-content>p:last-child:not(:has(img,.image-embed)) {
+  border-top: 1px solid var(--atelier-border); padding-top: 10px;
+  color: var(--atelier-muted); font-size: .86em; line-height: 1.65;
+}
+body .callout[data-callout=folio-progress] { --callout-icon: lucide-chart-no-axes-column-increasing; }
+body .callout[data-callout=folio-progress]>.callout-content { padding: 14px 16px; }
+body .callout[data-callout=folio-progress]>.callout-content>p { margin-block: 0 10px; font-variant-numeric: tabular-nums; }
+body .callout[data-callout=folio-progress]>.callout-content>p:last-child { margin-bottom: 0; }
+body .callout[data-callout=folio-progress] progress {
+  appearance: none; display: block; width: 100%; height: 8px;
+  margin-block: 8px 14px; border: 0; border-radius: 4px;
+  accent-color: var(--atelier-accent); background: var(--atelier-sidebar);
+}
+body .callout[data-callout=folio-progress] progress::-webkit-progress-bar { background: var(--atelier-sidebar); border-radius: 4px; }
+body .callout[data-callout=folio-progress] progress::-webkit-progress-value { background: var(--atelier-accent); border-radius: 4px; }
+/* Refine existing switches; no extra setting or changed note semantics. */
+body.atelier-footnotes .markdown-preview-view .footnotes {
+  border-block-start-width: 1px; box-shadow: inset 3px 0 var(--atelier-accent);
+  border-radius: 6px; color: var(--atelier-muted);
+}
+body.atelier-footnotes .markdown-preview-view .footnotes li::marker { color: var(--atelier-accent); font-variant-numeric: tabular-nums; }
+body.atelier-footnotes .markdown-preview-view :is(.footnote-link,.footnote-backref) {
+  color: var(--atelier-accent); text-decoration: underline; text-underline-offset: 3px;
+}
+body.atelier-footnotes .markdown-preview-view .footnotes li:target {
+  background: var(--atelier-soft); color: var(--atelier-ink); border-radius: 4px;
+}
+body.atelier-table-focus .markdown-preview-view tbody tr:is(:hover,:focus-within)>td { background: var(--atelier-soft); }
+body.atelier-table-focus .markdown-preview-view tbody tr:is(:hover,:focus-within)>td:first-child { box-shadow: inset 2px 0 var(--atelier-accent); }
+@media print {
+  body .callout:is([data-callout=folio-figure],[data-callout=folio-progress]) { break-inside: avoid; box-shadow: none; }
+}
+/* The native footnote separator already sits inside the framed section. */
+body.atelier-footnotes .markdown-preview-view .footnotes>hr { margin: 0; border: 0; height: 0; }
+body.atelier-footnotes .markdown-preview-view .footnotes>ol { margin-block: 0; }
+
+/* 16 · Folio 3.10 native chrome. Independently designed; no remote assets. */
+body.atelier-chrome-panels .tooltip:not(:where(.mod-error,.mod-warning)) {
+  --background-modifier-message: var(--atelier-raised);
+  background: var(--atelier-raised); color: var(--atelier-ink);
+  border: 1px solid var(--atelier-border); border-radius: 7px;
+  box-shadow: 0 3px 12px #00000018; line-height: 1.6;
+}
+/* Native arrows read --background-modifier-message for their own direction. */
+body.atelier-chrome-sidebar .workspace-ribbon:is(.mod-left,.mod-primary) {
+  background: var(--atelier-sidebar); box-shadow: inset -1px 0 var(--atelier-border);
+}
+body.atelier-chrome-sidebar .workspace-ribbon .side-dock-ribbon-action { border-radius: 7px; }
+body.atelier-chrome-sidebar .workspace-ribbon .side-dock-ribbon-action:is(:hover,:focus-visible,.is-active) {
+  background: var(--atelier-soft); color: var(--atelier-accent);
+  box-shadow: inset 2px 0 var(--atelier-accent);
+}
+body.atelier-chrome-sidebar .status-bar {
+  --status-bar-background: var(--atelier-raised);
+  --status-bar-radius: 8px 0 0 0;
+  --status-bar-border-width: 1px 0 0 1px;
+  --status-bar-border-color: var(--atelier-border);
+  box-shadow: 0 -1px 5px #00000005;
+}
+body.atelier-chrome-sidebar .status-bar-item {
+  color: var(--atelier-muted); font-variant-numeric: tabular-nums; border-radius: 4px;
+}
+body.atelier-chrome-sidebar .status-bar-item.mod-clickable:is(:hover,:focus-visible) {
+  background: var(--atelier-soft); color: var(--atelier-accent);
+}
+body.atelier-chrome-sidebar .status-bar .plugin-word-count { color: var(--atelier-ink); }
+/* Existing actions retain their text, events and native focus behavior. */
+body.atelier-chrome-panels .workspace-leaf-content[data-type=empty] .empty-state-container {
+  box-sizing: border-box; width: min(420px,100%); max-width: 100%;
+  padding: clamp(16px,4vw,28px); border: 1px solid var(--atelier-border);
+  border-radius: 12px; background: var(--atelier-raised);
+  box-shadow: var(--atelier-shadow); opacity: 1;
+}
+body.atelier-chrome-panels .workspace-leaf-content[data-type=empty] .empty-state-container::before {
+  content: "Folio Atelier · 纸页工坊"; display: block; color: var(--atelier-accent);
+  font-size: 18px; font-weight: 600; line-height: 1.6;
+  padding-bottom: 18px; margin-bottom: 18px; border-bottom: 1px solid var(--atelier-border);
+}
+body.atelier-chrome-panels .workspace-leaf-content[data-type=empty] .empty-state-action-list { display: grid; gap: 8px; }
+body.atelier-chrome-panels .workspace-leaf-content[data-type=empty] .empty-state-action {
+  padding: 10px 12px; border: 1px solid var(--atelier-border); border-radius: 7px;
+  background: var(--atelier-paper); color: var(--atelier-ink); text-align: start;
+  line-height: 1.6; white-space: normal; overflow-wrap: anywhere;
+}
+body.atelier-chrome-panels .workspace-leaf-content[data-type=empty] .empty-state-action:is(:hover,:focus-visible) {
+  background: var(--atelier-soft); border-color: var(--atelier-accent);
+  color: var(--atelier-accent); box-shadow: inset 2px 0 var(--atelier-accent);
+}
+body.atelier-chrome-panels .workspace-leaf-content[data-type=empty] .empty-state-action.mod-close { color: var(--atelier-muted); }
+body.atelier-flat.atelier-chrome-panels :is(.tooltip,.workspace-leaf-content[data-type=empty] .empty-state-container),
+body.atelier-flat.atelier-chrome-sidebar .status-bar { box-shadow: none; }
+
+/* 17 · Folio 3.11 prose. One switch or a per-note class, reading view only.
+   Palette and layout are original; fenced code content remains untouched. */
+:is(body.atelier-prose .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-prose) mark {
+  color: var(--atelier-ink); background-color: transparent;
+  background-image: linear-gradient(transparent 34%,color-mix(in srgb,var(--folio-folder-4) 22%,transparent) 34%,color-mix(in srgb,var(--folio-folder-4) 22%,transparent) 92%,transparent 92%);
+  box-decoration-break: clone; -webkit-box-decoration-break: clone;
+}
+:is(body.atelier-prose .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-prose) blockquote:not(.callout) {
+  border-inline-start: 2px solid var(--atelier-accent); background: var(--atelier-sidebar);
+  border-radius: 0 6px 6px 0; color: var(--atelier-ink);
+}
+:is(body.atelier-prose .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-prose) blockquote:not(.callout)>:first-child { margin-block-start: 0; }
+:is(body.atelier-prose .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-prose) blockquote:not(.callout)>:last-child { margin-block-end: 0; }
+:is(body.atelier-prose .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-prose) {
+  --indentation-guide-color: color-mix(in srgb,var(--atelier-accent) 35%,var(--atelier-border));
+}
+:is(body.atelier-prose .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-prose) li::marker { color: var(--atelier-accent); font-variant-numeric: tabular-nums; }
+:is(body.atelier-prose .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-prose) .list-bullet::after { background-color: var(--atelier-accent); }
+:is(body.atelier-prose .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-prose) pre:not(.frontmatter):has(>code) {
+  --folio-code-label: "代码";
+  position: relative; padding-top: 3em; background: var(--atelier-sidebar);
+  border: 1px solid var(--atelier-border); border-radius: 8px;
+  box-shadow: inset 0 2px var(--atelier-accent);
+}
+:is(body.atelier-prose .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-prose) pre:not(.frontmatter):has(>code)::before {
+  content: var(--folio-code-label); position: absolute; inset-block-start: 10px; inset-inline-start: 16px;
+  font: 11px/1.5 var(--font-interface); color: var(--atelier-muted); pointer-events: none;
+}
+:is(body.atelier-prose .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-prose) pre:not(.frontmatter):has(>code.language-python) { --folio-code-label: "Python"; }
+:is(body.atelier-prose .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-prose) pre:not(.frontmatter):has(>code.language-r) { --folio-code-label: "R"; }
+:is(body.atelier-prose .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-prose) pre:not(.frontmatter):has(>code.language-css) { --folio-code-label: "CSS"; }
+:is(body.atelier-prose .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-prose) pre:not(.frontmatter):has(>code.language-json) { --folio-code-label: "JSON"; }
+:is(body.atelier-prose .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-prose) pre:not(.frontmatter):has(>code.language-javascript) { --folio-code-label: "JavaScript"; }
+:is(body.atelier-prose .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-prose) pre:not(.frontmatter):has(>code) .copy-code-button {
+  display: inline-flex; top: 6px; right: 8px; opacity: 1; background: var(--atelier-raised);
+  border: 1px solid var(--atelier-border); border-radius: 5px; color: var(--atelier-muted);
+}
+:is(body.atelier-prose .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-prose) pre:not(.frontmatter):focus-within { outline: 2px solid var(--atelier-accent); outline-offset: 2px; }
+:is(body.atelier-prose .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-prose) pre:not(.frontmatter) .copy-code-button:is(:hover,:focus-visible) { color: var(--atelier-accent); background: var(--atelier-soft); }
+
+/* 18 · Folio 3.12 property cards. Native controls, original visual treatment. */
+:is(body.atelier-property-cards .workspace-leaf-content[data-type="markdown"] .view-content, .workspace-leaf-content[data-type="markdown"] .view-content .atelier-property-cards) .metadata-container { --metadata-label-text-color: var(--atelier-muted);
+  --metadata-input-text-color: var(--atelier-ink);
+  background: color-mix(in srgb,var(--atelier-sidebar) 65%,var(--atelier-paper));
+  border: 1px solid var(--atelier-border); border-radius: 10px;
+  padding: 12px 14px; }
+:is(body.atelier-property-cards .workspace-leaf-content[data-type="markdown"] .view-content, .workspace-leaf-content[data-type="markdown"] .view-content .atelier-property-cards) .metadata-container .metadata-properties-heading { border-bottom: 1px solid var(--atelier-border); padding-block-end: 8px; margin-block-end: 8px; }
+:is(body.atelier-property-cards .workspace-leaf-content[data-type="markdown"] .view-content, .workspace-leaf-content[data-type="markdown"] .view-content .atelier-property-cards) .metadata-container .metadata-properties-title { color: var(--atelier-ink); font-weight: 600; margin: 0; }
+:is(body.atelier-property-cards .workspace-leaf-content[data-type="markdown"] .view-content, .workspace-leaf-content[data-type="markdown"] .view-content .atelier-property-cards) .metadata-container .metadata-property { --folio-property-color: var(--atelier-muted); border-radius: 6px; }
+:is(body.atelier-property-cards .workspace-leaf-content[data-type="markdown"] .view-content, .workspace-leaf-content[data-type="markdown"] .view-content .atelier-property-cards) .metadata-container .metadata-property:has([data-property-type="tags"]) { --folio-property-color: var(--folio-folder-2); }
+:is(body.atelier-property-cards .workspace-leaf-content[data-type="markdown"] .view-content, .workspace-leaf-content[data-type="markdown"] .view-content .atelier-property-cards) .metadata-container .metadata-property:has([data-property-type="date"], [data-property-type="datetime"]) { --folio-property-color: var(--folio-folder-4); }
+:is(body.atelier-property-cards .workspace-leaf-content[data-type="markdown"] .view-content, .workspace-leaf-content[data-type="markdown"] .view-content .atelier-property-cards) .metadata-container .metadata-property:has([data-property-type="number"]) { --folio-property-color: var(--folio-folder-3); }
+:is(body.atelier-property-cards .workspace-leaf-content[data-type="markdown"] .view-content, .workspace-leaf-content[data-type="markdown"] .view-content .atelier-property-cards) .metadata-container .metadata-property-icon { color: var(--folio-property-color); }
+:is(body.atelier-property-cards .workspace-leaf-content[data-type="markdown"] .view-content, .workspace-leaf-content[data-type="markdown"] .view-content .atelier-property-cards) .metadata-container .metadata-property:is(:hover,:focus-within) { background: var(--atelier-soft); }
+:is(body.atelier-property-cards .workspace-leaf-content[data-type="markdown"] .view-content, .workspace-leaf-content[data-type="markdown"] .view-content .atelier-property-cards) .metadata-container .metadata-property:focus-within { box-shadow: inset 2px 0 var(--atelier-accent); }
+:is(body.atelier-property-cards .workspace-leaf-content[data-type="markdown"] .view-content, .workspace-leaf-content[data-type="markdown"] .view-content .atelier-property-cards) .metadata-container .metadata-property:focus-visible { outline: 2px solid var(--atelier-accent); outline-offset: 1px; }
+:is(body.atelier-property-cards .workspace-leaf-content[data-type="markdown"] .view-content, .workspace-leaf-content[data-type="markdown"] .view-content .atelier-property-cards) .metadata-container .multi-select-pill { background: var(--atelier-raised); border: 1px solid var(--atelier-border); border-radius: 6px; color: var(--atelier-ink); }
+:is(body.atelier-property-cards .workspace-leaf-content[data-type="markdown"] .view-content, .workspace-leaf-content[data-type="markdown"] .view-content .atelier-property-cards) .metadata-container [data-property-type="tags"] .multi-select-pill { background: var(--atelier-soft); border-color: color-mix(in srgb,var(--atelier-accent) 30%,var(--atelier-border)); color: var(--atelier-accent); border-radius: 12px; }
+:is(body.atelier-property-cards .workspace-leaf-content[data-type="markdown"] .view-content, .workspace-leaf-content[data-type="markdown"] .view-content .atelier-property-cards) .metadata-container .multi-select-pill-remove-button:is(:hover,:focus-visible) { color: var(--atelier-ink); background: var(--atelier-sidebar); border-radius: 3px; }
+:is(body.atelier-property-cards .workspace-leaf-content[data-type="markdown"] .view-content, .workspace-leaf-content[data-type="markdown"] .view-content .atelier-property-cards) .metadata-container .metadata-add-button { color: var(--atelier-muted); border: 1px dashed var(--atelier-border); border-radius: 6px; padding: 5px 8px; margin-top: 8px; }
+:is(body.atelier-property-cards .workspace-leaf-content[data-type="markdown"] .view-content, .workspace-leaf-content[data-type="markdown"] .view-content .atelier-property-cards) .metadata-container .metadata-add-button:is(:hover,:focus-visible) { color: var(--atelier-accent); background: var(--atelier-soft); border-color: var(--atelier-accent); }
+:is(body.atelier-property-cards .workspace-leaf-content[data-type="markdown"] .view-content, .workspace-leaf-content[data-type="markdown"] .view-content .atelier-property-cards) .metadata-container .metadata-properties-heading:focus-visible { outline: 2px solid var(--atelier-accent); outline-offset: 2px; }
+
+/* 19 · Accent values live in src/palette.css; native mode bindings stay here. */
+/* Match native mode selector specificity so dark-mode controls use the chosen palette. */
+body:is(.theme-light,.theme-dark) {
+  --interactive-accent: var(--atelier-accent);
+  --interactive-accent-hover: var(--atelier-accent-hover);
+  --text-accent: var(--atelier-accent);
+  --text-accent-hover: var(--atelier-accent-hover);
+  --text-on-accent: var(--atelier-on-accent);
+  --color-accent: var(--atelier-accent);
+  --color-accent-1: var(--atelier-accent-hover);
+  --color-accent-2: var(--atelier-accent-hover);
+}
+
+/* 20 · Folio 3.14 linked material. Native embeds keep source text and actions. */
+:is(body.atelier-soft-embeds .workspace-leaf-content[data-type="markdown"], .workspace-leaf-content[data-type="markdown"] .atelier-soft-embeds) :is(.markdown-embed,.file-embed.mod-generic) { box-sizing: border-box; min-width: 0; max-width: 100%; border: 1px solid var(--atelier-border); border-radius: 8px; background: var(--atelier-paper); padding: 14px 16px; box-shadow: inset 3px 0 var(--atelier-soft); }
+:is(body.atelier-soft-embeds .workspace-leaf-content[data-type="markdown"], .workspace-leaf-content[data-type="markdown"] .atelier-soft-embeds) .markdown-embed>.markdown-embed-title:not(:empty) { color: var(--atelier-accent); font-size: .9em; font-weight: 600; line-height: 1.6; padding: 0 34px 10px 0; margin-bottom: 10px; border-bottom: 1px solid var(--atelier-border); white-space: normal; overflow-wrap: anywhere; }
+:is(body.atelier-soft-embeds .workspace-leaf-content[data-type="markdown"], .workspace-leaf-content[data-type="markdown"] .atelier-soft-embeds) .markdown-embed:has(>.markdown-embed-title:empty) { padding-top: 30px; }
+:is(body.atelier-soft-embeds .workspace-leaf-content[data-type="markdown"], .workspace-leaf-content[data-type="markdown"] .atelier-soft-embeds) .markdown-embed>.markdown-embed-link { top: 8px; right: 8px; width: 26px; height: 26px; padding: 4px; border: 1px solid var(--atelier-border); border-radius: 6px; background: var(--atelier-sidebar); color: var(--atelier-muted); opacity: 1; }
+:is(body.atelier-soft-embeds .workspace-leaf-content[data-type="markdown"], .workspace-leaf-content[data-type="markdown"] .atelier-soft-embeds) .markdown-embed>.markdown-embed-link:is(:hover,:focus-visible) { color: var(--atelier-accent); background: var(--atelier-soft); border-color: var(--atelier-accent); }
+:is(body.atelier-soft-embeds .workspace-leaf-content[data-type="markdown"], .workspace-leaf-content[data-type="markdown"] .atelier-soft-embeds) :is(.markdown-embed,.file-embed.mod-generic):focus-within { border-color: var(--atelier-accent); box-shadow: inset 3px 0 var(--atelier-accent); }
+:is(body.atelier-soft-embeds .workspace-leaf-content[data-type="markdown"], .workspace-leaf-content[data-type="markdown"] .atelier-soft-embeds) .file-embed.mod-generic { background: var(--atelier-sidebar); }
+:is(body.atelier-soft-embeds .workspace-leaf-content[data-type="markdown"], .workspace-leaf-content[data-type="markdown"] .atelier-soft-embeds) .file-embed.mod-generic .file-embed-title { color: var(--atelier-ink); font-size: .9em; line-height: 1.65; white-space: normal; overflow-wrap: anywhere; }
+:is(body.atelier-soft-embeds .workspace-leaf-content[data-type="markdown"], .workspace-leaf-content[data-type="markdown"] .atelier-soft-embeds) .file-embed.mod-generic .file-embed-icon { color: var(--atelier-accent); }
+:is(body.atelier-soft-embeds .workspace-leaf-content[data-type="markdown"], .workspace-leaf-content[data-type="markdown"] .atelier-soft-embeds) .file-embed.mod-generic:hover { background: var(--atelier-soft); border-color: var(--atelier-accent); }
+
+/* 21 · Folio 3.16 tables. Explicit classes, no descendant scans or motion. */
+:is(:is(body.atelier-table-report .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-table-report),:is(body.atelier-table-grid .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-table-grid)) table { border-collapse: separate; border-spacing: 0; border: 0; font-size: .94em; line-height: 1.65; }
+:is(:is(body.atelier-table-report .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-table-report),:is(body.atelier-table-grid .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-table-grid)) :is(th,td) { border: 0; border-bottom: 1px solid var(--atelier-border); padding: 9px 12px; }
+:is(:is(body.atelier-table-report .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-table-report),:is(body.atelier-table-grid .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-table-grid)) th { background: var(--atelier-sidebar); color: var(--atelier-ink); font-weight: 600; border-bottom: 2px solid var(--atelier-accent); }
+:is(body.atelier-table-report .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-table-report) tbody tr:last-child>td { border-bottom: 2px solid var(--atelier-border); }
+:is(body.atelier-table-grid .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-table-grid) table { border-top: 1px solid var(--atelier-border); border-left: 1px solid var(--atelier-border); }
+:is(body.atelier-table-grid .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-table-grid) :is(th,td) { border-right: 1px solid var(--atelier-border); }
+:is(body.atelier-table-key .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-table-key) .el-table { overflow-x: auto; max-width: 100%; }
+:is(body.atelier-table-key .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-table-key) table { border-collapse: separate; border-spacing: 0; }
+:is(body.atelier-table-key .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-table-key) :is(th,td) { min-width: 6em; }
+:is(body.atelier-table-key .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-table-key) :is(th,td):first-child { position: sticky; left: 0; z-index: 1; min-width: 7em; background: var(--atelier-paper); font-weight: 600; box-shadow: inset -1px 0 var(--atelier-border); }
+:is(body.atelier-table-key .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-table-key) th:first-child { background: var(--atelier-sidebar); z-index: 2; }
+body.atelier-striped-tables :is(body.atelier-table-key .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-table-key) tbody tr:nth-child(even)>td:first-child { background: var(--atelier-sidebar); }
+body.atelier-table-focus :is(body.atelier-table-key .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-table-key) tbody tr:is(:hover,:focus-within)>td:first-child { background: var(--atelier-soft); }
+@media print {
+:is(body.atelier-table-key .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-table-key) .el-table { overflow: visible; }
+:is(body.atelier-table-key .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-table-key) :is(th,td):first-child { position: static; box-shadow: none; }
+}
+
+/* 22 · Folio 3.17 reading details. Native popover geometry and link actions are retained. */
+body.atelier-chrome-panels .popover.hover-popover {
+  --file-margins: 20px;
+  background: var(--atelier-paper);
+  border: 1px solid var(--atelier-border);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px color-mix(in srgb,var(--atelier-ink) 12%,transparent);
+}
+body.atelier-chrome-panels .popover.hover-popover .markdown-embed {
+  border: 0; border-radius: 11px; background: var(--atelier-paper);
+}
+body.atelier-chrome-panels .popover.hover-popover .markdown-preview-view {
+  background: var(--atelier-paper);
+}
+body.atelier-chrome-panels .popover.hover-popover .markdown-embed-title {
+  color: var(--atelier-accent);
+}
+body.atelier-flat.atelier-chrome-panels .popover.hover-popover { box-shadow: none; }
+
+/* Real text remains selectable; no capitalization, movement, or simulated button action. */
+:is(body.atelier-prose .workspace-leaf-content[data-type="markdown"] .markdown-preview-view,
+    .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-prose) kbd,
+body.atelier-chrome-panels .prompt .prompt-instruction-command {
+  display: inline-block;
+  padding: 1px 6px;
+  border: 1px solid var(--atelier-border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--atelier-raised);
+  color: var(--atelier-ink);
+  box-shadow: 0 1px 0 var(--atelier-sidebar);
+  font-family: var(--font-monospace);
+  font-size: 0.82em;
+  line-height: 1.5;
+  text-align: center;
+  text-transform: none;
+  user-select: text;
+}
+body.atelier-chrome-panels .modal.mod-settings .setting-hotkey:not(.has-conflict):not(.mod-active) {
+  border: 1px solid var(--atelier-border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--atelier-raised);
+  color: var(--atelier-ink);
+  box-shadow: 0 1px 0 var(--atelier-sidebar);
+}
+body.atelier-chrome-panels .modal.mod-settings .setting-hotkey:not(.has-conflict):not(.mod-active):hover {
+  border-color: var(--atelier-accent);
+}
+body.atelier-flat :is(.workspace-leaf-content[data-type="markdown"] .markdown-preview-view kbd,
+    .prompt .prompt-instruction-command),
+body.atelier-flat.atelier-chrome-panels .modal.mod-settings .setting-hotkey:not(.has-conflict):not(.mod-active) { box-shadow: none; }
+
+/* 23 · Folio 3.18 status markers. Opt-in reading styles; native task state is unchanged. */
+:is(body.atelier-task-labels .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-task-labels, body.atelier-task-labels :is(.ts-root .ts-card-preview, .ts-preview-modal .ts-preview-document, .ts-writing .ts-writing-paper, .ts-brain-preview, .ts-mindmap-preview, .ts-reading-desk .ts-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)), .ts-reference-reading .ts-reference-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)))) li.task-list-item:is([data-task="/"],[data-task="!"],[data-task="?"],[data-task="-"],[data-task=">"] ,[data-task="*"]) { position: relative; padding-inline-end: var(--folio-task-gutter,64px); text-decoration: none; color: var(--atelier-ink); }
+:is(body.atelier-task-labels .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-task-labels, body.atelier-task-labels :is(.ts-root .ts-card-preview, .ts-preview-modal .ts-preview-document, .ts-writing .ts-writing-paper, .ts-brain-preview, .ts-mindmap-preview, .ts-reading-desk .ts-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)), .ts-reference-reading .ts-reference-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)))) li.task-list-item:is([data-task="/"],[data-task="!"],[data-task="?"],[data-task="-"],[data-task=">"] ,[data-task="*"])::after { content: var(--atelier-task-label); position: absolute; inset-inline-end: 0; inset-block-start: .2em; padding: 1px 6px; border: 1px solid color-mix(in srgb,var(--atelier-task-color) 28%,var(--atelier-border)); border-radius: 5px; font: 11px/1.6 var(--font-interface); color: var(--atelier-task-color); background: color-mix(in srgb,var(--atelier-task-color) 8%,var(--atelier-paper)); pointer-events: none; }
+body.atelier-task-rows :is(body.atelier-task-labels .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-task-labels, body.atelier-task-labels :is(.ts-root .ts-card-preview, .ts-preview-modal .ts-preview-document, .ts-writing .ts-writing-paper, .ts-brain-preview, .ts-mindmap-preview, .ts-reading-desk .ts-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)), .ts-reference-reading .ts-reference-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)))) li.task-list-item:is([data-task="/"],[data-task="!"],[data-task="?"],[data-task="-"],[data-task=">"] ,[data-task="*"])::after { inset-block-start: .85em; }
+:is(body.atelier-task-labels .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-task-labels, body.atelier-task-labels :is(.ts-root .ts-card-preview, .ts-preview-modal .ts-preview-document, .ts-writing .ts-writing-paper, .ts-brain-preview, .ts-mindmap-preview, .ts-reading-desk .ts-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)), .ts-reference-reading .ts-reference-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)))) li.task-list-item[data-task="/"] { --atelier-task-label: "进行中"; --atelier-task-symbol: "◐"; --atelier-task-color: var(--atelier-accent); }
+:is(body.atelier-task-labels .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-task-labels, body.atelier-task-labels :is(.ts-root .ts-card-preview, .ts-preview-modal .ts-preview-document, .ts-writing .ts-writing-paper, .ts-brain-preview, .ts-mindmap-preview, .ts-reading-desk .ts-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)), .ts-reference-reading .ts-reference-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)))) li.task-list-item[data-task="!"] { --atelier-task-label: "重要"; --atelier-task-symbol: "!"; --atelier-task-color: var(--atelier-red); }
+:is(body.atelier-task-labels .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-task-labels, body.atelier-task-labels :is(.ts-root .ts-card-preview, .ts-preview-modal .ts-preview-document, .ts-writing .ts-writing-paper, .ts-brain-preview, .ts-mindmap-preview, .ts-reading-desk .ts-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)), .ts-reference-reading .ts-reference-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)))) li.task-list-item[data-task="?"] { --atelier-task-label: "待确认"; --atelier-task-symbol: "?"; --atelier-task-color: var(--atelier-orange); }
+:is(body.atelier-task-labels .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-task-labels, body.atelier-task-labels :is(.ts-root .ts-card-preview, .ts-preview-modal .ts-preview-document, .ts-writing .ts-writing-paper, .ts-brain-preview, .ts-mindmap-preview, .ts-reading-desk .ts-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)), .ts-reference-reading .ts-reference-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)))) li.task-list-item[data-task="-"] { --atelier-task-label: "取消"; --atelier-task-symbol: "−"; --atelier-task-color: var(--atelier-muted); }
+:is(body.atelier-task-labels .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-task-labels, body.atelier-task-labels :is(.ts-root .ts-card-preview, .ts-preview-modal .ts-preview-document, .ts-writing .ts-writing-paper, .ts-brain-preview, .ts-mindmap-preview, .ts-reading-desk .ts-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)), .ts-reference-reading .ts-reference-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)))) li.task-list-item[data-task=">"] { --atelier-task-label: "改期"; --atelier-task-symbol: "→"; --atelier-task-color: rgb(var(--callout-info)); }
+:is(body.atelier-task-labels .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-task-labels, body.atelier-task-labels :is(.ts-root .ts-card-preview, .ts-preview-modal .ts-preview-document, .ts-writing .ts-writing-paper, .ts-brain-preview, .ts-mindmap-preview, .ts-reading-desk .ts-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)), .ts-reference-reading .ts-reference-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)))) li.task-list-item[data-task="*"] { --atelier-task-label: "星标"; --atelier-task-symbol: "★"; --atelier-task-color: rgb(var(--callout-question)); }
+:is(:is(body.atelier-task-labels .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-task-labels, body.atelier-task-labels :is(.ts-root .ts-card-preview, .ts-preview-modal .ts-preview-document, .ts-writing .ts-writing-paper, .ts-brain-preview, .ts-mindmap-preview, .ts-reading-desk .ts-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)), .ts-reference-reading .ts-reference-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)))) li.task-list-item:is([data-task="/"],[data-task="!"],[data-task="?"],[data-task="-"],[data-task=">"] ,[data-task="*"]) > input.task-list-item-checkbox, :is(body.atelier-task-labels .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-task-labels, body.atelier-task-labels :is(.ts-root .ts-card-preview, .ts-preview-modal .ts-preview-document, .ts-writing .ts-writing-paper, .ts-brain-preview, .ts-mindmap-preview, .ts-reading-desk .ts-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)), .ts-reference-reading .ts-reference-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)))) li.task-list-item:is([data-task="/"],[data-task="!"],[data-task="?"],[data-task="-"],[data-task=">"] ,[data-task="*"]) > p > input.task-list-item-checkbox) { position: relative; border: 1px solid var(--atelier-task-color); border-radius: 4px; background: color-mix(in srgb,var(--atelier-task-color) 10%,var(--atelier-paper)); box-shadow: none; }
+:is(:is(body.atelier-task-labels .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-task-labels, body.atelier-task-labels :is(.ts-root .ts-card-preview, .ts-preview-modal .ts-preview-document, .ts-writing .ts-writing-paper, .ts-brain-preview, .ts-mindmap-preview, .ts-reading-desk .ts-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)), .ts-reference-reading .ts-reference-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)))) li.task-list-item:is([data-task="/"],[data-task="!"],[data-task="?"],[data-task="-"],[data-task=">"] ,[data-task="*"]) > input.task-list-item-checkbox, :is(body.atelier-task-labels .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-task-labels, body.atelier-task-labels :is(.ts-root .ts-card-preview, .ts-preview-modal .ts-preview-document, .ts-writing .ts-writing-paper, .ts-brain-preview, .ts-mindmap-preview, .ts-reading-desk .ts-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)), .ts-reference-reading .ts-reference-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)))) li.task-list-item:is([data-task="/"],[data-task="!"],[data-task="?"],[data-task="-"],[data-task=">"] ,[data-task="*"]) > p > input.task-list-item-checkbox)::after { content: var(--atelier-task-symbol); position: absolute; inset: 0; width: auto; height: auto; display: grid; place-items: center; mask: none; -webkit-mask: none; background: none; transform: none; color: var(--atelier-task-color); font: 600 12px/1 var(--font-interface); pointer-events: none; }
+:is(:is(body.atelier-task-labels .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-task-labels, body.atelier-task-labels :is(.ts-root .ts-card-preview, .ts-preview-modal .ts-preview-document, .ts-writing .ts-writing-paper, .ts-brain-preview, .ts-mindmap-preview, .ts-reading-desk .ts-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)), .ts-reference-reading .ts-reference-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)))) li.task-list-item:is([data-task="/"],[data-task="!"],[data-task="?"],[data-task="-"],[data-task=">"] ,[data-task="*"]) > input.task-list-item-checkbox, :is(body.atelier-task-labels .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-task-labels, body.atelier-task-labels :is(.ts-root .ts-card-preview, .ts-preview-modal .ts-preview-document, .ts-writing .ts-writing-paper, .ts-brain-preview, .ts-mindmap-preview, .ts-reading-desk .ts-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)), .ts-reference-reading .ts-reference-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)))) li.task-list-item:is([data-task="/"],[data-task="!"],[data-task="?"],[data-task="-"],[data-task=">"] ,[data-task="*"]) > p > input.task-list-item-checkbox):focus-visible { outline: 2px solid var(--atelier-accent); outline-offset: 3px; }
+
+:is(body.atelier-task-labels .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-task-labels, body.atelier-task-labels :is(.ts-root .ts-card-preview, .ts-preview-modal .ts-preview-document, .ts-writing .ts-writing-paper, .ts-brain-preview, .ts-mindmap-preview, .ts-reading-desk .ts-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)), .ts-reference-reading .ts-reference-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)))) li.task-list-item:is([data-task="/"],[data-task="!"],[data-task="?"],[data-task="-"],[data-task=">"] ,[data-task="*"]) > :is(ul,ol) { margin-inline-end: calc(-1 * var(--folio-task-gutter,64px)); }
+
+/* 24 · Flat mode must also override plugin-owned elevation. Keep the selection border. */
+body.atelier-flat .ts-root.ts-dock .ts-sidebar > .ts-tabs > .ts-button.is-active {
+  box-shadow: inset 0 0 0 1px var(--atelier-border) !important;
+}
+body.atelier-flat .ts-journal .ts-calendar-grid .ts-calendar-day.is-selected {
+  box-shadow: none !important;
+}
+
+/* 25 · Print uses its own ink and paper even when the screen palette is dark.
+   Important overrides are print-only: user screen colors remain unchanged. */
+@media print {
+  body {
+    --atelier-paper: #fff !important;
+    --atelier-sidebar: #fff !important;
+    --atelier-raised: #fff !important;
+    --atelier-ink: #111 !important;
+    --atelier-muted: #444 !important;
+    --atelier-border: #bbb !important;
+    --atelier-accent: #254f3d !important;
+    --atelier-accent-hover: #254f3d !important;
+    --atelier-on-accent: #fff !important;
+  }
+  body .markdown-rendered :is(pre,blockquote) {
+    color: #111 !important;
+    background: #fff !important;
+    box-shadow: none !important;
+  }
+  body .markdown-rendered pre :is(code,.token) {
+    color: inherit !important;
+    text-shadow: none !important;
+  }
+}
+
+/* 26. Individual callout treatments. Original implementation inspired by
+   Border's optional treatments and Chime's title/body hierarchy.
+   Explicit metadata preserves the native semantic type and fold behavior.
+   Scoped to native notes; no animations, shadows, or layout containers. */
+@media screen {
+  body .workspace-leaf-content[data-type="markdown"] .callout:is([data-callout-metadata~="folio-card"],[data-callout-metadata~="folio-outline"]) {
+    background: var(--atelier-paper);
+    border: 1px solid color-mix(in srgb, rgb(var(--callout-color)) 38%, var(--atelier-border));
+    border-radius: var(--atelier-radius);
+    padding: 0;
+    box-shadow: none;
+  }
+  body .workspace-leaf-content[data-type="markdown"] .callout:is([data-callout-metadata~="folio-card"],[data-callout-metadata~="folio-outline"]) > .callout-title {
+    padding: 10px 14px;
+    margin: 0;
+    gap: 9px;
+    border-radius: calc(var(--atelier-radius) - 1px) calc(var(--atelier-radius) - 1px) 0 0;
+    color: var(--atelier-ink);
+    align-items: flex-start;
+  }
+  body .workspace-leaf-content[data-type="markdown"] .callout[data-callout-metadata~="folio-card"] > .callout-title {
+    background: color-mix(in srgb, rgb(var(--callout-color)) 12%, var(--atelier-paper));
+  }
+  body .workspace-leaf-content[data-type="markdown"] .callout[data-callout-metadata~="folio-outline"] > .callout-title {
+    background: transparent;
+    color: rgb(var(--callout-color));
+  }
+  body .workspace-leaf-content[data-type="markdown"] .callout:is([data-callout-metadata~="folio-card"],[data-callout-metadata~="folio-outline"]) > .callout-title > .callout-title-inner {
+    min-width: 0;
+    color: inherit;
+    overflow-wrap: anywhere;
+  }
+  body .workspace-leaf-content[data-type="markdown"] .callout:is([data-callout-metadata~="folio-card"],[data-callout-metadata~="folio-outline"]) > .callout-title > :is(.callout-icon,.callout-fold) {
+    color: rgb(var(--callout-color));
+    flex-shrink: 0;
+  }
+  body .workspace-leaf-content[data-type="markdown"] .callout:is([data-callout-metadata~="folio-card"],[data-callout-metadata~="folio-outline"]) > .callout-content {
+    padding: 0 14px;
+  }
+  body .workspace-leaf-content[data-type="markdown"] .callout[data-callout-metadata~="folio-card"].is-collapsed > .callout-title {
+    border-radius: calc(var(--atelier-radius) - 1px);
+  }
+}
+
+/* 27. Keep inline-code padding inside long callout titles.
+   A bounded inline box includes padding when wrapping in narrow columns. */
+@media screen {
+  body .workspace-leaf-content[data-type="markdown"] .callout:is([data-callout-metadata~="folio-card"],[data-callout-metadata~="folio-outline"]) > .callout-title > .callout-title-inner code {
+    display: inline-block;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+/* 28. Reading links: explicit destinations, quiet hover and keyboard focus.
+   Original Folio rules; Minimal's unresolved-link distinction informed design.
+   Opt-in globally or per note. Native links and navigation stay intact. */
+:is(body.atelier-clear-links .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-clear-links) a:is(.internal-link,.external-link) {
+  color: var(--atelier-accent);
+  text-decoration-line: underline;
+  text-decoration-style: solid;
+  text-decoration-thickness: 1px;
+  text-underline-offset: .2em;
+  text-decoration-skip-ink: auto;
+  overflow-wrap: anywhere;
+}
+:is(body.atelier-clear-links .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-clear-links) a.internal-link.is-unresolved {
+  opacity: 1;
+  text-decoration-style: dashed;
+  text-decoration-color: currentColor;
+}
+@media screen {
+  :is(body.atelier-clear-links .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-clear-links) a:is(.internal-link,.external-link):is(:hover,:focus-visible) {
+    color: var(--atelier-accent-hover);
+    background-color: var(--atelier-soft);
+    border-radius: 3px;
+  }
+  :is(body.atelier-clear-links .workspace-leaf-content[data-type="markdown"] .markdown-preview-view, .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-clear-links) a:is(.internal-link,.external-link):focus-visible {
+    outline: 2px solid var(--atelier-accent);
+    outline-offset: 2px;
+  }
+}
+
+/* 29. Settings hierarchy, including native detached settings windows.
+   Folio's own surfaces and focus treatment, inspired by accented category
+   headings. No control geometry, hiding, animations or content changes. */
+body.atelier-chrome-panels .modal.mod-settings .vertical-tab-header-group-title {
+  color: var(--atelier-accent);
+}
+body.atelier-chrome-panels .modal.mod-settings .vertical-tab-content .setting-item.setting-item-heading {
+  background-color: var(--atelier-soft);
+  border-radius: 6px;
+  box-shadow: inset 0 -1px var(--atelier-border);
+}
+body.atelier-chrome-panels .modal.mod-settings .vertical-tab-content .setting-item.setting-item-heading > .setting-item-name {
+  color: var(--atelier-accent);
+}
+body.atelier-chrome-panels .modal.mod-settings .setting-item:not(.setting-item-heading):focus-within {
+  background-color: var(--atelier-soft);
+  border-radius: 6px;
+}
+body.atelier-chrome-panels .modal.mod-settings .setting-item:not(.setting-item-heading):focus-within > .setting-item-info > .setting-item-name {
+  color: var(--atelier-accent);
+}
+
+/* 30. Pinned-tab identity. Native title, width, icon and unpin action stay intact.
+   Only inspect the pin's immediate status container inside an individual tab. */
+body.atelier-chrome-tabs .workspace .mod-root .workspace-tab-header > .workspace-tab-header-inner:has(> .workspace-tab-header-status-container > .mod-pinned) {
+  background-image: linear-gradient(var(--atelier-accent), var(--atelier-accent));
+  background-repeat: no-repeat;
+  background-size: 24px 2px;
+  background-position: center top;
+}
+body.atelier-chrome-tabs .workspace .mod-root .workspace-tab-header .workspace-tab-header-status-icon.mod-pinned {
+  --icon-color: var(--atelier-accent);
+  color: var(--atelier-accent);
+  background-color: var(--atelier-soft);
+  border-radius: 4px;
+  opacity: 1;
+}
+body.atelier-chrome-tabs .workspace .mod-root .workspace-tab-header.is-active .workspace-tab-header-status-icon.mod-pinned,
+body.atelier-chrome-tabs .workspace .mod-root .workspace-tab-header .workspace-tab-header-status-icon.mod-pinned:is(:hover,:focus-visible) {
+  --icon-color: var(--atelier-on-accent);
+  color: var(--atelier-on-accent);
+  background-color: var(--atelier-accent);
+}
+
+/* 31. Per-note directory cards, independently designed for Folio.
+   Only the note's own top-level reading lists; tasks, embeds and callouts
+   retain native lists. Screen-only layout, without motion or fake links. */
+@media screen {
+  .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-link-cards > .markdown-preview-sizer > .el-ul > ul:not(.contains-task-list) {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+    gap: 12px;
+    padding-inline-start: 0;
+    list-style: none;
+  }
+  .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-link-cards > .markdown-preview-sizer > .el-ul > ul:not(.contains-task-list) > li {
+    min-width: 0;
+    margin: 0;
+    padding: 14px 18px;
+    border: 1px solid var(--atelier-border);
+    border-radius: var(--atelier-radius);
+    background-color: var(--atelier-raised);
+    overflow-wrap: anywhere;
+  }
+  .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-link-cards > .markdown-preview-sizer > .el-ul > ul:not(.contains-task-list) > li > .list-bullet {
+    display: none;
+  }
+  .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-link-cards > .markdown-preview-sizer > .el-ul > ul:not(.contains-task-list) > li > :is(a, p > a) {
+    font-weight: 600;
+    color: var(--atelier-accent);
+  }
+  .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-link-cards > .markdown-preview-sizer > .el-ul > ul:not(.contains-task-list) > li > ul {
+    margin-block: 8px 0;
+    color: var(--atelier-muted);
+  }
+  .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-link-cards > .markdown-preview-sizer > .el-ul > ul:not(.contains-task-list) > li:is(:hover, :focus-within) {
+    border-color: var(--atelier-accent);
+    background-color: var(--atelier-soft);
+  }
+
+  .workspace-leaf-content[data-type="markdown"] .markdown-preview-view.atelier-link-cards > .markdown-preview-sizer > .el-ul > ul:not(.contains-task-list) > li > .list-collapse-indicator {
+    margin-inline-start: -17px;
+  }
+}
+
+/* 32. ThoughtSpace native token bridge: follow the plugin's own surface API.
+   Radix neutral steps and legacy pearl/graphite aliases previously bypassed
+   Folio. Keep semantic node tones, content typography and geometry untouched.
+   Important tokens override plugin appearance datasets and late token injection. */
+body :is(.ts-root,.ts-journal,.ts-ui-modal,.ts-settings,.ts-native-header,.ts-writing,.ts-note-markdown-toolbar,.ts-media-workspace,.ts-online-workspace,.ts-materials-panel,.ts-materials-modal,.ts-space-modal) {
+  --ts-ui-1: var(--atelier-paper) !important;
+  --ts-ui-2: var(--atelier-sidebar) !important;
+  --ts-ui-3: var(--atelier-soft) !important;
+  --ts-ui-4: color-mix(in srgb, var(--atelier-accent) 14%, var(--atelier-paper)) !important;
+  --ts-ui-5: var(--atelier-border) !important;
+  --ts-ui-6: var(--atelier-border) !important;
+  --ts-ui-7: color-mix(in srgb, var(--atelier-muted) 45%, var(--atelier-border)) !important;
+  --ts-ui-8: var(--atelier-muted) !important;
+  --ts-ui-9: var(--atelier-muted) !important;
+  --ts-ui-10: var(--atelier-muted) !important;
+  --ts-ui-11: var(--atelier-muted) !important;
+  --ts-ui-12: var(--atelier-ink) !important;
+  --ts-surface: var(--atelier-paper) !important;
+  --ts-raised: var(--atelier-raised) !important;
+  --ts-recess: var(--atelier-sidebar) !important;
+  --ts-hairline: var(--atelier-border) !important;
+  --ts-focus: var(--atelier-accent) !important;
+  --ts-work-ring: color-mix(in srgb, var(--atelier-accent) 28%, transparent) !important;
+  --ts-elevation-1: var(--atelier-shadow) !important;
+  --ts-elevation-2: var(--atelier-shadow) !important;
+  --ts-shadow-panel: var(--atelier-shadow) !important;
+  --ts-shadow-float: var(--atelier-shadow) !important;
+  --ts-shadow-dialog: var(--atelier-shadow) !important;
+}
+body.atelier-plugin-polish .modal.ts-ui-modal {
+  background-color: var(--atelier-paper);
+  border-color: var(--atelier-border);
+  border-radius: var(--atelier-radius);
+  box-shadow: var(--atelier-shadow);
+}
+body.atelier-plugin-polish .ts-space-hub .ts-hub-metrics {
+  background: var(--atelier-sidebar);
+  border-color: var(--atelier-border);
+}
+body.atelier-plugin-polish .ts-space-hub .ts-hub-result {
+  background-color: var(--atelier-raised);
+  border-radius: var(--atelier-radius);
+  box-shadow: none;
+}
+body.atelier-plugin-polish .ts-space-hub .ts-hub-result.is-focused {
+  border-color: var(--atelier-accent);
+  box-shadow: inset 2px 0 var(--atelier-accent);
+}
+body.atelier-plugin-polish .ts-space-hub .ts-hub-button.is-primary,
+body.atelier-plugin-polish .ts-writing .ts-writing-button.mod-cta {
+  background-color: var(--atelier-accent);
+  color: var(--atelier-on-accent);
+}
+body.atelier-plugin-polish .ts-writing {
+  --writing-accent: var(--atelier-accent);
+  --writing-line: var(--atelier-border);
+  --writing-soft: var(--atelier-sidebar);
+}
+body.atelier-plugin-polish .ts-writing .ts-writing-switch .is-active,
+body.atelier-plugin-polish .ts-settings .ts-settings-tabs .is-active {
+  color: var(--atelier-accent);
+  box-shadow: inset 0 -2px var(--atelier-accent) !important;
+}
+body.atelier-plugin-polish .ts-settings .ts-settings-section {
+  background-color: var(--atelier-soft);
+  color: var(--atelier-accent);
+}
+
+/* Plugin interface headings are labels, not note heading levels. */
+body.atelier-plugin-polish .ts-space-hub :is(.ts-hub-detail h3,.ts-hub-empty h3) {
+  color: var(--atelier-ink);
+}
+
+/* 33. ThoughtSpace workflow states. Real component classes from plugin 0.70.2;
+   no generated content, hit-area changes, node geometry or custom color edits. */
+body.atelier-plugin-polish .modal.ts-ui-modal:is(.ts-reading-desk,.ts-layout-planner,.ts-board-search,.ts-selection-note) {
+  border-radius: var(--atelier-radius) !important;
+  box-shadow: var(--atelier-shadow) !important;
+}
+body.atelier-plugin-polish .ts-reading-desk .ts-reading-item[aria-pressed="true"] {
+  background-color: var(--atelier-soft);
+  color: var(--atelier-accent);
+  box-shadow: inset 2px 0 var(--atelier-accent);
+  border-color: transparent;
+}
+body.atelier-plugin-polish .ts-reading-desk .ts-reading-aside-tabs {
+  background-color: var(--atelier-sidebar);
+  border-color: var(--atelier-border);
+  border-radius: 6px;
+}
+body.atelier-plugin-polish .ts-reading-desk .ts-reading-aside-tabs button[aria-pressed="true"] {
+  background-color: var(--atelier-raised);
+  box-shadow: inset 0 -2px var(--atelier-accent);
+}
+body.atelier-plugin-polish .ts-reading-desk .ts-reading-page {
+  background-color: var(--atelier-raised);
+  border-color: var(--atelier-border);
+}
+body.atelier-plugin-polish .ts-reading-desk .ts-reading-page-head h2 {
+  color: var(--atelier-ink);
+}
+body.atelier-plugin-polish .ts-layout-planner .ts-layout-modes button[aria-pressed="true"] {
+  background-color: var(--atelier-soft);
+  border-color: var(--atelier-accent);
+  box-shadow: inset 2px 0 var(--atelier-accent);
+}
+body.atelier-plugin-polish .ts-layout-planner :is(.ts-layout-comparison,.ts-layout-presets) button[aria-pressed="true"] {
+  background-color: var(--atelier-raised);
+  box-shadow: inset 0 -2px var(--atelier-accent);
+}
+body.atelier-plugin-polish .ts-board-search .ts-board-search-row.is-active,
+body.atelier-plugin-polish .ts-selection-note .ts-selection-note-row.is-active {
+  background-color: var(--atelier-soft);
+  box-shadow: inset 2px 0 var(--atelier-accent);
+}
+body.atelier-plugin-polish .ts-board-search .ts-board-search-row.is-active .ts-board-search-heading > span,
+body.atelier-plugin-polish .ts-selection-note .ts-selection-note-row.is-active > .ts-selection-note-result > span {
+  color: var(--atelier-accent);
+}
+body.atelier-plugin-polish .ts-selection-note .ts-selection-note-row.is-active > .ts-selection-note-result:is(:hover,:focus-visible) {
+  background-color: var(--atelier-soft) !important;
+}
+body.atelier-plugin-polish .ts-selection-note .ts-fragment-modes button[aria-pressed="true"] {
+  background-color: var(--atelier-raised);
+  color: var(--atelier-accent);
+  box-shadow: inset 0 -2px var(--atelier-accent);
+}
+body.atelier-plugin-polish :is(.ts-board-search .ts-board-search-bar,.ts-selection-note .ts-selection-note-search) {
+  background-color: var(--atelier-sidebar);
+  border-color: var(--atelier-border);
+}
+body.atelier-plugin-polish :is(.ts-board-search .ts-board-search-bar,.ts-selection-note .ts-selection-note-search):focus-within {
+  border-color: var(--atelier-accent);
+}
+body.atelier-plugin-polish .ts-reading-desk .ts-reading-source,
+body.atelier-plugin-polish .ts-board-search .ts-board-search-path {
+  color: var(--atelier-muted);
+  opacity: 1;
+}
+body.atelier-plugin-polish :is(.ts-reading-desk,.ts-layout-planner,.ts-board-search,.ts-selection-note) :is(button,input,select,summary):focus-visible {
+  outline: 2px solid var(--atelier-accent);
+  outline-offset: 2px;
+}
+/* Compound search fields carry one focus indicator on their shared frame. */
+body.atelier-plugin-polish :is(.ts-board-search .ts-board-search-bar,.ts-selection-note .ts-selection-note-search):focus-within {
+  outline: 1px solid var(--atelier-accent);
+  outline-offset: 0;
+}
+body.atelier-plugin-polish .ts-board-search .ts-board-search-bar > input:is(:focus,:focus-visible),
+body.atelier-plugin-polish .ts-selection-note .ts-selection-note-search > input:is(:focus,:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+
+/* 34. ThoughtSpace board chrome: match native object types, not note markup.
+   Respect custom fills, transparency, text ink, border geometry and summaries. */
+body.atelier-plugin-polish .ts-root .ts-node:is(.ts-card,.ts-board-portal,.ts-image):not(.is-transparent,.ts-node-summary) {
+  border-radius: var(--atelier-radius);
+  box-shadow: var(--atelier-shadow);
+}
+body.atelier-plugin-polish .ts-root .ts-node:is(.ts-card,.ts-board-portal,.ts-image):not(.is-transparent,.has-card-fill,.ts-node-summary) > .ts-node-header {
+  background-color: color-mix(in srgb, var(--ts-tone) 6%, var(--atelier-paper));
+  border-bottom-color: var(--atelier-border);
+  border-radius: calc(var(--atelier-radius) - 1px) calc(var(--atelier-radius) - 1px) 0 0;
+}
+body.atelier-plugin-polish .ts-root .ts-card.is-folded:not(.is-transparent,.has-card-fill,.ts-node-summary) > .ts-node-header {
+  border-radius: calc(var(--atelier-radius) - 1px);
+}
+body.atelier-plugin-polish .ts-root .ts-card.is-selected:not(.is-transparent,.has-card-fill) > .ts-node-header > [data-ts-note-path] {
+  color: var(--atelier-accent);
+}
+body.atelier-plugin-polish .ts-root .ts-board-portal > .ts-node-header > .ts-portal-icon {
+  color: var(--ts-tone);
+  background-color: color-mix(in srgb, var(--ts-tone) 10%, var(--atelier-paper));
+}
+body.atelier-plugin-polish .ts-root .ts-board-portal > .ts-node-header > .ts-portal-icon svg {
+  color: inherit;
+}
+body.atelier-plugin-polish .ts-root .ts-card-meta-placeholder,
+body.atelier-plugin-polish .ts-root .ts-portal-meta {
+  color: var(--atelier-muted);
+  font-variant-numeric: tabular-nums;
+}
+body.atelier-plugin-polish .ts-root .ts-node.is-locked::after {
+  color: var(--atelier-muted);
+  background-color: var(--atelier-raised);
+  border: 1px solid var(--atelier-border);
+  border-radius: 4px;
+  padding: 1px 4px;
+  line-height: 1.4;
+}
+body.atelier-plugin-polish .ts-root :is(.ts-inspector,.ts-canvas-controls,.ts-zoom-controls,.ts-rail-popover) {
+  background-color: var(--atelier-raised) !important;
+  border-color: var(--atelier-border) !important;
+  border-radius: var(--atelier-radius) !important;
+  box-shadow: var(--atelier-shadow) !important;
+  backdrop-filter: none !important;
+}
+body.atelier-plugin-polish .ts-root .ts-inspector-heading {
+  background-color: var(--atelier-raised);
+  border-bottom-color: var(--atelier-border);
+}
+
+/* 35. ThoughtSpace task workflow and library status.
+   Keep native task semantics, hit targets, matrix columns and explicit-save forms. */
+body.atelier-plugin-polish .ts-journal .ts-task-planner :is(.ts-task-summary,.ts-task-quick-tabs,.ts-task-filters) button[aria-pressed=true] {
+  background: var(--atelier-soft); color: var(--atelier-accent);
+  box-shadow: inset 0 -2px var(--atelier-accent);
+}
+body.atelier-plugin-polish .ts-journal .ts-task-row {
+  background-color: var(--atelier-raised); border-color: var(--atelier-border);
+  border-radius: var(--atelier-radius); box-shadow: none;
+}
+body.atelier-plugin-polish .ts-journal .ts-task-row:is(:hover,:focus-within) {
+  background-color: var(--atelier-soft); border-color: var(--atelier-accent);
+}
+body.atelier-plugin-polish .ts-journal .ts-task-row.is-overdue {
+  box-shadow: inset 2px 0 var(--text-error);
+}
+body.atelier-plugin-polish .ts-journal .ts-task-row.is-done .ts-task-title {
+  color: var(--atelier-muted); opacity: 1;
+}
+body.atelier-plugin-polish .ts-journal .ts-task-planner :is(.ts-task-group-heading,.ts-task-result-count) {
+  color: var(--atelier-muted); font-variant-numeric: tabular-nums;
+}
+body.atelier-plugin-polish .ts-journal .ts-task-quadrant:not(.is-drop-target) {
+  background-color: color-mix(in srgb,var(--quadrant-color) 5%,var(--atelier-paper));
+  border-color: var(--atelier-border); border-top-color: var(--quadrant-color);
+  border-radius: var(--atelier-radius);
+}
+body.atelier-plugin-polish .ts-journal .ts-task-quadrant-head h4 { color: var(--atelier-ink); }
+body.atelier-plugin-polish .ts-journal .ts-task-quadrant-head > span {
+  color: var(--quadrant-color);
+  background-color: color-mix(in srgb,var(--quadrant-color) 12%,var(--atelier-paper));
+}
+body.atelier-plugin-polish .ts-journal .ts-task-planner .ts-task-schedule-chip.is-scheduled:not(.is-invalid) {
+  color: var(--atelier-accent); background: var(--atelier-soft);
+}
+body.atelier-plugin-polish .ts-journal .ts-day-timeline .ts-timeline-card {
+  border-radius: var(--atelier-radius); box-shadow: none;
+}
+body.atelier-plugin-polish .ts-journal .ts-day-timeline .ts-timeline-item:not(.is-current) .ts-timeline-card {
+  background-color: var(--atelier-raised);
+}
+body.atelier-plugin-polish .ts-journal .ts-day-timeline .ts-timeline-item:not(.is-current):is(:hover,:focus-within) .ts-timeline-card {
+  background-color: color-mix(in srgb,var(--timeline-color) 8%,var(--atelier-paper));
+}
+body.atelier-plugin-polish .ts-journal .ts-day-timeline :is(.ts-timeline-time,.ts-timeline-duration,.ts-day-timeline-clock) {
+  font-variant-numeric: tabular-nums;
+}
+body.atelier-plugin-polish .ts-journal .ts-day-timeline .ts-timeline-untimed summary {
+  color: var(--atelier-muted);
+}
+body.atelier-plugin-polish .modal.ts-task-schedule-modal {
+  background: var(--atelier-paper) !important; border-color: var(--atelier-border) !important;
+  border-radius: var(--atelier-radius) !important; box-shadow: var(--atelier-shadow) !important;
+}
+body.atelier-plugin-polish .ts-task-schedule-modal .ts-schedule-task-name { color: var(--atelier-ink); }
+body.atelier-plugin-polish .ts-task-schedule-modal :is(.ts-schedule-source,.ts-schedule-status) { color: var(--atelier-muted); }
+body.atelier-plugin-polish .ts-task-schedule-modal .ts-schedule-time-section {
+  background: var(--atelier-sidebar); border-color: var(--atelier-border); border-radius: var(--atelier-radius);
+}
+body.atelier-plugin-polish .ts-task-schedule-modal :is(input,select) {
+  background-color: var(--atelier-raised); border-color: var(--atelier-border); color: var(--atelier-ink);
+}
+body.atelier-plugin-polish .ts-task-schedule-modal .ts-schedule-presets button[aria-pressed=true],
+body.atelier-plugin-polish .ts-task-schedule-modal .ts-schedule-footer .mod-cta {
+  background: var(--atelier-accent) !important; color: var(--atelier-on-accent) !important;
+}
+body.atelier-plugin-polish .ts-task-schedule-modal .ts-schedule-footer { border-color: var(--atelier-border); }
+body.atelier-plugin-polish .ts-root .ts-library-card.is-on-board {
+  border-color: var(--atelier-border); box-shadow: inset 2px 0 var(--atelier-accent);
+}
+body.atelier-plugin-polish .ts-root .ts-library-card.is-on-board:is(:hover,:focus-within) {
+  border-color: var(--atelier-accent); box-shadow: inset 2px 0 var(--atelier-accent);
+}
+body.atelier-plugin-polish .ts-root .ts-library-card .ts-on-board {
+  background: var(--atelier-soft); color: var(--atelier-accent);
+}
+body.atelier-plugin-polish .ts-root .ts-library-card.is-on-board .ts-library-note-icon { color: var(--atelier-accent); }
+
+/* 36. ThoughtSpace discovery: groups, templates and read-only note context.
+   Preserve SVG geometry, native actions, source typography and disabled checkboxes. */
+body.atelier-plugin-polish .modal:is(.ts-section-catalog,.ts-template-modal,.ts-preview-modal) {
+  background: var(--atelier-paper) !important; border-color: var(--atelier-border) !important;
+  border-radius: var(--atelier-radius) !important; box-shadow: var(--atelier-shadow) !important;
+}
+body.atelier-plugin-polish .ts-section-catalog :is(.ts-catalog-subtitle,.ts-catalog-count,.ts-catalog-info,.ts-catalog-footer > span) {
+  color: var(--atelier-muted);
+}
+body.atelier-plugin-polish .ts-section-catalog .ts-catalog-toolbar :is(input,select) {
+  background: var(--atelier-raised); border-color: var(--atelier-border); color: var(--atelier-ink);
+}
+body.atelier-plugin-polish .ts-section-catalog .ts-catalog-card {
+  background: var(--atelier-raised); border-color: var(--atelier-border);
+  border-radius: var(--atelier-radius); box-shadow: var(--atelier-shadow);
+}
+body.atelier-plugin-polish .ts-section-catalog .ts-catalog-card:is(:hover,:focus-within) {
+  border-color: var(--atelier-accent); box-shadow: inset 0 0 0 1px var(--atelier-accent);
+}
+body.atelier-plugin-polish .ts-section-catalog .ts-catalog-preview { background: var(--atelier-sidebar); }
+body.atelier-plugin-polish .ts-section-catalog .ts-catalog-open > span { color: var(--atelier-ink); }
+body.atelier-plugin-polish .ts-section-catalog .ts-catalog-info > span:first-child {
+  color: var(--atelier-accent); font-variant-numeric: tabular-nums;
+}
+body.atelier-plugin-polish .ts-section-catalog .ts-catalog-actions {
+  background: var(--atelier-sidebar); border-color: var(--atelier-border); color: var(--atelier-muted);
+}
+body.atelier-plugin-polish .ts-section-catalog .ts-catalog-footer { border-color: var(--atelier-border); }
+body.atelier-plugin-polish .ts-section-catalog .ts-catalog-empty {
+  background: var(--atelier-sidebar); border-radius: var(--atelier-radius);
+  color: var(--atelier-muted); box-shadow: inset 0 0 0 1px var(--atelier-border);
+}
+body.atelier-plugin-polish .ts-template-modal { container: folio-templates / inline-size; }
+body.atelier-plugin-polish .ts-template-modal .ts-template-card {
+  --folio-template-tone: var(--atelier-accent);
+  background: var(--atelier-raised); border-color: var(--atelier-border);
+  border-radius: var(--atelier-radius); box-shadow: var(--atelier-shadow);
+}
+body.atelier-plugin-polish .ts-template-modal .ts-template-card:nth-child(3n+2) { --folio-template-tone: var(--folio-folder-2); }
+body.atelier-plugin-polish .ts-template-modal .ts-template-card:nth-child(3n+3) { --folio-template-tone: var(--folio-folder-3); }
+body.atelier-plugin-polish .ts-template-modal .ts-template-card:is(:hover,:focus-within) {
+  border-color: var(--folio-template-tone); box-shadow: inset 0 0 0 1px var(--folio-template-tone);
+}
+body.atelier-plugin-polish .ts-template-modal .ts-template-card h3 { color: var(--atelier-ink); }
+body.atelier-plugin-polish .ts-template-modal :is(.ts-template-intro,.ts-template-card p) { color: var(--atelier-muted); }
+body.atelier-plugin-polish .ts-template-modal .ts-template-icon {
+  color: var(--folio-template-tone); background: color-mix(in srgb,var(--folio-template-tone) 10%,var(--atelier-paper));
+}
+body.atelier-plugin-polish .ts-template-modal .ts-template-preview { background: var(--atelier-sidebar); }
+body.atelier-plugin-polish .ts-template-modal .ts-template-preview span {
+  background: var(--atelier-paper); border-color: var(--atelier-border); color: var(--atelier-ink);
+}
+body.atelier-plugin-polish .ts-template-modal .ts-template-use {
+  color: var(--folio-template-tone) !important;
+  background: color-mix(in srgb,var(--folio-template-tone) 9%,var(--atelier-paper));
+}
+body.atelier-plugin-polish .ts-preview-modal .ts-preview-path { color: var(--atelier-muted); }
+body.atelier-plugin-polish .ts-preview-modal :is(.ts-preview-actions,.ts-note-context) { border-color: var(--atelier-border); }
+body.atelier-plugin-polish .ts-preview-modal .ts-note-context > h3 { color: var(--atelier-ink); }
+body.atelier-plugin-polish .ts-preview-modal .ts-context-links .ts-button {
+  background: var(--atelier-sidebar) !important; color: var(--atelier-ink);
+  border-color: var(--atelier-border); border-radius: var(--atelier-radius);
+}
+body.atelier-plugin-polish .ts-preview-modal .ts-context-links .ts-button:is(:hover,:focus-visible) {
+  background: var(--atelier-soft) !important; color: var(--atelier-accent);
+}
+body.atelier-plugin-polish .ts-preview-modal .ts-preview-actions .ts-button {
+  background: var(--atelier-raised); border-color: var(--atelier-border);
+}
+body.atelier-plugin-polish :is(.ts-template-modal,.ts-preview-modal) :is(button,input,select):focus-visible {
+  outline: 2px solid var(--atelier-accent); outline-offset: -2px;
+}
+body.atelier-plugin-polish.atelier-flat :is(.ts-section-catalog .ts-catalog-card,.ts-template-modal .ts-template-card) {
+  box-shadow: none;
+}
+@container folio-templates (max-width:620px) {
+  body.atelier-plugin-polish .ts-template-modal .ts-template-grid { grid-template-columns: minmax(0,1fr); }
+}
+
+/* Read-only preview renders Markdown outside Obsidian's normal reading wrapper. */
+body.atelier-plugin-polish .ts-preview-modal .ts-preview-body pre {
+  padding: 12px 14px; background: var(--atelier-sidebar);
+  border-radius: var(--atelier-radius); box-shadow: inset 0 0 0 1px var(--atelier-border);
+}
+body.atelier-plugin-polish .ts-preview-modal .ts-preview-body table { border-collapse: collapse; }
+body.atelier-plugin-polish .ts-preview-modal .ts-preview-body :is(th,td) {
+  padding: 7px 10px; box-shadow: inset 0 -1px var(--atelier-border);
+}
+body.atelier-plugin-polish .ts-preview-modal .ts-preview-body th {
+  background: var(--atelier-sidebar);
+}
+
+/* 37. Native side-by-side pane resizing.
+   Keep an 8px hit area across the seam; clip the contents, not the resize handle.
+   No changes to sidebar, stacked-pane or ThoughtSpace canvas gestures. */
+:is(.workspace-split.mod-root.mod-vertical, .workspace-split.mod-root .workspace-split.mod-vertical) > .workspace-tabs {
+  overflow: visible;
+}
+:is(.workspace-split.mod-root.mod-vertical, .workspace-split.mod-root .workspace-split.mod-vertical) > .workspace-tabs > .workspace-tab-container {
+  overflow: hidden;
+}
+:is(.workspace-split.mod-root.mod-vertical, .workspace-split.mod-root .workspace-split.mod-vertical) > .workspace-tabs > .workspace-leaf-resize-handle {
+  width: 8px; right: -4px; background: transparent;
+}
+:is(.workspace-split.mod-root.mod-vertical, .workspace-split.mod-root .workspace-split.mod-vertical) > .workspace-tabs > .workspace-leaf-resize-handle::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 3px; width: 1px;
+  background: var(--atelier-border); pointer-events: none;
+}
+:is(.workspace-split.mod-root.mod-vertical, .workspace-split.mod-root .workspace-split.mod-vertical) > .workspace-tabs > .workspace-leaf-resize-handle:is(:hover,:active)::after {
+  width: 2px; background: var(--atelier-accent);
+}
+
+
+/* 38. Edge ribbon: invisible edge target, zero reserved space at rest.
+   Reveal pushes the sidebar aside. Keyboard and touch controls stay native. */
+@media (hover:hover) and (pointer:fine) {
+  body.show-ribbon:not(.is-mobile) .workspace-ribbon:is(.mod-left,.mod-primary) { --ribbon-width: var(--atelier-ribbon-width,36px); }
+  body.show-ribbon:not(.is-mobile):not(.atelier-ribbon-pinned) .workspace-ribbon:is(.mod-left,.mod-primary) {
+    --folio-ribbon-shift: calc(-1 * var(--ribbon-width));
+    width: var(--atelier-ribbon-trigger-width,8px);
+    flex: 0 0 auto;
+    min-width: 0;
+    padding-inline: 0;
+    position: relative;
+    margin-right: calc(-1 * var(--atelier-ribbon-trigger-width,8px));
+    overflow: visible;
+    background: transparent;
+    border-right: 0;
+    box-shadow: none;
+    transition: width 160ms ease var(--atelier-ribbon-hide-delay,240ms), margin-right 160ms ease var(--atelier-ribbon-hide-delay,240ms);
+  }
+  body.show-ribbon:not(.is-mobile):not(.atelier-ribbon-pinned) .workspace-tabs.mod-top-left-space > .workspace-tab-header-container {
+    padding-left: calc(var(--atelier-ribbon-width,36px) + var(--size-4-2));
+  }
+  /* The transparent parent is the real edge hit area. Only its decoration
+     and icons move offscreen, so there is no painted strip or layout gap. */
+  body.show-ribbon:not(.is-mobile):not(.atelier-ribbon-pinned) .workspace-ribbon:is(.mod-left,.mod-primary)::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    width: var(--ribbon-width);
+    height: auto;
+    box-sizing: border-box;
+    background: var(--atelier-sidebar);
+    border-right: 1px solid var(--atelier-border);
+    border-bottom: 0;
+    -webkit-app-region: no-drag;
+    transform: translateX(var(--folio-ribbon-shift));
+    transition: transform 160ms ease var(--atelier-ribbon-hide-delay,240ms);
+    pointer-events: none;
+    z-index: -1;
+  }
+  body.show-ribbon:not(.is-mobile):not(.atelier-ribbon-pinned) .workspace-ribbon:is(.mod-left,.mod-primary) > :is(.side-dock-actions,.side-dock-settings) {
+    width: var(--ribbon-width);
+    padding-inline: 4px;
+    box-sizing: border-box;
+    transform: translateX(var(--folio-ribbon-shift));
+    opacity: 0;
+    transition: transform 160ms ease var(--atelier-ribbon-hide-delay,240ms), opacity 160ms ease var(--atelier-ribbon-hide-delay,240ms);
+  }
+  body.show-ribbon:not(.is-mobile):not(.atelier-ribbon-pinned) .workspace-ribbon:is(.mod-left,.mod-primary) > .sidebar-toggle-button {
+    top: calc(-1 * var(--header-height));
+    width: var(--ribbon-width);
+  }
+  body.show-ribbon:not(.is-mobile):not(.atelier-ribbon-pinned) .workspace-ribbon:is(.mod-left,.mod-primary):is(:hover,:focus-within) {
+    --folio-ribbon-shift: 0px;
+    width: var(--ribbon-width);
+    margin-right: 0;
+    transition-delay: var(--atelier-ribbon-reveal-delay,80ms);
+  }
+  body.show-ribbon:not(.is-mobile):not(.atelier-ribbon-pinned) .workspace-ribbon:is(.mod-left,.mod-primary):is(:hover,:focus-within)::before,
+  body.show-ribbon:not(.is-mobile):not(.atelier-ribbon-pinned) .workspace-ribbon:is(.mod-left,.mod-primary):is(:hover,:focus-within) > :is(.side-dock-actions,.side-dock-settings) {
+    transition-delay: var(--atelier-ribbon-reveal-delay,80ms);
+  }
+  body.show-ribbon:not(.is-mobile):not(.atelier-ribbon-pinned) .workspace-ribbon:is(.mod-left,.mod-primary):is(:hover,:focus-within) > :is(.side-dock-actions,.side-dock-settings) { opacity: 1; }
+  body.show-ribbon:not(.is-mobile):not(.atelier-ribbon-pinned) .workspace-ribbon:is(.mod-left,.mod-primary):focus-within,
+  body.show-ribbon:not(.is-mobile):not(.atelier-ribbon-pinned) .workspace-ribbon:is(.mod-left,.mod-primary):focus-within::before,
+  body.show-ribbon:not(.is-mobile):not(.atelier-ribbon-pinned) .workspace-ribbon:is(.mod-left,.mod-primary):focus-within > :is(.side-dock-actions,.side-dock-settings) { transition-delay: 0ms; }
+}
+@media (prefers-reduced-motion:reduce) {
+  body.show-ribbon:not(.is-mobile):not(.atelier-ribbon-pinned) .workspace-ribbon:is(.mod-left,.mod-primary),
+  body.show-ribbon:not(.is-mobile):not(.atelier-ribbon-pinned) .workspace-ribbon:is(.mod-left,.mod-primary)::before,
+  body.show-ribbon:not(.is-mobile):not(.atelier-ribbon-pinned) .workspace-ribbon:is(.mod-left,.mod-primary) > :is(.side-dock-actions,.side-dock-settings) { transition: none !important; }
+}
+
+/* 39. Region grids are paint-only; the native board grid stays plugin-owned. */
+body {
+  --folio-grid-line: color-mix(in srgb,var(--atelier-ink) var(--atelier-grid-strength,6%),transparent);
+  --folio-grid-image: linear-gradient(to right,var(--folio-grid-line) 1px,transparent 1px),linear-gradient(to bottom,var(--folio-grid-line) 1px,transparent 1px);
+  --folio-reading-grid-line: color-mix(in srgb,var(--atelier-ink) var(--atelier-reading-grid-strength,3%),transparent);
+  --folio-reading-grid-image: linear-gradient(to right,var(--folio-reading-grid-line) 1px,transparent 1px),linear-gradient(to bottom,var(--folio-reading-grid-line) 1px,transparent 1px);
+}
+body:not(.atelier-grid-off):not(.atelier-grid-workspace-off) :is(
+  .workspace-leaf-content[data-type=empty] > .view-content,
+  .ts-writing .ts-writing-layout,.yj-view,.tl-root,
+  .ts-media-workspace,.ts-online-workspace
+) {
+  background-image: var(--folio-grid-image);
+  background-size: var(--atelier-grid-size,24px) var(--atelier-grid-size,24px);
+  background-position: 0 0;
+}
+body:not(.atelier-grid-off):not(.atelier-grid-workspace-off) .yj-view { background-color: var(--atelier-board); }
+body.atelier-grid-reading-on:not(.atelier-grid-off) .workspace-leaf-content[data-type=markdown] :is(.markdown-preview-view,.markdown-source-view) {
+  background-image: var(--folio-reading-grid-image);
+  background-size: var(--atelier-reading-grid-size,24px) var(--atelier-reading-grid-size,24px);
+  background-position: 0 0;
+}
+@media print {
+  body .workspace-leaf-content[data-type=markdown] :is(.markdown-preview-view,.markdown-source-view) { background-image: none !important; }
+}
+
+/* 40. Bounded reading hosts keep native state icons and release narrow badges.
+   Auto-fit cards retain intrinsic measurement and are never containers. */
+:is(body.atelier-task-labels .workspace-leaf-content[data-type=markdown] .markdown-preview-view,
+  .workspace-leaf-content[data-type=markdown] .markdown-preview-view.atelier-task-labels,
+  body.atelier-task-labels :is(.ts-root .ts-node.ts-card.is-fixed-reading,.ts-preview-modal .ts-preview-document,.ts-writing .ts-writing-paper,.ts-brain-preview,.ts-mindmap-preview, .ts-reading-desk .ts-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)), .ts-reference-reading .ts-reference-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)))) {
+  container-type: inline-size;
+  container-name: folio-task-card;
+}
+@container folio-task-card (max-width: 320px) {
+  :is(body.atelier-task-labels .workspace-leaf-content[data-type=markdown] .markdown-preview-view,.workspace-leaf-content[data-type=markdown] .markdown-preview-view.atelier-task-labels,body.atelier-task-labels :is(.ts-root .ts-card-preview,.ts-preview-modal .ts-preview-document,.ts-writing .ts-writing-paper,.ts-brain-preview,.ts-mindmap-preview, .ts-reading-desk .ts-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)), .ts-reference-reading .ts-reference-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)))) li.task-list-item:is([data-task="/"],[data-task="!"],[data-task="?"],[data-task="-"],[data-task=">"] ,[data-task="*"]) {
+    --folio-task-gutter: 0em;
+  }
+  /* Match the reading scope's specificity so this wins without important. */
+  :is(body.atelier-task-labels .workspace-leaf-content[data-type=markdown] .markdown-preview-view,.workspace-leaf-content[data-type=markdown] .markdown-preview-view.atelier-task-labels,body.atelier-task-labels :is(.ts-root .ts-card-preview,.ts-preview-modal .ts-preview-document,.ts-writing .ts-writing-paper,.ts-brain-preview,.ts-mindmap-preview, .ts-reading-desk .ts-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)), .ts-reference-reading .ts-reference-reading-prose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)))) li.task-list-item:is([data-task="/"],[data-task="!"],[data-task="?"],[data-task="-"],[data-task=">"] ,[data-task="*"])::after { display: none; }
+}
+
+/* @folio-source thoughtspace-current.css */
+
+/* @folio-source atelier-foundation.css */
+/* @folio-source atelier-native-ui.css */
+/* @folio-source atelier-thoughtspace-ui.css */

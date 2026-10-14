@@ -1,0 +1,207 @@
+/* Folio Atelier palette source.
+   One effective definition per mode and palette; selector specificity is unchanged.
+   Semantic colors, grayscale aliases and folder colors are intentionally distinct.
+   Keep this module at the former Section 07 palette position in the built theme.
+   Print colors remain in folio.css and keep their original !important overrides.
+   Accent order preserves legacy behavior if multiple accent classes coexist. */
+
+body.theme-light {
+  color-scheme: light;
+  --atelier-paper: #fdfefd;
+  --atelier-sidebar: #f1f4f3;
+  --atelier-raised: #ffffff;
+  --atelier-board: #eaf0ed;
+  --atelier-border: #d8e1dd;
+  --atelier-ink: #293631;
+  --atelier-muted: #586a62;
+  --atelier-faint: #6c7d75;
+  --atelier-accent: #4c6064;
+  --atelier-accent-hover: #35484c;
+  --atelier-on-accent: #ffffff;
+  --atelier-blue: #4c6064;
+  --atelier-orange: #92551e;
+  --atelier-red: #ac4554;
+  --atelier-purple: #765494;
+  --atelier-shadow: 0 1px 2px #23382b06, 0 6px 20px #23382b08;
+  --callout-default: 50, 95, 145;
+  --callout-info: 50, 95, 145;
+  --callout-tip: 46, 104, 82;
+  --callout-success: 46, 104, 82;
+  --callout-warning: 146, 85, 30;
+  --callout-error: 172, 69, 84;
+  --callout-question: 118, 84, 148;
+  --color-base-00: var(--atelier-paper);
+  --color-base-05: #f7f9f8;
+  --color-base-10: var(--atelier-sidebar);
+  --color-base-20: var(--atelier-board);
+  --color-base-25: #e2e9e5;
+  --color-base-30: var(--atelier-border);
+  --color-base-35: #bac8c0;
+  --color-base-40: #92a49a;
+  --color-base-50: var(--atelier-faint);
+  --color-base-60: var(--atelier-muted);
+  --color-base-70: #45594f;
+  --color-base-100: var(--atelier-ink);
+  --folio-folder-1: #376650;
+  --folio-folder-2: #326083;
+  --folio-folder-3: #6b4f84;
+  --folio-folder-4: #73571e;
+  --folio-folder-5: #85495c;
+  --folio-folder-6: #2b6066;
+}
+
+body.theme-dark {
+  color-scheme: dark;
+  --atelier-paper: #222927;
+  --atelier-sidebar: #1b211f;
+  --atelier-raised: #2b3430;
+  --atelier-board: #171d1a;
+  --atelier-border: #3b4942;
+  --atelier-ink: #e2eae5;
+  --atelier-muted: #b1c1b7;
+  --atelier-faint: #96a99e;
+  --atelier-accent: #b1cbcf;
+  --atelier-accent-hover: #d2e3e5;
+  --atelier-on-accent: #1b2a2c;
+  --atelier-blue: #b1cbcf;
+  --atelier-orange: #e4b77e;
+  --atelier-red: #eea6ae;
+  --atelier-purple: #c9b1e1;
+  --atelier-shadow: 0 1px 2px #0002, 0 6px 20px #0002;
+  --callout-default: 164, 197, 237;
+  --callout-info: 164, 197, 237;
+  --callout-tip: 155, 204, 174;
+  --callout-success: 155, 204, 174;
+  --callout-warning: 228, 183, 126;
+  --callout-error: 238, 166, 174;
+  --callout-question: 201, 177, 225;
+  --color-base-00: var(--atelier-paper);
+  --color-base-05: #242d28;
+  --color-base-10: var(--atelier-raised);
+  --color-base-20: #2e3933;
+  --color-base-25: #344139;
+  --color-base-30: var(--atelier-border);
+  --color-base-35: #506358;
+  --color-base-40: #718a7b;
+  --color-base-50: var(--atelier-faint);
+  --color-base-60: var(--atelier-muted);
+  --color-base-70: #c6d5cd;
+  --color-base-100: var(--atelier-ink);
+  --folio-folder-1: #9bcdb5;
+  --folio-folder-2: #a3c7e8;
+  --folio-folder-3: #c9b3e4;
+  --folio-folder-4: #dec58e;
+  --folio-folder-5: #e1b0bd;
+  --folio-folder-6: #91ccd0;
+}
+
+body.theme-light.atelier-ink {
+  --atelier-accent: #4c6064;
+  --atelier-accent-hover: #35484c;
+}
+
+body.theme-dark.atelier-ink {
+  --atelier-accent: #b1cbcf;
+  --atelier-accent-hover: #d2e3e5;
+}
+
+body.theme-light.atelier-rose {
+  --atelier-accent: #96553b;
+  --atelier-accent-hover: #78432e;
+}
+
+body.theme-dark.atelier-rose {
+  --atelier-accent: #e1b59f;
+  --atelier-accent-hover: #f1d1bf;
+}
+
+body.theme-light.atelier-forest {
+  --atelier-accent: #3c6b58;
+  --atelier-accent-hover: #2b5342;
+}
+
+body.theme-dark.atelier-forest {
+  --atelier-accent: #a6cdb8;
+  --atelier-accent-hover: #c5e2d2;
+}
+
+body.theme-light.atelier-neutral {
+  --atelier-paper: #fdfefe;
+  --atelier-sidebar: #f2f4f5;
+  --atelier-board: #ebeff1;
+  --atelier-border: #d9dfe3;
+  --atelier-ink: #2b343b;
+  --atelier-muted: #5d6973;
+  --atelier-faint: #737f89;
+}
+
+body.theme-dark.atelier-neutral {
+  --atelier-paper: #23282d;
+  --atelier-sidebar: #1c2024;
+  --atelier-board: #181c20;
+  --atelier-raised: #2d343b;
+  --atelier-border: #404b55;
+  --atelier-ink: #e5eaee;
+  --atelier-muted: #b5c1cb;
+  --atelier-faint: #9aaab7;
+}
+
+body.theme-light.atelier-ocean {
+  --atelier-accent: #35649a;
+  --atelier-accent-hover: #284e7b;
+}
+
+body.theme-dark.atelier-ocean {
+  --atelier-accent: #a4c6ee;
+  --atelier-accent-hover: #c4dcf7;
+}
+
+body.theme-light.atelier-indigo {
+  --atelier-accent: #535bad;
+  --atelier-accent-hover: #40478e;
+}
+
+body.theme-dark.atelier-indigo {
+  --atelier-accent: #b8bff3;
+  --atelier-accent-hover: #d4d8fc;
+}
+
+body.theme-light.atelier-iris {
+  --atelier-accent: #76549b;
+  --atelier-accent-hover: #5d417e;
+}
+
+body.theme-dark.atelier-iris {
+  --atelier-accent: #d0b5eb;
+  --atelier-accent-hover: #e4cef6;
+}
+
+body.theme-light.atelier-berry {
+  --atelier-accent: #99536d;
+  --atelier-accent-hover: #7c3e55;
+}
+
+body.theme-dark.atelier-berry {
+  --atelier-accent: #ecb4c8;
+  --atelier-accent-hover: #f6d0dd;
+}
+
+body.theme-light.atelier-amber {
+  --atelier-accent: #85621f;
+  --atelier-accent-hover: #694c16;
+}
+
+body.theme-dark.atelier-amber {
+  --atelier-accent: #e1c17e;
+  --atelier-accent-hover: #efdaa7;
+}
+
+body.theme-light.atelier-teal {
+  --atelier-accent: #26716f;
+  --atelier-accent-hover: #1c5856;
+}
+
+body.theme-dark.atelier-teal {
+  --atelier-accent: #94d2cc;
+  --atelier-accent-hover: #b8e6e1;
+}

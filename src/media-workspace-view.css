@@ -406,3 +406,12 @@
   .ts-media-workspace__message-area {order:3; flex:1 0 100%;}
   .ts-media-workspace__message-area:has(.ts-media-workspace__status:empty):not(:has(button:not([hidden]))) {display:none;}
 }
+
+/* Read feedback lives outside the busy timeline and never covers its entries. */
+.ts-media-workspace__records:has(> .ts-media-workspace__read-feedback:not([hidden])) {grid-template-rows:auto auto auto auto minmax(0,1fr) auto;grid-template-areas:"heading heading" "search search" "filters tools" "read-feedback read-feedback" "timeline timeline" "pagination pagination";}
+.ts-media-workspace__read-feedback {grid-area:read-feedback;display:flex;align-items:center;gap:8px;min-width:0;max-block-size:64px;padding:6px 8px;overflow:auto;scrollbar-width:thin;border:1px solid var(--ts-mw-line);border-radius:var(--ts-ui-radius);background:var(--ts-mw-soft);color:var(--text-muted);font:400 12px/1.6 var(--font-interface);}
+.ts-media-workspace__read-feedback-text {flex:1 1 0;min-width:0;overflow-wrap:anywhere;}
+.ts-media-workspace__read-feedback[data-read-state="error"] .ts-media-workspace__read-feedback-text {color:var(--text-error);}
+@container ts-media (max-width:760px) and (max-height:520px) {
+ .ts-media-workspace__records:has(> .ts-media-workspace__read-feedback:not([hidden])) {grid-template-rows:auto auto auto minmax(0,1fr) auto;grid-template-areas:"search heading" "filters tools" "read-feedback read-feedback" "timeline timeline" "pagination pagination";}
+}

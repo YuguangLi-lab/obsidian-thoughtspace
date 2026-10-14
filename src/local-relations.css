@@ -185,9 +185,9 @@
    the existing graph and disclosures; no second nested editor viewport. */
 .ts-local-relations-groups[data-relation-editing=true]{display:block}
 .ts-local-relations-groups[data-relation-editing=true]>.ts-local-relations-center,.ts-local-relations-groups[data-relation-editing=true]>.ts-local-relations-group,.ts-local-relations-groups[data-relation-editing=true]>.ts-local-relations-lines,.ts-local-relations-groups[data-relation-editing=true]>.ts-local-relations-empty{display:none}
-.ts-local-relations-groups[data-relation-editing=true]>.ts-local-relations-inspectors{max-height:none;overflow:visible;border:0;padding:0}
-.ts-local-relations-groups[data-relation-editing=true] .ts-local-heading-status,.ts-local-relations-groups[data-relation-editing=true] .ts-local-heading-section,.ts-local-relations-groups[data-relation-editing=true] .ts-local-depth-section{display:none}
-.ts-local-relations-groups[data-relation-editing=true] .ts-local-relation-editor-body{max-height:none;overflow:visible;padding:3px 2px 8px}
+.ts-local-relations-stage:has(>.ts-local-relations-groups[data-relation-editing=true])>.ts-local-relations-inspectors{max-height:none;overflow:visible;border:0;padding:0}
+.ts-local-relations-stage:has(>.ts-local-relations-groups[data-relation-editing=true])>.ts-local-relations-inspectors :is(.ts-local-heading-status,.ts-local-heading-section,.ts-local-depth-section){display:none}
+.ts-local-relations-stage:has(>.ts-local-relations-groups[data-relation-editing=true])>.ts-local-relations-inspectors .ts-local-relation-editor-body{max-height:none;overflow:visible;padding:3px 2px 8px}
 .ts-local-relation-editor-center{display:flex;flex-direction:column;gap:3px;padding-bottom:7px;margin-bottom:6px;border-bottom:1px solid var(--background-modifier-border)}
 .ts-local-relation-editor-center>strong{font-size:var(--font-ui-small);overflow-wrap:anywhere}
 .ts-local-relation-editor-center>small{font-size:var(--font-ui-smaller);color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -284,7 +284,7 @@
 .ts-local-relations-inspectors>details[open],.ts-local-heading-status{flex:1 0 100%}
 .ts-local-heading-status[data-heading-state=ready]{display:none}
 .ts-local-relations-inspectors:has(.ts-local-heading-section[open])>.ts-local-heading-status{display:block}
-.ts-local-relations-groups[data-relation-editing=true]>.ts-local-relations-inspectors{display:block}
+.ts-local-relations-stage:has(>.ts-local-relations-groups[data-relation-editing=true])>.ts-local-relations-inspectors{display:block}
 
 .ts-local-relations-groups[data-relation-transitioning=true]>.ts-local-relations-lines{opacity:0}
 
@@ -353,7 +353,7 @@
 .ts-local-relations .ts-local-relations-inspectors{grid-area:auto;position:absolute;z-index:8;inset:8px 8px auto;max-height:calc(100% - 16px);overflow:auto;padding:8px 16px 9px 9px;border:1px solid var(--background-modifier-border);border-radius:var(--radius-m);background:var(--background-primary);box-shadow:var(--shadow-s)}
 .ts-local-relations .ts-local-relations-inspectors>button[data-relation-focus=inspectors-close]{position:sticky;top:0;display:flex;align-items:center;justify-content:center;flex:0 0 28px;width:28px;height:28px;margin-inline-start:auto;padding:5px;border:0;background:var(--background-primary);color:var(--text-muted)}
 .ts-local-relations .ts-local-relations-inspectors>button[data-relation-focus=inspectors-close]>span:last-child{display:none}
-.ts-local-relations .ts-local-relations-groups[data-relation-editing=true]>.ts-local-relations-inspectors{max-height:calc(100% - 16px);overflow:auto;padding:8px 16px 9px 9px;border:1px solid var(--background-modifier-border)}
+.ts-local-relations .ts-local-relations-stage:has(>.ts-local-relations-groups[data-relation-editing=true])>.ts-local-relations-inspectors{max-height:calc(100% - 16px);overflow:auto;padding:8px 16px 9px 9px;border:1px solid var(--background-modifier-border)}
 .ts-local-relations .ts-local-relations-neighbor{grid-template-columns:minmax(0,auto) 28px}
 .ts-local-relations .ts-local-relations-proof>summary{min-width:28px;min-height:28px}
 .ts-local-relations :is(.ts-local-relations-pager,.ts-local-relations-ports,.ts-local-relations-center-actions,.ts-local-relations-actions) button{min-height:28px;min-width:28px}
@@ -369,3 +369,14 @@
  .ts-local-relations .ts-local-relations-neighbors{max-height:180px}
  .ts-local-relations .ts-local-relations-groups[data-has-relations=false]{grid-template-rows:minmax(156px,max-content)}
 }
+
+/* Keep read-only tools in the visible stage while the relationship graph scrolls. */
+.ts-local-relations-stage{position:relative;display:flex;flex:1;min-inline-size:0;min-block-size:0;overflow:hidden}
+.ts-local-relations-stage>.ts-local-relations-groups{min-inline-size:0;block-size:100%}
+.ts-local-relations .ts-local-center-info[open]{inset-inline-start:50%;inset-inline-end:auto;transform:translate(-50%,-50%)}
+.ts-local-relations-group>summary{display:flex;align-items:center;justify-content:center;gap:5px}
+.ts-local-relations-group-chevron{display:inline-flex;align-items:center;flex:0 0 auto;color:var(--text-muted)}
+.ts-local-relations-group-chevron svg{inline-size:12px;block-size:12px}
+.ts-local-relations-group[open]>summary .ts-local-relations-group-chevron{transform:rotate(90deg)}
+.ts-local-relations-group-label{min-inline-size:0;overflow-wrap:anywhere}
+.ts-local-relations-group-count{flex:0 0 auto;min-inline-size:1.5em;padding:0 4px;border-radius:var(--radius-s);background:var(--background-secondary);color:var(--text-muted);font-size:var(--font-ui-smaller);line-height:1.5;font-variant-numeric:tabular-nums}

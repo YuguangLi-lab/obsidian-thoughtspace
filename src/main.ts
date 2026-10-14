@@ -1,4 +1,5 @@
 import {NativeBoardEditorPicker} from './board-save-feedback-native';
+import {FolioProjectColorBridge} from './folio-project-colors-view';
 import {renderBoardSaveFeedback,type BoardSaveFeedback,type BoardSaveFeedbackAction} from './board-save-feedback';
 import type {EventRef} from 'obsidian';
 import {appendPendingBoardReference,removePendingBoardReference,type PendingBoardReference} from './pending-board-references';
@@ -508,6 +509,7 @@ class Session {
 
 type BoardGraph={graph:Map<string,string[]>;errors:Set<string>};
 export default class ThoughtSpace extends Plugin {
+  folioProjectColors?:FolioProjectColorBridge;
   private videoCaptureQueue:Promise<unknown>=Promise.resolve();
   private async revealVideoCapture(raw:unknown){
     const request=videoCaptureRequest(raw);if(request.vaultId!==this.yingjianVaultId())throw Error('记录不属于此仓库');
@@ -564,6 +566,8 @@ export default class ThoughtSpace extends Plugin {
     this.register(()=>{this.backgroundImagesClosed=true;this.backgroundImageModal?.close();this.backgroundImageModal=undefined;this.paperSettingsModal?.close();this.paperSettingsModal=undefined;this.spaceHub?.close();this.spaceHub=undefined;this.nativeBridge?.close();this.nativeBridge=undefined;this.nativeFilePopup?.hide();});
     this.propertyStore = new PropertyStore(this.app, this.manifest.id);
     this.settings = cleanPluginSettings(await this.loadData());
+    this.folioProjectColors=new FolioProjectColorBridge(this.app,this.manifest.dir||this.app.vault.configDir+'/plugins/'+this.manifest.id,file=>isBoardFile(this.app,file),report);
+    await this.folioProjectColors.initialize();this.addChild(this.folioProjectColors);
     this.register(()=>{this.boardCreationStopped=true;this.boardCreationModal?.close();this.boardCreationModal=undefined;});
     this.register(subscribeNativeBoardEditorDrains(this.app,()=>this.refreshMarkdownBoardOwnership()));
     this.register(()=>{this.nativeMarkdownOpeningStopped=true;this.nativeMarkdownOpening=undefined;clearNativeBoardEditorTracking(this.app);});
@@ -2249,6 +2253,7 @@ class BoardView extends FileView {
   private taskFilter:TaskFilter='all';private outlineKind:OutlineKind='all';private outlineCollapsed=new Set<string>();private startScreen?:HTMLElement;private savedViewsModal?:SavedViewsModal;private dialogEpoch=0;private groupOrganizer?:GroupOrganizerModal;private layoutPlannerModal?:LayoutPlannerModal;
   private favoriteButton?:HTMLElement;private mindmapButton?:HTMLElement;private mindmapTools?:HTMLElement;private inlineAppearance=false;private appearanceExpanded=false;private appearanceTab:'card'|'text'|'fill'|'border'='card';private canvasMenu?:Menu;
   private taskScope: 'board' | 'vault' = 'board'; private sidebarTimer?: number;
+  private taskSidebarFocus?:{trigger:HTMLButtonElement;filter:'all'|'todo'|'done';owner:Session;target:HTMLElement;run:number};
   private libraryScope: LibraryScope = 'vault'; private librarySort: LibrarySort = 'updated';
   private selectionTool = false; private selectionButton?: HTMLButtonElement;
   private sectionTool=false; private sectionButton?:HTMLButtonElement; private sectionHint?:HTMLElement;
@@ -5613,12 +5618,20 @@ class BoardView extends FileView {
     const clear=this.sidebar.querySelector<HTMLButtonElement>('.ts-search-clear');if(clear)clear.hidden=true;
     this.renderSidebar();search?.focus({preventScroll:true});
   }
+  private setTaskFilter(filter:'all'|'todo'|'done',trigger:HTMLButtonElement,owner:Session,target:HTMLElement,event?:MouseEvent) {
+    if(this.tab!=='tasks'||this.closed||this.session!==owner||this.list!==target||!target.contains(trigger))return;
+    this.taskFilter=filter;
+    this.renderSidebar();
+    if(event?.detail===0&&target.ownerDocument.activeElement===trigger&&trigger.matches(':focus-visible'))this.taskSidebarFocus={trigger,filter,owner,target,run:this.sidebarRun};
+  }
   private renderSidebar() {
+    this.taskSidebarFocus=undefined;
     this.sidebarRun++;
     if (this.sidebarTimer) window.clearTimeout(this.sidebarTimer);
     this.sidebarTimer = window.setTimeout(() => { this.sidebarTimer = undefined; act(() => this.populateSidebar()); }, 100);
   }
   private async populateSidebar() {
+    const taskFocus=this.taskSidebarFocus?.run===this.sidebarRun?this.taskSidebarFocus:undefined;this.taskSidebarFocus=undefined;
     if(!this.list||!this.session||this.closed)return;
     const target=this.list,owner=this.session,run=++this.sidebarRun;
     const key=JSON.stringify([this.file?.path,this.tab,this.query,this.tag,this.boardScope,this.boardSort,this.libraryScope,this.librarySort,this.taskScope,this.taskFilter,this.outlineKind]);
@@ -5626,7 +5639,11 @@ class BoardView extends FileView {
     try{
       await this.buildSidebar(draft,run);
       if(run!==this.sidebarRun||owner!==this.session||target!==this.list||this.closed)return;
+      const doc=target.ownerDocument,restoreTaskFocus=taskFocus&&this.tab==='tasks'&&taskFocus.owner===owner&&taskFocus.target===target&&taskFocus.filter===this.taskFilter&&target.contains(taskFocus.trigger)&&doc.activeElement===taskFocus.trigger&&taskFocus.trigger.matches(':focus-visible');
       replaceSidebarContents(target,draft,key===this.sidebarContentKey);this.sidebarContentKey=key;
+      // Preserve a keyboard activation only through its current publication.
+      // Search/user focus changes, superseded reads and other tabs keep focus.
+      if(restoreTaskFocus&&(doc.activeElement===doc.body||doc.activeElement===taskFocus.trigger))target.querySelector<HTMLButtonElement>('.ts-task-filters > button[aria-pressed="true"]')?.focus({preventScroll:true});
     }catch(e){
       if(run!==this.sidebarRun||owner!==this.session||this.closed)return;
       const notice=target.createDiv({cls:'ts-sidebar-refresh-error',attr:{role:'status'}});notice.createSpan({text:'列表更新失败，已保留原内容'});button(notice,'重试','rotate-cw',()=>this.populateSidebar(),'ts-icon-button');
@@ -5696,6 +5713,7 @@ class BoardView extends FileView {
         if (++rendered > 300 || trail.length > 32) return;
         const circular = trail.includes(file), children = [...new Set(graph.get(file.path) || [])].map(p => byPath.get(p)).filter((f): f is TFile => !!f).sort(compare);
         const row = tree.createDiv({ cls: 'ts-tree-row', attr: { role: 'treeitem', 'aria-level': trail.length + 1, 'data-board-path': file.path } });
+        this.plugin.folioProjectColors?.decorateBoardRow(row,(trail[0]||file).path);
         row.style.paddingLeft = `${Math.min(trail.length, 8) * 14}px`; row.toggleClass('is-current', file === this.file);
         if (children.length && !circular && !this.query) {
           const collapsed = this.collapsedBoards.has(file.path); row.setAttribute('aria-expanded', String(!collapsed));
@@ -5732,7 +5750,8 @@ class BoardView extends FileView {
       list.createDiv({ text: this.taskScope === 'board' ? '当前白板引用笔记的任务' : '全仓库任务 · 按笔记修改时间排序', cls: 'ts-list-heading' });
       const paths = this.taskScope === 'board' ? [...new Set(this.session.board.nodes.filter(n => n.kind === 'card').map(n => n.file!))] : this.app.vault.getMarkdownFiles().filter(isWorkspaceFile).sort((a, b) => b.stat.mtime - a.stat.mtime).map(f => f.path);
       const filters=list.createDiv('ts-task-filters');
-      for(const [id,label] of [['all','全部'],['todo','未完成'],['done','已完成']] as const){const b=button(filters,label,'',()=>{this.taskFilter=id;this.renderSidebar();});b.toggleClass('is-active',this.taskFilter===id);}
+      const taskOwner=this.session,taskTarget=this.list;
+      for(const [id,label] of [['all','全部'],['todo','未完成'],['done','已完成']] as const){const b=button(filters,label,'',()=>{});b.onclick=event=>act(()=>this.setTaskFilter(id,b,taskOwner,taskTarget,event));b.toggleClass('is-active',this.taskFilter===id);b.setAttribute('aria-pressed',String(this.taskFilter===id));}
       const progress=list.createDiv('ts-task-progress');const totals:{checked:boolean}[]=[];
       let count = 0;
       for (const path of paths) {
@@ -5752,7 +5771,22 @@ class BoardView extends FileView {
       }
       const summary=taskSummary(totals);progress.createSpan({text:`已完成 ${summary.done} / ${summary.total}`,cls:'ts-task-progress-label'});progress.createSpan({text:`${summary.percent}%`,cls:'ts-task-percent'});const bar=progress.createEl('progress',{attr:{max:'100',value:String(summary.percent),'aria-label':'任务完成度'}});bar.value=summary.percent;
       if(visibleTasks(totals,this.taskFilter).length>200)list.createDiv({cls:'ts-muted',text:'显示前 200 条匹配任务，请搜索缩小范围。'});
-      if (!count) list.createDiv({ cls: 'ts-sidebar-empty', text: summary.total?'当前筛选下没有任务。':'还没有任务。在卡片中写入 - [ ] 待办事项，即可在这里管理。' });
+      if (!count) {
+        const empty=list.createDiv({cls:`ts-sidebar-empty ts-task-empty${this.query||summary.total?' ts-sidebar-empty-actions':''}`});
+        if(this.query&&summary.total===0){
+          empty.createEl('strong',{cls:'ts-task-empty-title',text:'没有匹配的任务'});
+          empty.createSpan({cls:'ts-task-empty-copy',text:'试试其他关键词，或清除搜索后查看当前范围的任务。'});
+          button(empty,'清除搜索','rotate-ccw',()=>{if(this.tab==='tasks')this.clearSidebarFilters();});
+        }else if(summary.total){
+          empty.createEl('strong',{cls:'ts-task-empty-title',text:'当前筛选下没有任务'});
+          empty.createSpan({cls:'ts-task-empty-copy',text:this.taskFilter==='todo'?(this.query?'匹配当前搜索的任务都已完成。可切换“全部”查看。':'当前范围的任务都已完成。可切换“全部”查看。'):(this.query?'匹配当前搜索的任务中还没有已完成任务。可切换“全部”查看。':'当前范围还没有已完成任务。可切换“全部”查看。')});
+          const showAll=button(empty,'查看全部任务','list-checks',()=>{});
+          showAll.onclick=event=>act(()=>this.setTaskFilter('all',showAll,taskOwner,taskTarget,event));
+        }else{
+          empty.createEl('strong',{cls:'ts-task-empty-title',text:'还没有任务'});
+          empty.createSpan({cls:'ts-task-empty-copy',text:'在卡片中写入 - [ ] 待办事项，即可在这里管理。'});
+        }
+      }
       return;
     }
     const owner = this.session;

@@ -4,14 +4,16 @@ import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import {cleanPluginSettings,type ThoughtSpacePreferences} from '../src/plugin-settings';
 import {exportSettingsProfile,parseSettingsProfile,resolveSettingsLanguage,settingsCategoryDefaults} from '../src/settings-preferences';
+import {setUiFeedback,clearUiFeedback} from '../src/ui-feedback';
 
 type Options={cls?:string;text?:string;attr?:Record<string,string>;type?:string;value?:string};
 class Element {
- children:Element[]=[];dataset:Record<string,string>={};attributes:Record<string,string>={};classes=new Set<string>();value='';disabled=false;hidden=false;readOnly=false;files?:{size:number;text:()=>Promise<string>}[];writes=0;private text='';onclick?:()=>void;oninput?:()=>void;onchange?:()=>void;
+ readonly isConnected=true; // Owned, visible queue fixture; lifecycle tests use a real connected tree.
+ children:Element[]=[];dataset:Record<string,string>={};attributes:Record<string,string>={};classes=new Set<string>();value='';disabled=false;hidden=false;readOnly=false;files?:{size:number;text:()=>Promise<string>}[];writes=0;textWrites:{text:string;feedback?:string}[]=[];private text='';onclick?:()=>void;oninput?:()=>void;onchange?:()=>void;
  constructor(readonly tagName:string,options:Options|string={}){const opts=typeof options==='string'?{cls:options}:options;this.text=opts.text||'';this.attributes={...opts.attr};this.value=opts.value||'';if(opts.type)this.attributes.type=opts.type;for(const cls of (opts.cls||'').split(/\s+/).filter(Boolean))this.classes.add(cls);}
  get textContent():string{return this.text+this.children.map(child=>child.textContent).join('');}
  createEl(tag:string,options:Options|string={}){this.writes++;const child=new Element(tag.toUpperCase(),options);this.children.push(child);return child;}createDiv(options:Options|string={}){return this.createEl('div',options);}createSpan(options:Options|string={}){return this.createEl('span',options);}
- addClass(...names:string[]){for(const name of names)this.classes.add(name);}setText(text:string){this.writes++;this.text=text;this.children=[];}empty(){this.writes++;this.children=[];this.text='';}click(){if(!this.disabled)this.onclick?.();}
+ addClass(...names:string[]){for(const name of names)this.classes.add(name);}setText(text:string){this.writes++;this.text=text;this.children=[];this.textWrites.push({text,feedback:this.dataset.feedback});}empty(){this.writes++;this.children=[];this.text='';}click(){if(!this.disabled)this.onclick?.();}
  querySelectorAll(selector:string):Element[]{return this.children.flatMap(child=>[...((selector.startsWith('.')?child.classes.has(selector.slice(1)):child.tagName===selector.toUpperCase())?[child]:[]),...child.querySelectorAll(selector)]);}
 }
 class Setting {
@@ -31,13 +33,14 @@ function fixture(raw:unknown={}){
  const modals:any[]=[],delegated:{prefs:ThoughtSpacePreferences;persist:()=>Promise<void>}[]=[];
  class Modal {modalEl=new Element('DIV');titleEl=this.modalEl.createEl('h2');contentEl=this.modalEl.createDiv();closeCount=0;onOpen?:()=>void;onClose?:()=>void;constructor(readonly app:unknown){modals.push(this);}open(){this.onOpen?.();}close(){this.closeCount++;this.onClose?.();}}
  class PluginSettingTab {containerEl=new Element('DIV');constructor(readonly app:unknown){}}
- const deps={Modal,PluginSettingTab,Setting,Notice:class{},setIcon:()=>{},getLanguage:()=> 'en',themeSurface:()=>{},resolveSettingsLanguage,settingsCategoryDefaults,exportSettingsProfile,parseSettingsProfile,boardPreferenceControls:(_el:unknown,prefs:ThoughtSpacePreferences,persist:()=>Promise<void>)=>delegated.push({prefs,persist}),mousePreferenceControls:(_el:unknown,prefs:ThoughtSpacePreferences,persist:()=>Promise<void>)=>delegated.push({prefs,persist}),hostSettings:()=>undefined,imageHostApi:()=>undefined,validateFolders:()=>({})};
+ const deps={Modal,PluginSettingTab,Setting,Notice:class{},console:{error:()=>{}},setUiFeedback,clearUiFeedback,setIcon:()=>{},getLanguage:()=> 'en',themeSurface:()=>{},resolveSettingsLanguage,settingsCategoryDefaults,exportSettingsProfile,parseSettingsProfile,boardPreferenceControls:(_el:unknown,prefs:ThoughtSpacePreferences,persist:()=>Promise<void>)=>delegated.push({prefs,persist}),mousePreferenceControls:(_el:unknown,prefs:ThoughtSpacePreferences,persist:()=>Promise<void>)=>delegated.push({prefs,persist}),hostSettings:()=>undefined,imageHostApi:()=>undefined,validateFolders:()=>({})};
  const ThoughtSpaceSettings=new Function(...Object.keys(deps),compiled)(...Object.values(deps));
  const saves:ThoughtSpacePreferences[]=[],pending:ReturnType<typeof deferred<void>>[]=[];
  let disk=cleanPluginSettings(raw),rendered=cleanPluginSettings(raw),refreshes=0,rebuilds=0,displays=0,reports=0;
  const host={settings:cleanPluginSettings(raw),manifest:{version:'test'},noteToolbar:{refresh:()=>{refreshes++;}},rebuildBoardSearch:()=>{rebuilds++;},savePreferences:()=>{const snapshot=structuredClone(host.settings);saves.push(snapshot);const task=deferred();pending.push(task);return task.promise.then(()=>{disk=snapshot;});}};
  const tab=new ThoughtSpaceSettings({vault:{configDir:'.obsidian'}},host);
- tab.language='en';tab.display=()=>{displays++;rendered=structuredClone(host.settings);};tab.report=()=>{reports++;};
+ const report=tab.report.bind(tab);
+ tab.status=new Element('DIV');tab.language='en';tab.display=()=>{displays++;rendered=structuredClone(host.settings);tab.status=new Element('DIV');};tab.report=(error:unknown)=>{reports++;report(error);};
  return{tab,host,saves,pending,delegated,modals,get disk(){return disk;},get rendered(){return rendered;},get refreshes(){return refreshes;},get rebuilds(){return rebuilds;},get displays(){return displays;},get reports(){return reports;}};
 }
 
@@ -146,4 +149,67 @@ test('closing a profile during Apply never closes it twice or updates detached s
   if(success)f.pending[0].resolve();else f.pending[0].reject(Error('write failed'));
   await tick();assert.equal(f.modal.closeCount,1);assert.equal(f.status.writes,writes);assert.equal(f.root.children.length,0);
  }
+});
+
+test('real queued settings callers keep loading, error and success feedback in transaction order',async()=>{
+ const f=fixture(),status=f.tab.status as Element;
+ const first=f.tab.patch({accent:'blue'}),second=f.tab.patch({accent:'rose'}),settled=Promise.allSettled([first,second]);
+ await tick();assert.equal(status.dataset.feedback,'loading');assert.equal(status.textContent,'Saving…');
+ f.pending[0].reject(Error('first write failed'));await tick();
+ assert.deepEqual(status.textWrites.map(write=>write.feedback),['loading','error','loading']);
+ assert.equal(f.saves.length,2);assert.equal(f.saves[1].accent,'rose');
+ f.pending[1].resolve();await settled;
+ assert.deepEqual(status.textWrites.map(write=>write.feedback),['loading','error','loading','success']);
+ assert.equal(status.textContent,'Saved');assert.equal(f.host.settings.accent,'rose');assert.equal(f.disk.accent,'rose');
+ assert.equal(f.reports,1);assert.equal(f.displays,1);assert.equal(f.tab.status.dataset.feedback,undefined);
+});
+
+test('a failed settings caller reports error then its existing rollback redraw clears the new status node',async()=>{
+ const f=fixture(),status=f.tab.status as Element,operation=f.tab.patch({accent:'blue'}),settled=Promise.allSettled([operation]);
+ await tick();f.pending[0].reject(Error('disk full'));await settled;
+ assert.deepEqual(status.textWrites.map(write=>write.feedback),['loading','error']);
+ assert.match(status.textContent,/Settings could not be saved/);assert.equal(f.host.settings.accent,'forest');
+ assert.notEqual(f.tab.status,status);assert.equal(f.tab.status.textContent,'');assert.equal(f.tab.status.dataset.feedback,undefined);
+});
+
+test('profile error, validation, edit and accepted-file callers synchronize feedback with approval state',async()=>{
+ const f=profileFixture();f.setJson('{broken');f.button('Validate').click();
+ assert.equal(f.status.dataset.feedback,'error');assert.equal(f.button('Apply profile').disabled,true);
+ f.setJson(json('blue'));assert.equal(f.status.textContent,'');assert.equal(f.status.dataset.feedback,undefined);
+ f.button('Validate').click();assert.equal(f.status.dataset.feedback,'success');assert.equal(f.button('Apply profile').disabled,false);
+ const read=deferred<string>();f.choose(read);assert.equal(f.status.dataset.feedback,'loading');assert.equal(f.button('Apply profile').disabled,true);
+ read.resolve(json('rose'));await tick();assert.equal(f.status.textContent,'');assert.equal(f.status.dataset.feedback,undefined);
+ assert.equal(f.button('Apply profile').disabled,true);assert.equal(f.saves.length,0);
+});
+
+test('stale profile read success or failure cannot overwrite the latest completed feedback',async()=>{
+ for(const staleFails of [false,true])for(const latestFails of [false,true]){
+  const f=profileFixture(),first=deferred<string>(),second=deferred<string>();f.choose(first);f.choose(second);
+  if(latestFails)second.reject(Error('latest failed'));else second.resolve(json('rose'));await tick();
+  const writes=f.status.writes,text=f.status.textContent,feedback=f.status.dataset.feedback,value=f.input.value;
+  assert.equal(feedback,latestFails?'error':undefined);
+  if(staleFails)first.reject(Error('old failed'));else first.resolve(json('blue'));await tick();
+  assert.equal(f.status.writes,writes);assert.equal(f.status.textContent,text);assert.equal(f.status.dataset.feedback,feedback);assert.equal(f.input.value,value);
+  assert.equal(f.button('Apply profile').disabled,true);assert.equal(f.saves.length,0);
+ }
+});
+
+test('closed profile read success and failure leave detached feedback and controls untouched',async()=>{
+ for(const fails of [false,true]){
+  const f=profileFixture(),read=deferred<string>();f.choose(read);f.modal.close();
+  const writes=f.status.writes,feedback=f.status.dataset.feedback,text=f.status.textContent;
+  if(fails)read.reject(Error('closed read failed'));else read.resolve(json('rose'));await tick();
+  assert.equal(f.status.writes,writes);assert.equal(f.status.dataset.feedback,feedback);assert.equal(f.status.textContent,text);
+  assert.equal(f.root.children.length,0);assert.equal(f.modal.closeCount,1);assert.equal(f.saves.length,0);
+ }
+});
+
+test('failed profile Apply keeps the reviewed patch recoverable and clears failure after editing',async()=>{
+ const f=profileFixture();f.host.settings.cardFolder='Keep/private';f.setJson(json('blue'));f.button('Validate').click();f.button('Apply profile').click();await tick();
+ assert.equal(f.status.dataset.feedback,'success');assert.equal(f.input.readOnly,true);assert.equal(f.file.disabled,true);
+ f.pending[0].reject(Error('disk full'));await tick();
+ assert.equal(f.status.dataset.feedback,'error');assert.match(f.status.textContent,/Previous settings were kept/);
+ assert.equal(f.host.settings.accent,'forest');assert.equal(f.host.settings.cardFolder,'Keep/private');
+ assert.equal(f.input.readOnly,false);assert.equal(f.file.disabled,false);assert.equal(f.button('Apply profile').disabled,false);
+ f.setJson(json('rose'));assert.equal(f.status.textContent,'');assert.equal(f.status.dataset.feedback,undefined);assert.equal(f.button('Apply profile').disabled,true);
 });

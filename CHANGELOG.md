@@ -1,3 +1,7 @@
+## 1.3.35-folio.8 — Folio Atelier preview
+
+Independent Folio Atelier 3.32.11 integration based on 1.3.35. Adds project colors and workspace presentation, readable relation controls and keyboard focus continuity. See `qa/RELEASE-1.3.35-folio.8.md` for validation and native acceptance limits.
+
 # 更新记录
 
 ## 1.3.35

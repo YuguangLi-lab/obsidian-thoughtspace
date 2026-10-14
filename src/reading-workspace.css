@@ -93,6 +93,8 @@
 .ts-reading-page-head h2 {margin:0 0 9px;font-family:var(--font-text);font-size:clamp(23px,2.3vw,29px);line-height:1.45;font-weight:var(--h2-weight,600);letter-spacing:-.02em;color:var(--text-normal);overflow-wrap:anywhere;}
 .ts-reading-source {margin:0;font:400 11px/1.7 var(--font-interface);color:var(--text-muted);overflow-wrap:anywhere;}
 .ts-reading-prose {font-family:var(--font-text);font-size:var(--ts-reading-size,16px);line-height:1.85;color:var(--text-normal);overflow-wrap:anywhere;}
+.ts-reading-desk .ts-reading-read-status {width:100%;max-width:700px;margin:0 auto 12px;padding:10px 12px;border:1px solid var(--reader-line);border-radius:6px;background:var(--reader-wash);color:var(--text-normal);font:400 12px/1.6 var(--font-interface);overflow-wrap:anywhere;}
+.ts-reading-desk .ts-reading-read-status[data-feedback=error] {color:var(--text-error);}
 .ts-reading-prose>:first-child {margin-top:0;}
 .ts-reading-prose img {display:block;max-width:100%;height:auto;border-radius:5px;}
 .ts-reading-prose :is(pre,table,.table-wrapper) {max-width:100%;overflow:auto;}

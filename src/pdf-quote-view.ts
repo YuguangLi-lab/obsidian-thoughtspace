@@ -1,3 +1,4 @@
+import {setUiFeedback} from './ui-feedback';
 import {App,Modal} from 'obsidian';
 import {themeSurface} from './ui-tokens';
 import type {PdfQuotePlan} from './pdf-quote';
@@ -13,9 +14,9 @@ export class PdfQuoteModal extends Modal {
   this.contentEl.createEl('p',{cls:'ts-muted',text:'高亮、批注和矩形嵌入的显示取决于 PDF++。未启用时可从卡片来源选择“仅打开 PDF 页”。'});
   const actions=this.contentEl.createDiv('ts-pdf-quote-actions'),cancel=actions.createEl('button',{text:'取消'}),save=actions.createEl('button',{text:'加入白板',cls:'mod-cta'});cancel.onclick=()=>this.close();
   let current:PdfQuotePlan|undefined;
-  const refresh=()=>{current=undefined;save.disabled=true;try{current=this.plan(input.value,source.value.trim());status.setText(current.links.map(link=>`${link.path} · 第 ${link.page} 页 · ${link.kind}`).join('\n'));save.disabled=false;}catch(error){status.setText(String(error).replace(/^Error: /,''));}};
+  const refresh=()=>{current=undefined;save.disabled=true;try{current=this.plan(input.value,source.value.trim());setUiFeedback(status,'info',current.links.map(link=>`${link.path} · 第 ${link.page} 页 · ${link.kind}`).join('\n'));save.disabled=false;}catch(error){setUiFeedback(status,'error',String(error).replace(/^Error: /,''));}};
   source.oninput=input.oninput=refresh;
-  save.onclick=()=>{if(this.closed||save.disabled||!current)return;save.disabled=true;try{const latest=this.plan(input.value,source.value.trim());this.save(latest);this.close();}catch(error){status.setText(String(error).replace(/^Error: /,''));save.disabled=false;}};
+  save.onclick=()=>{if(this.closed||save.disabled||!current)return;save.disabled=true;try{const latest=this.plan(input.value,source.value.trim());this.save(latest);this.close();}catch(error){setUiFeedback(status,'error',String(error).replace(/^Error: /,''));save.disabled=false;}};
   input.onkeydown=e=>{if(!e.isComposing&&(e.metaKey||e.ctrlKey)&&e.key==='Enter'){e.preventDefault();save.click();}};
   refresh();input.focus();
  }

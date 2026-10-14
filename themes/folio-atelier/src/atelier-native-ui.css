@@ -1,0 +1,462 @@
+/* Folio Atelier · Native research-workspace finish.
+ * Shared --atelier-ui-* tokens are supplied by the design-system module.
+ * Baseline paint works with the existing chrome switches off; those switches
+ * add capsule tabs, stronger sidebar separation and settings-group surfaces.
+ * Keep native sizing, virtual rows, scroll owners, drag handles and overlays;
+ * prompts also respect a narrower containing surface without widening the
+ * native viewport limit or changing their input height and text metrics.
+ * No editor, ribbon, plugin-body, generated label or positioned-layer rules.
+ */
+
+@media screen {
+
+/* 1 · Native headers and tab chrome. Never change tab direction or dimensions. */
+body .workspace-tabs > .workspace-tab-header-container {
+  background-color: var(--atelier-ui-canvas, var(--atelier-board));
+  border-color: var(--atelier-ui-line, var(--atelier-border));
+}
+body .workspace-tab-header .workspace-tab-header-inner-title {
+  color: var(--atelier-ui-muted, var(--atelier-muted));
+}
+body .workspace-tab-header:is(:hover,.is-active) .workspace-tab-header-inner-title {
+  color: var(--atelier-ui-ink, var(--atelier-ink));
+}
+body .workspace-tab-header.is-active .workspace-tab-header-inner-title {
+  font-weight: 600;
+}
+body .workspace-tab-header:focus-visible {
+  outline: 2px solid var(--atelier-accent);
+  outline-offset: -2px;
+}
+body .workspace-tab-header .workspace-tab-header-inner-close-button {
+  --icon-color: var(--atelier-ui-muted, var(--atelier-muted));
+  color: var(--atelier-ui-muted, var(--atelier-muted));
+  border-radius: var(--atelier-ui-radius-sm, var(--radius-s));
+}
+body .workspace-tab-header .workspace-tab-header-inner-close-button:is(:hover,:focus-visible) {
+  --icon-color: var(--atelier-ui-ink, var(--atelier-ink));
+  color: var(--atelier-ui-ink, var(--atelier-ink));
+  background-color: var(--atelier-ui-subtle, var(--atelier-soft));
+}
+body.atelier-chrome-tabs .workspace-tab-header {
+  border-radius: var(--atelier-ui-radius-md, var(--atelier-radius));
+}
+body.atelier-chrome-tabs .workspace-tab-header:not(.is-active):hover {
+  background-color: var(--atelier-ui-subtle, var(--atelier-soft));
+}
+body.atelier-chrome-tabs .workspace-tab-header.is-active {
+  background-color: var(--atelier-ui-raised, var(--atelier-raised));
+  box-shadow: inset 0 0 0 1px var(--atelier-ui-line-strong, var(--atelier-border));
+}
+body.atelier-chrome-tabs .workspace-tab-header.is-active .workspace-tab-header-inner {
+  background-color: transparent;
+  border-radius: inherit;
+}
+body.atelier-chrome-tabs .workspace-tab-header.is-active .workspace-tab-header-inner-title {
+  color: var(--atelier-ui-ink, var(--atelier-ink));
+}
+
+/* Scope header actions to actual native leaf types, outside the view body. */
+body .workspace-leaf-content:is([data-type="markdown"],[data-type="file-explorer"],[data-type="search"],[data-type="backlink"],[data-type="outgoing-link"],[data-type="outline"],[data-type="tag"],[data-type="bookmarks"],[data-type="all-properties"],[data-type="empty"],[data-type="canvas"],[data-type="graph"]) > .view-header {
+  background-color: var(--atelier-ui-panel, var(--atelier-paper));
+  border-bottom-color: var(--atelier-ui-line, var(--atelier-border));
+  color: var(--atelier-ui-ink, var(--atelier-ink));
+}
+body .workspace-leaf-content:is([data-type="markdown"],[data-type="file-explorer"],[data-type="search"],[data-type="backlink"],[data-type="outgoing-link"],[data-type="outline"],[data-type="tag"],[data-type="bookmarks"],[data-type="all-properties"],[data-type="empty"],[data-type="canvas"],[data-type="graph"]) > .view-header :is(.view-action,.view-header-icon) {
+  --icon-color: var(--atelier-ui-muted, var(--atelier-muted));
+  color: var(--atelier-ui-muted, var(--atelier-muted));
+  border-radius: var(--atelier-ui-radius-sm, var(--radius-s));
+}
+body .workspace-leaf-content:is([data-type="markdown"],[data-type="file-explorer"],[data-type="search"],[data-type="backlink"],[data-type="outgoing-link"],[data-type="outline"],[data-type="tag"],[data-type="bookmarks"],[data-type="all-properties"],[data-type="empty"],[data-type="canvas"],[data-type="graph"]) > .view-header :is(.view-action,.view-header-icon):is(:hover,:focus-visible) {
+  --icon-color: var(--atelier-ui-ink, var(--atelier-ink));
+  background-color: var(--atelier-ui-subtle, var(--atelier-soft));
+  color: var(--atelier-ui-ink, var(--atelier-ink));
+}
+
+/* 2 · Native navigation. Preserve native padding, collapse hit areas and slots. */
+body .workspace-leaf-content:is([data-type="file-explorer"],[data-type="search"],[data-type="backlink"],[data-type="outgoing-link"],[data-type="outline"],[data-type="tag"],[data-type="bookmarks"],[data-type="all-properties"]) {
+  --nav-item-color: var(--atelier-ui-muted, var(--atelier-muted));
+  --nav-item-color-hover: var(--atelier-ui-ink, var(--atelier-ink));
+  --nav-item-color-active: var(--atelier-ui-ink, var(--atelier-ink));
+  --nav-item-background-hover: var(--atelier-ui-subtle, var(--atelier-soft));
+  --nav-item-background-active: var(--atelier-ui-subtle, var(--atelier-soft));
+  --nav-collapse-icon-color: var(--atelier-ui-dim, var(--atelier-faint));
+}
+body.atelier-chrome-sidebar .workspace-split:is(.mod-left-split,.mod-right-split) .workspace-leaf-content:is([data-type="file-explorer"],[data-type="search"],[data-type="backlink"],[data-type="outgoing-link"],[data-type="outline"],[data-type="tag"],[data-type="bookmarks"],[data-type="all-properties"]) {
+  background-color: var(--atelier-ui-canvas, var(--atelier-board));
+}
+body .workspace-leaf-content[data-type="file-explorer"] :is(.nav-file-title,.nav-folder-title),
+body .workspace-leaf-content:is([data-type="outline"],[data-type="tag"],[data-type="bookmarks"],[data-type="all-properties"]) .tree-item-self {
+  border-radius: var(--atelier-ui-radius-sm, var(--radius-s));
+}
+body .workspace-leaf-content[data-type="file-explorer"] .nav-file-title:not(.is-active):hover,
+body .workspace-leaf-content:is([data-type="outline"],[data-type="tag"],[data-type="bookmarks"],[data-type="all-properties"]) .tree-item-self:not(.is-active):hover {
+  background-color: var(--atelier-ui-subtle, var(--atelier-soft));
+  color: var(--atelier-ui-ink, var(--atelier-ink));
+}
+body .workspace-leaf-content[data-type="file-explorer"] .nav-file-title.is-active,
+body .workspace-leaf-content:is([data-type="outline"],[data-type="tag"],[data-type="bookmarks"],[data-type="all-properties"]) .tree-item-self.is-active {
+  background-color: var(--atelier-ui-subtle, var(--atelier-soft));
+  color: var(--atelier-ui-ink, var(--atelier-ink));
+  box-shadow: inset 2px 0 var(--atelier-accent);
+}
+body.atelier-chrome-sidebar .workspace-leaf-content[data-type="file-explorer"] .nav-file-title.is-active {
+  background-color: var(--atelier-ui-panel, var(--atelier-paper));
+  box-shadow: inset 3px 0 var(--atelier-accent), inset 0 0 0 1px var(--atelier-ui-line, var(--atelier-border));
+}
+body .workspace-leaf-content[data-type="file-explorer"] :is(.nav-file-title,.nav-folder-title):focus-visible,
+body .workspace-leaf-content:is([data-type="outline"],[data-type="tag"],[data-type="bookmarks"],[data-type="all-properties"]) .tree-item-self:focus-visible,
+/* Native tree keyboard navigation uses .has-focus on a div; it may remain on
+ * inactive leaves. Keep this outline alongside the current-item marker. */
+body:not(.is-phone) .workspace-leaf.mod-active .workspace-leaf-content:is([data-type="file-explorer"],[data-type="outline"],[data-type="tag"],[data-type="bookmarks"],[data-type="all-properties"]) .tree-item-self.has-focus {
+  outline: 2px solid var(--folio-folder-color, var(--atelier-accent));
+  outline-offset: -2px;
+}
+/* Do not set folder title/icon colors, washes or line markers: project slots own them. */
+body .workspace-leaf-content:is([data-type="search"],[data-type="backlink"],[data-type="outgoing-link"],[data-type="tag"],[data-type="bookmarks"]) .tree-item-flair {
+  color: var(--atelier-ui-muted, var(--atelier-muted));
+  background-color: var(--atelier-ui-subtle, var(--atelier-soft));
+  border-radius: var(--atelier-ui-radius-sm, var(--radius-s));
+  font-variant-numeric: tabular-nums;
+}
+body .status-bar {
+  color: var(--atelier-ui-muted, var(--atelier-muted));
+  --status-bar-background: var(--atelier-ui-panel, var(--atelier-paper));
+  --status-bar-border-color: var(--atelier-ui-line, var(--atelier-border));
+  box-shadow: none;
+}
+body .status-bar .status-bar-item {
+  border-radius: var(--atelier-ui-radius-sm, var(--radius-s));
+  font-variant-numeric: tabular-nums;
+}
+body .status-bar .status-bar-item.mod-clickable:is(:hover,:focus-visible) {
+  background-color: var(--atelier-ui-subtle, var(--atelier-soft));
+  color: var(--atelier-ui-ink, var(--atelier-ink));
+}
+
+/* 3 · Search/backlinks. Paint native result rows without changing virtual heights. */
+body .workspace-leaf-content:is([data-type="search"],[data-type="backlink"],[data-type="outgoing-link"]) {
+  --search-result-background: var(--atelier-ui-panel, var(--atelier-paper));
+  --search-result-background-hover: var(--atelier-ui-subtle, var(--atelier-soft));
+}
+body .workspace-leaf-content:is([data-type="search"],[data-type="backlink"],[data-type="outgoing-link"]) .search-input-container input {
+  color: var(--atelier-ui-ink, var(--atelier-ink));
+  background-color: var(--atelier-ui-raised, var(--atelier-raised));
+  border-color: var(--atelier-ui-line, var(--atelier-border));
+  border-radius: var(--atelier-ui-radius-sm, var(--radius-s));
+  box-shadow: none;
+}
+body .workspace-leaf-content:is([data-type="search"],[data-type="backlink"],[data-type="outgoing-link"]) .search-input-container input::placeholder {
+  color: var(--atelier-ui-muted, var(--atelier-muted));
+}
+body .workspace-leaf-content:is([data-type="search"],[data-type="backlink"],[data-type="outgoing-link"]) .search-input-container input:focus-visible {
+  border-color: var(--atelier-accent);
+  outline: 2px solid var(--atelier-accent);
+  outline-offset: 1px;
+}
+body.atelier-chrome-sidebar .workspace-leaf-content[data-type="search"] .search-input-container:focus-within {
+  box-shadow: none;
+}
+body .workspace-leaf-content[data-type="search"] .search-results-info {
+  color: var(--atelier-ui-muted, var(--atelier-muted));
+  box-shadow: inset 0 -1px var(--atelier-ui-line, var(--atelier-border));
+}
+body .workspace-leaf-content[data-type="search"] .search-results-result-count {
+  color: var(--atelier-ui-ink, var(--atelier-ink));
+  font-variant-numeric: tabular-nums;
+}
+body .workspace-leaf-content:is([data-type="search"],[data-type="backlink"],[data-type="outgoing-link"]) .search-result-file-title {
+  color: var(--atelier-ui-ink, var(--atelier-ink));
+  background-color: var(--atelier-ui-panel, var(--atelier-paper));
+  border-radius: var(--atelier-ui-radius-sm, var(--radius-s));
+  box-shadow: inset 0 -1px var(--atelier-ui-line, var(--atelier-border));
+}
+body .workspace-leaf-content:is([data-type="search"],[data-type="backlink"],[data-type="outgoing-link"]) .search-result-file-title:is(:hover,:focus-within) {
+  background-color: var(--atelier-ui-subtle, var(--atelier-soft));
+  box-shadow: inset 2px 0 var(--atelier-accent);
+}
+body .workspace-leaf-content:is([data-type="search"],[data-type="backlink"],[data-type="outgoing-link"]) .search-result-file-match {
+  color: var(--atelier-ui-muted, var(--atelier-muted));
+  border-radius: var(--atelier-ui-radius-sm, var(--radius-s));
+}
+body .workspace-leaf-content:is([data-type="search"],[data-type="backlink"],[data-type="outgoing-link"]) .search-result-file-match:is(:hover,:focus-within) {
+  color: var(--atelier-ui-ink, var(--atelier-ink));
+  background-color: var(--atelier-ui-subtle, var(--atelier-soft));
+}
+body .workspace-leaf-content:is([data-type="search"],[data-type="backlink"],[data-type="outgoing-link"]) .search-result-file-matched-text {
+  color: var(--atelier-ui-ink, var(--atelier-ink));
+  background-color: color-mix(in srgb, var(--atelier-accent) 14%, var(--atelier-ui-panel, var(--atelier-paper)));
+  box-shadow: inset 0 -1px color-mix(in srgb, var(--atelier-accent) 65%, transparent);
+  border-radius: 2px;
+}
+
+/* 4 · Native floating surfaces. No overlay/layer/placement rules. */
+body .menu,
+body .suggestion-container,
+body .prompt,
+body .modal:not([class*="ts-"]) {
+  background-color: var(--atelier-ui-raised, var(--atelier-raised));
+  border-color: var(--atelier-ui-line, var(--atelier-border));
+  border-radius: var(--atelier-ui-radius-md, var(--atelier-radius));
+  box-shadow: var(--atelier-ui-shadow-md, var(--atelier-shadow));
+  color: var(--atelier-ui-ink, var(--atelier-ink));
+}
+body .modal:not([class*="ts-"]) {
+  border-radius: var(--atelier-ui-radius-lg, var(--radius-xl));
+  box-shadow: var(--atelier-ui-shadow-lg, var(--atelier-shadow));
+}
+body.atelier-chrome-panels :is(.menu,.suggestion-container,.prompt,.modal:not([class*="ts-"])) {
+  border-color: var(--atelier-ui-line-strong, var(--atelier-border));
+}
+body .menu .menu-item:not(.is-warning),
+body :is(.suggestion-container,.prompt) .suggestion-item {
+  color: var(--atelier-ui-ink, var(--atelier-ink));
+  border-radius: var(--atelier-ui-radius-sm, var(--radius-s));
+}
+body .menu .menu-item:not(.is-disabled):not(.is-warning):is(:hover,.selected),
+body :is(.suggestion-container,.prompt) .suggestion-item.is-selected {
+  background-color: var(--atelier-ui-subtle, var(--atelier-soft));
+  color: var(--atelier-ui-ink, var(--atelier-ink));
+  box-shadow: inset 2px 0 var(--atelier-accent);
+}
+body .menu .menu-item.is-disabled {
+  color: var(--atelier-ui-dim, var(--atelier-faint));
+}
+body .menu .menu-item.is-warning:not(.is-disabled) {
+  color: var(--text-error, var(--atelier-red));
+}
+body .menu .menu-item-icon,
+body :is(.suggestion-container,.prompt) .suggestion-note {
+  color: var(--atelier-ui-muted, var(--atelier-muted));
+}
+body .menu .menu-item-icon {
+  --icon-color: var(--atelier-ui-muted, var(--atelier-muted));
+}
+body .menu .menu-item.is-warning .menu-item-icon {
+  --icon-color: var(--text-error, var(--atelier-red));
+  color: var(--text-error, var(--atelier-red));
+}
+body .menu .menu-item.is-disabled .menu-item-icon {
+  --icon-color: var(--atelier-ui-dim, var(--atelier-faint));
+  color: var(--atelier-ui-dim, var(--atelier-faint));
+}
+body .menu .menu-separator {
+  border-color: var(--atelier-ui-line, var(--atelier-border));
+}
+/* Native 700px/80vw sizing still wins in an ordinary desktop window. The
+   additional parent bound prevents overflow in a narrower modal surface. */
+body:not(.is-mobile) .modal-container > .prompt {
+  min-width: 0;
+  max-width: min(var(--prompt-max-width, 80vw), calc(100% - 2 * var(--size-4-4, 16px)));
+}
+body .prompt .prompt-input-container {
+  min-width: 0;
+}
+body .prompt .prompt-input {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  background-color: transparent;
+  color: var(--atelier-ui-ink, var(--atelier-ink));
+  border-color: var(--atelier-ui-line, var(--atelier-border));
+}
+/* The native prompt clips its children. Keep keyboard feedback inside the
+   input so it remains visible without changing borders or text placement. */
+body .prompt .prompt-input:focus-visible {
+  border-bottom-color: var(--atelier-accent);
+  outline: 2px solid var(--atelier-accent);
+  outline-offset: -3px;
+}
+body .prompt .prompt-input::placeholder {
+  color: var(--atelier-ui-muted, var(--atelier-muted));
+}
+body .prompt .prompt-instructions {
+  color: var(--atelier-ui-muted, var(--atelier-muted));
+  background-color: var(--atelier-ui-panel, var(--atelier-paper));
+  border-color: var(--atelier-ui-line, var(--atelier-border));
+}
+body .prompt .prompt-instruction-command,
+body .modal.mod-settings .setting-hotkey:not(.has-conflict):not(.mod-active) {
+  color: var(--atelier-ui-ink, var(--atelier-ink));
+  background-color: var(--atelier-ui-subtle, var(--atelier-soft));
+  border-color: var(--atelier-ui-line-strong, var(--atelier-border));
+  border-radius: var(--atelier-ui-radius-sm, var(--radius-s));
+  box-shadow: none;
+  font-family: var(--font-monospace);
+}
+body .tooltip:not(.mod-error):not(.mod-warning),
+body .notice:not(.mod-error):not(.mod-warning) {
+  --background-modifier-message: var(--atelier-ui-raised, var(--atelier-raised));
+  background-color: var(--atelier-ui-raised, var(--atelier-raised));
+  color: var(--atelier-ui-ink, var(--atelier-ink));
+  border-color: var(--atelier-ui-line, var(--atelier-border));
+  border-radius: var(--atelier-ui-radius-sm, var(--radius-s));
+  box-shadow: var(--atelier-ui-shadow-sm, var(--atelier-shadow));
+  line-height: 1.55;
+}
+/* Keep the native directional borders, including transparent arrow sides. */
+body .popover.hover-popover {
+  background-color: var(--atelier-ui-panel, var(--atelier-paper));
+  border-color: var(--atelier-ui-line, var(--atelier-border));
+  border-radius: var(--atelier-ui-radius-md, var(--atelier-radius));
+  box-shadow: var(--atelier-ui-shadow-md, var(--atelier-shadow));
+}
+
+/* 5 · Settings: text and control paint, no control widths or shortcut masking. */
+body .modal.mod-settings {
+  background-color: var(--atelier-ui-panel, var(--atelier-paper));
+}
+body .modal.mod-settings .vertical-tab-header {
+  background-color: var(--atelier-ui-canvas, var(--atelier-board));
+}
+body .modal.mod-settings .vertical-tab-header-group-title {
+  color: var(--atelier-ui-muted, var(--atelier-muted));
+  font-weight: 600;
+}
+body .modal.mod-settings .vertical-tab-nav-item {
+  color: var(--atelier-ui-muted, var(--atelier-muted));
+  border-radius: var(--atelier-ui-radius-sm, var(--radius-s));
+}
+body .modal.mod-settings .vertical-tab-nav-item:is(:hover,.is-active) {
+  background-color: var(--atelier-ui-subtle, var(--atelier-soft));
+  color: var(--atelier-ui-ink, var(--atelier-ink));
+}
+body .modal.mod-settings .vertical-tab-nav-item.is-active {
+  font-weight: 600;
+}
+body .modal.mod-settings .setting-item {
+  border-color: var(--atelier-ui-line, var(--atelier-border));
+}
+body .modal.mod-settings .setting-item-name {
+  color: var(--atelier-ui-ink, var(--atelier-ink));
+}
+/* Search counts are small text; use the readable muted token. */
+body .modal.mod-settings .style-settings-heading .style-settings-filter-result-count {
+  color: var(--atelier-ui-muted, var(--atelier-muted));
+}
+body .modal.mod-settings .setting-item-description:not(.mod-warning):not(.mod-error) {
+  color: var(--atelier-ui-muted, var(--atelier-muted));
+  line-height: 1.6;
+}
+body .modal.mod-settings .setting-item:not(.setting-item-heading):focus-within {
+  background-color: var(--atelier-ui-subtle, var(--atelier-soft));
+  border-radius: var(--atelier-ui-radius-sm, var(--radius-s));
+}
+body .modal.mod-settings .setting-item-control > :is(input:not([type="range"]):not([type="checkbox"]):not([type="color"]),select,textarea) {
+  color: var(--atelier-ui-ink, var(--atelier-ink));
+  background-color: var(--atelier-ui-raised, var(--atelier-raised));
+  border-color: var(--atelier-ui-line-strong, var(--atelier-border));
+  border-radius: var(--atelier-ui-radius-sm, var(--radius-s));
+  box-shadow: none;
+}
+body .modal.mod-settings .setting-item-control > button:not(.mod-cta):not(.mod-warning) {
+  background-color: var(--atelier-ui-raised, var(--atelier-raised));
+  color: var(--atelier-ui-ink, var(--atelier-ink));
+  border-radius: var(--atelier-ui-radius-sm, var(--radius-s));
+  box-shadow: inset 0 0 0 1px var(--atelier-ui-line-strong, var(--atelier-border));
+}
+body .modal.mod-settings .setting-item-control > button:not(.mod-cta):not(.mod-warning):not(:disabled):hover {
+  background-color: var(--atelier-ui-subtle, var(--atelier-soft));
+}
+body .modal.mod-settings .setting-item-control > :is(input,select,textarea,button):focus-visible,
+body .modal.mod-settings .checkbox-container:focus-visible,
+body .modal.mod-settings .vertical-tab-nav-item:focus-visible {
+  outline: 2px solid var(--atelier-accent);
+  outline-offset: 2px;
+}
+body.atelier-chrome-panels .modal.mod-settings .vertical-tab-header-group-title,
+body.atelier-chrome-panels .modal.mod-settings .vertical-tab-nav-item.is-active {
+  color: var(--atelier-accent);
+}
+body.atelier-chrome-panels .modal.mod-settings .vertical-tab-nav-item.is-active {
+  box-shadow: inset 2px 0 var(--atelier-accent);
+}
+body.atelier-chrome-panels .modal.mod-settings .vertical-tab-content .setting-item.setting-item-heading {
+  background-color: var(--atelier-ui-subtle, var(--atelier-soft));
+  border-radius: var(--atelier-ui-radius-md, var(--atelier-radius));
+  box-shadow: inset 0 -1px var(--atelier-ui-line, var(--atelier-border));
+}
+body.atelier-chrome-panels .modal.mod-settings .vertical-tab-content .setting-item.setting-item-heading > .setting-item-name {
+  color: var(--atelier-accent);
+}
+
+/* 6 · Native properties: direct preview, native reading wrapper or source roots.
+ * Keep all roots anchored to the native leaf; exclude embeds and plugin subtrees. */
+body :is(.workspace-leaf-content[data-type="markdown"] > .view-content > .markdown-preview-view,.workspace-leaf-content[data-type="markdown"] > .view-content > .markdown-reading-view > .markdown-preview-view,.workspace-leaf-content[data-type="markdown"] > .view-content > .markdown-source-view) .metadata-container:not(.markdown-embed *):not(.ts-root *) {
+  --metadata-label-text-color: var(--atelier-ui-muted, var(--atelier-muted));
+  --metadata-input-text-color: var(--atelier-ui-ink, var(--atelier-ink));
+  border-color: var(--atelier-ui-line, var(--atelier-border));
+}
+body :is(.workspace-leaf-content[data-type="markdown"] > .view-content > .markdown-preview-view,.workspace-leaf-content[data-type="markdown"] > .view-content > .markdown-reading-view > .markdown-preview-view,.workspace-leaf-content[data-type="markdown"] > .view-content > .markdown-source-view) .metadata-container:not(.markdown-embed *):not(.ts-root *) .metadata-properties-title {
+  color: var(--atelier-ui-ink, var(--atelier-ink));
+  font-weight: 600;
+}
+body :is(.workspace-leaf-content[data-type="markdown"] > .view-content > .markdown-preview-view,.workspace-leaf-content[data-type="markdown"] > .view-content > .markdown-reading-view > .markdown-preview-view,.workspace-leaf-content[data-type="markdown"] > .view-content > .markdown-source-view) .metadata-container:not(.markdown-embed *):not(.ts-root *) .metadata-property {
+  border-radius: var(--atelier-ui-radius-sm, var(--radius-s));
+}
+body :is(.workspace-leaf-content[data-type="markdown"] > .view-content > .markdown-preview-view,.workspace-leaf-content[data-type="markdown"] > .view-content > .markdown-reading-view > .markdown-preview-view,.workspace-leaf-content[data-type="markdown"] > .view-content > .markdown-source-view) .metadata-container:not(.markdown-embed *):not(.ts-root *) .metadata-property:is(:hover,:focus-within) {
+  background-color: var(--atelier-ui-subtle, var(--atelier-soft));
+}
+body :is(.workspace-leaf-content[data-type="markdown"] > .view-content > .markdown-preview-view,.workspace-leaf-content[data-type="markdown"] > .view-content > .markdown-reading-view > .markdown-preview-view,.workspace-leaf-content[data-type="markdown"] > .view-content > .markdown-source-view) .metadata-container:not(.markdown-embed *):not(.ts-root *) .metadata-property:focus-within {
+  box-shadow: inset 2px 0 var(--atelier-accent);
+}
+body.atelier-property-cards :is(.workspace-leaf-content[data-type="markdown"] > .view-content > .markdown-preview-view,.workspace-leaf-content[data-type="markdown"] > .view-content > .markdown-reading-view > .markdown-preview-view,.workspace-leaf-content[data-type="markdown"] > .view-content > .markdown-source-view) .metadata-container:not(.markdown-embed *):not(.ts-root *) {
+  background-color: var(--atelier-ui-panel, var(--atelier-paper));
+  border-radius: var(--atelier-ui-radius-md, var(--atelier-radius));
+  box-shadow: inset 0 0 0 1px var(--atelier-ui-line, var(--atelier-border));
+}
+
+/* 7 · Native empty tabs use the existing actions, without new copy or controls. */
+body .workspace-leaf-content[data-type="empty"] > .view-content .empty-state-container {
+  color: var(--atelier-ui-ink, var(--atelier-ink));
+}
+body.atelier-chrome-panels .workspace-leaf-content[data-type="empty"] > .view-content .empty-state-container {
+  background-color: var(--atelier-ui-panel, var(--atelier-paper));
+  border-color: var(--atelier-ui-line, var(--atelier-border));
+  border-radius: var(--atelier-ui-radius-md, var(--atelier-radius));
+  box-shadow: none;
+}
+body.atelier-chrome-panels .workspace-leaf-content[data-type="empty"] > .view-content .empty-state-action {
+  background-color: var(--atelier-ui-raised, var(--atelier-raised));
+  border-color: var(--atelier-ui-line, var(--atelier-border));
+  border-radius: var(--atelier-ui-radius-sm, var(--radius-s));
+  color: var(--atelier-ui-ink, var(--atelier-ink));
+}
+body.atelier-chrome-panels .workspace-leaf-content[data-type="empty"] > .view-content .empty-state-action:is(:hover,:focus-visible) {
+  background-color: var(--atelier-ui-subtle, var(--atelier-soft));
+  border-color: var(--atelier-accent);
+}
+
+/* 8 · Small paint-only feedback. Native geometry and control events stay owned. */
+body .workspace-leaf-content[data-type="file-explorer"] .nav-file-title,
+body .workspace-leaf-content:is([data-type="outline"],[data-type="tag"],[data-type="bookmarks"],[data-type="all-properties"]) .tree-item-self,
+body .workspace-tab-header,
+body .menu .menu-item,
+body :is(.suggestion-container,.prompt) .suggestion-item,
+body .modal.mod-settings .vertical-tab-nav-item {
+  transition: background-color var(--atelier-ui-speed, 140ms) var(--atelier-ui-ease, ease), color var(--atelier-ui-speed, 140ms) var(--atelier-ui-ease, ease);
+}
+body.atelier-flat :is(.menu,.suggestion-container,.prompt,.modal:not([class*="ts-"]),.tooltip:not(.mod-error):not(.mod-warning),.notice:not(.mod-error):not(.mod-warning),.popover.hover-popover) {
+  box-shadow: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  body .workspace-leaf-content[data-type="file-explorer"] .nav-file-title,
+  body .workspace-leaf-content:is([data-type="outline"],[data-type="tag"],[data-type="bookmarks"],[data-type="all-properties"]) .tree-item-self,
+  body .workspace-tab-header,
+  body .menu .menu-item,
+  body :is(.suggestion-container,.prompt) .suggestion-item,
+  body .modal.mod-settings .vertical-tab-nav-item {
+    transition: none !important;
+  }
+}
+@media (forced-colors: active) {
+  body .workspace-tab-header.is-active,
+  body .menu .menu-item.selected,
+  body :is(.suggestion-container,.prompt) .suggestion-item.is-selected,
+  body .modal.mod-settings .vertical-tab-nav-item.is-active {
+    outline: 1px solid Highlight;
+    outline-offset: -1px;
+  }
+}
+
+} /* screen: keep the print cascade unchanged. */

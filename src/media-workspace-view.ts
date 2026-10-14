@@ -109,6 +109,11 @@ export class MediaWorkspaceView extends ItemView {
  private status?:HTMLElement;
  private recoveryButton?:HTMLButtonElement;
  private timeline?:HTMLElement;
+ private timelineReadState:'idle'|'loading'|'loaded'|'error'='idle';
+ private timelineLoaded=false;
+ private timelineReadFeedback?:HTMLElement;
+ private timelineReadText?:HTMLElement;
+ private timelineRetryButton?:HTMLButtonElement;
  private timelineCount?:HTMLElement;
  private openNoteButton?:HTMLButtonElement;
  private busy=false;
@@ -166,6 +171,7 @@ export class MediaWorkspaceView extends ItemView {
   this.disposePlayer();this.releasePreview();this.closePreviews();this.unsubscribe?.();this.unsubscribe=undefined;this.releaseEditor();
   this.generation++;this.timelineRun++;this.cancelRefresh();
   this.file=next;this.placement=placement;this.note=undefined;this.entries=[];this.query='';this.limit=50;this.pageStart=0;this.recordFilter='all';this.expandedRecords.clear();
+  this.timelineLoaded=false;this.timelineReadState=next?'loading':'idle';
   this.recordPanel=state.recordPanel==='timeline'?'timeline':'compose';
   this.recordDensity=state.recordDensity==='compact'?'compact':'comfortable';
   if(typeof state.compactPlayer==='boolean')this.compactPlayer=state.compactPlayer;
@@ -390,6 +396,9 @@ export class MediaWorkspaceView extends ItemView {
   const navigation=aside.createDiv('ts-media-workspace__timeline-tools');
   this.action(navigation,'定位当前时间','locate-fixed',()=>this.locateMoment('current'));
   this.action(navigation,'最后一条','list-end',()=>this.locateMoment('last'));
+  this.timelineReadFeedback=aside.createDiv({cls:'ts-media-workspace__read-feedback',attr:{role:'status','aria-live':'polite','aria-atomic':'true'}});
+  this.timelineReadText=this.timelineReadFeedback.createSpan('ts-media-workspace__read-feedback-text');
+  this.timelineRetryButton=this.action(this.timelineReadFeedback,'重新读取时间轴','refresh-cw',event=>this.retryTimeline(event));
   this.timeline=aside.createDiv('ts-media-workspace__timeline');
   const pagination=aside.createDiv({cls:'ts-media-workspace__pagination',attr:{role:'group','aria-label':'摘录翻页'}});
   this.previousPageButton=this.action(pagination,'前 50 条','chevron-left',()=>{this.pageStart=Math.max(0,this.pageStart-50);this.renderTimeline();this.timeline!.scrollTop=0;});
@@ -499,29 +508,49 @@ export class MediaWorkspaceView extends ItemView {
  private async move(placement:MediaPlacement){if(this.busy||placement===this.placement||!this.canMove())return;this.busy=true;try{await this.host.open(this.file,placement,this.currentPlayback().time);}finally{this.busy=false;}}
  private cancelRefresh(){if(this.refreshTimer!==undefined)this.refreshWindow?.clearTimeout(this.refreshTimer);this.refreshTimer=undefined;this.refreshWindow=undefined;}
  private scheduleRefresh(){this.cancelRefresh();this.timelineRun++;const owner=this.contentEl.ownerDocument.defaultView;if(this.closed||!owner)return;this.refreshWindow=owner;this.refreshTimer=owner.setTimeout(()=>{this.refreshTimer=undefined;this.refreshWindow=undefined;void this.refreshMoments();},100);}
+ private retryTimeline(event?:MouseEvent){
+  const button=this.timelineRetryButton,search=this.searchInput,root=this.contentEl,doc=root.ownerDocument,file=this.file,generation=this.generation,panel=this.recordPanel,focused=this.focusPlayer;
+  const keyboard=event?.detail===0&&!!file&&this.isCurrent(file,generation)&&!!button&&button.isConnected&&!button.disabled&&root.contains(button)&&doc.activeElement===button&&button.matches(':focus-visible');
+  const reading=this.refreshMoments();
+  // Loading hides the retry launcher. Preserve only its lost keyboard focus;
+  // another focused control, a changed source/panel or a closed view wins.
+  if(keyboard&&file&&this.isCurrent(file,generation)&&root===this.contentEl&&root.isConnected&&this.recordPanel===panel&&this.focusPlayer===focused&&search===this.searchInput&&search?.isConnected&&!search.disabled&&root.contains(search)&&button===this.timelineRetryButton&&(doc.activeElement===button||doc.activeElement===doc.body))search.focus({preventScroll:true});
+  return reading;
+ }
+ private paintTimelineReadState(){
+  const feedback=this.timelineReadFeedback;if(!feedback)return;
+  const loading=this.timelineReadState==='loading',error=this.timelineReadState==='error';
+  const text=loading?(this.timelineLoaded?'正在更新时间轴…':'正在读取时间轴…'):error?(this.timelineLoaded?'时间轴更新失败，已有摘录仍保留。':'时间轴读取失败，请重试。'):'';
+  feedback.hidden=!text;feedback.dataset.readState=this.timelineReadState;
+  if(this.timelineReadText&&this.timelineReadText.textContent!==text)this.timelineReadText.textContent=text;
+  if(this.timelineRetryButton){this.timelineRetryButton.hidden=!error;this.timelineRetryButton.disabled=loading;}
+ }
  private async refreshMoments(){
   const file=this.file,generation=this.generation,run=++this.timelineRun;if(!file||this.closed)return;
+  this.timelineReadState='loading';this.paintTimelineReadState();
   this.timeline?.setAttribute('aria-busy','true');
   try{
    const result=await this.host.moments(file);
    if(!this.isCurrent(file,generation)||run!==this.timelineRun)return;
-   this.note=result.note;this.entries=result.entries;this.renderTimeline();this.paintComposer();if(result.warnings?.length)this.message(result.warnings.join(' '));
-  }catch{if(this.isCurrent(file,generation)&&run===this.timelineRun)this.message('暂时无法读取时间轴；当前播放和草稿不受影响。');}
+   this.note=result.note;this.entries=result.entries;this.timelineLoaded=true;this.timelineReadState='loaded';this.renderTimeline();this.paintComposer();if(result.warnings?.length)this.message(result.warnings.join(' '));
+  }catch{if(this.isCurrent(file,generation)&&run===this.timelineRun){this.timelineReadState='error';this.paintTimelineReadState();}}
   finally{if(this.isCurrent(file,generation)&&run===this.timelineRun)this.timeline?.removeAttribute('aria-busy');}
  }
  private renderTimeline(){
   if(!this.timeline)return;
   const el=this.timeline,scroll=el.scrollTop;el.empty();
   if(this.openNoteButton)this.openNoteButton.disabled=!this.note;
-  const rows=this.filteredEntries();this.timelineOrder=[...rows].sort((a,b)=>a.time-b.time);this.renderedMoments.clear();
+  this.paintTimelineReadState();
+  const rows=this.timelineLoaded?this.filteredEntries():[];this.timelineOrder=[...rows].sort((a,b)=>a.time-b.time);this.renderedMoments.clear();
   this.limit=50;this.pageStart=Math.max(0,Math.min(this.pageStart,Math.max(0,Math.ceil(rows.length/50)-1)*50));
-  if(this.pageInfo)this.pageInfo.textContent=rows.length?`${this.pageStart+1}–${Math.min(rows.length,this.pageStart+50)} / ${rows.length}`:'0 条摘录';
+  if(this.pageInfo)this.pageInfo.textContent=this.timelineLoaded?(rows.length?`${this.pageStart+1}–${Math.min(rows.length,this.pageStart+50)} / ${rows.length}`:'0 条摘录'):'';
   if(this.previousPageButton)this.previousPageButton.disabled=this.pageStart===0;
   if(this.nextPageButton)this.nextPageButton.disabled=this.pageStart+50>=rows.length;
-  if(this.panelCount)this.panelCount.textContent=String(this.entries.length);
-  if(this.timelineCount){this.timelineCount.textContent=String(rows.length);this.timelineCount.title=`共 ${this.entries.length} 条摘录`;}
+  if(this.panelCount)this.panelCount.textContent=this.timelineLoaded?String(this.entries.length):'';
+  if(this.timelineCount){this.timelineCount.textContent=this.timelineLoaded?String(rows.length):'';this.timelineCount.title=this.timelineLoaded?`共 ${this.entries.length} 条摘录`:'';this.timelineCount.hidden=!this.timelineLoaded;}
   if(this.clearSearchButton)this.clearSearchButton.disabled=!this.query;
   el.dataset.filtered=String(!!this.query||this.recordFilter!=='all');
+  if(!this.timelineLoaded)return;
   if(!rows.length){el.createDiv({cls:'ts-media-workspace__no-records',text:this.query?'没有找到这条摘录，试试其他文字或时间。':this.recordFilter!=='all'?'还没有这一类摘录。':'还没有摘录。播放时记下一个时间点，它会留在这里。'});return;}
   for(const entry of rows.slice(this.pageStart,this.pageStart+50)){
    const file=this.file!,generation=this.generation,row=el.createDiv('ts-media-workspace__moment');

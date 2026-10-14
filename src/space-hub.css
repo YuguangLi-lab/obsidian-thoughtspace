@@ -83,6 +83,7 @@
 .ts-space-hub .ts-hub-view-switch { display: flex; gap: 1px; flex: none; padding: 1px; border: 1px solid var(--ts-hub-line); border-radius: 8px; }
 .ts-space-hub .ts-hub-view-switch .ts-hub-button[aria-pressed=true] { background: var(--ts-hub-active); color: var(--ts-accent,var(--interactive-accent)); }
 .ts-space-hub .ts-hub-state { display: flex; align-items: center; gap: 6px; flex: none; min-height: 32px; padding: 7px 0; color: var(--text-muted); font-size: 10px; line-height: 1.6; overflow-wrap: anywhere; }
+.ts-space-hub .ts-hub-state:empty { display: none; }
 .ts-space-hub .ts-hub-state-action { padding: 2px 5px; min-height: 24px; font-size: 10px; }
 .ts-space-hub .ts-hub-results { flex: 1; min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 3px 3px 18px; scrollbar-width: thin; scroll-padding-block: 8px; }
 .ts-space-hub .ts-hub-results[data-view=gallery] { display: grid; grid-template-columns: repeat(auto-fill,minmax(min(100%,220px),1fr)); grid-auto-rows: max-content; gap: 20px; align-content: start; }

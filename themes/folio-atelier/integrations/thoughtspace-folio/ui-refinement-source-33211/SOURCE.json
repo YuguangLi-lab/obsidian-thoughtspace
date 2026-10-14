@@ -1,0 +1,168 @@
+{
+  "schema": "thoughtspace-folio-partial-ui-source-8",
+  "scope": "Partial production UI source and regression snapshots. Not a complete standalone build checkout. Dependencies and other plugin modules are absent.",
+  "themeVersion": "3.32.11",
+  "pluginVersion": "1.3.35-folio.8",
+  "runtimeSHA256": {
+    "main.js": "705c7bc93ce4db6d9c9fed08c0dc309e4694d2f275c5c01e28a787ccf2b9a9b7",
+    "styles.css": "51c6b4794a088a4f7afb4582b135fceb7750afbaf05b74cacca3bccf4e82e821",
+    "manifest.json": "3611c119ba15c4d07a24be41470fff53b9d3cb16a4706fa8335984fd14775baf"
+  },
+  "originSHA256": "5a3057e7b9262c10aec50fdaffa060150822eb366efda6ffbb5c6f33ecc80474",
+  "themeSHA256": "3ada1968f3a1602eecef7943f50f70e7c51fb18bbc3daf15ba1bc5b96cc039c9",
+  "sourceFiles": {
+    "local-relations-view.ts": {
+      "bytes": 103797,
+      "sha256": "ad74cf958179b572de8adc655f50e63ed6d3092d3065cdf19c271bccf455da36",
+      "sourcePath": "src/local-relations-view.ts"
+    },
+    "local-relations.css": {
+      "bytes": 45025,
+      "sha256": "d0d3d63a5ffcbb635f337b045327ee2ccdc01e27960ec58c019437dc5366f3f6",
+      "sourcePath": "src/local-relations.css"
+    },
+    "materials-view.ts": {
+      "bytes": 30135,
+      "sha256": "c9064b41baaa32aaf03e9e10c1792ba5156fdee3ed99a3107d795324cdb99a2d",
+      "sourcePath": "src/materials-view.ts"
+    },
+    "media-workspace-view.css": {
+      "bytes": 44223,
+      "sha256": "e323b82935bc8822c0fcbf2c13ad8c7b417be2c931ea10bc5853658381820bf2",
+      "sourcePath": "src/media-workspace-view.css"
+    },
+    "media-workspace-view.ts": {
+      "bytes": 56319,
+      "sha256": "11279703824667410055e79a8b4d6c3214761c9f1387ea495b3797f7500713eb",
+      "sourcePath": "src/media-workspace-view.ts"
+    },
+    "reading-desk-view.ts": {
+      "bytes": 21589,
+      "sha256": "7cbcbb532f21db5005382e2193bd046c9d80e6522777b62e7a4dbcbc5f07cf23",
+      "sourcePath": "src/reading-desk-view.ts"
+    },
+    "reading-workspace.css": {
+      "bytes": 19675,
+      "sha256": "62b008d8c4e099d4941f56db82d5a23b88cca82d8cf33a04e6e3a2c4e99d6e16",
+      "sourcePath": "src/reading-workspace.css"
+    },
+    "reference-reading-view.ts": {
+      "bytes": 4626,
+      "sha256": "31e077a1d5de3ff60d81295eef4dd7b7897cefb79dcdc7e251ffa80ff0ef567b",
+      "sourcePath": "src/reference-reading-view.ts"
+    },
+    "reference-reading.css": {
+      "bytes": 8181,
+      "sha256": "2dceaaf85cd7295affbe884bf76a96c91401dd24ce617c4c8ef7abbbc42d2bc2",
+      "sourcePath": "src/reference-reading.css"
+    },
+    "settings-view.ts": {
+      "bytes": 30005,
+      "sha256": "1cf61bc701260f87a299313db81f8eae5b1ad07cdc5cff2404c22a08f50d64f4",
+      "sourcePath": "src/settings-view.ts"
+    },
+    "space-hub-view.ts": {
+      "bytes": 30654,
+      "sha256": "7ab2ecc4e2beffed4b494276780b9bedb275ef2ce09e951ce4a83cef3a7af7a9",
+      "sourcePath": "src/space-hub-view.ts"
+    },
+    "space-hub.css": {
+      "bytes": 19928,
+      "sha256": "9f52c0aaed036f74ffb3bcee1db459a5953b910afa66c75666e9d2360e7e1141",
+      "sourcePath": "src/space-hub.css"
+    },
+    "tests/hub-empty-context.test.ts": {
+      "bytes": 11571,
+      "sha256": "b3af141cf4871ccaf2dd5441b48c33e2830d2dbceb147f75cb67ea0c00fda2b4",
+      "sourcePath": "tests/hub-empty-context.test.ts"
+    },
+    "tests/hub-retry-focus.test.ts": {
+      "bytes": 9050,
+      "sha256": "a54728c08f44058b8d39b90a4fb532ff3934846f0de961b48e2d317ad5ab6965",
+      "sourcePath": "tests/hub-retry-focus.test.ts"
+    },
+    "tests/local-relations-presentation.test.ts": {
+      "bytes": 13369,
+      "sha256": "5aef6ed5797dbc9d096536abb99eab5986452f6c70720e9468ffb7e023a5ee14",
+      "sourcePath": "tests/local-relations-presentation.test.ts"
+    },
+    "tests/local-relations-view.test.ts": {
+      "bytes": 138046,
+      "sha256": "7249323c5195c54c881b8753c41d8fc68333bbd426d2e743400b94a5f6f08340",
+      "sourcePath": "tests/local-relations-view.test.ts"
+    },
+    "tests/markdown-space-hub-view.test.ts": {
+      "bytes": 14850,
+      "sha256": "d68ea72f688aa1d78eae8a0ee02261ff807dad5823b5fc7ba494c8877d12b043",
+      "sourcePath": "tests/markdown-space-hub-view.test.ts"
+    },
+    "tests/material-upward.test.ts": {
+      "bytes": 4228,
+      "sha256": "bb32a911387b4ec092a12418728a4c8f48b48964981709ae56f22f635aa4b1eb",
+      "sourcePath": "tests/material-upward.test.ts"
+    },
+    "tests/materials-footer-presentation.test.ts": {
+      "bytes": 14960,
+      "sha256": "b6b4cc12f4d274ad5d38878e8cce612bc183d46b3f517173acbe87619df69e00",
+      "sourcePath": "tests/materials-footer-presentation.test.ts"
+    },
+    "tests/media-timeline-read-state.test.ts": {
+      "bytes": 23427,
+      "sha256": "0e79695f2a1f7b9fd1deaa9976ad42b325a951af00f0f7b814e237774884d7fa",
+      "sourcePath": "tests/media-timeline-read-state.test.ts"
+    },
+    "tests/reading-empty-focus.test.ts": {
+      "bytes": 12460,
+      "sha256": "d10ced7b996a33b29c101b269d58a0371cf7d0bc307eaf554fa99e30d3cfdb19",
+      "sourcePath": "tests/reading-empty-focus.test.ts"
+    },
+    "tests/reading-read-state.test.ts": {
+      "bytes": 14795,
+      "sha256": "e81a373226fff1eae5e36012ae0aad2184f2dd7546e1ab0d6367fecf56d2bad3",
+      "sourcePath": "tests/reading-read-state.test.ts"
+    },
+    "tests/settings-language-focus-continuity.test.ts": {
+      "bytes": 13321,
+      "sha256": "a4c3547feeeec5d3b23fe092ce83d6eeae9aa75b10201a0d8b704695563085b6",
+      "sourcePath": "tests/settings-language-focus-continuity.test.ts"
+    },
+    "tests/settings-save-queue.test.ts": {
+      "bytes": 20167,
+      "sha256": "0f55422835d08de26c22dc41abb8f3527901f28037e2188205677241c4c559c5",
+      "sourcePath": "tests/settings-save-queue.test.ts"
+    },
+    "tests/settings-search-continuity.test.ts": {
+      "bytes": 15074,
+      "sha256": "809f9ae71ed437d52bf266d01e0f15e2a1e2780d9a0c22c059f3a097ba79052f",
+      "sourcePath": "tests/settings-search-continuity.test.ts"
+    },
+    "tests/toolbar-overflow-focus-continuity.test.ts": {
+      "bytes": 10234,
+      "sha256": "261f675e42a555d4bc6e8a21096977f7f5bc6f5b399bdb02181dade076501822",
+      "sourcePath": "tests/toolbar-overflow-focus-continuity.test.ts"
+    },
+    "tests/writing-keyboard-continuity.test.ts": {
+      "bytes": 7657,
+      "sha256": "6586f521d54e156a664cf8765f8ef133d6428218feadc5cab3ae48d7b36098b4",
+      "sourcePath": "tests/writing-keyboard-continuity.test.ts"
+    },
+    "toolbar-overflow.ts": {
+      "bytes": 5540,
+      "sha256": "9dd189fb2dc98ac8ba5803989183abdf96c740723a12f196fd1343b6f6c8d217",
+      "sourcePath": "src/toolbar-overflow.ts"
+    },
+    "workspace-polish.css": {
+      "bytes": 11472,
+      "sha256": "4113b446de7a191cf98eb097c12887551c87f2e9a9f4823cd12b6d11d51add76",
+      "sourcePath": "src/workspace-polish.css"
+    },
+    "writing-view.ts": {
+      "bytes": 62405,
+      "sha256": "f290c8082a08cbed3799f0c15d1110b3faa58338327b06cb3204d9393e26feeb",
+      "sourcePath": "src/writing-view.ts"
+    }
+  },
+  "nativeAcceptanceVerified": false,
+  "installedThisTurn": false,
+  "actualVaultReadOrWritten": false
+}

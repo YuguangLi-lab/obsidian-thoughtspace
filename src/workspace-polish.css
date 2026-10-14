@@ -100,3 +100,13 @@
  .ts-database-modal .modal-content > :not(.ts-db-results) {flex-shrink:0;}
  .ts-database-modal .ts-db-results {flex:0 0 auto;min-height:160px;max-height:55vh;}
 }
+
+/* Material options stay secondary while selection and commit remain in view. */
+:is(.ts-materials-modal,.ts-materials-panel) .ts-materials-settings{margin:0 0 10px;min-inline-size:0;}
+:is(.ts-materials-modal,.ts-materials-panel) .ts-materials-settings-summary{display:list-item;cursor:pointer;min-block-size:32px;padding:7px 0;font-size:12px;line-height:1.5;white-space:normal;overflow-wrap:anywhere;}
+:is(.ts-materials-modal,.ts-materials-panel) .ts-materials-settings summary:focus-visible{outline:2px solid var(--ts-accent,var(--interactive-accent));outline-offset:2px;}
+:is(.ts-materials-modal,.ts-materials-panel) .ts-materials-settings-body{max-block-size:min(28vh,220px);overflow:auto;overscroll-behavior:contain;padding:10px 4px 2px;border-top:1px solid var(--ts-work-line,var(--background-modifier-border));}
+:is(.ts-materials-modal,.ts-materials-panel) .ts-materials-settings-body .ts-materials-compose{flex-wrap:wrap;}
+:is(.ts-materials-modal,.ts-materials-panel) .ts-materials-settings-body .ts-materials-options{flex-wrap:wrap;margin:0;}
+:is(.ts-materials-modal,.ts-materials-panel) .ts-materials-required{margin:0 0 10px;font-size:12px;line-height:1.6;overflow-wrap:anywhere;color:var(--text-normal);}
+:is(.ts-materials-modal,.ts-materials-panel) .ts-materials-required[hidden]{display:none;}

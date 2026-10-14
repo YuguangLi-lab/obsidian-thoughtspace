@@ -1,3 +1,4 @@
+import {setUiFeedback} from './ui-feedback';
 import {App,Modal,Notice,Plugin,PluginSettingTab,Setting,getLanguage,setIcon} from 'obsidian';
 import type {ThoughtSpacePreferences} from './plugin-settings';
 import {boardPreferenceControls,mousePreferenceControls} from './board-experience-view';
@@ -39,11 +40,11 @@ class SettingsConfirm extends Modal {
   this.closed=false;
   themeSurface(this.modalEl);this.titleEl.setText(this.label);
   this.contentEl.createEl('p',{text:this.detail});
-  const status=this.contentEl.createDiv({attr:{role:'status'}});
+  const status=this.contentEl.createDiv({cls:'ts-settings-confirm-status',attr:{role:'status'}});
   const row=new Setting(this.contentEl);
   row.addButton(b=>b.setButtonText(this.language==='en'?'Cancel':'取消').onClick(()=>this.close()));
   row.addButton(b=>b.setButtonText(this.confirmLabel).setCta().onClick(async()=>{
-   if(this.closed)return;b.setDisabled(true);try{await this.apply();if(!this.closed)this.close();}catch{if(this.closed)return;status.setText(this.language==='en'?'Operation failed. Check the result before retrying.':'操作失败，请检查结果后重试。');b.setDisabled(false);}
+   if(this.closed)return;b.setDisabled(true);try{await this.apply();if(!this.closed)this.close();}catch{if(this.closed)return;setUiFeedback(status,'error',this.language==='en'?'Operation failed. Check the result before retrying.':'操作失败，请检查结果后重试。');b.setDisabled(false);}
   }));
  }
  onClose(){this.closed=true;this.contentEl.empty();}
@@ -55,19 +56,25 @@ export class ThoughtSpaceSettings extends PluginSettingTab {
  private language:SettingsLanguage='zh-CN';private status?:HTMLElement;
  private panels=new Map<Page,HTMLElement>();private navigation=new Map<Page,HTMLButtonElement>();
  private searchCount?:HTMLElement;private searchInput?:HTMLInputElement;
+ private languageIntent?:{control:HTMLSelectElement;root:HTMLElement};
+ private composingSearch?:HTMLInputElement;
+ private deferredSearchRefresh?:{control:HTMLInputElement;root:HTMLElement};
+ private settingsHidden=false;
  private saveTail:Promise<void>=Promise.resolve();
  private pendingWrites=0;private refreshAfterSave=false;
  constructor(app:App,private host:SettingsHost){super(app,host);}
+ hide(){this.settingsHidden=true;this.languageIntent=undefined;this.composingSearch=undefined;this.deferredSearchRefresh=undefined;}
+ private refreshVisible(){if(!this.settingsHidden&&this.containerEl.isConnected)this.display();}
  private t(pair:Pair){return pair[this.language==='en'?1:0];}
- private report(error:unknown){console.error('[ThoughtSpace settings]',error);const message=this.t(['设置未能保存，请重试。','Settings could not be saved. Please try again.']);this.status?.setText(message);new Notice(message);}
+ private report(error:unknown){console.error('[ThoughtSpace settings]',error);const message=this.t(['设置未能保存，请重试。','Settings could not be saved. Please try again.']);setUiFeedback(this.status,'error',message);new Notice(message);}
  private async persist(){
-  this.status?.setText(this.t(['正在保存…','Saving…']));
-  try{await this.host.savePreferences();this.status?.setText(this.t(['已保存','Saved']));}catch(error){this.report(error);throw error;}
+  setUiFeedback(this.status,'loading',this.t(['正在保存…','Saving…']));
+  try{await this.host.savePreferences();setUiFeedback(this.status,'success',this.t(['已保存','Saved']));}catch(error){this.report(error);throw error;}
  }
  private patch(values:Partial<ThoughtSpacePreferences>){
   const next={...values};this.pendingWrites++;
   const run=this.saveTail.catch(()=>{}).then(()=>this.commitPatch(next));this.saveTail=run;
-  return run.finally(()=>{this.pendingWrites--;if(!this.pendingWrites&&this.refreshAfterSave){this.refreshAfterSave=false;this.display();}});
+  return run.finally(()=>{this.pendingWrites--;if(!this.pendingWrites&&this.refreshAfterSave){this.refreshAfterSave=false;this.refreshVisible();}});
  }
  private async commitPatch(values:Partial<ThoughtSpacePreferences>){
   const before:Partial<ThoughtSpacePreferences>={};
@@ -97,15 +104,39 @@ export class ThoughtSpaceSettings extends PluginSettingTab {
   }));
  }
  display(){
+  const root=this.containerEl,previousSearch=this.searchInput;
+  // Replacing the search input during an IME session discards its pending text.
+  // Finish the composition before applying a translated or rolled-back view.
+  if(!this.settingsHidden&&previousSearch&&this.composingSearch===previousSearch&&root.isConnected&&root.contains(previousSearch)&&previousSearch.ownerDocument.activeElement===previousSearch){this.deferredSearchRefresh={control:previousSearch,root};return;}
+  this.settingsHidden=false;this.composingSearch=undefined;this.deferredSearchRefresh=undefined;
+  const intent=this.languageIntent;this.languageIntent=undefined;
+  const restoreLanguage=!!intent&&intent.root===root&&root.isConnected&&intent.control.isConnected&&root.contains(intent.control)&&intent.control.ownerDocument.activeElement===intent.control;
+  const searchState=previousSearch&&root.isConnected&&root.contains(previousSearch)&&previousSearch.ownerDocument.activeElement===previousSearch?{start:previousSearch.selectionStart,end:previousSearch.selectionEnd,direction:previousSearch.selectionDirection,scroll:previousSearch.scrollLeft,rootScroll:root.scrollTop,contentScroll:root.querySelector<HTMLElement>('.ts-settings-content')?.scrollTop??0}:undefined;
   this.language=settingsLanguage(this.host.settings);
-  const root=this.containerEl;root.empty();root.addClass('ts-settings','ts-settings-v2');root.dataset.accent=this.host.settings.accent;root.lang=this.language;
+  root.empty();root.addClass('ts-settings','ts-settings-v2');root.dataset.accent=this.host.settings.accent;root.lang=this.language;
   this.panels.clear();this.navigation.clear();
   const header=root.createDiv('ts-settings-header');new Setting(header).setName('ThoughtSpace').setHeading();header.createSpan({cls:'ts-settings-version',text:this.host.manifest.version});
   const language=header.createEl('select',{attr:{'aria-label':this.t(['设置语言','Settings language']),'data-setting-key':'settingsLanguage'}});
   for(const[value,label]of [['auto',this.t(['跟随 Obsidian','Follow Obsidian'])],['zh-CN','简体中文'],['en','English']])language.createEl('option',{value,text:label});
-  language.value=this.host.settings.settingsLanguage;language.onchange=()=>{const value=language.value;if(value!=='auto'&&value!=='zh-CN'&&value!=='en')return;this.run(async()=>{await this.patch({settingsLanguage:value});this.display();});};
+  language.value=this.host.settings.settingsLanguage;language.onchange=()=>{
+   const value=language.value;if((value!=='auto'&&value!=='zh-CN'&&value!=='en')||root!==this.containerEl||!root.isConnected||!language.isConnected)return;
+   const next={control:language,root};this.languageIntent=next;
+   this.run(async()=>{await this.patch({settingsLanguage:value});if(this.languageIntent===next&&root===this.containerEl&&root.isConnected)this.refreshVisible();});
+  };
   const search=root.createDiv('ts-settings-search');setIcon(search.createSpan(),'search');
   this.searchInput=search.createEl('input',{type:'search',value:this.query,attr:{placeholder:this.t(['搜索设置…','Search settings…']),'aria-label':this.t(['搜索全部设置','Search all settings'])}});
+  const input=this.searchInput;
+  input.addEventListener('compositionstart',()=>{if(!this.settingsHidden&&this.searchInput===input&&root===this.containerEl&&input.isConnected)this.composingSearch=input;});
+  input.addEventListener('compositionend',()=>{
+   if(this.composingSearch!==input)return;this.composingSearch=undefined;
+   const refresh=this.deferredSearchRefresh;if(!refresh||refresh.control!==input)return;
+   // The final input event can follow compositionend. Read the current query
+   // in the next task, and revoke this refresh if the tab closes or redraws.
+   globalThis.setTimeout(()=>{
+    if(this.deferredSearchRefresh!==refresh)return;this.deferredSearchRefresh=undefined;
+    if(!this.settingsHidden&&this.searchInput===input&&root===this.containerEl&&root.isConnected&&root.contains(input))this.display();
+   },0);
+  });
   this.searchInput.oninput=()=>{this.query=this.searchInput?.value||'';this.filter();};
   this.searchInput.onkeydown=event=>{if(event.key==='Escape'&&this.query){event.preventDefault();event.stopPropagation();this.query='';this.searchInput!.value='';this.filter();}};
   const clear=search.createEl('button',{cls:'clickable-icon',attr:{'aria-label':this.t(['清除搜索','Clear search']),title:this.t(['清除搜索','Clear search'])}});setIcon(clear,'x');clear.onclick=()=>{this.query='';this.searchInput!.value='';this.filter();this.searchInput!.focus();};
@@ -124,6 +155,10 @@ export class ThoughtSpaceSettings extends PluginSettingTab {
   }
   this.status=root.createDiv({cls:'ts-settings-save-status',attr:{role:'status','aria-live':'polite'}});
   this.filter();
+  if(root===this.containerEl&&input.isConnected&&input.ownerDocument.activeElement===input.ownerDocument.body){
+   if(searchState){input.focus({preventScroll:true});if(searchState.start!==null&&searchState.end!==null)input.setSelectionRange(searchState.start,searchState.end,searchState.direction??undefined);input.scrollLeft=searchState.scroll;root.scrollTop=searchState.rootScroll;content.scrollTop=searchState.contentScroll;}
+   else if(restoreLanguage&&language.isConnected)language.focus({preventScroll:true});
+  }
  }
  private filter(){
   const query=this.query.trim().toLowerCase(),terms=query.split(/\s+/).filter(Boolean);let count=0;
@@ -136,6 +171,7 @@ export class ThoughtSpaceSettings extends PluginSettingTab {
     const visible=!query||!heading&&terms.every(term=>text.includes(term));row.hidden=!visible;if(query&&visible)matches++;
    }
    for(const heading of Array.from(panel.querySelectorAll<HTMLElement>(':scope > h3, .ts-board-preferences > h3, .ts-mouse-preferences > h3')))heading.hidden=!!query;
+   for(const description of Array.from(panel.querySelectorAll<HTMLElement>('.ts-board-preferences > p.ts-muted')))description.hidden=!!query;
    panel.hidden=query?!matches:id!==this.page;count+=matches;
    const tab=this.navigation.get(id)!;tab.toggleClass('is-active',!query&&id===this.page);if(!query&&id===this.page)tab.setAttribute('aria-current','page');else tab.removeAttribute('aria-current');
   }
@@ -210,14 +246,14 @@ export class ThoughtSpaceSettings extends PluginSettingTab {
   modal.onClose=()=>{closed=true;generation++;modal.contentEl.empty();};
   if(importing){
    const file=modal.contentEl.createEl('input',{type:'file',attr:{accept:'.json,application/json','aria-label':t(['选择配置文件','Choose profile file'])}});file.hidden=true;
-   file.onchange=()=>{const selected=file.files?.[0];file.value='';if(!selected||busy)return;const run=++generation;patch=undefined;apply.disabled=true;loading=false;validateButton.disabled=false;if(selected.size>65_536){status.setText(t(['配置文件过大。','Profile file is too large.']));return;}loading=true;validateButton.disabled=true;status.setText(t(['正在读取配置…','Reading profile…']));void selected.text().then(text=>{if(closed||run!==generation)return;input.value=text;patch=undefined;apply.disabled=true;status.setText('');}).catch(()=>{if(!closed&&run===generation)status.setText(t(['无法读取文件。','Could not read file.']));}).finally(()=>{if(!closed&&run===generation){loading=false;validateButton.disabled=false;}});};
+   file.onchange=()=>{const selected=file.files?.[0];file.value='';if(!selected||busy)return;const run=++generation;patch=undefined;apply.disabled=true;loading=false;validateButton.disabled=false;if(selected.size>65_536){setUiFeedback(status,'error',t(['配置文件过大。','Profile file is too large.']));return;}loading=true;validateButton.disabled=true;setUiFeedback(status,'loading',t(['正在读取配置…','Reading profile…']));void selected.text().then(text=>{if(closed||run!==generation)return;input.value=text;patch=undefined;apply.disabled=true;setUiFeedback(status,'info','');}).catch(()=>{if(!closed&&run===generation)setUiFeedback(status,'error',t(['无法读取文件。','Could not read file.']));}).finally(()=>{if(!closed&&run===generation){loading=false;validateButton.disabled=false;}});};
    actions.addButton(b=>b.setIcon('file-json').setButtonText(t(['选择文件','Choose file'])).onClick(()=>file.click()));
-   actions.addButton(b=>{validateButton=b.buttonEl;b.setButtonText(t(['检查配置','Validate'])).onClick(()=>{if(closed||loading||busy)return;try{patch=parseSettingsProfile(input.value);status.setText(t([`已检查 ${Object.keys(patch).length} 项偏好，确认后应用。`,`${Object.keys(patch).length} preferences validated. Apply to confirm.`]));apply.disabled=false;}catch{patch=undefined;apply.disabled=true;status.setText(t(['无效配置。请使用 ThoughtSpace 导出的版本 1 配置，不含额外字段。','Invalid profile. Use a version 1 ThoughtSpace export with no unsupported fields.']));}});});
+   actions.addButton(b=>{validateButton=b.buttonEl;b.setButtonText(t(['检查配置','Validate'])).onClick(()=>{if(closed||loading||busy)return;try{patch=parseSettingsProfile(input.value);setUiFeedback(status,'success',t([`已检查 ${Object.keys(patch).length} 项偏好，确认后应用。`,`${Object.keys(patch).length} preferences validated. Apply to confirm.`]));apply.disabled=false;}catch{patch=undefined;apply.disabled=true;setUiFeedback(status,'error',t(['无效配置。请使用 ThoughtSpace 导出的版本 1 配置，不含额外字段。','Invalid profile. Use a version 1 ThoughtSpace export with no unsupported fields.']));}});});
    const apply=modal.contentEl.createEl('button',{cls:'mod-cta',text:t(['应用配置','Apply profile'])});apply.disabled=true;const applyControl={setDisabled:(disabled:boolean)=>{apply.disabled=disabled;}};
    // Revalidate at the write boundary so edited JSON can never reuse an earlier approval.
-   input.oninput=()=>{generation++;loading=false;validateButton.disabled=busy;patch=undefined;apply.disabled=true;status.setText('');};
-   apply.onclick=()=>{if(closed||loading||busy||!patch||apply.disabled)return;busy=true;apply.disabled=true;input.readOnly=true;file.disabled=true;validateButton.disabled=true;this.run(async()=>{try{const next=parseSettingsProfile(input.value);await this.patch(next);this.display();if(!closed)modal.close();}catch{if(closed)return;busy=false;input.readOnly=false;file.disabled=false;validateButton.disabled=false;status.setText(t(['未能应用配置，原设置已保留。','Could not apply the profile. Previous settings were kept.']));applyControl.setDisabled(false);}});};
-  }else actions.addButton(b=>b.setIcon('copy').setButtonText(t(['复制 JSON','Copy JSON'])).onClick(()=>{void navigator.clipboard.writeText(input.value).then(()=>status.setText(t(['已复制','Copied']))).catch(()=>status.setText(t(['无法访问剪贴板，请选中 JSON 后复制。','Clipboard unavailable. Select the JSON and copy it.'])));}));
+   input.oninput=()=>{generation++;loading=false;validateButton.disabled=busy;patch=undefined;apply.disabled=true;setUiFeedback(status,'info','');};
+   apply.onclick=()=>{if(closed||loading||busy||!patch||apply.disabled)return;busy=true;apply.disabled=true;input.readOnly=true;file.disabled=true;validateButton.disabled=true;this.run(async()=>{try{const next=parseSettingsProfile(input.value);await this.patch(next);this.display();if(!closed)modal.close();}catch{if(closed)return;busy=false;input.readOnly=false;file.disabled=false;validateButton.disabled=false;setUiFeedback(status,'error',t(['未能应用配置，原设置已保留。','Could not apply the profile. Previous settings were kept.']));applyControl.setDisabled(false);}});};
+  }else actions.addButton(b=>b.setIcon('copy').setButtonText(t(['复制 JSON','Copy JSON'])).onClick(()=>{void navigator.clipboard.writeText(input.value).then(()=>setUiFeedback(status,'success',t(['已复制','Copied']))).catch(()=>setUiFeedback(status,'warning',t(['无法访问剪贴板，请选中 JSON 后复制。','Clipboard unavailable. Select the JSON and copy it.'])));}));
   actions.addButton(b=>b.setButtonText(t(['关闭','Close'])).onClick(()=>modal.close()));modal.open();
  }
 }

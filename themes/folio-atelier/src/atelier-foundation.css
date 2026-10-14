@@ -1,0 +1,106 @@
+/* 41 · Atelier visual system. Derived from the user's existing palette.
+   Product chrome has a shared vocabulary; content and geometry stay native. */
+body {
+  --atelier-ui-canvas: var(--atelier-paper);
+  --atelier-ui-panel: color-mix(in srgb, var(--atelier-sidebar) 76%, var(--atelier-paper));
+  --atelier-ui-raised: var(--atelier-raised);
+  --atelier-ui-subtle: color-mix(in srgb, var(--atelier-accent) 7%, var(--atelier-paper));
+  --atelier-ui-line: color-mix(in srgb, var(--atelier-border) 76%, var(--atelier-paper));
+  --atelier-ui-line-strong: color-mix(in srgb, var(--atelier-border) 75%, var(--atelier-muted));
+  --atelier-ui-ink: var(--atelier-ink);
+  --atelier-ui-muted: var(--atelier-muted);
+  --atelier-ui-dim: color-mix(in srgb, var(--atelier-faint) 82%, var(--atelier-ink));
+  --atelier-ui-radius-sm: max(4px, calc(var(--atelier-radius) * .65));
+  --atelier-ui-radius-md: var(--atelier-radius);
+  --atelier-ui-radius-lg: calc(var(--atelier-radius) + 4px);
+  --atelier-ui-shadow-sm: 0 1px 2px color-mix(in srgb, var(--atelier-ink) 5%, transparent);
+  --atelier-ui-shadow-md: 0 1px 3px color-mix(in srgb, var(--atelier-ink) 5%, transparent),
+    0 8px 24px -8px color-mix(in srgb, var(--atelier-ink) 12%, transparent);
+  --atelier-ui-shadow-lg: 0 2px 6px #00000008, 0 20px 60px -20px #00000026;
+  --atelier-ui-speed: 140ms;
+  --atelier-ui-ease: cubic-bezier(.2,.7,.2,1);
+}
+body.theme-dark {
+  --atelier-ui-shadow-sm: 0 1px 3px #00000024;
+  --atelier-ui-shadow-md: 0 2px 6px #00000020, 0 12px 32px -8px #00000040;
+  --atelier-ui-shadow-lg: 0 2px 8px #00000030, 0 24px 64px -16px #00000060;
+}
+body.atelier-flat {
+  --atelier-ui-shadow-sm: none;
+  --atelier-ui-shadow-md: none;
+  --atelier-ui-shadow-lg: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  body { --atelier-ui-speed: 0ms; }
+  body .workspace-leaf-content[data-type="markdown"] svg {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Native reading only. Never style ThoughtSpace auto-measured card prose here. */
+@media screen {
+  body .workspace-leaf-content[data-type="markdown"] .markdown-preview-view {
+    --code-comment: var(--atelier-ui-dim);
+    --blockquote-background-color: var(--atelier-ui-subtle);
+    --table-header-background: var(--atelier-ui-panel);
+    --table-header-color: var(--atelier-ui-ink);
+    --table-border-color: var(--atelier-ui-line);
+    --hr-color: var(--atelier-ui-line);
+  }
+  body .workspace-leaf-content[data-type="markdown"] .markdown-preview-view .inline-title {
+    text-wrap: balance;
+    letter-spacing: -.025em;
+  }
+  body .workspace-leaf-content[data-type="markdown"] .markdown-preview-view :is(h1,h2,h3) {
+    text-wrap: pretty;
+    letter-spacing: -.015em;
+  }
+  body .workspace-leaf-content[data-type="markdown"] .markdown-preview-view :is(a.internal-link,a.external-link):not(.tag) {
+    text-decoration-thickness: 1px;
+    text-underline-offset: .22em;
+    text-decoration-skip-ink: auto;
+  }
+  body .workspace-leaf-content[data-type="markdown"] .markdown-preview-view :is(a.internal-link,a.external-link):focus-visible {
+    outline: 2px solid var(--atelier-accent);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+  body .workspace-leaf-content[data-type="markdown"] .markdown-preview-view blockquote {
+    background: var(--atelier-ui-subtle);
+    border-radius: 0 var(--atelier-ui-radius-md) var(--atelier-ui-radius-md) 0;
+  }
+  body .workspace-leaf-content[data-type="markdown"] .markdown-preview-view pre {
+    border-color: var(--atelier-ui-line);
+    background: var(--atelier-ui-panel);
+    box-shadow: none;
+  }
+  body .workspace-leaf-content[data-type="markdown"] .markdown-preview-view :not(pre) > code {
+    background: var(--atelier-ui-panel);
+    border: 1px solid var(--atelier-ui-line);
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+  body .workspace-leaf-content[data-type="markdown"] .markdown-preview-view :is(th,td) {
+    border-color: var(--atelier-ui-line);
+  }
+  body .workspace-leaf-content[data-type="markdown"] .markdown-preview-view th {
+    background: var(--atelier-ui-panel);
+    font-weight: 650;
+  }
+  body :where(.workspace-leaf-content[data-type="markdown"] .markdown-preview-view) .callout:where(:not([data-callout="columns"]):not([data-callout-metadata~="folio-card"]):not([data-callout-metadata~="folio-outline"])) {
+    background: color-mix(in srgb, rgb(var(--callout-color)) 5%, var(--atelier-paper));
+    border-color: color-mix(in srgb, rgb(var(--callout-color)) 18%, var(--atelier-paper));
+    border-inline-start-color: rgb(var(--callout-color));
+    border-radius: var(--atelier-ui-radius-md);
+    box-shadow: none;
+  }
+  body .workspace-leaf-content[data-type="markdown"] .markdown-preview-view .callout-title {
+    font-weight: 650;
+  }
+  body .workspace-leaf-content[data-type="markdown"] .markdown-preview-view .metadata-container {
+    background: var(--atelier-ui-panel);
+    border-color: var(--atelier-ui-line);
+    box-shadow: none;
+  }
+}

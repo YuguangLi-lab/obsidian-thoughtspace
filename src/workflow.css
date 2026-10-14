@@ -193,3 +193,31 @@
 .ts-writing-reference-buttons{display:flex;gap:8px;flex-wrap:wrap;}.ts-writing-reference-picker [role=alert]{color:var(--text-error);font-size:12px;}
 .ts-writing-context{flex:none;min-width:0;padding:0 14px;border-bottom:1px solid var(--background-modifier-border);}
 .ts-writing-context .ts-writing-navigator{margin:0;}.ts-writing-context .ts-writing-nav-rows{max-height:min(180px,24vh);}
+
+/* Database refinements are ordinary native details; closed content stays closed.
+ * Structural and assistive-text rules also work without a custom theme. */
+.ts-database-modal .ts-db-options{flex-shrink:0;min-width:0;margin-bottom:12px;border:1px solid var(--background-modifier-border);border-radius:8px;background:var(--background-secondary);}
+.ts-database-modal .ts-db-options>summary{min-height:36px;box-sizing:border-box;padding:8px 12px;cursor:pointer;color:var(--text-normal);font-size:var(--font-ui-small,13px);line-height:1.5;overflow-wrap:anywhere;}
+.ts-database-modal .ts-db-options>summary:focus-visible{outline:2px solid var(--ts-accent,var(--interactive-accent));outline-offset:2px;}
+.ts-database-modal .ts-db-active-conditions{display:block;margin-top:4px;color:var(--text-muted);font-size:var(--font-ui-smaller,12px);line-height:1.6;overflow-wrap:anywhere;}
+.ts-database-modal .ts-db-active-conditions:empty{display:none;}
+.ts-database-modal .ts-db-options-body{display:flex;flex-direction:column;gap:12px;min-width:0;padding:0 12px 12px;}
+.ts-database-modal .ts-db-options-section{min-width:0;}
+.ts-database-modal .ts-db-options-section+.ts-db-options-section{border-top:1px solid var(--background-modifier-border);padding-top:12px;}
+.ts-database-modal .ts-db-section-title{margin:0 0 8px;font-size:var(--font-ui-small,13px);font-weight:600;line-height:1.5;}
+.ts-database-modal :is(.ts-db-secondary-filters,.ts-db-tools){display:flex;align-items:center;flex-wrap:wrap;gap:8px;min-width:0;}
+.ts-database-modal .ts-db-options .ts-db-saved-views{margin:0;padding:0;border:0;background:transparent;}
+.ts-database-modal .ts-db-options .ts-db-saved-views select{flex:1 1 160px;min-inline-size:0;max-inline-size:100%;}
+.ts-database-modal .ts-db-options .ts-db-custom-filters{margin-bottom:0;}
+.ts-database-modal .ts-db-options .ts-db-condition{min-inline-size:0;max-inline-size:100%;}
+.ts-database-modal .ts-db-options .ts-db-condition>span{min-inline-size:0;overflow-wrap:anywhere;}
+.ts-database-modal .ts-db-options :is(select,input:not([type=checkbox]),button){max-inline-size:100%;}
+.ts-database-modal .ts-db-feedback>:is(.ts-db-message,.ts-db-read-status):empty{display:none;}
+.ts-database-modal .ts-db-read-status.ts-db-read-status-quiet{position:absolute;inline-size:1px;block-size:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap;pointer-events:none;}
+/* Expanded tools may outgrow a short modal. Keep real result controls usable
+ * within their own scroll port and let the original modal content reveal it. */
+.ts-database-modal .modal-content.ts-database:has(>.ts-db-options[open]){overflow:auto;}
+.ts-database-modal .ts-db-options[open]~.ts-db-results{flex:1 0 160px;min-block-size:160px;}
+/* Ordinary Chinese tags must not collapse into a one-character column when
+ * editable custom fields widen the table. Retain the original local scroll. */
+.ts-database-modal .ts-db-table td.ts-db-tags{min-inline-size:132px;}

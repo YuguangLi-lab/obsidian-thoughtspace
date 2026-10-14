@@ -1,3 +1,4 @@
+import {setUiFeedback,clearUiFeedback} from './ui-feedback';
 import {App, Component, Modal, Notice, TFile, getAllTags, setIcon} from 'obsidian';
 import {Board} from './model';
 import {themeSurface} from './ui-tokens';
@@ -25,10 +26,10 @@ export class SpaceHubModal extends Modal {
   private refreshButton!:HTMLButtonElement;private loaded=false;
   private scopeTitle!:HTMLElement;private scopeCount!:HTMLElement;private viewButtons=new Map<string,HTMLButtonElement>();private detailReturnFocus?:HTMLElement;
   constructor(app:App,private host:SpaceHubHost){super(app);}
-  private action(parent:HTMLElement,label:string,icon:string,fn:()=>unknown,cls=''){
-    const b=parent.createEl('button',{cls:`ts-hub-button ${cls}`,attr:{'aria-label':label,title:label}});if(icon)setIcon(b.createSpan(),icon);b.createSpan({text:label});b.onclick=()=>{try{Promise.resolve(fn()).catch(e=>this.error(e));}catch(e){this.error(e);}};return b;
+  private action(parent:HTMLElement,label:string,icon:string,fn:(event?:MouseEvent)=>unknown,cls=''){
+    const b=parent.createEl('button',{cls:`ts-hub-button ${cls}`,attr:{'aria-label':label,title:label}});if(icon)setIcon(b.createSpan(),icon);b.createSpan({text:label});b.onclick=event=>{try{Promise.resolve(fn(event)).catch(e=>this.error(e));}catch(e){this.error(e);}};return b;
   }
-  private error(e:unknown){if(this.active)this.state.setText(e instanceof Error?e.message:String(e));new Notice(String(e));}
+  private error(e:unknown){if(this.active)setUiFeedback(this.state,'error',e instanceof Error?e.message:String(e));new Notice(String(e));}
   private file(path:string){const f=this.app.vault.getAbstractFileByPath(path);if(!(f instanceof TFile)||!isWorkspaceFile(f))throw Error('文件已移动或删除，请刷新总览');return f;}
   onOpen(){
     this.active=true;this.life.load();this.modalEl.addClass('ts-space-hub');themeSurface(this.modalEl);this.titleEl.setText('空间总览');
@@ -49,12 +50,13 @@ export class SpaceHubModal extends Modal {
     this.state=workspace.createDiv({cls:'ts-hub-state',attr:{role:'status','aria-live':'polite'}});
     this.main=workspace.createDiv('ts-hub-results');this.detail=body.createEl('aside',{cls:'ts-hub-detail',attr:{'aria-label':'内容详情'}});this.detail.hidden=true;
     this.footer=this.contentEl.createDiv('ts-hub-footer');
-    const dirty=()=>{if(!this.active)return;this.changes++;if(this.loaded&&!this.busy)this.state.setText('资料已变化，点击刷新索引获取最新内容。');};this.life.registerEvent(this.app.vault.on('create',dirty));this.life.registerEvent(this.app.vault.on('modify',dirty));this.life.registerEvent(this.app.vault.on('delete',dirty));this.life.registerEvent(this.app.vault.on('rename',dirty));
+    const dirty=()=>{if(!this.active)return;this.changes++;if(this.loaded&&!this.busy)setUiFeedback(this.state,'warning','资料已变化，点击刷新索引获取最新内容。');};this.life.registerEvent(this.app.vault.on('create',dirty));this.life.registerEvent(this.app.vault.on('modify',dirty));this.life.registerEvent(this.app.vault.on('delete',dirty));this.life.registerEvent(this.app.vault.on('rename',dirty));
     this.life.registerEvent(this.app.metadataCache.on('changed',dirty));this.renderNav();this.renderDetail();void this.load();this.search.focus();
   }
   onClose(){this.active=false;this.generation++;this.life.unload();this.contentEl.empty();}
   async load(){
-    const run=++this.generation,changes=this.changes;this.busy=true;this.refreshButton.disabled=true;this.state.setText('正在整理白板与笔记索引…');
+    const run=++this.generation,changes=this.changes;this.busy=true;this.refreshButton.disabled=true;setUiFeedback(this.state,'loading','正在整理白板与笔记索引…');
+    if(this.loaded===false)this.renderResults();
     try{
       const all=this.app.vault.getFiles().filter(isWorkspaceFile),paths=new Set(all.map(f=>f.path));
       const files=all.filter(f=>this.host.isBoardFile?this.host.isBoardFile(f):f.extension==='thoughtspace'),boardFiles=new Set(files);
@@ -63,8 +65,8 @@ export class SpaceHubModal extends Modal {
       await Promise.all(Array.from({length:Math.min(4,files.length)},async()=>{while(cursor<files.length&&this.active&&run===this.generation){const f=files[cursor++];try{if(f.stat.size>8*1024*1024)throw Error('超过 8 MB，未加入总览索引');const board=await this.host.readBoard(f);if(!this.active||run!==this.generation)return;boards.push(summarizeBoard(f.path,f.basename,f.stat.mtime,board,byPath,p=>paths.has(p)));}catch(e){errors.push({path:f.path,message:e instanceof Error?e.message:String(e)});}}}));
       if(!this.active||run!==this.generation)return;this.index=hubIndex(boards,notes,errors);this.loaded=true;this.selected=new Set([...this.selected].filter(p=>byPath.has(p)));
       this.tag.empty();this.tag.createEl('option',{value:'',text:'全部标签'});for(const tag of [...new Set(notes.flatMap(n=>n.tags))].sort())this.tag.createEl('option',{value:tag,text:tag});if(this.filter.tag&&!this.tag.querySelector(`option[value="${CSS.escape(this.filter.tag)}"]`))this.tag.createEl('option',{value:this.filter.tag,text:this.filter.tag});this.tag.value=this.filter.tag;
-      this.state.setText(errors.length?`${errors.length} 张白板无法索引；收件箱暂不判定未归属。`:this.changes!==changes?'资料在索引期间发生变化，请刷新后核对。':'搜索标题、路径和 #标签');if(errors.length)this.action(this.state,'查看索引问题','info',()=>{this.showDetail();this.renderDetail();const issues=this.detail.querySelector('details');if(issues)issues.open=true;this.detail.querySelector<HTMLElement>('summary')?.focus();},'ts-hub-state-action');this.renderMetrics();this.renderNav();this.renderResults();this.renderDetail();
-    }catch(e){if(run===this.generation&&this.active)this.error(e);}finally{if(run===this.generation&&this.active){this.busy=false;this.refreshButton.disabled=false;this.renderFooter();}}
+      if(errors.length||this.changes!==changes)setUiFeedback(this.state,'warning',errors.length?`${errors.length} 张白板无法索引；收件箱暂不判定未归属。`:'资料在索引期间发生变化，请刷新后核对。');else clearUiFeedback(this.state);if(errors.length)this.action(this.state,'查看索引问题','info',()=>{this.showDetail();this.renderDetail();const issues=this.detail.querySelector('details');if(issues)issues.open=true;this.detail.querySelector<HTMLElement>('summary')?.focus();},'ts-hub-state-action');this.renderMetrics();this.renderNav();this.renderResults();this.renderDetail();
+    }catch(e){if(run===this.generation&&this.active)this.error(e);}finally{if(run===this.generation&&this.active){this.busy=false;this.refreshButton.disabled=false;if(this.loaded===false)this.renderResults();else this.renderFooter();}}
   }
   private renderMetrics(){if(!this.metrics)return;this.metrics.empty();for(const[number,label]of [[this.index.boards.length,'白板'],[this.index.notes.length,'笔记'],[this.index.errors.length?'—':this.index.notes.filter(n=>!n.journal&&!this.index.usage.has(n.path)).length,'待整理'],[this.index.notes.filter(n=>(this.index.usage.get(n.path)?.length||0)>1).length,'跨白板笔记']]){const cell=this.metrics.createDiv();cell.createEl('strong',{text:String(number)});cell.createSpan({text:String(label)});}}
   private renderNav(){
@@ -113,8 +115,8 @@ export class SpaceHubModal extends Modal {
     if(old)this.action(this.detail,'删除筛选','trash-2',async()=>{await this.host.save({...this.host.preferences(),saved:this.host.preferences().saved.filter(s=>s.id!==id)});saved();});input.focus();
   }
   private renderResults(){
-    this.results=hubResults(this.index,this.filter,this.host.preferences(),new Set(this.host.favorites()));this.page=Math.min(this.page,Math.max(0,Math.ceil(this.results.length/48)-1));this.main.empty();const noteMode=['notes','inbox','shared'].includes(this.filter.scope);this.main.dataset.view=noteMode?'list':this.host.preferences().view;this.scopeTitle.setText(scopes.find(s=>s.id===this.filter.scope)?.label||'知识空间');this.scopeCount.setText(`${this.results.length} 项`);for(const [view,b]of this.viewButtons){b.disabled=noteMode;b.setAttribute('aria-pressed',String(this.main.dataset.view===view));}this.modalEl.toggleClass('has-query',!!this.filter.query||!!this.filter.tag);
-    if(!this.results.length){const empty=this.main.createDiv('ts-hub-empty');setIcon(empty.createDiv(),'search');empty.createEl('h3',{text:!this.loaded?'正在准备空间':this.filter.scope==='inbox'&&this.index.errors.length?'暂时无法判定收件箱':'这里还没有匹配内容'});empty.createEl('p',{text:this.filter.scope==='recent'?'从总览打开白板后，会出现在这里。':'可以调整搜索与标签，或收集一条新笔记。'});this.action(empty,'清除搜索条件','rotate-ccw',()=>{this.filter={...defaultHubFilter,scope:this.filter.scope};this.search.value='';this.tag.value='';this.sort.value='updated';this.journals.checked=false;this.renderResults();});}
+    this.results=hubResults(this.index,this.filter,this.host.preferences(),new Set(this.host.favorites()));this.page=Math.min(this.page,Math.max(0,Math.ceil(this.results.length/48)-1));this.main.empty();const noteMode=['notes','inbox','shared'].includes(this.filter.scope);this.main.dataset.view=noteMode?'list':this.host.preferences().view;this.scopeTitle.setText(scopes.find(s=>s.id===this.filter.scope)?.label||'知识空间');this.scopeCount.setText(this.loaded?`${this.results.length} 项`:this.busy?'读取中…':'索引未就绪');for(const [view,b]of this.viewButtons){b.disabled=noteMode;b.setAttribute('aria-pressed',String(this.main.dataset.view===view));}this.modalEl.toggleClass('has-query',!!this.filter.query.trim()||!!this.filter.tag);
+    if(!this.results.length)this.renderEmptyResults();
     for(const item of this.results.slice(this.page*48,(this.page+1)*48)){
       const board='objects'in item,row=this.main.createDiv({cls:`ts-hub-result ${board?'is-board':'is-note'}`});row.dataset.path=item.path;row.toggleClass('is-focused',this.focused===item.path);
       if(board&&this.main.dataset.view==='gallery'){const visual=this.action(row,'查看 '+item.title,'',()=>this.focus(item.path),'ts-hub-thumbnail');visual.tabIndex=-1;const svg=visual.createSvg('svg',{attr:{viewBox:'0 0 300 140','aria-hidden':'true'}});for(const n of item.preview)svg.createSvg('rect',{attr:{x:String(n.x),y:String(n.y),width:String(n.width),height:String(n.height),rx:'3',fill:palette[n.color],opacity:'.82'}});if(!item.preview.length)visual.createSpan({text:'空白画布'});}
@@ -124,6 +126,45 @@ export class SpaceHubModal extends Modal {
       if(item.tags.length){const tags=info.createDiv('ts-hub-tags');for(const tag of item.tags.slice(0,3))this.action(tags,tag,'',()=>{this.filter.tag=tag;this.tag.value=tag;this.page=0;this.renderResults();});}
     }
     this.renderFooter();
+  }
+  /** A zero result is an invitation appropriate to this scope, not a generic
+   * suggestion to reset preferences. Partial indexing never proves absence. */
+  private renderEmptyResults(){
+    const empty=this.main.createDiv('ts-hub-empty');
+    const describe=(icon:string,title:string,text:string)=>{setIcon(empty.createDiv(),icon);empty.createEl('h3',{text:title});empty.createEl('p',{text});};
+    const focusSearch=()=>{if(this.active&&this.search.isConnected)this.search.focus({preventScroll:true});};
+    const showScope=(scope:HubScope)=>{this.filter={...this.filter,scope};this.page=0;this.focused=undefined;this.closeDetail(false);this.renderNav();this.renderResults();this.renderDetail();if(this.active)this.nav.querySelector<HTMLElement>(`[data-hub-nav-key="scope:${scope}"]`)?.focus({preventScroll:true});};
+    if(!this.loaded){if(this.busy)describe('loader-circle','正在准备空间','索引读取完成后，这里会显示白板与笔记。');else{
+      describe('triangle-alert','空间索引未就绪','查看上方错误提示，或刷新索引后重试。');
+      const retry=this.action(empty,'重试索引','refresh-cw',event=>{
+        // load replaces this button immediately. Hand keyboard focus to a
+        // stable input now; never restore focus after the asynchronous read.
+        if(event?.detail===0&&retry.ownerDocument.activeElement===retry)focusSearch();
+        return this.load();
+      });
+    }return;}
+    const failed=this.index.errors.length>0,scope=this.filter.scope,boardMode=['boards','favorites','recent'].includes(scope);
+    const unfiltered=hubResults(this.index,{...this.filter,query:'',tag:''},this.host.preferences(),new Set(this.host.favorites()));
+    if(failed&&(scope==='inbox'||boardMode&&!unfiltered.length)){
+      describe('triangle-alert',scope==='inbox'?'暂时无法判定收件箱':scope==='favorites'?'收藏白板暂未完整索引':scope==='recent'?'最近白板暂未完整索引':'白板暂不可用','部分白板未能索引。先查看索引问题，再刷新核对内容。');
+      this.action(empty,'查看索引问题','info',()=>{this.showDetail();this.renderDetail();const issues=this.detail.querySelector('details');if(issues)issues.open=true;this.detail.querySelector<HTMLElement>('summary')?.focus();});return;
+    }
+    if((this.filter.query.trim()||this.filter.tag)&&unfiltered.length){
+      describe('search',failed?'已索引内容中没有匹配':'没有匹配的内容','调整关键词或标签，或者清除它们查看当前分类的全部已索引内容。');
+      this.action(empty,'清除搜索和标签','rotate-ccw',()=>{this.filter={...this.filter,query:'',tag:''};this.search.value='';this.tag.value='';this.page=0;this.renderResults();focusSearch();});return;
+    }
+    if(scope==='boards'){describe('panels-top-left','还没有白板','新建一张白板，把笔记与材料整理成结构。');this.action(empty,'新建第一张白板','plus',()=>{this.close();this.host.createBoard();},'is-primary');return;}
+    if(scope==='favorites'||scope==='recent'){
+      describe(scope==='favorites'?'star':'history',scope==='favorites'?'还没有收藏的白板':'暂无最近打开的白板',scope==='favorites'?'将常用白板收藏，即可从这里快速进入。':'从总览打开一张白板后，会显示在这里。');
+      this.action(empty,'查看全部白板','panels-top-left',()=>showScope('boards'));return;
+    }
+    if(!this.filter.includeJournals&&hubResults(this.index,{...this.filter,query:'',tag:'',includeJournals:true},this.host.preferences(),new Set(this.host.favorites())).length){
+      describe('calendar-days','当前未包含日记',this.filter.query.trim()||this.filter.tag?'此分类的现有笔记均为日记。开启“包含日记”后，仍会保留当前搜索和标签。':'此分类的现有笔记均为日记。开启“包含日记”即可查看。');
+      this.action(empty,'显示日记','calendar-days',()=>{this.filter={...this.filter,includeJournals:true};this.journals.checked=true;this.page=0;this.renderResults();focusSearch();});return;
+    }
+    if(scope==='notes'){describe('files','还没有笔记','收集一条笔记，再把相关内容放入白板。');this.action(empty,'收集第一条笔记','plus',()=>{this.close();this.host.capture();},'is-primary');return;}
+    describe(scope==='inbox'?'inbox':'network',scope==='inbox'?'暂无待整理笔记':failed?'已索引白板中没有跨白板笔记':'还没有跨白板笔记',scope==='inbox'?'未放入已索引白板的笔记会显示在这里。':failed?'此处仅依据已成功索引的白板。可查看上方索引问题后刷新核对。':'同一篇笔记放入两张或更多白板后，会出现在这里。');
+    this.action(empty,'查看全部笔记','files',()=>showScope('notes'));
   }
   private async openItem(path:string,board:boolean){const f=this.file(path);this.close();if(board)await this.host.openBoard(f);else await this.host.openNote(f);}
   private showDetail(){
@@ -151,9 +192,23 @@ export class SpaceHubModal extends Modal {
     if(this.index.errors.length){const issues=this.detail.createEl('details',{cls:'ts-hub-issues'});issues.createEl('summary',{text:`索引问题 · ${this.index.errors.length}`});for(const e of this.index.errors.slice(0,50)){issues.createDiv({text:e.path,cls:'ts-hub-detail-path'});issues.createEl('p',{text:e.message});}}
   }
   private references(label:string,boards:HubBoard[]){this.detail.createEl('h4',{text:label});if(!boards.length)this.detail.createEl('p',{text:'没有已索引的直接引用'});for(const board of boards.slice(0,50))this.action(this.detail,board.title,'panels-top-left',()=>this.focus(board.path),'ts-hub-reference');if(boards.length>50)this.detail.createEl('p',{text:'显示前 50 张；可在全部白板中搜索更多。'});}
-  private async add(paths:string[]){if(!this.host.target)throw Error('请先打开目标白板');if(this.busy)return;this.busy=true;this.renderFooter();try{for(const path of paths)this.file(path);const added=await this.host.target.add(paths);if(!this.active)return;this.selected.clear();this.state.setText(`已放入 ${added} 篇笔记；跳过 ${paths.length-added} 个已有引用。可在白板撤销。`);await this.load();this.state.setText(`已放入 ${added} 篇笔记；跳过 ${paths.length-added} 个已有引用。可在白板撤销。`);}finally{this.busy=false;if(this.active)this.renderFooter();}}
-  private renderFooter(){this.footer.empty();this.footer.createSpan({text:`${this.results.length} 项结果 · 第 ${this.page+1} / ${Math.max(1,Math.ceil(this.results.length/48))} 页`});this.action(this.footer,'上一页','chevron-left',()=>{this.page--;this.renderResults();},'ts-hub-icon').disabled=this.page===0;this.action(this.footer,'下一页','chevron-right',()=>{this.page++;this.renderResults();},'ts-hub-icon').disabled=(this.page+1)*48>=this.results.length;
-    if(['notes','inbox','shared'].includes(this.filter.scope)){this.action(this.footer,'选择本页','check-check',()=>{const next=new Set([...this.selected,...this.results.slice(this.page*48,(this.page+1)*48).map(n=>n.path)]);if(next.size>100)throw Error('跨页选择超过 100 篇，请先清空选择');this.selected=next;this.renderResults();});}
-    if(this.selected.size){this.action(this.footer,'清空选择','x',()=>{this.selected.clear();this.renderResults();});const b=this.action(this.footer,`放入 ${this.selected.size} 篇笔记`,'file-plus-2',()=>this.add([...this.selected]),'is-primary');b.disabled=this.busy||!this.host.target;this.footer.createSpan({cls:'ts-hub-batch-hint',text:this.host.target?`目标：${this.host.target.title} · 选择包含其他页`:'请先打开目标白板'});}
+  private async add(paths:string[]){if(!this.host.target)throw Error('请先打开目标白板');if(this.busy)return;this.busy=true;this.renderFooter();try{for(const path of paths)this.file(path);const added=await this.host.target.add(paths);if(!this.active)return;this.selected.clear();setUiFeedback(this.state,'success',`已放入 ${added} 篇笔记；跳过 ${paths.length-added} 个已有引用。可在白板撤销。`);await this.load();setUiFeedback(this.state,'success',`已放入 ${added} 篇笔记；跳过 ${paths.length-added} 个已有引用。可在白板撤销。`);}finally{this.busy=false;if(this.active)this.renderFooter();}}
+  private runFooterAction(button:HTMLButtonElement,fn:()=>void,event?:MouseEvent){
+    const doc=this.footer.ownerDocument,index=this.index,filter=this.filter,context=JSON.stringify(filter),key=button.dataset.hubFooterKey;
+    const keyboard=(!event||event.detail===0)&&this.active&&button.isConnected&&!button.disabled&&this.footer.contains(button)&&doc.activeElement===button&&button.matches(':focus-visible');
+    fn();
+    // Rebuilds may detach the launcher. Restore only its lost keyboard focus;
+    // another focused control, changed browse context or closed modal wins.
+    if(!keyboard||!key||!this.active||!this.footer.isConnected||!this.modalEl.contains(this.footer)||this.footer.ownerDocument!==doc||this.index!==index||this.filter!==filter||JSON.stringify(this.filter)!==context||button.isConnected)return;
+    if(doc.activeElement&&doc.activeElement!==doc.body&&doc.activeElement!==button)return;
+    const keys=key==='next'?['next','previous']:key==='previous'?['previous','next']:key==='clear-selection'?['select-page']:['select-page','clear-selection'];
+    const target=keys.map(k=>this.footer.querySelector<HTMLButtonElement>(`[data-hub-footer-key="${k}"]`)).find(b=>b&&!b.disabled);
+    (target||this.search).focus({preventScroll:true});
+  }
+  private renderFooter(){
+    const action=(key:string,label:string,icon:string,fn:()=>void,cls='')=>{const b=this.action(this.footer,label,icon,event=>this.runFooterAction(b,fn,event),cls);b.dataset.hubFooterKey=key;return b;};
+    this.footer.empty();this.footer.createSpan({text:this.loaded===false?(this.busy?'正在读取空间索引…':'空间索引未就绪'):`${this.results.length} 项结果 · 第 ${this.page+1} / ${Math.max(1,Math.ceil(this.results.length/48))} 页`});action('previous','上一页','chevron-left',()=>{this.page--;this.renderResults();},'ts-hub-icon').disabled=this.page===0;action('next','下一页','chevron-right',()=>{this.page++;this.renderResults();},'ts-hub-icon').disabled=(this.page+1)*48>=this.results.length;
+    if(['notes','inbox','shared'].includes(this.filter.scope)){action('select-page','选择本页','check-check',()=>{const next=new Set([...this.selected,...this.results.slice(this.page*48,(this.page+1)*48).map(n=>n.path)]);if(next.size>100)throw Error('跨页选择超过 100 篇，请先清空选择');this.selected=next;this.renderResults();});}
+    if(this.selected.size){action('clear-selection','清空选择','x',()=>{this.selected.clear();this.renderResults();});const b=this.action(this.footer,`放入 ${this.selected.size} 篇笔记`,'file-plus-2',()=>this.add([...this.selected]),'is-primary');b.disabled=this.busy||!this.host.target;this.footer.createSpan({cls:'ts-hub-batch-hint',text:this.host.target?`目标：${this.host.target.title} · 选择包含其他页`:'请先打开目标白板'});}
   }
 }
