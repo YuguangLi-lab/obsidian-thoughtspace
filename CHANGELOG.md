@@ -1,3 +1,7 @@
+## 1.3.35-folio.9 — Folio Atelier 3.32.12
+
+Fix child relation lines crossing the center source-action row by anchoring to the complete center card. Refine center-card spacing, borders, hover feedback and theme connector strokes. Validated with 7,168 tests and 24 offline clearance scenes; native acceptance remains pending. See `qa/RELEASE-1.3.35-folio.9.md`.
+
 ## 1.3.35-folio.8 — Folio Atelier preview
 
 Independent Folio Atelier 3.32.11 integration based on 1.3.35. Adds project colors and workspace presentation, readable relation controls and keyboard focus continuity. See `qa/RELEASE-1.3.35-folio.8.md` for validation and native acceptance limits.

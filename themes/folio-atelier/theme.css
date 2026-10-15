@@ -4347,5 +4347,29 @@ body.atelier-plugin-polish .ts-studio-modal .ts-studio-saved > button:first-chil
   height: auto;
 }
 
+/* The central object is a single reading/action surface. Link routing uses
+ * this surface's full bounds; these colors never hide a routing collision. */
+body.atelier-plugin-polish .ts-local-relations .ts-local-relations-center:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background: var(--atelier-ui-panel, var(--background-primary));
+  border-color: color-mix(in srgb, var(--interactive-accent) 36%, var(--atelier-ui-line, var(--background-modifier-border)));
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--interactive-accent) 7%, transparent);
+}
+body.atelier-plugin-polish .ts-local-relations .ts-local-relations-center > h3:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--atelier-ui-ink, var(--text-normal));
+  letter-spacing: 0.01em;
+}
+body.atelier-plugin-polish .ts-local-relations .ts-local-relations-center-actions button:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--text-accent);
+  background: color-mix(in srgb, var(--interactive-accent) 7%, transparent);
+}
+body.atelier-plugin-polish .ts-local-relations .ts-local-relations-center-actions button:hover:not(:disabled):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  background: color-mix(in srgb, var(--interactive-accent) 14%, transparent);
+}
+body.atelier-plugin-polish .ts-local-relations-lines path[data-kind]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 } /* screen */
 

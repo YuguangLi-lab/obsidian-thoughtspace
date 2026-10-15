@@ -9135,7 +9135,7 @@ var LocalRelationsView = class _LocalRelationsView extends import_obsidian8.Item
   }
   drawLinks() {
     if (this.motionActive) return;
-    const host = this.groupsHost, center = this.centerHost?.querySelector("h3") || this.centerHost;
+    const host = this.groupsHost, center = this.centerHost;
     if (!this.alive || !this.visible() || !host || !center || !center.isConnected) return;
     host.querySelector(".ts-local-relations-lines")?.remove();
     const svg2 = host.createSvg("svg", { cls: "ts-local-relations-lines", attr: { "aria-hidden": "true" } }), box = host.getBoundingClientRect(), origin = center.getBoundingClientRect(), width = Math.max(host.scrollWidth, host.clientWidth), height = Math.max(host.scrollHeight, host.clientHeight);

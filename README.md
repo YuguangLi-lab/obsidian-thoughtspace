@@ -1,6 +1,6 @@
 ## Folio Atelier integration preview
 
-This branch contains Folio Atelier 3.32.11 and the optional ThoughtSpace 1.3.35-folio.8 adaptation, based on 1.3.35. See [theme, installation and validation](themes/folio-atelier/README.md). Mainline 1.3.36 remains separate.
+This branch contains Folio Atelier 3.32.12 and the optional ThoughtSpace 1.3.35-folio.9 adaptation, based on 1.3.35. See [theme, installation and validation](themes/folio-atelier/README.md). Mainline 1.3.36 remains separate.
 
 # ThoughtSpace Whiteboard
 

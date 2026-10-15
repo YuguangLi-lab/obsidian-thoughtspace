@@ -308,7 +308,9 @@ export class LocalRelationsView extends ItemView {
  private playMotion(){const root=this.groupsHost,snapshot=this.motionSnapshot;this.motionSnapshot=undefined;if(!root||!snapshot)return;const epoch=this.motionEpoch,doc=this.contentEl.ownerDocument,win=doc.defaultView,id=this.history.current,generation=this.generation;this.motionActive=true;this.motionWindow=win||undefined;root.setAttribute('data-relation-transitioning','true');this.motion.play(root,snapshot,()=>{if(epoch!==this.motionEpoch||!this.alive||!this.visible()||this.contentEl.ownerDocument!==doc||doc.defaultView!==win||win?.closed||generation!==this.generation||id!==this.history.current)return;this.motionActive=false;this.motionWindow=undefined;root.setAttribute('data-relation-transitioning','false');this.drawLinks();});}
  private drawLinks(){
   if(this.motionActive)return;
-  const host=this.groupsHost,center=this.centerHost?.querySelector<HTMLElement>('h3')||this.centerHost;if(!this.alive||!this.visible()||!host||!center||!center.isConnected)return;
+  // The title and source/pin/info actions form one obstacle. Anchoring on the
+  // title alone sends child edges through the action row below it.
+  const host=this.groupsHost,center=this.centerHost;if(!this.alive||!this.visible()||!host||!center||!center.isConnected)return;
   host.querySelector('.ts-local-relations-lines')?.remove();
   const svg=host.createSvg('svg',{cls:'ts-local-relations-lines',attr:{'aria-hidden':'true'}}),box=host.getBoundingClientRect(),origin=center.getBoundingClientRect(),width=Math.max(host.scrollWidth,host.clientWidth),height=Math.max(host.scrollHeight,host.clientHeight);
   svg.setAttribute('width',String(width));svg.setAttribute('height',String(height));svg.setAttribute('viewBox',`0 0 ${width} ${height}`);

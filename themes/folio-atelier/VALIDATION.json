@@ -1,48 +1,31 @@
 {
-  "schema": "folio-public-offline-validation-1",
-  "themeVersion": "3.32.11",
-  "pluginVersion": "1.3.35-folio.8",
-  "pluginBaseTag": "1.3.35",
-  "pluginBaseCommit": "9f6b4b8e6bf66409ef320796462a74a0f4931fe8",
-  "fullProjectTests": {
-    "passed": 7168,
-    "failed": 0,
-    "skipped": 0,
-    "files": 468
-  },
-  "focusedBrowserChecks": {
-    "hubScenes": 32,
-    "hubGates": 232,
-    "relationLayouts": 6,
-    "relationGates": 48,
-    "relationCrossEditStates": 12,
-    "shortCenterControls": 10
-  },
-  "installerFixtureCases": 121,
-  "originalOfflineArchiveAuditChecks": 22,
-  "themeSHA256": "3ada1968f3a1602eecef7943f50f70e7c51fb18bbc3daf15ba1bc5b96cc039c9",
-  "runtimeSHA256": {
-    "main.js": "705c7bc93ce4db6d9c9fed08c0dc309e4694d2f275c5c01e28a787ccf2b9a9b7",
-    "styles.css": "51c6b4794a088a4f7afb4582b135fceb7750afbaf05b74cacca3bccf4e82e821",
-    "manifest.json": "3611c119ba15c4d07a24be41470fff53b9d3cb16a4706fa8335984fd14775baf"
-  },
-  "originSHA256": "5a3057e7b9262c10aec50fdaffa060150822eb366efda6ffbb5c6f33ecc80474",
-  "validationEvidence": {
-    "fullSuiteReportSHA256": "c620f7452181c6a928687b711f43d85a202dfafe96f0f2520d0cd2502ca0f205",
-    "finalRelationReportSHA256": "55eea5455c0c0f782c70581c411af242310e270dfc63fa667e1811bf51412690",
-    "hubSummarySHA256": "a14378c7337ac396b9f7665f669d6eaa7abac7272419be3893e0066629fcb7f2"
-  },
-  "nativeRenderingVerified": false,
-  "installedThisTurn": false,
-  "fullUiCoverage": false,
-  "remaining": [
-    "Native Obsidian interactions and complete UI acceptance.",
-    "Wide relation child links cross the center source-action row.",
-    "Editor close focus restoration is not implemented."
+  "version": "3.32.12",
+  "pluginVersion": "1.3.35-folio.9",
+  "pass": true,
+  "tests": [
+    "# tests 7168",
+    "# pass 7168",
+    "# fail 0",
+    "# skipped 0",
+    "# duration_ms 17210.754167"
   ],
-  "scope": "Results from the frozen local project. Browser checks use owned fixtures and framework substitutes. Raw machine-specific QA, application CSS caches, backup trees and user configurations are not distributed.",
-  "publicationLint": {
-    "errors": 0,
-    "warnings": 119
+  "clearanceScenes": 24,
+  "interactionScenes": 6,
+  "installerChecks": [
+    "dry run preserves all original bytes",
+    "interrupted upgrade restores original runtime bytes",
+    "upgrade installs exact candidate with backup and settings preserved",
+    "reinstall is unchanged",
+    "reject modified predecessor main.js",
+    "reject modified predecessor styles.css",
+    "reject modified predecessor manifest.json"
+  ],
+  "nativeVerified": false,
+  "actualVaultAccessed": false,
+  "reportSHA256": {
+    "final-001/report.json": "698194bdb8d0b47d7729594801c72f01775c193bcd7dff21e8c559b91886c6ec",
+    "interactions-final/report.json": "6370dff0f4f12ab14dcbc98b06fa1fdc728b52cda1af224d3027ec29603727bd",
+    "full-suite-final/report.json": "7810f24a70de962ded4222e90547b226893ea58581bba31373d32cc9e5eb6d50",
+    "installer.json": "1ab155e88edfe7facc955ba9d3fa43a8e652015089b20055bfac61a84081cb3d"
   }
 }

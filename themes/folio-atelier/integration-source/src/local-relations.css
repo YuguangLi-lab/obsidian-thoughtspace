@@ -325,8 +325,8 @@
 .ts-local-relations .ts-local-relations-secondary-toolbar button:hover:not(:disabled){background:var(--background-modifier-hover);color:var(--text-normal)}
 .ts-local-relations .ts-local-relations-secondary-toolbar button:is([aria-pressed=true],[aria-expanded=true]){background:var(--background-modifier-hover);color:var(--ts-accent,var(--interactive-accent))}
 .ts-local-relations :is(.ts-local-relations-filter-panel,.ts-local-relations-more-panel,.ts-local-relations-inspectors,.ts-local-relations-recent)[hidden]{display:none}
-.ts-local-relations .ts-local-relations-center{grid-template-columns:minmax(0,1fr) 28px 28px;gap:4px 3px}
-.ts-local-relations .ts-local-relations-center>h3{grid-column:1/-1;grid-row:1;justify-self:center;max-width:100%}
+.ts-local-relations .ts-local-relations-center{grid-template-columns:minmax(0,1fr) 28px 28px;gap:7px 3px;padding:8px;border:1px solid color-mix(in srgb,var(--interactive-accent) 45%,var(--background-modifier-border));border-radius:14px;background:var(--background-primary)}
+.ts-local-relations .ts-local-relations-center>h3{grid-column:1/-1;grid-row:1;justify-self:stretch;max-width:100%;padding:5px 8px;height:32px;border:0;border-radius:6px;box-shadow:none;background:transparent}
 .ts-local-relations .ts-local-relations-center>button{grid-column:2;grid-row:2;width:28px;height:28px;transform:none}
 .ts-local-relations .ts-local-center-info:not([open]){grid-column:3;grid-row:2;transform:none}
 .ts-local-relations .ts-local-center-info>summary{min-width:28px;min-height:28px}
@@ -336,6 +336,7 @@
 .ts-local-relations .ts-local-relations-center-actions button{display:flex;align-items:center;justify-content:center;gap:4px;max-width:100%;min-height:26px;height:auto;padding:4px 6px;border:0;border-radius:var(--radius-s);background:transparent;color:var(--text-muted);font-size:var(--font-ui-smaller)}
 .ts-local-relations .ts-local-relations-center-actions button>span:last-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ts-local-relations .ts-local-relations-center-actions button:hover:not(:disabled){background:var(--background-modifier-hover);color:var(--text-normal)}
+.ts-local-relations .ts-local-relations-center>button:hover:not(:disabled),.ts-local-relations .ts-local-center-info:not([open])>summary:hover{background:var(--background-modifier-hover);color:var(--text-normal);border-radius:var(--radius-s)}
 .ts-local-relations .ts-local-center-info .ts-local-relations-actions{margin-top:7px}
 .ts-local-relations .ts-local-relations-counts{color:var(--text-faint);font-size:var(--font-ui-smaller)}
 .ts-local-relations .ts-local-relations-options{border:0;padding:0}

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install the protected local ThoughtSpace 1.3.35-folio.8 integration offline.
+"""Install the protected local ThoughtSpace 1.3.35-folio.9 integration offline.
 
 Close Obsidian or disable ThoughtSpace first. Importing this module performs no
 vault I/O. Only three runtime files are replaced; settings and registry remain.
@@ -15,12 +15,12 @@ from install import atomic_write, json_object
 
 ARTIFACT = Path(__file__).resolve().parents[1] / 'integrations' / 'thoughtspace-folio'
 FILES = ('main.js', 'styles.css', 'manifest.json')
-VERSION = '1.3.35-folio.8'
-PREDECESSOR_VERSION = '1.3.35-folio.7'
-PREDECESSOR_ORIGIN_SHA256 = '288c6fd62a16cc501453420ce3681a0aae80485f3d6ffec69f0714052bb581c6'
-PREDECESSOR_SHA256 = {'main.js': '96f2c44121fa6fb91867e8a02ab63af22b62248e3f9541e25ec3615e35b6f961',
- 'styles.css': '856137bc3dd1bcd0241545078dddf338bb4d6ac05b54f9971b9092d3adbb5051',
- 'manifest.json': '0f975263ec1d9500f183be3b51a64b1e390d52d4903b513b5921c08c6de4a3c9'}
+VERSION = '1.3.35-folio.9'
+PREDECESSOR_VERSION = '1.3.35-folio.8'
+PREDECESSOR_ORIGIN_SHA256 = '5a3057e7b9262c10aec50fdaffa060150822eb366efda6ffbb5c6f33ecc80474'
+PREDECESSOR_SHA256 = {'main.js': '705c7bc93ce4db6d9c9fed08c0dc309e4694d2f275c5c01e28a787ccf2b9a9b7',
+ 'styles.css': '51c6b4794a088a4f7afb4582b135fceb7750afbaf05b74cacca3bccf4e82e821',
+ 'manifest.json': '3611c119ba15c4d07a24be41470fff53b9d3cb16a4706fa8335984fd14775baf'}
 COMPATIBLE_PREDECESSORS = [{'version': '1.3.35-folio.1',
   'originSHA256': '9dfdfd831015c6aac0e353d89def89fdf22667a6793d9d0f31c2d00676a276e0',
   'sha256': {'main.js': '49268861d049f18a11251ebbb93d8f59078aeb9496ff209df039e4ccf7f62421',
@@ -50,13 +50,18 @@ COMPATIBLE_PREDECESSORS = [{'version': '1.3.35-folio.1',
   'originSHA256': '0f4026549c4148c3d031b6e484e2a853ba8661ec6cc50ed4658fd76dd7588a7a',
   'sha256': {'main.js': 'eea430aaf7fe7d0f1d63b9dfd05d00980541c29b9b39b7e4ff05e89cf898f407',
              'styles.css': 'd915b9052f4aca627bb0d7524f0b7082fd89c2bda496df8e0db5d3f6048a42e0',
-             'manifest.json': '5964270d56fbae71bd67886ff4ddbb7054a6c7567f570b235b0b10df0dea949d'}}]
+             'manifest.json': '5964270d56fbae71bd67886ff4ddbb7054a6c7567f570b235b0b10df0dea949d'}},
+ {'version': '1.3.35-folio.7',
+  'originSHA256': '288c6fd62a16cc501453420ce3681a0aae80485f3d6ffec69f0714052bb581c6',
+  'sha256': {'main.js': '96f2c44121fa6fb91867e8a02ab63af22b62248e3f9541e25ec3615e35b6f961',
+             'styles.css': '856137bc3dd1bcd0241545078dddf338bb4d6ac05b54f9971b9092d3adbb5051',
+             'manifest.json': '0f975263ec1d9500f183be3b51a64b1e390d52d4903b513b5921c08c6de4a3c9'}}]
 # Exact final build. Offline synthetic tests override these only in their own
 # temporary process, never in a shipped artifact or an actual vault.
-INTEGRATED_SHA256 = {'main.js': '705c7bc93ce4db6d9c9fed08c0dc309e4694d2f275c5c01e28a787ccf2b9a9b7',
- 'styles.css': '51c6b4794a088a4f7afb4582b135fceb7750afbaf05b74cacca3bccf4e82e821',
- 'manifest.json': '3611c119ba15c4d07a24be41470fff53b9d3cb16a4706fa8335984fd14775baf'}
-INTEGRATED_ORIGIN_SHA256 = '5a3057e7b9262c10aec50fdaffa060150822eb366efda6ffbb5c6f33ecc80474'
+INTEGRATED_SHA256 = {'main.js': 'd75e718c41bf3c561de7f13d66bd270a9319e49b830a3b66efda70ffb4619eb7',
+ 'styles.css': '729d0991151e87d5a55683fdfc2c26a150d000c4744e8d3477609f80a6d5e1d9',
+ 'manifest.json': '5522fb017fa87d06ded8ef73080b9979a98451b20448c98678190f554385e108'}
+INTEGRATED_ORIGIN_SHA256 = '783c168d5fa715f8868bf361e7c5990d6a336f3bf095eb6aa5fc426d1110460a'
 BASE_COMMIT = '9f6b4b8e6bf66409ef320796462a74a0f4931fe8'
 BASE_MAIN_SHA256 = (
     'c24a7c77a7222ffa596b6a2aed4130a11828911d40f455980e7ec96674e2f837',
@@ -86,7 +91,7 @@ def validate_origin(origin, data):
         raise ValueError('Integration origin does not identify the protected base and supported folio predecessors')
     actual = {name: digest(data[name]) for name in FILES}
     if not INTEGRATED_SHA256 or actual != INTEGRATED_SHA256:
-        raise ValueError('Integration assets differ from the fixed folio.8 build')
+        raise ValueError('Integration assets differ from the fixed folio.9 build')
     if origin.get('integratedSHA256') != actual:
         raise ValueError('Integration asset checksums do not match origin.json')
 
@@ -100,7 +105,7 @@ def prepare(vault, source=ARTIFACT):
     manifest = json_object(data['manifest.json'], 'integration manifest')
     origin_bytes = (source / 'origin.json').read_bytes()
     if not INTEGRATED_ORIGIN_SHA256 or digest(origin_bytes) != INTEGRATED_ORIGIN_SHA256:
-        raise ValueError('Integration origin differs from the fixed folio.8 origin')
+        raise ValueError('Integration origin differs from the fixed folio.9 origin')
     origin = json_object(origin_bytes, 'integration origin')
     if (manifest.get('id') != 'thoughtspace' or manifest.get('version') != VERSION
             or manifest.get('minAppVersion') != '1.13.7'):
@@ -140,7 +145,7 @@ def install_plugin(vault, source=ARTIFACT, dry_run=False):
         if (target / name).read_bytes() != data:
             raise ValueError('Plugin changed after planning; retry with a fresh plan')
     backup = target.parents[1] / 'atelier-backups' / (
-        'thoughtspace-folio-8-' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S-%f'))
+        'thoughtspace-folio-9-' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S-%f'))
     saved = backup / 'thoughtspace'
     saved.mkdir(parents=True)
     for name in (*FILES, 'data.json', 'folio-project-colors.json'):
