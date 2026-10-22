@@ -1,3 +1,4 @@
+import {themePluginMenu} from '../src/ui-tokens';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -54,7 +55,7 @@ function fixture(nodes:model.Card[]=[node('a',20),node('b',150),node('old',500)]
   const menus:{node?:string;edge?:string;position?:{x:number;y:number}}[]=[];
   class Menu {onHide(){}hide(){}showAtMouseEvent(){calls.menus++;}}
   const deps={...model,...mindmap,...boardTools,...dragDraft,...dragTargets,...experience,validSectionRect,boardTouchTarget,
-    Menu,
+    themePluginMenu,Menu,
     Date:{now:()=>now},
     PointerEvent:class {constructor(_type:string,fields:Record<string,unknown>){Object.assign(this,fields);}},
     requestAnimationFrame:(fn:()=>void)=>{frames.set(++frameId,fn);return frameId;},

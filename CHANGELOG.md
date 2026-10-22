@@ -1,5 +1,23 @@
 # 更新记录
 
+## 1.3.38
+
+### 三套可切换的界面风格
+
+- 在“设置 → ThoughtSpace Whiteboard → 界面”中选择纸张质感、暖色杂志或液态玻璃。选择保存后应用到已打开的插件界面，并在重新打开后保留；浅深色继续跟随 Obsidian。
+- 纸张质感设为默认，沿用之前纸感界面的浅深色配色、实色面板与轻阴影。已有画布背景、自定义纸色、纹理和对象颜色保持各自设置。
+- 保留暖色杂志界面，新增参考 macOS Liquid Glass 材质原则的液态玻璃。少量悬浮菜单和工具栏具有局部背景折射、交互高光和轻微按压形态变化，正文保持清晰的实色阅读层；网页实现不等同于 Apple 原生渲染。窄屏、低性能或不支持的平台，以及减少动态／透明度和高对比度设置下，自动使用静态退路。
+- 统一插件工作区、收集、设置、弹窗与插件菜单的风格来源，支持独立窗口，偏好配置的导入、导出和分类重置也包含界面风格。
+- 修复多个设置窗口同时保存失败后，失败的选择可能被后续保存重新应用的问题。
+
+### English
+
+- Choose Paper, Warm editorial or Liquid glass under Settings → ThoughtSpace Whiteboard → Interface. Saved choices apply to open plugin surfaces and persist after reopening; light and dark mode follow Obsidian.
+- Paper is the default and restores the original light/dark paper palette, solid panels and subtle shadows. Canvas backgrounds, custom paper colors, textures and authored object colors retain their own settings.
+- Retain Warm editorial and add Liquid glass inspired by macOS material principles. Selected floating menus and toolbars use local backdrop refraction, responsive highlights and subtle press transitions, while reading surfaces stay clear and solid. This web implementation is distinct from Apple's native renderer. Narrow screens, lower-capability or unsupported platforms, and reduced-motion/transparency or higher-contrast preferences use static fallbacks.
+- Share the selected style across plugin workspaces, the collection, settings, dialogs, plugin menus and detached windows. Preference profiles and category resets include the interface style.
+- Fix concurrent settings-window failures allowing a rejected choice to be reapplied by a later save.
+
 ## 1.3.37
 
 ### 暖色界面、收集整理与在线草稿恢复

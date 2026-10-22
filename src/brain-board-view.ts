@@ -1,3 +1,4 @@
+import {themePluginMenu} from './ui-tokens';
 import {bindBoardHostInset} from './board-chrome';
 import {renderBoardSaveFeedback,type BoardSaveFeedback,type BoardSaveFeedbackAction} from './board-save-feedback';
 import {BrainBranchIndex,BrainDescendantPager,type BrainDescendantPage} from './brain-board-descendants';
@@ -326,7 +327,7 @@ export class BrainBoardView extends Component {
  private current(id:string){const snapshot=this.host.snapshot(),generation=this.generation,epoch=this.selectionEpoch,doc=this.el.ownerDocument,key=snapshot?.key,path=snapshot?.path,center=snapshot?.board.brain?.centerId;let valid=true;return()=>{const now=this.host.snapshot();valid=valid&&this.alive&&this.generation===generation&&this.selectionEpoch===epoch&&this.activeNodeId===id&&this.el.ownerDocument===doc&&this.document===doc&&this.visible()&&doc.hasFocus()&&(this.host.isActive?.()??true)&&!!now&&now.key===key&&this.context===(now.key||now.path)&&this.boardPath===now.path&&this.center===now.board.brain?.centerId&&now?.path===path&&now?.board.presentation==='brain'&&now.board.brain?.centerId===center&&!!now.board.nodes.some(node=>node.id===id&&supportsBoardMindmapTarget(node));return valid;};}
  private open(id:string,edit=false){const current=this.current(id);if(!current())return;try{void Promise.resolve(this.host.open(id,current,edit)).catch(error=>{if(current())this.showError(error);});}catch(error){if(current())this.showError(error);}}
  private submenu(menu:Menu,title:string,icon:string,fill:(menu:Menu)=>void){
-  menu.addItem(item=>{item.setTitle(title).setIcon(icon);fill((item as MenuItem&{setSubmenu:()=>Menu}).setSubmenu().setUseNativeMenu(false));});
+  menu.addItem(item=>{item.setTitle(title).setIcon(icon);fill(themePluginMenu((item as MenuItem&{setSubmenu:()=>Menu}).setSubmenu()).setUseNativeMenu(false));});
  }
  private nodeMenu(id:string,event?:MouseEvent,anchor?:HTMLElement){
   const snapshot=this.host.snapshot(),node=snapshot?.board.nodes.find(node=>node.id===id&&supportsBoardMindmapTarget(node));if(!snapshot||!node||!this.current(id)())return;
@@ -493,7 +494,7 @@ export class BrainBoardView extends Component {
  private cancelResize(){if(this.resizeFrame)this.resizeWindow?.cancelAnimationFrame(this.resizeFrame);this.resizeFrame=0;this.resizeWindow=undefined;}
  private dropPreview(id:string){const preview=this.previews.get(id);if(preview){this.removeChild(preview.scope);preview.body.remove();this.previews.delete(id);}}
  private clearPreviews(){for(const id of this.previews.keys())this.dropPreview(id);}
- private makeMenu(){this.closeMenu();const menu=new Menu().setUseNativeMenu(false);this.activeMenu=menu;menu.onHide(()=>{if(this.activeMenu===menu)this.activeMenu=undefined;});return menu;}
+ private makeMenu(){this.closeMenu();const menu=themePluginMenu(new Menu()).setUseNativeMenu(false);this.activeMenu=menu;menu.onHide(()=>{if(this.activeMenu===menu)this.activeMenu=undefined;});return menu;}
  private closeMenu(){const menu=this.activeMenu;this.activeMenu=undefined;try{menu?.hide();}catch{/* Owning popout may already be closing. */}}
  private showMenu(menu:Menu,event:MouseEvent|undefined,anchor:HTMLElement){if(event)menu.showAtMouseEvent(event);else{const rect=anchor.getBoundingClientRect();menu.showAtPosition({x:rect.left,y:rect.bottom},this.el.ownerDocument);}}
  private button(parent:HTMLElement,icon:string,label:string,run:(event:MouseEvent)=>unknown,action?:string){

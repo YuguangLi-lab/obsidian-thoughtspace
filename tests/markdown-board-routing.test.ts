@@ -1,3 +1,4 @@
+import {themePluginMenu} from '../src/ui-tokens';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -59,7 +60,7 @@ class Menu {
 }
 const notices:string[]=[],errors:unknown[]=[];
 const helper=ast.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text==='isBoardFile');
-const deps={mediaKind:()=>undefined,isPdfFile:()=>false,...model,...documents,...ownership,isBoardPath,isWorkspaceFile,parseYaml,TFile,FileView,BoardView,MarkdownView,Prompt,Menu,VIEW,EXT,ROOT,parseBoardLink,boardLink,createBrainBoard,captureBoardReferenceRename,createBoardReferenceRenamer,appendPendingBoardReference,removePendingBoardReference,
+const deps={themePluginMenu,mediaKind:()=>undefined,isPdfFile:()=>false,...model,...documents,...ownership,isBoardPath,isWorkspaceFile,parseYaml,TFile,FileView,BoardView,MarkdownView,Prompt,Menu,VIEW,EXT,ROOT,parseBoardLink,boardLink,createBrainBoard,captureBoardReferenceRename,createBoardReferenceRenamer,appendPendingBoardReference,removePendingBoardReference,
  normalizePath:(path:string)=>path.replace(/\/+/g,'/').replace(/^\//,''),act:(run:()=>unknown)=>run(),report:(error:unknown)=>errors.push(error),Notice:class{constructor(value:string){notices.push(value);}},window:globalThis};
 const isBoardFile=helper?execute(helper.getText(ast)+';return isBoardFile;',deps):()=>{throw Error('Production isBoardFile is missing');};
 const Host=execute(`class Host {${methods('ThoughtSpace',['readBoard','openBoard','openBoardInNewTab','openDeepLink','boardGraph','assertCanNestReachable','renameReferences','editReferenceJournal','deferBoardReference','retryPendingBoardReferences','flushPendingBoardReferences','createUnique','folder','duplicateBoard','promptMarkdownBoard','openCurrentMarkdownBoard','openBoardNativeMarkdown','refreshMarkdownBoardOwnership','promptSaveBoardAs','saveBoardAs','nativeFileMenu','toggleBoardNative'])}};return Host;`,{...deps,isBoardFile});

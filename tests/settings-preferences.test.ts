@@ -7,6 +7,19 @@ import {exportSettingsProfile,parseSettingsProfile,resetSettingsCategory,resolve
 const profile=(preferences:unknown)=>JSON.stringify({format:'thoughtspace-preferences',version:1,preferences});
 const rejects=(text:string,code:SettingsProfileErrorCode)=>assert.throws(()=>parseSettingsProfile(text),(error:unknown)=>error instanceof SettingsProfileError&&error.code===code);
 
+test('interface styles default to historical paper and preserve every explicit valid selection on reopen',()=>{
+ for(const raw of [undefined,null,{}, {surfaceStyle:'soft',glassEffects:true},{interfaceStyle:'unknown'},{interfaceStyle:null},{interfaceStyle:[]}])assert.equal(cleanPluginSettings(raw).interfaceStyle,'paper');
+ for(const interfaceStyle of ['paper','editorial','glass'] as const){
+  const saved=cleanPluginSettings({interfaceStyle,surfaceStyle:'soft',glassEffects:false,canvasBackground:'image',backgroundImagePath:'Assets/keep.png',paperColor:'#bbcccc',paperTexture:87});
+  const reopened=cleanPluginSettings(JSON.parse(JSON.stringify(saved)));
+  assert.equal(reopened.interfaceStyle,interfaceStyle);assert.equal(reopened.surfaceStyle,'soft');assert.equal(reopened.glassEffects,false);
+  assert.equal(reopened.canvasBackground,'image');assert.equal(reopened.backgroundImagePath,'Assets/keep.png');assert.equal(reopened.paperColor,'#bbcccc');assert.equal(reopened.paperTexture,87);
+  assert.equal(parseSettingsProfile(exportSettingsProfile(saved)).interfaceStyle,interfaceStyle);
+ }
+ const selected=cleanPluginSettings({interfaceStyle:'glass'});Object.assign(selected,parseSettingsProfile(profile({accent:'blue'})));
+ assert.equal(selected.interfaceStyle,'glass');assert.equal(settingsCategoryDefaults('general').interfaceStyle,'paper');
+});
+
 test('settings language follows the host unless explicitly selected and survives persistence',()=>{
  assert.equal(cleanPluginSettings(null).settingsLanguage,'auto');
  for(const language of ['auto','en','zh-CN'] as const)assert.equal(cleanPluginSettings(JSON.parse(JSON.stringify({settingsLanguage:language}))).settingsLanguage,language);
@@ -95,7 +108,7 @@ test('profiles reject every nonportable, unknown and prototype-related key',()=>
 
 test('all imported values are strictly typed and validated instead of coerced or clamped',()=>{
  const invalid:{[key:string]:unknown[]}={
-  accent:['purple',null,1],glassEffects:['false',0,{},[]],readingSize:[15,'16',null],defaultCardStyle:['unknown',null,{}],
+  interfaceStyle:['soft','dark','Paper',null,1,{},[]],accent:['purple',null,1],glassEffects:['false',0,{},[]],readingSize:[15,'16',null],defaultCardStyle:['unknown',null,{}],
   defaultCardWidth:[219,521,'300'],defaultTextSize:[11,33,'16'],gridStep:[7,65],previewLimit:[19,161],detailZoom:[.19,.91],zoomSpeed:[.29,2.01],panSpeed:[.29,3.01],dragThreshold:[1,13],nudgeStep:[0,11],fastNudge:[9,101],
   canvasBackground:['image','transparent'],leftDrag:['drag',null],wheelMode:['scroll',1],zoomAnchor:['cursor',true],defaultEdgeDirection:['backward'],defaultEdgeStyle:['rounded'],toolbarDensity:['dense'],surfaceStyle:['solid'],density:['dense'],readingWidth:['full'],
  };

@@ -1,3 +1,4 @@
+import {themePluginMenu} from './ui-tokens';
 import {Menu,setIcon} from 'obsidian';
 
 export interface MediaCardState {
@@ -335,7 +336,7 @@ export function mountMediaCard(host: HTMLElement, options: MediaCardOptions): Me
     if (!live()) return;
     menu?.hide();
     refresh();
-    const next = menu = new Menu().setUseNativeMenu(false).setParentElement(card);
+    const next = menu = themePluginMenu(new Menu()).setUseNativeMenu(false).setParentElement(card);
     const action = (title: string, icon: string, target: HTMLButtonElement, checked?: boolean) => {
       next.addItem(item => {
         item.setTitle(title).setIcon(icon).setDisabled(target.disabled).onClick(() => { if (live() && !target.disabled) target.click(); });

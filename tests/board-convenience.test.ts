@@ -1,3 +1,4 @@
+import {themePluginMenu} from '../src/ui-tokens';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -39,7 +40,7 @@ class Menu {
  addItem(fn:any){const item:any={setTitle(v:any){this.title=v;return this;},setIcon(){return this;},setDisabled(v:any){this.disabled=!!v;return this;},setChecked(v:any){this.checked=v;return this;},onClick(v:any){this.run=v;return this;}};fn(item);this.items.push(item);return this;}
  addSeparator(){return this;}showAtPosition(){}
 }
-const ZoomView=new Function('Menu',transformSync(`class View{${zoom}};return View`,{loader:'ts'}).code)(Menu);
+const ZoomView=new Function('themePluginMenu','Menu',transformSync(`class View{${zoom}};return View`,{loader:'ts'}).code)(themePluginMenu,Menu);
 function zoomFixture(){const v=new ZoomView(),calls:unknown[]=[],doc={defaultView:{closed:false}};Object.assign(v,{session:{file:{path:'selfmade.md'},board:{viewport:{zoom:.5}}},leaf:{view:v},contentEl:{ownerDocument:doc},selected:new Set(['a']),zoomLabel:{ownerDocument:doc,isConnected:true,getBoundingClientRect:()=>({left:10,top:400})},focusSelection:()=>calls.push('focus'),fit:()=>calls.push('fit'),rememberViewport:()=>calls.push('remember'),zoom:(value:number)=>calls.push(value)});v.zoomPresets();return{v,calls,items:Menu.last.items};}
 test('zoom menu exposes selected focus, fit-all and actual-size together',()=>{const{calls,items}=zoomFixture();items[0].run();items[1].run();items.find(i=>i.title==='100%').run();assert.deepEqual(calls,['focus','fit','remember',2]);});
 test('zoom menu marks current scale and disables focus with no selection',()=>{const{v}=zoomFixture();v.selected.clear();v.zoomPresets();assert.equal(Menu.last.items[0].disabled,true);assert.equal(Menu.last.items.find(i=>i.title==='50%').checked,true);});

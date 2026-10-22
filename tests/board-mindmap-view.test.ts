@@ -1,3 +1,4 @@
+import {themePluginMenu} from '../src/ui-tokens';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -46,7 +47,7 @@ class Component {
 class MenuItem {title='';icon='';disabled=false;callback=()=>{};setTitle(value:string){this.title=value;return this;}setIcon(value:string){this.icon=value;return this;}setDisabled(value:boolean){this.disabled=value;return this;}onClick(fn:()=>void){this.callback=fn;return this;}click(){if(!this.disabled)this.callback();}}
 class Menu {static last:Menu;items:MenuItem[]=[];native=true;shown?:string;doc?:Doc;hidden=false;private onHidden=()=>{};constructor(){Menu.last=this;}setUseNativeMenu(value:boolean){this.native=value;return this;}addItem(fn:(item:MenuItem)=>void){const item=new MenuItem();fn(item);this.items.push(item);return this;}addSeparator(){}showAtMouseEvent(){this.shown='mouse';}showAtPosition(_position:any,doc:Doc){this.shown='keyboard';this.doc=doc;}onHide(fn:()=>void){this.onHidden=fn;}hide(){this.hidden=true;this.onHidden();}}
 const source=readFileSync('src/board-mindmap-view.ts','utf8').replace(/^import[^\n]*\n/gm,'').replace(/\bexport /g,'');
-const deps={...state,...relations,...motion,Component,Menu,setIcon(el:El,icon:string){el.dataset.icon=icon;}};
+const deps={...state,...relations,...motion,Component,Menu,themePluginMenu,setIcon(el:El,icon:string){el.dataset.icon=icon;}};
 const View=new Function(...Object.keys(deps),transformSync(source+'\nreturn BoardMindmapView;',{loader:'ts'}).code)(...Object.values(deps));
 const card=(id:string,kind:Card['kind']='card'):Card=>({id,kind,title:'标题 '+id,file:kind==='card'?`Notes/${id}.md`:kind==='board'?`Boards/${id}.thoughtspace`:undefined,x:10,y:20,width:120,height:80,color:'slate'});
 function fixture(){

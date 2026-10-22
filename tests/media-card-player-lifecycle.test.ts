@@ -1,3 +1,4 @@
+import {themePluginMenu} from '../src/ui-tokens';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -33,6 +34,7 @@ class FakeMenu {
 const compiled=transformSync(readFileSync('src/media-card-player.ts','utf8'),{loader:'ts',format:'cjs'}).code;
 const playerModule={exports:{}};
 new Function('require','module','exports',compiled)((name:string)=>{
+  if(name==='./ui-tokens')return{themePluginMenu};
   if(name==='obsidian')return{Menu:FakeMenu,setIcon:(element:{setAttribute:(name:string,value:string)=>void},icon:string)=>element.setAttribute('data-icon',icon)};
   throw Error('Unexpected player dependency: '+name);
 },playerModule,playerModule.exports);

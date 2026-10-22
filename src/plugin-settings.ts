@@ -30,6 +30,7 @@ export function cleanPluginSettings(raw:unknown):ThoughtSpacePreferences {
   layoutPresets:cleanLayoutPresets(saved.layoutPresets),database:cleanDatabasePreferences(saved.database),hub:cleanHubPreferences(saved.hub),favoriteBoards:cleanFavorites(saved.favoriteBoards)};
  try{Object.assign(out,validateFolders(typeof saved.cardFolder==='string'?saved.cardFolder:out.cardFolder,typeof saved.journalFolder==='string'?saved.journalFolder:out.journalFolder));}catch{/* Invalid folders never redirect automatic filing outside the configured vault paths. */}
  for(const key of ['autoFileCards','cleanupEmptyFolders','showMinimap','glassEffects','imageHostEnabled','noteMarkdownToolbar','boardSearchEnabled','nativeBookmarksMigrated'] as const)if(typeof saved[key]==='boolean')out[key]=saved[key];
+ if(isOneOf(saved.interfaceStyle,['paper','editorial','glass']))out.interfaceStyle=saved.interfaceStyle;
  if(isOneOf(saved.surfaceStyle,['soft','paper']))out.surfaceStyle=saved.surfaceStyle;
  if(isOneOf(saved.readingSize,[14,16,18,20]))out.readingSize=saved.readingSize;
  if(isOneOf(saved.readingWidth,['standard','wide']))out.readingWidth=saved.readingWidth;

@@ -1,3 +1,4 @@
+import {themePluginMenu} from '../src/ui-tokens';
 import {boardBackground} from '../src/board-background';
 import {isBrainBoard} from '../src/brain-board';
 import test from 'node:test';
@@ -35,7 +36,7 @@ class Anchor {
   setAttribute(name:string,value:string){this.attributes[name]=value;}
   getBoundingClientRect(){return this.rect;}
 }
-const View=new Function('Menu','act','boardBackground','isBrainBoard',transformSync(`class View{${method}}\nreturn View;`,{loader:'ts'}).code)(Menu,(run:()=>unknown)=>run(),boardBackground,isBrainBoard);
+const View=new Function('themePluginMenu','Menu','act','boardBackground','isBrainBoard',transformSync(`class View{${method}}\nreturn View;`,{loader:'ts'}).code)(themePluginMenu,Menu,(run:()=>unknown)=>run(),boardBackground,isBrainBoard);
 const kinds={dots:'点阵',grid:'网格',plain:'纯色',paper:'纸张纹理',image:'背景图片'} as const;
 type Kind=keyof typeof kinds;
 function fixture(kind:Kind='dots',imagePath=''){

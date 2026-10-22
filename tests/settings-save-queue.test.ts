@@ -47,9 +47,9 @@ function fixture(raw:unknown={}){
  const saves:ThoughtSpacePreferences[]=[],pending:ReturnType<typeof deferred<void>>[]=[];
  let disk=cleanPluginSettings(raw),rendered=cleanPluginSettings(raw),refreshes=0,rebuilds=0,displays=0,reports=0;
  const host={settings:cleanPluginSettings(raw),manifest:{version:'test'},noteToolbar:{refresh:()=>{refreshes++;}},rebuildBoardSearch:()=>{rebuilds++;},savePreferences:()=>{const snapshot=structuredClone(host.settings);saves.push(snapshot);const task=deferred();pending.push(task);return task.promise.then(()=>{disk=snapshot;});}};
- const tab=new ThoughtSpaceSettings({vault:{configDir:'.obsidian'}},host);
- tab.language='en';tab.display=()=>{displays++;rendered=structuredClone(host.settings);};tab.report=()=>{reports++;};
- return{tab,host,saves,pending,delegated,modals,get disk(){return disk;},get rendered(){return rendered;},get refreshes(){return refreshes;},get rebuilds(){return rebuilds;},get displays(){return displays;},get reports(){return reports;}};
+ const newTab=()=>{const tab=new ThoughtSpaceSettings({vault:{configDir:'.obsidian'}},host);tab.language='en';tab.display=()=>{displays++;rendered=structuredClone(host.settings);};tab.report=()=>{reports++;};return tab;};
+ const tab=newTab();
+ return{tab,newTab,host,saves,pending,delegated,modals,get disk(){return disk;},get rendered(){return rendered;},get refreshes(){return refreshes;},get rebuilds(){return rebuilds;},get displays(){return displays;},get reports(){return reports;}};
 }
 
 for(const firstSuccess of [true,false])for(const secondSuccess of [true,false])test(`overlapping settings transactions preserve order when saves ${firstSuccess?'succeed':'fail'} then ${secondSuccess?'succeed':'fail'}`,async()=>{
@@ -68,6 +68,28 @@ test('queued patches capture caller values and preserve unrelated host changes',
  values.accent='rose';f.host.settings.density='compact';await tick();
  assert.equal(f.saves[0].accent,'blue');assert.equal(f.saves[0].density,'compact');assert.equal(f.saves[0].cardFolder,'Keep/cards');
  f.pending[0].resolve();await operation;assert.equal(f.host.settings.settingsLanguage,'en');assert.equal(f.host.settings.density,'compact');
+});
+
+test('failed interface-style saves roll back only that change and a queued selection can still persist',async()=>{
+ const f=fixture({interfaceStyle:'editorial',canvasBackground:'image',backgroundImagePath:'Assets/keep.png',paperTexture:87});
+ const first=f.tab.patch({interfaceStyle:'glass'}),second=f.tab.patch({interfaceStyle:'paper'}),settled=Promise.allSettled([first,second]);
+ await tick();assert.equal(f.saves[0].interfaceStyle,'glass');assert.equal(f.disk.interfaceStyle,'editorial');
+ f.pending[0].reject(Error('write failed'));await tick();assert.equal(f.saves[1].interfaceStyle,'paper');assert.equal(f.disk.interfaceStyle,'editorial');
+ f.pending[1].resolve();await settled;assert.equal(f.disk.interfaceStyle,'paper');assert.equal(f.host.settings.interfaceStyle,'paper');
+ assert.equal(f.host.settings.canvasBackground,'image');assert.equal(f.host.settings.backgroundImagePath,'Assets/keep.png');assert.equal(f.host.settings.paperTexture,87);
+});
+
+for(const firstSuccess of [true,false])for(const secondSuccess of [true,false])test(`two settings windows share one host transaction queue when saves ${firstSuccess?'succeed':'fail'} then ${secondSuccess?'succeed':'fail'}`,async()=>{
+ const f=fixture({interfaceStyle:'editorial',paperTexture:87,canvasBackground:'grid'}),other=f.newTab();
+ const first=f.tab.patch({interfaceStyle:'glass'}),second=other.patch({interfaceStyle:'paper'}),settled=Promise.allSettled([first,second]);
+ await tick();assert.equal(f.saves.length,1,'The second window must wait for the first rollback or commit');assert.equal(f.host.settings.interfaceStyle,'glass');assert.equal(f.disk.interfaceStyle,'editorial');
+ if(firstSuccess)f.pending[0].resolve();else f.pending[0].reject(Error('first window write failed'));
+ await tick();assert.equal(f.saves.length,2);assert.equal(f.host.settings.interfaceStyle,'paper');assert.equal(f.disk.interfaceStyle,firstSuccess?'glass':'editorial');
+ if(secondSuccess)f.pending[1].resolve();else f.pending[1].reject(Error('second window write failed'));
+ const results=await settled,expected=secondSuccess?'paper':firstSuccess?'glass':'editorial';
+ assert.deepEqual(results.map(result=>result.status),[firstSuccess?'fulfilled':'rejected',secondSuccess?'fulfilled':'rejected']);assert.equal(f.host.settings.interfaceStyle,expected);assert.equal(f.disk.interfaceStyle,expected);
+ const unrelated=f.newTab().patch({density:'compact'});await tick();assert.equal(f.saves[2].interfaceStyle,expected,'A later unrelated save cannot revive a rejected style');f.pending[2].resolve();await unrelated;
+ assert.equal(f.disk.interfaceStyle,expected);assert.equal(f.host.settings.paperTexture,87);assert.equal(f.host.settings.canvasBackground,'grid');assert.equal(f.disk.density,'compact');
 });
 
 test('a rollback-triggered redraw cannot leave controls stale after a queued successful change',async()=>{

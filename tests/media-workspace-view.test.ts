@@ -1,3 +1,4 @@
+import {themePluginMenu} from '../src/ui-tokens';
 import * as density from '../src/workspace-density';
 import * as viewport from '../src/mobile-viewport';
 import test from 'node:test';
@@ -112,7 +113,7 @@ function menuItem(menu:Menu,title:string){const item=menu.items.find(value=>valu
 async function settled(){await new Promise<void>(resolve=>setImmediate(resolve));}
 const compiled=transformSync(readFileSync('src/media-workspace-view.ts','utf8'),{loader:'ts',format:'cjs'}).code;
 const module={exports:{}};
-new Function('require','module','exports',compiled)((name:string)=>name==='obsidian'?{ItemView,Menu,Modal,Scope,TFile,setIcon:()=>{},Notice:class{constructor(text:string){notices.push(text);}}}:name==='./workspace-density'?density:name==='./mobile-viewport'?viewport:name==='./media-source'?mediaSource:name==='./media-preview-source'?previewSource:name==='./ui-tokens'?{themeSurface(){}}:name==='./board-modal-viewport'?{bindBoardModalViewport:()=>()=>{}}:undefined,module,module.exports);
+new Function('require','module','exports',compiled)((name:string)=>name==='obsidian'?{ItemView,Menu,Modal,Scope,TFile,setIcon:()=>{},Notice:class{constructor(text:string){notices.push(text);}}}:name==='./workspace-density'?density:name==='./mobile-viewport'?viewport:name==='./media-source'?mediaSource:name==='./media-preview-source'?previewSource:name==='./ui-tokens'?{themePluginMenu,themeSurface(){}}:name==='./board-modal-viewport'?{bindBoardModalViewport:()=>()=>{}}:undefined,module,module.exports);
 const {MediaWorkspaceView} = module.exports as {MediaWorkspaceView:new(leaf:unknown,host:unknown)=>any};
 function fixture(drafts?:MediaDraftStore){
  const a=new TFile('media/A.mp4'),b=new TFile('media/B.mp3'),noteA=new TFile('notes/A.md'),noteB=new TFile('notes/B.md');

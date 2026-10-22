@@ -1,7 +1,7 @@
 import {applyWorkspaceDensity} from './workspace-density';
 import {bindMobileViewport} from './mobile-viewport';
 import {bindBoardModalViewport} from './board-modal-viewport';
-import {themeSurface} from './ui-tokens';
+import {themePluginMenu,themeSurface} from './ui-tokens';
 import {ItemView,Menu,Modal,Notice,Scope,TFile,WorkspaceLeaf,setIcon,type App,type KeymapEventHandler,type ViewStateResult} from 'obsidian';
 import type {MediaCardHandle,MediaCardState} from './media-card-player';
 import type {MediaDraft,MediaDraftStore} from './media-draft-store';
@@ -230,7 +230,7 @@ export class MediaWorkspaceView extends ItemView {
  }
  private showMore(event?:MouseEvent){
   this.contextMenu?.hide();
-  const menu=this.contextMenu=new Menu().setUseNativeMenu(false),file=this.file,generation=this.generation;
+  const menu=this.contextMenu=themePluginMenu(new Menu()).setUseNativeMenu(false),file=this.file,generation=this.generation;
   menu.setParentElement(this.contentEl);
   const current=()=>!this.closed&&this.generation===generation&&this.file===file;
   const failed=()=>{if(current())this.message('操作未完成，请重试；当前摘录会保留。');};

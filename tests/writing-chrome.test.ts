@@ -1,3 +1,4 @@
+import {themePluginMenu} from '../src/ui-tokens';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {bindWritingModeFocus,syncWritingPaneHeight} from '../src/writing-chrome';
@@ -44,7 +45,7 @@ function menuFixture(popup=false){
  const doc:any={defaultView:win,win,createDocumentFragment:fragment,activeElement:null};
  const trigger={ownerDocument:doc,isConnected:true,visible:true,getClientRects(){return this.visible?[{}]:[];},getBoundingClientRect:()=>({left:0,bottom:44}),setAttribute(){},focus(){focuses++;doc.activeElement=this;}};
  const method=(name:string)=>{const a=source.indexOf(' private '+name+'(');return source.slice(a,source.indexOf('\n private ',a+1));};
- const View=new Function('Menu','Scope','Notice','window',transformSync('class WritingView{'+method('runAction')+source.slice(start,end)+method('newChapter')+method('bindDockDismissal')+method('closeDock')+method('toggleDock')+'};return WritingView',{loader:'ts'}).code)(Menu,Scope,class{constructor(message:string){notices.push(message);}},mainWin),view=new View(),leaf={view};Object.assign(view,{leaf,app:{workspace:{activeLeaf:leaf,getActiveViewOfType(type:any){const view=this.activeLeaf?.view;return view instanceof type?view:null;}}},contentEl:{ownerDocument:doc,querySelector:()=>trigger},owner:{},generation:1,mode:'write',closed:false,history:[],future:[],state:()=>({}),setArticleMode(mode:string){this.mode=mode;}});view.openModeMenu();
+ const View=new Function('themePluginMenu','Menu','Scope','Notice','window',transformSync('class WritingView{'+method('runAction')+source.slice(start,end)+method('newChapter')+method('bindDockDismissal')+method('closeDock')+method('toggleDock')+'};return WritingView',{loader:'ts'}).code)(themePluginMenu,Menu,Scope,class{constructor(message:string){notices.push(message);}},mainWin),view=new View(),leaf={view};Object.assign(view,{leaf,app:{workspace:{activeLeaf:leaf,getActiveViewOfType(type:any){const view=this.activeLeaf?.view;return view instanceof type?view:null;}}},contentEl:{ownerDocument:doc,querySelector:()=>trigger},owner:{},generation:1,mode:'write',closed:false,history:[],future:[],state:()=>({}),setArticleMode(mode:string){this.mode=mode;}});view.openModeMenu();
  // Actual native callbacks finish with a microtask checkpoint before the
  // next listener. Menu.hide returns the menu, so the host keymap does not
  // preventDefault or stopPropagation; the workspace's bubble listener can

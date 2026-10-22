@@ -456,6 +456,8 @@ Enable **自动保持模板布局** to maintain the selected tree's layout as to
 
 ## 10. Arrange and style a board
 
+Choose **Paper (default)**, **Warm editorial**, or **macOS Liquid glass** under **Settings → ThoughtSpace Whiteboard → Interface → Interface style**. Paper restores the original paper palette and solid panels; Warm editorial keeps the warm reading hierarchy. Liquid glass follows macOS material principles with local edge refraction, responsive highlights and subtle press transitions on selected floating controls, while reading and editing surfaces stay clear. It is a web material implementation, distinct from Apple's native renderer. Saved changes apply immediately and persist after reopening. All three follow Obsidian's light/dark mode while retaining your canvas background, paper color, texture and authored object colors. Disabled transparency, narrow screens, lower-capability or unsupported platforms, and reduced-motion/transparency or higher-contrast preferences use static fallbacks.
+
 Alignment guides can show and snap equal gaps between neighboring cards on a shared row or column. Existing edge/center alignment takes priority; Alt temporarily bypasses drag snapping. Normal connection ports remain at least 30 screen pixels across at low zoom.
 
 ### Preview an arrangement

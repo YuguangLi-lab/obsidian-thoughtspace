@@ -11,7 +11,7 @@ export function resolveSettingsLanguage(preference:SettingsLanguagePreference|un
 }
 
 export const settingsCategoryKeys={
- general:['surfaceStyle','accent','glassEffects','density'],
+ general:['interfaceStyle','surfaceStyle','accent','glassEffects','density'],
  cards:['defaultCardStyle','defaultCardWidth','defaultTextSize','defaultEdgeStyle','defaultEdgeDirection','noteMarkdownToolbar','compactDuplicateCardTitles'],
  board:['canvasBackground','showMinimap','boardSearchEnabled','toolbarDensity','gridStep','alignmentGuides','axisLock','aspectLock','previewLimit','detailZoom','showCardTags','showPorts','showBoardHints'],
  input:boardInputPreferenceKeys,
@@ -36,7 +36,7 @@ const oneOf=(...values:readonly (string|number)[])=>(value:unknown)=>values.some
 const boolean=(value:unknown)=>typeof value==='boolean';
 const numberIn=(min:number,max:number)=>(value:unknown)=>typeof value==='number'&&Number.isFinite(value)&&value>=min&&value<=max;
 const profileValidators:Record<SettingsPreferenceKey,(value:unknown)=>boolean>={
- surfaceStyle:oneOf('soft','paper'),accent:oneOf('forest','blue','amber','rose'),glassEffects:boolean,density:oneOf('comfortable','compact'),
+ interfaceStyle:oneOf('paper','editorial','glass'),surfaceStyle:oneOf('soft','paper'),accent:oneOf('forest','blue','amber','rose'),glassEffects:boolean,density:oneOf('comfortable','compact'),
  defaultCardStyle:oneOf(...Object.keys(cardStyleChoices)),defaultCardWidth:numberIn(220,520),defaultTextSize:numberIn(12,32),defaultEdgeStyle:oneOf('curve','straight','elbow'),defaultEdgeDirection:oneOf('forward','both','none'),noteMarkdownToolbar:boolean,compactDuplicateCardTitles:boolean,
  // Custom image files are vault-local and are deliberately not portable in a profile.
  canvasBackground:oneOf('dots','grid','plain','paper'),showMinimap:boolean,boardSearchEnabled:boolean,toolbarDensity:oneOf('compact','comfortable'),gridStep:numberIn(8,64),alignmentGuides:boolean,axisLock:boolean,aspectLock:boolean,previewLimit:numberIn(20,160),detailZoom:numberIn(.2,.9),showCardTags:boolean,showPorts:boolean,showBoardHints:boolean,

@@ -1,3 +1,4 @@
+import {themePluginMenu} from './ui-tokens';
 import {Component,Menu,setIcon,type App} from 'obsidian';
 import type {Board,Card} from './model';
 import {updateBoardMindmapState,supportsBoardMindmapTarget,type BoardMindmapAction,type BoardMindmapState} from './board-mindmap';
@@ -144,7 +145,7 @@ export class BoardMindmapView extends Component {
  private current(id:string):()=>boolean {const snapshot=this.host.snapshot(),generation=this.generation,doc=this.el.ownerDocument,win=doc.defaultView,center=snapshot?.container.mindmap?.centerId,key=snapshot?.key,path=snapshot?.path,containerId=snapshot?.container.id;let valid=true;return()=>{const now=this.host.snapshot();valid=valid&&this.alive&&generation===this.generation&&doc===this.el.ownerDocument&&doc.defaultView===win&&!!win&&!win.closed&&this.visible()&&!now?.container.collapsed&&now?.key===key&&now?.path===path&&now?.container.id===containerId&&now?.container.mindmap?.centerId===center&&!!now?.board.nodes.some(node=>node.id===id&&supportsBoardMindmapTarget(node));return valid;};}
  private menu(id:string,event?:MouseEvent,anchor?:HTMLElement){
   const snapshot=this.host.snapshot(),node=snapshot?.board.nodes.find(node=>node.id===id&&supportsBoardMindmapTarget(node));if(!snapshot||!node)return;
-  this.closeMenu();const state=snapshot.container.mindmap!,source=this.source(id),readOnly=this.readOnly(snapshot),current=this.current(id),menu=new Menu().setUseNativeMenu(false);this.activeMenu=menu;menu.onHide(()=>{if(this.activeMenu===menu)this.activeMenu=undefined;});
+  this.closeMenu();const state=snapshot.container.mindmap!,source=this.source(id),readOnly=this.readOnly(snapshot),current=this.current(id),menu=themePluginMenu(new Menu()).setUseNativeMenu(false);this.activeMenu=menu;menu.onHide(()=>{if(this.activeMenu===menu)this.activeMenu=undefined;});
   const roles=[...this.items.values()].find(item=>item.root.dataset.mindmapNodeId===id)?.root.dataset.mindmapRoles;if(roles?.includes('、'))menu.addItem(item=>item.setTitle(`关系：${roles}`).setDisabled(true));
   const add=(title:string,icon:string,enabled:boolean,run:()=>unknown,reason?:string)=>menu.addItem(item=>item.setTitle(!enabled&&reason?`${title}（${reason}）`:title).setIcon(icon).setDisabled(!enabled).onClick(()=>{if(current())run();}));
   add('设为中心','focus',!readOnly,()=>this.update({type:'center',id}),readOnly?'脑图只读':undefined);add(`${state.expandedIds.includes(id)?'收起':'展开'}${this.contentLabel(node.kind)}`,'chevrons-up-down',!readOnly&&(source.available||state.expandedIds.includes(id)),()=>this.update({type:'expand',id}),readOnly?'脑图只读':source.reason);

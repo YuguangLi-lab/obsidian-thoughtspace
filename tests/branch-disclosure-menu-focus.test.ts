@@ -1,3 +1,4 @@
+import {themePluginMenu} from '../src/ui-tokens';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -21,7 +22,7 @@ class Menu {
 }
 const source=readFileSync(new URL('../src/main.ts',import.meta.url),'utf8'),start=source.indexOf('  private branchDisclosureMenu('),end=source.indexOf('\n  selectBranch()',start);assert.ok(start>=0&&end>start);
 const errors:unknown[]=[];
-const BoardView=new Function('Menu','Scope','act','childConnectionCandidates',transformSync('class BoardView{'+source.slice(start,end)+'}\nreturn BoardView;',{loader:'ts'}).code)(Menu,Scope,(action:()=>void)=>{try{action();}catch(error){errors.push(error);}},()=>new Map());
+const BoardView=new Function('themePluginMenu','Menu','Scope','act','childConnectionCandidates',transformSync('class BoardView{'+source.slice(start,end)+'}\nreturn BoardView;',{loader:'ts'}).code)(themePluginMenu,Menu,Scope,(action:()=>void)=>{try{action();}catch(error){errors.push(error);}},()=>new Map());
 function fixture(){
  Menu.supported=true;errors.length=0;
  const doc:any={hasFocus:()=>true,defaultView:{closed:false},activeElement:null};

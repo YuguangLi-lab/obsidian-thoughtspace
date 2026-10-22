@@ -35,15 +35,15 @@ test('all plugin workspace roots receive light and dark chrome tokens without st
  for(const rule of line)assert.doesNotMatch(rule.selector,/\.markdown-|\.cm-|\.pdf-|(?:^|\s)(?:body|html)(?:$|\s)/);
 });
 
-test('dynamic editorial token registration has the same workspace scope and excludes the separate calendar plugin',()=>{
+test('the dynamic token bridge retains its workspace scope before the chosen interface rules',()=>{
  const style={dataset:{} as Record<string,string>,textContent:''},appended:unknown[]=[];
  const doc={createElement:()=>style,head:{appendChild:(el:unknown)=>appended.push(el)}};
  assert.equal(designTokens(doc as unknown as Document),style);assert.deepEqual(appended,[style]);
- const css=postcss.parse(style.textContent);let themes=0;css.walkRules(rule=>{
-  themes++;for(const surface of surfaces)assert.ok(rule.selector.includes(`.${surface}`),`${rule.selector}: ${surface}`);
+ const css=postcss.parse(style.textContent),rule=css.nodes[0];assert.equal(rule.type,'rule');if(rule.type!=='rule')return;
+ for(const surface of surfaces)assert.ok(rule.selector.includes(`.${surface}`),`${rule.selector}: ${surface}`);
   assert.ok(rule.selector.includes(':not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))'),'calendar descendants remain independent');
   assert.doesNotMatch(rule.selector,/\.markdown-|\.cm-|\.pdf-/);assert.ok(rule.nodes.every(node=>node.type==='decl'&&node.prop.startsWith('--ts-ui-')));
- });assert.equal(themes,1);
+ assert.equal(style.dataset.interfaceStyle,'paper');assert.ok(css.nodes.length>1,'The selected interface follows the unchanged bridge; full rule isolation is covered by interface-style token tests');
 });
 
 test('shared keyboard and motion selectors leave native Markdown, editor and PDF descendants alone',()=>{

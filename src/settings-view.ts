@@ -34,6 +34,9 @@ export interface SettingsHost extends Plugin {
  fileOldJournals:()=>Promise<unknown>;
 }
 export const settingsLanguage=(settings:ThoughtSpacePreferences)=>resolveSettingsLanguage(settings.settingsLanguage,getLanguage());
+// Obsidian settings and workspace dialogs can edit the same plugin host at once.
+// Serialize their complete apply/save/rollback transactions across those surfaces.
+const settingsSaveTails=new WeakMap<SettingsHost,Promise<void>>();
 
 class SettingsConfirm extends Modal {
  private closed=false;private viewport?:()=>void;
@@ -58,7 +61,6 @@ export class ThoughtSpaceSettings extends PluginSettingTab {
  private language:SettingsLanguage='zh-CN';private status?:HTMLElement;
  private panels=new Map<Page,HTMLElement>();private navigation=new Map<Page,HTMLButtonElement>();
  private searchCount?:HTMLElement;private searchInput?:HTMLInputElement;private searchClear?:HTMLButtonElement;private categoryPicker?:HTMLSelectElement;
- private saveTail:Promise<void>=Promise.resolve();
  private pendingWrites=0;private refreshAfterSave=false;private viewport?:()=>void;private categoryFocus?:()=>void;
  constructor(app:App,private host:SettingsHost){super(app,host);}
  private t(pair:Pair){return pair[this.language==='en'?1:0];}
@@ -69,8 +71,8 @@ export class ThoughtSpaceSettings extends PluginSettingTab {
  }
  private patch(values:Partial<ThoughtSpacePreferences>){
   const next={...values};this.pendingWrites++;
-  const run=this.saveTail.catch(()=>{}).then(()=>this.commitPatch(next));this.saveTail=run;
-  return run.finally(()=>{this.pendingWrites--;if(!this.pendingWrites&&this.refreshAfterSave){this.refreshAfterSave=false;this.display();}});
+  const run=(settingsSaveTails.get(this.host)??Promise.resolve()).catch(()=>{}).then(()=>this.commitPatch(next));settingsSaveTails.set(this.host,run);
+  return run.finally(()=>{if(settingsSaveTails.get(this.host)===run)settingsSaveTails.delete(this.host);this.pendingWrites--;if(!this.pendingWrites&&this.refreshAfterSave){this.refreshAfterSave=false;this.display();}});
  }
  private async commitPatch(values:Partial<ThoughtSpacePreferences>){
   const before:Partial<ThoughtSpacePreferences>={};
@@ -163,9 +165,10 @@ export class ThoughtSpaceSettings extends PluginSettingTab {
   // Legacy controls edit a local draft; serialize their differences with other settings writes.
   const persist=()=>{const changes:Partial<ThoughtSpacePreferences>={};for(const key of Object.keys(prefs) as (keyof ThoughtSpacePreferences)[])if(prefs[key]!==baseline[key])Object.assign(changes,{[key]:prefs[key]});baseline={...prefs};return this.patch(changes);};
   if(page==='general'){
-   this.select(el,'surfaceStyle',['界面材质','Panel finish'],['柔光使用半透明面板；纸感使用实色面板。','Soft uses translucent panels; paper uses solid surfaces.'],{soft:['柔光','Soft'],paper:['纸感','Paper']});
+   this.select(el,'interfaceStyle',['界面风格','Interface style'],['纸张质感沿用原版；暖色杂志与液态玻璃提供不同界面。保存后立即应用到所有 ThoughtSpace 窗口，浅深色跟随 Obsidian。','Paper restores the original interface; warm editorial and liquid glass offer distinct styles. Applies to all ThoughtSpace windows after saving. Light and dark mode follows Obsidian.'],{paper:['纸张质感（默认）','Paper (default)'],editorial:['暖色杂志','Warm editorial'],glass:['macOS 液态玻璃','macOS Liquid glass']});
+   this.select(el,'surfaceStyle',['兼容面板细节','Legacy panel finish'],['保留旧版面板偏好；整套界面由上方风格决定，不改变白板纸张或卡片。','Retains the legacy panel preference. The interface style above controls the overall appearance; canvas paper and cards stay unchanged.'],{soft:['柔光','Soft'],paper:['实色','Solid']});
    this.select(el,'accent',['强调色','Accent color'],['影响按钮与导航，不改变卡片自己的配色。','Changes buttons and navigation, not individual card colors.'],{forest:['森林绿','Forest'],blue:['湖水蓝','Lake'],amber:['暖琥珀','Amber'],rose:['玫瑰色','Rose']});
-   this.toggle(el,'glassEffects',['玻璃效果','Glass effects'],['关闭后使用实色界面。','Turn off to use solid interface surfaces.']);
+   this.toggle(el,'glassEffects',['透明与模糊效果','Transparency and blur'],['控制支持此效果的界面风格；关闭后使用实色面板，保留所选风格。纸张质感始终使用实色。','Controls effects in supported interface styles. Turn off for solid panels while keeping the selected style. Paper always uses solid surfaces.']);
    this.select(el,'density',['界面密度','Interface density'],['统一侧栏、材料库、写作与媒体摘录的控件和条目间距；正文及格式栏密度保持独立。','Controls spacing in sidebars, materials, writing and media excerpts; reading text and formatting toolbar density remain independent.'],{comfortable:['舒适','Comfortable'],compact:['紧凑','Compact']});return;
   }
   if(page==='cards'){

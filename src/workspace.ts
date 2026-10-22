@@ -4,7 +4,9 @@ import {defaultBackgroundImagePreferences,type BackgroundImagePreferences} from 
 export function isWorkspaceFile(file: {path: string}): boolean {
   return !file.path.startsWith('ThoughtSpace/白板搜索/') && file.path !== 'ThoughtSpace-plugin-backups' && !file.path.startsWith('ThoughtSpace-plugin-backups/');
 }
+export type InterfaceStyle='paper'|'editorial'|'glass';
 export interface AppearanceSettings extends PaperPreferences,BackgroundImagePreferences {
+  interfaceStyle:InterfaceStyle;
   surfaceStyle:'soft'|'paper';readingSize:number;readingWidth:'standard'|'wide';
   accent: 'forest' | 'blue' | 'amber' | 'rose';
   density: 'comfortable' | 'compact';
@@ -12,7 +14,7 @@ export interface AppearanceSettings extends PaperPreferences,BackgroundImagePref
   showMinimap: boolean;
   glassEffects: boolean;
 }
-export const defaultAppearance: AppearanceSettings = { ...defaultPaperPreferences,...defaultBackgroundImagePreferences,surfaceStyle:'soft',readingSize:16,readingWidth:'standard',accent: 'forest', density: 'comfortable', canvasBackground: 'dots', showMinimap: true, glassEffects: true };
+export const defaultAppearance: AppearanceSettings = { ...defaultPaperPreferences,...defaultBackgroundImagePreferences,interfaceStyle:'paper',surfaceStyle:'soft',readingSize:16,readingWidth:'standard',accent: 'forest', density: 'comfortable', canvasBackground: 'dots', showMinimap: true, glassEffects: true };
 export type LibraryScope = 'vault' | 'cards' | 'board';
 export type LibrarySort = 'updated' | 'title';
 export function libraryFiles<T extends {path: string; basename: string; stat: {mtime: number}}>(files: readonly T[], scope: LibraryScope, sort: LibrarySort, cardRoot: string, boardPaths: ReadonlySet<string>): T[] {

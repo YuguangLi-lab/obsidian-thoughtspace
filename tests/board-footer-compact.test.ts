@@ -1,3 +1,4 @@
+import {themePluginMenu} from '../src/ui-tokens';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -76,7 +77,7 @@ class Menu{
  addSeparator(){return this;}addItem(fn:(i:any)=>void){const i:any={setTitle(v:unknown){this.title=v;return this;},setIcon(){return this;},setDisabled(v:boolean){this.disabled=v;return this;},setChecked(v:boolean){this.checked=v;return this;},onClick(run:()=>void){this.run=run;return this;}};fn(i);this.items.push(i);return this;}
  showAtPosition(position:unknown,document:unknown){this.position=position;this.document=document;}
 }
-const ZoomView=new Function('Menu',transformSync(`class View{${zoomSource}};return View`,{loader:'ts'}).code)(Menu);
+const ZoomView=new Function('themePluginMenu','Menu',transformSync(`class View{${zoomSource}};return View`,{loader:'ts'}).code)(themePluginMenu,Menu);
 function menuFixture(){
  const view=new ZoomView(),doc={defaultView:{closed:false}},calls:string[]=[],camera={x:5,y:6,zoom:1};
  const anchor={isConnected:true,ownerDocument:doc,getBoundingClientRect:()=>({left:106,top:284})},overview={isConnected:true,ownerDocument:doc,disabled:false,getAttribute:()=> '显示白板总览',click:()=>calls.push('original-overview-click')};

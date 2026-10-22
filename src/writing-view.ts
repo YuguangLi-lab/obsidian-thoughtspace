@@ -12,7 +12,7 @@ import {rebaseFragment,excerptNoteMarkdown,selectionFragment,pdfLiteralText} fro
 import {assertNativeNoteUnchanged,readCurrentNativeNote} from './native-note-state';
 import {writingFormatToolbar} from './writing-format-toolbar';
 import {DraftInput,NativeMarkdownDraft} from './native-markdown-editor';
-import {themeSurface} from './ui-tokens';
+import {themePluginMenu,themeSurface} from './ui-tokens';
 import {bindMobileViewport} from './mobile-viewport';
 import {bindBoardHostInset} from './board-chrome';
 import {bindWritingModeFocus,syncWritingPaneHeight} from './writing-chrome';
@@ -301,7 +301,7 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
  }
  private openModeMenu(){
   const trigger=this.contentEl.querySelector<HTMLButtonElement>('.ts-writing-mode-menu');if(!trigger)return;
-  const menu=new Menu().setUseNativeMenu(false).setParentElement(this.contentEl),doc=trigger.ownerDocument,restore=this.ownWritingMenu(menu,trigger);
+  const menu=themePluginMenu(new Menu()).setUseNativeMenu(false).setParentElement(this.contentEl),doc=trigger.ownerDocument,restore=this.ownWritingMenu(menu,trigger);
   for(const [key,label,icon]of [['write','写作','pencil-line'],['outline','编排','list-tree'],['preview','预览','book-open']]as const){
    const title=(doc.win as Window&{createFragment:()=>DocumentFragment}).createFragment();title.createSpan({cls:'ts-writing-mode-label',text:label,attr:{'data-writing-mode':key}});
    menu.addItem(item=>item.setTitle(title).setIcon(icon).setChecked(this.mode===key).onClick(()=>{this.setArticleMode(key);restore();}));
@@ -309,7 +309,7 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   const rect=trigger.getBoundingClientRect();menu.showAtPosition({x:rect.left,y:rect.bottom+4},doc);
  }
  private openOptionsMenu(trigger:HTMLButtonElement,event:MouseEvent){
-  const menu=new Menu().setUseNativeMenu(false).setParentElement(this.contentEl),restore=this.ownWritingMenu(menu,trigger);
+  const menu=themePluginMenu(new Menu()).setUseNativeMenu(false).setParentElement(this.contentEl),restore=this.ownWritingMenu(menu,trigger);
   const secondary=(name:string,icon:string,action:()=>unknown,disabled=false)=>{const title=(trigger.ownerDocument.win as Window&{createFragment:()=>DocumentFragment}).createFragment();title.createSpan({cls:'ts-writing-menu-label',text:name});menu.addItem(item=>item.setTitle(title).setIcon(icon).setDisabled(disabled).onClick(()=>this.runAction(action)));};
   secondary('新建章节','plus',()=>this.newChapter());
   secondary('显示或收起资料栏','panel-right',()=>{this.toggleDock();restore();});

@@ -1,3 +1,4 @@
+import {themePluginMenu} from '../src/ui-tokens';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -49,7 +50,7 @@ function fixture(){
  const source=readFileSync('src/main.ts','utf8'),start=source.indexOf('class NavigatorView extends'),end=source.indexOf('\nclass MaterialsView',start);
  assert.ok(start>=0&&end>start);
  const act=(action:()=>unknown)=>{try{Promise.resolve(action()).catch(error=>errors.push(error));}catch(error){errors.push(error);}};
- const View=new Function('ItemView','Menu','button','TemplatePicker','DOCK','isWorkspaceFile','EXT','act',transformSync(source.slice(start,end)+'\nreturn NavigatorView;',{loader:'ts'}).code)(ItemView,Menu,button,TemplatePicker,'dock',()=>true,'thoughtspace',act);
+ const View=new Function('themePluginMenu','ItemView','Menu','button','TemplatePicker','DOCK','isWorkspaceFile','EXT','act',transformSync(source.slice(start,end)+'\nreturn NavigatorView;',{loader:'ts'}).code)(themePluginMenu,ItemView,Menu,button,TemplatePicker,'dock',()=>true,'thoughtspace',act);
  const view=new View({},plugin),find=(label:string)=>view.contentEl.all().find((e:Element)=>e.attrs['aria-label']===label) as Element;
  return{view,find,calls,plugin,errors};
 }

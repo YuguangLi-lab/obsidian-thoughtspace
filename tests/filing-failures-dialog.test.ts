@@ -10,7 +10,7 @@ function localModule(name:string,dependencies:Record<string,any>={}){
  new Function('require','module','exports',transformSync(readFileSync('src/'+name+'.ts','utf8'),{loader:'ts',format:'cjs'}).code)((key:string)=>{assert(key in dependencies,'Unexpected dependency '+key);return dependencies[key];},module,module.exports);
  return module.exports;
 }
-const mobile=localModule('mobile-viewport'),viewport=localModule('board-modal-viewport',{'./mobile-viewport':mobile}),density=localModule('workspace-density'),theme=localModule('ui-tokens',{'./workspace-density':density});
+const mobile=localModule('mobile-viewport'),viewport=localModule('board-modal-viewport',{'./mobile-viewport':mobile}),density=localModule('workspace-density'),theme=localModule('ui-tokens',{'./workspace-density':density,'./interface-style-tokens':localModule('interface-style-tokens'),'./liquid-glass-runtime':localModule('liquid-glass-runtime',{'./glass-lens-map':localModule('glass-lens-map')})});
 const source=readFileSync('src/main.ts','utf8'),start=source.indexOf('  async fileAllCards() {'),end=source.indexOf('\n  async fileOldJournals(',start);
 assert(start>=0&&end>start,'Locate actual filing command');
 const command=transformSync('class Plugin {'+source.slice(start,end)+'};return Plugin;',{loader:'ts'}).code;
