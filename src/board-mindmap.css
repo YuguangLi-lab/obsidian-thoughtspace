@@ -290,3 +290,13 @@
  .ts-mindmap-node .ts-mindmap-shell button.ts-mindmap-title { flex-basis:100%; max-height:none; }
  .ts-mindmap-node .ts-mindmap-node-actions { justify-content:flex-end; width:100%; }
 }
+
+/* Embedded relation containers keep their projected object geometry. Only the
+   header/search/paging chrome takes the shared sheet treatment. */
+.ts-mindmap-node .ts-mindmap-header { border-bottom:1px solid var(--ts-e-line,var(--background-modifier-border)); background:var(--ts-e-sheet,var(--background-primary)); }
+.ts-mindmap-node .ts-mindmap-heading { color:var(--ts-e-ink,var(--text-normal)); letter-spacing:0; }
+.ts-mindmap-node .ts-mindmap-search { border-color:var(--ts-e-line,var(--background-modifier-border)); background:var(--ts-e-sheet,var(--background-primary)); }
+.ts-mindmap-node .ts-mindmap-header input.ts-mindmap-query { background:var(--ts-e-paper,var(--background-secondary)); color:var(--ts-e-ink,var(--text-normal)); }
+.ts-mindmap-node .ts-mindmap-header input.ts-mindmap-query::placeholder { color:var(--ts-e-muted,var(--text-muted)); opacity:1; }
+.ts-mindmap-node :is(.ts-mindmap-search-count,.ts-mindmap-pagination) { color:var(--ts-e-muted,var(--text-muted)); }
+.ts-mindmap-node :is(.ts-mindmap-header,.ts-mindmap-search,.ts-mindmap-pagination) button.clickable-icon:active:not(:disabled) { background:var(--ts-e-wash,var(--background-modifier-hover)); box-shadow:inset 0 0 0 1px var(--ts-accent); }

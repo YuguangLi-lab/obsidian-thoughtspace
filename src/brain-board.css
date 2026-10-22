@@ -307,7 +307,7 @@
 @media (any-pointer:coarse),(max-width:600px) {
  .ts-brain-shell :is(.ts-brain-topbar,.ts-brain-controls,.ts-brain-search-results,.ts-brain-recent,.ts-brain-empty) .clickable-icon { min-width:44px; min-height:44px; touch-action:manipulation; }
  .ts-brain-shell .ts-brain-search { min-height:44px; }
- .ts-brain-shell .ts-brain-search input.ts-brain-query { font-size:16px; }
+ .ts-brain-shell .ts-brain-search input.ts-brain-query { font-size:16px; height:44px; }
  .ts-brain-shell .ts-brain-search-icon { display:none; }
  .ts-brain-shell .ts-save-feedback-action { min-height:44px; min-width:44px; }
  :is(.ts-brain-create-modal,.ts-brain-rename-modal,.ts-brain-colors-modal) :is(button,input,select,.clickable-icon) { min-height:44px; touch-action:manipulation; }
@@ -315,4 +315,81 @@
  :is(.ts-brain-create-modal,.ts-brain-rename-modal,.ts-brain-colors-modal) :is(input[type=text],select) { font-size:16px; }
  .ts-brain-colors-modal .setting-item { flex-wrap:wrap; gap:8px; }
  .ts-brain-colors-modal .setting-item-control { margin-inline-start:auto; }
+}
+
+/* The dedicated graph shares the ordinary board's editorial chrome. Node,
+   line, paper and preview text overrides remain owned by the saved brain. */
+.ts-brain-shell { --brain-chrome-line:var(--ts-e-line,var(--background-modifier-border)); }
+.ts-brain-topbar,.ts-brain-controls,.ts-brain-footer,.ts-brain-selection { background:var(--ts-e-sheet,var(--background-primary)); color:var(--ts-e-ink,var(--text-normal)); }
+.ts-brain-brand { max-width:28%; min-width:0; font-family:var(--ts-e-serif,var(--font-interface)); font-size:17px; font-weight:600; line-height:1.45; letter-spacing:0; color:var(--ts-e-ink,var(--text-normal)); }
+.ts-brain-brand > span:last-child { overflow:hidden; text-overflow:ellipsis; }
+.ts-brain-navigation { border-left-color:var(--ts-e-line,var(--background-modifier-border)); }
+.ts-brain-search { background:var(--ts-e-paper,var(--background-secondary)); border-color:var(--ts-e-line,var(--background-modifier-border)); border-radius:7px; }
+.ts-brain-search input.ts-brain-query { color:var(--ts-e-ink,var(--text-normal)); }
+.ts-brain-search input.ts-brain-query::placeholder { color:var(--ts-e-muted,var(--text-muted)); opacity:1; }
+.ts-brain-search-results { background:var(--ts-e-sheet,var(--background-primary)); border-color:var(--ts-e-line,var(--background-modifier-border)); border-radius:9px; }
+.ts-brain-search-results .ts-brain-search-result.is-active { background:var(--ts-e-wash,var(--background-modifier-hover)); box-shadow:inset 3px 0 var(--ts-accent); color:var(--ts-e-ink,var(--text-normal)); }
+.ts-brain-shell :is(.ts-brain-topbar,.ts-brain-controls,.ts-brain-footer,.ts-brain-selection) .clickable-icon { color:var(--ts-e-muted,var(--text-muted)); }
+.ts-brain-shell :is(.ts-brain-topbar,.ts-brain-controls,.ts-brain-footer,.ts-brain-selection) .clickable-icon:active:not(:disabled) { background:var(--ts-e-wash,var(--background-modifier-hover)); box-shadow:inset 0 0 0 1px var(--ts-accent); }
+.ts-brain-search-count,.ts-brain-search-shortcut,.ts-brain-selection-name,.ts-brain-object-count { color:var(--ts-e-muted,var(--text-muted)); }
+.ts-brain-selection-name { font-size:13px; line-height:1.7; }
+.ts-brain-empty h3 { font-family:var(--ts-e-serif,var(--font-text)); letter-spacing:0; line-height:1.55; text-wrap:balance; }
+.ts-brain-empty p { line-height:1.85; }
+.ts-brain-shell .ts-brain-empty .clickable-icon { min-height:44px; }
+@container ts-brain (max-width:700px) { .ts-brain-brand { max-width:none; font-size:15px; } }
+
+/* Search is one focus surface, rather than a nested host input ring. */
+.ts-root.ts-brain-board .ts-brain-shell .ts-brain-search:focus-within { outline:2px solid var(--ts-accent); outline-offset:1px; box-shadow:none; }
+.ts-root.ts-brain-board .ts-brain-shell .ts-brain-search input.ts-brain-query:is(:focus,:focus-visible) { outline:none!important; box-shadow:none!important; }
+
+/* Short leaves keep two single-row control bands. Selection context remains
+   announced, and expanded relations / pagination scroll within their band. */
+@container ts-brain (max-height:420px) {
+  .ts-brain-shell > .ts-brain-selection { min-height:49px; max-height:49px; padding-block:2px; flex-shrink:0; justify-content:flex-start; }
+  .ts-brain-shell > .ts-brain-selection > .ts-brain-selection-name { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+  .ts-brain-shell > .ts-brain-selection > .ts-brain-selection-actions { margin-inline:auto; }
+  /* A 44px control must fit between both 6px scroll-padding edges and the
+     1px border. Keep the pager scrollable without clipping the focused row. */
+  .ts-brain-shell > .ts-brain-controls { min-height:57px; max-height:57px; padding-block:2px; flex-shrink:0; }
+}
+
+/* A short split or keyboard-height pane spends its height on the graph. The
+   complete, existing command groups disclose in one bounded scroll surface. */
+.ts-brain-shell .ts-brain-tools-toggle { display:none; }
+.ts-brain-tools { display:none; }
+.ts-brain-shell.is-short-tools .ts-brain-brand { display:none; }
+.ts-brain-shell.is-short-tools .ts-brain-tools-toggle { display:inline-flex; width:44px; min-width:44px; height:44px; min-height:44px; font-size:13px; color:var(--text-normal); }
+.ts-brain-shell.is-short-tools .ts-brain-tools-toggle[aria-expanded=true] { color:var(--ts-accent,var(--interactive-accent)); background:color-mix(in srgb,var(--ts-accent,var(--interactive-accent)) 10%,var(--background-primary)); }
+.ts-brain-shell.is-short-tools .ts-brain-stage { margin-bottom:max(env(safe-area-inset-bottom,0px),var(--ts-host-bottom-inset,0px)); }
+.ts-brain-shell.is-short-tools .ts-brain-tools:not([hidden]) {
+ position:absolute; z-index:19; display:flex; flex-direction:column; inset-block-start:56px; inset-inline-end:8px;
+ width:calc(100% - 16px); max-width:420px; max-height:calc(100% - 64px - max(env(safe-area-inset-bottom,0px),var(--ts-host-bottom-inset,0px)));
+ padding:6px; overflow:auto; overscroll-behavior:contain; scroll-padding-block:6px; touch-action:pan-y;
+ border:1px solid var(--brain-chrome-line); border-radius:12px; background:var(--ts-e-sheet,var(--background-primary)); color:var(--ts-e-ink,var(--text-normal)); box-shadow:var(--shadow-s);
+}
+.ts-brain-tools-header { display:flex; flex:none; align-items:center; justify-content:space-between; gap:12px; padding-inline:8px; min-height:44px; font-size:13px; font-weight:600; }
+.ts-brain-shell.is-short-tools .ts-brain-tools .clickable-icon { min-width:44px; min-height:44px; }
+.ts-brain-shell.is-short-tools .ts-brain-tools .clickable-icon:focus-visible { outline-offset:-2px; }
+.ts-brain-shell.is-short-tools .ts-brain-tools > :is(.ts-brain-selection,.ts-brain-controls,.ts-brain-footer) {
+ flex:none; min-height:0; max-height:none; width:100%; margin:0; padding:8px; overflow:visible;
+}
+.ts-brain-shell.is-short-tools .ts-brain-tools .ts-brain-selection-name { flex-basis:100%; white-space:normal; overflow-wrap:anywhere; }
+.ts-brain-shell.is-short-tools .ts-brain-tools .ts-brain-selection-actions { flex-wrap:wrap; justify-content:center; width:100%; }
+.ts-brain-shell.is-short-tools .ts-brain-tools .ts-brain-selection-relations { justify-content:center; }
+.ts-brain-shell.is-short-tools .ts-brain-tools .ts-brain-controls { gap:8px; justify-content:center; }
+.ts-brain-shell.is-short-tools .ts-brain-tools .ts-brain-pager { flex-basis:100%; }
+.ts-brain-shell.is-short-tools .ts-brain-tools .ts-brain-zoom { margin-inline:auto; justify-content:center; }
+.ts-brain-shell.is-short-tools .ts-brain-tools .ts-brain-recent { max-height:132px; }
+
+/* An actual 260px touch split keeps every 44px command and the search width.
+   Spend less space between groups, while retaining room for the focus ring. */
+@media (any-pointer:coarse),(max-width:600px) {
+ @container ts-brain (max-width:280px) {
+  .ts-brain-shell.is-short-tools .ts-brain-topbar { padding-inline:6px; gap:0; }
+ }
+}
+
+/* Keep the narrow search panel's reading width while clearing the pane edge. */
+@container ts-brain (max-width:280px) {
+ .ts-brain-search-results { left:-88px; right:-36px; }
 }

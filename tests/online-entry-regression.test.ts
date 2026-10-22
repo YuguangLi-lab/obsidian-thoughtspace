@@ -21,11 +21,11 @@ const deferred=<T=void>()=>{let resolve!:(value:T)=>void,reject!:(error:Error)=>
 class TFile {stat={mtime:1,size:100};constructor(public path='课程.md'){}get extension(){return this.path.split('.').at(-1)!;}}
 class FileSystemAdapter {getBasePath(){return '/Vault';}}
 class OnlineWorkspaceView {
- leaf:any;movable=true;checks=0;state:any;constructor(path=source,placement='tab',note?:string){this.state={source:path,placement,note};}
+ leaf:any;movable=true;checks=0;state:any;containerEl={ownerDocument:{},isConnected:true};constructor(path=source,placement='tab',note?:string){this.state={source:path,placement,note};}
  currentSource(){return parseOnlineSource(this.state.source);}currentNote(){return this.state.note;}getState(){return this.state;}canMove(){this.checks++;return this.movable;}
 }
 class MediaWorkspaceView {
- leaf:any;movable=true;checks=0;state:any;containerEl={querySelector:()=>undefined};
+ leaf:any;movable=true;checks=0;state:any;containerEl={querySelector:()=>undefined,ownerDocument:{},isConnected:true};
  constructor(public file=new TFile('clip.mp4'),placement='tab'){this.state={file:file.path,placement};}
  currentFile(){return this.file;}getState(){return this.state;}canMove(){this.checks++;return this.movable;}async setState(state:any){this.state=state;}resumePlayback(){}
 }
@@ -45,7 +45,7 @@ function entryFixture(path=source){
 function workspaceFixture(desktop=true){
  const plugin=new (desktop?Workspace:compile(onlineMethod+localMethod,false))(),leaves:any[]=[],created:any[]=[],events:any[][]=[],files=new Map<string,TFile>();let active:any;
  const makeLeaf=(view?:OnlineWorkspaceView|MediaWorkspaceView)=>{
-  const leaf:any={view,type:view instanceof MediaWorkspaceView?MEDIA_WORKSPACE:ONLINE_WORKSPACE,detached:false,loadIfDeferred:async()=>{},setViewState:async(state:any)=>{
+  const leaf:any={view:view||{containerEl:{ownerDocument:{},isConnected:true}},type:view instanceof MediaWorkspaceView?MEDIA_WORKSPACE:view?ONLINE_WORKSPACE:'empty',detached:false,getViewState:()=>({type:leaf.type,state:leaf.view.state||{}}),loadIfDeferred:async()=>{},setViewState:async(state:any)=>{
    events.push(['state',state]);leaf.type=state.type;leaf.view=state.type===ONLINE_WORKSPACE?new OnlineWorkspaceView(state.state.source,state.state.placement,state.state.note):new MediaWorkspaceView(files.get(state.state.file),state.state.placement);leaf.view.leaf=leaf;leaf.view.state=state.state;
   },detach:()=>{leaf.detached=true;const index=leaves.indexOf(leaf);if(index>=0)leaves.splice(index,1);events.push(['detach',leaf]);}};
   if(view)view.leaf=leaf;leaves.push(leaf);return leaf;

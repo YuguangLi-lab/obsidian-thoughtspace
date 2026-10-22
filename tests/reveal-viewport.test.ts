@@ -1,6 +1,7 @@
 import {isBrainBoard} from '../src/brain-board';
 import {sectionDisplayNode} from '../src/sections';
 import {minimapInsets} from '../src/minimap-avoidance';
+import {boardChromeObstacle} from '../src/board-chrome';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -37,7 +38,7 @@ function fixture({zoom=1,kind='text',width=280,height=80,selected=true}={}){
   constructor(_app:unknown,readonly host:any){}
   open(){}
  }
- const deps={isBrainBoard,sectionDisplayNode,minimapInsets,...viewportFit,branchState,unfoldAncestors,visibleBranchBoard,BoardSearchModal};
+ const deps={isBrainBoard,sectionDisplayNode,minimapInsets,boardChromeObstacle,...viewportFit,branchState,unfoldAncestors,visibleBranchBoard,BoardSearchModal};
  const View=new Function(...Object.keys(deps),transformSync(`class View{${methods}};return View`,{loader:'ts'}).code)(...Object.values(deps));
  const view=new View(),owner={board,file:{basename:'QA board'},blocked:false,change:(fn:(board:any)=>void)=>fn(board),persist:()=>calls.persist++};
  Object.assign(view,{measureMinimap(){},session:owner,selected:new Set(selected?[node.id]:[]),selectedEdge:'edge',mode:'connect',connectFrom:'other',connectSide:'right',

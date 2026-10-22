@@ -869,3 +869,63 @@ test('single descendant segment has a short summary and no inert paging actions;
 test('host inset is present before the first brain refresh reads the stage',()=>{
  let atFirstRefresh='';const f=fixture(({root,view})=>{const bar=root.createDiv('status-bar');bar.getBoundingClientRect=()=>({left:200,top:374,right:600,bottom:400,width:400,height:26});const refresh=view.refresh.bind(view);view.refresh=()=>{if(!atFirstRefresh)atFirstRefresh=view.shell.style.getPropertyValue('--ts-host-bottom-inset');refresh();};});assert.equal(atFirstRefresh,'26px');assert.equal(f.viewports.length,0);f.view.unload();
 });
+
+// G: short-pane disclosure uses real command elements, without new persistence.
+function shortToolsFixture(){
+ const f=fixture(),shell=f.el.querySelector('.ts-brain-shell')!;shell.clientHeight=245;f.view.syncToolsLayout();return{...f,shell,tools:f.el.querySelector('.ts-brain-tools')!,toggle:action(f.el,'tools'),close:action(f.el,'tools-close')};
+}
+test('short-pane tools preserve exact command identity, node selection and persisted camera across repeated disclosures',()=>{
+ const f=fixture(),shell=f.el.querySelector('.ts-brain-shell')!,controls=f.el.querySelector('.ts-brain-controls')!,selection=f.el.querySelector('.ts-brain-selection')!,footer=f.el.querySelector('.ts-brain-footer')!,buttons=controls.querySelectorAll('button');
+ f.board.brainViewport={x:12.25,y:-67.5,zoom:.72};f.view.refresh();title(f,'a').click();const before=clone(f.board),camera={...f.view.camera},tools=f.el.querySelector('.ts-brain-tools')!;assert.equal(controls.parentElement,shell);
+ shell.clientHeight=245;f.view.syncToolsLayout();assert.equal(controls.parentElement,tools);assert.equal(selection.parentElement,tools);assert.equal(footer.parentElement,tools);assert(tools.hidden);
+ for(let i=0;i<5;i++){action(f.el,'tools').click();assert(!tools.hidden);action(f.el,'tools-close').click();assert(tools.hidden);}assert.deepEqual(controls.querySelectorAll('button'),buttons);assert.equal(f.view.activeNodeId,'a');assert.deepEqual(f.view.camera,camera);assert.deepEqual(clone(f.board),before);assert.equal(f.saves.length,0);assert.equal(f.viewports.length,0);
+ shell.clientHeight=600;f.view.syncToolsLayout();assert.equal(controls.parentElement,shell);assert.equal(selection.parentElement,shell);assert.equal(footer.parentElement,shell);assert(shell.children.indexOf(selection)<shell.children.indexOf(footer));assert(shell.children.indexOf(footer)<shell.children.indexOf(controls));assert.deepEqual(controls.querySelectorAll('button'),buttons);
+});
+test('short-pane keyboard open enters close control and Escape returns focus without saving',()=>{
+ const f=shortToolsFixture();f.toggle.focus();f.toggle.dispatch('keydown',{key:'Enter'});f.toggle.dispatch('click',{detail:0});assert.equal(f.toggle.getAttribute('aria-expanded'),'true');assert.equal(f.doc.activeElement,f.close);f.close.dispatch('keydown',{key:'Escape'});assert(f.tools.hidden);assert.equal(f.doc.activeElement,f.toggle);assert.equal(f.toggle.getAttribute('aria-expanded'),'false');assert.equal(f.saves.length,0);assert.equal(f.viewports.length,0);
+});
+for(const reason of ['ordinary close','outside touch','external editor','blur','inactive pane'])test(`short-pane close focus ownership: ${reason}`,()=>{
+ const f=shortToolsFixture();f.toggle.click();const zoom=action(f.el,'zoom-in');zoom.focus();let expected:El=f.toggle;
+ if(reason==='external editor'){expected=f.root.createEl('input');expected.focus();}if(reason==='blur'){f.doc.focused=false;expected=zoom;}if(reason==='inactive pane'){f.host.isActive=()=>false;expected=zoom;}
+ if(reason==='outside touch')f.el.querySelector('.ts-brain-stage')!.dispatch('pointerdown',{pointerType:'touch',pointerId:81});else f.view.toggleTools(false);
+ assert(f.tools.hidden);assert.equal(f.doc.activeElement,expected);assert.equal(f.saves.length,0);assert.equal(f.viewports.length,0);
+});
+test('crossing short-pane threshold keeps an owned focused command visible and returns header focus to the canvas',()=>{
+ const f=fixture(),shell=f.el.querySelector('.ts-brain-shell')!,zoom=action(f.el,'zoom-in'),tools=f.el.querySelector('.ts-brain-tools')!;zoom.focus();shell.clientHeight=360;f.view.syncToolsLayout();assert(!tools.hidden);assert.equal(f.doc.activeElement,zoom);assert(zoom.getClientRects().length);shell.clientHeight=361;f.view.syncToolsLayout();assert(tools.hidden);assert.equal(f.doc.activeElement,zoom);assert.equal(zoom.parentElement?.parentElement?.parentElement,shell);
+ shell.clientHeight=245;f.view.syncToolsLayout();action(f.el,'tools-close').focus();shell.clientHeight=600;f.view.syncToolsLayout();assert.equal(f.doc.activeElement,shell);assert.equal(f.saves.length,0);
+});
+test('short-pane focus never follows the threshold out of an external or inactive editor',()=>{
+ for(const mode of ['external','inactive','blur']){const f=shortToolsFixture();f.toggle.focus();let expected:El=f.toggle;if(mode==='external'){expected=f.root.createEl('input');expected.focus();}else if(mode==='inactive')f.host.isActive=()=>false;else f.doc.focused=false;f.shell.clientHeight=600;f.view.syncToolsLayout();assert.equal(f.doc.activeElement,expected);}
+});
+test('short-pane moves do not revive a stale selected-node press or board-menu callback',()=>{
+ const f=fixture(),shell=f.el.querySelector('.ts-brain-shell')!;title(f,'a').click();const open=action(f.el,'open');open.dispatch('pointerdown');shell.clientHeight=245;f.view.syncToolsLayout();action(f.el,'tools').click();title(f,'c').click();open.click();assert.equal(f.opens.length,0);
+ action(f.el,'more').click();const add=menuItem('添加节点');f.navigation.forEach(fn=>fn());add.click();assert.equal(f.added,0);assert(f.el.querySelector('.ts-brain-tools')!.hidden);
+});
+test('short-pane tools coexist with search and board menus without hiding their real entry points',()=>{
+ const f=shortToolsFixture();f.toggle.click();action(f.el,'zoom-in').focus();action(f.el,'zoom-in').dispatch('keydown',{key:'k',ctrlKey:true});assert(f.tools.hidden);assert.equal(f.doc.activeElement,f.el.querySelector('input'));assert.equal(f.el.querySelector('input')!.getAttribute('aria-expanded'),'true');
+ f.toggle.click();action(f.el,'more').focus();action(f.el,'more').dispatch('click',{detail:0});assert(f.tools.hidden);assert.equal(f.doc.activeElement,action(f.el,'more'));assert(menuItem('添加节点'));assert(menuItem('适应画布'));assert.equal(f.saves.length,0);
+});
+test('short-pane relation and history disclosures retain independent Escape levels and node leases',()=>{
+ const f=shortToolsFixture();f.host.createRelation=()=>{};f.view.refresh();f.toggle.click();action(f.el,'relations-toggle').click();action(f.el,'add-top').focus();action(f.el,'add-top').dispatch('keydown',{key:'Escape'});assert.equal(f.doc.activeElement,action(f.el,'relations-toggle'));assert(!f.tools.hidden);action(f.el,'relations-toggle').dispatch('keydown',{key:'Escape'});assert(f.tools.hidden);assert.equal(f.doc.activeElement,f.toggle);
+ f.toggle.click();action(f.el,'history').click();f.el.querySelector('[data-brain-recent-id]')!.focus();f.el.querySelector('[data-brain-recent-id]')!.dispatch('keydown',{key:'Escape'});assert(!f.tools.hidden);assert.equal(f.doc.activeElement,action(f.el,'history'));assert.equal(f.saves.length,0);
+});
+test('short-pane long Chinese selection and true branch paging preserve content and page state when moved',()=>{
+ const f=shortToolsFixture();f.board.nodes.find(n=>n.id==='b')!.title='中文与 English 2026：很长的研究标题，保留标点与数字，不截掉节点操作的上下文。';for(let i=0;i<75;i++){f.board.nodes.push(card('short-page-'+i));f.board.edges.push({id:'short-edge-'+i,from:'b',to:'short-page-'+i,kind:'branch',label:''});}f.board.brain!.descendantDepth=3;f.view.refresh();f.toggle.click();assert.match(f.el.querySelector('.ts-brain-selection-name')!.textContent,/中文与 English 2026/);const next=action(f.el,'next-branches');assert(next);next.click();assert.equal(f.view.descendantPage.page,1);f.close.click();f.shell.clientHeight=600;f.view.syncToolsLayout();assert.equal(f.view.descendantPage.page,1);assert.equal(f.saves.length,0);assert.equal(f.viewports.length,0);
+});
+
+test('short-pane reparent restores the same focused control after native-style removal blur',()=>{
+ const f=fixture(),shell=f.el.querySelector('.ts-brain-shell')!,controls=f.el.querySelector('.ts-brain-controls')!,zoom=action(f.el,'zoom-in');const remove=controls.remove.bind(controls);controls.remove=()=>{if(controls.contains(f.doc.activeElement))f.doc.activeElement=f.doc.body!;remove();};zoom.focus();shell.clientHeight=245;f.view.syncToolsLayout();assert.equal(f.doc.activeElement,zoom);assert(!f.el.querySelector('.ts-brain-tools')!.hidden);shell.clientHeight=600;f.view.syncToolsLayout();assert.equal(f.doc.activeElement,zoom);assert.equal(f.saves.length,0);
+});
+
+test('a direct short-pane mount starts with the whole command set collapsed without camera persistence',()=>{
+ const f=fixture(({el,board})=>{board.brainViewport={x:-20,y:30,zoom:.72};const create=el.createDiv.bind(el);el.createDiv=(options:any={})=>{const child=create(options);if(child.classes.has('ts-brain-shell'))child.clientHeight=245;return child;};});assert(f.view.shortTools);assert(f.el.querySelector('.ts-brain-tools')!.hidden);assert.equal(f.el.querySelector('.ts-brain-controls')!.parentElement,f.el.querySelector('.ts-brain-tools'));assert.deepEqual(f.view.camera,{x:-20,y:30,zoom:.72});assert.equal(f.viewports.length,0);assert.equal(f.saves.length,0);f.view.unload();assert.equal(f.doc.frames.size,0);assert.equal(f.doc.timers.size,0);
+});
+
+test('short tools reveal restored focus only inside their own scrollport and leave canvas camera unchanged',()=>{
+ const f=shortToolsFixture();f.toggle.click();const button=action(f.el,'zoom-in'),stage=f.el.querySelector('.ts-brain-stage')!,camera={...f.view.camera},before=clone(f.board);f.tools.clientHeight=120;f.tools.clientTop=1;f.tools.getBoundingClientRect=()=>({x:0,y:20,left:0,right:300,top:20,bottom:140,width:300,height:120});button.getBoundingClientRect=()=>({x:0,y:160,left:0,right:44,top:160,bottom:204,width:44,height:44});button.focus();button.dispatch('focusin');assert.equal(f.tools.scrollTop,69);assert.equal(stage.scrollTop,0);assert.equal(f.shell.scrollTop,0);assert.deepEqual(f.view.camera,camera);assert.deepEqual(clone(f.board),before);
+ f.tools.scrollTop=150;button.getBoundingClientRect=()=>({x:0,y:-30,left:0,right:44,top:-30,bottom:14,width:44,height:44});button.dispatch('focusin');assert.equal(f.tools.scrollTop,93);assert.equal(f.saves.length,0);assert.equal(f.viewports.length,0);
+});
+for(const reason of ['closed','external focus','blur','inactive pane','desktop'])test(`short tools do not scroll for non-owned focus: ${reason}`,()=>{
+ const f=shortToolsFixture();f.toggle.click();const button=action(f.el,'zoom-in');button.focus();f.tools.clientHeight=40;f.tools.scrollTop=19;button.getBoundingClientRect=()=>({x:0,y:300,left:0,right:44,top:300,bottom:344,width:44,height:44});
+ if(reason==='closed')f.view.toggleTools(false);if(reason==='external focus')f.root.createEl('input').focus();if(reason==='blur')f.doc.focused=false;if(reason==='inactive pane')f.host.isActive=()=>false;if(reason==='desktop'){f.shell.clientHeight=600;f.view.syncToolsLayout();}button.dispatch('focusin');assert.equal(f.tools.scrollTop,19);assert.equal(f.saves.length,0);assert.equal(f.viewports.length,0);
+});

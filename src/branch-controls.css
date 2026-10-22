@@ -47,3 +47,31 @@
 .ts-root .ts-section > .ts-node-header .ts-section-content-fold:is(:hover,:focus-visible):not(:disabled) { color:var(--ts-accent); background:var(--ts-object-active,var(--background-modifier-hover)); }
 .ts-root .ts-section > .ts-node-header .ts-section-content-fold:focus-visible { outline:2px solid var(--ts-accent,var(--interactive-accent)); outline-offset:1px; }
 .ts-root .ts-section > .ts-node-header .ts-section-content-fold[aria-expanded=false] { color:var(--ts-accent); background:var(--ts-object-active,var(--background-modifier-hover)); }
+
+/* External branch controls reveal with their isolated object. Opacity keeps
+   the original buttons in the native Tab order; focus reveals before use.
+   Child pointer-events are explicit because the base buttons opt in above.
+   In-flow expanded-section controls keep their existing header presentation. */
+.ts-root .ts-main .ts-world > .ts-node:not(.ts-section:not(.is-compact-fold)) > .ts-branch-controls { opacity:0; pointer-events:none; }
+.ts-root .ts-main .ts-world > .ts-node:not(.ts-section:not(.is-compact-fold)) > .ts-branch-controls > button { pointer-events:none; }
+.ts-root .ts-main .ts-world > .ts-node:not(.ts-section:not(.is-compact-fold)):is(.is-selected,:focus-within) > .ts-branch-controls { opacity:1; pointer-events:auto; }
+.ts-root .ts-main .ts-world > .ts-node:not(.ts-section:not(.is-compact-fold)):is(.is-selected,:focus-within) > .ts-branch-controls > button { pointer-events:auto; }
+@media (hover:hover) {
+ .ts-root .ts-main .ts-world > .ts-node:not(.ts-section:not(.is-compact-fold)):is(:hover,.is-control-hover) > .ts-branch-controls { opacity:1; pointer-events:auto; }
+ .ts-root .ts-main .ts-world > .ts-node:not(.ts-section:not(.is-compact-fold)):is(:hover,.is-control-hover) > .ts-branch-controls > button { pointer-events:auto; }
+ /* Raise the whole object; another selected or keyboard-focused object wins. */
+ .ts-root .ts-main .ts-world > .ts-node:not(.ts-section:not(.is-compact-fold)):has(> .ts-branch-controls):is(:hover,.is-control-hover):not(.is-selected):not(:focus-within) { z-index:2; }
+}
+.ts-root .ts-main .ts-world > .ts-node:not(.ts-section:not(.is-compact-fold)):has(> .ts-branch-controls:focus-within) { z-index:6; }
+/* Media keeps its live group beside the player. Multi-selection can also keep
+   other groups here. Compensate low zoom for the same 44 px touch minimum and
+   retain 24 screen px clearance from the 30 px connection target. */
+.ts-root .ts-main .ts-world > .ts-node[data-touch-controls=true]:not(.ts-section:not(.is-compact-fold)) > .ts-branch-controls {
+ left:calc(100% + 24px * var(--ts-port-scale,1)); transform:translateY(-50%) scale(var(--ts-port-scale,1)); transform-origin:left center;
+}
+.ts-root .ts-main .ts-world > .ts-node[data-touch-controls=true]:not(.ts-section:not(.is-compact-fold)) > .ts-branch-controls > button { min-width:44px; height:44px; min-height:44px; }
+
+/* Live media retains its controls through relation updates and context moves.
+   Empty or unavailable controls must stay hidden even inside the flex toolbar. */
+.ts-root .ts-branch-controls[data-live-branch][hidden],
+.ts-root .ts-branch-controls[data-live-branch] > button[hidden] { display:none!important; }

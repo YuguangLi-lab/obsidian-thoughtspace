@@ -9,11 +9,11 @@ const source=readFileSync('src/main.ts','utf8');
 function take(start:string,end:string){const from=source.indexOf(start),to=source.indexOf(end,from+start.length);assert(from>=0&&to>from,start);return source.slice(from,to);}
 function compile(code:string,deps:Record<string,unknown>){return new Function(...Object.keys(deps),transformSync(code,{loader:'ts'}).code)(...Object.values(deps));}
 class Element {
- children:Element[]=[];attrs:Record<string,string>={};value='';text='';disabled=false;focused=false;selected=false;onkeydown?:((event:any)=>void);onclick?:()=>void;
+ children:Element[]=[];attrs:Record<string,string>={};value='';text='';disabled=false;focused=false;selected=false;isConnected=true;onkeydown?:((event:any)=>void);onclick?:()=>void;
  constructor(readonly tag:string,options:any={}){this.value=options.value||'';this.text=options.text||'';this.attrs={...(options.attr||{})};if(options.type)this.attrs.type=options.type;if(options.cls)this.attrs.class=options.cls;}
  createEl(tag:string,options:any={}){const child=new Element(tag,options);this.children.push(child);return child;}
- createSpan(options:any={}){return this.createEl('span',options);}
- addClass(){}empty(){this.children=[];this.text='';}focus(){this.focused=true;}select(){this.selected=true;}
+ createSpan(options:any={}){return this.createEl('span',options);}createDiv(options:any={}){return this.createEl('div',typeof options==='string'?{cls:options}:options);}
+ addClass(){}empty(){this.children=[];this.text='';}setText(text:string){this.empty();this.text=text;}setAttribute(name:string,value:string){this.attrs[name]=value;}removeAttribute(name:string){delete this.attrs[name];}get lastElementChild(){return this.children.at(-1);}focus(){this.focused=true;}select(){this.selected=true;}
  all(tag:string):Element[]{return this.children.flatMap(child=>[...(child.tag===tag?[child]:[]),...child.all(tag)]);}
  click(){if(!this.disabled)this.onclick?.();}
  get textContent():string{return this.text+this.children.map(child=>child.textContent).join('');}
@@ -22,25 +22,27 @@ function fixture(){
  const modals:any[]=[],files=new Map<string,{path:string;body:string}>(),folders=new Set<string>(),opened:string[]=[],errors:unknown[]=[],actions:Promise<unknown>[]=[];
  const hooks:{create?:(path:string,body:string)=>Promise<void>}={};
  class Modal {
-  modalEl=new Element('modal');contentEl=new Element('content');closed=false;
+  containerEl=new Element('container');modalEl=new Element('modal');titleEl=new Element('title');contentEl=new Element('content');closed=false;
   constructor(public app:unknown){}
   open(){modals.push(this);(this as any).onOpen();}
-  close(){this.closed=true;(this as any).onClose();}
+  close(){this.closed=true;this.containerEl.isConnected=false;(this as any).onClose();}
  }
- class View {}
+ class View {containerEl={isConnected:true,ownerDocument:undefined};leaf:any;}
+ class TFile {constructor(public path:string,public body:string){}}
  const act=(run:()=>unknown)=>{try{const pending=Promise.resolve(run());actions.push(pending);void pending.catch(error=>errors.push(error));}catch(error){errors.push(error);}};
- const Prompt=compile(take('function button(','class NotePicker ')+';return Prompt;',{Modal,View,act,setIcon(){},themeSurface(){}});
- const Host=compile('class Host{'+take('  async folder(','  async openDeepLink(')+take('  promptBoard(','  private serializeFiling')+'};return Host;',{Prompt,emptyBoard,createBrainBoard,safeName,normalizePath:(path:string)=>path,ROOT:'ThoughtSpace',EXT:'thoughtspace'});
- const host=new Host();host.app={vault:{getAbstractFileByPath:(path:string)=>files.get(path)||(folders.has(path)?{path}:undefined),createFolder:async(path:string)=>{folders.add(path);},create:async(path:string,body:string)=>{await hooks.create?.(path,body);const file={path,body};files.set(path,file);return file;}}};host.openBoard=async(file:{path:string})=>{opened.push(file.path);};
- const modal=()=>modals.at(-1)!,input=()=>modal().contentEl.all('input')[0] as Element,type=()=>modal().contentEl.all('select')[0] as Element,save=()=>modal().contentEl.all('button')[0] as Element;
+ const Prompt=compile(take('function button(','class NotePicker ')+';return Prompt;',{Modal,View,TFile,act,setIcon(){},themeSurface(){},bindBoardModalViewport:()=>()=>{},Notice:class{}});
+ const Host=compile('class Host{'+take('  async folder(','  async openDeepLink(')+take('  promptBoard(','  private serializeFiling')+'};return Host;',{Prompt,emptyBoard,createBrainBoard,safeName,normalizePath:(path:string)=>path,ROOT:'ThoughtSpace',EXT:'thoughtspace',VIEW:'thoughtspace-board'});
+ const origin:any={getViewState:()=>({type:'empty',state:{}})},view=new View();view.leaf=origin;origin.view=view;const workspace={getActiveViewOfType:()=>view,setActiveLeaf(){},on:()=>({}),offref(){}};
+ const host=new Host();host.app={workspace,vault:{getAbstractFileByPath:(path:string)=>files.get(path)||(folders.has(path)?{path}:undefined),createFolder:async(path:string)=>{folders.add(path);},create:async(path:string,body:string)=>{await hooks.create?.(path,body);const file=new TFile(path,body);files.set(path,file);return file;}}};host.openBoard=async(file:{path:string})=>{opened.push(file.path);};
+ const modal=()=>modals.at(-1)!,input=()=>modal().contentEl.all('input')[0] as Element,type=()=>modal().contentEl.all('select')[0] as Element,save=()=>modal().contentEl.all('button').find((el:Element)=>el.attrs['aria-label']==='确定'||el.attrs['aria-label']==='重试')! as Element,cancel=()=>modal().contentEl.all('button').find((el:Element)=>el.attrs['aria-label']==='取消')! as Element;
  const flush=async()=>{await Promise.allSettled(actions);await Promise.resolve();};
  const reopen=(path=opened.at(-1)!)=>parseBoard(files.get(path)!.body);
- return{host,modals,files,folders,opened,errors,hooks,modal,input,type,save,flush,reopen};
+ return{host,modals,files,folders,opened,errors,hooks,modal,input,type,save,cancel,flush,reopen};
 }
 
 test('existing new-board entry opens one native naming modal with ordinary and brain choices',()=>{
  const f=fixture();f.host.promptBoard();
- assert.equal(f.modals.length,1);assert.equal(f.modal().contentEl.all('h2')[0].text,'新建白板');assert.equal(f.type().attrs['aria-label'],'白板类型');
+ assert.equal(f.modals.length,1);assert.equal(f.modal().titleEl.text,'新建白板');assert.equal(f.type().attrs['aria-label'],'白板类型');
  assert.match(f.type().attrs.class,/(^| )dropdown( |$)/);assert.match(f.type().attrs.class,/(^| )ts-prompt-choice( |$)/);
  assert.deepEqual(f.type().children.map(option=>[option.value,option.text]),[['board','普通白板'],['brain','脑图白板']]);assert.equal(f.type().value,'board');
  assert.equal(f.input().value,'新的研究主题');assert.equal(f.input().focused,true);assert.equal(f.input().selected,true);assert.equal(f.files.size,0);
@@ -71,7 +73,7 @@ for(const presentation of ['board','brain'])test(`${presentation} creation uses 
 
 for(const entry of ['promptBoard','promptBrainBoard'])test(`${entry} cancel and blank submission create no files or tabs`,async()=>{
  const f=fixture();f.host[entry]();f.input().value='  ';f.save().click();await f.flush();assert.equal(f.modal().closed,false);
- f.input().value='未创建主题';f.modal().close();await f.flush();assert.equal(f.files.size,0);assert.equal(f.folders.size,0);assert.deepEqual(f.opened,[]);assert.deepEqual(f.errors,[]);
+ f.input().value='未创建主题';f.cancel().click();await f.flush();assert.equal(f.files.size,0);assert.equal(f.folders.size,0);assert.deepEqual(f.opened,[]);assert.deepEqual(f.errors,[]);
 });
 
 test('board naming respects composition and normal Enter submits once with the chosen type',async()=>{
@@ -92,4 +94,13 @@ test('a failed write keeps the name and type available for one successful retry'
  const f=fixture();f.hooks.create=async()=>{throw Error('test write failure');};f.host.promptBoard();f.type().value='brain';f.input().value='可重试主题';f.save().click();await f.flush();
  assert.equal(f.modal().closed,false);assert.equal(f.save().disabled,false);assert.equal(f.type().disabled,false);assert.equal(f.type().value,'brain');assert.equal(f.input().value,'可重试主题');assert.equal(f.files.size,0);assert.deepEqual(f.opened,[]);assert.match(String(f.errors[0]),/test write failure/);
  f.hooks.create=undefined;f.save().click();await f.flush();assert.equal(f.modal().closed,true);assert.equal(f.files.size,1);assert(isBrainBoard(f.reopen()));
+});
+
+
+test('dismissing a pending naming prompt does not claim to cancel the board write already started by its caller',async()=>{
+ const f=fixture();let finish!:()=>void,started!:()=>void;const gate=new Promise<void>(resolve=>{finish=resolve;}),entered=new Promise<void>(resolve=>{started=resolve;});
+ f.hooks.create=async()=>{started();await gate;};f.host.promptBoard();f.input().value='Pending board';const modal=f.modal();f.save().click();await entered;
+ f.cancel().click();assert.equal(modal.closed,true);assert.equal(f.files.size,0);
+ finish();await f.flush();assert.equal(f.files.size,1);assert.equal(f.opened.length,0);assert.equal(f.modal(),modal);assert.equal(modal.closed,true);assert.equal(f.errors.length,0);
+ assert.deepEqual(f.reopen([...f.files.keys()][0]),emptyBoard(),'the committed write remains, while cancelled navigation is revoked');
 });

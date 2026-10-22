@@ -10,19 +10,27 @@ assert.ok(promptStart>=0&&promptEnd>promptStart);
 const promptSource=transformSync(main.slice(promptStart,promptEnd)+'\nreturn Prompt;',{loader:'ts'}).code;
 
 function promptFixture(){
- const inputs:{value:string;onkeydown?:(event:any)=>void}[]=[],submitted:string[]=[];
+ const inputs:Element[]=[],submitted:string[]=[];
  let closed=0;
+ class Element {
+  value='';disabled=false;children:Element[]=[];isConnected=true;onkeydown?:(event:any)=>void;
+  constructor(options:any={}){this.value=options.value||'';}
+  createEl(tag:string,options:any={}){const el=new Element(options);this.children.push(el);if(tag==='input')inputs.push(el);return el;}
+  createSpan(options:any={}){return this.createEl('span',options);}createDiv(options:any={}){return this.createEl('div',options);}
+  addClass(){}setText(){}setAttribute(){}removeAttribute(){}empty(){this.children=[];}focus(){}select(){}
+  get lastElementChild(){return this.children.at(-1);}
+ }
  class Modal {
-  modalEl={addClass(){}};
-  contentEl={createEl(tag:string,options:{value?:string}){const el={value:options.value||'',focus(){},select(){}};if(tag==='input')inputs.push(el);return el;},empty(){}};
-  close(){closed++;}
+  constructor(readonly app:any){}
+  modalEl=new Element();containerEl=new Element();titleEl=new Element();contentEl=new Element();
+  close(){closed++;this.containerEl.isConnected=false;(this as any).onClose();}
  }
  class View {}
  const button=(_parent:unknown,_label:string,_icon:string,run:()=>Promise<void>)=>{
-  const el={disabled:false,click(){if(!el.disabled)void run();}};return el;
+  const el={disabled:false,setAttribute(){},lastElementChild:{setText(){}},click(){if(!el.disabled)void run();}};return el;
  };
- const Prompt=new Function('Modal','View','button','themeSurface',promptSource)(Modal,View,button,()=>{});
- const modal=new Prompt({},'关系说明','正在输入',(value:string)=>{submitted.push(value);});modal.onOpen();
+ const Prompt=new Function('Modal','View','button','themeSurface','bindBoardModalViewport',promptSource)(Modal,View,button,()=>{},()=>()=>{});
+ const modal=new Prompt({workspace:{getActiveViewOfType:()=>null}},'关系说明','正在输入',(value:string)=>{submitted.push(value);});modal.onOpen();
  const input=inputs[0]!;
  const press=(extra:Record<string,unknown>={})=>{
   const event={key:'Enter',isComposing:false,keyCode:13,defaultPrevented:false,preventDefault(){this.defaultPrevented=true;},stopPropagation(){},...extra};

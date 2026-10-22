@@ -93,6 +93,9 @@
 .modal.ts-pdf-quote-modal .modal-content {display:flex;flex-direction:column;gap:12px;min-height:0;overflow:hidden;}
 .ts-pdf-quote-intro,.ts-pdf-quote-scope {flex:none;margin:0;color:var(--text-muted);font-size:12px;line-height:1.6;}
 .ts-pdf-quote-body {display:flex;flex-direction:column;gap:16px;min-height:0;overflow:auto;overscroll-behavior:contain;}
+/* Form guidance and validation scroll with the fields, leaving only the action
+   row fixed. Keep natural field sizes rather than flex-compressing their text. */
+.ts-pdf-quote-body > * {flex-shrink:0;}
 .ts-pdf-quote-modal label {display:flex;flex-direction:column;gap:8px;margin:0;font-size:12px;font-weight:600;color:var(--text-normal);}
 .ts-pdf-quote-modal input {display:block;width:100%;margin:0;font-weight:400;}
 /* Keep a short-viewport quote editor scrollable within the form's body. The

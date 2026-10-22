@@ -41,6 +41,7 @@ export class SpaceHubModal extends Modal {
     if(this.host.current&&!this.host.current()){this.close();return;}
     if(this.host.document){if(this.host.document.defaultView?.closed){this.close();return;}if(this.containerEl.ownerDocument!==this.host.document)this.host.document.body.appendChild(this.containerEl);this.viewport=bindBoardModalViewport(this.containerEl);}
     this.active=true;this.life.load();this.modalEl.addClass('ts-space-hub');themeSurface(this.modalEl);this.titleEl.setText('空间总览');
+    this.life.registerDomEvent(this.modalEl,'keydown',event=>this.keepTabInside(event));
     const body=this.contentEl.createDiv('ts-hub-body');this.nav=body.createEl('nav',{cls:'ts-hub-nav',attr:{'aria-label':'空间总览导航'}});
     const workspace=body.createDiv('ts-hub-workspace');
     const heading=workspace.createDiv('ts-hub-heading'),headingCopy=heading.createDiv('ts-hub-heading-copy');
@@ -63,6 +64,25 @@ export class SpaceHubModal extends Modal {
     this.unwatch=this.host.watchCurrent?.(()=>this.close());
   }
   onClose(){this.active=false;this.generation++;this.unwatch?.();this.unwatch=undefined;this.viewport?.();this.viewport=undefined;this.life.unload();this.contentEl.empty();this.host.closed?.();}
+  private keepTabInside(event:KeyboardEvent){
+    if(!event.isTrusted||event.key!=='Tab'||event.defaultPrevented||event.isComposing||event.altKey||event.ctrlKey||event.metaKey)return;
+    const doc=this.modalEl.ownerDocument,win=doc.defaultView,active=doc.activeElement;
+    if(!this.active||!win||win.closed||event.view!==win||!doc.hasFocus()||!this.modalEl.isConnected||this.containerEl.ownerDocument!==doc||this.host.document&&this.host.document!==doc||this.host.current&&!this.host.current())return;
+    if(!active||event.target!==active||!this.modalEl.contains(active)||active.closest('.modal')!==this.modalEl)return;
+    // Keep boundary Tab inside the Hub before the host's deferred focus trap
+    // briefly visits the dock and invalidates the original launch focus owner.
+    const controls=Array.from(this.modalEl.querySelectorAll<HTMLElement>('button,input,select,textarea,a[href],summary,[tabindex]')).filter(el=>{
+      if(el.tabIndex<0||el.matches(':disabled')||el.closest('[inert]')||el.closest('.modal')!==this.modalEl||!el.getClientRects().length||win.getComputedStyle(el).visibility!=='visible')return false;
+      for(let parent=el.parentElement;parent&&parent!==this.modalEl;parent=parent.parentElement){
+        if(parent.matches('details:not([open])')&&!parent.querySelector(':scope > summary')?.contains(el))return false;
+      }
+      return true;
+    }).sort((a,b)=>(a.tabIndex||Infinity)-(b.tabIndex||Infinity));
+    const first=controls[0],last=controls[controls.length-1];
+    if(first&&last&&active===(event.shiftKey?first:last)){
+      event.preventDefault();(event.shiftKey?last:first).focus();
+    }
+  }
   async load(){
     const run=++this.generation,changes=this.changes;this.busy=true;this.refreshButton.disabled=true;this.state.setText('正在整理白板与笔记索引…');
     try{

@@ -1,8 +1,8 @@
 /* Object controls are independent of document layout. Nothing here changes
    measured text insets, body fonts, custom fills or the native editor DOM. */
 .ts-root {
-  --ts-object-line: color-mix(in srgb, var(--background-modifier-border) 88%, var(--text-muted) 12%);
-  --ts-object-active: color-mix(in srgb, var(--ts-accent) 6%, var(--background-primary));
+  --ts-object-line: var(--ts-e-line,var(--background-modifier-border));
+  --ts-object-active: color-mix(in srgb, var(--ts-accent) 8%, var(--ts-e-sheet,var(--background-primary)));
   --ts-object-shadow: 0 2px 8px #0000000d;
 }
 .theme-dark .ts-root { --ts-object-shadow: 0 2px 8px #00000030; }
@@ -15,6 +15,10 @@
 .ts-root .ts-node.ts-card.is-selected { outline:1.5px solid var(--ts-accent); outline-offset:2px; }
 .ts-root .ts-node:is(.ts-card,.ts-text).is-inline-editing { outline:2px solid var(--ts-accent); outline-offset:2px; }
 .ts-root .ts-node.is-inline-editing::before { content:none; }
+/* Keep ports and controls in their own object stack. An unselected object
+   must not project its z-indexed children above the selected object. Expanded
+   group frames keep their existing behind-content behavior. */
+.ts-root .ts-main .ts-world > .ts-node:not(.ts-section:not(.is-compact-fold)) { isolation:isolate; }
 /* Selection raises the object without moving it. Expanded group frames stay
    behind their contents; hover never takes precedence over a selected card. */
 .ts-root .ts-main .ts-world > .ts-node.is-selected:not(.ts-section:not(.is-compact-fold)) { z-index:4; }
@@ -192,8 +196,6 @@
 .ts-root .ts-node.ts-image > .ts-image-actions .ts-icon-button:is(.is-active,[aria-pressed=true]) { color:var(--ts-accent); background:var(--ts-object-active); }
 .ts-root .ts-node.ts-image > .ts-image-actions .ts-icon-button:focus-visible { outline:2px solid var(--ts-accent); outline-offset:-1px; }
 @media (hover:none) {
-  .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions,
-  .ts-root .ts-node.ts-image > .ts-image-actions { opacity:1; visibility:visible; pointer-events:auto; transition:none; }
   .ts-root .ts-node > .ts-resize { opacity:1; pointer-events:auto; }
 }
 @media (prefers-reduced-motion:reduce) {
@@ -285,10 +287,80 @@
 }
 .ts-root .ts-node > .ts-fold-actions > .ts-content-fold:focus-visible { outline:2px solid var(--ts-accent); outline-offset:-1px; }
 .ts-root .ts-node > .ts-fold-actions > .ts-content-fold:disabled { opacity:.35; cursor:not-allowed; }
-@media (hover:none) {
-  .ts-root .ts-node > .ts-fold-actions { opacity:1; visibility:visible; pointer-events:auto; }
-}
 
 .ts-root .ts-main .ts-world > .ts-node.is-control-focus > .ts-card-actions {
   opacity:1; visibility:visible; pointer-events:auto;
+}
+
+/* Chrome floats above authored surfaces; its own ink/sheet pairing stays
+   readable on transparent cards, custom fills and photographic backgrounds. */
+.ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions,
+.ts-root .ts-node.is-compact-fold .ts-compact-actions,
+.ts-root .ts-node.ts-image > .ts-image-actions,
+.ts-root .ts-node > .ts-fold-actions { background:var(--ts-e-sheet,var(--background-primary)); border-color:var(--ts-object-line); border-radius:8px; }
+.ts-root .ts-node > .ts-card-actions .ts-icon-button,
+.ts-root .ts-node.is-compact-fold .ts-compact-actions > button { color:var(--ts-e-muted,var(--text-muted)); }
+.ts-root .ts-node > .ts-card-actions .ts-icon-button:active:not(:disabled),
+.ts-root .ts-node.is-compact-fold .ts-compact-actions > button:active:not(:disabled) { background:var(--ts-e-wash,var(--background-modifier-hover))!important; box-shadow:inset 0 0 0 1px var(--ts-accent); }
+.ts-root .ts-node > .ts-card-actions .ts-icon-button:focus-visible,
+.ts-root .ts-node.is-compact-fold .ts-compact-actions > button:focus-visible { outline:2px solid var(--ts-accent); outline-offset:-2px; }
+
+/* positionNode passes the same compact/coarse flag to cardControlLayout. These
+   sizes therefore participate in viewport, neighbour and port avoidance. */
+.ts-root .ts-node[data-touch-controls=true] > .ts-card-actions .ts-icon-button,
+.ts-root .ts-node[data-touch-controls=true].is-compact-fold .ts-compact-actions > button { width:44px; min-width:44px; height:44px; min-height:44px; touch-action:manipulation; }
+.ts-root .ts-node[data-touch-controls=true]:is(.ts-card,.ts-text) > .ts-card-actions .ts-card-action-primary { width:64px; min-width:64px; }
+
+/* The same inline unfold button becomes the final external touch slot. It
+   remains in the title row in the DOM: resizing cannot blur or replace it. The
+   52/100 px dock is exactly the one/two-icon box used by cardControlLayout. */
+.ts-root .ts-node.ts-content-compact[data-external-unfold=true] > .ts-compact-fold-row > .ts-compact-actions {
+  display:flex; min-width:52px; height:52px; min-height:52px;
+  opacity:1!important; visibility:visible!important; pointer-events:auto!important;
+}
+.ts-root .ts-node.ts-content-compact[data-external-unfold=true] > .ts-compact-fold-row > .ts-compact-actions:not(:empty) { padding-right:51px; }
+.ts-root .ts-node.ts-content-compact[data-external-unfold=true] > .ts-compact-fold-row > .ts-compact-inline-unfold {
+  position:absolute; z-index:9;
+  inset:calc(var(--ts-control-top,-60px) + 4px * var(--ts-control-scale,1)) calc(var(--ts-control-right,0px) + 4px * var(--ts-control-scale,1)) auto auto;
+  width:calc(44px * var(--ts-control-scale,1)); height:calc(44px * var(--ts-control-scale,1));
+  background:transparent; color:var(--ts-e-muted,var(--text-muted)); touch-action:manipulation;
+}
+.ts-root .ts-node.ts-content-compact[data-external-unfold=true] > .ts-compact-fold-row > .ts-compact-inline-unfold:is(:hover,:focus-visible):not(:disabled) { background:var(--ts-object-active); color:var(--ts-accent); }
+.ts-root .ts-node.ts-content-compact[data-external-unfold=true] > .ts-compact-fold-row > .ts-compact-inline-unfold:focus-visible { outline-offset:-2px; }
+
+/* Native editing owns the reading area. Passive touch docks on other cards
+   must not cover that draft; an already-focused control remains available. */
+.ts-root .ts-main:has(.ts-node.is-inline-editing) .ts-world > .ts-node:not(.is-inline-editing):not(:focus-within):not(.is-control-focus) > .ts-card-actions {
+  opacity:0!important; visibility:hidden!important; pointer-events:none!important;
+}
+
+/* Touch canvases show one active object's complete actions. Other objects keep
+   an explicit 44 px entry; the same existing actions and handlers remain in DOM. */
+.ts-root .ts-node > .ts-card-control-entry { display:none; }
+.ts-root .ts-node[data-touch-controls=true][data-control-display=entry] > .ts-card-control-entry {
+  position:absolute; z-index:8; display:inline-flex; align-items:center; justify-content:center;
+  top:calc(var(--ts-control-top) + 4px * var(--ts-control-scale,1)); right:calc(var(--ts-control-right) + 4px * var(--ts-control-scale,1));
+  width:44px; min-width:44px; height:44px; min-height:44px; margin:0; padding:6px;
+  transform:scale(var(--ts-control-scale,1)); transform-origin:top right;
+  border:1px solid var(--ts-object-line); border-radius:7px; background:var(--ts-e-sheet,var(--background-primary));
+  color:var(--ts-e-muted,var(--text-muted)); box-shadow:var(--ts-object-shadow); touch-action:manipulation;
+}
+.ts-root .ts-node > .ts-card-control-entry svg { width:16px; height:16px; }
+.ts-root .ts-node > .ts-card-control-entry:focus-visible { outline:2px solid var(--ts-accent); outline-offset:-2px; }
+.ts-root .ts-node[data-touch-controls=true][data-control-display=entry] > .ts-card-actions,
+.ts-root .ts-node[data-touch-controls=true][data-control-display=entry] > .ts-compact-fold-row > :is(.ts-compact-actions,.ts-compact-inline-unfold),
+.ts-root .ts-node[data-touch-controls=true][data-control-suppressed=true] > .ts-card-control-entry,
+.ts-root .ts-main:has(.ts-node.is-inline-editing) .ts-node:not(.is-inline-editing) > .ts-card-control-entry { opacity:0!important; visibility:hidden!important; pointer-events:none!important; }
+.ts-root .ts-main .ts-world > .ts-node[data-control-display=full]:focus-within { z-index:6; }
+.ts-root .ts-main .ts-world > .ts-node:has(> .ts-card-control-entry:focus-visible) { z-index:7; }
+
+/* Coarse input does not mean every object's actions are expanded. The same
+   reservation state gates touch and hybrid devices; selection borrows the real
+   buttons into the named context toolbar. Keyboard-owned local actions remain
+   visible, while overscan/passive cards cannot leak their fallback dock. */
+.ts-root .ts-node[data-touch-controls=true]:not([data-control-display=full]) > .ts-card-actions {
+  opacity:0!important; visibility:hidden!important; pointer-events:none!important;
+}
+.ts-root .ts-node[data-touch-controls=true][data-control-display=full] > .ts-card-actions {
+  opacity:1; visibility:visible; pointer-events:auto; transition:none;
 }

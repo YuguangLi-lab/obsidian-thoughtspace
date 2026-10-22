@@ -48,6 +48,9 @@ const Session=new Function(...Object.keys(sessionDeps),transformSync(`class Sess
 const branchModule={exports:{} as typeof import('../src/branch-controls')};
 new Function('require','module','exports',transformSync(readFileSync('src/branch-controls.ts','utf8'),{loader:'ts',format:'cjs'}).code)(
  (name:string)=>{assert.equal(name,'obsidian');return{setIcon:()=>{}};},branchModule,branchModule.exports);
+const liveModule={exports:{} as typeof import('../src/live-branch-controls')};
+new Function('require','module','exports',transformSync(readFileSync('src/live-branch-controls.ts','utf8'),{loader:'ts',format:'cjs'}).code)(
+ (name:string)=>{assert.equal(name,'obsidian');return{setIcon:()=>{}};},liveModule,liveModule.exports);
 const keys={...renderKeys};
 if(process.env.PREVIEW_KEY_SOURCE){
  const old=readFileSync(process.env.PREVIEW_KEY_SOURCE,'utf8').replace(/^import[^\n]+\n/gm,'').replace(/export /g,'');
@@ -58,14 +61,14 @@ type Options=string|{cls?:string;text?:string;attr?:Record<string,string>;href?:
 class Dom {
  parent?:Dom;children:Dom[]=[];classes=new Set<string>();attrs=new Map<string,string>();dataset:Record<string,string>={};
  textContent='';root=false;clientWidth=1000;clientHeight=700;naturalWidth=640;naturalHeight=320;complete=false;
- focused=false;focus(){this.focused=true;}
- disabled=false;onclick?:()=>void;onload:(()=>void)|null=null;onerror:(()=>void)|null=null;
+ focused=false;focus(){this.focused=true;this.ownerDocument.activeElement=this;}
+ hidden=false;disabled=false;onclick?:()=>void;onload:(()=>void)|null=null;onerror:(()=>void)|null=null;
  readonly style=Object.assign({left:'',top:'',width:'',height:'',borderStyle:'',borderWidth:'',fontFamily:'',fontSize:'',textAlign:'',transform:'',backgroundSize:'',backgroundPosition:''},{
   getPropertyValue:(key:string)=>this.css.get(key)||'',setProperty:(key:string,value:string)=>this.css.set(key,value),removeProperty:(key:string)=>this.css.delete(key)});
  readonly css=new Map<string,string>();
  readonly ownerDocument:{activeElement?:Dom;win:any}={win:{setTimeout:()=>0,clearTimeout:()=>{},createDiv:()=>new Dom()}};
  readonly classList={contains:(name:string)=>this.classes.has(name),add:(...names:string[])=>names.forEach(n=>this.classes.add(n)),remove:(...names:string[])=>names.forEach(n=>this.classes.delete(n)),toggle:(name:string,on?:boolean)=>{const active=on??!this.classes.has(name);this.toggleClass(name,active);return active;}};
- constructor(readonly tag='div',options:Options={}){const o=typeof options==='string'?{cls:options}:options;for(const cls of (o.cls||'').split(' ').filter(Boolean))this.classes.add(cls);this.textContent=o.text||'';for(const[k,v]of Object.entries(o.attr||{}))this.setAttribute(k,v);}
+ constructor(readonly tag='div',options:Options={},doc?:Dom['ownerDocument']){if(doc)this.ownerDocument=doc;const o=typeof options==='string'?{cls:options}:options;for(const cls of (o.cls||'').split(' ').filter(Boolean))this.classes.add(cls);this.textContent=o.text||'';for(const[k,v]of Object.entries(o.attr||{}))this.setAttribute(k,v);}
  get isConnected():boolean{return this.root||!!this.parent?.isConnected;}
  get className(){return [...this.classes].join(' ');}set className(value:string){this.classes=new Set(value.split(/\s+/).filter(Boolean));}
  get childElementCount(){return this.children.length;}
@@ -81,7 +84,7 @@ class Dom {
  removeAttribute(name:string){this.attrs.delete(name);}
  setText(value:string){this.textContent=value;}
  appendText(value:string){this.textContent+=value;}
- createEl(tag:string,options:Options={}){const child=new Dom(tag,options);child.parent=this;this.children.push(child);return child;}
+ createEl(tag:string,options:Options={}){const child=new Dom(tag,options,this.ownerDocument);child.parent=this;this.children.push(child);return child;}
  createDiv(options:Options={}){return this.createEl('div',options);}
  createSpan(options:Options={}){return this.createEl('span',options);}
  append(...children:Dom[]){for(const child of children){child.remove();child.parent=this;this.children.push(child);}}
@@ -121,7 +124,7 @@ function fixture(kind:model.Card['kind']='card',patch:Partial<model.Card>={}){
  const world=new Dom();world.root=true;const svg=world.createEl('svg'),previewQueue=new Queue(),pdfPreviewQueue=new Queue();
  const mediaMounts:{options:MediaCardOptions;body:Dom;paused:number;disposed:number}[]=[];
  const session={board,blocked:false,writeBlocked:false,nativeReadonly:false,document:undefined,refreshNativeEditing(){},file:new File('board.thoughtspace')};
- const deps={isBrainBoard,parseOnlineSource,foldControlObstacles,effectiveCardStyle,cardHeadingColors,mountCardControlHover,nodeHasBorder,textBlockPadding,...model,...keys,mountCardQuickActions,mountCardReadingAffordance,cardControlLayout,renderBranchControls:branchModule.exports.renderBranchControls,branchState,branchRenderSnapshot,childConnectionCandidates:(board:model.Board,roots?:ReadonlySet<string>)=>{calls.childCandidates++;return childConnectionCandidates(board,roots);},sectionDisplayNode,visibleNodes,viewportRect,markdownPreview,visibleGridSize,textFontFamily,textFitsContent,cardDisplayTitle,syncCardTitlePresentation,mediaDimensions,
+ const deps={...liveModule.exports,isBrainBoard,parseOnlineSource,foldControlObstacles,effectiveCardStyle,cardHeadingColors,mountCardControlHover,nodeHasBorder,textBlockPadding,...model,...keys,mountCardQuickActions,mountCardReadingAffordance,cardControlLayout,renderBranchControls:branchModule.exports.renderBranchControls,branchState,branchRenderSnapshot,childConnectionCandidates:(board:model.Board,roots?:ReadonlySet<string>)=>{calls.childCandidates++;return childConnectionCandidates(board,roots);},sectionDisplayNode,visibleNodes,viewportRect,markdownPreview,visibleGridSize,textFontFamily,textFitsContent,cardDisplayTitle,syncCardTitlePresentation,mediaDimensions,
   act:()=>{},TFile:File,Component:Scope,Element:Dom,getAllTags:(cache:{tags?:string[]})=>{calls.tags++;return cache.tags||null;},setIcon:()=>{},
   button:(host:Dom,label:string,_icon:string,fn:()=>void,cls='')=>{const el=host.createEl('button',{cls,attr:{'aria-label':label}});el.createSpan();el.createSpan({text:label});el.onclick=fn;return el;},
   bindCardTitle:()=>()=>{},readProperties:(fm:Record<string,unknown>)=>({status:fm.thoughtspace_status}),statuses:{done:'完成'},isOverdue:()=>false,localDay:()=>'',
@@ -137,8 +140,8 @@ function fixture(kind:model.Card['kind']='card',patch:Partial<model.Card>={}){
  const scopeModule={exports:{}};new Function('require','module','exports',transformSync(readFileSync('src/preview-render-scope.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>previewImports[name],scopeModule,scopeModule.exports);previewImports['./preview-render-scope']=scopeModule.exports;
  new Function('require','module','exports',transformSync(readFileSync('src/card-preview.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>previewImports[name],cardPreviewModule,cardPreviewModule.exports);
  const allDeps={...deps,...cardPreviewModule.exports};
- const View=new Function(...Object.keys(allDeps),transformSync(`class View{${methods}};return View`,{loader:'ts'}).code)(...Object.values(allDeps));
- const view=new View();view.hostedUploads=new Set();Object.assign(view,{syncMinimapAvoidance(){},cardToolbarObstacles:[],session,world,svg,stage:new Dom(),contentEl:new Dom(),zoomLabel:new Dom(),selected:new Set(),positions:new Map(),nodeScopes:new Map(),nodeKeys:new Map(),boardMindmaps:new Map(),mediaStates:new Map(),mediaPlayers:new Map(),mediaIdentities:new Map(),onlineBoardPlayers:new Map(),onlineBoardStates:new Map(),pdfTotals:new Map(),previewQueue,pdfPreviewQueue,
+ const View=new Function(...Object.keys(allDeps),transformSync(`class View{cardControlRequests=new Map();reserveVisibleCardControls(){};${methods}};return View`,{loader:'ts'}).code)(...Object.values(allDeps));
+ const view=new View();view.hostedUploads=new Set();Object.assign(view,{syncMinimapAvoidance(){},reserveVisibleCardControls(){},cardToolbarObstacles:[],session,world,svg,stage:new Dom('div',{},world.ownerDocument),contentEl:new Dom('div',{},world.ownerDocument),zoomLabel:new Dom('div',{},world.ownerDocument),selected:new Set(),positions:new Map(),nodeScopes:new Map(),nodeKeys:new Map(),boardMindmaps:new Map(),mediaStates:new Map(),mediaPlayers:new Map(),mediaIdentities:new Map(),onlineBoardPlayers:new Map(),onlineBoardStates:new Map(),pdfTotals:new Map(),previewQueue,pdfPreviewQueue,
   plugin:{settings:{gridStep:24,previewLimit:20,detailZoom:.4,compactDuplicateCardTitles:false},pauseOnlineBoardPlayers(){},mediaWorkspace:{playback:new MediaPlayback(),identity:(file:any)=>({path:file.path,mtime:file.stat.mtime,size:file.stat.size})}},
   app:{vault:{getAbstractFileByPath:(path:string)=>files.get(path),getResourcePath:(file:File)=>file.path,async cachedRead(){calls.read++;return 'Rendered **note**';}},metadataCache:{getFileCache:()=>{calls.metadata++;return metadata;}}},
   displayBoard:()=>board,updateBackToContent(){},syncCanvasControls(){},updateObjectFilter(){},renderSaveStatus(){},renderNavigation(){},renderEdges(){},renderInspector(){},renderMinimap(){},addPorts(){},
@@ -370,14 +373,18 @@ test('changing outgoing children refreshes branch controls and folding removes o
 
 for(const kind of ['audio','video'] as const)test(`${kind}: link candidates and branch controls refresh without replacing a playing media instance`,()=>{
  const f=fixture(kind),el=f.element(),scope=f.scope(),player=f.view.mediaPlayers.get('node'),mounted=f.mediaMounts[0],body=mounted.body;
- const playback={time:24.5,rate:1.25,volume:.4};mounted.options.onState(playback);assert.equal(el.querySelector('.ts-branch-controls'),null);
- const retained=()=>{assert.equal(f.element(),el);assert.equal(f.scope(),scope);assert.equal(f.view.mediaPlayers.get('node'),player);assert.equal(el.querySelector('.ts-av-player'),body);assert.equal(f.mediaMounts.length,1);assert.equal(mounted.paused,0);assert.equal(mounted.disposed,0);assert.equal(scope.unloaded,0);assert.deepEqual(f.view.mediaStates.get('node'),playback);};
+ const playback={time:24.5,rate:1.25,volume:.4};mounted.options.onState(playback);
+ const group=el.querySelector('.ts-branch-controls'),toggle=el.querySelector('.ts-branch-toggle'),menu=el.querySelector('.ts-branch-menu');assert.ok(group&&toggle&&menu);
+ // Zero relations keep the original controls inert so a borrowed context lease
+ // survives later edge-only updates without replacing the playing media.
+ const unavailable=()=>{assert.equal(group.hidden,true);assert.equal(toggle.hidden,true);assert.equal(menu.hidden,true);assert.equal(toggle.disabled,true);assert.equal(menu.disabled,true);};unavailable();
+ const retained=()=>{assert.equal(el.querySelector('.ts-branch-controls'),group);assert.equal(el.querySelector('.ts-branch-toggle'),toggle);assert.equal(el.querySelector('.ts-branch-menu'),menu);assert.equal(f.element(),el);assert.equal(f.scope(),scope);assert.equal(f.view.mediaPlayers.get('node'),player);assert.equal(el.querySelector('.ts-av-player'),body);assert.equal(f.mediaMounts.length,1);assert.equal(mounted.paused,0);assert.equal(mounted.disposed,0);assert.equal(scope.unloaded,0);assert.deepEqual(f.view.mediaStates.get('node'),playback);};
  f.board.nodes.push(node('text',{id:'first',x:450,y:20}),node('text',{id:'second',x:450,y:250}));
- f.board.edges.push({id:'first-link',from:'node',to:'first',label:'摘录'});f.render();retained();assert.equal(el.querySelector('.ts-branch-count')?.textContent,'1');assert.ok(el.querySelector('.ts-branch-setup'));
+ f.board.edges.push({id:'first-link',from:'node',to:'first',label:'摘录'});f.render();retained();assert.equal(group.hidden,false);assert.equal(toggle.hidden,false);assert.equal(toggle.disabled,false);assert.equal(menu.hidden,true);assert.equal(el.querySelector('.ts-branch-count')?.textContent,'1');assert.ok(el.querySelector('.ts-branch-setup'));
  f.board.edges.push({id:'second-link',from:'node',to:'second',label:'另一个摘录'});f.render();retained();assert.equal(el.querySelectorAll('.ts-branch-controls').length,1);assert.equal(el.querySelector('.ts-branch-count')?.textContent,'2');
- f.board.edges[0].kind='branch';f.render();retained();assert.equal(el.querySelectorAll('.ts-branch-controls').length,1);assert.equal(el.querySelector('.ts-branch-setup'),null);assert.equal(el.querySelector('.ts-branch-count')?.textContent,'1');assert.equal(el.querySelector('.ts-branch-toggle')?.getAttribute('aria-expanded'),'true');
+ f.board.edges[0].kind='branch';f.render();retained();assert.equal(menu.hidden,false);assert.equal(menu.disabled,false);assert.equal(el.querySelectorAll('.ts-branch-controls').length,1);assert.equal(el.querySelector('.ts-branch-setup'),null);assert.equal(el.querySelector('.ts-branch-count')?.textContent,'1');assert.equal(el.querySelector('.ts-branch-toggle')?.getAttribute('aria-expanded'),'true');
  f.board.edges.splice(0,1);f.render();retained();assert.ok(el.querySelector('.ts-branch-setup'));assert.equal(el.querySelector('.ts-branch-count')?.textContent,'1');
- f.board.edges=[];f.render();retained();assert.equal(el.querySelector('.ts-branch-controls'),null);
+ f.board.edges=[];f.render();retained();unavailable();
  f.replace({width:500,height:350});retained();assert.deepEqual([el.style.width,el.style.height],['500px','350px']);
  // Real file revision still retires the retained player, so reuse cannot hide new content.
  f.files.get(f.board.nodes[0].file!)!.stat.mtime++;f.render();assert.notEqual(f.element(),el);assert.equal(mounted.paused,1);assert.equal(mounted.disposed,1);assert.equal(scope.unloaded,1);assert.equal(f.mediaMounts.length,2);assert.notEqual(f.view.mediaPlayers.get('node'),player);

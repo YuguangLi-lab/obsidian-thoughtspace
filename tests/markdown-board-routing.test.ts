@@ -48,7 +48,11 @@ const ownershipModule={exports:{} as any};
 new Function('require','module','exports',transformSync(readFileSync('src/board-editor-ownership.ts','utf8'),{loader:'ts',format:'cjs'}).code)(()=>({MarkdownView}),ownershipModule,ownershipModule.exports);
 const ownership=ownershipModule.exports;
 const prompts:any[]=[];
-class Prompt {constructor(public app:any,public title:string,public initial:string,public run:(value:string,type?:string)=>unknown,public options?:any){}open(){prompts.push(this);}}
+class Prompt {
+ run:(value:string,type?:string)=>unknown;
+ constructor(public app:any,public title:string,public initial:string,submit:(value:string,type:string|undefined,navigation:any)=>unknown,public options?:any){this.run=(value,type)=>submit(value,type,{current:()=>true,destination(){},retained(){},acquire:(create:()=>unknown)=>create(),target(){}});}
+ open(){prompts.push(this);}
+}
 class Menu {
  items:Array<{title:string;run?:()=>unknown}>=[];setUseNativeMenu(){return this;}addSeparator(){}showAtMouseEvent(){}
  addItem(create:(item:any)=>void){const record:{title:string;run?:()=>unknown}={title:''},item:any={setTitle:(title:string)=>{record.title=title;return item;},setIcon:()=>item,setDisabled:()=>item,onClick:(run:()=>unknown)=>{record.run=run;return item;}};create(item);this.items.push(record);return this;}

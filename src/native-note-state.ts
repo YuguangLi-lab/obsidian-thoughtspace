@@ -1,7 +1,20 @@
 import {App,MarkdownView,TFile} from 'obsidian';
 
-function editors(app:App,file:TFile):MarkdownView[]{
- return app.workspace.getLeavesOfType('markdown').map(leaf=>leaf.view).filter((view):view is MarkdownView=>view instanceof MarkdownView&&view.file===file&&view.getMode()==='source');
+function nativeViews(app:App,file:TFile):MarkdownView[]{
+ return app.workspace.getLeavesOfType('markdown').map(leaf=>leaf.view).filter((view):view is MarkdownView=>view instanceof MarkdownView&&view.file===file);
+}
+function editors(app:App,file:TFile):MarkdownView[]{return nativeViews(app,file).filter(view=>view.getMode()==='source');}
+/** Reading-mode Properties can hold unsaved text outside the source editor.
+ * A popout keeps its own activeElement after another window becomes active. */
+function assertNativePropertiesSettled(app:App,file:TFile){
+ for(const view of nativeViews(app,file)){
+  const root=view.containerEl,active=root?.ownerDocument?.activeElement as HTMLElement|null|undefined;
+  if(!active||!root?.contains?.(active))continue;
+  const property=active.closest?.('.metadata-property'),metadata=property?.closest('.metadata-container');
+  if(!metadata||!root.contains(metadata))continue;
+  const editable=active.isContentEditable||active.matches?.('input, textarea, select')&&!active.matches(':disabled, [readonly], input[type="hidden"], input[type="button"], input[type="submit"], input[type="reset"], input[type="image"]');
+  if(editable)throw Error('原生笔记属性正在编辑，请先完成原生属性编辑再试');
+ }
 }
 // TextFileView.save() returns immediately when a previous save is in flight,
 // and its saveAgain follow-up is not part of that returned Promise. Keep this
@@ -24,12 +37,14 @@ async function finishPendingNativeSave(app:App,file:TFile,views:MarkdownView[],e
 }
 /** A native view may contain newer text than the Vault while auto-save is pending. */
 export function assertNativeNoteUnchanged(app:App,file:TFile,expected:string){
+ assertNativePropertiesSettled(app,file);
  if(editors(app,file).some(view=>view.editor.getValue()!==expected))throw Error('原生笔记有新的编辑，未覆盖。请复制草稿后重新编辑');
 }
 export async function readCurrentNativeNote(app:App,file:TFile):Promise<string>{
+ assertNativePropertiesSettled(app,file);
  const views=editors(app,file),values=new Set(views.map(view=>view.editor.getValue())),path=file.path;
  if(values.size>1)throw Error('多个笔记窗口内容尚未同步，请稍后再打开卡片编辑');
- for(const view of views)if(view.file===file)await view.save();
+ for(const view of views)if(view.file===file){assertNativePropertiesSettled(app,file);await view.save();}
  await finishPendingNativeSave(app,file,views,values.values().next().value,path);
  const text=await app.vault.read(file);assertNativeNoteUnchanged(app,file,text);return text;
 }

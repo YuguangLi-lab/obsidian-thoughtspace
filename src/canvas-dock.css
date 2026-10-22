@@ -1,8 +1,8 @@
 /* Canvas chrome: a unified creation rail, quiet camera controls and a native
    title bar. No rules in this file style board objects or authored content. */
 .ts-root .ts-main {
-  --ts-canvas-chrome-surface: var(--background-primary);
-  --ts-canvas-chrome-line: color-mix(in srgb, var(--background-modifier-border) 85%, transparent);
+  --ts-canvas-chrome-surface: var(--ts-e-sheet,var(--background-primary));
+  --ts-canvas-chrome-line: var(--ts-e-line,var(--background-modifier-border));
   --ts-canvas-chrome-shadow: 0 2px 8px #00000009;
 }
 .theme-dark .ts-root .ts-main { --ts-canvas-chrome-shadow: 0 2px 8px #00000024; }
@@ -71,8 +71,8 @@
 .ts-root .ts-board-rail .ts-rail-group > .ts-button svg { width: 17px; height: 17px; stroke-width: 1.7; }
 .ts-root .ts-board-rail .ts-rail-group > .ts-button:hover:not(:disabled) { color: var(--text-normal); background: var(--background-modifier-hover) !important; }
 .ts-root .ts-board-rail .ts-rail-group > .ts-button:is(.is-active, [aria-expanded=true]) { color: var(--ts-accent) !important; background: var(--ts-board-active) !important; box-shadow: none !important; }
-.ts-root .ts-board-rail .ts-rail-group > .ts-primary { background: var(--ts-accent) !important; color: var(--text-on-accent) !important; box-shadow: 0 2px 5px color-mix(in srgb, var(--ts-accent) 20%, transparent) !important; }
-.ts-root .ts-board-rail .ts-rail-group > .ts-primary:hover:not(:disabled) { background: var(--ts-accent) !important; color: var(--text-on-accent); filter: brightness(1.08); }
+.ts-root .ts-board-rail .ts-rail-group > .ts-primary { background: var(--ts-accent) !important; color: var(--ts-selected-ink, var(--text-on-accent)) !important; box-shadow: 0 2px 5px color-mix(in srgb, var(--ts-accent) 20%, transparent) !important; }
+.ts-root .ts-board-rail .ts-rail-group > .ts-primary:hover:not(:disabled) { background: var(--ts-accent) !important; color: var(--ts-selected-ink, var(--text-on-accent)) !important; filter: brightness(1.08); }
 .ts-root .ts-board-rail .ts-rail-group > .ts-primary svg { stroke-width: 2; }
 .ts-root .ts-board-rail .ts-rail-group > .ts-button:focus-visible { outline: 2px solid var(--ts-accent); outline-offset: -2px; }
 
@@ -167,8 +167,8 @@
 .ts-native-header { --ts-accent:#326756; }
 .theme-dark .ts-native-header { --ts-accent:#8abbab; }
 .ts-native-header[data-accent=blue] { --ts-accent:#326a8b; }
-.ts-native-header[data-accent=amber] { --ts-accent:#876126; }
-.ts-native-header[data-accent=rose] { --ts-accent:#996074; }
+.ts-native-header[data-accent=amber] { --ts-accent:#805c24; }
+.ts-native-header[data-accent=rose] { --ts-accent:#8f5367; }
 .theme-dark .ts-native-header[data-accent=blue] { --ts-accent:#92bfd8; }
 .theme-dark .ts-native-header[data-accent=amber] { --ts-accent:#d7b67d; }
 .theme-dark .ts-native-header[data-accent=rose] { --ts-accent:#d8a6b8; }
@@ -223,3 +223,60 @@
 
 /* Retain geometry and the cached SVG while an active edit or drag needs this corner. */
 .ts-root .ts-main > .ts-minimap.is-avoiding {visibility:hidden;pointer-events:none;}
+
+/* Shared chrome uses a ruled edge and a clear pressed state. The measured rail,
+   footer reserve and native header ownership are unchanged. */
+.ts-root .ts-main > .ts-board-rail { border-radius:10px; box-shadow:0 2px 4px #00000008,0 8px 24px #00000008!important; }
+.ts-root .ts-board-rail .ts-rail-group > .ts-button { color:var(--ts-e-muted,var(--text-muted)); }
+.ts-root .ts-board-rail .ts-rail-group > .ts-button:active:not(:disabled) { background:var(--ts-e-wash,var(--background-modifier-hover))!important; box-shadow:inset 0 0 0 1px var(--ts-accent)!important; }
+.ts-root .ts-board-rail .ts-rail-group > .ts-button:is(.is-active,[aria-expanded=true]) { box-shadow:inset 3px 0 var(--ts-accent)!important; }
+/* Primary ink follows the actual pressed surface; focus stays distinct inside it. */
+.ts-root .ts-board-rail .ts-rail-group > .ts-primary:active:not(:disabled) { color:var(--ts-e-ink,var(--text-normal))!important; }
+.ts-root .ts-board-rail .ts-rail-group > .ts-primary:focus-visible:not(:disabled) { outline-color:currentColor; }
+.ts-root .ts-footer .ts-view-dock { border-radius:9px; }
+.ts-root .ts-footer :is(.ts-view-dock,.ts-canvas-controls) .ts-button:active:not(:disabled) { background:var(--ts-e-wash,var(--background-modifier-hover))!important; box-shadow:inset 0 0 0 1px var(--ts-accent); }
+.ts-native-header,.ts-native-header[data-glass=true] { background:var(--ts-e-sheet,var(--background-primary))!important; border-bottom-color:var(--ts-e-line,var(--background-modifier-border)); }
+.ts-native-header .view-header-title.ts-board-title { color:var(--ts-e-ink,var(--text-normal)); letter-spacing:0; }
+.ts-native-header .ts-header-action { color:var(--ts-e-muted,var(--text-muted)); }
+.ts-native-header .ts-header-action:active:not([aria-disabled=true]) { background:var(--ts-e-wash,var(--background-modifier-hover)); box-shadow:inset 0 0 0 1px var(--ts-accent); }
+.ts-root .ts-main > .ts-minimap .ts-map-label { color:var(--ts-e-muted,var(--text-muted)); font-size:11px; line-height:1.6; }
+
+
+/* Ordinary board tools occupy their own column. The same original stage and
+   controls remain mounted through width changes; authored coordinates and the
+   persisted camera are untouched. Dedicated brain/ink hide this whole body. */
+.ts-root .ts-main.ts-board-layout {
+  --ts-rail-column:50px;
+  display:grid; grid-template-columns:var(--ts-rail-column) minmax(0,1fr);
+  grid-template-rows:minmax(0,1fr); min-height:0;
+}
+.ts-root .ts-main.ts-board-layout.ts-compact-chrome { --ts-rail-column:54px; }
+.ts-root .ts-main.ts-board-layout > .ts-stage { grid-column:2; grid-row:1; min-width:0; min-height:0; }
+.ts-root .ts-main.ts-board-layout > .ts-board-rail {
+  grid-column:1; grid-row:1; position:relative; inset:auto;
+  display:flex; flex-direction:column; align-items:stretch;
+  align-self:stretch; box-sizing:border-box; width:100%; min-width:0;
+  height:auto; max-height:100%; min-height:0; margin:0; padding:4px 0;
+  border:0!important; border-inline-end:1px solid var(--ts-canvas-chrome-line)!important;
+  border-radius:0; transform:none; box-shadow:none!important;
+  overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; visibility:visible;
+}
+.ts-root .ts-main.ts-board-layout > .ts-board-rail .ts-rail-tools { flex:0 0 auto; margin-block:auto; }
+.ts-root .ts-main.ts-board-layout > .ts-floating-formatbar {
+  left:calc(var(--ts-rail-column) + (100% - var(--ts-rail-column))/2);
+  max-width:calc(100% - var(--ts-rail-column) - 16px);
+}
+.ts-root .ts-main.ts-board-layout > .ts-footer { left:calc(var(--ts-rail-column) + 8px); right:8px; }
+.ts-root .ts-main.ts-board-layout > .ts-inspector { right:8px; max-width:calc(100% - var(--ts-rail-column) - 16px); }
+.ts-root .ts-main.ts-board-layout > .ts-object-filter-status { left:calc(var(--ts-rail-column) + 8px); max-width:calc(100% - var(--ts-rail-column) - 16px); }
+.ts-root .ts-main.ts-board-layout > .ts-rail-popover { left:calc(var(--ts-rail-column) + 8px); max-width:calc(100% - var(--ts-rail-column) - 16px); }
+.ts-root .ts-main.ts-board-layout > .ts-stage > .ts-start-screen { left:50%; width:calc(100% - 24px); max-width:480px; transform:translate(-50%,-50%); }
+
+/* Actual short, narrow ordinary panes keep the four primary controls visible.
+   Fit, selected focus and overview remain in the original zoom menu. */
+.ts-root .ts-main.ts-board-layout.ts-compact-footer > .ts-footer .ts-view-dock { padding:3px; gap:0; }
+.ts-root .ts-main.ts-board-layout.ts-compact-footer > .ts-footer .ts-camera-controls { padding-inline-start:0; border-inline-start:0!important; }
+.ts-root .ts-main.ts-board-layout.ts-compact-footer > .ts-footer .ts-view-dock .ts-button { flex:0 0 44px; width:44px; min-width:44px; height:44px; min-height:44px; padding-inline:6px!important; }
+.ts-root .ts-main.ts-board-layout.ts-compact-footer > .ts-footer .ts-canvas-settings-toggle > span:last-child { display:none!important; }
+.ts-root .ts-main.ts-board-layout.ts-compact-footer > .ts-footer .ts-view-dock .ts-footer-secondary { display:none!important; }
+.ts-root .ts-main.ts-board-layout.ts-compact-footer > .ts-footer .ts-view-dock .ts-zoom [role=button] { min-width:46px; min-height:44px; display:flex; align-items:center; justify-content:center; }

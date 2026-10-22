@@ -32,3 +32,6 @@ test('keyboard activation on group ports links groups while content ports keep t
  const f=fixture();f.ports[1].onclick(f.event(0));f.ports[7].onclick(f.event(0));assert.equal(f.board.edges.length,1);assert.equal(f.stats.topics,0);assert.equal(f.v.mode,'select');
  f.board.nodes[0].kind='text';f.board.nodes[0].text='Topic';const ports:any[]=[];f.v.addPorts({createEl(_tag:string,options:any){const p={...options};ports.push(p);return p;}},'a');ports[1].onclick(f.event(0));assert.equal(f.stats.topics,1);
 });
+test('focused port cancels keyboard connection without changing graph, while IME Escape stays native',()=>{
+ const f=fixture(),port=f.ports[1];port.onclick(f.event(0));const before=JSON.stringify(f.board);port.onkeydown({...f.event(),key:'Escape',keyCode:229});assert.equal(f.v.mode,'connect');port.onkeydown({...f.event(),key:'Escape',isComposing:true});assert.equal(f.v.mode,'connect');port.onkeydown({...f.event(),key:'Escape'});assert.equal(f.v.mode,'select');assert.equal(JSON.stringify(f.board),before);
+});

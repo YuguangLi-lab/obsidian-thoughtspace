@@ -25,7 +25,7 @@ class ObjectURLs {
 class Element {
  children:Element[]=[];dataset:Record<string,string>={};attributes=new Map<string,string>();
  parentElement?:Element;
- ownerDocument:{defaultView:{setTimeout:typeof setTimeout;clearTimeout:typeof clearTimeout;URL:ObjectURLs;closed:boolean};activeElement?:Element}={defaultView:{setTimeout,clearTimeout,URL:new ObjectURLs(),closed:false}};
+ ownerDocument:{hasFocus:()=>boolean;addEventListener:(...args:unknown[])=>void;removeEventListener:(...args:unknown[])=>void;defaultView:{setTimeout:typeof setTimeout;clearTimeout:typeof clearTimeout;URL:ObjectURLs;closed:boolean};activeElement?:Element}={hasFocus:()=>true,addEventListener(){},removeEventListener(){},defaultView:{setTimeout,clearTimeout,URL:new ObjectURLs(),closed:false}};
  connected=true;visible=true;
  get isConnected():boolean{return this.parentElement?this.parentElement.isConnected:this.connected;}
  getClientRects(){return this.isConnected&&this.visible?[this.rect]:[];}
@@ -82,7 +82,7 @@ class ItemView {
  registerEvent(event:unknown){this.events.push(event);}
 }
 class Modal {
- modalEl=new Element();contentEl=new Element();opened=false;closed=false;
+ containerEl=new Element();modalEl=new Element();titleEl=Object.assign(new Element(),{setText(this:Element,text:string){this.textContent=text;}});contentEl=new Element();opened=false;closed=false;
  constructor(public app:any){app.modals.push(this);}
  onOpen(){}onClose(){}
  open(){if(this.app.failModalOpen)throw Error('Modal unavailable');this.opened=true;this.onOpen();}
@@ -112,7 +112,7 @@ function menuItem(menu:Menu,title:string){const item=menu.items.find(value=>valu
 async function settled(){await new Promise<void>(resolve=>setImmediate(resolve));}
 const compiled=transformSync(readFileSync('src/media-workspace-view.ts','utf8'),{loader:'ts',format:'cjs'}).code;
 const module={exports:{}};
-new Function('require','module','exports',compiled)((name:string)=>name==='obsidian'?{ItemView,Menu,Modal,Scope,TFile,setIcon:()=>{},Notice:class{constructor(text:string){notices.push(text);}}}:name==='./workspace-density'?density:name==='./mobile-viewport'?viewport:name==='./media-source'?mediaSource:name==='./media-preview-source'?previewSource:undefined,module,module.exports);
+new Function('require','module','exports',compiled)((name:string)=>name==='obsidian'?{ItemView,Menu,Modal,Scope,TFile,setIcon:()=>{},Notice:class{constructor(text:string){notices.push(text);}}}:name==='./workspace-density'?density:name==='./mobile-viewport'?viewport:name==='./media-source'?mediaSource:name==='./media-preview-source'?previewSource:name==='./ui-tokens'?{themeSurface(){}}:name==='./board-modal-viewport'?{bindBoardModalViewport:()=>()=>{}}:undefined,module,module.exports);
 const {MediaWorkspaceView} = module.exports as {MediaWorkspaceView:new(leaf:unknown,host:unknown)=>any};
 function fixture(drafts?:MediaDraftStore){
  const a=new TFile('media/A.mp4'),b=new TFile('media/B.mp3'),noteA=new TFile('notes/A.md'),noteB=new TFile('notes/B.md');
@@ -729,6 +729,13 @@ test('failed cleanup after a note save retains a locked retry snapshot across re
 });
 test('failed local removal keeps visible text and pending save blocks edits until cleanup settles',async()=>{
  const disk=localDrafts(),s=disk.create(),f=fixture(s),v=f.view();await v.setState({file:f.a.path});v.input.value='keep';v.input.oninput();await s.flush();disk.failRemove(true);await assert.rejects(v.clearDraft());assert.equal(v.input.value,'keep');assert.equal(disk.rows.size,1);disk.failRemove(false);await v.clearDraft();assert.equal(v.input.value,'');assert.equal(disk.rows.size,0);await v.onClose();
+});
+
+test('fresh audio grants the composer space while saved ratios and later source changes stay authoritative',async()=>{
+ const f=fixture(),audio=f.view();await audio.setState({file:f.b.path});assert.equal(audio.getState().viewerRatio,38);assert.equal(audio.getState().composerRatio,54);const editor=audio.input,player=audio.player;
+ audio.setViewerRatio(61);audio.setComposerRatio(44);assert.equal(audio.input,editor);assert.equal(audio.player,player);const state=audio.getState();await audio.onClose();
+ const restored=f.view();await restored.setState(state);assert.equal(restored.getState().viewerRatio,61);assert.equal(restored.getState().composerRatio,44);await restored.setState({file:f.a.path});await restored.setState({file:f.b.path});assert.equal(restored.getState().viewerRatio,61);assert.equal(restored.getState().composerRatio,44);await restored.onClose();
+ const video=f.view();await video.setState({file:f.a.path});assert.equal(video.getState().viewerRatio,56);assert.equal(video.getState().composerRatio,40);await video.onClose();
 });
 
 test('right editor height changes preserve draft, capture time, DOM selection and player identity',async()=>{

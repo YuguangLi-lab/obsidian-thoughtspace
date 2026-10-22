@@ -101,28 +101,34 @@
   opacity:0; visibility:hidden; pointer-events:none;
 }
 .ts-root .ts-node.ts-document-compact .ts-compact-actions:empty { display:none; }
-/* Keep long documents readable without an opaque surface or a layout shift. */
-.ts-root .ts-node.ts-card { --ts-card-reading-footer:12px; }
-.ts-root .ts-node.ts-card:has(> .ts-card-meta > :not(.ts-card-meta-placeholder)) { --ts-card-reading-footer:42px; }
-.ts-root .ts-node > .ts-card-reading-affordance {
-  position:absolute; z-index:5; right:16px; bottom:var(--ts-card-reading-footer);
-  display:inline-flex; align-items:center; justify-content:center; min-height:26px;
+/* Reading controls reserve their own flex row rather than covering note text. */
+.ts-root .ts-node > .ts-card-reading-footer {
+  --ts-reading-scale:1;
+  --ts-reading-edge-inset:max(calc(8px * var(--ts-reading-scale)),calc(16px * var(--ts-port-scale,1)));
+  position:relative; flex:none; min-height:0; margin:0; padding:0;
+}
+.ts-root .ts-node[data-touch-controls=true] > .ts-card-reading-footer { --ts-reading-scale:var(--ts-control-scale,1); }
+.ts-root .ts-node > .ts-card-reading-footer[hidden] { display:none; }
+.ts-root .ts-node > .ts-card-reading-footer > .ts-card-reading-affordance {
+  position:absolute; top:calc(8px * var(--ts-reading-scale)); right:var(--ts-reading-edge-inset);
+  display:inline-flex; align-items:center; justify-content:center; height:26px; min-height:26px;
+  max-width:calc((100% - var(--ts-reading-edge-inset) - var(--ts-reading-edge-inset)) / var(--ts-reading-scale)); white-space:nowrap;
+  transform:scale(var(--ts-reading-scale)); transform-origin:top right;
   margin:0; padding:4px 9px; border:1px solid color-mix(in srgb,var(--ts-object-line) 70%,transparent); border-radius:7px;
   font:500 11px/1.4 var(--font-interface); color:var(--text-muted);
-  background:var(--background-primary); box-shadow:none;
-  opacity:0; transition:opacity 120ms ease; cursor:pointer;
+  background:var(--background-primary); box-shadow:none; opacity:1; cursor:pointer;
 }
-.ts-root .ts-node > .ts-card-reading-affordance[hidden] { display:none; }
-.ts-root .ts-node:is(:hover,:focus-within,.is-selected) > .ts-card-reading-affordance { opacity:1; }
-.ts-root .ts-node > .ts-card-reading-affordance:hover { background:var(--ts-object-active); color:var(--ts-accent); }
-.ts-root .ts-node > .ts-card-reading-affordance:focus-visible { opacity:1; outline:2px solid var(--ts-accent); outline-offset:2px; }
+.ts-root .ts-node > .ts-card-reading-footer > .ts-card-reading-affordance[hidden] { display:none; }
+.ts-root .ts-node:is(:hover,:focus-within,.is-selected) > .ts-card-reading-footer > .ts-card-reading-affordance { opacity:1; }
+.ts-root .ts-node > .ts-card-reading-footer > .ts-card-reading-affordance:hover { background:var(--ts-object-active); color:var(--ts-accent); }
+.ts-root .ts-node > .ts-card-reading-footer > .ts-card-reading-affordance:focus-visible { opacity:1; outline:2px solid var(--ts-accent); outline-offset:2px; }
 @media (hover:none) {
   .ts-root .ts-node.ts-document-compact .ts-compact-actions,
-  .ts-root .ts-node > .ts-card-reading-affordance { opacity:1; visibility:visible; }
+  .ts-root .ts-node > .ts-card-reading-footer > .ts-card-reading-affordance { opacity:1; visibility:visible; }
 }
 @media (prefers-reduced-motion:reduce) {
   .ts-root .ts-node.ts-document-compact .ts-compact-actions,
-  .ts-root .ts-node > .ts-card-reading-affordance { transition:none; }
+  .ts-root .ts-node > .ts-card-reading-footer > .ts-card-reading-affordance { transition:none; }
 }
 
 .ts-root .ts-node.ts-card .ts-card-empty-prompt {
@@ -134,8 +140,14 @@
 .ts-root .ts-node.ts-card .ts-card-empty-prompt svg { width:18px; height:18px; stroke-width:1.3; }
 .ts-root .ts-node.ts-card .ts-card-empty-prompt:hover:not(:disabled) { color:var(--text-muted); }
 .ts-root .ts-node.ts-card .ts-card-empty-prompt:focus-visible { outline:1px dashed var(--ts-accent); outline-offset:-4px; }
-.ts-root .ts-node.ts-card.is-inline-editing > :is(.ts-card-empty-prompt,.ts-card-reading-affordance) { display:none; }
+.ts-root .ts-node.ts-card.is-inline-editing > :is(.ts-card-empty-prompt,.ts-card-reading-footer) { display:none; }
 
 .ts-root .ts-node.ts-card .ts-card-empty-prompt > span:last-child { min-width:0; overflow:hidden; text-overflow:ellipsis; }
 
 .ts-root .ts-node.ts-card > .ts-card-preview.is-empty-document { overflow:hidden; }
+
+/* Reading actions are chrome, while document typography, backgrounds and
+   metadata insets continue to belong to the saved card appearance. */
+.ts-root .ts-node > .ts-card-reading-footer > .ts-card-reading-affordance { background:var(--ts-e-sheet,var(--background-primary)); color:var(--ts-e-muted,var(--text-muted)); border-color:var(--ts-e-line,var(--background-modifier-border)); }
+.ts-root .ts-node > .ts-card-reading-footer > .ts-card-reading-affordance:active:not(:disabled) { background:var(--ts-e-wash,var(--background-modifier-hover)); box-shadow:inset 0 0 0 1px var(--ts-accent); }
+.ts-root .ts-node[data-touch-controls=true] > .ts-card-reading-footer > .ts-card-reading-affordance { height:44px; min-height:44px; padding-inline:12px; touch-action:manipulation; }

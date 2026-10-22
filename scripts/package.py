@@ -1,4 +1,4 @@
-"""Package the current build only; never include vaults, settings, or local backups."""
+"""Package only runtime, licenses and install notes; no screenshots or user data."""
 from pathlib import Path
 import hashlib
 import json
@@ -12,23 +12,9 @@ version = manifest['version']
 assert version == json.loads((root / 'package.json').read_text())['version']
 assert '/' not in version and '\\' not in version
 runtime = ['main.js', 'manifest.json', 'styles.css']
-files = runtime + ['README.md', 'README.zh-CN.md', 'docs/USER-GUIDE.md', 'docs/USER-GUIDE.zh-CN.md', 'docs/markdown-boards.zh-CN.md', 'docs/HANDWRITING-IPAD.zh-CN.md', 'docs/MOBILE-ADAPTATION.zh-CN.md', f'qa/RELEASE-{version}.md', 'SECURITY.md', 'CONTRIBUTING.md', 'CHANGELOG.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md']
-# The current guide still links the Markdown board's published baseline limits.
-if version != '1.3.34':
-    files.append('qa/RELEASE-1.3.34.md')
-# The stable README and user guides remain part of prerelease installations.
-if version != '1.3.35':
-    files.append('qa/RELEASE-1.3.35.md')
-# The changelog retains the distinct handwriting-only prerelease evidence.
-if version != '1.3.36-beta.1':
-    files.append('qa/RELEASE-1.3.36-beta.1.md')
-# Keep the linked published mobile baseline alongside local candidate evidence.
-if version != '1.3.36-beta.2':
-    files.append('qa/RELEASE-1.3.36-beta.2.md')
-# Current stable feature guides; local migration/session evidence is not distributed.
-files += ['docs/CONVENIENCE.zh-CN.md', 'docs/STARTUP-BRAIN.zh-CN.md', 'docs/UI-REFINEMENT.zh-CN.md', 'docs/COLLECTION-WORKSPACE.zh-CN.md']
-# Synthetic screenshots linked by the current validation reports.
-files += [f'qa/assets/mobile-beta2/{name}-SIMULATION.png' for name in ['brain-short-reopen', 'media-short-save', 'writing-fallback', 'recovery-copy', 'ipad-brain-500', 'ipad-handwriting-reopen']]
+# Keep this installation archive an explicit allowlist. Full documentation and
+# historical validation images stay in the repository, outside this package.
+files = runtime + ['LICENSE', 'THIRD_PARTY_NOTICES.md', 'README-INSTALL.txt']
 for name in files:
     assert (root / name).is_file(), f'Missing {name}; run npm run build first'
 dist.mkdir(exist_ok=True)

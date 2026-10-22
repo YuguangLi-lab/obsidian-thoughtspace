@@ -78,7 +78,7 @@ export function installToolPalettes(main:HTMLElement,rail:HTMLElement,entries:To
   previous.panel.hidden=true;previous.trigger.setAttribute('aria-expanded','false');
   if(restoreFocus&&!disposed){
    const target=previous.returnFocus?.()||previous.trigger;
-   if(previous.returnFocus&&(!ownedFocus||!target.isConnected||target.ownerDocument!==doc||!target.getClientRects().length||doc.hasFocus&&!doc.hasFocus()))return;
+   if(!ownedFocus||!target.isConnected||target.ownerDocument!==doc||!target.getClientRects().length||doc.hasFocus&&!doc.hasFocus())return;
    target.focus({preventScroll:true});
    // Closing a palette restores the footer, which can shorten the left rail.
    // The user may also have scrolled that rail while its palette was open.
@@ -127,10 +127,12 @@ export function installToolPalettes(main:HTMLElement,rail:HTMLElement,entries:To
   const trigger=()=>toggle(entry.panel),keydown=(event:KeyboardEvent)=>keys(event,entry.actions,entry);
   const activate=(event:MouseEvent)=>{
    const button=(event.target as Element|null)?.closest<HTMLButtonElement>('button');
-   if(active===entry&&button&&entry.actions.contains(button)&&!button.disabled&&button.getAttribute('aria-disabled')!=='true')close();
+   if(active===entry&&button&&entry.actions.contains(button)&&!button.disabled&&button.getAttribute('aria-disabled')!=='true')close(true);
   };
   // Restore canvas controls before a synchronous action measures their geometry
-  // (for example, mind-map layout calls fit immediately). Keep the action's focus.
+  // (for example, mind-map layout calls fit immediately). Move owned focus to
+  // the visible disclosure before an action opens a Modal, so its native
+  // return target remains visible. The action may then focus its own editor.
   entry.trigger.addEventListener('click',trigger);entry.panel.addEventListener('keydown',keydown);entry.panel.addEventListener('focusout',focusout);entry.panel.addEventListener('click',activate,true);
   cleanup.push(()=>{entry.trigger.removeEventListener('click',trigger);entry.panel.removeEventListener('keydown',keydown);entry.panel.removeEventListener('focusout',focusout);entry.panel.removeEventListener('click',activate,true);});
  }

@@ -11,7 +11,7 @@ assert.ok(bridgeStart>0&&bridgeEnd>bridgeStart);
 test('Collection bootstrap forwards current plugin accent and density rather than a startup snapshot',()=>{
  class CollectionWorkspace {constructor(_app:unknown,_library:unknown,readonly bridge:any){}}
  const Factory=new Function('CollectionWorkspace','collectionLibrary','uid',transformSync('class Factory { initialize(){'+source.slice(bridgeStart,bridgeEnd)+'} };return Factory;',{loader:'ts'}).code)(CollectionWorkspace,{},()=> 'unused-test-id');
- const factory=new Factory();Object.assign(factory,{settings:{accent:'blue',density:'compact'},manifest:{id:'thoughtspace',dir:'.obsidian/plugins/thoughtspace'},app:{vault:{configDir:'.obsidian'}},addChild:(value:unknown)=>value});factory.initialize();
+ const factory=new Factory();Object.assign(factory,{settings:{accent:'blue',density:'compact'},manifest:{id:'thoughtspace',dir:'.obsidian/plugins/thoughtspace'},app:{vault:{configDir:'.obsidian'}},addChild:(value:unknown)=>value,register:()=>{}});factory.initialize();
  const bridge=factory.collectionWorkspace.bridge;assert.deepEqual([bridge.accent(),bridge.density()],['blue','compact']);factory.settings={accent:'rose',density:'comfortable'};assert.deepEqual([bridge.accent(),bridge.density()],['rose','comfortable']);
 });
 function fixture(){

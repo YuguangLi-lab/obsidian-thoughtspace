@@ -17,9 +17,10 @@
 .ts-writing-identity strong{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;letter-spacing:0;line-height:1.5;}
 .ts-writing-identity>span{font-size:11px;color:var(--text-muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .ts-writing .ts-writing-dock-toggle.is-active{background:var(--writing-soft);color:var(--writing-accent);}
+.ts-writing .ts-writing-mode-menu,.ts-writing .ts-writing-generate-short{display:none;}
 .ts-writing .ts-writing-button.mod-cta{padding:0 14px;background:var(--writing-accent);color:var(--background-primary);font-weight:600;}
 .ts-writing.is-generating .ts-writing-header .mod-cta{opacity:.5;pointer-events:none;}
-.ts-writing-layout {display:grid;grid-template-columns:minmax(0,1fr) 14px clamp(240px,var(--writing-dock-width,320px),42%);flex:1;min-height:0;position:relative;padding:var(--writing-gutter);background:var(--background-primary);}
+.ts-writing-layout {display:grid;grid-template-columns:minmax(0,1fr) 14px clamp(240px,var(--writing-dock-width,320px),42%);flex:1;min-height:0;position:relative;padding:var(--writing-gutter);padding-bottom:max(var(--writing-gutter),var(--ts-host-bottom-inset,0px),env(safe-area-inset-bottom,0px));background:var(--background-primary);}
 .ts-writing-layout>div{min-width:0;min-height:0;}
 .ts-writing-source{display:flex;flex-direction:column;background:transparent;min-height:0;flex:1;}
 .ts-writing-panel-head{display:flex;align-items:center;justify-content:space-between;min-height:46px;flex:none;padding:8px 18px;gap:8px;}
@@ -32,7 +33,7 @@
 .ts-writing-filters{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;padding:0 14px 12px;flex:none;}
 .ts-writing .ts-writing-filters button{padding:0 8px;border-radius:5px;}
 .ts-writing .ts-writing-filters .is-active{color:var(--writing-accent);background:color-mix(in srgb,var(--writing-accent) 9%,transparent);font-weight:650;}
-.ts-writing-filters select{margin-left:auto;max-width:110px;height:26px;font-size:11px;border:0;background:transparent;box-shadow:none;color:var(--text-muted);}
+.ts-writing-filters select{margin-left:auto;max-width:110px;height:26px;font-size:11px;border:0;background-color:transparent;box-shadow:none;color:var(--text-muted);}
 .ts-writing-list{padding:0 8px 20px;overflow:auto;min-height:0;flex:1;}
 .ts-writing-material{display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid transparent;border-radius:9px;margin:2px 0;cursor:grab;}
 .ts-writing-material:hover{background:var(--background-primary);border-color:var(--writing-line);}
@@ -75,7 +76,7 @@
 .ts-writing-editor{padding:16px 24px 24px 44px;border-top:1px solid var(--writing-line);cursor:auto;}
 .ts-writing-editor-fields{display:grid;grid-template-columns:minmax(0,1fr) 100px;gap:12px;}
 .ts-writing-editor label{display:block;font-size:11px;color:var(--text-muted);line-height:1.7;margin-bottom:12px;}
-.ts-writing .ts-writing-editor input:not([type=checkbox]),.ts-writing .ts-writing-editor select,.ts-writing .ts-writing-editor textarea{width:100%;margin-top:5px;font-size:12px;box-shadow:none;background:var(--writing-soft);border:1px solid var(--writing-line);border-radius:6px;}
+.ts-writing .ts-writing-editor input:not([type=checkbox]),.ts-writing .ts-writing-editor select,.ts-writing .ts-writing-editor textarea{width:100%;margin-top:5px;font-size:12px;box-shadow:none;background-color:var(--writing-soft);border:1px solid var(--writing-line);border-radius:6px;}
 .ts-writing .ts-writing-editor textarea{resize:vertical;padding:10px 12px;line-height:1.75;min-height:96px;max-height:440px;}
 .ts-writing .ts-writing-editor .ts-writing-include{display:flex;align-items:center;gap:8px;margin-bottom:6px;}.ts-writing-editor>small{font-size:10px;color:var(--text-faint);}
 .ts-writing .ts-writing-add-chapter{width:auto;height:34px;margin:20px 0 0 32px;border:0;border-radius:6px;color:var(--text-muted);}
@@ -127,7 +128,7 @@
 .ts-writing .ts-writing-article-head>textarea:focus{outline:0;border:0;}
 @container (max-width:1050px){.ts-writing-identity>span{display:none;}.ts-writing-article-scroll{padding:36px 32px 64px;}.ts-writing-header{gap:8px;padding-inline:12px;grid-template-columns:minmax(64px,1fr) auto minmax(0,1fr);}.ts-writing-header-actions>.ts-writing-button[aria-label="新建章节"]>span:last-child:not(.ts-writing-icon){display:none;}.ts-writing-header-actions>.ts-writing-button[aria-label="新建章节"]{width:30px;padding:6px;}.ts-writing-entry-top{gap:10px;}.ts-writing-entry-actions{position:absolute;right:8px;top:7px;background:var(--background-primary);border-radius:5px;}.ts-writing .ts-writing-entry-name{font-size:16px;}}
 @container (max-width:900px){.ts-writing-layout{grid-template-columns:minmax(0,1fr);padding:12px;}.ts-writing-resize{display:none;}.ts-writing-dock{position:absolute;z-index:5;right:0;top:0;bottom:0;width:min(var(--writing-dock-width,320px),88%);margin:12px;box-shadow:-8px 8px 32px #00000018;background:var(--background-secondary);}.ts-writing-header .ts-writing-open-draft{display:none;}.ts-writing-header{grid-template-columns:1fr auto;gap:2px 8px;padding:4px 12px;}.ts-writing-heading{grid-area:1 / 1;}.ts-writing-header-actions{grid-area:1 / 2;}.ts-writing-composer-tools{grid-area:2 / 1 / 3 / 3;justify-content:flex-start;}.ts-writing-identity{max-width:160px;}.ts-writing-article-scroll{padding:30px 28px 48px;}}
-@container (max-width:450px){.ts-writing-layout{padding:6px;}.ts-writing-header{gap:2px 6px;padding:4px 8px;}.ts-writing-header-actions{gap:1px;}.ts-writing-header-actions>.mod-cta{padding:0 8px!important;font-size:11px!important;}.ts-writing-heading{gap:2px;}.ts-writing-article-scroll{padding:24px 18px 40px;}.ts-writing-entry-actions{opacity:1;}.ts-writing-entry-top{padding-top:32px;}.ts-writing-snippet,.ts-writing-children{padding-left:30px;}.ts-writing-editor{padding:12px;}}
+@container (max-width:450px){.ts-writing-layout{padding:6px;}.ts-writing-header{gap:2px 6px;padding:4px 8px;}.ts-writing-header-actions{gap:1px;}.ts-writing-header-actions>.mod-cta{padding:0 8px;font-size:11px;}.ts-writing-heading{gap:2px;}.ts-writing-article-scroll{padding:24px 18px 40px;}.ts-writing-entry-actions{opacity:1;}.ts-writing-entry-top{padding-top:32px;}.ts-writing-snippet,.ts-writing-children{padding-left:30px;}.ts-writing-editor{padding:12px;}}
 @media(prefers-reduced-motion:no-preference){.ts-writing-entry,.ts-writing-material{transition:border-color .12s,background .12s;}}
 
 
@@ -193,3 +194,190 @@
 .ts-writing-reference-buttons{display:flex;gap:8px;flex-wrap:wrap;}.ts-writing-reference-picker [role=alert]{color:var(--text-error);font-size:12px;}
 .ts-writing-context{flex:none;min-width:0;padding:0 14px;border-bottom:1px solid var(--background-modifier-border);}
 .ts-writing-context .ts-writing-navigator{margin:0;}.ts-writing-context .ts-writing-nav-rows{max-height:min(180px,24vh);}
+
+/* Writing has an editorial navigation frame around an unmodified native
+   manuscript. The mode attribute keeps these rules out of shared note UI. */
+.ts-writing[data-writing-mode] {--writing-line:var(--ts-e-line);--writing-soft:var(--ts-e-wash);background:var(--ts-e-paper);}
+.ts-writing[data-writing-mode] .ts-writing-header {min-height:62px;padding:10px 20px;gap:12px;border-color:var(--ts-e-line);background:var(--ts-e-paper);}
+.ts-writing[data-writing-mode] .ts-writing-heading {gap:10px;}
+.ts-writing[data-writing-mode] .ts-writing-identity {gap:3px;}
+.ts-writing[data-writing-mode] .ts-writing-identity strong {font-family:var(--ts-e-serif);font-size:18px;line-height:1.5;color:var(--ts-e-ink);}
+.ts-writing[data-writing-mode] .ts-writing-identity>span {color:var(--ts-e-muted);font-size:12px;line-height:1.5;}
+.ts-writing[data-writing-mode] .ts-writing-button {min-height:34px;height:auto;padding:6px 10px;border-radius:5px;color:var(--ts-e-muted);font-size:12px;line-height:1.5;}
+.ts-writing[data-writing-mode] .ts-writing-button:not(:disabled):hover {background:var(--ts-e-wash);color:var(--ts-e-ink);}
+.ts-writing[data-writing-mode] .ts-writing-button:not(:disabled):active {background:var(--ts-e-line);color:var(--ts-e-ink);}
+.ts-writing[data-writing-mode] .ts-writing-button.is-icon {width:34px;min-width:34px;padding:6px;}
+.ts-writing[data-writing-mode] .ts-writing-switch {gap:6px;border-color:var(--ts-e-line);}
+.ts-writing[data-writing-mode] .ts-writing-switch .ts-writing-button {min-height:36px;height:auto;padding-inline:12px;border-radius:0;}
+.ts-writing[data-writing-mode] .ts-writing-switch .is-active {background:transparent;color:var(--ts-e-editorial);box-shadow:inset 0 -2px var(--ts-e-editorial);font-weight:600;}
+.ts-writing[data-writing-mode] .ts-writing-header-actions {gap:5px;}
+.ts-writing[data-writing-mode] .ts-writing-header-actions>.mod-cta {min-height:36px;height:auto;padding-inline:14px;border:1px solid var(--ts-e-editorial);border-radius:5px;background:var(--ts-e-editorial);color:var(--ts-e-paper);font-size:13px;}
+.ts-writing[data-writing-mode] .ts-writing-header-actions>.mod-cta:not(:disabled):hover {background:var(--ts-e-editorial);color:var(--ts-e-paper);box-shadow:inset 0 0 0 1px currentColor;}
+.ts-writing[data-writing-mode] .ts-writing-dock-toggle.is-active {background:var(--ts-e-wash);color:var(--ts-e-editorial);box-shadow:inset 0 -2px var(--ts-e-editorial);}
+.ts-writing[data-writing-mode] .ts-writing-layout {padding:16px 20px;padding-bottom:max(16px,var(--ts-host-bottom-inset,0px),env(safe-area-inset-bottom,0px));background:var(--ts-e-paper);}
+.ts-writing[data-writing-mode] .ts-writing-composer {border:1px solid var(--ts-e-line);border-radius:8px;}
+.ts-writing[data-writing-mode] .ts-writing-dock {border:1px solid var(--ts-e-line);border-radius:8px;background:var(--ts-e-sheet);}
+.ts-writing[data-writing-mode] .ts-writing-dock-head {padding:10px 12px;gap:6px;border-color:var(--ts-e-line);background:var(--ts-e-sheet);}
+.ts-writing[data-writing-mode] .ts-writing-dock-head .is-active {background:var(--ts-e-wash);color:var(--ts-e-editorial);font-weight:600;}
+.ts-writing[data-writing-mode] .ts-writing-resize::after {left:6px;width:2px;background:var(--ts-e-line);}
+.ts-writing[data-writing-mode] .ts-writing-resize:is(:hover,:focus-visible,.is-resizing)::after {background:var(--ts-e-editorial);}
+.ts-writing[data-writing-mode] .ts-writing-panel-head {padding:12px 16px;}
+.ts-writing[data-writing-mode] .ts-writing-panel-head h3 {color:var(--ts-e-ink);font-size:14px;line-height:1.5;}
+.ts-writing[data-writing-mode] .ts-writing-search {height:36px;margin:0 12px 10px;padding:0 10px;border:1px solid var(--ts-e-line);border-radius:5px;background:var(--ts-e-paper);}
+.ts-writing[data-writing-mode] .ts-writing-search:focus-within {outline:2px solid var(--ts-e-editorial);outline-offset:2px;border-color:var(--ts-e-line);background:var(--ts-e-sheet);}
+.ts-writing[data-writing-mode] .ts-writing-search input {color:var(--ts-e-ink);font-size:13px;}
+.ts-writing[data-writing-mode] .ts-writing-search input::placeholder,.ts-writing[data-writing-mode] .ts-writing-search>span {color:var(--ts-e-muted);}
+.ts-writing[data-writing-mode] .ts-writing-filters {padding:0 12px 10px;gap:4px;flex-wrap:wrap;}
+.ts-writing[data-writing-mode] .ts-writing-filters button {min-height:32px;height:auto;padding:5px 8px;font-size:12px;}
+.ts-writing[data-writing-mode] .ts-writing-filters .is-active {color:var(--ts-e-editorial);background:var(--ts-e-wash);}
+.ts-writing[data-writing-mode] .ts-writing-filters select {min-height:32px;height:auto;padding-inline:8px;color:var(--ts-e-muted);font-size:12px;}
+.ts-writing[data-writing-mode] .ts-writing-list {padding:0 8px 16px;}
+.ts-writing[data-writing-mode] .ts-writing-material {gap:8px;margin:2px 0;padding:10px 8px;border-radius:5px;}
+.ts-writing[data-writing-mode] .ts-writing-material:hover {background:var(--ts-e-wash);}
+.ts-writing[data-writing-mode] .ts-writing-material.is-current-reference {background:var(--ts-e-wash);box-shadow:inset 3px 0 var(--ts-e-editorial);}
+.ts-writing[data-writing-mode] .ts-writing-material-icon {width:28px;height:28px;border-radius:0;background:transparent;color:var(--ts-e-editorial);}
+.ts-writing[data-writing-mode] .ts-writing-material .ts-writing-name {min-height:34px;padding:0;gap:4px;background:transparent;color:var(--ts-e-ink);font-size:13px;line-height:1.65;}
+.ts-writing[data-writing-mode] .ts-writing-name small,.ts-writing[data-writing-mode] .ts-writing-panel-foot {color:var(--ts-e-muted);font-size:12px;line-height:1.7;}
+.ts-writing[data-writing-mode] .ts-writing-material>.is-icon {opacity:1;}
+.ts-writing[data-writing-mode] .ts-writing-reference-tabs {padding:10px 10px 0;gap:6px;}
+.ts-writing[data-writing-mode] .ts-writing-reference-tab {max-width:210px;border-radius:5px;background:transparent;}
+.ts-writing[data-writing-mode] .ts-writing-reference-tab.is-active {background:var(--ts-e-wash);box-shadow:inset 0 -2px var(--ts-e-editorial);}
+.ts-writing[data-writing-mode] .ts-writing-reference-heading {padding:16px;align-items:flex-start;flex-wrap:wrap;gap:12px;border-color:var(--ts-e-line);background:var(--ts-e-sheet);}
+.ts-writing[data-writing-mode] .ts-writing-reference-identity {flex:1 1 140px;}
+.ts-writing[data-writing-mode] .ts-writing-reference-identity h4 {font-family:var(--ts-e-serif);font-size:19px;line-height:1.55;font-weight:600;color:var(--ts-e-ink);letter-spacing:0;}
+.ts-writing[data-writing-mode] .ts-writing-reference-kind {font-size:12px;line-height:1.6;color:var(--ts-e-muted);}
+.ts-writing[data-writing-mode] .ts-writing-reference-actions {flex-wrap:wrap;}
+.ts-writing[data-writing-mode] .ts-writing-reference-actions [aria-pressed=true] {background:var(--ts-e-wash);color:var(--ts-e-editorial);}
+.ts-writing[data-writing-mode] .ts-writing-reference-body {background:var(--background-primary);}
+.ts-writing[data-writing-mode] .ts-writing-context {padding-inline:16px;border-color:var(--ts-e-line);background:var(--ts-e-sheet);}
+.ts-writing[data-writing-mode] .ts-writing-navigator {color:var(--ts-e-muted);font-size:13px;}
+.ts-writing[data-writing-mode] .ts-writing-navigator>summary {min-height:36px;padding-block:8px;line-height:1.6;}
+.ts-writing[data-writing-mode] .ts-writing-nav-row>small {color:var(--ts-e-muted);font-size:11px;line-height:1.6;}
+.ts-writing[data-writing-mode] .ts-writing-nav-jump.is-current {color:var(--ts-e-editorial);background:var(--ts-e-wash);}
+.ts-writing[data-writing-mode] .ts-writing-assembly {color:var(--ts-e-muted);font-size:12px;line-height:1.75;}
+.ts-writing[data-writing-mode] .ts-writing-eyebrow {font-size:11px;line-height:1.6;letter-spacing:.04em;}
+.ts-writing[data-writing-mode] .ts-writing-article-head>textarea {font-family:var(--ts-e-serif);font-weight:600;letter-spacing:0;line-height:1.55;}
+.ts-writing[data-writing-mode] .ts-writing-totals {font-size:12px;line-height:1.75;}
+.ts-writing[data-writing-mode] .ts-writing-entry {border:1px solid var(--ts-e-line);border-radius:6px;background:var(--ts-e-sheet);}
+.ts-writing[data-writing-mode] .ts-writing-entry:hover {background:var(--ts-e-paper);}
+.ts-writing[data-writing-mode] .ts-writing-entry.is-selected {border-color:var(--ts-e-line);border-radius:6px;background:var(--ts-e-sheet);box-shadow:inset 3px 0 var(--ts-e-editorial);}
+.ts-writing[data-writing-mode] .ts-writing-entry-top,.ts-writing[data-writing-mode] .ts-writing-entry.is-excluded>.ts-writing-entry-top {display:flex;gap:12px;padding:18px 14px 14px;overflow:visible;}
+.ts-writing[data-writing-mode] .ts-writing-number {color:var(--ts-e-editorial);font-size:12px;line-height:1.7;}
+.ts-writing[data-writing-mode] .ts-writing-entry-name {padding:0;min-height:34px;font-size:17px;line-height:1.65;color:var(--ts-e-ink);background:transparent;}
+.ts-writing[data-writing-mode] .ts-writing-entry-name>small {font-size:12px;line-height:1.65;color:var(--ts-e-muted);}
+.ts-writing[data-writing-mode] .ts-writing-entry-actions {gap:3px;opacity:1;background:var(--ts-e-sheet);}
+.ts-writing[data-writing-mode] .ts-writing-entry-actions .is-icon {width:30px;min-width:30px;min-height:30px;height:auto;}
+.ts-writing[data-writing-mode] .ts-writing-children .ts-writing-button {min-height:30px;height:auto;padding:5px 8px;color:var(--ts-e-muted);font-size:12px;line-height:1.6;}
+.ts-writing[data-writing-mode] .ts-writing-snippet,.ts-writing[data-writing-mode] .ts-writing-note-preview {color:var(--ts-e-muted);font-size:13px;line-height:1.85;}
+.ts-writing[data-writing-mode] .ts-writing-editor label,.ts-writing[data-writing-mode] .ts-writing-editor>small {color:var(--ts-e-muted);font-size:12px;line-height:1.75;}
+.ts-writing[data-writing-mode] .ts-writing-editor input:not([type=checkbox]),.ts-writing[data-writing-mode] .ts-writing-editor select {min-height:34px;padding:6px 9px;border-color:var(--ts-e-line);border-radius:5px;background-color:var(--ts-e-paper);color:var(--ts-e-ink);font-size:13px;}
+.ts-writing[data-writing-mode] .ts-writing-entry-settings {font-size:12px;line-height:1.7;color:var(--ts-e-muted);}
+.ts-writing[data-writing-mode] .ts-writing-entry-settings summary {min-height:34px;padding-block:6px;}
+.ts-writing[data-writing-mode] .ts-writing-status {min-height:38px;gap:10px;padding:6px 14px;border-color:var(--ts-e-line);background:var(--ts-e-paper);}
+.ts-writing[data-writing-mode] .ts-writing-status-text {min-width:0;overflow-wrap:anywhere;color:var(--ts-e-muted);font-size:12px;line-height:1.6;}
+.ts-writing[data-writing-mode] .ts-writing-status-mode {color:var(--ts-e-muted);font-size:11px;line-height:1.6;}
+.ts-writing[data-writing-mode] .ts-writing-empty {padding:32px 24px;}
+.ts-writing[data-writing-mode] .ts-writing-empty h3 {margin:16px 0 12px;font-family:var(--ts-e-serif);font-size:25px;font-weight:600;line-height:1.5;}
+.ts-writing[data-writing-mode] .ts-writing-empty p {max-width:32em;margin:0 0 20px;font-size:14px;line-height:1.9;}
+.ts-writing[data-writing-mode] .ts-writing-reference-empty {padding:28px 20px;color:var(--ts-e-muted);}
+.ts-writing[data-writing-mode] .ts-writing-reference-empty h4 {font-family:var(--ts-e-serif);font-size:21px;line-height:1.55;color:var(--ts-e-ink);}
+.ts-writing[data-writing-mode] .ts-writing-reference-empty p {color:var(--ts-e-muted);font-size:14px;line-height:1.9;}
+.ts-writing[data-writing-mode] .ts-writing-small-empty {font-size:13px;line-height:1.85;}
+.ts-writing[data-writing-mode] :is(.ts-writing-button,.ts-writing-resize,.ts-writing-navigator>summary,.ts-writing-entry-settings>summary):focus-visible {outline:2px solid var(--ts-e-editorial);outline-offset:2px;}
+.ts-writing[data-writing-mode] .ts-writing-article-head>textarea:focus-visible {outline:2px solid var(--ts-e-editorial);outline-offset:5px;}
+.ts-writing[aria-busy] .ts-writing-transition {padding:32px;background:var(--ts-e-paper);border:1px solid var(--ts-e-line);border-radius:8px;}
+.ts-writing[aria-busy] .ts-writing-transition strong {font-family:var(--ts-e-serif);font-size:23px;line-height:1.5;color:var(--ts-e-ink);}
+.ts-writing[aria-busy] .ts-writing-transition>div>span {font-size:14px;line-height:1.85;color:var(--ts-e-muted);}
+.ts-writing[data-writing-mode] .ts-writing-recovery {padding:14px 18px;border-bottom:1px solid var(--ts-e-line);background:var(--ts-e-wash);color:var(--ts-e-ink);font-size:13px;line-height:1.8;}
+.ts-writing[data-writing-mode] .ts-writing-recovery textarea {padding:12px;border:1px solid var(--ts-e-line);border-radius:5px;background:var(--ts-e-sheet);color:var(--ts-e-ink);font-size:14px;line-height:1.85;}
+.modal.ts-writing-reference-picker {padding:24px;border:1px solid var(--ts-e-line);border-radius:10px;background:var(--ts-e-sheet);color:var(--ts-e-ink);}
+.ts-writing-reference-picker .modal-title {font-family:var(--ts-e-serif);font-size:24px;line-height:1.5;color:var(--ts-e-ink);}
+.ts-writing-reference-picker :is(small,.ts-writing-reference-hint) {font-size:13px;line-height:1.8;color:var(--ts-e-muted);}
+.ts-writing-reference-picker label {font-size:13px;color:var(--ts-e-ink);}
+.ts-writing-reference-picker select {min-height:36px;border-color:var(--ts-e-line);background-color:var(--ts-e-paper);color:var(--ts-e-ink);}
+.ts-writing-reference-picker textarea {padding:14px;border:1px solid var(--ts-e-line);border-radius:5px;background:var(--ts-e-paper);color:var(--ts-e-ink);font-size:14px;line-height:1.85;}
+.ts-writing-reference-picker .ts-writing-reference-buttons button {min-height:36px;padding:6px 12px;border:1px solid var(--ts-e-line);border-radius:5px;background:var(--ts-e-paper);color:var(--ts-e-ink);font-size:13px;box-shadow:none;}
+.ts-writing-reference-picker .ts-writing-reference-buttons button:not(:disabled):hover {background:var(--ts-e-wash);}
+.ts-writing-reference-picker :is(button,select,textarea):focus-visible {outline:2px solid var(--ts-e-editorial);outline-offset:2px;}
+@container ts-writing (max-width:1050px) {
+ .ts-writing[data-writing-mode] .ts-writing-entry-top,.ts-writing[data-writing-mode] .ts-writing-entry.is-excluded>.ts-writing-entry-top {padding-top:48px;}
+}
+@container ts-writing (max-width:900px) {
+ .ts-writing[data-writing-mode] .ts-writing-header {padding:8px 12px;gap:6px 10px;}
+ .ts-writing[data-writing-mode] .ts-writing-composer-tools {overflow-x:auto;}
+ .ts-writing[data-writing-mode] .ts-writing-layout {padding:10px;padding-bottom:max(10px,var(--ts-host-bottom-inset,0px),env(safe-area-inset-bottom,0px));}
+ .ts-writing[data-writing-mode] .ts-writing-dock {margin:10px;background:var(--ts-e-sheet);}
+ .ts-writing[data-writing-mode] .ts-writing-entry-top,.ts-writing[data-writing-mode] .ts-writing-entry.is-excluded>.ts-writing-entry-top {padding-top:60px;}
+}
+@container ts-writing (max-width:450px) {
+ .ts-writing[data-writing-mode] .ts-writing-header {grid-template-columns:minmax(0,1fr);padding:8px;}
+ .ts-writing[data-writing-mode] .ts-writing-heading {grid-area:1 / 1;}
+ .ts-writing[data-writing-mode] .ts-writing-header-actions {grid-area:2 / 1;justify-content:flex-start;flex-wrap:wrap;}
+ .ts-writing[data-writing-mode] .ts-writing-composer-tools {grid-area:3 / 1;}
+ .ts-writing[data-writing-mode] .ts-writing-identity {max-width:100%;}
+ .ts-writing[data-writing-mode] .ts-writing-identity strong {font-size:17px;}
+ .ts-writing[data-writing-mode] .ts-writing-layout {padding:6px;padding-bottom:max(6px,var(--ts-host-bottom-inset,0px),env(safe-area-inset-bottom,0px));}
+ .ts-writing[data-writing-mode] .ts-writing-dock {margin:6px;width:calc(100% - 12px);max-width:calc(100% - 12px);}
+ .ts-writing[data-writing-mode] .ts-writing-editor {padding:12px;}
+ .ts-writing[data-writing-mode] .ts-writing-editor-fields {grid-template-columns:minmax(0,1fr);gap:0;}
+ .ts-writing[data-writing-mode] .ts-writing-status {padding-inline:10px;flex-wrap:wrap;}
+}
+@media (any-pointer:coarse),(max-width:600px) {
+ .ts-writing[data-writing-mode] :is(.ts-writing-navigator>summary,.ts-writing-entry-settings>summary,.ts-writing-recovery>details>summary),.ts-writing-reference-picker :is(select,.ts-writing-reference-buttons button) {min-height:44px;touch-action:manipulation;}
+ .ts-writing[data-writing-mode] .ts-writing-search {height:44px;}
+ .ts-writing[data-writing-mode] .ts-writing-search input,.ts-writing[data-writing-mode] .ts-writing-editor input:not([type=checkbox]),.ts-writing[data-writing-mode] .ts-writing-recovery textarea,.ts-writing-reference-picker textarea,.ts-writing-reference-picker select {font-size:16px;}
+ .ts-writing-reference-picker {padding:20px 16px;}
+}
+/* Short panes and the owned visual viewport share compact chrome. The native
+   document, editor toolbar, focus and scroll geometry remain editor-owned. */
+@container ts-writing (max-width:450px) {
+.ts-writing[data-writing-mode][data-ts-keyboard=true] .ts-writing-header {grid-template-columns:44px minmax(0,1fr);min-height:0;padding:4px;gap:2px 4px;}
+.ts-writing[data-writing-mode][data-ts-keyboard=true] .ts-writing-heading {grid-area:1 / 1;gap:0;}
+.ts-writing[data-writing-mode][data-ts-keyboard=true] .ts-writing-identity {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
+.ts-writing[data-writing-mode][data-ts-keyboard=true] .ts-writing-header-actions {grid-area:1 / 2;justify-content:flex-start;flex-wrap:nowrap;gap:2px;overflow-x:auto;padding:4px;scroll-padding-inline:4px;}
+.ts-writing[data-writing-mode][data-ts-keyboard=true] .ts-writing-header-actions>.ts-writing-button {flex:none;}
+.ts-writing[data-writing-mode][data-ts-keyboard=true] .ts-writing-header-actions>.ts-writing-secondary-action {display:none;}
+.ts-writing[data-writing-mode][data-ts-keyboard=true] .ts-writing-header-actions>.mod-cta {width:56px;min-width:56px;min-height:44px;padding:0;}
+.ts-writing[data-writing-mode][data-ts-keyboard=true] .ts-writing-header-actions>.mod-cta>:not(.ts-writing-generate-short) {display:none;}
+.ts-writing[data-writing-mode][data-ts-keyboard=true] .ts-writing-header-actions>.mod-cta>.ts-writing-generate-short {display:inline;}
+.ts-writing[data-writing-mode][data-ts-keyboard=true] .ts-writing-header-actions>.ts-writing-mode-menu {display:inline-flex;min-width:76px;min-height:44px;padding-inline:8px;}
+.ts-writing[data-writing-mode][data-ts-keyboard=true] .ts-writing-composer-tools {display:none;}
+.ts-writing[data-writing-mode][data-ts-keyboard=true] .ts-writing-switch {width:100%;gap:2px;}
+.ts-writing[data-writing-mode][data-ts-keyboard=true] .ts-writing-switch>.ts-writing-button {flex:1;min-height:44px;padding-inline:6px;}
+.ts-writing[data-writing-mode][data-ts-keyboard=true] .ts-writing-layout {padding:4px;padding-bottom:max(4px,var(--ts-host-bottom-inset,0px),env(safe-area-inset-bottom,0px));}
+.ts-writing[data-writing-mode][data-ts-keyboard=true] .ts-writing-navigator {margin-block:0;}
+.ts-writing[data-writing-mode][data-ts-keyboard=true] .ts-writing-status {min-height:26px;padding:2px 8px;}
+}
+/* Actual pane height, not global window width: a short520px pop-out or
+   a short split in a tall window needs the same compact, reachable controls. */
+.ts-writing[data-writing-mode][data-writing-short=true] .ts-writing-header {grid-template-columns:44px minmax(0,1fr);min-height:0;padding:4px;gap:2px 4px;}
+.ts-writing[data-writing-mode][data-writing-short=true] .ts-writing-heading {grid-area:1 / 1;gap:0;}
+.ts-writing[data-writing-mode][data-writing-short=true] .ts-writing-identity {position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
+.ts-writing[data-writing-mode][data-writing-short=true] .ts-writing-header-actions {grid-area:1 / 2;justify-content:flex-start;flex-wrap:nowrap;gap:2px;overflow-x:auto;padding:4px;scroll-padding-inline:4px;}
+.ts-writing[data-writing-mode][data-writing-short=true] .ts-writing-header-actions>.ts-writing-button {flex:none;}
+.ts-writing[data-writing-mode][data-writing-short=true] .ts-writing-header-actions>.ts-writing-secondary-action {display:none;}
+.ts-writing[data-writing-mode][data-writing-short=true] .ts-writing-header-actions>.mod-cta {width:56px;min-width:56px;min-height:44px;padding:0;}
+.ts-writing[data-writing-mode][data-writing-short=true] .ts-writing-header-actions>.mod-cta>:not(.ts-writing-generate-short) {display:none;}
+.ts-writing[data-writing-mode][data-writing-short=true] .ts-writing-header-actions>.mod-cta>.ts-writing-generate-short {display:inline;}
+.ts-writing[data-writing-mode][data-writing-short=true] .ts-writing-header-actions>.ts-writing-mode-menu {display:inline-flex;min-width:76px;min-height:44px;padding-inline:8px;}
+.ts-writing[data-writing-mode][data-writing-short=true] .ts-writing-composer-tools {display:none;}
+.ts-writing[data-writing-mode][data-writing-short=true] .ts-writing-switch {width:100%;gap:2px;}
+.ts-writing[data-writing-mode][data-writing-short=true] .ts-writing-switch>.ts-writing-button {flex:1;min-height:44px;padding-inline:6px;}
+.ts-writing[data-writing-mode][data-writing-short=true] .ts-writing-layout {padding:4px;padding-bottom:max(4px,var(--ts-host-bottom-inset,0px),env(safe-area-inset-bottom,0px));}
+.ts-writing[data-writing-mode][data-writing-short=true] .ts-writing-navigator {margin-block:0;}
+.ts-writing[data-writing-mode][data-writing-short=true] .ts-writing-status {min-height:26px;padding:2px 8px;}
+/* The status message remains visible. Its duplicate rebuilding action is
+   available in the always-visible writing-options menu, with backup semantics. */
+.ts-writing[data-writing-mode][data-writing-short=true] .ts-writing-assembly>.ts-writing-button {display:none;}
+
+/* These targets belong to the writing menus only. */
+.menu:has(.ts-writing-mode-label) {max-width:calc(100vw - 16px);}
+.menu-item:has(.ts-writing-mode-label) {min-height:44px;touch-action:manipulation;}
+.menu:has(.ts-writing-menu-label) {max-width:calc(100vw - 16px);}
+.menu:has(.ts-writing-menu-label) .menu-item {min-height:44px;touch-action:manipulation;}
+@container ts-writing (max-width:240px) {
+ .ts-writing[data-writing-mode] .ts-writing-header-actions>.ts-writing-mode-menu,
+ .ts-writing[data-writing-mode][data-ts-keyboard=true] .ts-writing-header-actions>.ts-writing-mode-menu,
+ .ts-writing[data-writing-mode][data-writing-short=true] .ts-writing-header-actions>.ts-writing-mode-menu {width:44px;min-width:44px;padding-inline:0;}
+ .ts-writing[data-writing-mode] .ts-writing-mode-menu>span:not(.ts-writing-icon) {display:none;}
+}

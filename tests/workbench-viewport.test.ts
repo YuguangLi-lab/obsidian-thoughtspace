@@ -1,4 +1,5 @@
 import {minimapInsets} from '../src/minimap-avoidance';
+import {boardChromeObstacle} from '../src/board-chrome';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -11,7 +12,7 @@ import type {Card} from '../src/model';
 const source=readFileSync('src/main.ts','utf8');
 const start=source.indexOf('  private viewportInsets()'),end=source.indexOf('  fit() ',start);
 assert.ok(start>=0&&end>start);
-const View=new Function('minimapInsets',transformSync(`return class View{${source.slice(start,end)}}`,{loader:'ts'}).code)(minimapInsets);
+const View=new Function('minimapInsets','boardChromeObstacle',transformSync(`return class View{${source.slice(start,end)}}`,{loader:'ts'}).code)(minimapInsets,boardChromeObstacle);
 const rect=(left:number,top:number,width:number,height:number)=>({left,top,width,height,right:left+width,bottom:top+height});
 function fixture(chrome:Record<string,ReturnType<typeof rect>>){
   const view=new View();view.measureMinimap=()=>{};

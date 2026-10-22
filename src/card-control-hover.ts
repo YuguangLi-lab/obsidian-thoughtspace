@@ -21,7 +21,11 @@ function inBridge(point:Point,body:Rect,dock:Rect):boolean {
 export function mountCardControlHover(node:HTMLElement):()=>void {
   const doc=node.ownerDocument,view=doc.defaultView;
   const docks=Array.from(node.querySelectorAll<HTMLElement>(':scope > .ts-card-actions, :scope > .ts-compact-fold-row > .ts-compact-actions')).filter(dock=>dock.childElementCount>0);
-  if(!view||!docks.length)return()=>{};
+  // Media groups can be replaced without replacing their player/node. Resolve
+  // only the current direct group when an active corridor needs geometry.
+  // Expanded section headers are in-flow controls, never external docks.
+  const currentDocks=()=>docks.concat(Array.from(node.querySelectorAll<HTMLElement>(':scope > .ts-branch-controls')).filter(dock=>dock.childElementCount>0));
+  if(!view||!currentDocks().length&&node.dataset.mediaBranches===undefined)return()=>{};
   let disposed=false,active=false,frame:number|undefined,timer:number|undefined;
   let latest:PointerEvent|undefined;
   const cancelTimer=()=>{if(timer!==undefined)view.clearTimeout(timer);timer=undefined;};
@@ -41,7 +45,7 @@ export function mountCardControlHover(node:HTMLElement):()=>void {
     // A corridor must never keep a previous card open while approaching another.
     if(target?.closest?.('.ts-node')){stop();return;}
     const point={x:event.clientX,y:event.clientY},body=node.getBoundingClientRect();
-    if(Number.isFinite(point.x)&&Number.isFinite(point.y)&&docks.some(dock=>dock.isConnected&&inBridge(point,body,dock.getBoundingClientRect())))cancelTimer();
+    if(Number.isFinite(point.x)&&Number.isFinite(point.y)&&currentDocks().some(dock=>dock.isConnected&&inBridge(point,body,dock.getBoundingClientRect())))cancelTimer();
     else dismiss();
   };
   function move(event:PointerEvent){
@@ -64,7 +68,7 @@ export function mountCardControlHover(node:HTMLElement):()=>void {
     if(active||disposed||!node.isConnected||event.pointerType==='touch'||event.buttons)return;
     const inside=(rect:DOMRect)=>valid(rect)&&event.clientX>=rect.left&&event.clientX<=rect.right&&event.clientY>=rect.top&&event.clientY<=rect.bottom;
     // Captured releases can still target this node while physically outside it.
-    if(inside(node.getBoundingClientRect())||docks.some(dock=>dock.isConnected&&inside(dock.getBoundingClientRect())))enter(event);
+    if(inside(node.getBoundingClientRect())||currentDocks().some(dock=>dock.isConnected&&inside(dock.getBoundingClientRect())))enter(event);
   };
   node.addEventListener('pointerenter',enter);node.addEventListener('pointerleave',move);
   node.addEventListener('pointermove',resume,{passive:true});node.addEventListener('pointerup',resume,{passive:true});

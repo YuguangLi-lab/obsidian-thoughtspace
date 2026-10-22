@@ -5,17 +5,21 @@
 /* New-board choices stay compact; secondary file-format details remain
    available without competing with the type and name of the new board. */
 .ts-board-creation-modal {width:min(480px,100%);font-family:var(--font-interface)}
-.ts-board-creation-modal .modal-title {font-size:24px;line-height:1.3;font-weight:600;letter-spacing:-.025em}
+.ts-board-creation-modal .modal-title {font-size:24px;line-height:1.3;font-weight:600;letter-spacing:0}
 .ts-board-creation-modal .modal-content {padding-top:8px}
 .ts-board-creation-modal .setting-item {border:0;padding:12px 0;gap:16px}
 .ts-board-creation-modal .setting-item-name {font-size:13px}
-.ts-board-creation-purpose {margin:0 0 24px;color:var(--text-muted);font-size:13px;line-height:1.7}
+.ts-board-creation-modal .setting-item-control {flex-shrink:0;max-width:100%}
+/* Obsidian's fitted width is measured before our 16px touch font applies.
+   Reserve the complete Chinese label and the native dropdown arrow. */
+.ts-board-creation-modal .setting-item-control select {width:auto;min-width:min(100%,calc(5em + 36px))}
+.ts-board-creation-purpose {margin:0 0 24px;color:var(--ts-e-muted,var(--text-muted));font-size:13px;line-height:1.7}
 .ts-board-creation-name {display:flex;flex-direction:column;gap:8px;margin-bottom:24px;font-size:13px;font-weight:500}
 .ts-board-creation-name input {width:100%;height:40px;font-size:15px;font-weight:400;border-radius:6px}
-.ts-board-creation-format {border-top:1px solid var(--background-modifier-border);padding:12px 0}
-.ts-board-creation-format summary {width:fit-content;max-width:100%;padding:6px 0;color:var(--text-muted);font-size:12px;line-height:1.5;cursor:pointer}
+.ts-board-creation-format {border-top:1px solid var(--ts-e-line,var(--background-modifier-border));padding:12px 0}
+.ts-board-creation-format summary {width:fit-content;max-width:100%;padding:6px 0;color:var(--ts-e-muted,var(--text-muted));font-size:12px;line-height:1.5;cursor:pointer}
 .ts-board-creation-format summary:focus-visible {outline:2px solid var(--ts-accent,var(--interactive-accent));outline-offset:3px;border-radius:2px}
-.ts-board-creation-format .setting-item-description {margin:0;color:var(--text-muted);font-size:12px;line-height:1.6}
+.ts-board-creation-format .setting-item-description {margin:0;color:var(--ts-e-muted,var(--text-muted));font-size:12px;line-height:1.6}
 .ts-board-creation-modal [role=status] {font-size:13px;line-height:1.6;overflow-wrap:anywhere;max-height:120px;overflow:auto}
 .ts-board-creation-modal [role=status]:not(:empty) {padding-block:8px}
 .ts-board-creation-modal .modal-button-container {margin-top:16px;gap:8px;flex-wrap:wrap}

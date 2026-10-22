@@ -1,0 +1,66 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {transformSync} from 'esbuild';
+const source=readFileSync(new URL('../src/collection-view.ts',import.meta.url),'utf8');
+function take(start:string,end:string){const a=source.indexOf(start),b=source.indexOf(end,a);assert.ok(a>=0&&b>a,`${start} source boundary`);return source.slice(a,b);}
+const methods=take(' private current(){',' /** Retain filters')+take(' private invocation(){',' private buildNavigation(')+take(' private keydown(event:KeyboardEvent){',' private bindSubmitHotkey(){');
+const View=new Function(transformSync(`class CollectionView {${methods} handleSubmitHotkey(){} setDrawer(){} } return CollectionView;`,{loader:'ts'}).code)();
+function fixture({fieldTop=33.6640625,height=92,mainTop=77.765625,clientHeight=622,clientTop=0}:{fieldTop?:number;height?:number;mainTop?:number;clientHeight?:number;clientTop?:number}={}){
+ const frames:Array<()=>void>=[],writes:number[]=[];let mainScroll=285.5,focused=true;
+ const win:any={closed:false,requestAnimationFrame:(callback:()=>void)=>{frames.push(callback);return frames.length;},getComputedStyle:(el:any)=>({visibility:el.visibility})};
+ const doc:any={defaultView:win,hasFocus:()=>focused};
+ const root:any={ownerDocument:doc,isConnected:true,classList:{contains:()=>false},clientWidth:260};
+ const main:any={ownerDocument:doc,isConnected:true,clientTop,clientHeight,getBoundingClientRect:()=>({top:mainTop}),get scrollTop(){return mainScroll;},set scrollTop(value:number){writes.push(value);mainScroll=Math.max(0,Math.min(1500,value));}};
+ const input:any={ownerDocument:doc,isConnected:true,disabled:false,visibility:'visible',getClientRects:()=>[{}],getBoundingClientRect:()=>({top:fieldTop+285.5-mainScroll,bottom:fieldTop+285.5-mainScroll+height,height})};
+ const protectedState={value:'雨后的一条未提交记录',selectionStart:4,selectionEnd:9,selectionDirection:'backward',scrollTop:22.5,scrollLeft:7};
+ for(const [key,value] of Object.entries(protectedState))Object.defineProperty(input,key,{get:()=>value,set:()=>{throw Error(`Unexpected textarea ${key} write`);},enumerable:true});
+ input.focus=()=>{throw Error('Must not force focus');};input.scrollIntoView=()=>{throw Error('Must not scroll any ancestor implicitly');};
+ const previous:any={ownerDocument:doc};root.contains=(el:unknown)=>[main,input,previous].includes(el);main.contains=(el:unknown)=>el===input;doc.activeElement=previous;
+ const leaf={},view=new View();Object.assign(view,{root,main,bodyInput:input,contentEl:root,alive:true,navigationEpoch:0,stateEpoch:0,restoreEpoch:0,leaf,app:{workspace:{activeLeaf:leaf,getActiveViewOfType(type:typeof View){return type===View&&this.activeLeaf===leaf?view:null;}}}});
+ const event:any={isTrusted:true,key:'Tab',shiftKey:true,defaultPrevented:false,isComposing:false,altKey:false,ctrlKey:false,metaKey:false,view:win,target:previous,preventDefault(){this.defaultPrevented=true;},stopPropagation(){}};
+ const assertProtected=()=>{for(const [key,value] of Object.entries(protectedState))assert.equal(input[key],value,key);assert.equal(doc.activeElement,input);};
+ return{view,doc,win,root,main,input,previous,event,frames,writes,assertProtected,setFocused:(value:boolean)=>{focused=value;},run:()=>view.keydown(event),focus:()=>{doc.activeElement=input;},frame:()=>{assert.equal(frames.length,1);frames.shift()!();},setTop:(value:number)=>{fieldTop=value;}};
+}
+test('real ShiftTab reveals the full top-clipped body by the exact nearest-edge distance',()=>{const f=fixture();f.run();assert.equal(f.writes.length,0);f.focus();f.frame();assert.deepEqual(f.writes,[241.3984375]);assert.equal(f.input.getBoundingClientRect().top,77.765625);f.assertProtected();});
+test('forward Tab uses the same real keydown path after native focus moves into the body',()=>{const f=fixture();f.event.shiftKey=false;f.run();f.focus();f.frame();assert.equal(f.writes.length,1);f.assertProtected();});
+test('bottom-clipped field scrolls only its own main by the minimum distance',()=>{const f=fixture({fieldTop:650});f.run();f.focus();f.frame();assert.deepEqual(f.writes,[327.734375]);assert.equal(f.input.getBoundingClientRect().bottom,699.765625);f.assertProtected();});
+test('fully visible textarea causes no scroll write',()=>{const f=fixture({fieldTop:100});f.run();f.focus();f.frame();assert.deepEqual(f.writes,[]);f.assertProtected();});
+test('exact top and bottom bounds are already visible',()=>{for(const fieldTop of [77.765625,607.765625]){const f=fixture({fieldTop});f.run();f.focus();f.frame();assert.deepEqual(f.writes,[]);}});
+test('an oversized textarea keeps the native caret viewport instead of jumping to an edge',()=>{const f=fixture({height:700});f.run();f.focus();f.frame();assert.deepEqual(f.writes,[]);f.assertProtected();});
+test('zero-height viewport or field cannot produce a scroll write',()=>{for(const options of [{clientHeight:0},{height:0}]){const f=fixture(options);f.run();f.focus();f.frame();assert.deepEqual(f.writes,[]);}});
+test('the main client border is included in its visible top',()=>{const f=fixture({fieldTop:78,clientTop:2});f.run();f.focus();f.frame();assert.equal(f.input.getBoundingClientRect().top,79.765625);f.assertProtected();});
+test('geometry is read after native focus and scrolling rather than cached at keydown',()=>{const f=fixture();f.run();f.setTop(200);f.focus();f.frame();assert.deepEqual(f.writes,[]);});
+for(const cause of ['synthetic','pointer','arrow','prevented','composition','ime229','alt','ctrl','meta','foreign-window'])test(`no keyboard reveal is scheduled for ${cause}`,()=>{
+ const f=fixture();if(cause==='synthetic')f.event.isTrusted=false;if(cause==='pointer')f.event.key='';if(cause==='arrow')f.event.key='ArrowDown';if(cause==='prevented')f.event.defaultPrevented=true;if(cause==='composition')f.event.isComposing=true;if(cause==='ime229')f.event.keyCode=229;if(cause==='alt')f.event.altKey=true;if(cause==='ctrl')f.event.ctrlKey=true;if(cause==='meta')f.event.metaKey=true;if(cause==='foreign-window')f.event.view={};f.run();f.focus();assert.equal(f.frames.length,0);assert.deepEqual(f.writes,[]);f.assertProtected();
+});
+for(const cause of ['focus-left','background','closed-window','closed-view','navigation','session','pointer-or-wheel','other-leaf','replacement-root','replacement-main','replacement-input','moved-root','moved-main','moved-input','detached-root','detached-main','detached-input','outside-root','outside-main','disabled','hidden','visibility-hidden','late-prevented'])test(`queued reveal is cancelled after ${cause}`,()=>{
+ const f=fixture();f.run();f.focus();
+ if(cause==='focus-left')f.doc.activeElement=f.previous;
+ if(cause==='background')f.setFocused(false);
+ if(cause==='closed-window')f.win.closed=true;
+ if(cause==='closed-view')f.view.alive=false;
+ if(cause==='navigation')f.view.navigationEpoch++;
+ if(cause==='session')f.view.stateEpoch++;
+ if(cause==='pointer-or-wheel')f.view.restoreEpoch++;
+ if(cause==='other-leaf')f.view.app.workspace.activeLeaf={};
+ if(cause==='replacement-root')f.view.root={};
+ if(cause==='replacement-main')f.view.main={};
+ if(cause==='replacement-input')f.view.bodyInput={};
+ if(cause==='moved-root')f.root.ownerDocument={defaultView:f.win};
+ if(cause==='moved-main')f.main.ownerDocument={};
+ if(cause==='moved-input')f.input.ownerDocument={};
+ if(cause==='detached-root')f.root.isConnected=false;
+ if(cause==='detached-main')f.main.isConnected=false;
+ if(cause==='detached-input')f.input.isConnected=false;
+ if(cause==='outside-root')f.root.contains=()=>false;
+ if(cause==='outside-main')f.main.contains=()=>false;
+ if(cause==='disabled')f.input.disabled=true;
+ if(cause==='hidden')f.input.getClientRects=()=>[];
+ if(cause==='visibility-hidden')f.input.visibility='hidden';
+ if(cause==='late-prevented')f.event.defaultPrevented=true;
+ f.frame();assert.deepEqual(f.writes,[]);
+});
+test('Tab out of the textarea never restores its focus or scroll',()=>{const f=fixture();f.focus();f.run();f.doc.activeElement=f.previous;f.frame();assert.equal(f.doc.activeElement,f.previous);assert.deepEqual(f.writes,[]);});
+test('the existing narrow drawer trap remains authoritative',()=>{const f=fixture();const button:any={getClientRects:()=>[{}],focus:()=>{f.doc.activeElement=button;}};f.root.classList.contains=()=>true;f.view.nav={querySelectorAll:()=>[button],contains:()=>false};f.run();assert.equal(f.event.defaultPrevented,true);assert.equal(f.doc.activeElement,button);assert.equal(f.frames.length,0);assert.deepEqual(f.writes,[]);});
+test('source keeps the owned root listener and does not add a global focus or pointer listener',()=>{assert.ok(source.includes("this.registerDomEvent(root,'keydown',event=>this.keydown(event))"));assert.ok(!methods.includes('scrollIntoView'));assert.ok(!methods.includes('input.focus'));assert.ok(!methods.includes('input.scrollTop='));assert.ok(!methods.includes('selectionStart='));});

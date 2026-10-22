@@ -13,10 +13,10 @@ import {ConvenienceNavigationLease} from '../src/convenience-navigation';
 type Options=string|{cls?:string;text?:string;attr?:Record<string,string>;value?:string;type?:string};
 /** Host DOM boundary only. Delivery, chooser, close and plugin receipt methods
  * below execute the actual source; no production operation is copied here. */
-class Element {
+class Element extends EventTarget {
  children:Element[]=[];attrs:Record<string,string>={};classes=new Set<string>();dataset:Record<string,string>={};value='';text='';hidden=false;disabled=false;checked=false;isConnected=true;scrollTop=0;
  onclick?:()=>void;oninput?:()=>void;onchange?:()=>void;
- constructor(public ownerDocument:any,readonly tag='div',options:Options={}){if(typeof options==='string')options={cls:options};this.text=options.text||'';this.value=options.value||'';this.attrs={...options.attr,...(options.type?{type:options.type}:{})};for(const cls of (options.cls||'').split(/\s+/))if(cls)this.classes.add(cls);}
+ constructor(public ownerDocument:any,readonly tag='div',options:Options={}){super();if(typeof options==='string')options={cls:options};this.text=options.text||'';this.value=options.value||'';this.attrs={...options.attr,...(options.type?{type:options.type}:{})};for(const cls of (options.cls||'').split(/\s+/))if(cls)this.classes.add(cls);}
  createEl(tag:string,options:Options={}){const el=new Element(this.ownerDocument,tag,options);this.children.push(el);return el;}createDiv(options:Options={}){return this.createEl('div',options);}createSpan(options:Options={}){return this.createEl('span',options);}
  addClass(cls:string){this.classes.add(cls);}removeClass(cls:string){this.classes.delete(cls);}toggleClass(cls:string,on:boolean){if(on)this.addClass(cls);else this.removeClass(cls);}setAttribute(k:string,v:string){this.attrs[k]=v;}
  setText(text:string){this.empty();this.text=text;}empty(){this.children.forEach(el=>el.disconnect());this.children=[];this.text='';}disconnect(){this.isConnected=false;this.children.forEach(el=>el.disconnect());}
@@ -25,7 +25,11 @@ class Element {
  focus(){this.ownerDocument.activeElement=this;}click(){if(!this.disabled&&this.isConnected)this.onclick?.();}
  get textContent():string{return this.text+this.children.map(el=>el.textContent).join('');}
 }
-class Component {load(){}unload(){}registerEvent(_ref:unknown){}}
+class Component {
+ private disposers:Array<()=>void>=[];
+ load(){}unload(){for(const dispose of this.disposers.splice(0).reverse())dispose();}registerEvent(_ref:unknown){}
+ registerDomEvent(el:EventTarget,type:string,callback:EventListener,options?:boolean|AddEventListenerOptions){el.addEventListener(type,callback,options);this.disposers.push(()=>el.removeEventListener(type,callback,options));}
+}
 class Modal {
  containerEl:Element;modalEl:Element;contentEl:Element;titleEl:Element;closeCount=0;
  constructor(readonly app:any){this.containerEl=new Element(app.document);this.modalEl=this.containerEl.createDiv();this.contentEl=this.modalEl.createDiv();this.titleEl=this.modalEl.createDiv();}
@@ -125,4 +129,12 @@ test('the hub adopts its origin document, binds that container viewport and rele
 });
 test('a closed origin document refuses opening before viewport binding or result UI creation',()=>{
  const f=fixture(),before=viewportBindings.length;let closed=0;const rejected=new Hub(f.plugin.app,{...f.modal.host,document:{defaultView:{closed:true}},current:()=>true,closed:()=>closed++});rejected.open();assert.equal(rejected.active,false);assert.equal(rejected.closeCount,1);assert.equal(rejected.contentEl.children.length,0);assert.equal(viewportBindings.length,before);assert.equal(closed,1);f.modal.close();
+});
+
+test('actual Hub lifecycle registers its modal key listener and removes it on close',()=>{
+ const f=fixture(),event=new Event('keydown');let calls=0;
+ f.modal.keepTabInside=(received:Event)=>{assert.equal(received,event);calls++;};
+ f.modal.modalEl.dispatchEvent(event);assert.equal(calls,1);
+ f.modal.close();f.modal.modalEl.dispatchEvent(event);assert.equal(calls,1);
+ f.modal.close();f.modal.modalEl.dispatchEvent(event);assert.equal(calls,1);
 });

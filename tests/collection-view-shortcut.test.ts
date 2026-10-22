@@ -3,6 +3,14 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import * as density from '../src/workspace-density';
+import * as collectionSearch from '../src/collection-search';
+import * as calendar from '../src/collection-calendar';
+class HeatmapStub {
+ records:readonly any[]=[];dates:any={};destroyed=false;
+ constructor(readonly parent:any,readonly callbacks:any){}
+ update(records:readonly any[],dates:any){this.records=records;this.dates={...dates};}
+ destroy(){this.destroyed=true;}
+}
 
 class Doc {
  activeElement:El|null=null;body!:El;defaultView={closed:false};
@@ -53,6 +61,11 @@ const module={exports:{} as {CollectionView:new(leaf:any,host:any)=>any}};
 new Function('require','module','exports',compiled)((name:string)=>{
  if(name==='obsidian')return{ItemView,Component,Scope,MarkdownRenderer:{render:async()=>{}},setIcon:()=>{}};
  if(name==='./workspace-density')return density;
+ if(name==='./collection-search')return collectionSearch;
+ if(name==='./collection-calendar')return calendar;
+ if(name==='./collection-heatmap-view')return{CollectionHeatmapView:HeatmapStub};
+ if(name==='./collection-attachment-browser')return{CollectionAttachmentBrowser:class {open(){}close(){}}};
+ if(name==='./collection-note-export-modal')return{CollectionNoteExportModal:class {open(){}close(){}}};
  if(name==='./mobile-viewport')return{bindMobileViewport:()=>()=>{}};
  throw Error('Unexpected dependency: '+name);
 },module,module.exports);

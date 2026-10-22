@@ -70,6 +70,7 @@
 
 /* Only the editor scrolls: the draft time and save actions stay in place. */
 .ts-media-workspace__composer {display:flex; flex-direction:column; grid-area:composer; min-width:0; min-height:0; gap:8px; padding:14px 16px 10px; overflow:hidden;border:0;border-radius:0; background:var(--background-primary);}
+.ts-media-workspace__draft-tools {display:flex;flex-direction:column;flex:none;min-width:0;gap:inherit;}
 .ts-media-workspace__composer-heading, .ts-media-workspace__records-heading {display: flex; align-items: center; gap: 8px; flex: none; min-width: 0;}
 .ts-media-workspace__section-title {display: flex; align-items: center; gap: 7px; flex: 1 1 auto; min-width: 0; font-size: 13px; letter-spacing: -.01em;}
 .ts-media-workspace__section-title > span:first-child {display: inline-flex; color: var(--text-faint);}
@@ -190,11 +191,11 @@
 }
 @container ts-media-viewer (max-width: 310px) {
   .ts-media-workspace__player .ts-media-card__frame .ts-media-card__button-label {display: none;}
-  .ts-media-workspace__player .ts-media-card__transport {display: grid; grid-template-columns: 26px 26px 26px minmax(0,1fr) 48px; gap: 2px;}
-  .ts-media-workspace__player .ts-media-card__transport button {width: 26px; padding-inline: 3px;}
-  .ts-media-workspace__player .ts-media-card__position {margin-left: 0; padding-inline: 0; font-size: 9px; text-align: center;}
+  .ts-media-workspace__player .ts-media-card__transport {display: flex; flex-wrap: wrap; gap: 4px;}
+  .ts-media-workspace__player .ts-media-card__transport button {width: 44px; min-width: 44px; padding-inline: 3px;}
+  .ts-media-workspace__player .ts-media-card__position {flex: 1 1 4.5em; min-width: 4.5em; margin-left: auto; padding-inline: 0; font-size: 12px; line-height: 1.5; text-align: right; white-space: normal; overflow-wrap: anywhere;}
   .ts-media-workspace__player .ts-media-card__rate select {width: 48px; min-width: 0;}
-  .ts-media-workspace__player .ts-av-player .ts-media-card__toolbar :is(button,select) {min-height: 28px; padding-inline: 5px;}
+  .ts-media-workspace__player .ts-av-player .ts-media-card__toolbar :is(button,select) {min-height: 44px; padding-inline: 5px;}
 }
 @container ts-media-desk (max-width: 460px) {
   .ts-media-workspace__records {padding-inline: 12px;}
@@ -379,7 +380,7 @@
 
 .ts-media-workspace__composer {position:relative; container:ts-media-composer / inline-size;}
 .ts-media-workspace__composer-divider {position:absolute; left:0; right:0; bottom:0; height:6px; cursor:row-resize; touch-action:none;}
-.ts-media-workspace__composer-divider::after {content:''; position:absolute; bottom:1px; left:calc(50% - 18px); width:36px; height:2px; border-radius:2px; background:var(--background-modifier-border);}
+.ts-media-workspace__composer-divider::after {content:''; position:absolute; bottom:1px; left:calc(50% - 18px); width:36px; height:2px; border-radius:2px; background:var(--ts-e-muted);}
 .ts-media-workspace__composer-divider:is(:hover,:focus-visible)::after {background:var(--ts-accent);}
 @container ts-media-composer (min-width:380px) {
   .ts-media-workspace__savebar {display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px;}
@@ -387,6 +388,10 @@
   .ts-media-workspace__save-target {flex:none;}
   .ts-media-workspace__save-hint {display:none;}
   .ts-media-workspace__savebar .ts-media-workspace__composer-actions {padding-top:0;}
+}
+@container ts-media-composer (max-width:379px) {
+  .ts-media-workspace .ts-media-workspace__savebar .ts-media-workspace__composer-actions {flex-wrap:wrap;}
+  .ts-media-workspace .ts-media-workspace__save-hint {flex:1 0 100%;margin:0;white-space:normal;overflow-wrap:anywhere;}
 }
 @container ts-media (max-width:760px) {.ts-media-workspace__composer-divider {display:none;}}
 
@@ -410,4 +415,148 @@
   .ts-media-workspace__identity {flex:1 1 0; max-width:none;}
   .ts-media-workspace__message-area {order:3; flex:1 0 100%;}
   .ts-media-workspace__message-area:has(.ts-media-workspace__status:empty):not(:has(button:not([hidden]))) {display:none;}
+}
+
+/* Editorial workspace chrome. The mounted media surface and decoder retain
+   their own controls, dimensions and native playback behavior. */
+.workspace-leaf-content[data-type="thoughtspace-media-player"] .view-content.ts-media-workspace {
+  --ts-mw-line:var(--ts-e-line);
+  --ts-mw-soft:var(--ts-e-wash);
+  --ts-mw-accent-soft:var(--ts-e-wash);
+  --ts-mw-page:var(--ts-e-paper);
+  --ts-mw-radius:8px;
+  --ts-mw-shadow:none;
+  background:var(--ts-e-paper);
+}
+.ts-media-workspace .ts-media-workspace__header {gap:12px;min-height:64px;padding:10px 20px;border-color:var(--ts-e-line);background:var(--ts-e-paper);}
+.ts-media-workspace .ts-media-workspace__names {gap:3px;}
+.ts-media-workspace .ts-media-workspace__title {font-family:var(--ts-e-serif);font-size:20px;font-weight:600;line-height:1.45;letter-spacing:0;color:var(--ts-e-ink);}
+.ts-media-workspace .ts-media-workspace__eyebrow {color:var(--ts-e-muted);font-size:11px;letter-spacing:.06em;line-height:1.6;}
+.ts-media-workspace .ts-media-workspace__source {color:var(--ts-e-muted);font-size:12px;line-height:1.5;opacity:1;}
+.ts-media-workspace .ts-media-workspace__file-kind {padding:4px 6px;border:1px solid var(--ts-e-line);border-radius:3px;background:transparent;color:var(--ts-e-muted);font-size:10px;line-height:1.3;}
+.ts-media-workspace .ts-media-workspace__action {min-height:34px;padding:6px 9px;border-radius:5px;color:var(--ts-e-muted);font-size:12px;line-height:1.5;}
+.ts-media-workspace .ts-media-workspace__action:not(:disabled):hover {background:var(--ts-e-wash);color:var(--ts-e-ink);}
+.ts-media-workspace .ts-media-workspace__action:not(:disabled):active {background:var(--ts-e-line);color:var(--ts-e-ink);}
+.ts-media-workspace .ts-media-workspace__source-button {width:36px;min-height:36px;border-color:var(--ts-e-line);background:var(--ts-e-sheet);color:var(--ts-e-editorial);}
+.ts-media-workspace .ts-media-workspace__header-actions .ts-media-workspace__action[aria-pressed="true"] {color:var(--ts-e-editorial);background:var(--ts-e-wash);box-shadow:inset 0 -2px var(--ts-e-editorial);}
+.ts-media-workspace .ts-media-workspace__layout-options {color:var(--ts-e-muted);font-size:12px;}
+.ts-media-workspace .ts-media-workspace__layout-options>summary {min-height:34px;padding:6px 9px;border-radius:5px;}
+.ts-media-workspace .ts-media-workspace__layout-options>summary:hover,.ts-media-workspace .ts-media-workspace__layout-options[open]>summary {color:var(--ts-e-ink);background:var(--ts-e-wash);}
+.ts-media-workspace .ts-media-workspace__layout-control {width:min(248px,calc(100vw - 32px));padding:16px;gap:12px;border-color:var(--ts-e-line);border-radius:8px;background:var(--ts-e-sheet);color:var(--ts-e-muted);font-size:12px;line-height:1.5;}
+.ts-media-workspace .ts-media-workspace__layout {gap:12px 20px;padding:16px 20px;}
+.ts-media-workspace .ts-media-workspace__composer {padding:16px 18px 12px;border:1px solid var(--ts-e-line);border-radius:8px;background:var(--ts-e-sheet);}
+.ts-media-workspace .ts-media-workspace__desk {border-color:var(--ts-e-line);border-radius:8px;background:var(--ts-e-sheet);}
+.ts-media-workspace .ts-media-workspace__records {padding:14px 16px 10px;gap:10px;}
+.ts-media-workspace .ts-media-workspace__section-title {gap:8px;color:var(--ts-e-ink);font-size:14px;line-height:1.5;letter-spacing:0;}
+.ts-media-workspace .ts-media-workspace__section-title>span:first-child {color:var(--ts-e-editorial);}
+.ts-media-workspace .ts-media-workspace__draft-time {color:var(--ts-e-muted);font-size:12px;}
+.ts-media-workspace .ts-media-workspace__draft-time[data-fixed="true"] {color:var(--ts-e-editorial);}
+.ts-media-workspace .ts-media-workspace__editor {border:1px solid var(--ts-e-line);border-radius:5px;background:var(--ts-e-sheet);}
+.ts-media-workspace .ts-media-workspace__editor:focus-within {outline:2px solid var(--ts-e-editorial);outline-offset:2px;box-shadow:none;}
+.ts-media-workspace .ts-media-workspace__editor-label {padding:7px 12px 0;color:var(--ts-e-muted);font-size:11px;line-height:1.5;}
+.ts-media-workspace .ts-media-workspace__input {padding:9px 12px;color:var(--ts-e-ink);font-size:15px;line-height:1.85;}
+.ts-media-workspace .ts-media-workspace__input::placeholder {color:var(--ts-e-muted);}
+.ts-media-workspace .ts-media-workspace__input:read-only {color:var(--ts-e-muted);}
+.ts-media-workspace .ts-media-workspace__capture-actions {flex-wrap:wrap;}
+.ts-media-workspace .ts-media-workspace__capture-actions button {min-height:32px;padding:5px 9px;border-color:var(--ts-e-line);border-radius:5px;background:transparent;color:var(--ts-e-muted);font-size:12px;line-height:1.5;}
+.ts-media-workspace .ts-media-workspace__capture-actions button:not(:disabled):hover {color:var(--ts-e-ink);background:var(--ts-e-wash);}
+.ts-media-workspace :is(.ts-media-workspace__save-target,.ts-media-workspace__draft-status,.ts-media-workspace__save-hint,.ts-media-workspace__image-label,.ts-media-workspace__page-info) {color:var(--ts-e-muted);font-size:12px;line-height:1.6;}
+.ts-media-workspace .ts-media-workspace__message-area .ts-media-workspace__status {color:var(--ts-e-muted);line-height:1.65;}
+.ts-media-workspace .ts-media-workspace__savebar .ts-media-workspace__action.mod-cta,.ts-media-workspace .ts-media-workspace__empty-actions .ts-media-workspace__action.mod-cta {min-height:36px;border-color:var(--ts-e-editorial);background:var(--ts-e-editorial);color:var(--ts-e-paper);font-weight:600;}
+.ts-media-workspace .ts-media-workspace__savebar .ts-media-workspace__action.mod-cta:not(:disabled):hover,.ts-media-workspace .ts-media-workspace__empty-actions .ts-media-workspace__action.mod-cta:not(:disabled):hover {background:var(--ts-e-editorial);color:var(--ts-e-paper);box-shadow:inset 0 0 0 1px currentColor;}
+.ts-media-workspace .ts-media-workspace__search-row {border-color:var(--ts-e-line);border-radius:5px;background:var(--ts-e-paper);}
+.ts-media-workspace .ts-media-workspace__search-row:focus-within {outline:2px solid var(--ts-e-editorial);outline-offset:2px;}
+.ts-media-workspace .ts-media-workspace__search {min-height:34px;color:var(--ts-e-ink);font-size:13px;}
+.ts-media-workspace .ts-media-workspace__search::placeholder {color:var(--ts-e-muted);}
+.ts-media-workspace .ts-media-workspace__search-row>span,.ts-media-workspace .ts-media-workspace__timeline-count {color:var(--ts-e-muted);}
+.ts-media-workspace :is(.ts-media-workspace__filters,.ts-media-workspace__timeline-tools,.ts-media-workspace__pagination) .ts-media-workspace__action {min-height:30px;font-size:12px;}
+.ts-media-workspace .ts-media-workspace__filters .ts-media-workspace__action[aria-pressed="true"] {border-color:var(--ts-e-line);color:var(--ts-e-editorial);background:var(--ts-e-wash);font-weight:600;}
+.ts-media-workspace .ts-media-workspace__moment {border-color:var(--ts-e-line);}
+.ts-media-workspace .ts-media-workspace__moment-time {color:var(--ts-e-editorial);font-size:12px;}
+.ts-media-workspace .ts-media-workspace__moment-text {color:var(--ts-e-ink);font-size:14px;line-height:1.85;}
+.ts-media-workspace .ts-media-workspace__moment-footer .ts-media-workspace__action,.ts-media-workspace .ts-media-workspace__moment-image {color:var(--ts-e-muted);font-size:12px;}
+.ts-media-workspace .ts-media-workspace__moment-footer {max-width:none;gap:4px;}
+.ts-media-workspace .ts-media-workspace__moment::after {border-color:var(--ts-e-sheet);background:var(--ts-e-muted);}
+.ts-media-workspace .ts-media-workspace__moment[data-current="true"]::after {background:var(--ts-e-editorial);}
+.ts-media-workspace .ts-media-workspace__draft-status[data-state="error"] {color:var(--text-error);}
+.ts-media-workspace .ts-media-workspace__no-records {padding:24px 12px;text-align:start;color:var(--ts-e-muted);font-size:13px;line-height:1.85;}
+.ts-media-workspace .ts-media-workspace__empty {gap:16px;padding:clamp(28px,6cqw,72px);background:var(--ts-e-paper);}
+.ts-media-workspace .ts-media-workspace__empty-icon {border:1px solid var(--ts-e-line);border-radius:8px;background:var(--ts-e-sheet);color:var(--ts-e-editorial);}
+.ts-media-workspace .ts-media-workspace__empty h2 {max-width:20em;margin:0;font-family:var(--ts-e-serif);font-size:clamp(26px,3cqw,36px);font-weight:600;line-height:1.5;letter-spacing:0;color:var(--ts-e-ink);}
+.ts-media-workspace .ts-media-workspace__empty p {max-width:34em;margin:0;color:var(--ts-e-muted);font-size:14px;line-height:1.9;}
+.ts-media-workspace .ts-media-workspace__panel-switcher .ts-media-workspace__action[aria-pressed="true"] {color:var(--ts-e-editorial);box-shadow:inset 0 -2px var(--ts-e-editorial);}
+.ts-media-workspace :is(.ts-media-workspace__action,.ts-media-workspace__layout-options>summary,.ts-media-workspace__layout-range,.ts-media-workspace__composer-divider,.ts-media-workspace__draft-image,.ts-media-workspace__moment-preview):focus-visible {outline:2px solid var(--ts-e-editorial);outline-offset:2px;}
+@container ts-media (max-width:760px) {
+  .ts-media-workspace .ts-media-workspace__header {min-height:54px;padding:8px 12px;gap:8px;}
+  .ts-media-workspace .ts-media-workspace__title {font-size:18px;}
+  .ts-media-workspace .ts-media-workspace__composer {padding:12px;}
+  .ts-media-workspace .ts-media-workspace__records {padding:12px;}
+  .ts-media-workspace .ts-media-workspace__empty {padding:28px 20px;}
+}
+@container ts-media (max-height:520px) {
+  .ts-media-workspace .ts-media-workspace__header {min-height:44px;padding-block:5px;}
+  .ts-media-workspace .ts-media-workspace__title {font-size:17px;}
+}
+@container ts-media (min-width:761px) {
+  .ts-media-workspace[data-media-kind="audio"]:not([data-focus-player="true"]) .ts-media-workspace__main {height:170px;}
+}
+/* In a short compose pane, put time and capture on one row. The textarea and
+   save actions retain their own mounted controls and the composer can scroll. */
+@container ts-media (max-width:760px) and (max-height:420px) {
+  .ts-media-workspace .ts-media-workspace__header {padding-block:0;}
+  .ts-media-workspace .ts-media-workspace__layout {padding:6px;gap:6px;}
+  .ts-media-workspace .ts-media-workspace__composer {padding:6px;gap:6px;}
+  .ts-media-workspace .ts-media-workspace__draft-tools {flex-direction:row;align-items:center;justify-content:space-between;gap:4px;}
+  .ts-media-workspace .ts-media-workspace__composer-heading {min-width:0;}
+  .ts-media-workspace .ts-media-workspace__composer-heading .ts-media-workspace__section-title {display:none;}
+  .ts-media-workspace .ts-media-workspace__capture-actions {gap:4px;}
+  .ts-media-workspace .ts-media-workspace__capture-actions button {min-width:44px;min-height:44px;padding:6px;}
+  .ts-media-workspace .ts-media-workspace__capture-actions .ts-media-card__button-label {display:none;}
+  .ts-media-workspace .ts-media-workspace__editor-label {display:none;}
+}
+@container ts-media-desk (max-width:460px) {
+  .ts-media-workspace .ts-media-workspace__moment {grid-template-columns:minmax(0,1fr) auto;gap:5px 8px;}
+  .ts-media-workspace .ts-media-workspace__moment-body {grid-column:1 / -1;grid-row:2;}
+  .ts-media-workspace .ts-media-workspace__moment-footer {grid-column:2;grid-row:1;}
+}
+
+/* Recovery is a separate, selectable document surface, never an auto-save. */
+.modal.ts-media-draft-recovery-modal {width:min(680px,calc(100vw - 32px));max-height:calc(100dvh - 32px);padding:24px;background:var(--ts-e-sheet);color:var(--ts-e-ink);border:1px solid var(--ts-e-line);border-radius:10px;}
+/* The content owns the recovery title; collapse only the native empty-header chrome. */
+.ts-media-draft-recovery-modal > .modal-header:has(> .modal-title:only-child:empty) {padding:0;margin:0;border:0}
+.ts-media-draft-recovery-modal .modal-content {overflow:auto;overscroll-behavior:contain;}
+.ts-media-draft-recovery-modal .modal-content>h2 {margin:0 32px 12px 0;font:600 24px/1.5 var(--ts-e-serif);color:var(--ts-e-ink);}
+.ts-media-draft-recovery-modal .modal-content>p {max-width:42em;color:var(--ts-e-muted);font-size:14px;line-height:1.85;}
+.ts-media-draft-recovery-modal .ts-media-draft-recovery {margin-top:20px;padding:20px 0 0;border-color:var(--ts-e-line);}
+.ts-media-draft-recovery-modal .ts-media-draft-recovery h3 {font-size:15px;line-height:1.65;color:var(--ts-e-ink);}
+.ts-media-draft-recovery-modal .ts-media-draft-recovery p {color:var(--ts-e-muted);font-size:13px;line-height:1.8;}
+.ts-media-draft-recovery-modal .ts-media-draft-recovery textarea {padding:12px;border:1px solid var(--ts-e-line);border-radius:5px;background:var(--ts-e-paper);color:var(--ts-e-ink);font-size:14px;line-height:1.85;}
+.ts-media-draft-recovery-modal .ts-media-draft-recovery button {min-height:36px;margin:8px 8px 0 0;padding:6px 12px;border:1px solid var(--ts-e-line);border-radius:5px;background:var(--ts-e-paper);color:var(--ts-e-ink);box-shadow:none;}
+.ts-media-draft-recovery-modal .ts-media-draft-recovery button:not(:disabled):hover {background:var(--ts-e-wash);}
+.ts-media-draft-recovery-modal .ts-media-draft-recovery button:not(:disabled):active {background:var(--ts-e-line);}
+.ts-media-draft-recovery-modal .ts-media-draft-recovery a {color:var(--ts-e-editorial);text-underline-offset:3px;}
+.ts-media-draft-recovery-modal :is(button,textarea,a):focus-visible {outline:2px solid var(--ts-e-editorial);outline-offset:2px;}
+@media (any-pointer:coarse),(max-width:600px) {
+  .ts-media-workspace :is(.ts-media-workspace__capture-actions button,.ts-media-workspace__layout-options>summary,.ts-media-workspace__layout-range),.ts-media-draft-recovery-modal .ts-media-draft-recovery button {min-width:44px;min-height:44px;touch-action:manipulation;}
+  .ts-media-draft-recovery-modal {padding:20px 16px;}
+  .ts-media-workspace .ts-media-workspace__input,.ts-media-workspace .ts-media-workspace__search {font-size:16px;}
+  .ts-media-draft-recovery-modal .ts-media-draft-recovery textarea {font-size:16px;}
+}
+
+/* The preview fits its owner window; the image retains its natural ratio. */
+.ts-board-modal-viewport>.modal.ts-media-image-modal{display:flex;flex-direction:column;min-height:0;max-height:100%}
+/* The image/caption scroll together; the real Close action remains outside that scrollport. */
+.ts-board-modal-viewport>.modal.ts-media-image-modal .modal-content{flex:1;min-height:0;max-height:none;overflow:hidden}
+.ts-media-image-modal__body{display:flex;flex-direction:column;gap:10px;flex:1 1 auto;min-width:0;min-height:0;overflow:auto}
+.ts-media-image-modal__body>:is(.ts-media-image-modal__image,.ts-media-image-modal__caption){flex:none}
+.ts-media-image-modal .ts-media-image-modal__actions{flex:none;min-width:0;margin:0;padding:4px}
+.ts-media-image-modal .ts-media-image-modal__actions>.ts-button{min-width:44px;min-height:44px;max-width:100%;white-space:normal}
+
+/* At desktop widths, toolbar rows must not consume the entire timeline.
+   Intrinsic grid height reserves a readable body even with coarse controls;
+   an undersized desk scrolls its original controls rather than clipping them.
+   A definite flex basis keeps long populated timelines locally bounded. */
+@container ts-media (min-width:761px){
+ .ts-media-workspace .ts-media-workspace__desk{overflow:auto;overscroll-behavior:contain}
+ .ts-media-workspace .ts-media-workspace__records{flex:1 0 100%;min-height:min-content;grid-template-rows:auto auto auto minmax(96px,1fr) auto}
 }

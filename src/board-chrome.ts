@@ -1,5 +1,12 @@
 interface ChromeRect {left:number;right:number;top:number;bottom:number}
 
+/** Return only chrome which actually covers the stage, in stage coordinates.
+ * A reserved sibling rail merely touching the stage edge is not an obstacle. */
+export function boardChromeObstacle(stage:ChromeRect,chrome?:ChromeRect,padding=0){
+ if(!chrome||stage.right<=stage.left||stage.bottom<=stage.top||chrome.right<=chrome.left||chrome.bottom<=chrome.top||chrome.right<=stage.left||chrome.left>=stage.right||chrome.bottom<=stage.top||chrome.top>=stage.bottom)return undefined;
+ return{x:chrome.left-stage.left-padding,y:chrome.top-stage.top-padding,width:chrome.right-chrome.left+padding*2,height:chrome.bottom-chrome.top+padding*2};
+}
+
 export function compactBoardChrome(width:number,coarse:boolean){return width>0&&(width<=600||coarse&&width<=900);}
 export function boardFooterReserve(main:ChromeRect,footer?:ChromeRect){return footer&&footer.bottom>footer.top?Math.max(0,main.bottom-footer.top)+12:28;}
 

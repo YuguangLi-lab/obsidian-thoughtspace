@@ -1,16 +1,32 @@
+/* Editorial materials. These private tokens never replace Obsidian's host or
+   document variables. Components opt their chrome into the shared palette. */
+:is(.ts-root,.ts-journal,.ts-ui-modal,.ts-space-modal,.ts-settings,.ts-native-header,.ts-writing,.ts-note-markdown-toolbar,.ts-media-workspace,.ts-online-workspace,.ts-materials-panel,.ts-materials-modal,.ts-brain-shell,.ts-handwriting,.ts-local-relations,.ts-collection-content) {
+ --ts-e-paper:#f5f1e8;--ts-e-sheet:#fffdf7;--ts-e-ink:#342e28;
+ --ts-e-muted:#6c6055;--ts-e-line:#ddd4c5;--ts-e-wash:#ece5d8;
+ --ts-e-editorial:#a24b32;--ts-e-edge:#938574;
+ --ts-e-serif:"Songti SC","STSong","Noto Serif CJK SC","Iowan Old Style","Palatino Linotype",serif;
+ --ts-e-shadow:0 2px 8px #4e351c08,0 16px 40px #4e351c0c;
+ --ts-e-radius:8px;--ts-e-control-radius:5px;
+}
+.theme-dark :is(.ts-root,.ts-journal,.ts-ui-modal,.ts-space-modal,.ts-settings,.ts-native-header,.ts-writing,.ts-note-markdown-toolbar,.ts-media-workspace,.ts-online-workspace,.ts-materials-panel,.ts-materials-modal,.ts-brain-shell,.ts-handwriting,.ts-local-relations,.ts-collection-content) {
+ --ts-e-paper:#24211d;--ts-e-sheet:#2d2822;--ts-e-ink:#eee3d2;
+ --ts-e-muted:#bcad99;--ts-e-line:#4a4034;--ts-e-wash:#342e26;
+ --ts-e-editorial:#e0a081;--ts-e-edge:#968571;
+ --ts-e-shadow:0 2px 8px #0003,0 16px 40px #0004;
+}
 /* Shared chrome scale: never applied to note bodies, paper styles or format bars. */
 :is(.ts-root,.ts-journal,.ts-ui-modal,.ts-space-modal,.ts-settings,.ts-native-header,.ts-writing,.ts-note-markdown-toolbar,.ts-media-workspace,.ts-online-workspace,.ts-materials-panel,.ts-materials-modal){--ts-ui-control:32px;--ts-ui-gap:8px;--ts-ui-row-pad:8px;--ts-ui-panel-pad:12px;--ts-ui-radius:8px;--ts-ui-icon:16px;--ts-ui-secondary:11px;}
 :is(.ts-root,.ts-journal,.ts-ui-modal,.ts-space-modal,.ts-settings,.ts-native-header,.ts-writing,.ts-note-markdown-toolbar,.ts-media-workspace,.ts-online-workspace,.ts-materials-panel,.ts-materials-modal)[data-density="compact"]{--ts-ui-control:30px;--ts-ui-gap:6px;--ts-ui-row-pad:4px;--ts-ui-panel-pad:8px;--ts-ui-radius:6px;}
 /* Shared visual language. Native content, node geometry and custom colors remain owned
    by their existing components; this layer styles workspace surfaces and controls. */
 :is(.ts-root,.ts-journal,.ts-ui-modal,.ts-space-modal,.ts-settings,.ts-native-header,.ts-writing,.ts-note-markdown-toolbar,.ts-media-workspace,.ts-online-workspace,.ts-materials-panel,.ts-materials-modal){
- --ts-design-line:color-mix(in srgb,var(--background-modifier-border) 78%,transparent);
- --ts-design-panel:var(--background-primary);
- --ts-design-wash:color-mix(in srgb,var(--ts-accent,var(--interactive-accent)) 6%,var(--background-primary));
- --ts-design-hover:color-mix(in srgb,var(--ts-accent,var(--interactive-accent)) 6%,var(--background-primary));
- --ts-design-shadow:0 1px 2px #00000005,0 4px 16px #00000009;
- --ts-design-overlay-shadow:0 2px 8px #00000008,0 18px 48px #00000018;
- --ts-design-radius:10px;
+ --ts-design-line:var(--ts-e-line);
+ --ts-design-panel:var(--ts-e-sheet);
+ --ts-design-wash:color-mix(in srgb,var(--ts-accent,var(--interactive-accent)) 6%,var(--ts-e-sheet));
+ --ts-design-hover:color-mix(in srgb,var(--ts-accent,var(--interactive-accent)) 6%,var(--ts-e-sheet));
+ --ts-design-shadow:0 1px 2px #4e351c08,0 4px 16px #4e351c09;
+ --ts-design-overlay-shadow:var(--ts-e-shadow);
+ --ts-design-radius:8px;
  --ts-space-1:4px;--ts-space-2:8px;--ts-space-3:12px;--ts-space-4:16px;--ts-space-6:24px;--ts-space-8:32px;
  --ts-chrome-title:15px;--ts-chrome-label:12px;--ts-chrome-caption:11px;
  --ts-chrome-radius:8px;--ts-chrome-rule:1px solid var(--ts-design-line);
@@ -87,9 +103,7 @@
 /* Async lists retain their content while the next result is prepared off screen. */
 .ts-root.ts-dock .ts-library{position:relative;overflow-anchor:none;}
 .ts-root.ts-dock .ts-library[aria-busy=true]{box-shadow:inset 0 2px color-mix(in srgb,var(--ts-accent) 20%,transparent);}
-.ts-root.ts-dock .ts-library[aria-busy=true]:empty::before{content:'正在读取…';display:block;padding:20px 12px;color:var(--text-muted);font-size:12px;}
-.ts-root.ts-dock .ts-sidebar-refresh-error{position:sticky;bottom:0;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;margin-top:8px;border:1px solid color-mix(in srgb,var(--text-error) 20%,var(--background-modifier-border));border-radius:8px;background:var(--background-primary);color:var(--text-muted);font-size:11px;box-shadow:0 2px 8px #00000008;}
-.ts-root.ts-dock .ts-sidebar-refresh-error .ts-icon-button{flex:0 0 26px;width:26px;height:26px;color:var(--text-error);}
+.ts-root.ts-dock .ts-library[aria-busy=true]:empty::before{content:'正在读取…';display:block;padding:20px 12px;color:var(--ts-e-muted);font-size:12px;}
 
 /* Pending actions keep their place and icon, rather than creating duplicate pages. */
 .ts-native-header .ts-header-action.is-busy,.ts-root .ts-header-action.is-busy{cursor:progress;opacity:.65;background:var(--ts-design-wash);box-shadow:inset 0 0 0 1px var(--ts-design-line);}
@@ -127,8 +141,8 @@
 :is(.ts-media-workspace,.ts-online-workspace) {--ts-accent:#326756;}
 .theme-dark :is(.ts-media-workspace,.ts-online-workspace) {--ts-accent:#8abbab;}
 :is(.ts-media-workspace,.ts-online-workspace)[data-accent=blue] {--ts-accent:#326a8b;}
-:is(.ts-media-workspace,.ts-online-workspace)[data-accent=amber] {--ts-accent:#876126;}
-:is(.ts-media-workspace,.ts-online-workspace)[data-accent=rose] {--ts-accent:#996074;}
+:is(.ts-media-workspace,.ts-online-workspace)[data-accent=amber] {--ts-accent:#805c24;}
+:is(.ts-media-workspace,.ts-online-workspace)[data-accent=rose] {--ts-accent:#8f5367;}
 .theme-dark :is(.ts-media-workspace,.ts-online-workspace)[data-accent=blue] {--ts-accent:#92bfd8;}
 .theme-dark :is(.ts-media-workspace,.ts-online-workspace)[data-accent=amber] {--ts-accent:#d7b67d;}
 .theme-dark :is(.ts-media-workspace,.ts-online-workspace)[data-accent=rose] {--ts-accent:#d8a6b8;}
@@ -138,11 +152,11 @@
 :is(.ts-ui-modal,.ts-settings)[data-accent=forest] {--ts-accent:#326756;}
 .theme-dark :is(.ts-ui-modal,.ts-settings)[data-accent=forest] {--ts-accent:#8abbab;}
 .ts-ui-modal button.mod-cta:not(:where(.markdown-rendered *, .markdown-preview-view *, .markdown-source-view *, .cm-editor *, .pdf-container *, .pdf-viewer *)) {
- color:var(--ts-accent);background:var(--ts-design-wash);border-color:color-mix(in srgb,var(--ts-accent) 35%,var(--background-modifier-border));
+ color:var(--ts-selected-ink,#fff)!important;background:var(--ts-accent)!important;border-color:transparent;
 }
 .ts-ui-modal button.mod-cta:is(:hover,:focus-visible):not(:disabled):not([aria-disabled=true]):not(:where(.markdown-rendered *, .markdown-preview-view *, .markdown-source-view *, .cm-editor *, .pdf-container *, .pdf-viewer *)) {
- color:var(--ts-accent);background:var(--ts-design-hover);
+ color:var(--ts-selected-ink,#fff)!important;background:var(--ts-accent)!important;filter:brightness(1.06);
 }
 .ts-ui-modal button.mod-cta:is(:disabled,[aria-disabled=true]):not(:where(.markdown-rendered *, .markdown-preview-view *, .markdown-source-view *, .cm-editor *, .pdf-container *, .pdf-viewer *)) {
- color:var(--text-muted);background:transparent;border-color:var(--background-modifier-border);opacity:.45;
+ color:var(--ts-e-muted)!important;background:var(--ts-e-wash)!important;border-color:var(--ts-e-line);opacity:.65;filter:none;
 }

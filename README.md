@@ -1,14 +1,16 @@
 # ThoughtSpace Whiteboard
 
+**1.3.37** refines the plugin with a warm editorial interface, compact workspace controls, expanded collection search and organization, and device-local online-draft recovery. See the [changelog](CHANGELOG.md#1337) and [collection guide](docs/COLLECTION-WORKSPACE.zh-CN.md). Native Markdown, Properties and save ownership remain part of the existing workflow.
+
 **AI board CLI phase 1 (`1.0.0-local`, Node 22)**: validate or inspect a file and exclusively create an ordinary, brain or handwriting board. Download the repository ZIP to run the committed CLI without installing dependencies. Read the [usage guide](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/docs/AI-BOARD-GUIDE.zh-CN.md), [format contract](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/docs/AI-BOARD-FORMAT.zh-CN.md), [synthetic examples](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/examples/ai-board/README.zh-CN.md), and [tool entry](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/tools/README.md). Handwriting examples work with 1.3.36 or the previously published 1.3.36-beta.2 plugin; `format_only` (exit 2) keeps unchecked references explicit.
 
 **English** · [简体中文](README.zh-CN.md)
 
-**1.3.36** brings editable handwriting, SVG export, saved reading positions, a collection workspace with board round trips, and a consistent phone/tablet UI. See the [UI guide](docs/UI-REFINEMENT.zh-CN.md), [collection guide](docs/COLLECTION-WORKSPACE.zh-CN.md), [handwriting guide](docs/HANDWRITING-IPAD.zh-CN.md) and [validation summary](qa/RELEASE-1.3.36.md). Local release validation is complete; public build and asset status are available on the [1.3.36 Release](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/tag/1.3.36). Physical iOS/Android, Pencil, system mobile IME and mobile WebViews remain untested.
+Physical iOS/Android, Pencil, system mobile IME/keyboards and mobile WebViews remain untested. Desktop size and touch simulations do not establish device performance or complete palm rejection. Online recovery requires a completed checkpoint on this device; storage failures and unfinished writes retain their stated recovery limits. See the [release page](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/tag/1.3.37) for the corresponding validation record and downloads.
 
 Collect material, connect ideas, and shape an article inside Obsidian. Notes, boards, and generated drafts stay in your vault.
 
-**1.3.36 · Obsidian 1.13.7+ · MIT**
+**1.3.37 · Obsidian 1.13.7+ · MIT**
 
 **[完整中文教程](docs/USER-GUIDE.zh-CN.md) · [Install or update](docs/USER-GUIDE.md#installation) · [Ten-minute start](docs/USER-GUIDE.md#quick-start) · [Complete English guide](docs/USER-GUIDE.md) · [Latest release](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/latest)**
 
@@ -48,7 +50,7 @@ Open the writing workspace, order cards, groups, and chapters, pin references, w
 | Order an outline, pin references and generate a draft | [Writing](docs/USER-GUIDE.md#writing) |
 | Find commands, set hotkeys or resolve saving problems | [Controls](docs/USER-GUIDE.md#controls) · [Troubleshooting](docs/USER-GUIDE.md#troubleshooting) |
 
-## Everyday work in 1.3.36
+## Everyday work
 
 - **Collect first, organize later.** Open **打开收集**, write the body, and save with ⌘/Ctrl+Enter. Native tags, existing attachments and board/group delivery are optional. Records remain in a creation-time stream after delivery; old notes are not automatically relabeled.
 - **Follow a record to each board occurrence and back.** Choose the exact card when a note appears more than once. Return with filters and the current browsing position intact, including a temporary reveal of hidden records. Renames are rechecked; obsolete requests and other windows do not take over focus.

@@ -160,3 +160,14 @@
  :is(.ts-root,.ts-note-markdown-toolbar,.ts-writing) .ts-markdown-tools .is-icon .ts-md-select,
  .ts-root .ts-floating-formatbar .ts-markdown-tools .is-icon .ts-md-select{width:44px;min-width:44px;max-width:44px}
 }
+
+/* Narrow media navigation keeps all labels and the live count. Decorative
+   icons yield to text; the real buttons can grow instead of acquiring two
+   scrollbars inside a fixed 44px row. */
+@container ts-media (max-width:320px){
+ .ts-media-workspace .ts-media-workspace__layout{grid-template-rows:minmax(44px,max-content) minmax(0,1fr)!important}
+ .ts-media-workspace[data-focus-player] .ts-media-workspace__panel-switcher{overflow:visible;align-items:stretch}
+ .ts-media-workspace .ts-media-workspace__panel-switcher>.ts-media-workspace__action{flex-wrap:wrap;gap:2px 4px;padding:6px 4px;white-space:normal;overflow-wrap:anywhere}
+ .ts-media-workspace .ts-media-workspace__panel-switcher>.ts-media-workspace__action>span:first-child{display:none}
+ .ts-media-workspace .ts-media-workspace__panel-count{min-width:0;max-width:100%;overflow-wrap:anywhere}
+}

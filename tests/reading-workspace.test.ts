@@ -43,7 +43,7 @@ function fixture(nodes:Card[]=[node('alpha'),node('beta'),node('gamma')],options
  const files=new Map(nodes.filter(n=>n.file).map(n=>[n.file!,new TFile(n.file!)]));
  const app={vault:{getAbstractFileByPath:(path:string)=>files.get(path),cachedRead:async(file:TFile)=>{reads.push(file.path);return options.read?options.read(file):`# ${file.path}\n\n笔记正文`;},on:(name:string,run:(file:TFile)=>unknown)=>{const callbacks=vaultEvents.get(name)||[];callbacks.push(run);vaultEvents.set(name,callbacks);return{};},getResourcePath:(file:TFile)=>file.path},workspace:{openLinkText:async()=>{}},fileManager:{generateMarkdownLink:(file:TFile,_source:string,subpath='')=>`[[${file.path}${subpath}]]`}};
  const host={sourcePath:()=> 'Boards/Research.thoughtspace',board:()=>board,ids:new Set<string>(),title:'阅读测试白板',settings:{surfaceStyle:'glass',readingSize:16,readingWidth:'comfortable'},commit:(edit:(b:typeof board)=>void)=>{commits.push('edit');edit(board);},reveal:(id:string)=>revealed.push(id),open:async(file:TFile)=>{opened.push(file.path);}};
- const deps={Modal,Component,TFile,Notice:class{constructor(message:string){notices.push(message);}},setIcon:()=>{},themeSurface:()=>{},bindBoardModalViewport,remoteImageUrl:()=>undefined,...reading,MarkdownRenderer:{render:async(_app:unknown,text:string,el:Element,source:string)=>{sources.push(source);renders.push(text);if(options.render)await options.render(text,el);else{el.createEl('h1',{text:text.split('\n')[0].replace(/^# /,'')});el.createEl('p',{text});}}},navigator:{clipboard:{writeText:async()=>{}}}};
+ const deps={Modal,Component,TFile,Notice:class{constructor(message:string){notices.push(message);}},setIcon:()=>{},themeSurface:()=>{},bindBoardModalViewport,bindReadingCompactLayout:()=>({dispose(){},revealPage(){return false;}}),remoteImageUrl:()=>undefined,...reading,MarkdownRenderer:{render:async(_app:unknown,text:string,el:Element,source:string)=>{sources.push(source);renders.push(text);if(options.render)await options.render(text,el);else{el.createEl('h1',{text:text.split('\n')[0].replace(/^# /,'')});el.createEl('p',{text});}}},navigator:{clipboard:{writeText:async()=>{}}}};
  const source=readFileSync('src/reading-desk-view.ts','utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
  const Desk=new Function(...Object.keys(deps),transformSync(source+'\nreturn ReadingDesk;',{loader:'ts'}).code)(...Object.values(deps));
  const modal=new Desk(app,host);modal.onOpen();
@@ -142,4 +142,48 @@ test('PDF queue uses native embeds and shares review controls without reading bi
  const pdf={...node('PDF','pdf'),file:'Sources/Evidence.pdf',pdfPage:3},f=fixture([pdf]);await tick();assert.deepEqual(f.reads,[]);assert.deepEqual(f.renders,['![[Sources/Evidence.pdf#page=3]]']);assert.equal(label(f.modal,'当前阅读状态').value,'later');
  const status=label(f.modal,'当前阅读状态');status.value='done';status.onchange?.();await tick();assert.equal(f.board.nodes[0].review,'done');assert.equal(f.renders.length,1);assert.equal(label(f.modal,'当前阅读状态').value,'done');
  const kind=label(f.modal,'阅读内容类型');kind.value='pdf';kind.onchange?.();assert.equal(f.modal.items().length,1);f.board.nodes[0].pdfPage=5;f.modal.renderList();await tick();assert.equal(f.renders.at(-1),'![[Sources/Evidence.pdf#page=5]]');f.modal.close();
+});
+
+test('compact command controls remain current after moving outside the reader',async()=>{
+ const f=fixture([node('alpha','card'),node('beta')]);await tick();const command=f.modal.commandBar,reader=f.modal.reader;reader.children.splice(reader.children.indexOf(command),1);const panel=f.modal.contentEl.createDiv();panel.children.push(command);command.parentElement=panel;
+ f.modal.activeId='beta';f.board.nodes[1].locked=true;f.board.nodes[1].review='done';f.modal.renderList();await tick();assert.equal(label(f.modal,'当前阅读状态').disabled,true);assert.equal(label(f.modal,'当前阅读状态').value,'done');assert.equal(find(f.modal,'[data-reading-finish]').disabled,true);assert.equal(find(f.modal,'[data-reading-open]').hidden,true);
+ f.modal.activeId='alpha';f.modal.renderList();await tick();assert.equal(label(f.modal,'当前阅读状态').disabled,false);assert.equal(find(f.modal,'[data-reading-open]').hidden,false);f.modal.close();
+});
+test('compact queue, relation and outline activation reveal the page before focus or scrolling',async()=>{
+ for(const kind of ['queue','relations','outline']){const f=fixture();await tick();let hidden=true,reveals=0,jumps=0;f.modal.compactLayout={dispose(){},revealPage(){hidden=false;reveals++;return true;}};
+ const focus=f.modal.page.focus.bind(f.modal.page);f.modal.page.focus=()=>{assert.equal(hidden,false);focus();};
+ if(kind==='queue'){find(f.modal,'[data-node="beta"]').click();await tick();assert.equal(f.modal.activeId,'beta');assert.equal(f.modal.document.activeElement,f.modal.page);}
+ else if(kind==='relations'){f.board.edges=[{id:'edge',from:'alpha',to:'beta',label:''}];f.modal.asideTab='relations';f.modal.renderCompanion();find(f.modal,'.ts-reading-relation').click();await tick();assert.equal(f.modal.activeId,'beta');}
+ else{const heading=f.modal.headings[0];heading.scrollIntoView=()=>{assert.equal(hidden,false);jumps++;};heading.focus=()=>{assert.equal(hidden,false);f.modal.document.activeElement=heading;};f.modal.asideTab='outline';f.modal.renderCompanion();find(f.modal,'.ts-reading-heading-link').click();assert.equal(jumps,1);assert.equal(f.modal.document.activeElement,heading);}
+ assert.equal(reveals,1);f.modal.close();}
+});
+test('empty results return moved command focus to the visible navigation search',async()=>{
+ const f=fixture([node('alpha')]);await tick();const command=f.modal.commandBar,reader=f.modal.reader;reader.children.splice(reader.children.indexOf(command),1);const panel=f.modal.contentEl.createDiv();panel.children.push(command);command.parentElement=panel;f.modal.options.status='later';f.modal.renderList();await tick();const finish=find(f.modal,'[data-reading-finish]');finish.focus();finish.click();await tick();assert.equal(f.modal.activeId,undefined);assert.equal(f.modal.document.activeElement,label(f.modal,'搜索阅读内容'));f.modal.close();
+});
+
+
+test('compact focus action reveals and focuses the page while normal action keeps its original mode toggle',async()=>{
+ const f=fixture();await tick();let hidden=true;f.modal.compactLayout={dispose(){},revealPage(){hidden=false;return true;}};const focus=f.modal.page.focus.bind(f.modal.page);f.modal.page.focus=()=>{assert.equal(hidden,false);focus();};label(f.modal,'专注正文').click();assert.equal(f.modal.document.activeElement,f.modal.page);assert.equal(f.modal.modalEl.classList.contains('ts-reading-focused'),false);f.modal.compactLayout.revealPage=()=>false;label(f.modal,'专注正文').click();assert.equal(f.modal.modalEl.classList.contains('ts-reading-focused'),true);f.modal.close();
+});
+
+test('compact disclosure retains the complete current title and source when the duplicated page header is hidden',async()=>{
+ const title='沿河散步与城市记忆：'+('混合中文与 Latin 2026、标点。'.repeat(14)),path='研究材料/城市观察/完整来源.md',n={...node('alpha','card'),title,file:path},f=fixture([n]);await tick();
+ const details=find(f.modal,'.ts-reading-compact-controls'),summary=details.querySelector('summary')!,current=find(f.modal,'.ts-reading-compact-current'),identity=find(f.modal,'.ts-reading-compact-article');
+ assert.equal(current.textContent,title);assert.equal(summary.getAttribute('aria-label'),'目录与阅读选项 · 当前文章：'+title);assert.equal(identity.querySelector('strong')!.textContent,title);assert.equal(find(f.modal,'.ts-reading-compact-source').textContent,path);
+ assert.equal(summary.parentElement,details);assert.equal(identity.parentElement?.classes.has('ts-reading-compact-panel'),true);assert.deepEqual(f.commits,[]);assert.deepEqual(f.renders,[`# ${path}\n\n笔记正文`]);f.modal.close();
+});
+test('compact identity follows actual paging and emptiness without leaving a stale article label or moving search focus',async()=>{
+ const f=fixture([node('alpha','card'),node('beta','card')]);await tick();const summary=find(f.modal,'.ts-reading-compact-controls').querySelector('summary')!,current=find(f.modal,'.ts-reading-compact-current'),search=label(f.modal,'搜索阅读内容');
+ find(f.modal,'[data-reading-next]').click();await tick();assert.equal(current.textContent,'beta');assert.equal(find(f.modal,'.ts-reading-compact-source').textContent,'notes/beta.md');assert.equal(summary.getAttribute('aria-label'),'目录与阅读选项 · 当前文章：beta');
+ search.focus();search.value='no such article';search.oninput?.();await tick();assert.equal(current.textContent,'没有匹配内容');assert.equal(find(f.modal,'.ts-reading-compact-source').textContent,'');assert.equal(f.modal.document.activeElement,search);
+ search.value='';search.oninput?.();await tick();assert.equal(current.textContent,'alpha');assert.equal(find(f.modal,'.ts-reading-compact-controls').querySelector('summary'),summary);assert.equal(f.modal.document.activeElement,search);assert.deepEqual(f.commits,[]);f.modal.close();
+});
+test('a superseded async article cannot overwrite compact identity and cached review preserves prose and scroll',async()=>{
+ const pending=deferred<string>(),f=fixture([node('alpha','card'),node('beta','card')],{read:file=>file.path.includes('alpha')?pending.promise:Promise.resolve('# 最新正文\n\n文字')});
+ f.modal.activeId='beta';f.modal.renderList();await tick();const content=find(f.modal,'.ts-reading-prose');f.modal.page.scrollTop=123;f.board.nodes[1].review='reading';f.modal.renderList();await tick();pending.resolve('# 旧正文');await tick();
+ assert.equal(find(f.modal,'.ts-reading-compact-current').textContent,'beta');assert.equal(find(f.modal,'.ts-reading-compact-source').textContent,'notes/beta.md');assert.equal(find(f.modal,'.ts-reading-prose'),content);assert.equal(f.modal.page.scrollTop,123);assert.deepEqual(f.renders,['# 最新正文\n\n文字']);f.modal.close();
+});
+test('real outline action focuses the original authored heading without rewriting its text or creating another heading',async()=>{
+ const f=fixture([node('alpha')]);await tick();const heading=f.modal.headings[0],text=heading.textContent;f.modal.asideTab='outline';f.modal.renderCompanion();const action=find(f.modal,'.ts-reading-heading-link');action.click();
+ assert.equal(f.modal.document.activeElement,heading);assert.equal(heading.getAttribute('tabindex'),'-1');assert.equal(heading.textContent,text);assert.equal(f.modal.headings.length,1);assert.equal(find(f.modal,'.ts-reading-prose').querySelector('h1'),heading);assert.deepEqual(f.commits,[]);f.modal.close();
 });

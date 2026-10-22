@@ -5,7 +5,7 @@ import {addSavedSearch,renameSavedSearch,removeSavedSearch,savedSearchQuery,save
 import {markReading,reviewLabels,type ReviewState} from './reading-desk';
 import {themeSurface} from './ui-tokens';
 import {bindMobileViewport} from './mobile-viewport';
-export interface BoardSearchHost{title:string;context?:object;board:()=>Board;commit:(edit:(board:Board)=>void)=>void|Promise<void>;locate:(id:string)=>Promise<void>;open:(id:string)=>Promise<void>;link:(id:string)=>string;}
+export interface BoardSearchHost{title:string;context?:object;board:()=>Board;commit:(edit:(board:Board)=>void)=>void|Promise<void>;locate:(id:string)=>Promise<void>;afterLocate?:(id:string)=>void;open:(id:string)=>Promise<void>;link:(id:string)=>string;}
 interface SearchContext{query:string;kind:string;group:string;color:string;review:string;full:boolean;saved?:string;active?:string;limit:number;scroll:number;}
 // Session identity scopes transient search state across tabs and undo/redo, and
 // releases it when that board session closes. Never cache note bodies here.
@@ -114,7 +114,7 @@ export class BoardSearchModal extends Modal{
  }
  private async activate(entry:BoardSearchEntry,side=false){
   if(this.closed||this.busy||this.mutationBusy||(side&&entry.kind!=='card'))return;this.busy=true;this.updateBusy();
-  try{if(side)await this.host.open(entry.id);else await this.host.locate(entry.id);if(!this.closed)this.close();}finally{this.busy=false;if(!this.closed)this.updateBusy();}
+  try{if(side)await this.host.open(entry.id);else await this.host.locate(entry.id);if(!this.closed){this.close();if(!side)this.host.afterLocate?.(entry.id);}}finally{this.busy=false;if(!this.closed)this.updateBusy();}
  }
  private updateBusy(){if(!this.list)return;this.list.setAttribute('aria-busy',String(this.busy||this.mutationBusy));for(const button of Array.from(this.list.querySelectorAll('button')))button.disabled=this.busy||this.mutationBusy;for(const select of Array.from(this.list.querySelectorAll('select')))select.disabled=this.busy||this.mutationBusy||select.getAttribute('data-locked')==='true';this.copyButton.disabled=this.busy||this.mutationBusy||!this.results.length;this.updateSavedBusy();}
  private render(restoreFocus=true){if(this.closed)return;

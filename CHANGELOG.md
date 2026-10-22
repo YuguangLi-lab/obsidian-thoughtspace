@@ -1,5 +1,78 @@
 # 更新记录
 
+## 1.3.37
+
+### 暖色界面、收集整理与在线草稿恢复
+
+- 统一导航、工作区、设置和弹窗的暖色杂志式界面，调整中文标题、正文层级、明暗主题、强调色和窄分栏布局；保留原生编辑器排版、自定义纸张及对象配色。
+- 改善密集卡片的操作入口、短窗工具栏、写作和媒体编辑空间。卡片正文与操作区分开，菜单关闭、弹窗返焦及跨窗口快捷键继续核对当前输入归属。
+- 修复密集卡片正文触摸被相邻端口误判为连线，以及搜索定位后焦点返回旧卡片的问题；改善空间总览索引问题文字的对比度。
+- 卡片缩放时为独立阅读按钮保留连线端口间距；从导航打开的空间总览关闭时，恢复到原入口，短窗中则恢复到同一导航的可见工具入口。新导航或用户已转移焦点时停止返焦。
+- 收集页支持组合筛选、显式启动的正文搜索、具名保存筛选、置顶与归档，以及按本地创建日期统计的活动日历。正文条件变化后需要重新确认扫描，不自动扩大读取范围。
+- 增加任务筛选、引用和反向链接、按来源浏览附件，以及固定结果的逐条整理。统一“送往…”入口提供白板投递、创建笔记或追加到标题下的预览。
+- 当前页批量整理和笔记沉淀保存逐条结果；失败或结果未知时保留原记录和核对材料。重开不自动继续写入；关闭或新导航停止尚未开始的操作，不撤销已经开始的写入。
+- 独立在线视频工作区增加本机草稿暂存与恢复检查。中断的保存先核对原回执，已确认写入只清理暂存，避免恢复时重复建笔记；暂存不可用时保留当前内存内容，可在摘录框复制文字，有附图时导出截图，或重试暂存。跨重启恢复依赖已成功写入的本机暂存，不跨设备同步。
+- 沿用 Obsidian 原生 Markdown、Properties 和多窗口保存保护；修复新标签来源返回及同名导出目标的链接定位。手写、基础手机／平板适配和独立 AI 白板 CLI 延续既有功能。
+
+### English
+
+- Apply a warm editorial interface across navigation, workspaces, settings and dialogs, with clearer Chinese reading hierarchy, light and dark themes, and compact-pane layouts. Native text, custom paper and object colors retain their own styling.
+- Improve dense card actions, short-window controls, writing and media editing space, menu dismissal, dialog focus return and keyboard routing across windows.
+- Fix body touches being redirected to adjacent connection ports and focus returning to the old card after search navigation. Improve contrast for index issue labels in Space Hub.
+- Keep reading buttons clear of connection ports across card zoom changes. Closing a Navigator-launched Space Hub returns to its original control or the same dock's visible compact control, unless navigation or an explicit focus change has revoked that return.
+- Extend the collection with combined filters, explicitly started body search, named filters, pinning, archiving and a local-date activity calendar. Task filters, backlinks, source attachments and item-by-item organization lead into a shared delivery workflow.
+- Preview creation of a note or appending beneath a heading; retain explicit outcomes for note exports and current-page batches. Failed or uncertain operations preserve their source records and do not resume automatically after reopening. Closing a view does not undo writes already started.
+- Add device-local checkpoints for the standalone online workspace. Interrupted saves check their original receipts before any further write; confirmed saves only retry checkpoint cleanup. Unavailable storage leaves recovery actions available for the current in-memory draft. Recovery across restarts requires a completed local checkpoint; checkpoints do not sync between devices.
+
+## 1.3.37-beta.5
+
+Local UI candidate in development; not a published release. Warm editorial materials now connect navigation, workspaces, settings and dialogs. Shared chrome rules are consolidated, while authored note typography, custom canvas paper, object geometry and native editing remain separately owned.
+
+Touch targets and narrow-pane toolbars are being refined, including card actions and media controls. Prompt validation and retry feedback are accessible; closing a pending prompt prevents its late completion from restoring focus, without claiming to cancel a write that already started.
+
+Full interface screenshots, keyboard/contrast checks, storage regressions and device-size simulations are tracked in the local QA. This entry does not assert completed acceptance, awards or physical iOS/Android/Pencil validation.
+
+## 1.3.37-beta.4
+
+- 本地候选：收集页重做为暖色杂志式阅读界面，保留深浅主题、强调色、密度及移动容器适配。
+- 增加原生任务筛选与进度、引用/反向链接以及按来源浏览附件。
+- 增加固定结果的逐条整理、统一“送往…”入口、新建或追加到标题下的笔记沉淀预览。
+- 白板投递持久回执和明确另建，失败与未知结果保留原记录，重开不自动重放。
+- 修复原生新标签自动聚焦导致来源返回入口缺失，以及同名导出目标使内部短链重新指向自身的问题。
+- 本地验证记录另行保留。旧 beta.3 源码与交付保持封存。
+
+## 1.3.37-beta.3
+
+### 收集日历热力图（本地候选）
+
+- 新增可收起的新增记录热力图，按本地创建日期汇总有效收集元数据，包含归档记录，独立于当前搜索和筛选；不扫描正文、不修改笔记。
+- 点击日期联动当前日期筛选，保留其他条件；可单独清除日期。含正文条件等待手动开始，保存筛选继续沿用既有格式。
+- 桌面提供年览，窄屏提供可触控的月历；沿用整体深浅主题和强调色，保留键盘操作、草稿及阅读状态。
+
+仅本地开发与隔离验收，未发布或安装真实资料库。本地验证记录另行保留。
+
+## 1.3.37-beta.2
+
+### 收集保存筛选与显式批量整理（本地候选）
+
+- 保存最多 20 组具名筛选，跨收集页和重开继续使用。含正文的已保存筛选应用后等待手动开始，条件变化取消本次扫描授权。保存的是条件，不是正文或结果缓存。
+- 显式选择当前页最多 24 条记录，确认原笔记清单及目标白板／分组后，逐条投递、归档或恢复。筛选、翻页及新导航清空尚未提交的选择；已开始的写入核验完成后才停止后续记录。
+- 每批使用独立日志，逐条区分已确认、已有引用或状态、未写入、结果待核对及未开始。首次失败即停止；重开的历史报告仅供核对，不自动续跑或重试，不批改标签。
+- 复用原生笔记、属性编辑保护及目标白板保存流程。丢失写入响应时核对磁盘；冲突、损坏或未知结果保留原文件及恢复材料。收集自有勾选框遵循当前强调色，操作错误集中展示。
+
+仅本地开发与隔离验收，没有公开发布或安装到真实资料库。本地验证记录另行保留。
+
+## 1.3.37-beta.1
+
+### 收集检索与记录整理（本地候选）
+
+- 收集页统一使用标题、路径和原生标签查询；空格分隔词取交集，`#项目` 包含层级标签，`-#项目` 排除层级标签。日期、投递范围和仅置顶条件可以组合。
+- 显式开启「包含正文」后按需检索收集笔记，显示纯文本命中片段、扫描进度和未完整读取数量；取消、输入法组合输入、新查询、文件变化和新导航不会让旧结果抢回界面。未开启正文或没有正文关键词时维持元数据查询。
+- 每条记录可置顶、归档和恢复。状态使用原生布尔属性 `thoughtspace_pinned`、`thoughtspace_archived`；仅用户明确操作的笔记被修改。归档退出默认流，不移动或删除文件，不移除白板引用，也不随投递自动发生。
+- 原生笔记编辑、草稿保存和白板双向定位继续复用既有入口；整理时核对原笔记身份、并发状态和原生待保存编辑，写入结果未知时停止自动重试。
+
+本候选仅本地开发与隔离验收，未发布或安装到真实资料库。最终检查、截图及限制以本轮独立验收记录为准，不能沿用 1.3.36 的测试数字。交互参考 [Memos 检索与归档](https://usememos.com/docs/usage/search-archive)及[记录整理](https://usememos.com/docs/usage/memos)，在现有 Obsidian 原生数据模型上独立实现，未复制第三方代码或加入新依赖。
+
 ## 1.3.36
 
 ### 手写编辑、收集双向联动与全界面移动适配（2026-10-13）

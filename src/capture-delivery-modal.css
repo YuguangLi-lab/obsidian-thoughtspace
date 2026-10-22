@@ -1,4 +1,6 @@
 .ts-capture-delivery {display:flex;flex-direction:column;width:min(580px,100%);min-width:0}
+/* The content owns the title; collapse only the native empty-header chrome. */
+.ts-capture-delivery > .modal-header:has(> .modal-title:only-child:empty) {padding:0;margin:0;border:0}
 .ts-capture-delivery [hidden] {display:none!important}
 .ts-capture-delivery .modal-content {flex:1 1 auto;min-width:0;min-height:0;overflow:auto;overscroll-behavior:contain}
 .ts-capture-delivery p,.ts-capture-delivery label,.ts-capture-delivery [role=status] {overflow-wrap:anywhere}

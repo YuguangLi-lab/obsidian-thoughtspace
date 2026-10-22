@@ -42,7 +42,7 @@ function fixture(surface:Surface='preview',pointerType='touch'){
  Object.assign(view,{session,selected:new Set(),stage:{clientWidth:390,clientHeight:700,ownerDocument:{defaultView:clock},focus:()=>counts.focused++,setPointerCapture:(id:number)=>captures.add(id),hasPointerCapture:(id:number)=>captures.has(id),releasePointerCapture:(id:number)=>captures.delete(id)},
   plugin:{settings:{dragThreshold:4,axisLock:true,aspectLock:true,alignmentGuides:false}},mode:'select',pendingFits:new Map(),nodeFitQueue:{schedule(){}},positions:new Map([['a',{}]]),viewTrail:{remember(){}},
   point:(x:number,y:number)=>({x:(x-board.viewport.x)/board.viewport.zoom,y:(y-board.viewport.y)/board.viewport.zoom}),
-  updateSelection:()=>counts.updated++,cancelConnection(){},cancelRightMarquee(){},finishMarquee(){},setSectionTool(){},previewGridLanding(){},drawAlignmentGuides(){},syncMinimapAvoidance(){},renderEdges(){},
+  updateSelection:()=>counts.updated++,cancelConnection(){},cancelRightMarquee(){},finishMarquee(){},setSectionTool(){},previewGridLanding(){},drawAlignmentGuides(){},syncMinimapAvoidance(){},reserveVisibleCardControls(){},renderEdges(){},
   connectNode(){counts.connected++;},positionNode(){counts.painted++;},renderBoard(){counts.renders++;}});
  const event=(extra:Record<string,unknown>={})=>({pointerId:1,pointerType,button:0,buttons:1,clientX:50,clientY:70,target:target(surface),preventDefault:()=>counts.prevented++,...extra});
  const flush=()=>{const pending=[...frames.values()];frames.clear();pending.forEach(fn=>fn());};

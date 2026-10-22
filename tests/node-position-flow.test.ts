@@ -16,7 +16,9 @@ const source=readFileSync(process.env.POSITION_SOURCE||'src/main.ts','utf8'),sta
 assert.ok(start>0&&end>start);
 let obstacleScans=0;
 const deps={foldControlObstacles:(...args:Parameters<typeof foldControlObstacles>)=>{obstacleScans++;return foldControlObstacles(...args);},effectiveCardStyle,cardHeadingColors,nodeHasBorder,textBlockPadding,cardFillHex,colors,sectionDisplayNode,textFontFamily,syncNodeGeometry,cardControlLayout};
-const View=new Function(...Object.keys(deps),transformSync(`class View{${source.slice(start,end)}};return View`,{loader:'ts'}).code)(...Object.values(deps));
+// Production render caches dimensions only after mounting the stage in its
+// owner. Keep that ownership in this isolated method fixture as well.
+const View=new Function(...Object.keys(deps),transformSync(`class View{cardControlRequests=new Map();reserveVisibleCardControls(){};stage={parentElement:{classList:{contains:()=>false}}};${source.slice(start,end)}};return View`,{loader:'ts'}).code)(...Object.values(deps));
 const controlsStart=source.indexOf('      const trackControls=()=>{'),controlsEnd=source.indexOf('\n      if((n.collapsed',controlsStart);
 assert.ok(controlsStart>0&&controlsEnd>controlsStart);
 const ControlView=new Function('View','mountCardControlHover',transformSync(`class ControlView extends View{mountControls(n,el,scope){${source.slice(controlsStart,controlsEnd)}trackControls();}};return ControlView`,{loader:'ts'}).code)(View,()=>()=>{});
@@ -75,6 +77,50 @@ test('positioned docks honor cached label-button widths for notes and text',()=>
   assert.equal(f.properties.get('--ts-control-top'),`${expected.top}px`);
   assert.notEqual(expected.right,cardControlLayout(n,viewport,480,320,count).right,'labelled actions need more width than icon-only defaults');
  }
+});
+
+test('compact owner changes touch dock CSS and avoidance together without touching card geometry',()=>{
+ const view=new View(),f=surface(),n=node({x:60,y:280,width:160,height:140}),viewport={x:0,y:0,zoom:1};
+ const ownerClasses=new Set<string>();
+ view.stage={parentElement:{classList:{contains:(name:string)=>ownerClasses.has(name)}},get clientWidth(){throw Error('use cached stage dimensions');},get clientHeight(){throw Error('use cached stage dimensions');}};
+ view.cardToolbarObstacles=[];view.session={board:{viewport}};view.controlStageSize={width:390,height:760};view.selected=new Set([n.id]);
+ f.element.dataset.controlCount='5';f.element.dataset.controlWidth='236';
+ for(const touchTargets of [false,true,false]){
+  if(touchTargets)ownerClasses.add('ts-touch-card-controls');else ownerClasses.delete('ts-touch-card-controls');
+  view.positionNode(n,f.element);
+  const expected=cardControlLayout(n,viewport,390,760,5,{width:236,height:36,touchTargets,topReserve:60,screenGap:24});
+  assert.equal(f.element.dataset.touchControls,String(touchTargets));
+  assert.equal(f.properties.get('--ts-control-right'),`${expected.right}px`);
+  assert.equal(f.properties.get('--ts-control-top'),`${expected.top}px`);
+  assert.deepEqual([f.style.left,f.style.top,f.style.width,f.style.height],['60px','280px','160px','140px']);
+ }
+});
+
+for(const readingSlots of [0,1])test(`folded ${readingSlots+1}-slot touch presentation retains the same focus and event target through owner changes`,()=>{
+ const view=new View(),f=surface(),n=node({kind:readingSlots?'card':'text',collapsed:true,x:100,y:300,width:80,height:400}),viewport={x:30,y:-50,zoom:1};
+ const ownerClasses=new Set<string>(),button=new EventTarget(),row={button};let activations=0;
+ button.addEventListener('click',()=>activations++);
+ Object.assign(button,{classList:{contains:()=>false}});const doc={activeElement:button};Object.assign(f.element,{ownerDocument:doc,contains:(target:unknown)=>target===button,querySelector:()=>{throw Error('Position-only presentation must not inspect or replace children');}});
+ view.stage={parentElement:{classList:{contains:(name:string)=>ownerClasses.has(name)}}};view.cardToolbarObstacles=[];view.session={board:{viewport}};view.controlStageSize={width:346,height:680};view.connectionCandidates=[n];
+ f.element.dataset.controlCount='1';f.element.dataset.controlWidth='36';f.element.dataset.controlInlineUnfold='true';f.element.dataset.controlDockCount=String(readingSlots);
+ for(const touchTargets of [false,true,false,true]){
+  if(touchTargets)ownerClasses.add('ts-touch-card-controls');else ownerClasses.delete('ts-touch-card-controls');
+  view.positionNode(n,f.element);
+  const count=touchTargets?readingSlots+1:1,projected=sectionDisplayNode(n),expected=cardControlLayout(projected,viewport,346,680,count,{width:32*count+4,height:36,touchTargets,topReserve:60,screenGap:24});
+  assert.equal(f.element.dataset.externalUnfold,String(touchTargets));assert.equal(f.properties.get('--ts-control-top'),`${expected.top}px`);assert.equal(f.properties.get('--ts-control-right'),`${expected.right}px`);
+  assert.equal(doc.activeElement,button);assert.equal(row.button,button);button.dispatchEvent(new Event('click'));
+  assert.deepEqual([f.style.width,f.style.height],['80px','40px']);assert.deepEqual([n.width,n.height],[80,400]);
+ }
+ assert.equal(activations,4,'the same registered action remains attached after each presentation switch');
+});
+
+test('visible touch docks avoid an unselected neighbour and the current native draft bounds',()=>{
+ const view=new View(),f=surface(),n=node({kind:'text',x:70,y:300,width:240,height:180}),other=node({id:'draft',x:64,y:200,width:90,height:20}),viewport={x:0,y:0,zoom:1};
+ view.stage={parentElement:{classList:{contains:()=>true}}};view.cardToolbarObstacles=[];view.session={board:{viewport}};view.controlStageSize={width:390,height:760};view.selected=new Set(['draft']);view.connectionCandidates=[n,other];view.inlineTarget='draft';view.inlineGeometry={id:'draft',width:250,height:68};
+ f.element.dataset.controlCount='3';f.element.dataset.controlWidth='136';obstacleScans=0;view.positionNode(n,f.element);
+ const request=view.cardControlRequests.get(n.id);
+ assert.equal(obstacleScans,1,'cache mounted neighbour geometry once for shared allocation');assert.deepEqual(request.dimensions.avoid,foldControlObstacles(n,[n,{...other,width:250,height:68}],viewport));assert.equal(f.properties.has('--ts-control-top'),false,'passive touch does not run an initial full-dock solver');
+ assert.deepEqual([other.width,other.height],[90,20],'the native draft only changes the avoidance presentation');
 });
 
 test('a single selected card reserves only its visible actions, without changing content geometry',()=>{
@@ -144,7 +190,7 @@ test('pointer and focus dock events preserve the active inline draft when focus 
  for(const kind of ['text','card'] as const)for(const marker of ['inlineId','inlineTarget'] as const){
   const view=new ControlView(),f=surface(),n=node({kind}),before=structuredClone(n),classes=f.classes;
   const toolbarButton={classList:{contains:()=>false}},element=Object.assign(new EventTarget(),f.element,{
-   isConnected:true,ownerDocument:{activeElement:toolbarButton},contains:()=>false,
+   querySelector:()=>null,isConnected:true,ownerDocument:{activeElement:toolbarButton},contains:()=>false,
    classList:{contains:(name:string)=>classes.has(name),add:(name:string)=>classes.add(name),remove:(name:string)=>classes.delete(name)},
   });
   const disposers:(()=>void)[]=[];
@@ -167,7 +213,7 @@ test('pointer and focus dock events preserve the active inline draft when focus 
 test('dock events still synchronize a different node and released inline drafts, with cleanup',()=>{
  const view=new ControlView(),f=surface(),n=node({x:45,y:65}),classes=f.classes;
  const element=Object.assign(new EventTarget(),f.element,{
-  isConnected:true,ownerDocument:{activeElement:null},contains:()=>false,
+  querySelector:()=>null,isConnected:true,ownerDocument:{activeElement:null},contains:()=>false,
   classList:{contains:(name:string)=>classes.has(name),add:(name:string)=>classes.add(name),remove:(name:string)=>classes.delete(name)},
  });
  const disposers:(()=>void)[]=[];
@@ -189,4 +235,47 @@ test('folded section presentation tracks compact geometry without mutating logic
  const view=new View(),f=surface(),n=node({kind:'section',sectionFolded:true,width:800,height:600}),before=structuredClone(n),display=sectionDisplayNode(n);
  view.positionNode(n,f.element);assert.equal(f.style.width,`${display.width}px`);assert.equal(f.style.height,`${display.height}px`);assert.deepEqual(n,before);
  delete n.sectionFolded;view.positionNode(n,f.element);assert.equal(f.style.width,'800px');assert.equal(f.style.height,'600px');
+});
+
+test('the measured footer band participates in the cached touch entry reservation',()=>{
+ const view=new View(),f=surface(),n=node({x:60,y:140,width:160,height:100}),viewport={x:0,y:0,zoom:1};
+ view.stage={parentElement:{classList:{contains:(name:string)=>name==='ts-touch-card-controls'}}};view.session={board:{viewport}};view.controlStageSize={width:346,height:296};view.cardToolbarObstacles=[];view.connectionCandidates=[n];
+ view.cardFooterObstacle={x:0,y:195,width:346,height:101};f.element.dataset.controlCount='5';f.element.dataset.controlWidth='236';
+ view.positionNode(n,f.element);const request=view.cardControlRequests.get(n.id);assert.ok(request);assert.ok(request.dimensions.avoid.includes(view.cardFooterObstacle));
+ assert.equal(f.element.dataset.touchControls,'true');assert.equal(f.element.dataset.controlDisplay,'entry');assert.deepEqual([f.style.left,f.style.top,f.style.width,f.style.height],['60px','140px','160px','100px']);
+});
+
+for(const entry of [false,true])test(`initial touch presentation preserves an exact focused ${entry?'entry':'action'} before reservation`,()=>{
+ const view=new View(),f=surface(),n=node({x:60,y:140,width:160,height:100}),viewport={x:0,y:0,zoom:1};
+ const control={classList:{contains:(name:string)=>entry&&name==='ts-card-control-entry'}},doc={activeElement:control};
+ Object.assign(f.element,{ownerDocument:doc,contains:(target:unknown)=>target===control});
+ const data=f.element.dataset;f.element.dataset=new Proxy(data,{set(target,key,value){if(key==='touchControls'&&value==='true')assert.equal(target.controlDisplay,entry?'entry':'full','CSS must receive the focus-preserving state before touch mode');return Reflect.set(target,key,value);}});
+ view.stage={parentElement:{classList:{contains:(name:string)=>name==='ts-touch-card-controls'}}};view.session={board:{viewport}};view.controlStageSize={width:346,height:700};view.cardToolbarObstacles=[];view.connectionCandidates=[n];
+ f.element.dataset.controlCount='5';f.element.dataset.controlWidth='236';view.positionNode(n,f.element);
+ assert.equal(doc.activeElement,control);assert.equal(f.element.dataset.controlDisplay,entry?'entry':'full');assert.deepEqual([n.x,n.y,n.width,n.height],[60,140,160,100]);
+});
+
+test('mounted context-owned touch cards refresh local port and reading scales during camera-only zoom',()=>{
+ const view=new View(),f=surface(),n=node(),viewport={x:0,y:0,zoom:1},before=structuredClone(n);
+ let portScale='1',touch=true,owned=true;
+ view.world={style:{getPropertyValue:(name:string)=>{assert.equal(name,'--ts-port-scale');return portScale;}}};
+ view.stage={parentElement:{classList:{contains:(name:string)=>touch&&name==='ts-touch-card-controls'}}};
+ view.session={board:{viewport,nodes:[n]}};view.selected=new Set([n.id]);view.controlStageSize={width:820,height:1180};view.cardToolbarObstacles=[];
+ view.cardControlContext={owns:(el:unknown)=>owned&&el===f.element};
+ f.element.dataset.touchControls='false';f.properties.set('--ts-port-scale','1');f.properties.set('--ts-control-scale','1');f.properties.set('--ts-control-top','-200px');f.properties.set('--ts-control-right','-50px');
+ for(const zoom of [1,.5,.25,1,2,3]){
+  viewport.zoom=zoom;portScale=String(1/Math.min(1,zoom));const camera=structuredClone(viewport);view.positionNode(n,f.element);
+  assert.equal(f.element.dataset.touchControls,'true','fine-to-touch context borrowing updates the existing reading target');
+  assert.equal(f.properties.get('--ts-port-scale'),portScale);assert.equal(f.properties.get('--ts-control-scale'),String(1/zoom));
+  assert.equal(Number(f.properties.get('--ts-control-scale'))*zoom*44,44,'reading target keeps its full screen size');
+  assert.equal(f.properties.get('--ts-control-top'),'-200px');assert.equal(f.properties.get('--ts-control-right'),'-50px','borrowed controls are not repositioned');
+  assert.deepEqual(n,before);assert.deepEqual(viewport,camera);
+  f.writes.length=0;viewport.x+=10;view.positionNode(n,f.element);assert.deepEqual(f.writes,[],'same-zoom pan writes no host presentation');
+ }
+ // Production syncCardControlContext releases borrowed controls before a fine-pointer layout.
+ touch=false;owned=false;view.positionNode(n,f.element);
+ const expected=cardControlLayout(n,viewport,820,1180,5,{width:164,height:36,topReserve:60,screenGap:24});
+ assert.equal(f.element.dataset.touchControls,'false');assert.equal(f.properties.get('--ts-control-scale'),String(expected.scale));
+ assert.equal(f.properties.get('--ts-control-top'),`${expected.top}px`);assert.equal(f.properties.get('--ts-control-right'),`${expected.right}px`);
+ assert.equal(f.properties.get('--ts-port-scale'),portScale);assert.deepEqual(n,before);
 });

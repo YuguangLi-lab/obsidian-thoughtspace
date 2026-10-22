@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {OnlineDraftStore,type OnlineDraftStorage,type StoredOnlineDraft,type OnlineDraftStamp} from '../src/online-draft-store';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
@@ -6,11 +7,13 @@ import * as onlinePlatform from '../src/online-platform';
 import * as mediaSource from '../src/media-source';
 import * as density from '../src/workspace-density';
 import * as viewport from '../src/mobile-viewport';
+import {bindOnlineComposerLayout as actualComposerLayout} from '../src/online-composer-layout';
 import type {OnlineSource,OnlineState} from '../src/online-platform';
 
 // The view runs against the same small Obsidian DOM surface it uses in production.
 // No browser, platform window, network request or vault write is needed here.
-let documentId=0;
+let documentId=0,realComposerLayout=false;
+const layoutBindings:{root:Element;document:unknown;disposed:number;refreshes:number;reveals:number}[]=[],insetBindings:{root:Element;document:unknown;disposed:number}[]=[],viewportBindings:{root:Element;document:unknown;disposed:number}[]=[];
 class ObjectURLs {
  private id=++documentId;
  created:{url:string;blob:Blob}[]=[];revoked:string[]=[];active=new Map<string,Blob>();
@@ -22,7 +25,10 @@ class Element {
  ownerDocument:{nodeType?:number;defaultView:{setTimeout:typeof setTimeout;clearTimeout:typeof clearTimeout;URL:ObjectURLs;Blob:typeof Blob;closed:boolean};activeElement?:Element}={defaultView:{setTimeout,clearTimeout,URL:new ObjectURLs(),Blob,closed:false}};
  connected=true;visible=true;
  get isConnected():boolean{return this.parentElement?this.parentElement.isConnected:this.connected;}
- getClientRects(){return this.isConnected&&this.visible?[{}]:[];}
+ getClientRects(){if(!this.isConnected||!this.visible)return[];if(realComposerLayout)for(let node:Element|undefined=this;node;node=node.parentElement){if(node.hidden)return[];const parent=node.parentElement;if(parent?.attributes.get('tag')==='details'&&!parent.open&&node.attributes.get('tag')!=='summary')return[];}return[{}];}
+ box={width:1000,height:700,top:0};scrollTop=0;scrollLeft=0;selectionStart=0;selectionEnd=0;
+ getBoundingClientRect(){return this.box;}
+ get firstChild(){return this.children[0]??null;}
  className='';textContent='';value='';title='';placeholder='';type='';disabled=false;readOnly=false;hidden=false;open=false;
  listeners=new Map<string,((event:any)=>unknown)[]>();
  onclick?:((event:any)=>unknown)|null;oninput?:((event:any)=>unknown)|null;onchange?:((event:any)=>unknown)|null;onkeydown?:((event:any)=>unknown)|null;
@@ -42,11 +48,13 @@ class Element {
  }
  all():Element[]{return[this,...this.children.flatMap(child=>child.all())];}
  matches(selector:string){
+  if(selector.endsWith(':not(:disabled)')){if(this.disabled)return false;selector=selector.slice(0,-15);}
   const attribute=/\[([^=\]]+)(?:="([^"]*)")?\]$/.exec(selector);
   if(attribute){if(!this.attributes.has(attribute[1])||attribute[2]!==undefined&&this.attributes.get(attribute[1])!==attribute[2])return false;selector=selector.slice(0,attribute.index);}
   const[tag,...classes]=selector.split('.');return(!tag||this.attributes.get('tag')===tag)&&classes.every(value=>this.className.split(' ').includes(value));
  }
  querySelectorAll(selector:string):Element[]{
+  if(selector.includes(','))return this.all().slice(1).filter(node=>selector.split(',').some(part=>node.matches(part.trim())));
   const parts=selector.trim().split(/\s+/);let nodes:Element[]=[this];
   for(const part of parts)nodes=nodes.flatMap(node=>node.all().slice(1).filter(candidate=>candidate.matches(part)));
   return[...new Set(nodes)];
@@ -55,7 +63,8 @@ class Element {
  contains(node:Element){return this.all().includes(node);}
  empty(){for(const child of this.children)child.parentElement=undefined;this.children=[];this.textContent='';}
  append(...nodes:Element[]){for(const node of nodes){node.remove();node.parentElement=this;node.ownerDocument=this.ownerDocument;this.children.push(node);}}
- remove(){if(this.parentElement)this.parentElement.children=this.parentElement.children.filter(child=>child!==this);this.parentElement=undefined;}
+ insertBefore(node:Element,before:Element|null){if(node===before)return;node.remove();const index=before?this.children.indexOf(before):this.children.length;assert.ok(index>=0);node.parentElement=this;node.ownerDocument=this.ownerDocument;this.children.splice(index,0,node);}
+ remove(){if(realComposerLayout&&this.parentElement&&this.contains(this.ownerDocument.activeElement!))this.ownerDocument.activeElement=(this.ownerDocument as any).body;if(this.parentElement)this.parentElement.children=this.parentElement.children.filter(child=>child!==this);this.parentElement=undefined;}
  addClass(...names:string[]){this.className=[...new Set([...this.className.split(' '),...names])].filter(Boolean).join(' ');}
  removeClass(...names:string[]){this.className=this.className.split(' ').filter(value=>!names.includes(value)).join(' ');}
  toggleClass(name:string,on:boolean){if(on)this.addClass(name);else this.removeClass(name);}
@@ -111,7 +120,9 @@ new Function('require','module','exports','console',compiled)((name:string)=>{
  if(name==='./online-platform')return onlinePlatform;
  if(name==='./media-source')return mediaSource;
  if(name==='./workspace-density')return density;
- if(name==='./mobile-viewport')return viewport;
+ if(name==='./mobile-viewport')return{...viewport,bindMobileViewport:(root:Element)=>{if(!realComposerLayout)return viewport.bindMobileViewport(root as any);const record={root,document:root.ownerDocument,disposed:0};viewportBindings.push(record);return()=>{record.disposed++;};}};
+ if(name==='./board-chrome')return{bindBoardHostInset:(root:Element)=>{const record={root,document:root.ownerDocument,disposed:0};insetBindings.push(record);return()=>{record.disposed++;};}};
+ if(name==='./online-composer-layout')return{bindOnlineComposerLayout:(parts:any)=>{const record={root:parts.root,document:parts.root.ownerDocument,disposed:0,refreshes:0,reveals:0},actual=realComposerLayout?actualComposerLayout(parts):undefined;layoutBindings.push(record);return{refresh(){record.refreshes++;actual?.refresh();},revealComposer(){record.reveals++;actual?.revealComposer();},dispose(){record.disposed++;actual?.dispose();}};}};
  throw Error(`Unexpected runtime dependency: ${name}`);
 },module,module.exports,{error:(...values:unknown[])=>errorsLogged.push(values)});
 const {OnlineWorkspaceView}=module.exports as {OnlineWorkspaceView:new(leaf:unknown,host:unknown)=>any};
@@ -294,16 +305,16 @@ test('platform errors are visible only for the selected source and clear when sy
 
 test('action failures retain a bounded plain-text reason instead of replacing it with a generic error',async()=>{
  const f=fixture(),v=await open(f);f.publish(synchronized(youtube));f.host.command=async()=>{throw Error('需要登录\u0000\n<script>nothing</script>'+'.'.repeat(700));};
- await click(v,'播放或暂停');assert.match(status(v),/播放或暂停失败：需要登录 <script>nothing<\/script>/);assert.doesNotMatch(status(v),/操作未完成/);
+ await click(v,'播放或暂停');assert.match(status(v),/^播放或暂停失败：当前摘录仍保留。\n需要登录 <script>nothing<\/script>/);assert.doesNotMatch(status(v),/操作未完成/);
  assert.ok(status(v).length<450);assert.ok(errorsLogged.at(-1)?.[1] instanceof Error);
  assert.equal(v.contentEl.querySelectorAll('script').length,0);await v.onClose();
 });
 
 test('specific screenshot, save and note-read errors survive their UI catch paths',async()=>{
  const f=fixture(),v=await open(f);f.publish(synchronized(youtube));type(editor(v),'keep my draft');
- f.setCapture(async()=>{throw Error('请将页面缩放恢复到 100%');});await click(v,'快速截图');assert.match(status(v),/截图失败：请将页面缩放恢复到 100%/);
- f.setWrite(async()=>{throw Error('原笔记已移动，请重新打开');});await click(v,'保存摘录');assert.match(status(v),/保存摘录失败：原笔记已移动，请重新打开/);assert.equal(editor(v).value,'keep my draft');
- f.setRead(async()=>{throw Error('部分笔记尚未完成索引');});await click(v,'刷新摘录');assert.match(status(v),/读取摘录失败：部分笔记尚未完成索引/);
+ f.setCapture(async()=>{throw Error('请将页面缩放恢复到 100%');});await click(v,'快速截图');assert.match(status(v),/^截图失败：当前摘录仍保留。\n请将页面缩放恢复到 100%/);
+ f.setWrite(async()=>{throw Error('原笔记已移动，请重新打开');});await click(v,'保存摘录');assert.match(status(v),/^保存摘录失败：当前摘录仍保留。\n原笔记已移动，请重新打开/);assert.equal(editor(v).value,'keep my draft');
+ f.setRead(async()=>{throw Error('部分笔记尚未完成索引');});await click(v,'刷新摘录');assert.match(status(v),/^读取摘录失败：当前摘录仍保留。\n部分笔记尚未完成索引/);
  await v.onClose();
 });
 
@@ -669,4 +680,239 @@ test('IME close without compositionend retains the visible online draft and bloc
 
 test('composition owns the empty online editor across concurrent views until it is closed',async()=>{
  const f=fixture(),first=await open(f);f.publish(synchronized(youtube));first.input.dispatch('compositionstart');first.input.value='首个窗口合成';const other=await open(f);assert.equal(other.input.readOnly,true);await first.onClose();assert.equal(other.input.value,'首个窗口合成');assert.equal(other.input.readOnly,false);await other.onClose();
+});
+
+
+// Real view + actual composition-layout controller. Viewport/inset helpers are
+// recorded lifecycle dependencies here; these are DOM contracts, not geometry.
+function layoutDocument(){
+ const document:any=new Element().ownerDocument,frames=new Map<number,()=>void>(),listeners=new Map<string,Set<()=>void>>();let sequence=0;
+ document.body=new Element();document.body.ownerDocument=document;document.activeElement=document.body;
+ Object.assign(document.defaultView,{Node:Element,requestAnimationFrame:(fn:()=>void)=>{frames.set(++sequence,fn);return sequence;},cancelAnimationFrame:(id:number)=>frames.delete(id),addEventListener:(type:string,fn:()=>void)=>{if(!listeners.has(type))listeners.set(type,new Set());listeners.get(type)!.add(fn);},removeEventListener:(type:string,fn:()=>void)=>listeners.get(type)?.delete(fn)});
+ return{document,frames,listeners,resize(){for(const fn of listeners.get('resize')??[])fn();const queued=[...frames.values()];frames.clear();for(const fn of queued)fn();}};
+}
+async function layoutView(f:ReturnType<typeof fixture>,width=316,height=302){const env=layoutDocument(),v=f.view();v.contentEl.ownerDocument=env.document;v.contentEl.box={width,height,top:0};await v.onOpen();await v.setState({source:youtube.path,panel:'compose'});return{...env,v,root:v.contentEl as Element,details:v.contentEl.querySelector('.ts-online-workspace__composer-details') as Element,summary:v.contentEl.querySelector('.ts-online-workspace__composer-details summary') as Element};}
+for(const mode of ['manual','timestamp','screenshot'] as const)test(`actual view ${mode} action reveals the same textarea after fixing time`,async()=>{
+ realComposerLayout=true;let v:any;
+ try{const f=fixture();if(mode==='manual')Object.assign(f.host,{playbackAvailable:()=>false});const x=await layoutView(f);v=x.v;const input=editor(v),binding=layoutBindings.at(-1)!;
+  assert.equal(x.details.open,true);if(mode==='manual'){type(v.manual,'1:23');await click(v,'确认时间');}else{f.publish(synchronized(youtube,83));x.details.open=true;button(v,mode==='timestamp'?'记下此刻':'快速截图').focus();await click(v,mode==='timestamp'?'记下此刻':'快速截图');}
+  assert.equal(editor(v),input);assert.equal(x.details.open,false);assert.equal(binding.reveals,1);assert.equal(x.document.activeElement,input);assert.equal(input.readOnly,false);assert.equal(input.getClientRects().length,1);assert.equal(v.memory.draft?.time??v.memory.manualTime,83);await v.onClose();assert.equal(binding.disposed,1);
+ }finally{await v?.onClose();realComposerLayout=false;}
+});
+test('actual view migration rebinds layout to current document without recreating textarea or mount',async()=>{
+ realComposerLayout=true;let v:any;
+ try{const f=fixture(),x=await layoutView(f);v=x.v;f.publish(synchronized(youtube,40));type(editor(v),'中文 עברית preserved');const input=editor(v),mount=f.mounts[0],old=layoutBindings.at(-1)!,oldInset=insetBindings.at(-1)!,oldViewport=viewportBindings.at(-1)!,next=layoutDocument();input.selectionStart=2;input.selectionEnd=5;input.scrollTop=23;
+  for(const node of x.root.all())node.ownerDocument=next.document;next.document.activeElement=input;v.onWindowMigrated();
+  const rebound=layoutBindings.at(-1)!;assert.notEqual(rebound,old);assert.equal(old.disposed,1);assert.equal(oldInset.disposed,1);assert.equal(oldViewport.disposed,1);assert.equal(rebound.document,next.document);assert.equal(editor(v),input);assert.equal(input.value,'中文 עברית preserved');assert.equal(input.selectionStart,2);assert.equal(input.selectionEnd,5);assert.equal(input.scrollTop,23);assert.equal(next.document.activeElement,input);assert.equal(f.mounts[0],mount);assert.equal(mount.released,0);assert.equal(x.listeners.get('resize')?.size,0);
+  await v.onClose();const count=layoutBindings.length;v.onWindowMigrated();assert.equal(layoutBindings.length,count);assert.equal(rebound.disposed,1);assert.equal(next.listeners.get('resize')?.size,0);assert.equal(mount.released,1);
+ }finally{await v?.onClose();realComposerLayout=false;}
+});
+test('actual view source rerender disposes prior layout and leaves only current metadata controller',async()=>{
+ realComposerLayout=true;let v:any;
+ try{const f=fixture(),x=await layoutView(f);v=x.v;const old=layoutBindings.at(-1)!,oldDetails=x.details;await v.setState({source:another.path,panel:'compose'});const current=layoutBindings.at(-1)!;
+  assert.equal(old.disposed,1);assert.notEqual(current,old);assert.notEqual(editor(v).parentElement,oldDetails.parentElement);oldDetails.dispatch('toggle');assert.equal(current.disposed,0);assert.equal(x.listeners.get('resize')?.size,1);await v.onClose();assert.equal(current.disposed,1);
+ }finally{await v?.onClose();realComposerLayout=false;}
+});
+test('actual view normal-layout summary handoff chooses visible manual input or editor',async()=>{
+ realComposerLayout=true;let v:any;
+ try{const f=fixture();Object.assign(f.host,{playbackAvailable:()=>false});const x=await layoutView(f);v=x.v;x.summary.focus();x.root.box={width:1000,height:700,top:0};x.resize();assert.equal(x.document.activeElement,v.manual);assert.equal(v.manual.getClientRects().length,1);
+  type(v.manual,'1:23');await click(v,'确认时间');x.root.box={width:316,height:302,top:0};x.resize();x.summary.focus();x.root.box={width:1000,height:700,top:0};x.resize();assert.equal(x.document.activeElement,editor(v));assert.equal(editor(v).getClientRects().length,1);await v.onClose();
+ }finally{await v?.onClose();realComposerLayout=false;}
+});
+
+test('actual unsynchronized desktop fallback keeps inner details closed and transfers summary focus to its visible summary',async()=>{
+ realComposerLayout=true;let v:any;
+ try{const f=fixture(),x=await layoutView(f);v=x.v;const fallback=v.contentEl.querySelector('.ts-online-workspace__manual-fallback') as Element,manualSummary=fallback.querySelector('summary');assert.equal(fallback.open,false);assert.equal(v.manual.getClientRects().length,0);x.summary.focus();x.root.box={width:1000,height:700,top:0};x.resize();assert.equal(fallback.open,false);assert.equal(x.document.activeElement,manualSummary);assert.equal(manualSummary!.getClientRects().length,1);assert.equal(v.manual.getClientRects().length,0);await v.onClose();
+ }finally{await v?.onClose();realComposerLayout=false;}
+});
+
+test('fresh ready source render starts metadata collapsed instead of inheriting the new details default open',async()=>{
+ realComposerLayout=true;let v:any;
+ try{const f=fixture(),x=await layoutView(f);v=x.v;f.publish(synchronized(youtube,30));const old=x.details;old.open=false;old.dispatch('toggle');assert.equal(old.open,false);f.publish(synchronized(another,40));await v.setState({source:another.path,panel:'compose'});const details=v.contentEl.querySelector('.ts-online-workspace__composer-details');assert.notEqual(details,old);assert.equal(details.open,false);assert.equal(v.contentEl.dataset.onlineShort,'true');await v.onClose();
+ }finally{await v?.onClose();realComposerLayout=false;}
+});
+test('same-node migration retains deliberately open metadata when summary owns focus',async()=>{
+ realComposerLayout=true;let v:any;
+ try{const f=fixture(),x=await layoutView(f);v=x.v;f.publish(synchronized(youtube,30));x.details.open=true;x.details.dispatch('toggle');x.summary.focus();const next=layoutDocument();for(const node of x.root.all())node.ownerDocument=next.document;next.document.activeElement=x.summary;v.onWindowMigrated();assert.equal(v.contentEl.querySelector('.ts-online-workspace__composer-details'),x.details);assert.equal(x.details.open,true);assert.equal(next.document.activeElement,x.summary);await v.onClose();
+ }finally{await v?.onClose();realComposerLayout=false;}
+});
+
+// Actual view + real persistence store across distinct host identities; no browser, real vault or network.
+class OnlineStorageFixture implements OnlineDraftStorage {
+ rows=new Map<string,StoredOnlineDraft>();failWrite=false;failDelete=false;readFailure=false;
+ gate?:ReturnType<typeof deferred<void>>;writes=0;removed=0;
+ async read(){if(this.readFailure)throw Error('read storage failed');return [...this.rows.values()].map(value=>structuredClone(value));}
+ async replace(value:StoredOnlineDraft,expected?:OnlineDraftStamp){
+  if(this.gate){const gate=this.gate;this.gate=undefined;await gate.promise;}
+  if(this.failWrite)throw Error('backup unavailable');const old=this.rows.get(value.id);
+  assert.deepEqual(old?{revision:old.revision,lease:old.lease}:undefined,expected,'storage owner is exact');
+  if([...this.rows.values()].some(row=>row.id!==value.id&&row.key===value.key))throw Error('alias slot occupied');
+  this.rows.set(value.id,structuredClone(value));this.writes++;
+ }
+ async remove(id:string,expected?:OnlineDraftStamp){
+  if(this.failDelete)throw Error('cleanup unavailable');const old=this.rows.get(id);assert.deepEqual(old?{revision:old.revision,lease:old.lease}:undefined,expected,'remove owner is exact');this.rows.delete(id);this.removed++;
+ }
+}
+async function persistenceFixture(storage=new OnlineStorageFixture()){
+ const f=fixture(),drafts=new OnlineDraftStore(storage,()=>{},{setTimeout:()=>1,clearTimeout:()=>{}});await drafts.load();Object.assign(f.host,{drafts});f.publish(synchronized(youtube,83));return{...f,drafts,storage};
+}
+async function persistedView(storage?:OnlineStorageFixture){const f=await persistenceFixture(storage),v=await open(f);type(editor(v),'重启保留\n原始正文与标点。\n');await f.drafts.flush();return{...f,v};}
+function visibleFailureStatus(v:any){Object.assign(v.contentEl.ownerDocument,{hasFocus:()=>true,visibilityState:'visible',elementFromPoint:()=>v.status});Object.assign(v.contentEl.ownerDocument.defaultView,{innerWidth:360,innerHeight:380,getComputedStyle:()=>({display:'block',visibility:'visible',opacity:'1'})});v.status.box={left:0,top:290,right:360,bottom:380,width:360,height:90};}
+test('exact active draft failure paints durable inline feedback before the store subscriber and preserves retry data',async()=>{
+ const f=fixture(),storage=new OnlineStorageFixture();let view:any,covered=false;
+ const drafts=new OnlineDraftStore(storage,(_error,ids)=>{covered=view.showDraftStorageFailure(drafts,ids!);assert.match(status(view),/本机备份不可用/);},{setTimeout:()=>1,clearTimeout:()=>{}});await drafts.load();Object.assign(f.host,{drafts});view=await open(f);visibleFailureStatus(view);f.publish(synchronized(youtube,83));type(editor(view),'original retry text');const original={...view.memory.draft};storage.failWrite=true;await assert.rejects(drafts.flush());assert.equal(covered,true);assert.equal(button(view,'重试暂存').hidden,false);assert.deepEqual(view.memory.draft,original);assert.equal(storage.rows.size,0);assert.equal(f.saves.length,0);storage.failWrite=false;await click(view,'重试暂存');assert.equal(button(view,'重试暂存').hidden,true);assert.match(status(view),/草稿已暂存到本机/);assert.equal(editor(view).value,original.text);assert.equal(f.saves.length,0);await view.onClose();
+});
+test('inline feedback never covers another store, background draft, hidden/foreign status or different safety branch',async()=>{
+ const f=await persistenceFixture(),v=await open(f);visibleFailureStatus(v);type(editor(v),'owner');f.storage.failWrite=true;await assert.rejects(f.drafts.flush());const id=v.memory.draft.id;
+ assert.equal(v.showDraftStorageFailure(f.drafts,[id]),true);assert.equal(v.showDraftStorageFailure(new OnlineDraftStore(new OnlineStorageFixture(),()=>{},{setTimeout:()=>1,clearTimeout:()=>{}}),[id]),false);assert.equal(v.showDraftStorageFailure(f.drafts,['other']),false);assert.equal(v.showDraftStorageFailure(f.drafts,[id,'background']),false);
+ for(const field of ['restoreBlocked','recovered']){v.memory[field]=true;assert.equal(v.showDraftStorageFailure(f.drafts,[id]),false);v.memory[field]=false;}
+ v.memory.phase='committed';assert.equal(v.showDraftStorageFailure(f.drafts,[id]),true);assert.match(status(v),/^笔记已保存；本机暂存尚未清理/);assert.doesNotMatch(status(v),/尚未开始新的笔记写入/);v.memory.phase='editing';
+ f.app.workspace.activeLeaf={view:{}};assert.equal(v.showDraftStorageFailure(f.drafts,[id]),false);f.app.workspace.activeLeaf=v.leaf;
+ v.status.visible=false;assert.equal(v.showDraftStorageFailure(f.drafts,[id]),false);v.status.visible=true;
+ v.status.box.bottom=430;assert.equal(v.showDraftStorageFailure(f.drafts,[id]),false);visibleFailureStatus(v);
+ const doc=v.status.ownerDocument;v.status.ownerDocument=new Element().ownerDocument;assert.equal(v.showDraftStorageFailure(f.drafts,[id]),false);v.status.ownerDocument=doc;
+ doc.defaultView.closed=true;assert.equal(v.showDraftStorageFailure(f.drafts,[id]),false);doc.defaultView.closed=false;
+ Object.assign(doc,{hasFocus:()=>false});assert.equal(v.showDraftStorageFailure(f.drafts,[id]),false);Object.assign(doc,{hasFocus:()=>true,visibilityState:'hidden'});assert.equal(v.showDraftStorageFailure(f.drafts,[id]),false);Object.assign(doc,{visibilityState:'visible',elementFromPoint:()=>new Element()});assert.equal(v.showDraftStorageFailure(f.drafts,[id]),false);visibleFailureStatus(v);
+ v.contentEl.connected=false;assert.equal(v.showDraftStorageFailure(f.drafts,[id]),false);v.contentEl.connected=true;await v.onClose();assert.equal(v.showDraftStorageFailure(f.drafts,[id]),false);
+});
+test('short status shows current failure first without changing editor focus or body scrolling',async()=>{
+ const f=await persistenceFixture(),v=await open(f);visibleFailureStatus(v);type(editor(v),'retained');v.statusMessage='旧的手动时间确认';v.status.box={left:0,top:352,right:360,bottom:380,width:360,height:28};v.status.scrollTop=40;const focus=v.contentEl.ownerDocument.activeElement;f.storage.failWrite=true;await assert.rejects(f.drafts.flush());assert.equal(v.showDraftStorageFailure(f.drafts,[v.memory.draft.id]),true);assert.match(status(v),/^本机备份不可用/);assert.equal(v.status.scrollTop,0);assert.equal(v.contentEl.ownerDocument.activeElement,focus);assert.equal(editor(v).value,'retained');await v.onClose();
+});
+test('shared draft in a second window only covers feedback through the current exact view and owner document',async()=>{
+ const f=await persistenceFixture(),first=await open(f);visibleFailureStatus(first);type(editor(first),'shared across windows');f.storage.failWrite=true;await assert.rejects(f.drafts.flush());const id=first.memory.draft.id,second=await open(f);visibleFailureStatus(second);assert.notEqual(first.contentEl.ownerDocument,second.contentEl.ownerDocument);assert.equal(second.memory,first.memory);assert.equal(first.showDraftStorageFailure(f.drafts,[id]),false);assert.equal(second.showDraftStorageFailure(f.drafts,[id]),true);await first.onClose();await second.onClose();
+});
+const receipt=(f:ReturnType<typeof fixture>,draft:Draft)=>({note:f.noteA,entries:[{id:draft.id,time:draft.time,text:draft.text,line:1}]});
+test('persisted editing draft reopens on a different host editable with original id/time/Blob',async()=>{
+ const f=await persistedView();await click(f.v,'快速截图');await f.drafts.flush();const draft={...f.v.memory.draft},state=f.v.getState();await f.v.onClose();await f.drafts.dispose();
+ const next=await persistenceFixture(f.storage),v=await open(next,youtube,state);assert.equal(v.memory.draft.id,draft.id);assert.equal(editor(v).value,draft.text);assert.equal(v.memory.draft.time,83);assert.equal(await v.memory.draft.image.text(),await draft.image.text());assert.equal(editor(v).readOnly,false);type(editor(v),'恢复后继续');await next.drafts.flush();assert.equal(next.storage.rows.get(draft.id)!.text,'恢复后继续');await v.onClose();
+});
+test('prepared storage rejection performs zero note calls, restores editing, and retries exact id',async()=>{
+ const f=await persistedView(),id=f.v.memory.draft.id;f.storage.failWrite=true;await click(f.v,'保存摘录');assert.equal(f.saves.length,0);assert.equal(editor(f.v).readOnly,false);assert.equal(f.v.memory.phase,'editing');assert.match(status(f.v),/尚未写笔记/);type(editor(f.v),'仍可编辑');assert.equal(f.v.memory.draft.id,id);f.storage.failWrite=false;await click(f.v,'保存摘录');assert.equal(f.saves.length,1);assert.equal(f.saves[0].data.id,id);assert.equal(f.v.memory.draft,undefined);assert.equal(f.storage.rows.size,0);await f.v.onClose();
+});
+test('failed prepared transaction leaves prior disk editing recoverable after a full new host',async()=>{
+ const f=await persistedView(),draft={...f.v.memory.draft},state=f.v.getState();f.storage.failWrite=true;await click(f.v,'保存摘录');assert.equal(f.saves.length,0);assert.equal(f.storage.rows.get(draft.id)!.phase,'editing');await f.v.onClose();await f.drafts.dispose().catch(()=>{});f.storage.failWrite=false;
+ const next=await persistenceFixture(f.storage),v=await open(next,youtube,state);assert.equal(v.memory.recovered,false);assert.equal(editor(v).readOnly,false);assert.equal(v.memory.draft.id,draft.id);await v.onClose();
+});
+for(const change of ['closed','other-leaf','new-host']as const)test(`prepared held across ${change} cannot start a late note write`,async()=>{
+ const f=await persistedView(),draft=f.v.memory.draft,gate=deferred<void>();f.storage.gate=gate;f.v.saveButton.click();await settle();assert.equal(f.saves.length,0);
+ let closing:Promise<void>|undefined;
+ if(change==='closed')closing=f.v.onClose();if(change==='other-leaf')f.app.workspace.activeLeaf={view:{}};if(change==='new-host')closing=f.drafts.dispose();
+ gate.resolve();await settle();await closing;assert.equal(f.saves.length,0);assert.equal(f.v.memory.draft,draft);assert.equal(f.storage.rows.get(draft.id)!.phase,'prepared');
+});
+for(const phase of ['prepared','committed']as const)test(`recovered ${phase} queries only exact receipt and never creates a note on unknown result`,async()=>{
+ const f=await persistedView(),draft={...f.v.memory.draft};f.drafts.stage({id:draft.id,source:youtube.path,note:phase==='committed'?f.noteA.path:undefined,time:draft.time,text:draft.text,mode:'synced',image:draft.image,phase});await f.drafts.flush();await f.v.onClose();await f.drafts.dispose();
+ const next=await persistenceFixture(f.storage),v=await open(next,youtube,{note:phase==='committed'?f.noteA.path:undefined,draftId:draft.id});await click(v,'保存摘录');assert.equal(next.saves.length,0);assert.equal(editor(v).value,draft.text);assert.equal(editor(v).readOnly,true);assert.match(status(v),/上次保存结果未确认/);assert.equal(next.storage.rows.size,1);
+ next.setRead(async()=>receipt(next,draft));await click(v,'保存摘录');assert.equal(next.saves.length,0);assert.equal(next.storage.rows.size,0);assert.equal(v.memory.draft,undefined);await v.onClose();
+});
+test('successful note followed by committed-write and delete failures cannot save again; restart verifies same receipt',async()=>{
+ const f=await persistedView(),draft={...f.v.memory.draft};f.setWrite(async()=>{f.storage.failWrite=true;f.storage.failDelete=true;return{note:f.noteA};});await click(f.v,'保存摘录');assert.equal(f.saves.length,1);assert.equal(f.v.memory.phase,'committed');assert.equal(f.storage.rows.get(draft.id)!.phase,'prepared');assert.match(status(f.v),/笔记已保存/);
+ f.setRead(async()=>receipt(f,draft));await click(f.v,'保存摘录');assert.equal(f.saves.length,1);assert.equal(f.v.memory.draft.id,draft.id);const state=f.v.getState();await f.v.onClose();await f.drafts.dispose().catch(()=>{});f.storage.failWrite=false;f.storage.failDelete=false;
+ const next=await persistenceFixture(f.storage);next.setRead(async()=>receipt(next,draft));const v=await open(next,youtube,state);await click(v,'保存摘录');assert.equal(next.saves.length,0);assert.equal(next.storage.rows.size,0);assert.equal(v.currentNote(),next.noteA.path);await v.onClose();
+});
+test('note success and cleanup failure persists exact note; next host cleanup writes no second receipt',async()=>{
+ const f=await persistedView(),draft={...f.v.memory.draft};f.storage.failDelete=true;await click(f.v,'保存摘录');assert.equal(f.saves.length,1);const row=f.storage.rows.get(draft.id)!;assert.equal(row.phase,'committed');assert.equal(row.note,f.noteA.path);const state=f.v.getState();await f.v.onClose();await f.drafts.dispose();f.storage.failDelete=false;
+ const next=await persistenceFixture(f.storage);next.setRead(async()=>receipt(next,draft));const v=await open(next,youtube,state);await click(v,'保存摘录');assert.equal(next.saves.length,0);assert.equal(next.storage.rows.size,0);await v.onClose();
+});
+test('known current-host note failure retries the locked original id after preparation',async()=>{
+ const f=await persistedView(),draft={...f.v.memory.draft};f.setWrite(async()=>{throw Error('note failed before receipt');});await click(f.v,'保存摘录');assert.equal(f.saves.length,1);assert.equal(f.v.memory.recovered,undefined);assert.equal(editor(f.v).readOnly,true);f.setWrite(async()=>({note:f.noteA}));await click(f.v,'保存摘录');assert.equal(f.saves.length,2);assert.equal(f.saves[1].data.id,draft.id);assert.equal(f.storage.rows.size,0);await f.v.onClose();
+});
+test('cancel failure preserves entire current draft and reports no success',async()=>{
+ const f=await persistedView();await click(f.v,'快速截图');await f.drafts.flush();const draft=f.v.memory.draft;f.storage.failDelete=true;await click(f.v,'取消摘录');assert.equal(f.v.memory.draft,draft);assert.match(status(f.v),/取消摘录失败/);assert.doesNotMatch(status(f.v),/已取消当前摘录/);assert.equal(await draft.image.text(),'PNG');assert.equal(button(f.v,'导出截图').disabled,false);const oldNodes=f.v.contentEl.all().length;await click(f.v,'导出截图');assert.equal(f.v.contentEl.all().length,oldNodes);f.storage.failDelete=false;await click(f.v,'取消摘录');assert.equal(f.v.memory.draft,undefined);await f.v.onClose();
+});
+test('two same-host alias leaves retain one draft and one pending transaction',async()=>{
+ const f=await persistenceFixture();f.setRead(async()=>({note:f.noteA,entries:[]}));const a=await open(f);type(editor(a),'shared');await f.drafts.flush();const b=await open(f,youtube,{note:f.noteA.path}),draft=a.memory.draft;assert.equal(b.memory,a.memory);const held=deferred<{note:TFile}>();f.setWrite(()=>held.promise);f.app.workspace.activeLeaf=a.leaf;a.saveButton.click();await settle();b.saveButton.click();await settle();assert.equal(f.saves.length,1);held.resolve({note:f.noteA});await settle();assert.equal(a.memory.draft,undefined);assert.equal(b.input.value,'');assert.equal(f.saves[0].data.id,draft.id);await a.onClose();await b.onClose();
+});
+test('old host pending note completion cannot clear the new host recovered record',async()=>{
+ const f=await persistedView(),draft={...f.v.memory.draft},held=deferred<{note:TFile}>();f.setWrite(()=>held.promise);f.v.saveButton.click();await settle();assert.equal(f.saves.length,1);await f.drafts.dispose();const next=await persistenceFixture(f.storage),v=await open(next,youtube,{draftId:draft.id});held.resolve({note:f.noteA});await settle();assert.equal(v.memory.draft.id,draft.id);assert.equal(next.storage.rows.get(draft.id)!.phase,'prepared');assert.equal(next.storage.removed,0);await v.onClose();
+});
+test('unavailable backup blocks new note writes but preserves editable text and exportable image without protection claim',async()=>{
+ const storage=new OnlineStorageFixture();storage.readFailure=true;const f=await persistenceFixture(storage),v=await open(f);type(editor(v),'未受保护但仍在内存');await click(v,'快速截图');await click(v,'保存摘录');assert.equal(f.saves.length,0);assert.equal(editor(v).readOnly,false);assert.equal(v.memory.draft.text,'未受保护但仍在内存');assert.equal(await v.memory.draft.image.text(),'PNG');assert.match(status(v),/暂存失败，尚未写笔记/);assert.doesNotMatch(status(v),/草稿已暂存到本机/);assert.equal(button(v,'导出截图').disabled,false);await v.onClose();
+});
+test('wrong receipt id or pinned note cannot clear a recovered pending snapshot',async()=>{
+ const f=await persistedView(),draft={...f.v.memory.draft};f.drafts.stage({id:draft.id,source:youtube.path,note:f.noteA.path,time:83,text:draft.text,mode:'manual',phase:'prepared'});await f.drafts.flush();await f.v.onClose();await f.drafts.dispose();
+ const next=await persistenceFixture(f.storage);next.setRead(async()=>({note:next.noteB,entries:receipt(next,draft).entries}));const v=await open(next,youtube,{note:next.noteA.path,draftId:draft.id});await click(v,'保存摘录');assert.equal(next.saves.length,0);assert.equal(next.storage.rows.size,1);next.setRead(async()=>({note:next.noteA,entries:[{...receipt(next,draft).entries[0],id:'wrong'}]}));await click(v,'保存摘录');assert.equal(next.storage.rows.size,1);assert.equal(v.memory.draft.id,draft.id);await v.onClose();
+});
+test('committed backup failure never deletes the previous prepared row even when deletion would succeed',async()=>{
+ const f=await persistedView(),draft={...f.v.memory.draft};f.setWrite(async()=>{f.storage.failWrite=true;return{note:f.noteA};});await click(f.v,'保存摘录');assert.equal(f.saves.length,1);assert.equal(f.storage.removed,0);assert.equal(f.storage.rows.get(draft.id)!.phase,'prepared');assert.equal(f.v.memory.phase,'committed');assert.match(status(f.v),/笔记已保存/);f.storage.failWrite=false;f.setRead(async()=>receipt(f,draft));await click(f.v,'保存摘录');assert.equal(f.saves.length,1);assert.equal(f.storage.removed,1);await f.v.onClose();
+});
+test('lagging unbound layout restores committed exact-id note without writing another note',async()=>{
+ const f=await persistedView(),draft={...f.v.memory.draft},oldState=f.v.getState();f.storage.failDelete=true;await click(f.v,'保存摘录');await f.v.onClose();await f.drafts.dispose();f.storage.failDelete=false;const next=await persistenceFixture(f.storage);next.setRead(async()=>receipt(next,draft));const v=await open(next,youtube,oldState);assert.equal(v.memory.draft.id,draft.id);assert.equal(v.currentNote(),next.noteA.path);assert.equal(editor(v).readOnly,true);await click(v,'保存摘录');assert.equal(next.saves.length,0);assert.equal(next.storage.rows.size,0);await v.onClose();
+});
+test('explicit retry after read failure saves the current text and image without writing a note',async()=>{
+ const storage=new OnlineStorageFixture();storage.readFailure=true;const f=await persistenceFixture(storage),v=await open(f);type(editor(v),'备份恢复后仍是完整中文正文');await click(v,'快速截图');assert.equal(button(v,'重试暂存').hidden,false);storage.readFailure=false;await click(v,'重试暂存');assert.equal(f.saves.length,0);const row=storage.rows.get(v.memory.draft.id)!;assert.equal(row.text,'备份恢复后仍是完整中文正文');assert.equal(await row.image!.text(),'PNG');assert.equal(row.time,83);assert.match(status(v),/草稿已暂存到本机/);assert.equal(button(v,'重试暂存').hidden,true);assert.equal(f.drafts.error,'','complete clean reread resolves the prior read failure');await click(v,'取消摘录');assert.equal(status(v),'已取消当前摘录。');await v.onClose();
+});
+test('retry never claims invalid current text was protected by an older saved snapshot',async()=>{
+ const f=await persistedView(),previous=f.v.memory.draft.text;type(editor(f.v),'x'.repeat(100001));await click(f.v,'重试暂存');assert.equal(f.storage.rows.get(f.v.memory.draft.id)!.text,previous);assert.equal(editor(f.v).value.length,100001);assert.match(status(f.v),/重试暂存失败/);assert.doesNotMatch(status(f.v),/草稿已暂存到本机/);assert.equal(f.saves.length,0);await f.v.onClose();
+});
+test('concurrent source navigation during initial persistence load keeps the latest requested source',async()=>{
+ const storage=new OnlineStorageFixture(),gate=deferred<StoredOnlineDraft[]>();storage.read=()=>gate.promise;const f=fixture(),drafts=new OnlineDraftStore(storage,()=>{},{setTimeout:()=>1,clearTimeout:()=>{}});Object.assign(f.host,{drafts});const v=f.view();await v.onOpen();const a=v.setState({source:youtube.path}),b=v.setState({source:another.path});gate.resolve([]);await Promise.all([a,b]);assert.equal(v.getState().source,another.path);assert.equal(f.mounts.length,1);assert.equal(f.mounts[0].source,another.path);await v.onClose();
+});
+test('a later backup failure never unlocks an earlier uncertain note attempt or changes its receipt identity',async()=>{
+ const f=await persistedView(),draft={...f.v.memory.draft};f.setWrite(async()=>{throw Error('acknowledgment unknown');});await click(f.v,'保存摘录');assert.equal(f.saves.length,1);assert.equal(editor(f.v).readOnly,true);f.storage.failWrite=true;await click(f.v,'保存摘录');assert.equal(f.saves.length,1);assert.equal(editor(f.v).readOnly,true);assert.equal(f.v.memory.phase,'prepared');assert.equal(f.v.memory.draft.text,draft.text);assert.equal(f.v.memory.draft.id,draft.id);assert.match(status(f.v),/本次未再次写入笔记/);f.storage.failWrite=false;f.setWrite(async()=>({note:f.noteA}));await click(f.v,'保存摘录');assert.equal(f.saves.length,2);assert.equal(f.saves[1].data.id,draft.id);assert.equal(f.saves[1].data.text,draft.text);await f.v.onClose();
+});
+
+// Independent reviewer reproduction, retained verbatim.
+test('independent: lagging and explicit note aliases share one editor before asynchronous receipt settles',async()=>{
+ const storage=new OnlineStorageFixture(),seed=await persistenceFixture(storage);
+ seed.drafts.stage({id:'alias-recovery',source:youtube.path,note:seed.noteA.path,time:83,text:'protected original',mode:'manual',phase:'editing'});await seed.drafts.flush();await seed.drafts.dispose();
+ const f=await persistenceFixture(storage),pending=deferred<Timeline>();f.setRead(()=>pending.promise);
+ const a=f.view();await a.onOpen();const openingA=a.setState({source:youtube.path,draftId:'alias-recovery'});await settle();
+ const b=f.view();await b.onOpen();const openingB=b.setState({source:youtube.path,note:f.noteA.path,draftId:'alias-recovery'});await settle();
+ const shared=a.memory===b.memory;type(editor(a),'first leaf text');const secondReadOnly=editor(b).readOnly;
+ if(!secondReadOnly)type(editor(b),'second leaf overwrote first');await f.drafts.flush();
+ const savedText=storage.rows.get('alias-recovery')!.text;pending.resolve({note:f.noteA,entries:[]});await Promise.all([openingA,openingB]);await a.onClose();await b.onClose();
+ assert.equal(shared,true,JSON.stringify({shared,secondReadOnly,savedText,a:a.memory?.draft?.text,b:b.memory?.draft?.text}));
+ assert.equal(secondReadOnly,true,'same-host editor lease must guard the second alias');
+});
+for(const reverse of [false,true])for(const phase of ['editing','prepared','committed']as const)test(`recovered ${phase} aliases synchronously share one memory with reverse=${reverse}`,async()=>{
+ const storage=new OnlineStorageFixture(),seed=await persistenceFixture(storage),image=new Blob(['original frame'],{type:'image/png'});seed.drafts.stage({id:'recovered-alias',source:youtube.path,note:seed.noteA.path,time:83,text:'original',mode:'manual',phase,image});await seed.drafts.flush();await seed.drafts.dispose();
+ const f=await persistenceFixture(storage),held=deferred<Timeline>();f.setRead(()=>held.promise);const states=[{source:youtube.path,draftId:'recovered-alias'},{source:youtube.path,note:f.noteA.path,draftId:'recovered-alias'}];if(reverse)states.reverse();const a=f.view();await a.onOpen();const openingA=a.setState(states[0]);await settle();const b=f.view();await b.onOpen();const openingB=b.setState(states[1]);await settle();assert.equal(a.memory,b.memory);assert.equal(a.memory.draft,b.memory.draft);assert.equal(a.memory.draft.time,83);assert.equal(await a.memory.draft.image.text(),'original frame');
+ if(phase==='editing'){type(editor(a),'one editing owner');assert.equal(editor(b).readOnly,true);await f.drafts.flush();assert.equal(storage.rows.get('recovered-alias')!.text,'one editing owner');}else{assert.equal(editor(a).readOnly,true);assert.equal(editor(b).readOnly,true);assert.equal(f.saves.length,0);}
+ held.resolve({note:f.noteA,entries:[]});await Promise.all([openingA,openingB]);await a.onClose();if(phase==='editing'){assert.equal(editor(b).readOnly,false);type(editor(b),'owner after first close');await f.drafts.flush();assert.equal(storage.rows.get('recovered-alias')!.text,'owner after first close');}await b.onClose();
+});
+test('recovery alias collision preserves the active different draft and original stored draft',async()=>{
+ const storage=new OnlineStorageFixture(),seed=await persistenceFixture(storage);seed.drafts.stage({id:'stored-note-draft',source:youtube.path,note:seed.noteA.path,time:83,text:'stored original',mode:'manual',phase:'editing'});await seed.drafts.flush();await seed.drafts.dispose();const f=await persistenceFixture(storage),held=deferred<Timeline>();f.setRead(()=>held.promise);
+ const a=f.view();await a.onOpen();const openingA=a.setState({source:youtube.path});await settle();type(editor(a),'unbound active text');const original=a.memory,draft=original.draft;await f.drafts.flush();const b=f.view();await b.onOpen();const openingB=b.setState({source:youtube.path,draftId:'stored-note-draft'});await settle();assert.equal(a.memory,original);assert.equal(a.memory.draft,draft);assert.equal(editor(a).value,'unbound active text');assert.equal(editor(b).readOnly,true);assert.equal(b.memory.restoreBlocked,true);assert.equal(b.memory.draft,undefined);assert.equal(storage.rows.get('stored-note-draft')!.text,'stored original');assert.equal(storage.rows.get(draft.id)!.text,'unbound active text');held.resolve({entries:[]});await Promise.all([openingA,openingB]);await a.onClose();await b.onClose();
+});
+
+// Second independent identity boundary, retained verbatim.
+test('independent: recovered unbound draft cannot let a second explicit note retarget the first editor',async()=>{
+ const storage=new OnlineStorageFixture(),seed=await persistenceFixture(storage);
+ seed.drafts.stage({id:'unbound-recovery',source:youtube.path,time:83,text:'unbound original',mode:'manual',phase:'editing'});await seed.drafts.flush();await seed.drafts.dispose();
+ const f=await persistenceFixture(storage);f.setRead(async(_source,note)=>({note:note===f.noteB.path?f.noteB:f.noteA,entries:[]}));
+ const a=await open(f,youtube,{note:f.noteA.path,draftId:'unbound-recovery'});assert.equal(a.currentNote(),f.noteA.path);
+ const b=await open(f,youtube,{note:f.noteB.path,draftId:'unbound-recovery'});
+ const observation={aNote:a.currentNote(),bNote:b.currentNote(),sameMemory:a.memory===b.memory,aSavedBinding:a.memory.persistedNote,bBlocked:!!b.memory.restoreBlocked};
+ await a.onClose();await b.onClose();assert.equal(observation.aNote,f.noteA.path,JSON.stringify(observation));
+ assert.ok(observation.bBlocked||a.memory!==b.memory,'different explicit note must not reuse active recovered draft: '+JSON.stringify(observation));
+});
+
+test('transient read failure never replaces an existing disk draft with new memory content',async()=>{
+ const storage=new OnlineStorageFixture(),seed=await persistenceFixture(storage);seed.drafts.stage({id:'existing-disk-draft',source:youtube.path,time:39,text:'original disk text',mode:'manual',phase:'editing',image:new Blob(['disk image'],{type:'image/png'})});await seed.drafts.flush();await seed.drafts.dispose();storage.readFailure=true;
+ const f=await persistenceFixture(storage),v=await open(f);type(editor(v),'new unprotected memory text');const newId=v.memory.draft.id;assert.notEqual(newId,'existing-disk-draft');storage.readFailure=false;await click(v,'重试暂存');assert.equal(storage.rows.size,1);assert.equal(storage.rows.get('existing-disk-draft')!.text,'original disk text');assert.equal(await storage.rows.get('existing-disk-draft')!.image!.text(),'disk image');assert.equal(v.memory.draft.text,'new unprotected memory text');assert.equal(editor(v).readOnly,false);assert.match(status(v),/重试暂存失败/);assert.doesNotMatch(status(v),/草稿已暂存到本机/);assert.equal(f.saves.length,0);
+ await click(v,'取消摘录');assert.equal(storage.rows.has('existing-disk-draft'),true);await v.onClose();const restored=await open(f);assert.equal(restored.memory.draft.id,'existing-disk-draft');assert.equal(editor(restored).value,'original disk text');assert.equal(restored.memory.draft.time,39);assert.equal(await restored.memory.draft.image.text(),'disk image');await restored.onClose();
+});
+test('synchronous explicit binding rejects a different note before the first note lookup returns',async()=>{
+ const storage=new OnlineStorageFixture(),seed=await persistenceFixture(storage);seed.drafts.stage({id:'binding-pending',source:youtube.path,time:83,text:'unbound',mode:'manual',phase:'editing'});await seed.drafts.flush();await seed.drafts.dispose();const f=await persistenceFixture(storage),held=deferred<Timeline>();f.setRead(()=>held.promise);
+ const a=f.view();await a.onOpen();const openingA=a.setState({source:youtube.path,note:f.noteA.path,draftId:'binding-pending'});await settle();const b=f.view();await b.onOpen();const openingB=b.setState({source:youtube.path,note:f.noteB.path,draftId:'binding-pending'});await settle();assert.equal(a.currentNote(),f.noteA.path);assert.equal(b.currentNote(),f.noteB.path);assert.equal(b.memory.restoreBlocked,true);assert.equal(b.memory.draft,undefined);assert.equal(editor(b).readOnly,true);await f.drafts.flush();assert.equal(storage.rows.get('binding-pending')!.note,f.noteA.path);held.resolve({entries:[]});await Promise.all([openingA,openingB]);await a.onClose();await b.onClose();
+});
+for(const outcome of ['note','error'])test(`an old unbound ${outcome} cannot overwrite a newer shared explicit binding`,async()=>{
+ const storage=new OnlineStorageFixture(),seed=await persistenceFixture(storage);seed.drafts.stage({id:'binding-order',source:youtube.path,time:83,text:'fixed content',mode:'manual',phase:'editing'});await seed.drafts.flush();await seed.drafts.dispose();const f=await persistenceFixture(storage),unbound=deferred<Timeline>(),bound=deferred<Timeline>();f.setRead((_source,note)=>note?bound.promise:unbound.promise);
+ const a=f.view();await a.onOpen();const openingA=a.setState({source:youtube.path,draftId:'binding-order'});await settle();const b=f.view();await b.onOpen();const openingB=b.setState({source:youtube.path,note:f.noteA.path,draftId:'binding-order'});await settle();assert.equal(a.memory,b.memory);assert.equal(a.currentNote(),f.noteA.path);if(outcome==='error')unbound.reject(Error('obsolete unbound lookup failed'));else unbound.resolve({note:f.noteB,entries:[]});await openingA;assert.doesNotMatch(status(a),/读取摘录失败/);assert.equal(a.currentNote(),f.noteA.path);assert.equal(b.currentNote(),f.noteA.path);assert.notEqual(a.memory.note,f.noteB);bound.resolve({note:f.noteA,entries:[]});await openingB;await f.drafts.flush();assert.equal(storage.rows.get('binding-order')!.note,f.noteA.path);assert.equal(storage.rows.get('binding-order')!.text,'fixed content');assert.equal(f.saves.length,0);await a.onClose();await b.onClose();
+});
+
+
+test('resolved committed storage failure leaves only saved success after exact cleanup',async()=>{
+ const f=await persistedView(),draft={...f.v.memory.draft};f.setWrite(async()=>{f.storage.failWrite=true;return{note:f.noteA};});await click(f.v,'保存摘录');assert.equal(f.saves.length,1);assert.equal(f.v.memory.phase,'committed');assert.match(status(f.v),/^笔记已保存；本机暂存尚未清理。/);assert.notEqual(f.drafts.error,'');
+ f.storage.failWrite=false;f.setRead(async()=>receipt(f,draft));await click(f.v,'保存摘录');assert.equal(f.saves.length,1);assert.equal(f.storage.rows.size,0);assert.equal(f.v.memory.draft,undefined);assert.equal(f.drafts.error,'');assert.equal(status(f.v),'摘录已保存。');assert.equal(button(f.v,'重试暂存').hidden,true);await f.v.onClose();
+});
+test('one resolved draft cannot clear another failure or a newer dirty snapshot',async()=>{
+ const f=await persistenceFixture(),base={source:youtube.path,time:83,text:'retained',mode:'manual' as const,phase:'editing' as const},first={...base,id:'current',note:'current.md'},second={...base,id:'background',note:'background.md'};
+ f.drafts.stage(first);f.drafts.stage(second);f.storage.failWrite=true;await assert.rejects(f.drafts.flush());assert.notEqual(f.drafts.error,'');f.storage.failWrite=false;await f.drafts.flush(first.id);await f.drafts.discard(first.id);assert.notEqual(f.drafts.error,'','other failed draft remains unprotected');
+ f.drafts.stage({...second,text:'older retry'});const held=deferred<void>();f.storage.gate=held;const saving=f.drafts.flush(second.id);await settle();f.drafts.stage({...second,text:'newest retained'});held.resolve();await saving;assert.notEqual(f.drafts.error,'','late older success cannot resolve the newer dirty draft');assert.equal(f.drafts.state(second.id),'pending');await f.drafts.flush(second.id);assert.equal(f.drafts.error,'');assert.equal(f.storage.rows.get(second.id)!.text,'newest retained');await f.drafts.dispose();
+});
+for(const kind of ['invalid','duplicate','claim']as const)test(`current draft cleanup preserves unresolved ${kind} load warning`,async()=>{
+ const storage=new OnlineStorageFixture(),row:StoredOnlineDraft={id:'blocked',source:youtube.path,note:'blocked.md',time:83,text:'original',mode:'manual',phase:'editing',version:1,key:JSON.stringify([youtube.path,'blocked.md']),revision:1,lease:'seed',updatedAt:1};
+ if(kind==='invalid')storage.rows.set('future',{id:'future',version:9} as unknown as StoredOnlineDraft);else{storage.rows.set(row.id,row);if(kind==='duplicate')storage.rows.set('other',{...row,id:'other'});else storage.failWrite=true;}
+ const f=await persistenceFixture(storage);assert.notEqual(f.drafts.error,'');storage.failWrite=false;f.drafts.stage({id:'current',source:youtube.path,note:'current.md',time:83,text:'current',mode:'manual',phase:'editing'});await f.drafts.flush('current');await f.drafts.discard('current');assert.notEqual(f.drafts.error,'','successful current cleanup cannot dismiss unreadable or blocked original records');assert.equal(storage.rows.has('current'),false);assert.equal(storage.rows.size,kind==='duplicate'?2:1);if(kind!=='invalid')assert.deepEqual(storage.rows.get(row.id),row);await f.drafts.dispose();
 });

@@ -1,5 +1,7 @@
 import {applyWorkspaceDensity} from './workspace-density';
 import {bindMobileViewport} from './mobile-viewport';
+import {bindBoardModalViewport} from './board-modal-viewport';
+import {themeSurface} from './ui-tokens';
 import {ItemView,Menu,Modal,Notice,Scope,TFile,WorkspaceLeaf,setIcon,type App,type KeymapEventHandler,type ViewStateResult} from 'obsidian';
 import type {MediaCardHandle,MediaCardState} from './media-card-player';
 import type {MediaDraft,MediaDraftStore} from './media-draft-store';
@@ -168,7 +170,7 @@ export class MediaWorkspaceView extends ItemView {
    this.app.workspace.requestSaveLayout();if(result)result.history=true;return;
   }
   // dispose emits the final playback snapshot before its generation is retired.
-  const contentChanged=changed&&!!this.sourceIdentity&&(next.stat.mtime!==this.sourceIdentity.mtime||next.stat.size!==this.sourceIdentity.size);
+  const contentChanged=changed&&!!this.sourceIdentity&&(next.stat.mtime!==this.sourceIdentity.mtime||next.stat.size!==this.sourceIdentity.size),initialAudio=!this.file&&!!next&&mediaKind(next.path)==='audio';
   this.disposePlayer();this.releasePreview();this.closePreviews();this.unsubscribe?.();this.unsubscribe=undefined;this.releaseEditor();
   this.generation++;this.timelineRun++;this.cancelRefresh();
   this.file=next;this.placement=placement;this.note=undefined;this.entries=[];this.query='';this.limit=50;this.pageStart=0;this.recordFilter='all';this.expandedRecords.clear();
@@ -176,7 +178,9 @@ export class MediaWorkspaceView extends ItemView {
   this.recordDensity=state.recordDensity==='compact'?'compact':'comfortable';
   if(typeof state.compactPlayer==='boolean')this.compactPlayer=state.compactPlayer;
   if(typeof state.composerRatio==='number'&&Number.isFinite(state.composerRatio))this.composerRatio=Math.max(35,Math.min(65,state.composerRatio));
+  else if(initialAudio)this.composerRatio=54;
   if(typeof state.viewerRatio==='number'&&Number.isFinite(state.viewerRatio))this.viewerRatio=Math.max(38,Math.min(70,state.viewerRatio));
+  else if(initialAudio)this.viewerRatio=38;
   this.sourceIdentity=next?sourceIdentity(next):undefined;
   this.memory=next?memoryFor(this.host,next):undefined;
   this.focusPlayer=typeof state.focusPlayer==='boolean'?state.focusPlayer:this.memory?.focusPlayer??false;
@@ -267,7 +271,7 @@ export class MediaWorkspaceView extends ItemView {
   this.previewBlob=undefined;this.previewUrl=undefined;this.previewUrlAPI=undefined;
   this.draftImageEl?.removeAttribute('src');
  }
- private closePreviews(){for(const modal of [...this.previews])modal.close();this.previews.clear();}
+ private closePreviews(){for(const modal of [...this.previews])modal.closeForOwner();this.previews.clear();}
  private openPreview(source:Blob|TFile,time:number){
   if(this.closed)return;
   let url:string,release:()=>void=()=>{};
@@ -275,7 +279,9 @@ export class MediaWorkspaceView extends ItemView {
   else{const api=this.contentEl.ownerDocument.defaultView?.URL;if(!api)return;url=api.createObjectURL(source);release=()=>api.revokeObjectURL(url);}
   let modal:MediaImagePreview|undefined,released=false;
   const done=()=>{if(released)return;released=true;try{release();}finally{if(modal)this.previews.delete(modal);}};
-  try{modal=new MediaImagePreview(this.app,url,`${this.file?.basename||'媒体截图'} · ${mediaClock(time)}`,done);this.previews.add(modal);modal.open();}
+  const file=this.file,path=file?.path,memory=this.memory,leaf=this.leaf,document=this.contentEl.ownerDocument;
+  const owner:MediaPreviewOwner={document,current:()=>!this.closed&&this.leaf===leaf&&leaf.view===this&&this.file===file&&this.memory===memory&&this.containerEl.isConnected&&this.containerEl.ownerDocument===document&&this.app.workspace.getActiveViewOfType(MediaWorkspaceView)===this&&(!file||file.path===path&&this.app.vault.getAbstractFileByPath(file.path)===file),focus:()=>this.app.workspace.setActiveLeaf(leaf,{focus:true})};
+  try{modal=new MediaImagePreview(this.app,url,`${this.file?.basename||'媒体截图'} · ${mediaClock(time)}`,done,owner);this.previews.add(modal);modal.open();}
   catch(error){try{modal?.close();}finally{done();}throw error;}
  }
  private paintDraftImage(image:Blob|undefined){
@@ -345,7 +351,7 @@ export class MediaWorkspaceView extends ItemView {
    const button=this.action(switcher,label,icon,()=>{if(this.narrowLayout()&&panel!=='player'&&this.focusPlayer)this.setFocusPlayer(false);this.setRecordPanel(panel);});this.panelButtons.set(panel,button);if(panel==='timeline')this.panelCount=button.createSpan({cls:'ts-media-workspace__panel-count',attr:{'aria-hidden':'true'}});
   }
   this.setRecordPanel(this.recordPanel);
-  const composer=layout.createDiv('ts-media-workspace__composer'),heading=composer.createDiv('ts-media-workspace__composer-heading');
+  const composer=layout.createDiv('ts-media-workspace__composer'),draftTools=composer.createDiv('ts-media-workspace__draft-tools'),heading=draftTools.createDiv('ts-media-workspace__composer-heading');
   const headingName=heading.createDiv('ts-media-workspace__section-title');
   setIcon(headingName.createSpan(),'square-pen');headingName.createEl('strong',{text:'当前草稿'});
   this.timeLabel=heading.createSpan('ts-media-workspace__draft-time');
@@ -355,7 +361,7 @@ export class MediaWorkspaceView extends ItemView {
   divider.onpointermove=event=>{if(!resizing)return;const bounds=layout.getBoundingClientRect();this.setComposerRatio((event.clientY-bounds.top)/bounds.height*100);divider.setAttribute('aria-valuenow',String(Math.round(this.composerRatio)));};
   divider.onpointerup=divider.onpointercancel=()=>{resizing=false;};
   divider.onkeydown=event=>{if(!['ArrowUp','ArrowDown'].includes(event.key))return;event.preventDefault();this.setComposerRatio(this.composerRatio+(event.key==='ArrowUp'?-2:2));divider.setAttribute('aria-valuenow',String(Math.round(this.composerRatio)));};
-  const captureActions=composer.createDiv({cls:'ts-media-workspace__capture-actions',attr:{role:'group','aria-label':'摘录操作'}});
+  const captureActions=draftTools.createDiv({cls:'ts-media-workspace__capture-actions',attr:{role:'group','aria-label':'摘录操作'}});
   const editor=composer.createDiv('ts-media-workspace__editor');
   const editorLabel=editor.createDiv('ts-media-workspace__editor-label');editorLabel.createSpan({text:'Markdown'});
   this.inputCount=editorLabel.createSpan('ts-media-workspace__input-count');
@@ -599,9 +605,37 @@ export class MediaWorkspaceView extends ItemView {
  }
 }
 
+interface MediaPreviewOwner {document:Document;current():boolean;focus():void}
 class MediaImagePreview extends Modal {
  private released=false;
- constructor(app:App,private src:string,private caption:string,private done:()=>void){super(app);}
- onOpen(){this.modalEl.addClass('ts-media-image-modal');this.contentEl.createEl('img',{cls:'ts-media-image-modal__image',attr:{src:this.src,alt:this.caption}});this.contentEl.createDiv({cls:'ts-media-image-modal__caption',text:this.caption});}
- onClose(){this.contentEl.empty();if(!this.released){this.released=true;this.done();}}
+ private stopViewport?:()=>void;
+ private stopFocus?:()=>void;
+ private returnFocus?:()=>void;
+ private closeButton?:HTMLButtonElement;
+ constructor(app:App,private src:string,private caption:string,private done:()=>void,private owner:MediaPreviewOwner){super(app);this.shouldRestoreSelection=false;}
+ open(){
+  const doc=this.owner.document,opener=doc.activeElement;let displaced=false;
+  const current=()=>this.owner.current()&&this.containerEl.ownerDocument===doc&&!doc.defaultView?.closed&&doc.hasFocus();
+  const outside=(event:FocusEvent)=>{if(event.target!==doc.body&&!this.containerEl.contains(event.target as Node))displaced=true;};
+  this.stopFocus?.();doc.addEventListener('focusin',outside,true);this.stopFocus=()=>doc.removeEventListener('focusin',outside,true);
+  this.returnFocus=()=>{
+   const active=doc.activeElement;if(displaced||!current()||active&&active!==doc.body&&!this.containerEl.contains(active))return;
+   if(opener&&opener!==doc.body&&opener.ownerDocument===doc&&opener.isConnected&&opener.getClientRects().length&&typeof (opener as HTMLElement).focus==='function')(opener as HTMLElement).focus({preventScroll:true});
+   else if(opener===doc.body)this.owner.focus();
+  };
+  try{super.open();if(!this.released&&!displaced&&current()&&this.containerEl.isConnected&&(doc.activeElement===doc.body||doc.activeElement===opener||this.containerEl.contains(doc.activeElement)))this.closeButton?.focus();}
+  catch(error){this.stopFocus?.();this.stopFocus=undefined;this.stopViewport?.();this.stopViewport=undefined;this.returnFocus=undefined;throw error;}
+ }
+ closeForOwner(){this.returnFocus=undefined;this.close();}
+ onOpen(){
+  themeSurface(this.modalEl);this.stopViewport?.();this.stopViewport=bindBoardModalViewport(this.containerEl);this.modalEl.addClass('ts-media-image-modal');this.titleEl.setText('媒体截图');
+  const body=this.contentEl.createDiv('ts-media-image-modal__body');
+  body.createEl('img',{cls:'ts-media-image-modal__image',attr:{src:this.src,alt:this.caption}});body.createDiv({cls:'ts-media-image-modal__caption',text:this.caption});
+  const actions=this.contentEl.createDiv('modal-button-container ts-media-image-modal__actions'),close=actions.createEl('button',{text:'关闭',cls:'ts-button',attr:{type:'button'}});close.onclick=()=>this.close();this.closeButton=close;
+ }
+ onClose(){
+  this.stopFocus?.();this.stopFocus=undefined;this.stopViewport?.();this.stopViewport=undefined;this.contentEl.empty();this.closeButton=undefined;
+  const restore=this.returnFocus;this.returnFocus=undefined;
+  try{if(!this.released){this.released=true;this.done();}}finally{restore?.();}
+ }
 }

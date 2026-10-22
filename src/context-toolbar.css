@@ -2,9 +2,9 @@
    Fit the controls instead of stretching across the canvas. The card document,
    editor geometry, DOM order and native input behavior remain unchanged. */
 .ts-root .ts-main > .ts-floating-formatbar {
-  --ts-format-line:color-mix(in srgb,var(--background-modifier-border) 82%,transparent);
-  --ts-format-wash:color-mix(in srgb,var(--background-secondary) 24%,var(--background-primary));
-  --ts-format-active:color-mix(in srgb,var(--ts-accent) 6%,var(--background-primary));
+  --ts-format-line:var(--ts-e-line,var(--background-modifier-border));
+  --ts-format-wash:var(--ts-e-paper,var(--background-secondary));
+  --ts-format-active:color-mix(in srgb,var(--ts-accent) 8%,var(--ts-e-sheet,var(--background-primary)));
   top:12px; width:max-content; max-width:min(600px,calc(100% - 24px));
   display:flex; flex-direction:column; align-items:stretch; gap:0; padding:0;
   border:1px solid var(--ts-format-line); border-radius:var(--ts-chrome-radius,8px); background:var(--background-primary);
@@ -12,11 +12,11 @@
   box-shadow:var(--ts-design-shadow);
 }
 .theme-dark .ts-root .ts-main > .ts-floating-formatbar {
-  --ts-format-wash:color-mix(in srgb,var(--background-secondary) 30%,var(--background-primary));
-  --ts-format-line:var(--background-modifier-border);
+  --ts-format-wash:var(--ts-e-paper,var(--background-secondary));
+  --ts-format-line:var(--ts-e-line,var(--background-modifier-border));
 }
 .ts-root[data-glass][data-surface] .ts-main > .ts-floating-formatbar {
-  background:var(--background-primary)!important; backdrop-filter:none!important;
+  background:var(--ts-e-sheet,var(--background-primary))!important; backdrop-filter:none!important;
 }
 .ts-root .ts-floating-formatbar > .ts-format-heading {
   display:flex; flex:none; flex-wrap:wrap; align-items:center; justify-content:flex-start;
@@ -28,7 +28,7 @@
 .ts-root .ts-floating-formatbar > .ts-format-heading:empty { display:none; }
 .ts-root .ts-floating-formatbar .ts-format-context {
   display:inline-flex; flex:none; align-items:center; gap:5px; width:auto; min-height:28px;
-  padding:0 5px; color:var(--text-normal); font:500 11px/1.4 var(--font-interface); white-space:nowrap;
+  padding:0 5px; color:var(--ts-e-ink,var(--text-normal)); font:500 12px/1.4 var(--font-interface); white-space:nowrap;
 }
 .ts-root .ts-floating-formatbar .ts-format-context > span { display:inline-flex; align-items:center; }
 .ts-root .ts-floating-formatbar .ts-format-context > span:first-child { color:var(--text-muted); }
@@ -102,7 +102,7 @@
   --ts-format-value-width:72px;
   display:inline-flex; flex:none; align-items:center; gap:5px; min-height:var(--ts-board-format-control,32px);
   margin:0; padding:1px 5px; border:1px solid transparent; border-radius:5px;
-  background:var(--background-primary); color:var(--text-muted); white-space:nowrap;
+  background:var(--ts-e-sheet,var(--background-primary)); color:var(--ts-e-muted,var(--text-muted)); white-space:nowrap;
 }
 .ts-root .ts-floating-formatbar .ts-commandbar :is(.ts-appearance-group,.ts-edge-format-group) .ts-format-field:hover {
   border-color:color-mix(in srgb,var(--ts-accent) 24%,var(--ts-format-line));
@@ -112,7 +112,7 @@
 }
 .ts-root .ts-floating-formatbar .ts-commandbar :is(.ts-appearance-group,.ts-edge-format-group) .ts-format-field > .ts-format-label-icon { display:none; }
 .ts-root .ts-floating-formatbar .ts-commandbar :is(.ts-appearance-group,.ts-edge-format-group) .ts-format-field > .ts-format-label {
-  display:inline; font:400 11px/1.4 var(--font-interface); color:var(--text-muted);
+  display:inline; font:400 12px/1.4 var(--font-interface); color:var(--ts-e-muted,var(--text-muted));
 }
 .ts-root .ts-floating-formatbar .ts-commandbar :is(.ts-appearance-group,.ts-edge-format-group) .ts-format-field select {
   flex:none; width:var(--ts-format-value-width); min-width:0; max-width:var(--ts-format-value-width);
@@ -122,7 +122,7 @@
   font:500 12px/1.4 var(--font-interface); font-variant-numeric:tabular-nums;
 }
 .ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field[data-format="字体"] { --ts-format-value-width:78px; }
-.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field[data-format="字号"] { --ts-format-value-width:48px; }
+.ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field[data-format="字号"] { --ts-format-value-width:calc(4.5em + 18px); }
 .ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field:is([data-format="卡片颜色"],[data-format="分组背景"]) { --ts-format-value-width:94px; }
 .ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field:is([data-format="卡片样式"],[data-format="分组样式"],[data-format="边框线型"]) { --ts-format-value-width:58px; }
 .ts-root .ts-floating-formatbar .ts-commandbar .ts-appearance-group .ts-format-field[data-format="文字对齐"] { --ts-format-value-width:64px; }
@@ -285,6 +285,10 @@
 .ts-root .ts-floating-formatbar:has(.ts-format-context[data-kind="section"]) .ts-commandbar .ts-format-field { gap:6px; padding-inline:6px; }
 .ts-root .ts-floating-formatbar .ts-appearance-group > .ts-format-label { flex:none; margin-inline:6px; padding:3px 6px; border-radius:4px; background:var(--ts-format-wash); color:var(--text-muted); font:400 10px/1.4 var(--font-interface); }
 
+/* A rail overlapping a live text selection yields until editing or selection
+   moves away. Focused rail controls retain their keyboard path. */
+.ts-root .ts-main > .ts-board-rail.is-reading-clearance:not(:focus-within) { opacity:0; visibility:hidden; pointer-events:none; }
+
 /* In a short native split, keep a full rail button available beside a locally
    scrollable formatter. Normal panes retain the centered 1.3.23 layout. */
 .ts-root .ts-main.ts-short-canvas > .ts-floating-formatbar {
@@ -307,3 +311,29 @@
 /* The selected object's edit command is already present in the top toolbar.
    Other hovered cards retain their local edit action, including keyboard focus. */
 .ts-root .ts-main .ts-node[data-quick-edit-hidden=true] > .ts-card-actions .ts-card-quick-edit:not(:focus) { display:none; }
+
+/* A compact single selection keeps its original action buttons beside the
+   named object, independent of canvas zoom and neighbouring connection ports. */
+.ts-root .ts-floating-formatbar > .ts-card-context { min-width:0; max-width:100%; padding:7px 7px 5px; border-bottom:1px solid var(--ts-format-line); }
+.ts-root .ts-floating-formatbar > .ts-card-context[hidden] { display:none!important; }
+.ts-root .ts-card-context-label { display:block; max-width:100%; padding:0 5px 4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-normal); font:500 12px/1.5 var(--font-interface); }
+.ts-root .ts-card-context-actions { display:flex; align-items:center; gap:4px; max-width:100%; overflow-x:auto; overflow-y:hidden; overscroll-behavior-x:contain; scroll-padding-inline:4px; scrollbar-width:thin; }
+.ts-root .ts-card-context-actions > :is(.ts-card-actions,.ts-compact-actions) { position:static; inset:auto; display:flex; flex:none; align-items:center; gap:4px; width:auto; height:auto; margin:0; padding:0; transform:none; opacity:1; visibility:visible; pointer-events:auto; border:0; background:transparent; box-shadow:none; }
+.ts-root .ts-card-context-actions > .ts-compact-actions:empty { display:none; }
+.ts-root .ts-card-context-actions button { position:static; inset:auto; flex:0 0 auto; width:44px; min-width:44px; height:44px; min-height:44px; margin:0; padding:10px!important; transform:none; opacity:1; visibility:visible; pointer-events:auto; border:1px solid transparent!important; border-radius:6px!important; color:var(--text-normal); background:var(--ts-format-wash)!important; box-shadow:none!important; }
+.ts-root .ts-card-context-actions button:is(:hover,:focus-visible):not(:disabled) { color:var(--ts-accent); background:var(--ts-format-active)!important; border-color:var(--ts-format-line)!important; }
+.ts-root .ts-card-context-actions button:disabled { opacity:.45; }
+.ts-root .ts-card-context-actions button svg { width:18px; height:18px; }
+.ts-root .ts-card-context-actions :is(.ts-card-action-primary,.ts-compact-read) { display:inline-flex; align-items:center; justify-content:center; gap:6px; width:auto; min-width:68px; }
+.ts-root .ts-card-context-actions .ts-card-action-primary > span { display:inline; font:500 12px/1.3 var(--font-interface); }
+.ts-root .ts-card-context-actions .ts-compact-read::after { content:'阅读'; font:500 12px/1.3 var(--font-interface); }
+.ts-root .ts-node[data-control-context=true] > .ts-card-control-entry { display:none!important; }
+
+.ts-root .ts-main > .ts-floating-formatbar:has(> .ts-card-context:not([hidden])) { display:flex!important; }
+
+/* Borrow the original ordinary branch group after the card's primary actions.
+   It belongs to the labelled selection toolbar and has no world-space stem. */
+.ts-root .ts-card-context-actions > .ts-branch-controls { position:static; inset:auto; transform:none; display:inline-flex; flex:none; align-items:center; gap:4px; width:auto; margin:0; padding:0; opacity:1; pointer-events:auto; border:0; background:transparent; box-shadow:none; }
+.ts-root .ts-card-context-actions > .ts-branch-controls::before { content:none; }
+.ts-root .ts-card-context-actions > .ts-branch-controls > :is(.ts-branch-toggle,.ts-branch-menu) { width:auto; min-width:44px; height:44px; min-height:44px; margin:0; padding:8px!important; gap:4px; pointer-events:auto; }
+.ts-root .ts-card-context-actions > .ts-branch-controls > button:focus-visible { outline-offset:-2px; }

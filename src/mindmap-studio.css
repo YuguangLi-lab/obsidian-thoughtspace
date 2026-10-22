@@ -177,3 +177,18 @@
  .ts-mindmap-studio :is(.ts-mm-tool-actions,.ts-mm-presentation-bar,.ts-mm-relation-row>div){flex-wrap:wrap}
  .ts-mindmap-studio .ts-mm-preview-bar {flex-wrap:wrap}
 }
+
+/* A short editing viewport has one content scrollport. Keeping the header,
+ * workflow and footer fixed left only 56px for a 69px textarea in the native
+ * keyboard regression. Preserve all actions in the scroll flow. Presentation
+ * keeps its separate height-constrained canvas layout. */
+.ts-board-modal-viewport[data-ts-keyboard=true]>.modal.ts-mindmap-studio:not(.is-presenting) .modal-content{display:block;flex:1;min-height:0;overflow:auto}
+.ts-board-modal-viewport[data-ts-keyboard=true]>.modal.ts-mindmap-studio:not(.is-presenting) :is(.ts-mm-body,.ts-mm-tool-sheet){height:auto;max-height:none}
+.ts-board-modal-viewport[data-ts-keyboard=true]>.modal.ts-mindmap-studio:not(.is-presenting) :is(textarea,input:not([type=checkbox])){scroll-margin-block:8px}
+.ts-board-modal-viewport[data-ts-keyboard=true]>.modal.ts-mindmap-studio:not(.is-presenting) textarea{max-height:max(60px,calc(var(--ts-visible-height,100dvh) - 160px))}
+@media(max-height:520px){
+ .ts-board-modal-viewport>.modal.ts-mindmap-studio:not(.is-presenting) .modal-content{display:block;flex:1;min-height:0;overflow:auto}
+ .ts-board-modal-viewport>.modal.ts-mindmap-studio:not(.is-presenting) :is(.ts-mm-body,.ts-mm-tool-sheet){height:auto;max-height:none}
+ .ts-board-modal-viewport>.modal.ts-mindmap-studio:not(.is-presenting) :is(textarea,input:not([type=checkbox])){scroll-margin-block:8px}
+ .ts-board-modal-viewport>.modal.ts-mindmap-studio:not(.is-presenting) textarea{max-height:max(60px,calc(var(--ts-visible-height,100dvh) - 160px))}
+}

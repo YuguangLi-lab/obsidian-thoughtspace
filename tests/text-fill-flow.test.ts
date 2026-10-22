@@ -73,7 +73,7 @@ const deps={...cardStyles,cardHeadingColors,nodeHasBorder,textBlockPadding,textF
   fitTextNode:()=>{throw Error('Background formatting must not resize text');},
 };
 function compile(body:string){return new Function(...Object.keys(deps),transformSync(body,{loader:'ts'}).code)(...Object.values(deps));}
-const View=compile(`class View{${methods}};return View`),Session=compile(`class Session{${sessionMethods}};return Session`);
+const View=compile(`class View{cardControlRequests=new Map();reserveVisibleCardControls(){};${methods}};return View`),Session=compile(`class Session{${sessionMethods}};return Session`);
 const text=(id='text',patch:Partial<model.Card>={}):model.Card=>({id,kind:'text',text:'中文 text\nkeeps its content',x:40,y:60,width:300,height:140,color:'rose',fontSize:24,textColor:'slate',borderWidth:2,customBorder:true,...patch});
 const labels=['卡片颜色','自定义卡片颜色'] as const;
 function fixture(nodes:model.Card[]=[text()],selected=nodes.map(n=>n.id)){

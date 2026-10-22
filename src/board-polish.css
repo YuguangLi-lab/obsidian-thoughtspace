@@ -3,10 +3,10 @@
    custom fills and source-editor measurements are deliberately unchanged. */
 .ts-root .ts-main {
   container-name: ts-board-canvas;
-  --ts-board-panel: var(--background-primary);
-  --ts-board-line: color-mix(in srgb, var(--background-modifier-border) 74%, transparent);
-  --ts-board-hover: var(--background-modifier-hover);
-  --ts-board-active: color-mix(in srgb, var(--ts-accent) 10%, var(--background-primary));
+  --ts-board-panel: var(--ts-e-sheet,var(--background-primary));
+  --ts-board-line: var(--ts-e-line,var(--background-modifier-border));
+  --ts-board-hover: var(--ts-e-wash,var(--background-modifier-hover));
+  --ts-board-active: color-mix(in srgb, var(--ts-accent) 9%, var(--ts-e-sheet,var(--background-primary)));
   --ts-board-shadow: 0 1px 3px #00000008, 0 4px 14px #00000009;
   --ts-board-menu-shadow: 0 2px 5px #00000008, 0 14px 36px #00000016;
   --ts-board-control: 32px;
@@ -114,6 +114,15 @@
 .ts-root .ts-start-actions > .ts-primary > span:first-child { color: var(--ts-accent); }
 .ts-root .ts-start-tip { margin: 20px 0 0; padding-top: 14px; border-top: 1px solid var(--ts-board-line); color: var(--text-muted); font-size: 11px; line-height: 1.7; }
 .ts-root .ts-start-screen :is(button, a):focus-visible { outline: 2px solid var(--ts-accent); outline-offset: 2px; }
+
+/* The empty board is a small reading invitation. It remains outside the world
+   transform and retains its existing short-pane scroll boundary. */
+.ts-root .ts-main .ts-start-screen { border-radius:12px; border-top:3px solid var(--ts-e-editorial,var(--ts-accent)); color:var(--ts-e-ink,var(--text-normal)); }
+.ts-root .ts-start-heading { font-family:var(--ts-e-serif,var(--font-text)); font-weight:600; letter-spacing:0; line-height:1.55; text-wrap:balance; color:var(--ts-e-ink,var(--text-normal)); }
+.ts-root .ts-start-copy { color:var(--ts-e-muted,var(--text-muted)); font-size:14px; line-height:1.9; }
+.ts-root .ts-start-actions > .ts-button { min-height:44px; border-radius:6px!important; font-size:13px; }
+.ts-root .ts-start-actions > .ts-button:active:not(:disabled) { background:var(--ts-board-hover)!important; box-shadow:inset 0 0 0 1px var(--ts-accent); }
+.ts-root .ts-start-tip { color:var(--ts-e-muted,var(--text-muted)); font-size:12px; line-height:1.8; }
 
 /* The creation rail stays in the actual center of the available canvas. */
 .ts-root .ts-main > .ts-board-rail {

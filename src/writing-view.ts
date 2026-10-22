@@ -5,7 +5,7 @@ import {writingReferenceRanges,writingReferenceMarkdown} from './writing-referen
 import {WritingReferenceModal} from './writing-reference-view';
 import type {SessionUpdate} from './session-events';
 import {imageMarkdown,remoteImageUrl} from './image-host';
-import {Component,ItemView,MarkdownRenderer,Menu,Notice,TFile,WorkspaceLeaf,parseLinktext,setIcon} from 'obsidian';
+import {Component,ItemView,MarkdownRenderer,Menu,Notice,Scope,TFile,WorkspaceLeaf,parseLinktext,setIcon} from 'obsidian';
 import {Board,Card,clone} from './model';
 import {WritingState,WritingOption,moveWriting,writingItems,writingOrder,writingParts,writingName,writingMarkdown,writingSignature,writingWordCount} from './writing';
 import {rebaseFragment,excerptNoteMarkdown,selectionFragment,pdfLiteralText} from './materials';
@@ -14,6 +14,8 @@ import {writingFormatToolbar} from './writing-format-toolbar';
 import {DraftInput,NativeMarkdownDraft} from './native-markdown-editor';
 import {themeSurface} from './ui-tokens';
 import {bindMobileViewport} from './mobile-viewport';
+import {bindBoardHostInset} from './board-chrome';
+import {bindWritingModeFocus,syncWritingPaneHeight} from './writing-chrome';
 import {rememberWritingRecovery,writingRecoveryEntries,discardWritingRecovery} from './writing-draft-recovery';
 export const WRITING='thoughtspace-writing';
 interface WritingSession {board:Board;file:TFile;blocked:boolean;status?:string;listeners:Set<(kind:SessionUpdate)=>void>;change:(f:(b:Board)=>void,before?:Board,allowLocked?:boolean,recordHistory?:boolean)=>void;flush:()=>Promise<void>}
@@ -72,7 +74,13 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
  private lastSignature='';
  private previewSignature='';
  private stopViewport?:()=>void;
- constructor(leaf:WorkspaceLeaf,private host:WritingHost<S>){super(leaf);this.stopViewport=bindMobileViewport(this.contentEl);}
+ private stopChrome?:()=>void;
+ private viewportDocument?:Document;
+ private refreshChrome?:()=>void;
+ private stopWindow?:()=>void;
+ private modeMenu?:Menu;
+ private writingMenuOwner?:object;
+ constructor(leaf:WorkspaceLeaf,private host:WritingHost<S>){super(leaf);this.refreshOwnerBindings();this.stopWindow=this.contentEl.onWindowMigrated(()=>this.refreshOwnerBindings());}
  getViewType(){return WRITING;}
  getDisplayText(){return (this.file?.basename||'白板')+' · 写作';}
  getIcon(){return 'notebook-pen';}
@@ -109,6 +117,7 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   }catch(error){if(this.closed||run!==this.generation)return;this.showTransition('error','暂时无法打开写作空间，请重新打开重试');throw error;}
  }
  private showTransition(state:'loading'|'error',message:string){
+  this.stopChrome?.();this.stopChrome=undefined;this.modeMenu?.hide();
   const el=this.contentEl;el.empty();themeSurface(el);el.addClass('ts-writing');this.applyPreferences();this.containerEl.addClass('ts-writing-leaf');
   el.setAttribute('aria-busy',String(state==='loading'));
   const status=el.createDiv({cls:'ts-writing-transition',attr:{role:state==='error'?'alert':'status','aria-live':'polite'}});
@@ -121,9 +130,10 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   const b=el.createEl('button',{cls:('ts-writing-button '+cls+(iconOnly?' is-icon':'')).trim(),attr:{'aria-label':label,title:label,type:'button'}});
   if(icon)setIcon(b.createSpan('ts-writing-icon'),icon);
   if(!iconOnly)b.createSpan({text:label});
-  b.onclick=()=>{try{Promise.resolve(fn()).catch(e=>new Notice(String(e)));}catch(e){new Notice(String(e));}};
+  b.onclick=()=>this.runAction(fn);
   return b;
  }
+ private runAction(action:()=>unknown){try{Promise.resolve(action()).catch(error=>new Notice(String(error)));}catch(error){new Notice(String(error));}}
  private ensure(){if(!this.owner||this.owner.blocked||this.app.vault.getAbstractFileByPath(this.file!.path)!==this.file)throw Error('白板不可写，请返回白板检查');return this.owner;}
  private state():WritingState{return this.owner?.board.writing||{title:this.file?.basename||'文章',order:[]};}
  private update(f:(state:WritingState)=>void,remember=true) {
@@ -141,6 +151,7 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   stack.pop();(redo?this.history:this.future).push(current);this.renderStatus();
  }
  private render() {
+  this.stopChrome?.();this.stopChrome=undefined;this.modeMenu?.hide();
   this.flushFields();this.revision++;this.articleRun++;this.preview?.unload();this.article?.unload();this.disposeEditors();const el=this.contentEl;el.empty();themeSurface(el);el.addClass('ts-writing');this.applyPreferences();this.containerEl.addClass('ts-writing-leaf');
   const header=el.createDiv('ts-writing-header');
   const leading=header.createDiv('ts-writing-heading');
@@ -170,12 +181,13 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   this.list=left.createDiv('ts-writing-list');left.createDiv({cls:'ts-writing-panel-foot',text:'点击阅读 · ＋ 插入正文 · 拖动编排'});
   const switcher=toolbar.createDiv('ts-writing-switch');
   for(const [key,label,icon] of [['write','写作','pencil-line'],['outline','编排','list-tree'],['preview','预览','book-open']] as const){const button=this.action(switcher,label,()=>this.setArticleMode(key),icon);button.dataset.articleMode=key;button.toggleClass('is-active',key===this.mode);button.setAttribute('aria-pressed',String(key===this.mode));}
-  this.action(actions,'新建章节',()=>this.newChapter(),'plus',true);
-  const settings=this.action(actions,'写作选项',()=>{},'ellipsis',true);
-  settings.onclick=e=>{const menu=new Menu().setUseNativeMenu(false);menu.setParentElement(this.contentEl);menu.addItem(i=>i.setTitle('保留材料来源链接').setChecked(this.state().includeSources!==false).onClick(()=>this.update(s=>s.includeSources=s.includeSources===false)));menu.addItem(i=>i.setTitle('撤销编排').setIcon('undo-2').setDisabled(!this.history.length).onClick(()=>this.undo()));menu.addItem(i=>i.setTitle('重做编排').setIcon('redo-2').setDisabled(!this.future.length).onClick(()=>this.undo(true)));menu.addSeparator();menu.addItem(i=>i.setTitle('从编排重建正文（先另存当前正文）').setIcon('files').onClick(()=>this.rebuildManuscript()));if(e.detail>0)menu.showAtMouseEvent(e);else{const rect=settings.getBoundingClientRect();menu.showAtPosition({x:rect.left,y:rect.bottom},this.contentEl.ownerDocument);}};
-  this.action(actions,'打开上次草稿',()=>this.openDraft(),'file-pen-line',true,'ts-writing-open-draft');
-  this.action(actions,'显示或收起资料栏',()=>this.toggleDock(),'panel-right',true,'ts-writing-dock-toggle');
-  this.action(actions,'生成草稿',()=>this.generate(),'arrow-up-right',false,'mod-cta');
+  const mode=this.action(actions,'写作模式',()=>this.openModeMenu(),'chevron-down',false,'ts-writing-mode-menu');mode.setAttribute('aria-haspopup','menu');mode.setAttribute('aria-expanded','false');this.syncModeTrigger();
+  this.action(actions,'新建章节',()=>this.newChapter(),'plus',true,'ts-writing-secondary-action');
+  const settings=this.action(actions,'写作选项',()=>{},'ellipsis',true,'ts-writing-options');
+  settings.onclick=e=>this.openOptionsMenu(settings,e);
+  this.action(actions,'打开上次草稿',()=>this.openDraft(),'file-pen-line',true,'ts-writing-open-draft ts-writing-secondary-action');
+  this.action(actions,'显示或收起资料栏',()=>this.toggleDock(),'panel-right',true,'ts-writing-dock-toggle ts-writing-secondary-action');
+  const generate=this.action(actions,'生成草稿',()=>this.generate(),'arrow-up-right',false,'mod-cta');generate.createSpan({cls:'ts-writing-generate-short',text:'生成',attr:{'aria-hidden':'true'}});actions.insertBefore(generate,mode.nextSibling);
   const scroll=middle.createDiv('ts-writing-article-scroll'),intro=scroll.createDiv('ts-writing-article-head');
   intro.createDiv({cls:'ts-writing-eyebrow',text:'文章草稿'});
   this.titleInput=intro.createEl('textarea',{value:this.state().title,attr:{rows:'1',placeholder:'为文章命名','aria-label':'文章标题',maxlength:'160'}});
@@ -191,7 +203,8 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   this.manuscriptHost.addEventListener('dragleave',()=>this.manuscriptHost.removeClass('is-material-drop'));
   this.manuscriptHost.addEventListener('drop',event=>{if(!this.dragged)return;event.preventDefault();event.stopPropagation();const id=this.dragged;this.dragged=undefined;this.manuscriptHost.removeClass('is-material-drop');this.add(id,writingOrder(this.ensure().board).length,true);},true);
   this.paper=scroll.createDiv('ts-writing-paper markdown-rendered');this.outline.hidden=this.mode!=='outline';this.paper.hidden=this.mode!=='preview';this.manuscriptHost.hidden=this.mode!=='write';this.contentEl.dataset.writingMode=this.mode;
-  this.status=middle.createDiv('ts-writing-status');
+  this.status=middle.createDiv({cls:'ts-writing-status',attr:{role:'status','aria-live':'polite','aria-atomic':'true'}});
+  this.bindWritingChrome(mode);
 
   this.tabs=right.createDiv('ts-writing-reference-tabs');this.reference=right.createDiv('ts-writing-reference-content');
   this.renderLists();this.renderReferenceTabs();
@@ -199,8 +212,7 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   if(ref&&writingItems(this.ensure().board).some(n=>n.id===ref))void this.showReference(ref,false).catch(e=>new Notice(String(e)));
   else {const empty=this.reference.createDiv('ts-writing-reference-empty');setIcon(empty.createDiv(),'book-open');empty.createEl('h4',{text:'让参考留在身边'});empty.createEl('p',{text:'从材料库选择内容，在这里阅读。固定多份材料后，可随时切换查看。'});}
   this.syncDock();this.fitTitle();if(this.mode==='write')void this.openManuscript();
-  this.contentEl.onpointerdown=event=>{const target=event.target as HTMLElement;if(!this.dock.hidden&&this.contentEl.clientWidth<=900&&!this.dock.contains(target)&&!target.closest('.ts-writing-dock-toggle'))this.closeDock();};
-  this.dock.onkeydown=event=>{if(event.key==='Escape'&&this.contentEl.clientWidth<=900){event.preventDefault();event.stopPropagation();this.closeDock();this.contentEl.querySelector<HTMLButtonElement>('.ts-writing-dock-toggle')?.focus();}};
+  this.bindDockDismissal();
   if(this.mode==='preview')void this.refreshArticle();
  }
  private renderRecoveries(){
@@ -229,7 +241,30 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   grip.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();e.stopPropagation();apply(e.key==='Home'?240:e.key==='End'?520:this.dockWidth+(e.key==='ArrowLeft'?20:-20));this.manuscriptNative?.resize();this.app.workspace.requestSaveLayout();};
  }
  private fitTitle(){if(!this.titleInput?.isConnected)return;this.titleInput.setCssStyles({height:'auto'});this.titleInput.style.height=(this.titleInput.scrollHeight+2)+'px';}
- onResize(){this.syncDock();this.manuscriptNative?.resize();}
+ private refreshOwnerBindings(){
+  if(this.closed)return;
+  const doc=this.contentEl.ownerDocument;
+  if(this.viewportDocument!==doc){this.stopViewport?.();this.viewportDocument=doc;this.stopViewport=bindMobileViewport(this.contentEl);}
+  this.refreshChrome?.();
+ }
+ private bindWritingChrome(mode:HTMLButtonElement){
+  this.stopChrome?.();
+  const el=this.contentEl;let doc:Document|undefined,disposed=false,release=()=>{};
+  const refresh=()=>{
+   if(disposed||this.closed||doc===el.ownerDocument)return;
+   release();doc=el.ownerDocument;
+   const stopInset=bindBoardHostInset(el,this.status,()=>this.manuscriptNative?.resize()),stopModeFocus=bindWritingModeFocus(el,mode,()=>el.querySelector<HTMLButtonElement>(`.ts-writing-switch [data-article-mode="${this.mode}"]`));
+   release=()=>{stopModeFocus();stopInset();};
+  };
+  this.refreshChrome=refresh;
+  this.stopChrome=()=>{if(disposed)return;disposed=true;release();if(this.refreshChrome===refresh)this.refreshChrome=undefined;};
+  refresh();
+ }
+ onResize(){if(this.closed)return;this.refreshOwnerBindings();syncWritingPaneHeight(this.contentEl);this.syncDock();this.manuscriptNative?.resize();}
+ private bindDockDismissal(){
+  this.contentEl.onpointerdown=event=>{const target=event.target as HTMLElement;if(!this.dock.hidden&&this.contentEl.clientWidth<=900&&!this.dock.contains(target)&&!target.closest('.ts-writing-dock-toggle,.ts-writing-options'))this.closeDock();};
+  this.dock.onkeydown=event=>{if(event.key!=='Escape'||event.isComposing||Reflect.get(event,'keyCode')===229||this.contentEl.clientWidth>900)return;event.preventDefault();event.stopPropagation();this.closeDock();const toggle=this.contentEl.querySelector<HTMLButtonElement>('.ts-writing-dock-toggle'),target=toggle?.getClientRects().length?toggle:this.contentEl.querySelector<HTMLButtonElement>('.ts-writing-options');if(target?.getClientRects().length)target.focus();};
+ }
  private closeDock(){this.dockOpen=false;this.compactDockRequested=false;this.syncDock();this.app.workspace.requestSaveLayout();}
  private toggleDock(){const open=this.dock.hidden;this.dockOpen=open;this.compactDockRequested=open&&this.contentEl.clientWidth<=900;this.syncDock();this.app.workspace.requestSaveLayout();}
  private syncDock(){
@@ -241,7 +276,52 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   const toggle=this.contentEl.querySelector<HTMLButtonElement>('.ts-writing-dock-toggle');toggle?.setAttribute('aria-expanded',String(visible));toggle?.toggleClass('is-active',visible);if(toggle)toggle.title=visible?'收起参考资料，专注写作':'打开参考资料';this.fitTitle();
  }
  private setResourceMode(mode:'library'|'reference'){this.flushFields();this.resourceMode=mode;this.dockOpen=true;this.compactDockRequested=this.contentEl.clientWidth<=900;this.syncDock();}
- private setArticleMode(mode:'write'|'outline'|'preview'){if(this.composing){new Notice('请先完成当前输入，再切换写作模式');return;}this.flushFields();this.mode=mode;this.outline.hidden=mode!=='outline';this.paper.hidden=mode!=='preview';this.manuscriptHost.hidden=mode!=='write';this.contentEl.dataset.writingMode=mode;this.contentEl.querySelectorAll<HTMLButtonElement>('[data-article-mode]').forEach(button=>{button.toggleClass('is-active',button.dataset.articleMode===mode);button.setAttribute('aria-pressed',String(button.dataset.articleMode===mode));});this.renderLists();if(mode==='preview')void this.refreshArticle();if(mode==='write')void this.openManuscript();}
+ private syncModeTrigger(){const trigger=this.contentEl.querySelector<HTMLButtonElement>('.ts-writing-mode-menu'),label={write:'写作',outline:'编排',preview:'预览'}[this.mode];if(trigger){trigger.querySelector('span:not(.ts-writing-icon)')?.setText(label);trigger.title='写作模式 · 当前：'+label;trigger.dataset.currentMode=this.mode;}}
+ private ownWritingMenu(menu:Menu,trigger:HTMLButtonElement){
+  this.modeMenu?.hide();this.modeMenu=menu;const doc=trigger.ownerDocument,win=doc.defaultView??doc.win,owner=this.owner,generation=this.generation,menuOwner=this.writingMenuOwner={};let restoreFocus=false,hidden=false;
+  const windows=win===window?[win]:[window,win];
+  const current=()=>!this.closed&&this.owner===owner&&this.generation===generation&&this.writingMenuOwner===menuOwner&&this.contentEl.ownerDocument===doc&&trigger.ownerDocument===doc&&this.app.workspace.getActiveViewOfType<ItemView>(WritingView)===this&&this.leaf.view===this;
+  const focusOwner=()=>{if(!current()||this.modeMenu&&this.modeMenu!==menu)return;const target=trigger.isConnected&&trigger.getClientRects().length?trigger:this.contentEl.querySelector<HTMLButtonElement>(`.ts-writing-switch [data-article-mode="${this.mode}"]`);if(target?.isConnected&&target.getClientRects().length)target.focus();};
+  const restore=()=>queueMicrotask(focusOwner);
+  // Popout windows relay keys to the main window before later local capture
+  // listeners. Observe both windows, but only events from this exact document.
+  // The host keymap can hide the menu first; retain both observers through
+  // the entire event and remove them in the next task.
+  // Legacy WebKit IME key 229 can arrive before isComposing becomes true.
+  const consumeEscape=(event:KeyboardEvent)=>{const target=event.target as Node|null;if(!current()||target!==doc&&target?.ownerDocument!==doc||event.key!=='Escape'||event.ctrlKey||event.metaKey||event.altKey||event.shiftKey||event.isComposing||Reflect.get(event,'keyCode')===229||this.modeMenu!==menu&&!(hidden&&!this.modeMenu))return false;event.preventDefault();event.stopImmediatePropagation();restoreFocus=true;if(!hidden)menu.hide();return true;};
+  // Compatibility boundary: the inspected host owns one writable Menu.scope.
+  // Its early keymap runs before relayed Window target listeners. Wrap that
+  // exact scope before show/load; keep its original handlers as the parent.
+  // A wildcard handler returning undefined delegates all unowned/IME keys.
+  const descriptor=Object.getOwnPropertyDescriptor(menu,'scope');
+  if(descriptor?.writable&&descriptor.value instanceof Scope){const inherited=descriptor.value,scope=new Scope(inherited);scope.register(null,null,event=>{if(consumeEscape(event))return false;});if(!Reflect.set(menu,'scope',scope)||Reflect.get(menu,'scope')!==scope)Reflect.set(menu,'scope',inherited);}
+  const escape=(event:KeyboardEvent)=>{consumeEscape(event);};for(const targetWindow of windows)targetWindow.addEventListener('keydown',escape,true);
+  trigger.setAttribute('aria-haspopup','menu');trigger.setAttribute('aria-expanded','true');menu.onHide(()=>{hidden=true;if(this.modeMenu===menu)this.modeMenu=undefined;trigger.setAttribute('aria-expanded','false');window.setTimeout(()=>{for(const targetWindow of windows)targetWindow.removeEventListener('keydown',escape,true);if(restoreFocus)focusOwner();},0);});
+  return restore;
+ }
+ private openModeMenu(){
+  const trigger=this.contentEl.querySelector<HTMLButtonElement>('.ts-writing-mode-menu');if(!trigger)return;
+  const menu=new Menu().setUseNativeMenu(false).setParentElement(this.contentEl),doc=trigger.ownerDocument,restore=this.ownWritingMenu(menu,trigger);
+  for(const [key,label,icon]of [['write','写作','pencil-line'],['outline','编排','list-tree'],['preview','预览','book-open']]as const){
+   const title=(doc.win as Window&{createFragment:()=>DocumentFragment}).createFragment();title.createSpan({cls:'ts-writing-mode-label',text:label,attr:{'data-writing-mode':key}});
+   menu.addItem(item=>item.setTitle(title).setIcon(icon).setChecked(this.mode===key).onClick(()=>{this.setArticleMode(key);restore();}));
+  }
+  const rect=trigger.getBoundingClientRect();menu.showAtPosition({x:rect.left,y:rect.bottom+4},doc);
+ }
+ private openOptionsMenu(trigger:HTMLButtonElement,event:MouseEvent){
+  const menu=new Menu().setUseNativeMenu(false).setParentElement(this.contentEl),restore=this.ownWritingMenu(menu,trigger);
+  const secondary=(name:string,icon:string,action:()=>unknown,disabled=false)=>{const title=(trigger.ownerDocument.win as Window&{createFragment:()=>DocumentFragment}).createFragment();title.createSpan({cls:'ts-writing-menu-label',text:name});menu.addItem(item=>item.setTitle(title).setIcon(icon).setDisabled(disabled).onClick(()=>this.runAction(action)));};
+  secondary('新建章节','plus',()=>this.newChapter());
+  secondary('显示或收起资料栏','panel-right',()=>{this.toggleDock();restore();});
+  secondary('打开上次草稿','file-pen-line',()=>this.openDraft(),!this.state().draftPath);
+  menu.addSeparator();
+  menu.addItem(item=>item.setTitle('保留材料来源链接').setChecked(this.state().includeSources!==false).onClick(()=>this.runAction(()=>{this.update(state=>state.includeSources=state.includeSources===false);restore();})));
+  menu.addItem(item=>item.setTitle('撤销编排').setIcon('undo-2').setDisabled(!this.history.length).onClick(()=>this.runAction(()=>{this.undo();restore();})));
+  menu.addItem(item=>item.setTitle('重做编排').setIcon('redo-2').setDisabled(!this.future.length).onClick(()=>this.runAction(()=>{this.undo(true);restore();})));
+  menu.addSeparator();menu.addItem(item=>item.setTitle('从编排重建正文（先另存当前正文）').setIcon('files').onClick(()=>this.runAction(()=>this.rebuildManuscript())));
+  if(event.detail>0)menu.showAtMouseEvent(event);else{const rect=trigger.getBoundingClientRect();menu.showAtPosition({x:rect.left,y:rect.bottom},trigger.ownerDocument);}
+ }
+ private setArticleMode(mode:'write'|'outline'|'preview'){if(this.composing){new Notice('请先完成当前输入，再切换写作模式');return;}this.flushFields();this.mode=mode;this.outline.hidden=mode!=='outline';this.paper.hidden=mode!=='preview';this.manuscriptHost.hidden=mode!=='write';this.contentEl.dataset.writingMode=mode;this.syncModeTrigger();this.contentEl.querySelectorAll<HTMLButtonElement>('[data-article-mode]').forEach(button=>{button.toggleClass('is-active',button.dataset.articleMode===mode);button.setAttribute('aria-pressed',String(button.dataset.articleMode===mode));});this.renderLists();if(mode==='preview')void this.refreshArticle();if(mode==='write')void this.openManuscript();}
  private matching() {
   const board=this.ensure().board,used=new Set(writingParts(board).map(p=>p.node.id));
   const chapters=new Set(this.state().chapters?.map(c=>c.id));
@@ -511,7 +591,7 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
  }
  async onClose(){
   if(this.closed)return;this.closed=true;this.referencePicker?.close();this.generation++;this.revision++;this.articleRun++;
-  this.stopViewport?.();this.stopViewport=undefined;this.contentEl.onpointerdown=null;
+  this.stopWindow?.();this.stopWindow=undefined;this.stopChrome?.();this.stopChrome=undefined;this.modeMenu?.hide();this.stopViewport?.();this.stopViewport=undefined;this.contentEl.onpointerdown=null;
   this.containerEl.removeClass('ts-writing-leaf');
   if(this.composing)for(const input of [this.titleInput,this.manuscriptInput,...this.entryInputs])input?.dispatchEvent?.(new Event('input'));
   const values=[this.manuscriptInput?.value,...this.entryInputs.map(input=>input.value)].filter((value):value is string=>value!==undefined);

@@ -5,6 +5,7 @@
 .ts-online-workspace__source {overflow:hidden; text-overflow:ellipsis; white-space:nowrap;color:var(--text-muted); font-size:11px;}
 .ts-online-workspace__positions {display:flex; flex-wrap:wrap;gap:4px; flex:none;padding:0 12px 4px; border-bottom:1px solid var(--background-modifier-border);}
 .ts-online-workspace .ts-online-workspace__action {display:inline-flex; justify-content:center; align-items:center; gap:6px; min-height:29px; min-width:29px; padding:5px 8px; border:1px solid transparent; border-radius:var(--radius-s); background:transparent; color:var(--text-muted); box-shadow:none; font-family:var(--font-interface); font-size:12px; line-height:1.3; cursor:pointer;}
+.ts-online-workspace .ts-online-workspace__action[hidden] {display:none;}
 .ts-online-workspace__action > span:first-child {display:inline-flex; flex:none;}
 .ts-online-workspace__action svg {width:14px; height:14px;}
 .ts-online-workspace .ts-online-workspace__action:not(:disabled):hover {background:var(--ts-design-wash); color:var(--text-normal);}
@@ -43,7 +44,7 @@
 .ts-online-workspace__draft-image {display:block; flex:none; width:96px; height:54px; max-width:35%; border-radius:3px; object-fit:contain; background:var(--background-primary);}
 .ts-online-workspace__draft-image[hidden] {display:none;}
 .ts-online-workspace__image-label {flex:1; min-width:0; color:var(--text-muted); font-size:11px; line-height:1.6;}
-.ts-online-workspace .ts-online-workspace__input {width:100%; flex:1 0 auto; min-height:95px; padding:8px 2px; resize:vertical; border:0; border-radius:0; background:transparent; box-shadow:none; font-family:var(--font-text); font-size:14px; line-height:1.8;}
+.ts-online-workspace .ts-online-workspace__input {width:100%; flex:1 0 auto; min-height:96px; padding:8px 2px; resize:vertical; border:0; border-radius:0; background:transparent; box-shadow:none; font-family:var(--font-text); font-size:14px; line-height:1.8;}
 .ts-online-workspace__input:read-only {color:var(--text-muted);}
 .ts-online-workspace__composer-actions {display:flex; flex:none; align-items:center; flex-wrap:wrap;gap:8px;padding-top:8px; border-top:1px solid var(--background-modifier-border);}
 .ts-online-workspace__composer-actions > .ts-online-workspace__hint {margin-right:auto;font-size:11px;}
@@ -75,3 +76,87 @@
  .ts-online-workspace__composer {min-height:240px;}
  .ts-online-workspace__moment {gap:4px;}
 }
+
+/* The editorial frame belongs to ThoughtSpace; the embedded platform keeps
+   its own pixels, focus, playback and account UI. */
+.ts-online-workspace {background:var(--ts-e-paper);}
+.ts-online-workspace .ts-online-workspace__header {min-height:62px;padding:12px 20px 8px;gap:12px;}
+.ts-online-workspace .ts-online-workspace__heading {gap:4px;}
+.ts-online-workspace .ts-online-workspace__title {font-family:var(--ts-e-serif);font-size:20px;line-height:1.45;font-weight:600;color:var(--ts-e-ink);}
+.ts-online-workspace .ts-online-workspace__source {font-size:12px;line-height:1.6;color:var(--ts-e-muted);}
+.ts-online-workspace .ts-online-workspace__positions {gap:6px;padding:0 20px 8px;border-color:var(--ts-e-line);}
+.ts-online-workspace .ts-online-workspace__action {min-height:34px;min-width:34px;padding:6px 9px;border-radius:5px;color:var(--ts-e-muted);font-size:12px;line-height:1.5;}
+.ts-online-workspace .ts-online-workspace__action:not(:disabled):hover {color:var(--ts-e-ink);background:var(--ts-e-wash);}
+.ts-online-workspace .ts-online-workspace__action:not(:disabled):active {color:var(--ts-e-ink);background:var(--ts-e-line);}
+.ts-online-workspace .ts-online-workspace__action[aria-pressed="true"] {color:var(--ts-e-editorial);background:transparent;border-radius:0;box-shadow:inset 0 -2px var(--ts-e-editorial);font-weight:600;}
+.ts-online-workspace .ts-online-workspace__layout {padding:20px;gap:16px 24px;}
+.ts-online-workspace .ts-online-workspace__section-heading {min-height:32px;color:var(--ts-e-ink);font-size:14px;line-height:1.5;}
+.ts-online-workspace :is(.ts-online-workspace__connection,.ts-online-workspace__clock,.ts-online-workspace__hint,.ts-online-workspace__count,.ts-online-workspace__pagination,.ts-online-workspace__image-label) {color:var(--ts-e-muted);font-size:12px;line-height:1.65;}
+.ts-online-workspace .ts-online-workspace__player {gap:12px;}
+.ts-online-workspace .ts-online-workspace__embed {border-color:var(--ts-e-line);border-radius:8px;}
+.ts-online-workspace .ts-online-workspace__player-error,.ts-online-workspace .ts-online-workspace__candidate {padding:12px 14px;border-left:3px solid var(--ts-e-editorial);border-radius:0 5px 5px 0;background:var(--ts-e-wash);color:var(--ts-e-ink);font-size:13px;line-height:1.8;}
+.ts-online-workspace .ts-online-workspace__transport {padding:4px 0;border-bottom:1px solid var(--ts-e-line);gap:5px;}
+.ts-online-workspace .ts-online-workspace__time-row>input,.ts-online-workspace .ts-online-workspace__transport select {min-height:34px;padding:6px 9px;border:1px solid var(--ts-e-line);border-radius:5px;box-shadow:none;background:var(--ts-e-sheet);color:var(--ts-e-ink);font-size:13px;}
+.ts-online-workspace .ts-online-workspace__time-row>input::placeholder {color:var(--ts-e-muted);}
+.ts-online-workspace .ts-online-workspace__composer {padding:16px;border:1px solid var(--ts-e-line);border-radius:8px;background:var(--ts-e-sheet);gap:12px;}
+.ts-online-workspace .ts-online-workspace__draft-time {color:var(--ts-e-editorial);font-size:12px;line-height:1.6;}
+.ts-online-workspace .ts-online-workspace__capture-actions {gap:8px;}
+.ts-online-workspace .ts-online-workspace__capture-actions .ts-online-workspace__action {min-height:34px;border-color:var(--ts-e-line);background:transparent;color:var(--ts-e-muted);font-size:12px;}
+.ts-online-workspace .ts-online-workspace__capture-actions .ts-online-workspace__action:not(:disabled):hover {background:var(--ts-e-wash);color:var(--ts-e-ink);}
+.ts-online-workspace .ts-online-workspace__manual-fallback {color:var(--ts-e-muted);font-size:12px;line-height:1.7;}
+.ts-online-workspace .ts-online-workspace__manual-fallback>summary {min-height:32px;padding:6px 0;}
+.ts-online-workspace .ts-online-workspace__manual-fallback>summary:hover {color:var(--ts-e-ink);}
+.ts-online-workspace .ts-online-workspace__input {padding:12px;border:1px solid var(--ts-e-line);border-radius:5px;background:var(--ts-e-sheet);color:var(--ts-e-ink);font-size:15px;line-height:1.85;}
+.ts-online-workspace .ts-online-workspace__input::placeholder,.ts-online-workspace .ts-online-workspace__input:read-only {color:var(--ts-e-muted);}
+.ts-online-workspace .ts-online-workspace__draft-attachment {padding:10px;border:1px solid var(--ts-e-line);border-radius:5px;background:var(--ts-e-paper);}
+.ts-online-workspace .ts-online-workspace__composer-actions {border-color:var(--ts-e-line);padding-top:12px;}
+.ts-online-workspace .ts-online-workspace__composer-actions .ts-online-workspace__action.mod-cta {min-height:36px;padding-inline:14px;border:1px solid var(--ts-e-editorial);background:var(--ts-e-editorial);color:var(--ts-e-paper);font-weight:600;}
+.ts-online-workspace .ts-online-workspace__composer-actions .ts-online-workspace__action.mod-cta:not(:disabled):hover {background:var(--ts-e-editorial);color:var(--ts-e-paper);box-shadow:inset 0 0 0 1px currentColor;}
+.ts-online-workspace .ts-online-workspace__records {padding:16px;border:1px solid var(--ts-e-line);border-radius:8px;background:var(--ts-e-sheet);gap:12px;}
+.ts-online-workspace .ts-online-workspace__moment {gap:10px;padding:14px 0;border-color:var(--ts-e-line);}
+.ts-online-workspace .ts-online-workspace__moment>.ts-online-workspace__action:first-child {color:var(--ts-e-editorial);font-size:12px;}
+.ts-online-workspace .ts-online-workspace__moment-text {color:var(--ts-e-ink);font-size:14px;line-height:1.85;}
+.ts-online-workspace .ts-online-workspace__pagination {padding-top:8px;border-top:1px solid var(--ts-e-line);}
+.ts-online-workspace .ts-online-workspace__empty {padding:24px 12px;color:var(--ts-e-muted);font-size:14px;line-height:1.85;}
+.ts-online-workspace .ts-online-workspace__embed>.ts-online-workspace__empty {padding:24px;color:#b7b7b7;}
+.ts-online-workspace .ts-online-workspace__status:not(:empty) {padding:10px 20px;border-top:1px solid var(--ts-e-line);background:var(--ts-e-wash);color:var(--ts-e-ink);font-size:13px;line-height:1.75;}
+.ts-online-workspace :is(.ts-online-workspace__action,.ts-online-workspace__input,.ts-online-workspace__manual-fallback>summary,.ts-online-workspace__time-row>input,.ts-online-workspace__transport select):focus-visible {outline:2px solid var(--ts-e-editorial);outline-offset:2px;}
+@container ts-online-workspace (max-width:780px) {
+ .ts-online-workspace .ts-online-workspace__header {min-height:54px;padding:10px 12px 6px;gap:8px;}
+ .ts-online-workspace .ts-online-workspace__title {font-size:18px;}
+ .ts-online-workspace .ts-online-workspace__positions {padding-inline:12px;}
+ .ts-online-workspace .ts-online-workspace__composer,.ts-online-workspace .ts-online-workspace__records {padding:12px;}
+ .ts-online-workspace .ts-online-workspace__moment {grid-template-columns:auto minmax(0,1fr);gap:8px;}
+ .ts-online-workspace .ts-online-workspace__moment>.ts-online-workspace__action:last-child {grid-column:2;justify-self:end;}
+ .ts-online-workspace .ts-online-workspace__composer-actions {background:var(--ts-e-sheet);}
+}
+@media (any-pointer:coarse),(max-width:600px) {
+ .ts-online-workspace :is(.ts-online-workspace__manual-fallback>summary,.ts-online-workspace__time-row>input,.ts-online-workspace__transport select) {min-height:44px;touch-action:manipulation;}
+ .ts-online-workspace .ts-online-workspace__input,.ts-online-workspace .ts-online-workspace__time-row>input {font-size:16px;}
+}
+
+/* Metadata is the same set of controls. Only a short actual pane collapses it;
+   the native textarea never detaches and the save row never overlays its text. */
+.ts-online-workspace .ts-online-workspace__composer-details,.ts-online-workspace .ts-online-workspace__composer-tools {display:contents;}
+.ts-online-workspace .ts-online-workspace__composer-details>summary[hidden] {display:none;}
+.ts-online-workspace .ts-online-workspace__manual-explanation {max-width:60ch;margin:4px 0;font-size:12px;line-height:1.7;}
+.ts-online-workspace .ts-online-workspace__composer-actions {position:static;}
+/* The host gives custom view-content a default 12px top/inline inset. This
+   pane owns its spacing; preserve only the measured host/safe-area bottom. */
+.workspace-leaf-content[data-type="thoughtspace-online-player"] .view-content.ts-online-workspace[data-online-short=true] {padding:0;padding-bottom:max(env(safe-area-inset-bottom,0px),var(--ts-host-bottom-inset,0px));overflow:hidden;}
+.ts-online-workspace[data-online-short=true] .ts-online-workspace__header {min-height:46px;padding:4px 10px;gap:6px;}
+.ts-online-workspace[data-online-short=true] .ts-online-workspace__heading {gap:2px;}
+.ts-online-workspace[data-online-short=true] .ts-online-workspace__title {font-size:16px;line-height:1.35;}
+.ts-online-workspace[data-online-short=true] .ts-online-workspace__source {font-size:11px;line-height:1.3;}
+.ts-online-workspace[data-online-short=true] .ts-online-workspace__panel-switcher {padding:2px 6px;}
+.ts-online-workspace[data-online-short=true] .ts-online-workspace__layout {padding:4px;gap:8px;overflow:auto;overscroll-behavior:contain;}
+.ts-online-workspace[data-online-short=true] .ts-online-workspace__composer {min-height:0;flex:1 0 auto;padding:6px;gap:4px;}
+.ts-online-workspace[data-online-short=true] .ts-online-workspace__input {min-height:96px;flex:1 0 96px;padding:8px;}
+.ts-online-workspace[data-online-short=true] .ts-online-workspace__composer-actions {position:static;gap:6px;padding-top:0;}
+.ts-online-workspace[data-online-short=true] .ts-online-workspace__composer-details {display:block;flex:none;min-width:0;border-top:1px solid var(--ts-e-line);}
+.ts-online-workspace[data-online-short=true] .ts-online-workspace__composer-details>summary {min-height:44px;padding:6px 4px;color:var(--ts-e-ink);font:600 12px/1.5 var(--font-interface);cursor:pointer;touch-action:manipulation;}
+.ts-online-workspace[data-online-short=true] .ts-online-workspace__composer-details>summary>.ts-online-workspace__draft-time {display:block;font-weight:400;line-height:1.5;}
+.ts-online-workspace[data-online-short=true] .ts-online-workspace__composer-details>summary:focus-visible {outline:2px solid var(--ts-e-editorial);outline-offset:-3px;}
+.ts-online-workspace[data-online-short=true] .ts-online-workspace__composer-tools {display:flex;flex-direction:column;gap:8px;padding:6px 2px;}
+.ts-online-workspace[data-online-short=true] .ts-online-workspace__composer-tools .ts-online-workspace__positions {padding:4px 0;border-top:1px solid var(--ts-e-line);border-bottom:0;}
+.ts-online-workspace[data-online-short=true] .ts-online-workspace__status:not(:empty) {padding:2px 10px;max-height:28px;overflow:auto;}

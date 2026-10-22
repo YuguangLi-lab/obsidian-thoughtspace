@@ -209,3 +209,112 @@
  .ts-reading-desk .ts-reading-footer .ts-reading-utilities button {min-inline-size:44px;}
  .ts-reading-tools>input,.ts-reading-filter-grid select,.ts-reading-state select {font-size:16px;}
 }
+
+/* An index and a reading desk. Native Markdown/PDF prose keeps its own colors,
+   typography and scroll surface; only the surrounding navigation is themed. */
+.modal.ts-ui-modal.ts-reading-desk {--reader-line:var(--ts-e-line);--reader-muted:var(--ts-e-muted);--reader-wash:var(--ts-e-wash);--reader-index:var(--ts-e-paper);--reader-index-width:248px;border-radius:10px;background:var(--ts-e-sheet);}
+.ts-reading-desk .ts-reading-heading {min-height:70px;padding:14px 56px 14px 24px;gap:20px;background:var(--ts-e-paper);}
+.ts-reading-desk .ts-reading-mark {color:var(--ts-e-editorial);}
+.ts-reading-desk .ts-reading-title {font-family:var(--ts-e-serif);font-size:23px;line-height:1.45;font-weight:600;color:var(--ts-e-ink);}
+.ts-reading-desk .ts-reading-context {font-size:12px;line-height:1.6;color:var(--ts-e-muted);}
+.ts-reading-desk .ts-reading-progress {font-size:12px;line-height:1.6;color:var(--ts-e-muted);}
+.ts-reading-desk .ts-reading-progress progress {width:72px;height:4px;}
+.ts-reading-desk .ts-reading-progress progress::-webkit-progress-value {background:var(--ts-e-editorial);}
+.ts-reading-desk .ts-reading-aside {padding:16px 10px 10px;background:var(--ts-e-paper);}
+.ts-reading-desk .ts-reading-tools {gap:8px;padding:0 4px 12px;}
+.ts-reading-desk .ts-reading-tools>input {min-height:36px;padding-inline:11px;border-radius:5px;background:var(--ts-e-sheet);color:var(--ts-e-ink);font-size:13px;box-shadow:none;}
+.ts-reading-desk .ts-reading-tools>input::placeholder {color:var(--ts-e-muted);}
+.ts-reading-desk .ts-reading-filter-panel>summary {min-height:34px;padding:5px 7px;color:var(--ts-e-muted);font-size:12px;line-height:1.6;}
+.ts-reading-desk .ts-reading-filter-panel[open]>summary {color:var(--ts-e-editorial);background:var(--ts-e-wash);}
+.ts-reading-desk .ts-reading-filter-grid {gap:7px;}
+.ts-reading-desk .ts-reading-filter-grid select {min-height:34px;border-radius:5px;background-color:var(--ts-e-sheet);color:var(--ts-e-ink);font-size:12px;}
+.ts-reading-desk :is(.ts-reading-aside,.ts-reading-commandbar,.ts-reading-pagination,.ts-reading-footer) button {min-height:34px;height:auto;border-radius:5px;color:var(--ts-e-muted);font-size:12px;line-height:1.5;}
+.ts-reading-desk :is(.ts-reading-aside,.ts-reading-commandbar,.ts-reading-pagination,.ts-reading-footer) button:not(:disabled):hover {background:var(--ts-e-wash);color:var(--ts-e-ink);}
+.ts-reading-desk :is(.ts-reading-aside,.ts-reading-commandbar,.ts-reading-pagination,.ts-reading-footer) button:not(:disabled):active {background:var(--ts-e-line);color:var(--ts-e-ink);}
+.ts-reading-desk .ts-reading-aside-tabs {margin-inline:4px;}
+.ts-reading-desk .ts-reading-aside-tabs button {min-height:36px;border-radius:0;font-size:12px;}
+.ts-reading-desk .ts-reading-aside-tabs button[aria-pressed=true] {color:var(--ts-e-editorial);}
+.ts-reading-desk .ts-reading-aside-tabs button[aria-pressed=true]::after {background:var(--ts-e-editorial);}
+.ts-reading-desk .ts-reading-count {padding:12px 10px 8px;color:var(--ts-e-muted);font-size:12px;}
+.ts-reading-desk .ts-reading-item {min-height:68px;padding:12px 10px 12px 13px;row-gap:5px;border-radius:5px;}
+.ts-reading-desk .ts-reading-item>span:nth-child(2) {color:var(--ts-e-ink);font-size:13px;line-height:1.6;}
+.ts-reading-desk .ts-reading-item small {color:var(--ts-e-muted);font-size:11px;line-height:1.5;}
+.ts-reading-desk .ts-reading-item[aria-pressed=true] {background:var(--ts-e-wash);}
+.ts-reading-desk .ts-reading-item[aria-pressed=true]::before {width:3px;background:var(--ts-e-editorial);}
+.ts-reading-desk .ts-reading-item[aria-pressed=true]>span:first-child {color:var(--ts-e-editorial);}
+.ts-reading-desk .ts-reading-heading-link {padding-block:10px;color:var(--ts-e-muted);font-size:13px;line-height:1.7;}
+.ts-reading-desk .ts-reading-relation {padding-block:12px;line-height:1.75;color:var(--ts-e-ink);}
+.ts-reading-desk .ts-reading-relation>span:first-child {color:var(--ts-e-editorial);}
+.ts-reading-desk .ts-reading-relation small {font-size:11px;color:var(--ts-e-muted);}
+.ts-reading-desk :is(.ts-reading-context-hint,.ts-reading-empty) {padding:14px 8px;color:var(--ts-e-muted);font-size:13px;line-height:1.85;}
+.ts-reading-desk .ts-reading-commandbar {gap:10px;padding:9px 20px;background:var(--ts-e-sheet);}
+.ts-reading-desk .ts-reading-state>span {color:var(--ts-e-muted);font-size:12px;}
+.ts-reading-desk .ts-reading-state select {min-height:34px;border-radius:5px;background-color:var(--ts-e-paper);color:var(--ts-e-ink);font-size:12px;}
+.ts-reading-desk .ts-reading-actions .mod-cta {min-height:34px;border-color:var(--ts-e-editorial);border-radius:5px;background:var(--ts-e-editorial);color:var(--ts-e-paper);}
+.ts-reading-desk .ts-reading-actions .mod-cta:is(:hover,:focus-visible):not(:disabled) {background:var(--ts-e-editorial);color:var(--ts-e-paper);box-shadow:inset 0 0 0 1px currentColor;}
+.ts-reading-desk .ts-reading-page-head {padding-bottom:18px;}
+.ts-reading-desk .ts-reading-page-head::after {width:44px;background:var(--ts-e-editorial);}
+.ts-reading-desk .ts-reading-eyebrow {margin-bottom:12px;font-size:11px;line-height:1.6;letter-spacing:.04em;}
+.ts-reading-desk .ts-reading-page-head h2 {font-family:var(--ts-e-serif);font-size:clamp(25px,2.4vw,32px);line-height:1.5;font-weight:600;letter-spacing:0;}
+.ts-reading-desk .ts-reading-source {font-size:12px;line-height:1.7;}
+.ts-reading-desk .ts-reading-pagination {padding:8px 20px;background:var(--ts-e-sheet);}
+.ts-reading-desk .ts-reading-pagination>span {color:var(--ts-e-muted);font-size:12px;}
+.ts-reading-desk .ts-reading-footer {padding:6px 16px;background:var(--ts-e-paper);}
+.ts-reading-desk .ts-reading-footer button[aria-pressed=true] {background:var(--ts-e-wash);color:var(--ts-e-editorial);box-shadow:inset 0 -2px var(--ts-e-editorial);}
+.ts-reading-desk .ts-reading-typography {font-size:12px;color:var(--ts-e-muted);}
+.ts-reading-desk .ts-reading-typography select {min-height:34px;background-color:var(--ts-e-sheet);color:var(--ts-e-ink);font-size:12px;}
+.ts-reading-desk :is(.ts-reading-heading,.ts-reading-aside,.ts-reading-commandbar,.ts-reading-pagination,.ts-reading-footer) :is(button,summary,input,select):focus-visible {outline:2px solid var(--ts-e-editorial);outline-offset:2px;}
+.ts-reading-desk .ts-reading-blank {padding:28px;font-size:14px;line-height:1.9;}
+@container ts-reader (max-width:600px) {
+ .ts-reading-desk .ts-reading-heading {min-height:60px;padding:10px 44px 10px 16px;gap:12px;}
+ .ts-reading-desk .ts-reading-title {font-size:20px;}
+ .ts-reading-desk .ts-reading-aside {padding:10px 12px 6px;}
+ .ts-reading-desk .ts-reading-tools {padding-bottom:4px;gap:6px;}
+ .ts-reading-desk .ts-reading-item {min-height:60px;padding:8px 10px;}
+ .ts-reading-desk .ts-reading-commandbar {padding:8px 12px;flex-wrap:wrap;}
+ .ts-reading-desk .ts-reading-pagination {padding:6px 12px;}
+ .ts-reading-desk .ts-reading-footer {padding:6px 10px;}
+ .ts-reading-desk .ts-reading-page-head h2 {font-size:25px;}
+}
+@container ts-reader (max-width:600px) and (max-height:580px) {
+ .ts-reading-desk .ts-reading-heading {min-height:46px;padding-block:6px;}
+ .ts-reading-desk .ts-reading-title {font-size:18px;}
+ .ts-reading-desk .ts-reading-aside {padding-block:6px 4px;}
+ .ts-reading-desk .ts-reading-item {min-height:34px;padding-block:5px;}
+ .ts-reading-desk .ts-reading-commandbar,.ts-reading-desk .ts-reading-pagination,.ts-reading-desk .ts-reading-footer {padding-block:4px;}
+}
+@media (any-pointer:coarse),(max-width:600px) {
+ .ts-reading-desk :is(.ts-reading-aside,.ts-reading-commandbar,.ts-reading-pagination,.ts-reading-footer) :is(button,select,summary,input:not([type=checkbox])) {min-height:44px;height:auto;touch-action:manipulation;}
+ .ts-reading-desk .ts-reading-icon-action {min-width:44px;}
+ .ts-reading-desk .ts-reading-tools>input,.ts-reading-desk .ts-reading-filter-grid select,.ts-reading-desk .ts-reading-state select {font-size:16px;}
+}
+
+/* A short reading sheet starts with the document. The disclosure contains
+   the same navigation controls, not a second set of actions or a new reader. */
+.ts-reading-desk .ts-reading-compact-controls[hidden] {display:none;}
+.ts-reading-desk .ts-reading-compact-controls {flex:none;min-width:0;min-height:44px;border-bottom:1px solid var(--reader-line);background:var(--ts-e-paper);}
+.ts-reading-desk .ts-reading-compact-controls>summary {display:flex;align-items:center;gap:8px;min-height:44px;padding:10px 14px;list-style:none;cursor:pointer;color:var(--ts-e-ink);font:600 13px/1.7 var(--font-interface);}
+.ts-reading-desk .ts-reading-compact-controls>summary::-webkit-details-marker {display:none;}
+.ts-reading-desk .ts-reading-compact-label {flex:none;color:var(--ts-e-muted);font-weight:400;}
+.ts-reading-desk .ts-reading-compact-current {min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ts-reading-desk .ts-reading-compact-chevron {display:flex;flex:none;}
+.ts-reading-desk .ts-reading-compact-chevron svg {width:16px;height:16px;}
+.ts-reading-desk .ts-reading-compact-controls[open] .ts-reading-compact-chevron {transform:rotate(180deg);}
+.ts-reading-desk .ts-reading-compact-controls>summary:focus-visible {outline:2px solid var(--ts-e-editorial);outline-offset:-4px;}
+.ts-reading-desk[data-reading-compact=true] .ts-reading-compact-controls[open] {flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;}
+.ts-reading-desk .ts-reading-compact-panel {padding:4px 6px 8px;}
+.ts-reading-desk .ts-reading-compact-article {padding:8px 10px 12px;border-bottom:1px solid var(--reader-line);overflow-wrap:anywhere;color:var(--ts-e-ink);font:400 13px/1.7 var(--font-interface);}
+.ts-reading-desk .ts-reading-compact-article strong {display:block;font-weight:600;}
+.ts-reading-desk .ts-reading-compact-source {margin-top:4px;color:var(--ts-e-muted);font-size:12px;}
+.ts-reading-desk .ts-reading-compact-panel>.ts-reading-aside {display:flex;height:auto;min-height:0;border:0;overflow:visible;}
+.ts-reading-desk .ts-reading-compact-panel :is(.ts-reading-list,.ts-reading-companion) {max-height:180px;overflow:auto;}
+.ts-reading-desk .ts-reading-compact-panel :is(.ts-reading-commandbar,.ts-reading-footer) {flex-wrap:wrap;padding:8px 6px;border-top:1px solid var(--reader-line);}
+.ts-reading-desk .ts-reading-compact-panel .ts-reading-commandbar {gap:8px;}
+.ts-reading-desk[data-reading-compact=true]>.modal-content>.ts-reading-layout[hidden] {display:none;}
+.ts-reading-desk[data-reading-compact=true] .ts-reading-page {padding:12px 16px 20px;}
+/* Current article identity lives in the compact disclosure; authored Markdown
+   headings retain their native typography and become the first page content. */
+.ts-reading-desk[data-reading-compact=true] .ts-reading-page-head {display:none;}
+/* Programmatic outline destinations need a visible focus ring as well as DOM
+   focus. The inward offset keeps the complete ring inside the heading box. */
+.ts-reading-desk .ts-reading-prose :is(h1,h2,h3,h4,h5,h6)[tabindex="-1"]:focus {outline:2px solid var(--ts-e-editorial,var(--interactive-accent));outline-offset:-2px;}

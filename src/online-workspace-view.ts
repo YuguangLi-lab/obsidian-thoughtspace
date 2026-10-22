@@ -1,6 +1,9 @@
 import {Component,ItemView,MarkdownRenderer,Notice,Scope,TFile,WorkspaceLeaf,setIcon,type KeymapEventHandler,type ViewStateResult} from 'obsidian';
 import {applyWorkspaceDensity} from './workspace-density';
 import {bindMobileViewport} from './mobile-viewport';
+import {bindBoardHostInset} from './board-chrome';
+import {bindOnlineComposerLayout} from './online-composer-layout';
+import type {OnlineDraftStore,OnlineDraftSnapshot} from './online-draft-store';
 import type {MediaMoment} from './media-notes';
 import {mediaClock,parseMediaTime,validMediaTime} from './media-source';
 import type {MediaPlacement} from './media-workspace-view';
@@ -8,6 +11,7 @@ import {parseOnlineSource,type OnlineState,type OnlineAction,type OnlineSource} 
 
 export const ONLINE_WORKSPACE='thoughtspace-online-player';
 export interface OnlineWorkspaceHost {
+ drafts?:OnlineDraftStore;
  playbackAvailable?():boolean;
  openExternal?(source:string):Promise<unknown>;
  accent?():string;
@@ -26,15 +30,41 @@ export interface OnlineWorkspaceHost {
  openNote(file:TFile):Promise<unknown>;
 }
 type OnlinePanel='player'|'compose'|'timeline';
-export interface OnlineWorkspaceState extends Record<string,unknown>{source?:string;note?:string;placement?:MediaPlacement;time?:number;panel?:OnlinePanel}
+export interface OnlineWorkspaceState extends Record<string,unknown>{source?:string;note?:string;placement?:MediaPlacement;time?:number;panel?:OnlinePanel;draftId?:string}
 interface Draft {id:string;time:number;text:string;mode:'synced'|'manual';image?:Blob;locked?:boolean}
 interface Capture {owner:symbol;source:string;invalid:boolean}
-interface Memory {draft?:Draft;manualTime?:number;pending?:symbol;capture?:Capture;editor?:symbol;note?:TFile;listeners:Set<(refresh:boolean)=>void>}
+interface Memory {source:string;phase?:OnlineDraftSnapshot['phase'];recovered?:boolean;persistedNote?:string;persistenceWarning?:string;restoreBlocked?:boolean;draft?:Draft;manualTime?:number;pending?:symbol;capture?:Capture;editor?:symbol;note?:TFile;listeners:Set<(refresh:boolean)=>void>}
 const memories=new WeakMap<OnlineWorkspaceHost,Map<string,Memory>>();
-function memoryFor(host:OnlineWorkspaceHost,source:string,note?:string):Memory {
+const busyMemory=(memory:Memory)=>!!(memory.draft||memory.pending||memory.capture||memory.editor)||memory.manualTime!==undefined;
+function memoryFor(host:OnlineWorkspaceHost,source:string,note?:string,id?:string):Memory {
  let entries=memories.get(host);if(!entries){entries=new Map();memories.set(host,entries);}
- const key=JSON.stringify([source,note||'']);let memory=entries.get(key);
- if(!memory){memory={listeners:new Set()};entries.set(key,memory);}return memory;
+ const key=JSON.stringify([source,note||'']),existing=entries.get(key),fresh=():Memory=>({source,listeners:new Set(),persistedNote:note});
+ let saved:OnlineDraftSnapshot|undefined;
+ try{saved=host.drafts?.recover(source,note,id);}
+ catch(error){if(existing)return existing;const blocked={...fresh(),restoreBlocked:true,persistenceWarning:errorText(error)};entries.set(key,blocked);return blocked;}
+ if(!saved){if(existing)return existing;const memory=fresh();entries.set(key,memory);return memory;}
+ // Resolve synchronously before any notes request. A lagging layout and an exact
+ // note alias must share one original draft object and one editor lease.
+ const savedId=saved.id,storedKey=JSON.stringify([source,saved.note||'']),stored=entries.get(storedKey);
+ const owned=[...new Set(entries.values())].find(memory=>memory.source===source&&memory.draft?.id===savedId);
+ const boundNote=owned?.note?.path||owned?.persistedNote;
+ if(note!==undefined&&boundNote!==undefined&&note!==boundNote)return {...fresh(),restoreBlocked:true,persistenceWarning:'当前草稿已绑定另一笔记；未切换笔记或替换草稿，请从原笔记重新打开'};
+ const memory=owned||stored||existing||fresh();
+ const conflicts=[existing,stored,memory].some(value=>value&&value!==owned&&busyMemory(value)&&value.draft?.id!==savedId);
+ if(conflicts)return {...fresh(),restoreBlocked:true,persistenceWarning:'此来源或笔记已有正在编辑的草稿；当前内容与原暂存均保留。请先处理已有草稿，再重新打开此摘录'};
+ if(!memory.draft){memory.draft={id:saved.id,time:saved.time,text:saved.text,mode:saved.mode,image:saved.image,locked:saved.phase!=='editing'};memory.phase=saved.phase;memory.recovered=saved.phase!=='editing';memory.persistedNote=saved.note;memory.restoreBlocked=false;}
+ if(note!==undefined&&memory.persistedNote===undefined&&!memory.note){
+  memory.persistedNote=note;const draft=memory.draft;
+  try{host.drafts?.stage({id:draft.id,source,note,time:draft.time,text:draft.text,mode:draft.mode,image:draft.image,phase:memory.phase||'editing'});memory.persistenceWarning=undefined;}
+  catch(error){memory.persistenceWarning=errorText(error);}
+ }
+ for(const alias of new Set([key,storedKey])){
+  const previous=entries.get(alias);
+  if(previous&&previous!==memory){previous.restoreBlocked=true;previous.persistenceWarning='此草稿已在另一视图恢复；请重新打开当前视图以使用同一编辑会话';for(const listener of previous.listeners)listener(false);}
+  entries.set(alias,memory);
+ }
+ for(const listener of memory.listeners)listener(false);
+ return memory;
 }
 const notify=(memory:Memory,refresh=false)=>{for(const fn of memory.listeners)fn(refresh);};
 // Older platform WebViews report composition with legacy key code 229.
@@ -64,6 +94,7 @@ export class OnlineWorkspaceView extends ItemView {
  private live?:OnlineState;
  private entries:MediaMoment[]=[];
  private generation=0;
+ private stateRun=0;
  private timelineRun=0;
  private page=0;
  private opened=false;
@@ -77,6 +108,10 @@ export class OnlineWorkspaceView extends ItemView {
  private readonly editor=Symbol('online-workspace-editor');
  private input?:HTMLTextAreaElement;
  private status?:HTMLElement;
+ private statusMessage='';
+ private stopDrafts?:()=>void;
+ private exportImageButton?:HTMLButtonElement;
+ private retryDraftButton?:HTMLButtonElement;
  private connection?:HTMLElement;
  private playerError?:HTMLElement;
  private loadButton?:HTMLButtonElement;
@@ -114,6 +149,9 @@ export class OnlineWorkspaceView extends ItemView {
  private nextButton?:HTMLButtonElement;
  private positionButtons=new Map<MediaPlacement,HTMLButtonElement>();
  private stopViewport?:()=>void;
+ private stopInset?:()=>void;
+ private composerLayout?:ReturnType<typeof bindOnlineComposerLayout>;
+ private rebindLayout?:()=>void;
  private submitHotkey?:KeymapEventHandler;
 
  constructor(leaf:WorkspaceLeaf,private host:OnlineWorkspaceHost){super(leaf);this.scope=new Scope(this.app.scope);this.stopViewport=bindMobileViewport(this.contentEl);}
@@ -121,8 +159,9 @@ export class OnlineWorkspaceView extends ItemView {
  getViewType(){return ONLINE_WORKSPACE;}
  getDisplayText(){return this.source?`${this.source.name} · 在线视频笔记`:'在线视频笔记';}
  getIcon(){return 'clapperboard';}
+ onWindowMigrated(){if(!this.closed)this.rebindLayout?.();}
  currentSource(){return this.source;}
- currentNote(){return this.memory?.note?.path||this.note;}
+ currentNote(){return this.memory?.note?.path||this.memory?.persistedNote||this.note;}
  private verified():OnlineState|undefined {
   if(this.host.playbackAvailable?.()===false)return;
   const state=this.live;
@@ -130,7 +169,7 @@ export class OnlineWorkspaceView extends ItemView {
  }
  getState():OnlineWorkspaceState {
   const time=this.verified()?.time;
-  return {source:this.source?.path,note:this.currentNote(),placement:this.placement,panel:this.panel,...(time!==undefined?{time}:{})};
+  return {source:this.source?.path,note:this.currentNote(),placement:this.placement,panel:this.panel,...(this.memory?.draft?{draftId:this.memory.draft.id}:{}),...(time!==undefined?{time}:{})};
  }
  canMove(){
   if(this.composing){new Notice('请先完成当前输入，再切换视频或工作区位置');return false;}
@@ -141,11 +180,13 @@ export class OnlineWorkspaceView extends ItemView {
  async onOpen(){
   if(this.opened||this.closed)return;this.opened=true;
   this.bindSubmitHotkey();
+  this.stopDrafts=this.host.drafts?.subscribe(()=>{if(!this.closed)this.paintComposer();});
   this.subscription=this.host.subscribe(state=>{if(this.closed)return;this.live=state;this.invalidateCapture();this.paintPlayback();this.paintComposer();});
   this.live=this.host.state();if(!this.input)this.render();else{this.paintPlayback();this.paintComposer();}
  }
  async setState(state:OnlineWorkspaceState,result?:ViewStateResult){
   if(this.closed)return;
+  const generation=this.generation,run=++this.stateRun;if(this.host.drafts)await this.host.drafts.load();if(this.closed||this.generation!==generation||this.stateRun!==run)return;
   const source=typeof state.source==='string'?parseOnlineSource(state.source):undefined;
   const note=state.note===undefined&&source?.path===this.source?.path?this.currentNote():notePath(state.note),placement=state.placement==='sidebar'||state.placement==='window'?state.placement:'tab';
   if(state.source&&!source){this.message('视频链接无效，请重新选择。');return;}
@@ -161,8 +202,9 @@ export class OnlineWorkspaceView extends ItemView {
   this.release();this.generation++;this.timelineRun++;this.source=source;this.note=note;this.placement=placement;
   this.panel=state.panel==='player'||state.panel==='timeline'?state.panel:'compose';
   this.requestedTime=validMediaTime(state.time)?state.time:source?.initialTime;this.entries=[];this.page=0;
-  this.memory=source?memoryFor(this.host,source.path,note):undefined;
+  this.memory=source?memoryFor(this.host,source.path,note,typeof state.draftId==='string'?state.draftId:undefined):undefined;
   if(this.memory){
+   if(note===undefined&&this.memory.persistedNote)this.note=this.memory.persistedNote;
    const owned=this.memory,listener=(refresh:boolean)=>{if(this.closed||this.memory!==owned)return;this.paintComposer();if(refresh)void this.refreshNotes();};
    owned.listeners.add(listener);this.releaseMemory=()=>owned.listeners.delete(listener);
   }
@@ -181,18 +223,47 @@ export class OnlineWorkspaceView extends ItemView {
   const failed=(error:unknown)=>{if(this.generation===generation)this.failure(label,error);};
   button.onclick=()=>{if(this.closed||this.generation!==generation)return;try{void Promise.resolve(run()).catch(failed);}catch(error){failed(error);}};return button;
  }
- private message(value:string){if(!this.closed&&this.status)this.status.textContent=value;}
- private failure(action:string,error:unknown){console.error(`[ThoughtSpace online] ${action}`,error);this.message(`${action}失败：${errorText(error)}；当前摘录仍保留。`);}
+ private message(value:string){this.statusMessage=value;this.paintDraftStatus();}
+ /** Only this active view's exact write failure can replace a transient toast. */
+ showDraftStorageFailure(store:OnlineDraftStore,draftIds:readonly string[]){
+  const memory=this.memory,draft=memory?.draft,root=this.contentEl,doc=root.ownerDocument,win=doc.defaultView;
+  if(this.closed||this.host.drafts!==store||this.leaf.view!==this||this.app.workspace.getActiveViewOfType(OnlineWorkspaceView)!==this||!draft||draftIds.length!==1||draftIds[0]!==draft.id||memory.source!==this.source?.path||memory.restoreBlocked||memory.recovered||store.state(draft.id)!=='error'||!root.isConnected||!win||win.closed||!doc.hasFocus()||doc.visibilityState==='hidden')return false;
+  this.paintComposer();
+  const status=this.status,summary=memory.phase==='committed'?'笔记已保存；本机暂存尚未清理。':'本机备份不可用';if(!status?.isConnected||status.ownerDocument!==doc||!root.contains(status)||!status.getClientRects().length||!status.textContent?.startsWith(summary))return false;
+  status.scrollTop=0;
+  const rect=status.getBoundingClientRect(),viewport=win.visualViewport,left=viewport?.offsetLeft||0,top=viewport?.offsetTop||0,width=viewport?.width||win.innerWidth,height=viewport?.height||win.innerHeight,style=win.getComputedStyle(status);
+  const hit=doc.elementFromPoint(rect.left+rect.width/2,rect.top+Math.min(rect.height/2,12));
+  return style.display!=='none'&&style.visibility!=='hidden'&&style.visibility!=='collapse'&&Number(style.opacity)!==0&&rect.width>0&&rect.height>0&&rect.left>=left&&rect.top>=top&&rect.right<=left+width&&rect.bottom<=top+height&&!!hit&&status.contains(hit);
+ }
+ private paintDraftStatus(){
+  if(this.closed||!this.status)return;
+  const memory=this.memory,store=this.host.drafts,draft=memory?.draft;
+  let detail='';
+  if(memory?.restoreBlocked)detail=`暂存恢复未完成：${memory.persistenceWarning||'请重新打开工作区'}。原记录未删除。`;
+  else if(memory?.recovered)detail='已恢复本机草稿，上次保存结果尚未确认。保存按钮只核对原回执，不新增笔记。可选择复制全文、导出截图；时间戳保持原值。';
+  else if(draft&&memory?.phase==='committed')detail='笔记已保存；本机暂存尚未清理。再次保存只重试清理，不重复写入笔记。';
+  else if(store&&(memory?.persistenceWarning||store.state(draft?.id||'')==='error'||store.error&&!draft))detail='本机备份不可用，当前内容仍在内存，尚未开始新的笔记写入。可复制全文、导出截图，或重试暂存；请勿依赖跨重启恢复。';
+  else if(draft&&store)detail=store.state(draft.id)==='saved'?'草稿已暂存到本机；不跨设备同步。':'正在暂存本机草稿…';
+  this.status.textContent=(draft&&store?.state(draft.id)==='error'?[detail,this.statusMessage]:[this.statusMessage,detail]).filter(Boolean).join('\n');
+ }
+ private stageDraft(memory:Memory,source:string){
+  const draft=memory.draft,store=this.host.drafts;if(!draft||!store)return true;
+  try{store.stage({id:draft.id,source,note:memory.persistedNote,time:draft.time,text:draft.text,mode:draft.mode,image:draft.image,phase:memory.phase||'editing'});memory.persistenceWarning=undefined;}
+  catch(error){memory.persistenceWarning=errorText(error);this.paintDraftStatus();return false;}
+  this.app.workspace.requestSaveLayout();this.paintDraftStatus();return true;
+ }
+ private failure(action:string,error:unknown){console.error(`[ThoughtSpace online] ${action}`,error);this.message(`${action}失败：当前摘录仍保留。\n${errorText(error)}`);}
  private releasePlayer(){const release=this.releaseMount;this.releaseMount=undefined;try{release?.();}catch(error){this.failure('关闭播放器',error);}}
  private setPanel(panel:OnlinePanel){
   this.panel=panel;this.contentEl.dataset.panel=panel;
   for(const[key,button]of this.panelButtons)button.setAttribute('aria-pressed',String(key===panel));
-  this.app.workspace.requestSaveLayout();
+  this.composerLayout?.refresh();this.app.workspace.requestSaveLayout();
  }
  private render(){
   const generation=this.generation,current=()=>!this.closed&&this.generation===generation;
+  this.composerLayout?.dispose();this.composerLayout=undefined;this.stopInset?.();this.stopInset=undefined;this.rebindLayout=undefined;
   this.releasePlayer();this.releasePreview();this.releaseTimeline();
-  const root=this.contentEl;root.empty();root.addClass('ts-online-workspace');this.applyPreferences();root.dataset.placement=this.placement;root.dataset.playbackAvailable=String(this.host.playbackAvailable?.()!==false);this.positionButtons.clear();this.panelButtons.clear();
+  const root=this.contentEl;delete root.dataset.onlineShort;root.empty();root.addClass('ts-online-workspace');this.applyPreferences();root.dataset.placement=this.placement;root.dataset.playbackAvailable=String(this.host.playbackAvailable?.()!==false);this.positionButtons.clear();this.panelButtons.clear();
   const header=root.createDiv('ts-online-workspace__header'),heading=header.createDiv('ts-online-workspace__heading');
   heading.createEl('strong',{cls:'ts-online-workspace__title',text:this.source?.name||'在线视频笔记'});
   heading.createSpan({cls:'ts-online-workspace__source',text:this.source?.path||'选择视频，开始记录',attr:{title:this.source?.path||''}});
@@ -224,24 +295,27 @@ export class OnlineWorkspaceView extends ItemView {
   const seekRow=player.createDiv('ts-online-workspace__time-row');
   this.seek=seekRow.createEl('input',{type:'text',attr:{'aria-label':'跳转时间',placeholder:'分:秒，例如 12:30',inputmode:'decimal'}});
   this.seekButton=this.action(seekRow,'跳转','corner-down-right',()=>this.seekTo());
-  const composer=layout.createDiv('ts-online-workspace__composer'),composerHeading=composer.createDiv('ts-online-workspace__section-heading');
+  const composer=layout.createDiv('ts-online-workspace__composer'),details=composer.createEl('details',{cls:'ts-online-workspace__composer-details'});details.open=true;const summary=details.createEl('summary',{text:'时间与更多选项'});summary.hidden=true;const tools=details.createDiv('ts-online-workspace__composer-tools'),composerHeading=tools.createDiv('ts-online-workspace__section-heading');
   composerHeading.createEl('strong',{text:'记录摘录'});this.draftTime=composerHeading.createSpan({cls:'ts-online-workspace__draft-time'});
-  const captureActions=composer.createDiv('ts-online-workspace__capture-actions');
+  const captureActions=tools.createDiv('ts-online-workspace__capture-actions');
   this.timestampButton=this.action(captureActions,'记下此刻','bookmark-plus',()=>this.rememberTimestamp());
   this.captureButton=this.action(captureActions,'快速截图','camera',()=>this.takeScreenshot());this.captureButton.title='截取平台中已加载的视频画面，并记录对应时间';
-  this.manualFallback=composer.createEl('details',{cls:'ts-online-workspace__manual-fallback'});
+  this.manualFallback=tools.createEl('details',{cls:'ts-online-workspace__manual-fallback'});
   this.manualFallback.createEl('summary',{text:'手动时间（备用）'});
+  if(this.host.playbackAvailable?.()===false)this.manualFallback.createDiv({cls:'ts-online-workspace__manual-explanation',text:'此设备在浏览器播放视频。确认手动时间后可在此记录文字；同步播放与截图暂不可用。'});
   const manualRow=this.manualFallback.createDiv('ts-online-workspace__time-row');
   this.manual=manualRow.createEl('input',{type:'text',attr:{'aria-label':'手动摘录时间',placeholder:'未同步时，输入分:秒',inputmode:'decimal'}});
   this.confirmButton=this.action(manualRow,'确认时间','check',()=>this.confirmTime());
-  this.imageBox=composer.createDiv('ts-online-workspace__draft-attachment');
+  this.imageBox=tools.createDiv('ts-online-workspace__draft-attachment');
   this.imageEl=this.imageBox.createEl('img',{cls:'ts-online-workspace__draft-image',attr:{alt:'当前摘录截图'}});
   this.imageLabel=this.imageBox.createSpan({cls:'ts-online-workspace__image-label'});
+  this.exportImageButton=this.action(this.imageBox,'导出截图','download',()=>this.exportScreenshot(),true);
   this.removeImageButton=this.action(this.imageBox,'移除截图','image-minus',()=>this.removeScreenshot(),true);
   this.input=composer.createEl('textarea',{cls:'ts-online-workspace__input',attr:{'aria-label':'摘录内容',placeholder:'记录想法，支持 Markdown。首次输入时固定摘录时间。'}});
   this.composing=false;this.input.oninput=()=>{if(current())this.edit();};this.input.addEventListener('compositionstart',()=>{if(!current()||this.input?.readOnly)return;this.composing=true;if(this.memory&&!this.memory.editor){this.memory.editor=this.editor;notify(this.memory);}else this.paintComposer();});this.input.addEventListener('compositionend',()=>{if(current()){this.composing=false;this.edit();this.paintComposer();}});
   const input=this.input;input.onkeydown=event=>{if(current()&&this.input===input)this.handleSubmitHotkey(event);};
-  const actions=composer.createDiv('ts-online-workspace__composer-actions');actions.createSpan({cls:'ts-online-workspace__hint',text:'⌘ / Ctrl + Enter 保存'});
+  const actions=composer.createDiv('ts-online-workspace__composer-actions'),hint=actions.createSpan({cls:'ts-online-workspace__hint',text:'⌘ / Ctrl + Enter 保存'});
+  this.retryDraftButton=this.action(actions,'重试暂存','refresh-cw',()=>this.retryDraftStorage());
   this.clearButton=this.action(actions,'取消摘录','x',()=>this.cancelDraft());this.saveButton=this.action(actions,'保存摘录','check',()=>this.saveDraft());this.saveButton.addClass('mod-cta');
   const records=layout.createDiv('ts-online-workspace__records'),recordsHeading=records.createDiv('ts-online-workspace__section-heading');
   recordsHeading.createEl('strong',{text:'摘录时间线'});this.count=recordsHeading.createSpan({cls:'ts-online-workspace__count'});
@@ -253,7 +327,8 @@ export class OnlineWorkspaceView extends ItemView {
   this.pageLabel=pagination.createSpan();
   this.nextButton=this.action(pagination,'下一页','chevron-right',()=>{if((this.page+1)*50<this.entries.length){this.page++;this.renderTimeline();}},true);
   this.status=root.createDiv({cls:'ts-online-workspace__status',attr:{role:'status','aria-live':'polite'}});
-  this.paintPositions();this.paintPlayback();this.paintComposer();this.renderTimeline();
+  const status=this.status,time=this.draftTime;this.rebindLayout=()=>{if(!current())return;this.composerLayout?.dispose();this.stopInset?.();this.stopViewport?.();this.stopViewport=bindMobileViewport(root);this.composerLayout=bindOnlineComposerLayout({root,composer,details,summary,panel:tools,heading:composerHeading,time,input,actions,hint,positions,switcher,ready:()=>!!(this.memory?.draft||this.captureTime()),composing:()=>this.composing});this.stopInset=bindBoardHostInset(root,status,()=>this.composerLayout?.refresh());};
+  this.paintPositions();this.paintPlayback();this.paintComposer();this.rebindLayout();this.renderTimeline();
   if(this.source&&this.host.playbackAvailable?.()!==false)this.releaseMount=this.host.mount(embed,this.source.path);
  }
  private paintPositions(){for(const [placement,button]of this.positionButtons)button.setAttribute('aria-pressed',String(placement===this.placement));}
@@ -279,10 +354,10 @@ export class OnlineWorkspaceView extends ItemView {
   const state=this.verified();return state?{time:state.time,mode:'synced'}:undefined;
  }
  private paintComposer(){
-  const memory=this.memory,draft=memory?.draft,pending=!!(memory?.pending||memory?.capture),other=!!memory?.editor&&memory.editor!==this.editor,time=draft||this.captureTime();
+  const memory=this.memory,draft=memory?.draft,pending=!!(memory?.pending||memory?.capture||memory?.restoreBlocked),other=!!memory?.editor&&memory.editor!==this.editor,time=draft||this.captureTime();
   if(this.input){if(!this.composing&&this.input.value!==(draft?.text||''))this.input.value=draft?.text||'';this.input.readOnly=!memory||pending||other||!time||!!draft?.locked;}
   if(this.draftTime)this.draftTime.textContent=time?`${mediaClock(time.time)} · ${draft?(draft.mode==='manual'?'手动已固定':'已固定'):time.mode==='manual'?'手动已确认':'随播放同步'}`:'请先同步或确认时间';
-  if(this.saveButton)this.saveButton.disabled=this.composing||!draft||pending||other;
+  if(this.saveButton){this.saveButton.disabled=this.composing||!draft||pending||other;this.saveButton.setAttribute('aria-busy',String(pending));}
   if(this.clearButton)this.clearButton.disabled=this.composing||!draft&&memory?.manualTime===undefined||pending||other;
   if(this.manual)this.manual.disabled=!memory||!!draft||pending||other||!!this.verified();
   if(this.manualFallback){this.manualFallback.hidden=!memory||!!this.verified();if(memory&&this.host.playbackAvailable?.()===false)this.manualFallback.open=true;}
@@ -293,7 +368,9 @@ export class OnlineWorkspaceView extends ItemView {
   if(this.removeImageButton)this.removeImageButton.disabled=!draft?.image||pending||other||!!draft.locked;
   if(this.noteButton)this.noteButton.disabled=!memory?.note;
   if(this.adoptButton)this.adoptButton.disabled=!this.candidate()||!!draft||pending;
-  this.paintImage();
+  if(this.exportImageButton)this.exportImageButton.disabled=!draft?.image;
+  if(this.retryDraftButton){this.retryDraftButton.hidden=!draft||!this.host.drafts||!memory?.persistenceWarning&&this.host.drafts.state(draft.id)!=='error';this.retryDraftButton.disabled=this.composing||pending||other;}
+  this.paintImage();this.paintDraftStatus();this.composerLayout?.refresh();
  }
  private edit(){
   const memory=this.memory,input=this.input;if(this.closed||!memory||!input)return;
@@ -301,13 +378,13 @@ export class OnlineWorkspaceView extends ItemView {
   if(!memory.draft){const time=this.captureTime();if(!time){this.paintComposer();this.message('请先同步平台时间，或输入并确认手动时间。');return;}if(!input.value)return;
    memory.draft={id:crypto.randomUUID(),time:time.time,text:input.value,mode:time.mode};
   }else memory.draft.text=input.value;
-  memory.editor=this.editor;notify(memory);
+  memory.editor=this.editor;this.stageDraft(memory,this.source!.path);notify(memory);
  }
  private rememberTimestamp(){
   const memory=this.memory,time=this.captureTime();
   if(this.closed||!memory||!time||memory.draft||memory.pending||memory.capture||memory.editor&&memory.editor!==this.editor)return;
   memory.draft={id:crypto.randomUUID(),time:time.time,text:'',mode:time.mode};memory.editor=this.editor;
-  notify(memory);this.setPanel('compose');this.message('时间戳已固定，可以直接保存，也可以继续填写摘录。');this.input?.focus();
+  this.stageDraft(memory,this.source!.path);notify(memory);this.setPanel('compose');this.message('时间戳已固定，可以直接保存，也可以继续填写摘录。');this.composerLayout?.revealComposer();this.input?.focus();
  }
  private invalidateCapture(){
   const capture=this.memory?.capture;if(capture&&capture.source===this.source?.path&&!this.verified())capture.invalid=true;
@@ -323,8 +400,8 @@ export class OnlineWorkspaceView extends ItemView {
    this.live=this.host.state();this.invalidateCapture();
    if(capture.invalid||!this.verified()){this.message('视频来源或播放状态已变化，请重新截图；原摘录仍保留。');return;}
    if(!validMediaTime(result.time)||result.time>864000||result.blob?.type!=='image/png'||!Number.isFinite(result.blob.size)||result.blob.size<=0||result.blob.size>20*1024*1024)throw Error('截图数据无效');
-   memory.draft={id:original?.id||crypto.randomUUID(),time:result.time,text:original?.text||'',mode:'synced',image:result.blob};memory.manualTime=undefined;
-   this.setPanel('compose');this.message('截图已加入草稿；可以直接保存，也可以补充文字。');this.input?.focus();
+   memory.draft={id:original?.id||crypto.randomUUID(),time:result.time,text:original?.text||'',mode:'synced',image:result.blob};memory.manualTime=undefined;this.stageDraft(memory,source.path);
+   this.setPanel('compose');this.message('截图已加入草稿；可以直接保存，也可以补充文字。');this.composerLayout?.revealComposer();this.input?.focus();
   }catch(error){if(!this.closed&&this.memory===memory&&this.generation===generation)this.failure('截图',error);}
   finally{
    if(memory.capture===capture){memory.capture=undefined;if(!memory.draft&&memory.editor===this.editor)memory.editor=undefined;notify(memory);}
@@ -333,7 +410,12 @@ export class OnlineWorkspaceView extends ItemView {
  private removeScreenshot(){
   const memory=this.memory;
   if(this.closed||!memory?.draft?.image||memory.pending||memory.capture||memory.draft.locked||memory.editor&&memory.editor!==this.editor)return;
-  memory.draft.image=undefined;memory.editor=this.editor;notify(memory);this.message('已移除截图，文字与时间戳仍保留。');
+  memory.draft.image=undefined;memory.editor=this.editor;this.stageDraft(memory,this.source!.path);notify(memory);this.message('已移除截图，文字与时间戳仍保留。');
+ }
+ private exportScreenshot(){
+  const draft=this.memory?.draft;if(this.closed||!draft?.image||!this.previewUrl)throw Error('截图导出暂不可用，原图仍保留');
+  const link=this.contentEl.createEl('a',{attr:{href:this.previewUrl,download:`thoughtspace-online-${draft.id}.png`}});
+  try{link.click();}finally{link.remove();}
  }
  private releasePreview(){
   if(this.previewUrl){try{this.previewUrlAPI?.revokeObjectURL(this.previewUrl);}catch{/* Its owning window may already be closed. */}}
@@ -353,11 +435,25 @@ export class OnlineWorkspaceView extends ItemView {
  private confirmTime(){
   const memory=this.memory;if(this.closed||!memory||this.verified()||memory.pending||memory.capture||memory.draft||memory.editor&&memory.editor!==this.editor)return;
   const time=parseMediaTime(this.manual?.value||'');if(time===undefined){this.message('请输入有效时间，例如 90 或 1:30。');return;}
-  memory.manualTime=time;notify(memory);this.setPanel('compose');this.message(`已确认手动时间 ${mediaClock(time)}；首次输入后固定。`);this.input?.focus();
+  memory.manualTime=time;notify(memory);this.setPanel('compose');this.message(`已确认手动时间 ${mediaClock(time)}；首次输入后固定。`);this.composerLayout?.revealComposer();this.input?.focus();
  }
- private cancelDraft(){
+ private async retryDraftStorage(){
+  const memory=this.memory,draft=memory?.draft,store=this.host.drafts,source=this.source;if(this.closed||this.composing||!memory||!draft||!store||!source||memory.pending||memory.capture||memory.editor&&memory.editor!==this.editor)return;
+  const pending=Symbol('online-draft-retry');memory.pending=pending;notify(memory);
+  try{await store.flush(draft.id);if(memory.pending!==pending||memory.draft!==draft)return;if(!this.stageDraft(memory,source.path))throw Error(memory.persistenceWarning||'当前内容无法暂存');await store.flush(draft.id);if(memory.pending!==pending||memory.draft!==draft)return;memory.persistenceWarning=undefined;if(!this.closed&&this.memory===memory)this.message('本机暂存已重试；未新增或修改笔记。');}
+  catch(error){memory.persistenceWarning=errorText(error);if(!this.closed&&this.memory===memory)this.failure('重试暂存',error);}
+  finally{if(memory.pending===pending){memory.pending=undefined;notify(memory);}}
+ }
+ private async cancelDraft(){
   const memory=this.memory;if(this.composing||this.closed||!memory||memory.pending||memory.capture||memory.editor&&memory.editor!==this.editor)return;
-  memory.draft=undefined;memory.manualTime=undefined;memory.editor=undefined;if(this.manual)this.manual.value='';notify(memory);this.message('已取消当前摘录。');
+  const draft=memory.draft,pending=Symbol('online-draft-cancel');memory.pending=pending;notify(memory);
+  try{
+   if(draft&&this.host.drafts)await this.host.drafts.discard(draft.id);
+   if(memory.pending!==pending||memory.draft!==draft)return;
+   memory.draft=undefined;memory.manualTime=undefined;memory.editor=undefined;memory.phase=undefined;memory.recovered=false;memory.persistenceWarning=undefined;
+   if(!this.closed&&this.memory===memory){if(this.manual)this.manual.value='';this.message('已取消当前摘录。');this.app.workspace.requestSaveLayout();}notify(memory);
+  }catch(error){if(!this.closed&&this.memory===memory)this.failure('取消摘录',error);}
+  finally{if(memory.pending===pending){memory.pending=undefined;notify(memory);}}
  }
  private bindSubmitHotkey(){
   if(this.submitHotkey||!this.scope)return;
@@ -384,24 +480,44 @@ export class OnlineWorkspaceView extends ItemView {
  private async saveDraft(){
   const source=this.source,memory=this.memory,draft=memory?.draft;
   if(this.composing||this.closed||!source||!memory||!draft||memory.pending||memory.capture||memory.editor&&memory.editor!==this.editor)return;
+  const generation=this.generation,document=this.contentEl.ownerDocument,activeView=this.app.workspace.getActiveViewOfType(OnlineWorkspaceView),targetNote=this.currentNote(),previousPhase=memory.phase,previousLocked=!!draft.locked;
   memory.editor=this.editor;draft.locked=true;const pending=Symbol('online-note-save');memory.pending=pending;notify(memory);this.message('正在保存摘录…');
   try{
-   const result=await this.host.save(source.path,{id:draft.id,time:draft.time,text:draft.text,...(draft.image?{image:draft.image}:{})},this.currentNote());
-   if(memory.pending!==pending)return;
-   rememberNote(this.host,source.path,memory,result.note);if(memory.draft===draft){memory.draft=undefined;memory.manualTime=undefined;memory.editor=undefined;}
-   if(!this.closed&&this.memory===memory){this.note=result.note.path;this.message('摘录已保存。');this.app.workspace.requestSaveLayout();}
+   const store=this.host.drafts,ensure=()=>{if(store&&!store.active)throw Error('在线草稿会话已结束，原始内容仍保留');};ensure();
+   let note:TFile;
+   if(memory.recovered||memory.phase==='committed'){
+    const result=await this.host.notes(source.path,memory.persistedNote||this.currentNote());ensure();
+    if(!result.note||memory.persistedNote&&result.note.path!==memory.persistedNote||!result.entries.some(entry=>entry.id===draft.id))throw Error('上次保存结果未确认；未新建或追加笔记。请保留并复制正文、导出截图，待原笔记可读取后重试核对');
+    note=result.note;
+   }else{
+    memory.phase='prepared';memory.persistedNote=targetNote;
+    try{if(!this.stageDraft(memory,source.path))throw Error(memory.persistenceWarning||'草稿暂存失败');if(store)await store.flush(draft.id);}
+    catch(error){draft.locked=previousLocked;memory.phase=previousPhase||'editing';this.stageDraft(memory,source.path);throw Error(`${previousLocked?'重试暂存失败，本次未再次写入笔记；保留原始草稿，等待核对或重试。':'暂存失败，尚未写笔记；可继续编辑或重试。'}${errorText(error)}`);}
+    ensure();
+    if(this.closed||this.generation!==generation||this.memory!==memory||this.source!==source||this.contentEl.ownerDocument!==document||this.leaf.view!==this||this.app.workspace.getActiveViewOfType(OnlineWorkspaceView)!==activeView||this.currentNote()!==targetNote)throw Error('工作区已切换，未开始笔记写入；暂存仍保留，请在原工作区重试');
+    note=(await this.host.save(source.path,{id:draft.id,time:draft.time,text:draft.text,...(draft.image?{image:draft.image}:{})},targetNote)).note;ensure();
+   }
+   if(memory.pending!==pending||memory.draft!==draft)return;
+   if(!notePath(note.path))throw Error('保存回执的笔记路径无效；原草稿仍保留');
+   memory.phase='committed';memory.persistedNote=note.path;memory.recovered=false;rememberNote(this.host,source.path,memory,note);
+   if(!this.closed&&this.memory===memory){this.note=note.path;this.app.workspace.requestSaveLayout();}
+   if(!this.stageDraft(memory,source.path))throw Error(memory.persistenceWarning||'已保存，但暂存回执未更新；原草稿仍保留');
+   if(store){await store.flush(draft.id);ensure();await store.discard(draft.id);ensure();}
+   if(memory.pending!==pending||memory.draft!==draft)return;
+   memory.draft=undefined;memory.manualTime=undefined;memory.editor=undefined;memory.phase=undefined;memory.persistenceWarning=undefined;
+   if(!this.closed&&this.memory===memory){this.message('摘录已保存。');this.app.workspace.requestSaveLayout();}
    notify(memory,true);
   }catch(error){if(!this.closed&&this.memory===memory)this.failure('保存摘录',error);}
   finally{if(memory.pending===pending){memory.pending=undefined;notify(memory);}}
  }
  private async refreshNotes(){
   const source=this.source,memory=this.memory;if(!source||!memory||this.closed)return;
-  const generation=this.generation,run=++this.timelineRun;
-  try{const result=await this.host.notes(source.path,this.currentNote());
-   if(this.closed||this.generation!==generation||this.timelineRun!==run||this.memory!==memory)return;
-   rememberNote(this.host,source.path,memory,result.note);this.entries=result.entries.filter(entry=>typeof entry.id==='string'&&validMediaTime(entry.time)&&typeof entry.text==='string').sort((a,b)=>a.time-b.time);
+  const generation=this.generation,run=++this.timelineRun,targetNote=this.currentNote();
+  try{const result=await this.host.notes(source.path,targetNote);
+   if(this.closed||this.generation!==generation||this.timelineRun!==run||this.memory!==memory||this.currentNote()!==targetNote)return;
+   rememberNote(this.host,source.path,memory,result.note);if(result.note&&memory.draft&&!memory.recovered&&!memory.pending){memory.persistedNote=result.note.path;this.stageDraft(memory,source.path);}this.entries=result.entries.filter(entry=>typeof entry.id==='string'&&validMediaTime(entry.time)&&typeof entry.text==='string').sort((a,b)=>a.time-b.time);
    this.paintComposer();this.renderTimeline();
-  }catch(error){if(!this.closed&&this.generation===generation&&this.timelineRun===run)this.failure('读取摘录',error);}
+  }catch(error){if(!this.closed&&this.generation===generation&&this.timelineRun===run&&this.memory===memory&&this.currentNote()===targetNote)this.failure('读取摘录',error);}
  }
  private renderTimeline(){
   this.releaseTimeline();if(!this.timeline)return;this.timeline.empty();const pages=Math.max(1,Math.ceil(this.entries.length/50));this.page=Math.min(this.page,pages-1);
@@ -435,5 +551,5 @@ export class OnlineWorkspaceView extends ItemView {
  private async command(action:OnlineAction,value?:number){if(this.source&&this.verified())await this.host.command(this.source.path,action,value);}
  private async seekBy(delta:number){const state=this.verified();if(!state)return;await this.command('seek',Math.max(0,Math.min(validMediaTime(state.duration)&&state.duration>0?state.duration:100000000,state.time+delta)));}
  private async seekTo(){const time=parseMediaTime(this.seek?.value||'');if(time===undefined){this.message('请输入有效的跳转时间。');return;}await this.command('seek',time);}
- async onClose(){if(this.closed)return;if(this.composing)this.edit();if(this.submitHotkey)this.scope?.unregister(this.submitHotkey);this.submitHotkey=undefined;this.stopViewport?.();this.stopViewport=undefined;this.closed=true;this.generation++;this.timelineRun++;this.subscription?.();this.subscription=undefined;this.release();this.contentEl.empty();}
+ async onClose(){if(this.closed)return;this.stopDrafts?.();this.stopDrafts=undefined;if(this.composing)this.edit();if(this.submitHotkey)this.scope?.unregister(this.submitHotkey);this.submitHotkey=undefined;this.composerLayout?.dispose();this.composerLayout=undefined;this.stopInset?.();this.stopInset=undefined;this.rebindLayout=undefined;this.stopViewport?.();this.stopViewport=undefined;this.closed=true;this.generation++;this.timelineRun++;this.subscription?.();this.subscription=undefined;this.release();this.contentEl.empty();try{await this.host.drafts?.flush();}catch{/* Same-host memory and the existing persisted record remain; no restart guarantee. */}}
 }

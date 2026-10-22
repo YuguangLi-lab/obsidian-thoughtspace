@@ -6,6 +6,7 @@ import {hostSettings} from './host-capabilities';
 import {imageHostApi} from './image-host';
 import {validateFolders} from './filing';
 import {themeSurface} from './ui-tokens';
+import {bindSettingsCategoryFocus} from './settings-category-focus';
 import {bindMobileViewport} from './mobile-viewport';
 import {bindBoardModalViewport} from './board-modal-viewport';
 
@@ -56,9 +57,9 @@ export class ThoughtSpaceSettings extends PluginSettingTab {
  private page:Page='general';private query='';private folderDraft?:string;
  private language:SettingsLanguage='zh-CN';private status?:HTMLElement;
  private panels=new Map<Page,HTMLElement>();private navigation=new Map<Page,HTMLButtonElement>();
- private searchCount?:HTMLElement;private searchInput?:HTMLInputElement;
+ private searchCount?:HTMLElement;private searchInput?:HTMLInputElement;private searchClear?:HTMLButtonElement;private categoryPicker?:HTMLSelectElement;
  private saveTail:Promise<void>=Promise.resolve();
- private pendingWrites=0;private refreshAfterSave=false;private viewport?:()=>void;
+ private pendingWrites=0;private refreshAfterSave=false;private viewport?:()=>void;private categoryFocus?:()=>void;
  constructor(app:App,private host:SettingsHost){super(app,host);}
  private t(pair:Pair){return pair[this.language==='en'?1:0];}
  private report(error:unknown){console.error('[ThoughtSpace settings]',error);const message=this.t(['设置未能保存，请重试。','Settings could not be saved. Please try again.']);this.status?.setText(message);new Notice(message);}
@@ -99,38 +100,50 @@ export class ThoughtSpaceSettings extends PluginSettingTab {
   }));
  }
  display(){
+  this.categoryFocus?.();this.categoryFocus=undefined;
   this.viewport?.();this.viewport=undefined;
   this.language=settingsLanguage(this.host.settings);
   const root=this.containerEl;root.empty();root.addClass('ts-settings','ts-settings-v2');root.dataset.accent=this.host.settings.accent;root.lang=this.language;
   this.panels.clear();this.navigation.clear();
-  const header=root.createDiv('ts-settings-header');new Setting(header).setName('ThoughtSpace').setHeading();header.createSpan({cls:'ts-settings-version',text:this.host.manifest.version});
-  const language=header.createEl('select',{attr:{'aria-label':this.t(['设置语言','Settings language']),'data-setting-key':'settingsLanguage'}});
+  const header=root.createDiv('ts-settings-header');new Setting(header).setName('ThoughtSpace').setHeading();
+  const languageRow=new Setting(header).setName(this.t(['设置语言','Settings language'])).setClass('ts-settings-language-row');
+  const language=languageRow.controlEl.createEl('select',{attr:{'aria-label':this.t(['设置语言','Settings language']),'data-setting-key':'settingsLanguage'}});
   for(const[value,label]of [['auto',this.t(['跟随 Obsidian','Follow Obsidian'])],['zh-CN','简体中文'],['en','English']])language.createEl('option',{value,text:label});
   language.value=this.host.settings.settingsLanguage;language.onchange=()=>{const value=language.value;if(value!=='auto'&&value!=='zh-CN'&&value!=='en')return;this.run(async()=>{await this.patch({settingsLanguage:value});this.display();});};
-  const search=root.createDiv('ts-settings-search');setIcon(search.createSpan(),'search');
+  const searchRow=new Setting(root).setName(this.t(['搜索全部设置','Search all settings'])).setClass('ts-settings-search-row');
+  const search=searchRow.controlEl.createDiv('ts-settings-search');setIcon(search.createSpan(),'search');
   this.searchInput=search.createEl('input',{type:'search',value:this.query,attr:{placeholder:this.t(['搜索设置…','Search settings…']),'aria-label':this.t(['搜索全部设置','Search all settings'])}});
   this.searchInput.oninput=()=>{this.query=this.searchInput?.value||'';this.filter();};
   this.searchInput.onkeydown=event=>{if(event.key==='Escape'&&this.query){event.preventDefault();event.stopPropagation();this.query='';this.searchInput!.value='';this.filter();}};
-  const clear=search.createEl('button',{cls:'clickable-icon',attr:{'aria-label':this.t(['清除搜索','Clear search']),title:this.t(['清除搜索','Clear search'])}});setIcon(clear,'x');clear.onclick=()=>{this.query='';this.searchInput!.value='';this.filter();this.searchInput!.focus();};
+  const clear=this.searchClear=search.createEl('button',{cls:'clickable-icon',attr:{'aria-label':this.t(['清除搜索','Clear search']),title:this.t(['清除搜索','Clear search'])}});setIcon(clear,'x');clear.onclick=()=>{this.query='';this.searchInput!.value='';this.searchInput!.focus();this.filter();};
   this.searchCount=root.createDiv({cls:'ts-settings-search-count',attr:{role:'status','aria-live':'polite'}});
-  const layout=root.createDiv('ts-settings-layout'),nav=layout.createEl('nav',{cls:'ts-settings-nav',attr:{'aria-label':this.t(['设置分类','Settings categories'])}}),content=layout.createDiv('ts-settings-content');
+  const layout=root.createDiv('ts-settings-layout'),navigationRow=new Setting(layout).setName(this.t(['设置分类','Settings categories'])).setClass('ts-settings-navigation-row');
+  const chooseCategory=(id:Page)=>{this.page=id;this.query='';this.searchInput!.value='';this.filter();};
+  const categoryPicker=this.categoryPicker=navigationRow.controlEl.createEl('select',{cls:'dropdown ts-settings-category-picker',attr:{'aria-label':this.t(['设置分类','Settings categories'])}});
+  const searchOption=categoryPicker.createEl('option',{value:'',text:this.t(['搜索结果','Search results'])});searchOption.disabled=true;searchOption.hidden=true;
+  categoryPicker.onchange=()=>{const item=pages.find(item=>item.id===categoryPicker.value);if(item)chooseCategory(item.id);};
+  const nav=navigationRow.controlEl.createEl('nav',{cls:'ts-settings-nav',attr:{'aria-label':this.t(['设置分类','Settings categories'])}}),content=layout.createDiv('ts-settings-content');
   for(const item of pages){
+   categoryPicker.createEl('option',{value:item.id,text:this.t(item.label)});
    const tab=nav.createEl('button',{attr:{'data-settings-page':item.id}});setIcon(tab.createSpan(),item.icon);tab.createSpan({text:this.t(item.label)});
-   tab.onclick=()=>{this.page=item.id;this.query='';this.searchInput!.value='';this.filter();};this.navigation.set(item.id,tab);
+   tab.onclick=()=>chooseCategory(item.id);this.navigation.set(item.id,tab);
    const panel=content.createEl('section',{cls:'ts-settings-panel',attr:{'data-settings-panel':item.id,'aria-label':this.t(item.label)}});this.panels.set(item.id,panel);
-   const heading=panel.createDiv('ts-settings-panel-heading');new Setting(heading).setName(this.t(item.label)).setHeading();
+   const heading=panel.createDiv('ts-settings-panel-heading'),headingSetting=new Setting(heading).setName(this.t(item.label)).setHeading();
    if(['general','cards','board','input','reading'].includes(item.id)){
-    const reset=heading.createEl('button',{cls:'clickable-icon',attr:{title:this.t(['恢复本分类默认值','Reset this category']),'aria-label':this.t(['恢复本分类默认值','Reset this category'])}});setIcon(reset,'rotate-ccw');
+    const reset=headingSetting.controlEl.createEl('button',{cls:'clickable-icon extra-setting-button',attr:{title:this.t(['恢复本分类默认值','Reset this category']),'aria-label':this.t(['恢复本分类默认值','Reset this category'])}});setIcon(reset,'rotate-ccw');
     reset.onclick=()=>new SettingsConfirm(this.app,this.t(['恢复默认设置','Restore defaults']),this.t([`仅恢复“${this.t(item.label)}”的设置，不修改已有笔记、卡片或文件。`,`Reset only ${this.t(item.label)} preferences. Existing notes, cards and files stay unchanged.`]),this.t(['恢复默认','Restore defaults']),this.language,async()=>{await this.patch(settingsCategoryDefaults(item.id as SettingsCategory));this.display();}).open();
    }
    this.renderPage(item.id,panel);
   }
   this.status=root.createDiv({cls:'ts-settings-save-status',attr:{role:'status','aria-live':'polite'}});
-  this.filter();this.viewport=bindMobileViewport(root);
+  root.createDiv({cls:'ts-settings-version',text:`ThoughtSpace ${this.host.manifest.version}`});
+  this.filter();this.viewport=bindMobileViewport(root);this.categoryFocus=bindSettingsCategoryFocus(root,categoryPicker,()=>this.navigation.get(this.page));
  }
- hide(){this.viewport?.();this.viewport=undefined;super.hide();}
+ hide(){this.categoryFocus?.();this.categoryFocus=undefined;this.viewport?.();this.viewport=undefined;super.hide();}
  private filter(){
   const query=this.query.trim().toLowerCase(),terms=query.split(/\s+/).filter(Boolean);let count=0;
+  if(this.searchClear)this.searchClear.hidden=this.query.length===0;
+  if(this.categoryPicker)this.categoryPicker.value=query?'':this.page;
   this.containerEl.toggleClass('is-searching',!!query);
   for(const[id,panel]of this.panels){
    let matches=0;

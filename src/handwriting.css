@@ -83,3 +83,17 @@
  .ts-handwriting-popover { top:94px; max-height:calc(100% - 126px); }
  .ts-handwriting-empty-title { font-size:20px; }
 }
+
+/* Toolbar and paper are separate surfaces: authored ink and the writing paper
+   retain their exact color/coordinate model in both host themes. */
+.ts-handwriting-toolbar,.ts-handwriting-footer,.ts-handwriting-popover,.ts-handwriting-selection-actions { background:var(--ts-e-sheet,var(--background-primary)); border-color:var(--ts-e-line,var(--background-modifier-border)); }
+.ts-handwriting .ts-handwriting-button { border-radius:6px; color:var(--ts-e-muted,var(--text-muted)); }
+.ts-handwriting .ts-handwriting-button:active:not(:disabled) { background:var(--ts-e-wash,var(--background-modifier-hover)); box-shadow:inset 0 0 0 1px var(--ts-accent); }
+.ts-handwriting .ts-handwriting-button[aria-pressed=true]:not(.ts-handwriting-color) { background:var(--ts-e-wash,var(--background-modifier-hover)); box-shadow:inset 0 -2px var(--ts-accent); color:var(--ts-accent); }
+.ts-handwriting-summary,.ts-handwriting-footer,.ts-handwriting-panel-heading,.ts-handwriting-width { color:var(--ts-e-muted,var(--text-muted)); }
+.ts-handwriting-current-tool { color:var(--ts-e-ink,var(--text-normal)); font-weight:600; }
+.ts-handwriting-width { border-top-color:var(--ts-e-line,var(--background-modifier-border)); }
+.ts-handwriting-empty-title { font-family:var(--ts-e-serif,var(--font-text)); letter-spacing:0; line-height:1.6; }
+.ts-handwriting-empty-detail { line-height:1.9; }
+.ts-handwriting-footer { font-size:12px; line-height:1.65; }
+.ts-handwriting-mixed { background:var(--ts-e-paper,var(--background-secondary)); color:var(--ts-e-muted,var(--text-muted)); font-size:12px; line-height:1.7; }

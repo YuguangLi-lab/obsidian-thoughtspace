@@ -18,7 +18,7 @@ export class TextModal extends Modal{
 }
 export class EdgeModal extends Modal{
   constructor(app:App,private edge:Edge,private save:(edge:Edge)=>unknown){super(app);}
-  onOpen(){this.titleEl.setText('连线样式');const draft=clone(this.edge);
+  onOpen(){this.titleEl.setText('连线样式');themeSurface(this.modalEl);const draft=clone(this.edge);
     new Setting(this.contentEl).setName('关系说明').addText(t=>t.setValue(draft.label).onChange(v=>draft.label=v));
     const select=(name:string,key:'style'|'direction'|'color'|'fromSide'|'toSide',options:Record<string,string>,fallback:string)=>new Setting(this.contentEl).setName(name).addDropdown(d=>d.addOptions(options).setValue(draft[key]||fallback).onChange(v=>{if(v==='auto')delete draft[key];else Object.assign(draft,{[key]:v});}));
     select('路径','style',{curve:'平滑曲线',elbow:'直角折线',straight:'直线'},'curve');

@@ -129,7 +129,7 @@ test('inside clicks retain the panel, other rail tools dismiss it, and nested tr
  f.headerButton.dispatch('pointerdown');f.headerButton.click();assert.equal(f.panelA.hidden,false);f.railAction.dispatch('pointerdown');assert.equal(f.panelA.hidden,true);assert.equal(f.triggerA.focuses.length,0);f.binding.dispose();
 });
 test('action activation closes before execution without stealing focus from the new editor',()=>{
- const f=fixture();let activations=0;f.buttons[0].addEventListener('click',()=>{activations++;f.editor.focus();});f.triggerA.click();f.buttons[0].append(new Element(f.doc,'SPAN')).click();assert.equal(activations,1);assert.equal(f.panelA.hidden,true);assert.equal(f.doc.activeElement,f.editor);assert.equal(f.triggerA.focuses.length,0);f.binding.dispose();
+ const f=fixture();let activations=0;f.buttons[0].addEventListener('click',()=>{activations++;f.editor.focus();});f.triggerA.click();f.buttons[0].append(new Element(f.doc,'SPAN')).click();assert.equal(activations,1);assert.equal(f.panelA.hidden,true);assert.equal(f.doc.activeElement,f.editor);assert.equal(f.triggerA.focuses.length,1,'the visible origin is established before, never after, the action');f.binding.dispose();
 });
 test('synchronous action callbacks measure the canvas after palette-only chrome hiding ends',()=>{
  const f=fixture();let measuredHidden:boolean|undefined,measuredDisclosure:string|null=null;
@@ -200,4 +200,24 @@ test('section shortcuts ignore removed, hidden and empty groups without stealing
  const f=fixture();f.triggerA.click();const original=f.doc.activeElement,outside=new Element(f.doc),empty=f.actionsA.append(new Element(f.doc));
  assert.equal(focusToolSection(html(f.actionsA),html(outside)),false);assert.equal(focusToolSection(html(f.actionsA),html(empty)),false);empty.append(new Element(f.doc,'BUTTON'));empty.hidden=true;
  assert.equal(focusToolSection(html(f.actionsA),html(empty)),false);assert.equal(f.doc.activeElement,original);f.binding.dispose();
+});
+
+
+test('a synchronous modal action captures its exact visible disclosure as the native return target',()=>{
+ const f=fixture();let captured:Element|null=null;
+ f.buttons[0].addEventListener('click',()=>{captured=f.doc.activeElement;assert.equal(f.panelA.hidden,true);assert.equal(captured,f.triggerA);assert.ok(captured.getClientRects().length);f.external.focus();});
+ f.triggerA.click();f.buttons[0].focus();f.buttons[0].click();assert.equal(f.doc.activeElement,f.external);f.doc.flush();assert.equal(f.doc.activeElement,f.external,'no late palette callback steals the modal focus');
+ assert.equal(captured,f.triggerA);(captured as unknown as Element).focus();assert.equal(f.doc.activeElement,f.triggerA);f.binding.dispose();
+});
+test('compact insertion modal actions bind the same visible tools trigger, never hidden insertion',()=>{
+ const f=fixture(true);f.triggerA.hidden=true;let captured:Element|null=null;f.buttons[0].addEventListener('click',()=>{captured=f.doc.activeElement;});f.binding.open(html(f.panelA));f.buttons[0].click();assert.equal(captured,f.triggerB);assert.equal(f.triggerA.focuses.length,0);f.binding.dispose();
+});
+test('activation ownership is captured before hiding blurs the original action',()=>{
+ const f=fixture();let hidden=true,captured:Element|null=null;Object.defineProperty(f.panelA,'hidden',{get:()=>hidden,set:value=>{hidden=value;if(value&&f.panelA.contains(f.doc.activeElement))f.doc.activeElement=null;}});f.buttons[0].addEventListener('click',()=>{captured=f.doc.activeElement;});f.triggerA.click();f.buttons[0].click();assert.equal(captured,f.triggerA);f.binding.dispose();
+});
+test('ordinary action closure leaves foreign focus alone even before focusout settles',()=>{
+ const f=fixture();f.triggerA.click();f.external.focus();f.buttons[0].dispatch('focusout');f.buttons[0].click();assert.equal(f.panelA.hidden,true);assert.equal(f.doc.activeElement,f.external);assert.equal(f.triggerA.focuses.length,0);f.doc.flush();assert.equal(f.doc.activeElement,f.external);f.binding.dispose();
+});
+test('action return targets must remain visible, connected, same-document and focused-owner',()=>{
+ for(const kind of ['hidden','detached','adopted','document-blur']){const f=fixture();f.triggerA.click();if(kind==='hidden')f.triggerA.hidden=true;else if(kind==='detached')f.triggerA.isConnected=false;else if(kind==='adopted')f.triggerA.ownerDocument=new Doc();else(f.doc as any).hasFocus=()=>false;f.buttons[0].click();assert.equal(f.triggerA.focuses.length,0,kind);f.binding.dispose();}
 });

@@ -1,0 +1,141 @@
+/* Native metadata context stays secondary to the record's Markdown body. */
+.ts-collection-task-progress{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;min-width:0;margin:14px 0 12px;color:var(--ts-c-muted);font-family:var(--font-interface);font-size:11px;line-height:1.5}
+.ts-collection-task-progress progress{width:76px;max-width:30%;height:5px;accent-color:var(--ts-c-accent);border:0;border-radius:4px;overflow:hidden}
+.ts-collection-task-progress progress::-webkit-progress-bar{background:var(--ts-c-wash);border-radius:4px}
+.ts-collection-task-progress progress::-webkit-progress-value{background:var(--ts-c-accent);border-radius:4px}
+.ts-collection-record-context{min-width:0;margin-top:16px;border-top:1px dashed var(--ts-c-line);font-family:var(--font-interface);font-size:12px;color:var(--ts-c-muted)}
+.ts-collection-record-context>summary{display:flex;align-items:center;gap:7px;min-height:36px;padding:8px 6px;list-style:none;cursor:pointer;color:var(--ts-c-muted);font-size:11px}
+/* The full-width disclosure touches the card clip edge; keep its keyboard
+   ring inside the target and clear of the label, preserving the 44px hit area. */
+.ts-collection .ts-collection-record-context>summary:focus-visible{outline-offset:-2px}
+.ts-collection-record-context>summary::-webkit-details-marker{display:none}
+.ts-collection-record-context>summary::after{content:"⌄";margin-left:auto}
+.ts-collection-record-context[open]>summary{color:var(--ts-c-accent)}
+.ts-collection-record-context[open]>summary::after{content:"⌃"}
+.ts-collection-record-context section{min-width:0;margin:10px 0 14px}
+.ts-collection-record-context h4{margin:0 0 6px;font-family:var(--ts-c-serif);font-size:15px;line-height:1.6;font-weight:500;color:var(--ts-c-ink)}
+.ts-collection-record-context p{margin:4px 0;color:var(--ts-c-muted);font-size:12px;line-height:1.7;overflow-wrap:anywhere}
+.ts-collection-record-context ul{list-style:none;margin:0;padding:0}
+.ts-collection-record-context li{display:flex;align-items:flex-start;flex-wrap:wrap;gap:4px 8px;min-width:0;padding:3px 0}
+.ts-collection-record-context button{justify-content:flex-start;min-width:0;max-width:100%;padding:5px 6px;font-size:12px;color:var(--ts-c-accent);text-align:left;overflow-wrap:anywhere}
+.ts-collection-record-context button>span:last-child{min-width:0;overflow-wrap:anywhere}
+.ts-collection-record-context small{display:block;min-width:0;max-width:100%;font-size:11px;line-height:1.65;color:var(--ts-c-faint);overflow-wrap:anywhere}
+.ts-collection-record-context [data-collection-context-missing]{color:var(--ts-c-muted)}
+/* Shared paper surface; each modal keeps its originating window's palette. */
+.modal.ts-collection-attachment-browser,.modal.ts-collection-note-export{
+ display:flex;flex-direction:column;width:min(760px,calc(100vw - 32px));max-width:min(100%,calc(100vw - 32px));
+ max-height:min(100%,820px,calc(var(--ts-visible-height,100dvh) - 32px));
+ min-width:0;min-height:0;padding:0;border:1px solid var(--ts-c-line);border-top:3px solid var(--ts-c-editorial);
+ border-radius:3px 3px 8px 8px!important;border-color:var(--ts-c-line)!important;border-top-color:var(--ts-c-editorial)!important;
+ color:var(--ts-c-ink);background:var(--ts-c-paper)!important;box-shadow:0 18px 80px rgba(25,18,10,.2)!important;font-family:var(--font-interface)
+}
+.ts-collection-attachment-browser *,.ts-collection-note-export *{box-sizing:border-box}
+.ts-collection-attachment-browser [hidden],.ts-collection-note-export [hidden]{display:none!important}
+.ts-collection-attachment-browser .modal-content,.ts-collection-note-export .modal-content{flex:1;min-height:0;overflow:auto;padding:28px 30px 16px;overscroll-behavior:contain}
+.ts-collection-attachment-browser .modal-content>h2,.ts-collection-note-export .modal-content>h2{font-family:var(--ts-c-serif);font-size:32px;font-weight:500;line-height:1.4;margin:0 32px 10px 0;letter-spacing:.025em}
+.ts-attachment-browser-intro,.ts-collection-export-intro{font-size:12px;line-height:1.8;color:var(--ts-c-muted);margin:0 0 24px;overflow-wrap:anywhere}
+.ts-attachment-browser-controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(110px,.35fr);gap:12px;min-width:0}
+.ts-attachment-browser-controls label{display:flex;flex-direction:column;gap:6px;min-width:0;font-size:12px;color:var(--ts-c-muted)}
+.ts-attachment-browser-controls input,.ts-attachment-browser-controls select{width:100%;min-width:0;min-height:44px;padding:8px 10px;font:inherit;color:var(--ts-c-ink);background:var(--ts-c-sheet);border:1px solid var(--ts-c-line);border-radius:var(--ts-c-control-radius)}
+.ts-attachment-browser-controls input:focus,.ts-attachment-browser-controls select:focus{border-color:var(--ts-c-accent)}
+.ts-attachment-browser-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 12px;margin-top:14px;min-height:36px;font-size:12px;color:var(--ts-c-muted)}
+.ts-attachment-browser-status{font-size:12px;line-height:1.7;margin:6px 0;overflow-wrap:anywhere;color:var(--ts-c-muted)}
+.ts-attachment-browser-list{list-style:none;margin:0;padding:0}
+.ts-attachment-browser-row{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:10px 12px;min-width:0;margin:0;padding:16px 0;border-bottom:1px solid var(--ts-c-line)}
+.ts-attachment-browser-file-icon{color:var(--ts-c-muted);padding-top:3px}
+.ts-attachment-browser-file-icon svg{width:21px;height:21px;stroke-width:1.6}
+.ts-attachment-browser-detail{min-width:0}
+.ts-attachment-browser-detail strong{display:block;font-family:var(--ts-c-serif);font-size:17px;line-height:1.6;font-weight:500;overflow-wrap:anywhere}
+.ts-attachment-browser-detail small{display:block;font-size:11px;line-height:1.7;color:var(--ts-c-faint);overflow-wrap:anywhere}
+.ts-attachment-browser-detail p{margin:5px 0 3px;font-size:12px;line-height:1.6;overflow-wrap:anywhere;color:var(--ts-c-muted)}
+.ts-attachment-browser-kind{display:inline-block;margin:0 9px 0 0;font-size:11px;line-height:1.6;color:var(--ts-c-faint)}
+.ts-attachment-browser-row-actions{display:flex;flex-direction:column;align-items:stretch;gap:5px;align-self:center}
+.ts-collection-attachment-browser button,.ts-collection-note-export button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-width:44px;min-height:44px;height:auto;max-width:100%;padding:6px 10px;border:0;border-radius:var(--ts-c-control-radius);background:transparent;box-shadow:none;font-family:var(--font-interface);font-size:12px;line-height:1.5;color:var(--ts-c-accent);white-space:normal;overflow-wrap:anywhere;cursor:pointer}
+.ts-collection-attachment-browser button:disabled,.ts-collection-note-export button:disabled{cursor:default;opacity:.5}
+.ts-collection-attachment-browser button:hover:not(:disabled),.ts-collection-note-export button:hover:not(:disabled){background:color-mix(in srgb,var(--ts-c-accent) 7%,transparent)}
+.ts-collection-attachment-browser button:focus-visible,.ts-collection-attachment-browser input:focus-visible,.ts-collection-attachment-browser select:focus-visible,.ts-collection-note-export button:focus-visible,.ts-collection-note-export input:focus-visible,.ts-collection-note-export select:focus-visible,.ts-collection-note-export summary:focus-visible,.ts-collection-note-export pre:focus-visible{outline:2px solid var(--ts-c-accent);outline-offset:2px}
+.ts-attachment-browser-icon{display:inline-flex;align-items:center;flex:none}
+.ts-attachment-browser-icon svg{width:15px;height:15px;stroke-width:1.7}
+.ts-attachment-browser-empty{padding:28px 0;font-size:13px;line-height:1.8;color:var(--ts-c-muted)}
+.ts-attachment-browser-footer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 12px;flex:none;padding:12px 30px;border-top:1px solid var(--ts-c-line);background:var(--ts-c-sheet)}
+.ts-attachment-browser-pages{display:flex;align-items:center;flex-wrap:wrap;gap:5px 12px;min-width:0;color:var(--ts-c-muted);font-size:11px}
+.ts-attachment-browser-pages>span{font-variant-numeric:tabular-nums;line-height:1.5}
+@media(max-width:680px){
+ .modal.ts-collection-attachment-browser,.modal.ts-collection-note-export{width:calc(100vw - 20px);max-width:min(100%,calc(100vw - 20px));max-height:min(100%,calc(var(--ts-visible-height,100dvh) - 20px))}
+ .ts-collection-attachment-browser .modal-content,.ts-collection-note-export .modal-content{padding:22px 18px 12px}
+ .ts-collection-attachment-browser .modal-content>h2,.ts-collection-note-export .modal-content>h2{font-size:28px}
+ .ts-attachment-browser-controls{grid-template-columns:minmax(0,1fr);gap:10px}
+ .ts-attachment-browser-row{grid-template-columns:20px minmax(0,1fr);gap:6px 10px;padding:14px 0}
+ .ts-attachment-browser-row-actions{grid-column:2;flex-direction:row;flex-wrap:wrap;justify-content:flex-start;gap:4px 10px}
+ .ts-attachment-browser-footer{padding:10px max(16px,env(safe-area-inset-right,0px)) max(10px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+ .ts-attachment-browser-pages{gap:4px}
+ .ts-attachment-browser-pages button .ts-attachment-browser-icon{display:none}
+ .ts-collection-attachment-browser button,.ts-collection-attachment-browser input,.ts-collection-attachment-browser select{min-height:44px}
+ .ts-collection-attachment-browser input,.ts-collection-attachment-browser select{font-size:16px}
+}
+@container(max-width:680px){.ts-collection-record-context>summary,.ts-collection-record-context button{min-height:44px}}
+@media(any-pointer:coarse){.ts-collection-record-context>summary,.ts-collection-record-context button,.ts-collection-attachment-browser button,.ts-collection-attachment-browser input,.ts-collection-attachment-browser select{min-height:44px}.ts-collection-attachment-browser input,.ts-collection-attachment-browser select{font-size:16px}}
+
+/* Organizing is a reading mode, with tools subordinate to the current record. */
+.ts-collection-organize,.ts-collection-review-panel{width:100%;max-width:var(--ts-c-column,800px);min-width:0;margin-left:auto;margin-right:auto}
+.ts-collection-organize{margin-top:6px;font-size:12px}
+.ts-collection-organize>summary{display:flex;align-items:center;gap:10px;min-height:44px;padding:6px 0;list-style:none;cursor:pointer;font-size:11px;color:var(--ts-c-muted)}
+.ts-collection-organize>summary::-webkit-details-marker{display:none}
+.ts-collection-organize>summary::after{content:"⌄";font-size:13px}
+.ts-collection-organize[open]>summary{color:var(--ts-c-accent)}
+.ts-collection-organize[open]>summary::after{content:"⌃"}
+.ts-collection-organize>button{font-size:12px;padding-left:0;color:var(--ts-c-accent)}
+.ts-collection-organize .ts-collection-selection{padding-top:2px;padding-bottom:10px}
+.ts-collection-review-panel{margin-top:18px;margin-bottom:10px;padding:22px 24px;border:1px solid var(--ts-c-line);border-top:3px solid var(--ts-c-editorial);border-radius:2px 2px var(--ts-c-radius) var(--ts-c-radius);background:var(--ts-c-sheet);box-shadow:var(--ts-c-shadow)}
+.ts-collection-review-panel h3{margin:0 0 12px;font-family:var(--ts-c-serif);font-size:24px;line-height:1.5;font-weight:500;color:var(--ts-c-ink)}
+.ts-collection-review-panel p{margin:8px 0;font-size:12px;line-height:1.8;color:var(--ts-c-muted);overflow-wrap:anywhere}
+.ts-collection-review-controls{display:flex;align-items:center;flex-wrap:wrap;gap:8px 14px;margin-top:18px;min-width:0}
+.ts-collection-review-controls button,.ts-collection-review-confirm button{min-height:44px;max-width:100%;padding:7px 10px;font-size:12px;color:var(--ts-c-accent)}
+.ts-collection-review-controls>[data-collection-action=review-previous],.ts-collection-review-controls>[data-collection-action=review-next]{border:1px solid var(--ts-c-line)}
+.ts-collection-review-controls>[data-collection-action=review-exit]{margin-left:auto;color:var(--ts-c-muted)}
+.ts-collection-review-confirm{margin-top:16px;padding:12px 14px;border-left:2px solid var(--ts-c-editorial);background:var(--ts-c-wash)}
+.ts-collection-review-confirm>[data-collection-action=review-archive-confirm]{margin-right:8px;color:var(--ts-c-editorial)}
+.ts-collection-review-panel [data-collection-review-outcome]{color:var(--ts-c-accent)}
+
+/* Export review stays scrollable; the sibling footer remains reachable when
+   the visual viewport shrinks for a keyboard. */
+.ts-collection-export-fields{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:14px 10px;min-width:0}
+.ts-collection-export-fields>label{display:flex;flex-direction:column;gap:7px;min-width:0;font-size:11px;line-height:1.6;color:var(--ts-c-muted)}
+.ts-collection-export-fields>label:first-child{grid-column:1/-1}
+.ts-collection-export-fields>small{grid-column:1/-1;font-size:11px;line-height:1.8;color:var(--ts-c-faint);overflow-wrap:anywhere}
+.ts-collection-export-fields input,.ts-collection-export-fields select{width:100%;min-width:0;min-height:44px;height:auto;padding:8px 10px;border:1px solid var(--ts-c-line);border-radius:var(--ts-c-control-radius);background:var(--ts-c-sheet);color:var(--ts-c-ink);font:inherit;font-size:13px;box-shadow:none}
+.ts-collection-export-fields:has([data-collection-export-action=pick][hidden])>label:nth-child(2){grid-column:1/-1}
+.ts-collection-note-export [data-collection-export-status]{margin:18px 0 12px;font-size:12px;line-height:1.8;color:var(--ts-c-muted);overflow-wrap:anywhere}
+.ts-collection-note-export [data-collection-export-status]:empty{display:none}
+.ts-collection-export-preview{min-width:0}
+.ts-collection-export-preview h3{font-family:var(--ts-c-serif);font-size:20px;font-weight:500;line-height:1.6;margin:22px 0 8px;color:var(--ts-c-ink);overflow-wrap:anywhere}
+.ts-collection-export-preview p{font-size:12px;line-height:1.8;color:var(--ts-c-muted);overflow-wrap:anywhere}
+.ts-collection-export-preview pre{max-width:100%;min-width:0;max-height:min(300px,35dvh);margin:12px 0 16px;padding:16px 18px;overflow:auto;overscroll-behavior:contain;white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid var(--ts-c-line);border-radius:var(--ts-c-control-radius);background:var(--ts-c-sheet);color:var(--ts-c-ink);font-family:var(--font-monospace);font-size:12px;line-height:1.8;tab-size:2}
+.ts-collection-export-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;flex:none;padding:14px 30px;border-top:1px solid var(--ts-c-line);background:var(--ts-c-sheet)}
+.ts-collection-export-actions>[data-collection-export-action=cancel]{margin-left:auto;color:var(--ts-c-muted)}
+.modal.ts-ui-modal.ts-collection-note-export button.mod-cta{padding-left:18px;padding-right:18px;background:var(--ts-c-accent);color:var(--ts-c-on-accent);font-weight:500}
+.modal.ts-ui-modal.ts-collection-note-export button.mod-cta:is(:hover,:focus-visible):not(:disabled):not([aria-disabled=true]){background:var(--ts-c-accent-hover);color:var(--ts-c-on-accent)}
+.ts-collection-export-history{margin-top:24px;border-top:1px solid var(--ts-c-line)}
+.ts-collection-export-history>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;padding:8px 0;font-size:11px;list-style:none;cursor:pointer;color:var(--ts-c-muted)}
+.ts-collection-export-history>summary::-webkit-details-marker{display:none}
+.ts-collection-export-history>summary::after{content:"⌄"}
+.ts-collection-export-history[open]>summary::after{content:"⌃"}
+.ts-collection-export-history p,.ts-collection-export-receipt p{margin:7px 0;font-size:12px;line-height:1.8;color:var(--ts-c-muted);overflow-wrap:anywhere}
+.ts-collection-export-receipt{margin:14px 0;padding:12px 14px;border-left:2px solid var(--ts-c-editorial);background:var(--ts-c-wash)}
+.ts-collection-export-receipt small{display:block;font-size:11px;line-height:1.8;color:var(--ts-c-faint)}
+.ts-collection-export-receipt [data-collection-export-action]{margin-top:8px;padding-left:0;justify-content:flex-start}
+@container(max-width:680px){.ts-collection-review-panel{padding:18px 16px}.ts-collection-review-panel h3{font-size:22px}.ts-collection-review-controls{gap:7px}.ts-collection-review-controls>[data-collection-action=review-exit]{margin-left:0}}
+@media(max-width:680px){
+ .ts-collection-export-fields{grid-template-columns:minmax(0,1fr);gap:12px}
+ .ts-collection-export-fields>button{justify-self:start;padding-left:0}
+ .ts-collection-export-fields input,.ts-collection-export-fields select{font-size:16px}
+ .ts-collection-export-actions{padding:10px max(16px,env(safe-area-inset-right,0px)) max(10px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+ .ts-collection-export-actions>button{padding-left:8px;padding-right:8px}
+ .ts-collection-export-preview pre{max-height:230px;padding:12px;font-size:11px}
+}
+@media(any-pointer:coarse){.ts-collection-export-fields input,.ts-collection-export-fields select{font-size:16px}}
+/* Shared legacy modal chrome carries stronger selectors than ordinary form
+   rules. Limit this override to the two collection dialogs. */
+.modal.ts-ui-modal.ts-collection-content:is(.ts-collection-attachment-browser,.ts-collection-note-export) :is(input[type],select){min-height:44px;height:auto;border:1px solid var(--ts-c-line);border-radius:var(--ts-c-control-radius);background:var(--ts-c-sheet);color:var(--ts-c-ink);box-shadow:none}
+.modal.ts-ui-modal.ts-collection-content:is(.ts-collection-attachment-browser,.ts-collection-note-export) :is(input[type],select):focus{border-color:var(--ts-c-accent)}
+.modal.ts-collection-attachment-browser .modal-close-button,.modal.ts-collection-note-export .modal-close-button{display:flex;align-items:center;justify-content:center;width:44px;height:44px;min-width:44px;min-height:44px;color:var(--ts-c-muted)}

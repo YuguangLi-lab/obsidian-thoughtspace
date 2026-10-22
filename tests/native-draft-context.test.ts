@@ -5,12 +5,14 @@ import {transformSync} from 'esbuild';
 import * as state from '@codemirror/state';
 import * as guards from '../src/value-guards';
 import {releaseEditorResource} from '../src/editor-cleanup';
+import {protectNativeCursorAssociation} from '../src/native-cursor-focus';
 
 function fixture(path:string){
- const textNode={nodeType:3},tool={nodeType:1},attributes:Record<string,string>={};
- const contentDOM=Object.assign(new EventTarget(),{nodeType:1,contains:(target:unknown)=>target===textNode||target===contentDOM,setAttribute:(key:string,value:string)=>{attributes[key]=value;}});
+ const document={activeElement:null as unknown},textNode={nodeType:3},tool={nodeType:1},attributes:Record<string,string>={};let cursorMeasurements=0;
+ const cursorAssociation=()=>{cursorMeasurements++;document.activeElement=contentDOM;};
+ const contentDOM=Object.assign(new EventTarget(),{nodeType:1,ownerDocument:document,isConnected:true,getRootNode:()=>document,contains:(target:unknown)=>target===textNode||target===contentDOM,setAttribute:(key:string,value:string)=>{attributes[key]=value;}});
  let owner:any,engine:any,hostWrites=0,unloads=0,destroys=0;
- class EditorView {state=state.EditorState.create({doc:''});contentDOM=contentDOM;dispatch(spec:state.TransactionSpec){this.state=this.state.update(spec).state;}focus(){}requestMeasure(){}}
+ class EditorView {state=state.EditorState.create({doc:''});contentDOM=contentDOM;root=document;get hasFocus(){return document.activeElement===contentDOM;}docView={view:this,enforceCursorAssoc:cursorAssociation};dispatch(spec:state.TransactionSpec){this.state=this.state.update(spec).state;}focus(){}requestMeasure(){}}
  class Base {
   cm=new EditorView();editor={getValue:()=>this.cm.state.doc.toString(),undo(){},redo(){}};sourceMode=true;
   constructor(_app?:unknown,_parent?:unknown,context?:unknown){if(context){owner=context;engine=this;}}
@@ -23,9 +25,9 @@ function fixture(path:string){
  const host=Object.assign(new EventTarget(),{style:{},remove(){},ownerDocument:{}});
  const parent={createDiv:(name?:string)=>name?host:{remove(){}}};
  const module={exports:{} as any};
- new Function('require','module','exports',transformSync(readFileSync('src/native-markdown-editor.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>name==='@codemirror/state'?state:name==='@codemirror/view'?{EditorView}:name==='./value-guards'?guards:name==='./editor-cleanup'?{releaseEditorResource}:{},module,module.exports);
+ new Function('require','module','exports',transformSync(readFileSync('src/native-markdown-editor.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>name==='@codemirror/state'?state:name==='@codemirror/view'?{EditorView}:name==='./value-guards'?guards:name==='./editor-cleanup'?{releaseEditorResource}:name==='./native-cursor-focus'?{protectNativeCursorAssociation}:{},module,module.exports);
  const file={path},draft=new module.exports.NativeMarkdownDraft(app,parent,'$x^2$\n\n| A | B |',file,'编辑文本 Markdown · 实时预览');
- return{draft,file,owner,engine,textNode,tool,contentDOM,attributes,counts:()=>({hostWrites,unloads,destroys})};
+ return{draft,file,owner,engine,textNode,tool,contentDOM,attributes,document,cursorAssociation,cursorMeasurements:()=>cursorMeasurements,counts:()=>({hostWrites,unloads,destroys})};
 }
 
 test('a board context supplies native link resolution without becoming a saving file view',()=>{
@@ -42,4 +44,12 @@ test('only the native content body owns topic keyboard events',()=>{
  const f=fixture('notes/example.md');assert.equal(f.draft.ownsKeyTarget(f.contentDOM),true);assert.equal(f.draft.ownsKeyTarget(f.textNode),true);
  for(const target of [f.tool,null,new EventTarget()])assert.equal(f.draft.ownsKeyTarget(target),false);
  f.draft.dispose();assert.equal(f.draft.ownsKeyTarget(f.contentDOM),false);
+});
+
+test('a constructed native draft keeps delayed cursor measurement inside its focused body',()=>{
+ const f=fixture('notes/example.md'),button={name:'mode'};f.document.activeElement=button;
+ f.engine.cm.docView.enforceCursorAssoc();assert.equal(f.document.activeElement,button);assert.equal(f.cursorMeasurements(),0);
+ f.document.activeElement=f.contentDOM;f.engine.cm.docView.enforceCursorAssoc();assert.equal(f.cursorMeasurements(),1);
+ const guarded=f.engine.cm.docView.enforceCursorAssoc;f.draft.dispose();assert.equal(f.engine.cm.docView.enforceCursorAssoc,f.cursorAssociation);
+ f.document.activeElement=button;guarded.call(f.engine.cm.docView);assert.equal(f.document.activeElement,button);assert.equal(f.cursorMeasurements(),1);
 });

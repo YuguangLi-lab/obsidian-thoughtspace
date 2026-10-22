@@ -1,14 +1,16 @@
 # ThoughtSpace Whiteboard
 
+**1.3.37** 将暖色杂志式界面扩展到全插件，改善窄窗操作，完善收集检索与整理，并增加在线视频工作区的本机草稿恢复。详见[更新记录](CHANGELOG.md#1337)及[收集页说明](docs/COLLECTION-WORKSPACE.zh-CN.md)。沿用原生 Markdown、Properties 和保存所有权保护。
+
 **AI 白板工具第一期（`1.0.0-local`，Node 22）**：只读校验/检查，并排他创建普通、脑图或手写新文件。下载仓库 ZIP 后可直接运行已构建工具，无需安装依赖。见[AI指南](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/docs/AI-BOARD-GUIDE.zh-CN.md)、[格式规范](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/docs/AI-BOARD-FORMAT.zh-CN.md)、[自制示例](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/examples/ai-board/README.zh-CN.md)和[工具入口](https://github.com/YuguangLi-lab/obsidian-thoughtspace/blob/1.3.36/tools/README.md)。手写示例可使用 1.3.36 或此前已公开的 1.3.36-beta.2 插件；`format_only`（退出2）明确保留引用未检查状态。
 
 [English](README.md) · **简体中文**
 
-**1.3.36** 带来手写编辑与 SVG 导出、阅读位置与引用导航、收集页和白板双向定位，以及统一的手机／平板界面。见[界面指南](docs/UI-REFINEMENT.zh-CN.md)、[收集页](docs/COLLECTION-WORKSPACE.zh-CN.md)、[手写指南](docs/HANDWRITING-IPAD.zh-CN.md)和[验证摘要](qa/RELEASE-1.3.36.md)。正式本地复核已完成；公开构建与资产状态见 [1.3.36 Release](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/tag/1.3.36)。 真实 iOS／Android、Pencil、系统移动输入法及移动 WebView 尚未验证。
+真实 iOS／Android、Pencil、系统移动输入法与软键盘、移动 WebView 尚未验证；桌面尺寸与触控模拟不代表设备性能或完整掌拒。在线恢复依赖本机已完成的暂存，存储失败或未完成写入仍有恢复限制。对应验证记录与下载见 [1.3.37 Release](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/tag/1.3.37)。
 
 在 Obsidian 中收集材料、梳理关系，再编排成文章。笔记、白板和生成的草稿都留在你的仓库中。
 
-**1.3.36 · Obsidian 1.13.7+ · MIT**
+**1.3.37 · Obsidian 1.13.7+ · MIT**
 
 **[安装与更新](docs/USER-GUIDE.zh-CN.md#installation) · [十分钟上手](docs/USER-GUIDE.zh-CN.md#quick-start) · [完整中文教程](docs/USER-GUIDE.zh-CN.md) · [下载最新版](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/latest)**
 
@@ -48,7 +50,7 @@
 | 编排结构、固定参考、生成草稿 | [白板写作](docs/USER-GUIDE.zh-CN.md#writing) |
 | 找命令、设置快捷键或解决保存问题 | [操作设置](docs/USER-GUIDE.zh-CN.md#controls) · [常见问题](docs/USER-GUIDE.zh-CN.md#troubleshooting) |
 
-## 1.3.36 的常用入口
+## 常用入口
 
 - **先记录，后整理**：运行「打开收集」，直接输入正文，点击「记录」或按 ⌘／Ctrl + Enter。原生标签、已有附件和白板／分组投递均可选。投递后仍留在创建时间流；不会自动给旧笔记回填属性。
 - **收集与白板往返**：同一笔记有多个引用时选择具体卡片，返回保留筛选和当前会话浏览位置；隐藏记录可临时显露。改名重新核对，过期请求不抢回焦点，主窗口与弹出窗口分别路由。

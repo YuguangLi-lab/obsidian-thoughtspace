@@ -79,14 +79,21 @@ test('accent text remains readable on control washes for every default light and
  const rgb=(hex:string)=>[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16));
  const luminance=(color:number[])=>color.map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);
  const palettes=postcss.parse(readFileSync('styles.css','utf8'));
- for(const [file,property]of [['context-toolbar','--ts-format-active'],['object-chrome','--ts-object-active'],['sidebar-refinement','--ts-nav-active'],['space-hub','--ts-hub-active'],['reading-workspace','--reader-wash']]){
+ for(const [file,property]of [['context-toolbar','--ts-format-active'],['object-chrome','--ts-object-active'],['sidebar','--ts-nav-active'],['space-hub','--ts-hub-active'],['reading-workspace','--reader-wash']]){
   const control=postcss.parse(readFileSync(`src/${file}.css`,'utf8')),washes=values(control,()=>true,property);
   for(const dark of [false,true]){
    const inks=values(palettes,s=>s.startsWith(dark?'.theme-dark .ts-root':'.ts-root'),'--ts-accent');
    for(const ink of inks)for(const wash of washes){
-    const amount=Number(wash.match(/var\(--ts-accent(?:,\s*var\(--interactive-accent\))?\)\s+(\d+)%/)?.[1]);assert.ok(Number.isFinite(amount)&&amount>0,wash);
-    const foreground=rgb(ink),base=rgb(dark?'#1e1e1e':'#ffffff'),background=foreground.map((v,i)=>v*amount/100+base[i]*(1-amount/100)),a=luminance(foreground),b=luminance(background);
-    const contrast=(Math.max(a,b)+.05)/(Math.min(a,b)+.05);assert.ok(contrast>=4.5,`${file}/${property}/${ink}/${amount}% has ${contrast.toFixed(2)} contrast`);
+    const foreground=rgb(ink);
+    let background:number[];
+    if(wash==='var(--ts-e-wash)')background=rgb(dark?'#342e26':'#ece5d8');
+    else {
+     const amount=Number(wash.match(/var\(--ts-accent(?:,\s*var\(--interactive-accent\))?\)\s+(\d+)%/)?.[1]);assert.ok(Number.isFinite(amount)&&amount>0,wash);
+     const base=rgb(wash.includes('--ts-e-sheet')?(dark?'#2d2822':'#fffdf7'):(dark?'#1e1e1e':'#ffffff'));
+     background=foreground.map((v,i)=>v*amount/100+base[i]*(1-amount/100));
+    }
+    const a=luminance(foreground),b=luminance(background),contrast=(Math.max(a,b)+.05)/(Math.min(a,b)+.05);
+    assert.ok(contrast>=4.5,`${file}/${property}/${ink}/${wash} has ${contrast.toFixed(2)} contrast`);
    }
   }
  }

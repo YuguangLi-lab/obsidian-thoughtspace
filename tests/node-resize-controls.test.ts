@@ -3,38 +3,48 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import {mountCardControlHover} from '../src/card-control-hover';
+import {parseOnlineSource} from '../src/online-platform';
 import type {Card} from '../src/model';
 
 // Run the production rendering branch including its low-detail early return.
 const source=readFileSync(process.env.RESIZE_SOURCE||'src/main.ts','utf8');
 const start=source.indexOf('      const childCount=branches.children.get(n.id)');
-const optionsEnd=source.indexOf('\n',start),controlsStart=source.indexOf("      if(n.kind!=='section'",optionsEnd);
+const optionsEnd=source.indexOf('\n',source.indexOf('      const isMedia=',start)),controlsStart=source.indexOf('      if(isMedia){const owner=this.session;scope.register(mountLiveBranchControls',optionsEnd);
 const end=source.indexOf("      const header = el.createDiv('ts-node-header')",controlsStart);
 assert.ok(start>=0&&optionsEnd>start&&controlsStart>optionsEnd&&end>controlsStart);
 const branchModule={exports:{} as typeof import('../src/branch-controls')};
 new Function('require','module','exports',transformSync(readFileSync('src/branch-controls.ts','utf8'),{loader:'ts',format:'cjs'}).code)(
  (name:string)=>{assert.equal(name,'obsidian');return{setIcon:()=>{}};},branchModule,branchModule.exports);
-const render=new Function('n','el','detail','branches','button','TFile','cardDisplayTitle','childCandidates','renderBranchControls','setIcon','textExcerptPresentation','mountCardControlHover',
+const liveModule={exports:{} as typeof import('../src/live-branch-controls')};
+new Function('require','module','exports',transformSync(readFileSync('src/live-branch-controls.ts','utf8'),{loader:'ts',format:'cjs'}).code)(
+ (name:string)=>{assert.equal(name,'obsidian');return{setIcon:()=>{}};},liveModule,liveModule.exports);
+const render=new Function('n','el','detail','branches','button','TFile','cardDisplayTitle','childCandidates','renderBranchControls','setIcon','textExcerptPresentation','mountCardControlHover','mountLiveBranchControls','parseOnlineSource',
  transformSync(`const fileInfo=undefined,restoreFoldFocus=false,scope={register:()=>{}};for(const node of [n]){${source.slice(start,optionsEnd)}${source.slice(controlsStart,end)}}`,{loader:'ts'}).code);
 class El{
- mindmapMounts=0;
- ownerDocument={defaultView:null};
+ mindmapMounts=0;positionCalls=0;
+ ownerDocument={defaultView:null,activeElement:null,hasFocus:()=>true};
+ isConnected=true;hidden=false;disabled=false;
  addEventListener(){}removeEventListener(){}
- children:El[]=[];classes=new Set<string>();attrs:Record<string,string>={};classList={toggle:()=>{}};
+ children:El[]=[];classes=new Set<string>();attrs:Record<string,string>={};dataset:Record<string,string>={};classList={toggle:()=>{}};
+ get childElementCount(){return this.children.length;}
  constructor(public cls=''){}
- createEl(_tag:string,options:any={}){const el=new El(typeof options==='string'?options:options.cls);el.attrs={...options.attr};this.children.push(el);return el;}
+ createEl(_tag:string,options:any={}){const el=new El(typeof options==='string'?options:options.cls);el.ownerDocument=this.ownerDocument;el.attrs={...options.attr};this.children.push(el);return el;}
  createDiv(options:any){return this.createEl('div',options);}
  createSpan(options:any){return this.createDiv(options);}
  addClass(cls:string){this.classes.add(cls);}
  toggleClass(cls:string,on:boolean){if(on)this.classes.add(cls);else this.classes.delete(cls);}
  setAttribute(name:string,value:string){this.attrs[name]=value;}
+ removeAttribute(name:string){delete this.attrs[name];}
+ contains(node:unknown):boolean{return node===this||this.children.some(child=>child.contains(node));}
+ getClientRects(){return this.isConnected&&!this.hidden?[{}]:[];}
+ querySelector(selector:string):El|null{if(selector.startsWith(':scope'))return this.children.find(child=>child.cls.includes('ts-card-actions'))||this.children.find(child=>child.cls==='ts-compact-fold-row')?.children.find(child=>child.cls==='ts-compact-actions')||null;return this.querySelectorAll(selector)[0]||null;}
  querySelectorAll(selector:string):El[]{return this.children.flatMap(child=>[...(child.cls.split(' ').includes(selector.slice(1))?[child]:[]),...child.querySelectorAll(selector)]);}
 }
 function controls(kind:Card['kind'],detail:boolean,extra:Partial<Card>={}){
  const n:Card={id:'node',kind,width:280,height:100,x:0,y:0,color:'green',...extra},el=new El();
- const view={session:{blocked:false},addPorts:()=>{},foldBranches:()=>{},mountBoardMindmap:(node:Card,element:El)=>{assert.equal(node,n);assert.equal(element,el);element.mindmapMounts++;}};
+ const view={session:{blocked:false},contentEl:el,positions:new Map([[n.id,el]]),selected:new Set<string>(),addPorts:()=>{},foldBranches:()=>{},positionNode:(node:Card,element:El)=>{assert.equal(node,n);assert.equal(element,el);assert.ok(['true','false'].includes(el.dataset.controlInlineUnfold));assert.ok(Number.isFinite(Number(el.dataset.controlDockCount)));element.positionCalls++;},mountBoardMindmap:(node:Card,element:El)=>{assert.equal(node,n);assert.equal(element,el);element.mindmapMounts++;}};
  const button=(parent:El,_label:string,_icon:string,_run:()=>void,cls:string)=>parent.createDiv(cls);
- render.call(view,n,el,detail,{children:new Map([['node',['child']]])},button,class{},()=> 'Note',new Map(),branchModule.exports.renderBranchControls,()=>{},(body:string)=>({body}),mountCardControlHover);
+ render.call(view,n,el,detail,{children:new Map([['node',['child']]])},button,class{},()=> 'Note',new Map(),branchModule.exports.renderBranchControls,()=>{},(body:string)=>({body}),mountCardControlHover,liveModule.exports.mountLiveBranchControls,parseOnlineSource);
  return el;
 }
 test('low-detail cards retain one resize handle without mounting a detailed preview',()=>{
@@ -43,6 +53,7 @@ test('low-detail cards retain one resize handle without mounting a detailed prev
   assert.ok(el.classes.has('ts-node-summary'),kind);
   assert.equal(el.children.filter(c=>c.cls==='ts-resize').length,1,kind);
   assert.equal(el.querySelectorAll('.ts-branch-toggle').length,1,kind);
+  if(kind==='audio'||kind==='video'){const toggle=el.querySelectorAll('.ts-branch-toggle')[0];assert.equal(toggle.disabled,false,kind);assert.equal(toggle.attrs['aria-expanded'],'true',kind);}
  }
 });
 test('detailed and summary resize controls stay absent on locked or collapsed objects',()=>{
@@ -56,6 +67,14 @@ test('compact branch fold suspends resizing and expansion restores the parent re
   const el=controls('card',detail,{branchFolded});
   assert.equal(el.children.filter(c=>c.cls==='ts-resize').length,branchFolded?0:1);
  }
+});
+
+test('compact rendering registers actual external slots before its retained-node placement',()=>{
+ for(const kind of ['card','text','image','pdf','section'] as const){
+  const el=controls(kind,true,{collapsed:true});
+  assert.equal(el.dataset.controlInlineUnfold,'true',kind);assert.equal(el.dataset.controlDockCount,'0',kind);assert.equal(el.positionCalls,1,kind);
+ }
+ const branch=controls('image',true,{branchFolded:true});assert.equal(branch.dataset.controlInlineUnfold,'false');assert.equal(branch.dataset.controlDockCount,'1');assert.equal(branch.positionCalls,1);
 });
 test('mindmap retains its component at every zoom instead of entering the title-only summary branch',()=>{
  for(const detail of [false,true])for(const state of [{},{locked:true},{collapsed:true}]){

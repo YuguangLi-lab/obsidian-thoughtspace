@@ -1,0 +1,74 @@
+/* Shared dialog chrome. Authored Markdown, CM6 and PDF descendants are excluded
+   from control rules; each workflow keeps its own viewport and lifecycle. */
+.modal.ts-ui-modal:where(:not(.ts-space-hub)) {
+ color:var(--ts-e-ink);background:var(--ts-e-sheet)!important;
+ border-color:var(--ts-e-line)!important;border-radius:12px!important;
+ box-shadow:var(--ts-e-shadow)!important;
+}
+:where(.ts-ui-modal) .modal-title {
+ font-family:var(--ts-e-serif);font-size:26px;font-weight:600;
+ line-height:1.45;letter-spacing:0;overflow-wrap:anywhere;
+}
+:where(.ts-ui-modal) .modal-header {padding-bottom:18px;border-bottom:1px solid var(--ts-e-line);margin-bottom:18px}
+.ts-ui-modal :is(.modal-close-button,.modal-header-button) {color:var(--ts-e-muted);border-radius:5px}
+.ts-ui-modal .modal-content>h2 {font-family:var(--ts-e-serif);letter-spacing:0;color:var(--ts-e-ink)}
+.ts-ui-modal :is(.setting-item-name,.setting-item-description,.ts-muted) {color:var(--ts-e-muted);line-height:1.7;letter-spacing:0}
+.ts-ui-modal .setting-item-name {color:var(--ts-e-ink)}
+.ts-ui-modal :is(input,select,textarea):where(:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color])):not(:where(.markdown-rendered *, .markdown-preview-view *, .markdown-source-view *, .cm-editor *, .pdf-container *, .pdf-viewer *)) {
+ /* Preserve the host's native select arrow placement, scale and repeat rules. */
+ color:var(--ts-e-ink);background-color:var(--ts-e-paper);border-color:var(--ts-e-edge);border-radius:5px;box-shadow:none;
+}
+.ts-ui-modal :is(input,select,textarea):focus-visible:not(:where(.markdown-rendered *, .markdown-preview-view *, .markdown-source-view *, .cm-editor *, .pdf-container *, .pdf-viewer *)) {outline:2px solid var(--ts-accent);outline-offset:-2px;box-shadow:none}
+.ts-ui-modal :is(input,textarea):not(:where(.markdown-rendered *, .markdown-preview-view *, .markdown-source-view *, .cm-editor *, .pdf-container *, .pdf-viewer *))::placeholder {color:var(--ts-e-muted);opacity:1}
+.ts-ui-modal :is(button,summary):active:not(:disabled):not([aria-disabled=true]):not(:where(.markdown-rendered *, .markdown-preview-view *, .markdown-source-view *, .cm-editor *, .pdf-container *, .pdf-viewer *)) {box-shadow:inset 0 0 0 1px var(--ts-e-edge)}
+.ts-ui-modal .modal-button-container {gap:8px;flex-wrap:wrap;padding-top:16px;border-top:1px solid var(--ts-e-line)}
+.ts-ui-modal .modal-button-container button {min-height:36px;height:auto;padding:8px 16px;border-radius:5px;box-shadow:none}
+.ts-ui-modal .modal-button-container .mod-cta {font-weight:600}
+.ts-form-prompt .modal-content {display:flex;flex-direction:column;gap:16px}
+.ts-prompt-field {display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--ts-e-muted)}
+.ts-form-prompt .ts-prompt-field .ts-wide {margin:0;height:auto!important;min-height:40px;width:100%}
+.ts-form-prompt .modal-button-container {margin-top:0}
+.ts-form-prompt .mod-cta {float:none}
+.ts-prompt-status {font-size:13px;line-height:1.65;overflow-wrap:anywhere;color:var(--ts-e-muted)}
+.ts-prompt-status:empty {display:none}
+.ts-board-creation-modal .ts-board-creation-purpose {border-inline-start:2px solid var(--ts-e-editorial);padding-inline-start:12px;margin-block:8px 24px}
+.ts-board-creation-modal .ts-board-creation-name {font-size:13px;gap:10px}
+.ts-board-creation-modal .ts-board-creation-format>summary {color:var(--ts-e-muted)}
+.ts-template-modal .ts-template-grid {gap:20px}
+.ts-template-modal .ts-template-card {border-radius:6px;border-color:var(--ts-e-line);background:var(--ts-e-paper);padding:22px;min-width:0}
+.ts-template-modal .ts-template-icon {background:transparent;color:var(--ts-e-editorial);width:32px;height:32px;border-radius:0}
+.ts-template-modal .ts-template-card h3 {font-family:var(--ts-e-serif);font-size:23px;line-height:1.5;letter-spacing:0;margin:14px 0 8px;overflow-wrap:anywhere}
+.ts-template-modal :is(.ts-template-intro,.ts-template-card p) {color:var(--ts-e-muted)}
+.ts-template-modal .ts-template-preview {border-radius:0;padding:14px 0;background:transparent;border-top:1px solid var(--ts-e-line);gap:8px}
+.ts-template-modal .ts-template-preview span {font-size:12px;line-height:1.6;background:var(--ts-e-sheet);color:var(--ts-e-ink);border-color:var(--ts-e-line);padding:9px 6px;border-radius:3px;overflow-wrap:anywhere}
+.ts-template-modal .ts-template-use {min-height:36px;color:var(--ts-accent)!important;border-top:1px solid var(--ts-e-line);border-radius:0!important;margin-top:8px}
+.ts-template-modal .ts-template-card:focus-within {border-color:var(--ts-accent)}
+@media(max-width:700px) {
+ .ts-template-modal .ts-template-grid {grid-template-columns:1fr;gap:14px}
+ .ts-template-modal .ts-template-card {padding:16px}
+ .ts-template-modal .ts-template-preview {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));padding-bottom:4px}
+ .ts-template-modal .ts-template-card h3 {font-size:22px;margin-top:8px}
+ .ts-template-modal .ts-template-card p {margin-bottom:14px}
+}
+@media(any-pointer:coarse),(max-width:760px) {
+ .ts-ui-modal :is(.modal-close-button,.modal-header-button) {width:44px;height:44px;min-width:44px;min-height:44px}
+ :where(.ts-ui-modal) .modal-header {padding-bottom:12px;margin-bottom:12px;padding-inline-end:24px}
+ :where(.ts-ui-modal) .modal-title {font-size:24px}
+ .ts-ui-modal .modal-button-container button,.ts-template-modal .ts-template-use,.ts-form-prompt .ts-prompt-field .ts-wide {min-height:44px}
+ .ts-form-prompt .ts-prompt-field .ts-wide {font-size:16px}
+}
+@media(prefers-reduced-motion:reduce) {
+ .ts-ui-modal :is(button,summary):not(:where(.markdown-rendered *, .markdown-preview-view *, .markdown-source-view *, .cm-editor *, .pdf-container *, .pdf-viewer *)) {transition:none!important;animation:none!important}
+}
+
+/* These scrollable recovery dialogs end directly at their footer. Reserve the
+   complete 2px outline + 2px offset instead of clipping keyboard focus. */
+.ts-ui-modal:is(.ts-media-draft-recovery-modal,.ts-filing-failures-modal) > .modal-content > .modal-button-container {
+ padding-inline:6px;padding-bottom:6px;
+}
+
+/* This final native Setting sits against the prompt scrollport. Keep the
+   complete 2px outline + 2px offset inside it without changing host scrolling. */
+.ts-ui-modal.ts-prompt-modal > .modal-content > .ts-external-media-actions > .setting-item-control {
+ padding-inline:6px;padding-bottom:6px;
+}

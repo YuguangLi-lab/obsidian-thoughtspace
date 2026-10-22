@@ -48,7 +48,10 @@ function fixture(initial=initialBoard()){
  class Picker {opened=false;closed=false;containerEl=new Element();onOpen(){}onClose(){}open(){this.opened=true;this.onOpen();}close(){this.closed=true;this.onClose();}constructor(){pickers.push(this);}}
  class NotePicker extends Picker {constructor(_app:unknown,public pick:(file:TFile)=>unknown){super();}onChooseItem(file:TFile){return this.pick(file);}}
  class BoardPicker extends Picker {constructor(_app:unknown,public current:TFile,public pick:(file:TFile)=>unknown){super();}}
- class Prompt extends Picker {constructor(_app:unknown,public title:string,public initial:string,public submit:(value:string)=>unknown){super();}}
+ class Prompt extends Picker {
+  submit:(value:string)=>unknown;
+  constructor(_app:unknown,public title:string,public initial:string,run:(value:string,choice:undefined,navigation:any)=>unknown){super();this.submit=value=>run(value,undefined,{current:()=>!this.closed,destination(){},retained:(file:TFile)=>new Notice(`已保存：${file.path}；文件保留，未继续自动跳转。`)});}
+ }
  class ActionPicker extends Picker {constructor(_app:unknown,public title:string,public items:{title:string;run:()=>unknown}[]){super();}}
  class BrainNodeRenameModal extends Picker {constructor(_app:unknown,public host:any){super();}commit(name:string){return this.host.commit(name,()=>!this.closed);}}
  class BrainRelationCreateModal extends Picker {constructor(_app:unknown,public host:any){super();}commit(target:unknown){return this.host.commit(target,()=>!this.closed&&this.host.current());}}
@@ -340,7 +343,7 @@ test('sub-board insertion rechecks the owner and file identity after asynchronou
 });
 
 test('new note creation that outlives its owning file keeps the created note without adding a stale reference or opening it',async()=>{
- const f=fixture(),gate=deferred<TFile>(),before=model.clone(f.owner.board);f.hooks.create=()=>gate.promise;f.view.addBrainObject('new-note');const pending=f.pickers.at(-1).submit('Note');await settled();f.view.dialogEpoch++;gate.resolve(new TFile('Notes/Retained.md'));await pending;await f.drain();assert.deepEqual(f.owner.board,before);assert.equal(f.created.length,1);assert.equal(f.writes(),0);assert.equal(f.opens.length,0);assert.match(f.notices.at(-1)!,/笔记已创建.*未添加引用/);
+ const f=fixture(),gate=deferred<TFile>(),before=model.clone(f.owner.board);f.hooks.create=()=>gate.promise;f.view.addBrainObject('new-note');const pending=f.pickers.at(-1).submit('Note');await settled();f.view.dialogEpoch++;gate.resolve(new TFile('Notes/Retained.md'));await pending;await f.drain();assert.deepEqual(f.owner.board,before);assert.equal(f.created.length,1);assert.equal(f.writes(),0);assert.equal(f.opens.length,0);assert.match(f.notices.at(-1)!,/已保存.*文件保留.*未继续自动跳转/);
 });
 
 test('closing an in-flight new-note prompt cancels board insertion and source opening',async()=>{

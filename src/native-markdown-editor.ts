@@ -3,6 +3,7 @@ import {Annotation,Transaction,TransactionSpec,EditorSelection} from '@codemirro
 import {ViewUpdate,EditorView} from '@codemirror/view';
 import {releaseEditorResource} from './editor-cleanup';
 import {isRecord} from './value-guards';
+import {protectNativeCursorAssociation} from './native-cursor-focus';
 
 /** The small draft surface shared by a textarea and Obsidian's live editor. */
 export interface DraftInput extends EventTarget {
@@ -50,7 +51,7 @@ function editorConstructor(app:App,parent:HTMLElement){
 
 /** A native CM6 live-preview instance owning an unsaved draft, never a file view. */
 export class NativeMarkdownDraft extends EventTarget implements DraftInput {
- readonly host:HTMLElement;private engine!:NativeEditorEngine;private ready=false;private disposed=false;private locked=false;private intendedSelection?:{from:number;to:number;nativeFrom?:number;nativeTo?:number};private stopEvents?:()=>void;
+ readonly host:HTMLElement;private engine!:NativeEditorEngine;private ready=false;private disposed=false;private locked=false;private intendedSelection?:{from:number;to:number;nativeFrom?:number;nativeTo?:number};private stopEvents?:()=>void;private restoreCursorAssociation?:()=>void;
  private valueCache?:{engine:NativeEditorEngine;cm:EditorView;editor:NativeEditorEngine['editor'];read:NativeEditorEngine['editor']['getValue'];doc:EditorView['state']['doc'];value:string};
  constructor(app:App,parent:HTMLElement,value:string,file?:TFile,label='编辑 Markdown · 实时预览'){
   super();const Base=editorConstructor(app,parent);this.host=parent.createDiv('ts-inline-native');
@@ -70,6 +71,7 @@ export class NativeMarkdownDraft extends EventTarget implements DraftInput {
    const cm=this.engine.cm,dispatch=cm.dispatch.bind(cm);
    cm.dispatch=(...specs:(Transaction|readonly Transaction[]|TransactionSpec)[])=>this.dispatchNative(dispatch,...specs);
    this.engine.sourceMode=false;this.engine.load();this.engine.set(value,true);this.engine.show();
+   this.restoreCursorAssociation=protectNativeCursorAssociation(this.engine.cm);
    this.engine.cm.contentDOM.setAttribute('aria-label',label);
    for(const type of ['compositionstart','compositionend','keyup','mouseup'])listen(type,()=>this.emit(type));
    // Live preview may expand native ranges to include hidden syntax. Retain the
@@ -180,6 +182,8 @@ export class NativeMarkdownDraft extends EventTarget implements DraftInput {
   releaseEditorResource('native draft events',events);
   releaseEditorResource('native editor subscriptions',()=>this.engine?.unload());
   releaseEditorResource('native editor view',()=>this.engine?.destroy());
+  const restoreCursorAssociation=this.restoreCursorAssociation;this.restoreCursorAssociation=undefined;
+  releaseEditorResource('native cursor association',restoreCursorAssociation);
   releaseEditorResource('native editor surface',()=>this.host.remove());
  }
 }

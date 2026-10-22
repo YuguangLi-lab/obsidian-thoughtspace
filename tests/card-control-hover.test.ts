@@ -14,14 +14,14 @@ class Events extends EventTarget {
 }
 class El extends Events {
  parentElement:El|null=null;children:El[]=[];isConnected=true;reads=0;classes=new Set<string>();
- ownerDocument!:Doc;
+ ownerDocument!:Doc;dataset:Record<string,string>={};
  classList={contains:(name:string)=>this.classes.has(name),add:(name:string)=>{this.classes.add(name);},remove:(name:string)=>{this.classes.delete(name);}};
  constructor(public bounds:Rect,public isNode=false){super();}
  append(child:El){child.parentElement=this;child.ownerDocument=this.ownerDocument;this.children.push(child);}
  contains(target:unknown):boolean{return target===this||this.children.some(child=>child.contains(target));}
  closest(selector:string):El|null{assert.equal(selector,'.ts-node');return this.isNode?this:this.parentElement?.closest(selector)||null;}
  getBoundingClientRect(){this.reads++;return this.bounds;}
- querySelectorAll(){return this.children.filter(child=>child.classes.has('ts-card-actions')||child.classes.has('ts-compact-actions'));}
+ querySelectorAll(selector:string){return this.children.filter(child=>selector===':scope > .ts-branch-controls'?child.classes.has('ts-branch-controls'):child.classes.has('ts-card-actions')||child.classes.has('ts-compact-actions'));}
  get childElementCount(){return this.children.length;}
 }
 class Doc extends Events {defaultView!:Events&{requestAnimationFrame:(fn:FrameRequestCallback)=>number;cancelAnimationFrame:(id:number)=>void;setTimeout:(fn:()=>void,ms:number)=>number;clearTimeout:(id:number)=>void};visibilityState='visible';}
@@ -152,4 +152,34 @@ test('releasing a held pointer inside a card rearms the next dock approach',()=>
 test('a captured release outside the card cannot rearm its dock',()=>{
  const f=fixture(),up=new Event('pointerup');Object.defineProperties(up,{clientX:{value:20},clientY:{value:740},pointerType:{value:'mouse'},buttons:{value:0}});
  f.node.dispatchEvent(up);f.tick(1000);assert.equal(f.node.classes.has('is-control-hover'),false);assert.equal(f.doc.count()+f.view.count(),0);f.dispose();
+});
+
+for(const zoom of [.25,.5,1,2])test(`ordinary branch uses the existing no-hit-layer bridge at zoom ${zoom}`,()=>{const f=fixture(zoom,{mount:false});f.node.classes.add('ts-card');f.dock.classes.clear();f.dock.classes.add('ts-branch-controls');f.dock.bounds=rect(f.node.bounds.right+24*zoom,f.node.bounds.top+f.node.bounds.height/2-15,80,30);f.button.bounds=f.dock.bounds;const children=[...f.node.children],dispose=mountCardControlHover(f.node as unknown as HTMLElement);f.travel();assert.equal(f.node.classes.has('is-control-hover'),true);assert.deepEqual(f.node.children,children);dispose();assert.equal(f.doc.count()+f.view.count(),0);});
+for(const kind of ['text','image','pdf','board','section','audio','video','online'])test(`${kind} direct branch follows the no-hit bridge`,()=>{
+ const f=fixture(1,{mount:false});f.node.classes.add('ts-'+kind);if(['audio','video','online'].includes(kind))f.node.dataset.mediaBranches='[1]';
+ f.dock.classes.clear();f.dock.classes.add('ts-branch-controls');f.dock.bounds=rect(f.node.bounds.right+24,f.node.bounds.top+70,96,48);f.button.bounds=f.dock.bounds;
+ const before=[...f.node.children],dispose=mountCardControlHover(f.node as unknown as HTMLElement);f.travel();assert.deepEqual(f.node.children,before);dispose();assert.equal(f.node.count()+f.doc.count()+f.view.count(),0);
+});
+function replaceBranch(f:ReturnType<typeof fixture>,bounds:Rect){
+ const group=new El(bounds),button=new El(bounds);group.ownerDocument=f.doc;button.ownerDocument=f.doc;group.classes.add('ts-branch-controls');group.append(button);
+ f.node.children=f.node.children.filter(el=>el!==f.dock);f.dock.parentElement=null;f.dock.isConnected=false;f.node.append(group);return{group,button};
+}
+test('active media bridge resolves the replacement group and never measures the retired group',()=>{
+ const f=fixture(1,{mount:false});f.node.dataset.mediaBranches='[1]';f.dock.classes.clear();f.dock.classes.add('ts-branch-controls');f.dock.bounds=rect(624,370,96,48);f.button.bounds=f.dock.bounds;
+ const dispose=mountCardControlHover(f.node as unknown as HTMLElement);f.move(450,410);const reads=f.dock.reads;
+ const next=replaceBranch(f,rect(690,370,96,48));f.move(670,394,{target:f.canvas});f.tick(1000);assert.equal(f.node.classes.has('is-control-hover'),true);assert.equal(f.dock.reads,reads);assert.ok(next.group.reads>0);f.move(720,394,{target:next.button});assert.equal(f.node.classes.has('is-control-hover'),true);
+ dispose();assert.equal(f.node.count()+f.doc.count()+f.view.count(),0);
+});
+test('a media group added after mounting gains a corridor without remounting the player',()=>{
+ const f=fixture(1,{mount:false});f.node.dataset.mediaBranches='[0]';f.node.children=f.node.children.filter(el=>el!==f.dock);f.dock.isConnected=false;
+ const dispose=mountCardControlHover(f.node as unknown as HTMLElement);assert.equal(f.doc.count()+f.view.count(),0);
+ const next=replaceBranch(f,rect(624,370,96,48));f.move(450,410);f.move(612,394,{target:f.canvas});f.tick(1000);assert.equal(f.node.classes.has('is-control-hover'),true);assert.ok(next.group.reads>0);dispose();
+});
+test('removed media group cannot leave a stale bridge or global listeners',()=>{
+ const f=fixture(1,{mount:false});f.node.dataset.mediaBranches='[1]';f.dock.classes.clear();f.dock.classes.add('ts-branch-controls');f.dock.bounds=rect(624,370,96,48);const dispose=mountCardControlHover(f.node as unknown as HTMLElement);
+ f.move(450,410);f.node.children=f.node.children.filter(el=>el!==f.dock);f.dock.isConnected=false;const reads=f.dock.reads;f.move(612,394,{target:f.canvas});f.tick(1000);assert.equal(f.node.classes.has('is-control-hover'),false);assert.equal(f.dock.reads,reads);assert.equal(f.doc.count()+f.view.count(),0);dispose();
+});
+test('expanded section header group does not become an external bridge',()=>{
+ const f=fixture(1,{mount:false});f.dock.classes.clear();const header=new El(f.node.bounds);header.ownerDocument=f.doc;f.node.children=[];f.node.append(header);header.append(f.dock);f.dock.classes.add('ts-branch-controls');
+ const dispose=mountCardControlHover(f.node as unknown as HTMLElement);assert.equal(f.node.count()+f.doc.count()+f.view.count(),0);dispose();
 });
