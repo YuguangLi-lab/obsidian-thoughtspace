@@ -12,10 +12,13 @@ import {cleanFavorites} from './navigation';
 import {isOneOf,isRecord} from './value-guards';
 import type {SettingsLanguagePreference} from './settings-preferences';
 import {cleanLocalRelationsPreferences,type LocalRelationsPreferences} from './local-relations-state';
+import {cleanCollectionBackground} from './collection-background';
+import type {BoardBackground} from './board-background';
 
 export type ThoughtSpacePreferences=FilingSettings&AppearanceSettings&BoardPreferences&{
  settingsLanguage:SettingsLanguagePreference;boardCreation:BoardCreationPreferences;
  localRelations:LocalRelationsPreferences;
+ collectionBackground:BoardBackground;
  layoutPresets:LayoutPreset[];imageHostEnabled?:boolean;database:DatabasePreferences;hub:HubPreferences;favoriteBoards:string[];
  notePaneLeafId?:string;noteMarkdownToolbar?:boolean;boardSearchEnabled?:boolean;compactDuplicateCardTitles:boolean;
  pendingBoardReferences?:PendingBoardReference[];
@@ -26,11 +29,13 @@ export function cleanPluginSettings(raw:unknown):ThoughtSpacePreferences {
  const saved=isRecord(raw)?raw:{};
  const out:ThoughtSpacePreferences={...defaultFilingSettings,...defaultAppearance,...cleanBoardPreferences(saved),...cleanPaperPreferences(saved),...cleanBackgroundImagePreferences(saved),
   localRelations:cleanLocalRelationsPreferences(saved.localRelations),boardCreation:cleanBoardCreationPreferences(saved.boardCreation),
+  collectionBackground:cleanCollectionBackground(saved.collectionBackground),
   settingsLanguage:isOneOf(saved.settingsLanguage,['auto','zh-CN','en'])?saved.settingsLanguage:'auto',compactDuplicateCardTitles:saved.compactDuplicateCardTitles===true,
   layoutPresets:cleanLayoutPresets(saved.layoutPresets),database:cleanDatabasePreferences(saved.database),hub:cleanHubPreferences(saved.hub),favoriteBoards:cleanFavorites(saved.favoriteBoards)};
  try{Object.assign(out,validateFolders(typeof saved.cardFolder==='string'?saved.cardFolder:out.cardFolder,typeof saved.journalFolder==='string'?saved.journalFolder:out.journalFolder));}catch{/* Invalid folders never redirect automatic filing outside the configured vault paths. */}
  for(const key of ['autoFileCards','cleanupEmptyFolders','showMinimap','glassEffects','imageHostEnabled','noteMarkdownToolbar','boardSearchEnabled','nativeBookmarksMigrated'] as const)if(typeof saved[key]==='boolean')out[key]=saved[key];
- if(isOneOf(saved.interfaceStyle,['paper','editorial','glass']))out.interfaceStyle=saved.interfaceStyle;
+ // Older appearance selections migrate without changing authored canvas settings.
+ out.interfaceStyle='paper';
  if(isOneOf(saved.surfaceStyle,['soft','paper']))out.surfaceStyle=saved.surfaceStyle;
  if(isOneOf(saved.readingSize,[14,16,18,20]))out.readingSize=saved.readingSize;
  if(isOneOf(saved.readingWidth,['standard','wide']))out.readingWidth=saved.readingWidth;

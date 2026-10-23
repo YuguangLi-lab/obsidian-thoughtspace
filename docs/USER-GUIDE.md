@@ -143,6 +143,7 @@ Markdown boards declare `thoughtspace: board` in their native Properties and sto
 | **ThoughtSpace 侧边栏** ribbon icon / **打开 ThoughtSpace 侧边栏** command | Browse cards, boards, tasks, and the outline |
 | **打开空间总览** command | Browse your knowledge space and boards |
 | **打开收集** command / sidebar **收集** | Write a Markdown record, browse the timeline, or deliver it to an existing board |
+| **在侧边栏打开收集** command | Keep Collection in the right sidebar beside the current note; the full-page entry remains available |
 | **继续上次白板** command | Open the latest valid recently visited board, or fall back to the space hub |
 | **打开研究工作台** command | Open the research workspace |
 | **新建白板或脑图…** / **从模板创建白板** commands | Create a board |
@@ -456,7 +457,7 @@ Enable **自动保持模板布局** to maintain the selected tree's layout as to
 
 ## 10. Arrange and style a board
 
-Choose **Paper (default)**, **Warm editorial**, or **macOS Liquid glass** under **Settings → ThoughtSpace Whiteboard → Interface → Interface style**. Paper restores the original paper palette and solid panels; Warm editorial keeps the warm reading hierarchy. Liquid glass follows macOS material principles with local edge refraction, responsive highlights and subtle press transitions on selected floating controls, while reading and editing surfaces stay clear. It is a web material implementation, distinct from Apple's native renderer. Saved changes apply immediately and persist after reopening. All three follow Obsidian's light/dark mode while retaining your canvas background, paper color, texture and authored object colors. Disabled transparency, narrow screens, lower-capability or unsupported platforms, and reduced-motion/transparency or higher-contrast preferences use static fallbacks.
+The interface uses the original paper palette and solid panels throughout, including Collection and its dialogs. Light and dark mode follows Obsidian. Existing interface style selections migrate to paper; your canvas background, paper color, texture and authored object colors remain unchanged. Accent color and interface density are available under **Settings → ThoughtSpace Whiteboard → Interface**.
 
 Alignment guides can show and snap equal gaps between neighboring cards on a shared row or column. Existing edge/center alignment takes priority; Alt temporarily bypasses drag snapping. Normal connection ports remain at least 30 screen pixels across at low zoom.
 

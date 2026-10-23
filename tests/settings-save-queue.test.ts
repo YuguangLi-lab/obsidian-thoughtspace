@@ -70,26 +70,26 @@ test('queued patches capture caller values and preserve unrelated host changes',
  f.pending[0].resolve();await operation;assert.equal(f.host.settings.settingsLanguage,'en');assert.equal(f.host.settings.density,'compact');
 });
 
-test('failed interface-style saves roll back only that change and a queued selection can still persist',async()=>{
+test('failed preference saves keep the migrated paper interface and preserve authored canvas settings',async()=>{
  const f=fixture({interfaceStyle:'editorial',canvasBackground:'image',backgroundImagePath:'Assets/keep.png',paperTexture:87});
- const first=f.tab.patch({interfaceStyle:'glass'}),second=f.tab.patch({interfaceStyle:'paper'}),settled=Promise.allSettled([first,second]);
- await tick();assert.equal(f.saves[0].interfaceStyle,'glass');assert.equal(f.disk.interfaceStyle,'editorial');
- f.pending[0].reject(Error('write failed'));await tick();assert.equal(f.saves[1].interfaceStyle,'paper');assert.equal(f.disk.interfaceStyle,'editorial');
- f.pending[1].resolve();await settled;assert.equal(f.disk.interfaceStyle,'paper');assert.equal(f.host.settings.interfaceStyle,'paper');
+ const first=f.tab.patch({accent:'blue'}),second=f.tab.patch({accent:'rose'}),settled=Promise.allSettled([first,second]);
+ await tick();assert.equal(f.saves[0].accent,'blue');assert.equal(f.saves[0].interfaceStyle,'paper');assert.equal(f.disk.accent,'forest');
+ f.pending[0].reject(Error('write failed'));await tick();assert.equal(f.saves[1].accent,'rose');assert.equal(f.saves[1].interfaceStyle,'paper');assert.equal(f.disk.accent,'forest');
+ f.pending[1].resolve();await settled;assert.equal(f.disk.accent,'rose');assert.equal(f.disk.interfaceStyle,'paper');assert.equal(f.host.settings.interfaceStyle,'paper');
  assert.equal(f.host.settings.canvasBackground,'image');assert.equal(f.host.settings.backgroundImagePath,'Assets/keep.png');assert.equal(f.host.settings.paperTexture,87);
 });
 
 for(const firstSuccess of [true,false])for(const secondSuccess of [true,false])test(`two settings windows share one host transaction queue when saves ${firstSuccess?'succeed':'fail'} then ${secondSuccess?'succeed':'fail'}`,async()=>{
- const f=fixture({interfaceStyle:'editorial',paperTexture:87,canvasBackground:'grid'}),other=f.newTab();
- const first=f.tab.patch({interfaceStyle:'glass'}),second=other.patch({interfaceStyle:'paper'}),settled=Promise.allSettled([first,second]);
- await tick();assert.equal(f.saves.length,1,'The second window must wait for the first rollback or commit');assert.equal(f.host.settings.interfaceStyle,'glass');assert.equal(f.disk.interfaceStyle,'editorial');
+ const f=fixture({interfaceStyle:'glass',paperTexture:87,canvasBackground:'grid'}),other=f.newTab();
+ const first=f.tab.patch({accent:'blue'}),second=other.patch({accent:'rose'}),settled=Promise.allSettled([first,second]);
+ await tick();assert.equal(f.saves.length,1,'The second window must wait for the first rollback or commit');assert.equal(f.host.settings.accent,'blue');assert.equal(f.disk.accent,'forest');
  if(firstSuccess)f.pending[0].resolve();else f.pending[0].reject(Error('first window write failed'));
- await tick();assert.equal(f.saves.length,2);assert.equal(f.host.settings.interfaceStyle,'paper');assert.equal(f.disk.interfaceStyle,firstSuccess?'glass':'editorial');
+ await tick();assert.equal(f.saves.length,2);assert.equal(f.host.settings.accent,'rose');assert.equal(f.disk.accent,firstSuccess?'blue':'forest');
  if(secondSuccess)f.pending[1].resolve();else f.pending[1].reject(Error('second window write failed'));
- const results=await settled,expected=secondSuccess?'paper':firstSuccess?'glass':'editorial';
- assert.deepEqual(results.map(result=>result.status),[firstSuccess?'fulfilled':'rejected',secondSuccess?'fulfilled':'rejected']);assert.equal(f.host.settings.interfaceStyle,expected);assert.equal(f.disk.interfaceStyle,expected);
- const unrelated=f.newTab().patch({density:'compact'});await tick();assert.equal(f.saves[2].interfaceStyle,expected,'A later unrelated save cannot revive a rejected style');f.pending[2].resolve();await unrelated;
- assert.equal(f.disk.interfaceStyle,expected);assert.equal(f.host.settings.paperTexture,87);assert.equal(f.host.settings.canvasBackground,'grid');assert.equal(f.disk.density,'compact');
+ const results=await settled,expected=secondSuccess?'rose':firstSuccess?'blue':'forest';
+ assert.deepEqual(results.map(result=>result.status),[firstSuccess?'fulfilled':'rejected',secondSuccess?'fulfilled':'rejected']);assert.equal(f.host.settings.accent,expected);assert.equal(f.disk.accent,expected);
+ const unrelated=f.newTab().patch({density:'compact'});await tick();assert.equal(f.saves[2].accent,expected,'A later unrelated save cannot revive a rejected preference');f.pending[2].resolve();await unrelated;
+ assert.equal(f.disk.accent,expected);assert.equal(f.host.settings.interfaceStyle,'paper');assert.equal(f.disk.interfaceStyle,'paper');assert.equal(f.host.settings.paperTexture,87);assert.equal(f.host.settings.canvasBackground,'grid');assert.equal(f.disk.density,'compact');
 });
 
 test('a rollback-triggered redraw cannot leave controls stale after a queued successful change',async()=>{

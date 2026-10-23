@@ -1,6 +1,8 @@
 import {Component,ItemView,MarkdownRenderer,Scope,setIcon,type KeymapEventHandler,type ViewStateResult,type WorkspaceLeaf} from 'obsidian';
 import {bindMobileViewport} from './mobile-viewport';
 import {applyWorkspaceDensity} from './workspace-density';
+import {cleanCollectionBackground,collectionBackgroundStyles} from './collection-background';
+import type {BoardBackground} from './board-background';
 import {filterCollectionSearchRecords,type CollectionSearchOptions,type CollectionSearchProgress,type CollectionSearchResult} from './collection-search';
 import {parseCollectionDay} from './collection-calendar';
 import {CollectionHeatmapView} from './collection-heatmap-view';
@@ -36,6 +38,8 @@ export interface CollectionDraftPatch {body?:string;tags?:string;attachments?:re
  * clears it only after confirmed creation/delivery. UI teardown never discards it. */
 export interface CollectionViewHost {
  accent?():string;density?():string;
+ background?():BoardBackground;backgroundResource?:(path:string)=>string;
+ openBackground?:(anchor:HTMLElement,current:()=>boolean)=>void;
  ready:()=>Promise<void>;sessionId:()=>string;setSessionId:(id:string)=>Promise<void>;
  draft:()=>CollectionViewDraft;updateDraft:(patch:CollectionDraftPatch)=>void;
  submit:(current:()=>boolean)=>Promise<void>;
@@ -98,6 +102,7 @@ export class CollectionView extends ItemView {
  private cards:CardPreview[]=[];private readQueue:CardPreview[]=[];private activeReads=0;
  private root?:HTMLElement;private main?:HTMLElement;private nav?:HTMLElement;private tagsList?:HTMLElement;private backdrop?:HTMLButtonElement;
  private bodyInput?:HTMLTextAreaElement;private tagInput?:HTMLInputElement;private options?:HTMLDetailsElement;private attachments?:HTMLElement;
+ private bodySizeValue?:string;private bodySizeWidth=0;
  private targetLabel?:HTMLElement;private groupSelect?:HTMLSelectElement;private groupField?:HTMLElement;private targetButton?:HTMLButtonElement;private clearTarget?:HTMLButtonElement;
  private attachButton?:HTMLButtonElement;private submitButton?:HTMLButtonElement;private status?:HTMLElement;private search?:HTMLInputElement;
  private drawerButton?:HTMLButtonElement;private refreshButton?:HTMLButtonElement;private feed?:HTMLElement;private feedStatus?:HTMLElement;private pagination?:HTMLElement;
@@ -147,11 +152,15 @@ export class CollectionView extends ItemView {
   if(this.includeBody){this.cancelSearch('草稿会话已恢复，正文搜索请重试。');this.renderFeed();}
   else await this.refreshRecords(true);
  }
- applyPreferences(){applyWorkspaceDensity(this.contentEl,this.host.density?.());this.contentEl.dataset.accent=this.host.accent?.()||'forest';}
+ applyPreferences(){
+  applyWorkspaceDensity(this.contentEl,this.host.density?.());this.contentEl.dataset.accent=this.host.accent?.()||'forest';
+  if(this.root){const background=cleanCollectionBackground(this.host.background?.());this.root.dataset.collectionBackground=background.canvasBackground;this.root.setCssProps(collectionBackgroundStyles(background,this.host.accent?.(),this.host.backgroundResource?.(background.backgroundImagePath)));}
+ }
  async onOpen(){
-  this.alive=true;this.contentEl.empty();this.contentEl.addClass('ts-collection-content');this.applyPreferences();
+  this.alive=true;this.bodySizeValue=undefined;this.bodySizeWidth=0;this.contentEl.empty();this.contentEl.addClass('ts-collection-content');this.applyPreferences();
   this.bindSubmitHotkey();
   const root=this.root=this.contentEl.createDiv({cls:'ts-collection',attr:{'aria-label':'收集'}});
+  this.applyPreferences();
   const layout=root.createDiv('ts-collection-layout');
   this.backdrop=this.button(layout,'关闭筛选','close-drawer',()=>this.setDrawer(false));this.backdrop.addClass('ts-collection-backdrop');this.backdrop.tabIndex=-1;
   this.nav=layout.createEl('aside',{cls:'ts-collection-nav',attr:{'aria-label':'收集筛选'}});
@@ -161,13 +170,15 @@ export class CollectionView extends ItemView {
   const header=this.main.createEl('header',{cls:'ts-collection-header'});
   this.drawerButton=this.button(header,'筛选','drawer',()=>this.setDrawer(!root.classList.contains('is-drawer-open')),'panel-left');
   this.drawerButton.setAttribute('aria-expanded','false');
-  const heading=header.createDiv('ts-collection-heading');heading.createSpan({cls:'ts-collection-eyebrow',text:'THOUGHTSPACE / COLLECTION'});heading.createEl('h2',{text:'收集'});heading.createSpan({cls:'ts-collection-subtitle',text:'留住一闪而过的念头。'});
+  const heading=header.createDiv('ts-collection-heading');heading.createEl('h2',{text:'收集'});
+  if(this.host.openBackground){const entry=this.button(header,'收集背景','background',()=>this.host.openBackground?.(entry,()=>this.current()),'palette');entry.setAttribute('aria-haspopup','menu');entry.setAttribute('aria-expanded','false');}
   this.refreshButton=this.button(header,'刷新','refresh',()=>{this.clearSelection(true);void this.refreshRecords();},'refresh-cw');
   this.buildComposer(this.main);
-  this.heatmap=new CollectionHeatmapView(this.main,{onSelectDay:day=>this.changeHeatmapDate(day),onClearDates:()=>this.changeHeatmapDate(),onCalendarContextChange:()=>this.changeCalendarContext()});
-  const feedHeading=this.main.createDiv('ts-collection-feed-heading');
+  const feedTools=this.main.createDiv('ts-collection-feed-tools');
+  const feedHeading=feedTools.createDiv('ts-collection-feed-heading');
   this.tagHeading=feedHeading.createEl('h3',{text:'收集记录'});
   this.feedStatus=feedHeading.createSpan({cls:'ts-collection-feed-status',attr:{role:'status','aria-live':'polite'}});
+  this.heatmap=new CollectionHeatmapView(this.main,{onSelectDay:day=>this.changeHeatmapDate(day),onClearDates:()=>this.changeHeatmapDate(),onCalendarContextChange:()=>this.changeCalendarContext()},feedTools);
   this.searchPanel=this.main.createDiv({cls:'ts-collection-search-progress'});
   this.searchFeedback=this.searchPanel.createEl('p',{attr:{role:'status','aria-live':'polite','data-collection-search-status':'true'}});
   this.cancelSearchButton=this.button(this.searchPanel,'取消搜索','cancel-search',()=>{this.clearSelection(true);this.cancelSearch('搜索已取消，可重试。');if(this.manualBodyMode&&this.includeBody)this.bodyAwaitingStart=true;this.renderFeed();this.syncSearchFeedback();},'x');
@@ -175,7 +186,7 @@ export class CollectionView extends ItemView {
   this.startSearchButton=this.button(this.searchPanel,'开始搜索','start-search',()=>this.requestSearch(0,true),'search');
   this.syncSearchFeedback();
   this.browseNotice=this.main.createEl('p',{cls:'ts-collection-browse-notice',attr:{role:'status','aria-live':'polite','data-collection-browse-status':'true'}});this.browseNotice.hidden=true;
-  this.buildSelection(this.main);
+  this.buildSelection(this.main,feedTools);
   this.batchPanel=this.main.createEl('section',{cls:'ts-collection-batch',attr:{'aria-label':'批量操作'}});this.batchPanel.hidden=true;
   this.feed=this.main.createDiv({cls:'ts-collection-feed',attr:{'aria-label':'收集记录'}});
   this.pagination=this.main.createDiv('ts-collection-pagination');
@@ -194,6 +205,7 @@ export class CollectionView extends ItemView {
   try{await this.host.ready();if(this.current()){void this.loadSavedFilters();void this.loadBatchReports();}if(!this.alive||stateEpoch!==this.stateEpoch)return;this.preparing=false;this.syncDraft();this.app.workspace.requestSaveLayout();await this.refreshRecords();}
   catch(error){if(stateEpoch===this.stateEpoch)this.preparing=false;this.report(error);this.syncDraft();}
  }
+ onResize(){this.fitBodyInput();}
  async onClose(){
   this.batchStopRequested=true;this.batchEpoch++;this.savedEpoch++;this.historyEpoch++;this.alive=false;this.stateEpoch++;this.navigationEpoch++;this.listEpoch++;this.renderEpoch++;this.restoreEpoch++;
   this.cancelSearch();
@@ -320,7 +332,7 @@ export class CollectionView extends ItemView {
   button.createSpan({text:label});button.onclick=run;return button;
  }
  private buildNavigation(){
-  const nav=this.nav!;const navHead=nav.createDiv('ts-collection-nav-heading');navHead.createEl('h3',{text:'浏览收集'});
+  const nav=this.nav!;const navHead=nav.createDiv('ts-collection-nav-heading');navHead.createEl('h3',{text:'筛选'});
   this.button(navHead,'关闭筛选','close-drawer',()=>this.setDrawer(false),'x');
   const scope=nav.createDiv({cls:'ts-collection-scopes',attr:{role:'group','aria-label':'记录范围'}});
   this.allButton=this.button(scope,'收集记录','filter-all',()=>this.changeFilter('all'),'layers');this.allButton.dataset.collectionFilter='all';
@@ -328,7 +340,7 @@ export class CollectionView extends ItemView {
   this.placedButton=this.button(scope,'已放入白板','filter-placed',()=>this.changeFilter('placed'),'panels-top-left');this.placedButton.dataset.collectionFilter='placed';
   this.archivedButton=this.button(scope,'已归档','filter-archived',()=>this.changeFilter('archived'),'archive');this.archivedButton.dataset.collectionFilter='archived';
   if(this.host.attachmentPage)this.button(scope,'附件','browse-attachments',()=>this.openAttachmentBrowser(),'paperclip');
-  const searchLabel=nav.createEl('label',{cls:'ts-collection-search-label'});searchLabel.createSpan({text:'搜索'});
+  const searchLabel=nav.createEl('label',{cls:'ts-collection-search-label'});searchLabel.createSpan({cls:'ts-collection-sr-only',text:'搜索'});
   this.search=searchLabel.createEl('input',{type:'search',attr:{placeholder:'标题、路径或 #标签','aria-label':'搜索收集','data-collection-search':'true',maxlength:'2000'}});
   this.search.oninput=()=>{this.query=this.search!.value;this.page=0;this.requestSearch(200);};
   this.search.addEventListener('compositionstart',()=>{this.searchComposing=true;this.clearSelection(true);this.cancelSearch();if(this.manualBodyMode&&this.includeBody)this.bodyAwaitingStart=true;this.restoreEpoch++;});
@@ -352,10 +364,9 @@ export class CollectionView extends ItemView {
   fields.createEl('p',{cls:'ts-collection-search-hint',text:'空格连接多个词；#标签 包含，-#标签 排除。日期包含当天。'});
   this.button(fields,'清除筛选','clear-filters',()=>this.clearFilters(),'x');
   this.buildSavedFilters(nav);
-  const tags=nav.createDiv('ts-collection-tag-browser');tags.createEl('h4',{text:'标签'});this.tagsList=tags.createDiv('ts-collection-tag-list');
+  const tags=nav.createEl('details',{cls:'ts-collection-tag-browser'});tags.createEl('summary',{text:'标签'});this.tagsList=tags.createDiv('ts-collection-tag-list');
   const tail=nav.createDiv('ts-collection-nav-tail');
-  this.button(tail,'旧收件箱','legacy-inbox',()=>this.runAction(()=>this.host.openLegacyInbox()),'archive');
-  tail.createEl('p',{text:'旧收件箱保留原来的笔记范围。这里记录新的收集。'});
+  this.button(tail,'旧收件箱','legacy-inbox',()=>this.runAction(()=>this.host.openLegacyInbox()),'archive').setAttribute('title','打开原来的收件箱笔记范围');
  }
  private buildSavedFilters(nav:HTMLElement){
   if(!this.host.savedFilters)return;
@@ -461,8 +472,8 @@ export class CollectionView extends ItemView {
   catch(error){if(current()){review.outcomes.set(this.recordKey(record),error instanceof Error?error.message:String(error));review.confirmArchive=false;}}
   finally{review.busy=false;if(this.review===review)this.renderReview();}
  }
- private buildSelection(parent:HTMLElement){
-  this.organizingMenu=parent.createEl('details',{cls:'ts-collection-organize',attr:{'data-collection-organize':'true'}});this.organizingMenu.createEl('summary',{text:'整理'});
+ private buildSelection(parent:HTMLElement,tools=parent){
+  this.organizingMenu=tools.createEl('details',{cls:'ts-collection-organize',attr:{'data-collection-organize':'true'}});this.organizingMenu.createEl('summary',{text:'整理'});
   this.reviewStart=this.button(this.organizingMenu,'逐条整理当前结果','review-start',()=>this.startReview(),'book-open');
   this.reviewPanel=parent.createDiv({cls:'ts-collection-review-panel',attr:{'data-collection-review':'true'}});this.reviewPanel.hidden=true;
   this.registerDomEvent(parent,'keydown',event=>{
@@ -565,7 +576,6 @@ export class CollectionView extends ItemView {
  }
  private buildComposer(parent:HTMLElement){
   const composer=parent.createEl('section',{cls:'ts-collection-composer',attr:{'aria-label':'写下一条记录'}});
-  const heading=composer.createDiv('ts-collection-composer-heading');heading.createSpan({text:'随手记'});heading.createEl('small',{text:'把这一刻留在纸上'});
   const label=composer.createEl('label',{cls:'ts-collection-body-label'});label.createSpan({cls:'ts-collection-sr-only',text:'记录正文'});
   this.bodyInput=label.createEl('textarea',{attr:{'aria-label':'记录正文',placeholder:'写下一点想法…',rows:'2',maxlength:'100000','data-collection-body':'true'}});
   this.bodyInput.oninput=()=>this.patch({body:this.bodyInput!.value});
@@ -603,6 +613,7 @@ export class CollectionView extends ItemView {
   const draft=this.host.draft(),disabled=this.preparing||draft.busy||draft.locked||this.choosing||this.submitting;
   const targetDisabled=this.preparing||draft.busy||!!draft.targetLocked||this.choosing||this.submitting;
   if(!this.composing&&this.bodyInput.value!==draft.body)this.bodyInput.value=draft.body;
+  this.fitBodyInput();
   this.bodyInput.disabled=disabled;
   if(this.tagInput){if(this.tagInput.value!==draft.tags)this.tagInput.value=draft.tags;this.tagInput.disabled=disabled;}
   if(this.attachButton)this.attachButton.disabled=disabled;
@@ -634,6 +645,19 @@ export class CollectionView extends ItemView {
    this.submitButton.querySelector('span:last-child')?.setText(draft.busy||this.submitting?'正在保存…':draft.locked?'继续确认保存':'记录');
   }
   this.draftMessage=draft.status||'';this.status?.setText(this.liveMessage||this.draftMessage|| (this.preparing?'正在恢复记录草稿…':''));
+ }
+ /** Grow with the draft without rebuilding the editor or touching its selection.
+  * Metadata refreshes at the same width do not reset the textarea's scroll. */
+ private fitBodyInput(){
+  const input=this.bodyInput;if(!input?.isConnected||!input.style)return;
+  const width=input.getBoundingClientRect().width;
+  if(!width||this.bodySizeValue===input.value&&this.bodySizeWidth===width)return;
+  const previousHeight=input.style.height,scroll=input.scrollTop;
+  input.setCssStyles({height:'auto'});
+  const height=input.scrollHeight;
+  if(height>0){input.style.height=`${height}px`;this.bodySizeValue=input.value;this.bodySizeWidth=width;}
+  else input.style.height=previousHeight;
+  if(scroll>0)input.scrollTop=scroll;
  }
  private report(error:unknown){if(this.alive){this.liveMessage=error instanceof Error?error.message:String(error);this.status?.setText(this.liveMessage);}}
  private async chooseAttachment(){

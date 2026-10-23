@@ -1,6 +1,9 @@
 import {planCollectionReferenceRename} from './collection-placement-recovery';
 import {CollectionView,COLLECTION_VIEW_TYPE,type CollectionTarget,type CollectionRecord} from './collection-view';
 import {CollectionWorkspace} from './collection-host';
+import {CollectionOpener,type CollectionPlacement} from './collection-opening';
+import {CollectionBackgroundControls} from './collection-background-view';
+import {cleanCollectionBackground,collectionBackgroundStamp} from './collection-background';
 import {CollectionLibrary} from './collection-library';
 import {CollectionBoardReceipts,type CollectionBoardReceipt,type CollectionBoardDeliveryResult} from './collection-board-receipts';
 import type {CollectionIdentity} from './collection-model';
@@ -21,7 +24,7 @@ import {brainIdeaNode,brainIdeaToNote,brainNoteFolder} from './brain-board-idea'
 import {readBoardDocument,replaceBoardDocumentLayout,createMarkdownBoardDocument,isMarkdownBoardFrontmatter,type BoardDocument} from './board-document';
 import {isBoardPath} from './board-path';
 import {hasNativeBoardEditor,assertBoardEditorOwnership,settleNativeBoardEditor,subscribeNativeBoardEditorDrains,clearNativeBoardEditorTracking,nativeBoardEditorStatus,nativeBoardEditorLeaves} from './board-editor-ownership';
-import {boardBackground,cleanBoardBackground} from './board-background';
+import {boardBackground,cleanBoardBackground,backgroundOptions} from './board-background';
 import {brainColorsStamp,cleanBrainColors,type BrainColors} from './brain-colors';
 import {BrainColorsModal} from './brain-colors-view';
 import {supportsLocalRelations,localRelationNode} from './local-relations';
@@ -659,6 +662,7 @@ export default class ThoughtSpace extends Plugin {
   private boardCreationModal?:BoardCreationModal;private boardCreationStopped=false;
   private boardCreationPreferenceQueue:Promise<void>=Promise.resolve();
   private paperSettingsModal?:PaperSettingsModal;
+  private collectionBackgroundControls?:CollectionBackgroundControls;
   private backgroundImageModal?:BackgroundImageModal;
   private backgroundImagesClosed=false;
   private nativeBridge?:NativeBridgeModal;
@@ -789,6 +793,8 @@ export default class ThoughtSpace extends Plugin {
     this.registerEvent(this.app.workspace.on('file-open',()=>{this.collectionNavigationEpoch++;}));
     this.collectionWorkspace=this.addChild(new CollectionWorkspace(this.app,collectionLibrary,{
       accent:()=>this.settings.accent,density:()=>this.settings.density,
+      background:()=>this.settings.collectionBackground,backgroundResource:path=>this.backgroundImageResource(path),
+      openBackground:(anchor,current)=>this.openCollectionBackground(anchor,current),
       directory:this.manifest.dir||`${this.app.vault.configDir}/plugins/${this.manifest.id}`,folder:()=>this.settings.cardFolder,newId:uid,ensureFolder:path=>this.folder(path),
       pickTarget:(doc,current)=>{
         const picker=this.captureDestinationPicker(doc,current);
@@ -806,7 +812,9 @@ export default class ThoughtSpace extends Plugin {
     }));
     this.register(()=>{for(const stop of this.collectionRelatedReturns.values())stop();this.collectionRelatedReturns.clear();});
     this.registerView(COLLECTION_VIEW_TYPE,leaf=>new CollectionView(leaf,this.collectionWorkspace!.host(leaf)));
+    this.register(()=>this.collectionOpener?.dispose());
     this.addCommand({id:'open-collection',name:'打开收集',callback:()=>act(()=>this.openCollection())});
+    this.addCommand({id:'open-collection-sidebar',name:'在侧边栏打开收集',callback:()=>act(()=>this.openCollection('sidebar'))});
     this.addRibbonIcon('inbox','ThoughtSpace 收集',()=>act(()=>this.openCollection()));
     this.addCommand({id:'space-hub',name:'打开空间总览',callback:()=>this.openSpaceHub()});
     this.addCommand({id:'resume-recent-board',name:'继续上次白板',callback:()=>act(()=>this.openRecentBoard())});
@@ -1078,6 +1086,7 @@ export default class ThoughtSpace extends Plugin {
     for(const leaf of this.app.workspace.getLeavesOfType(VIEW))if(leaf.view instanceof BoardView)leaf.view.refreshNavigation();
   }
   private collectionWorkspace?:CollectionWorkspace;
+  private collectionOpener?:CollectionOpener;
   private collectionLibrary?:CollectionLibrary;
   private collectionReturnEpoch=new WeakMap<Document,number>();
   private collectionNavigationEpoch=0;
@@ -1085,14 +1094,10 @@ export default class ThoughtSpace extends Plugin {
   private collectionBoardReceiptStores?:Map<string,CollectionBoardReceipts>;
   private collectionDeliveryLocks?:Set<string>;
   private collectionPlacements=new Map<string,{file:TFile;group?:string;operationId:string;receipt:CaptureBoardPlacement}>();
-  async openCollection(){
-    const workspace=this.app.workspace,doc=workspace.activeLeaf?.view.containerEl.ownerDocument||workspace.containerEl.ownerDocument;
-    const existing=workspace.getLeavesOfType(COLLECTION_VIEW_TYPE).find(leaf=>leaf.view.containerEl.ownerDocument===doc);
-    if(existing){await workspace.revealLeaf(existing);workspace.setActiveLeaf(existing,{focus:true});return;}
-    const source=workspace.activeLeaf,session=await this.collectionWorkspace?.recoverableSession();
-    if(workspace.activeLeaf!==source||doc.defaultView?.closed)return;
-    const leaf=workspace.getLeaf('tab');await leaf.setViewState({type:COLLECTION_VIEW_TYPE,active:true,state:session?{collectionSession:session}:{}});
-    await workspace.revealLeaf(leaf);
+  async openCollection(placement:CollectionPlacement='page'){
+    if(!this.collectionWorkspace)return;
+    this.collectionOpener??=new CollectionOpener(this.app.workspace,COLLECTION_VIEW_TYPE,()=>this.collectionWorkspace!.recoverableSession());
+    await this.collectionOpener.open(placement);
   }
   addCollectionReturn(menu:Menu,file:TFile,referenceCurrent:()=>boolean=()=>true){
     if(!this.collectionLibrary?.identityForFile(file))return;
@@ -1500,6 +1505,17 @@ export default class ThoughtSpace extends Plugin {
     for(const leaf of this.app.workspace.getLeavesOfType(VIEW))if(leaf.view instanceof BoardView)leaf.view.refreshStyleControls();
   }
   backgroundImageResource(path:string){const clean=cleanBackgroundImagePreferences({backgroundImagePath:path}).backgroundImagePath;return clean?this.app.vault.adapter.getResourcePath(clean):'';}
+  private openCollectionBackground(anchor:HTMLElement,current:()=>boolean){
+    this.collectionBackgroundControls??=this.addChild(new CollectionBackgroundControls(this.app,{
+      preferences:()=>this.settings.collectionBackground,language:()=>settingsLanguage(this.settings),
+      resource:path=>this.backgroundImageResource(path),exists:path=>this.app.vault.adapter.exists(path),store:(file,ready)=>this.storeBackgroundImageFile(file,ready),
+      save:async(next,baseline)=>{
+        if(this.backgroundImagesClosed||collectionBackgroundStamp(this.settings.collectionBackground)!==baseline)throw Error('收集背景已改变，请重新打开设置');
+        const previous=this.settings.collectionBackground,clean=cleanCollectionBackground(next);this.settings.collectionBackground=clean;
+        try{await this.savePreferences();}catch(error){if(collectionBackgroundStamp(this.settings.collectionBackground)===collectionBackgroundStamp(clean)){this.settings.collectionBackground=previous;for(const leaf of this.app.workspace.getLeavesOfType(COLLECTION_VIEW_TYPE))if(leaf.view instanceof CollectionView)leaf.view.applyPreferences();}throw error;}
+      },
+    }));this.collectionBackgroundControls.show(anchor,current);
+  }
   openBackgroundImageSettings(){
     if(this.backgroundImageModal?.modalEl.isConnected){this.backgroundImageModal.modalEl.querySelector<HTMLButtonElement>('button')?.focus();return this.backgroundImageModal;}
     const message=(zh:string,en:string)=>settingsLanguage(this.settings)==='en'?en:zh;
@@ -2863,8 +2879,8 @@ class NavigatorView extends ItemView {
   }
   bind(view?:BoardView){
     if(!this.host)return;
-    this.contentEl.dataset.surface=this.plugin.settings.surfaceStyle;
-    this.contentEl.dataset.glass=String(this.plugin.settings.glassEffects!==false);
+    this.contentEl.dataset.surface='paper';
+    this.contentEl.dataset.glass='false';
     for(const key of ['accent','density'] as const)this.contentEl.dataset[key]=this.plugin.settings[key];
     if(view?.closed||!view?.session)view=undefined;
     if(view&&this.bound===view&&view.sidebar.parentElement===this.host)return;
@@ -3358,8 +3374,8 @@ class BoardView extends FileView {
   }
   applyPreferences() {
     const root = this.contentEl; if (!root) return;
-    root.dataset.surface=this.plugin.settings.surfaceStyle;
-    root.dataset.glass=String(this.plugin.settings.glassEffects!==false);
+    root.dataset.surface='paper';
+    root.dataset.glass='false';
     if(this.nativeHeader)this.nativeHeader.dataset.glass=root.dataset.glass;
     root.dataset.accent = this.plugin.settings.accent;if(this.nativeHeader)this.nativeHeader.dataset.accent=root.dataset.accent;
     root.dataset.density = this.plugin.settings.density;
@@ -3729,7 +3745,8 @@ class BoardView extends FileView {
       const topValue=`${top}px`;if(formatbar.style.top!==topValue)formatbar.style.top=topValue;
       const previousFormat=this.cardFormatObstacle,nextFormat=formatBounds?boardChromeObstacle(stageBounds,{left:formatBounds.left,right:formatBounds.right,top:mainTop+top,bottom:mainTop+top+formatBounds.height},4):undefined;
       if(previousFormat?.x!==nextFormat?.x||previousFormat?.y!==nextFormat?.y||previousFormat?.width!==nextFormat?.width||previousFormat?.height!==nextFormat?.height){this.cardFormatObstacle=nextFormat;this.scheduleRender(true);}
-      // The rail is a reserved sibling, so even offstage text never hides the creation entry.
+      // Keep the floating creation entry available; its measured bounds above
+      // remain an obstacle for card actions and explicit camera commands.
       rail.classList.remove('is-reading-clearance');
       const formatEnd=formatBounds?top+formatBounds.height+12:toolsEnd;
       for(const [name,size] of [['--ts-footer-reserve',boardFooterReserve(mainBounds,footer.getClientRects().length?footer.getBoundingClientRect():undefined)],['--ts-format-reserve',formatEnd]] as const){
@@ -6232,7 +6249,7 @@ class BoardView extends FileView {
     if(this.closed||!anchor?.isConnected||!this.session||this.session.blocked)return;this.canvasMenu?.hide();const owner=this.session,doc=anchor.ownerDocument,path=owner.file.path;
     const menu=themePluginMenu(new Menu()).setUseNativeMenu(false);this.canvasMenu=menu;anchor.setAttribute('aria-expanded','true');
     const available=()=>!this.closed&&!this.closing&&anchor.isConnected&&anchor.ownerDocument===doc&&this.session===owner&&owner.file.path===path&&!owner.blocked;
-    for(const [value,label,icon] of [['dots','点阵','circle-dot'],['grid','网格','grid'],['plain','纯色','square'],['paper','纸张纹理','file-text'],['image','背景图片','image']] as const){
+    for(const [value,label,icon] of backgroundOptions){
       menu.addItem(item=>item.setTitle(label).setIcon(icon).setChecked(boardBackground(owner.board,this.plugin.settings).canvasBackground===value).onClick(()=>act(async()=>{
         if(!available())return;const current=boardBackground(owner.board,this.plugin.settings);
         if(value==='image'&&!current.backgroundImagePath){this.openBoardBackgroundSettings('image');return;}

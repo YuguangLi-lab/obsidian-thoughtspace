@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import * as density from '../src/workspace-density';
 import * as collectionSearch from '../src/collection-search';
+import * as collectionBackground from '../src/collection-background';
 import * as calendar from '../src/collection-calendar';
 class HeatmapStub {
  records:readonly any[]=[];dates:any={};destroyed=false;
@@ -27,6 +28,7 @@ class El {
  get isConnected():boolean{return this.tagName==='ROOT'||!!this.parentElement?.isConnected;}
  get options(){return this.children;}
  createEl(tag:string,options:any={}){const child=new El(tag.toUpperCase(),this.ownerDocument,options);child.parentElement=this;this.children.push(child);return child;}
+ setCssProps(values:Record<string,string>){Object.assign(this.style,values);}
  createDiv(options:any={}){return this.createEl('div',options);}createSpan(options:any={}){return this.createEl('span',options);}
  setAttribute(key:string,value:string){this.attrs[key]=value;if(key.startsWith('data-'))this.dataset[key.slice(5).replace(/-([a-z])/g,(_,letter:string)=>letter.toUpperCase())]=value;}
  addClass(...names:string[]){names.forEach(name=>this.classes.add(name));}removeClass(name:string){this.classes.delete(name);}toggleClass(name:string,enabled:boolean){if(enabled)this.classes.add(name);else this.classes.delete(name);}setText(value:string){this.text=value;}
@@ -64,6 +66,7 @@ new Function('require','module','exports',compiled)((name:string)=>{
  if(name==='obsidian')return{ItemView,Component,Scope,MarkdownRenderer:{render:async()=>{}},setIcon:()=>{}};
  if(name==='./workspace-density')return density;
  if(name==='./collection-search')return collectionSearch;
+ if(name==='./collection-background')return collectionBackground;
  if(name==='./collection-calendar')return calendar;
  if(name==='./collection-heatmap-view')return{CollectionHeatmapView:HeatmapStub};
  if(name==='./collection-attachment-browser')return{CollectionAttachmentBrowser:class {open(){}close(){}}};

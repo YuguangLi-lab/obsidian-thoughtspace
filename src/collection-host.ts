@@ -15,9 +15,12 @@ import {CollectionJsonStore,collectionJsonCanonical} from './collection-json-sto
 import {CollectionSavedFilters,isCollectionSavedFiltersDocument} from './collection-saved-filters';
 import {CollectionBatchCoordinator,CollectionBatchExecutionError,isCollectionBatchJournal,type CollectionBatchJournal,type CollectionBatchReport} from './collection-batch';
 import type {CollectionAttachment,CollectionRecord,CollectionTarget,CollectionViewHost} from './collection-view';
+import type {BoardBackground} from './board-background';
 
 export interface CollectionBridge {
  accent?():string;density?():string;
+ background?():BoardBackground;backgroundResource?:(path:string)=>string;
+ openBackground?:(anchor:HTMLElement,current:()=>boolean)=>void;
  directory:string;
  folder():string;
  newId():string;
@@ -224,6 +227,8 @@ export class CollectionWorkspace extends Component {
   const isBoard=(file:TFile)=>this.bridge.isBoardFile?.(file)===true;
   return{
    accent:()=>this.bridge.accent?.()||'forest',density:()=>this.bridge.density?.()||'comfortable',
+   background:this.bridge.background?()=>this.bridge.background!():undefined,backgroundResource:this.bridge.backgroundResource,
+   openBackground:this.bridge.openBackground?(anchor,current)=>this.bridge.openBackground!(anchor,()=>live()&&current()):undefined,
    sessionId:()=>session,
    setSessionId:async id=>{
     if(!validSession(id)||id===session)return;

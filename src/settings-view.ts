@@ -165,10 +165,7 @@ export class ThoughtSpaceSettings extends PluginSettingTab {
   // Legacy controls edit a local draft; serialize their differences with other settings writes.
   const persist=()=>{const changes:Partial<ThoughtSpacePreferences>={};for(const key of Object.keys(prefs) as (keyof ThoughtSpacePreferences)[])if(prefs[key]!==baseline[key])Object.assign(changes,{[key]:prefs[key]});baseline={...prefs};return this.patch(changes);};
   if(page==='general'){
-   this.select(el,'interfaceStyle',['界面风格','Interface style'],['纸张质感沿用原版；暖色杂志与液态玻璃提供不同界面。保存后立即应用到所有 ThoughtSpace 窗口，浅深色跟随 Obsidian。','Paper restores the original interface; warm editorial and liquid glass offer distinct styles. Applies to all ThoughtSpace windows after saving. Light and dark mode follows Obsidian.'],{paper:['纸张质感（默认）','Paper (default)'],editorial:['暖色杂志','Warm editorial'],glass:['macOS 液态玻璃','macOS Liquid glass']});
-   this.select(el,'surfaceStyle',['兼容面板细节','Legacy panel finish'],['保留旧版面板偏好；整套界面由上方风格决定，不改变白板纸张或卡片。','Retains the legacy panel preference. The interface style above controls the overall appearance; canvas paper and cards stay unchanged.'],{soft:['柔光','Soft'],paper:['实色','Solid']});
    this.select(el,'accent',['强调色','Accent color'],['影响按钮与导航，不改变卡片自己的配色。','Changes buttons and navigation, not individual card colors.'],{forest:['森林绿','Forest'],blue:['湖水蓝','Lake'],amber:['暖琥珀','Amber'],rose:['玫瑰色','Rose']});
-   this.toggle(el,'glassEffects',['透明与模糊效果','Transparency and blur'],['控制支持此效果的界面风格；关闭后使用实色面板，保留所选风格。纸张质感始终使用实色。','Controls effects in supported interface styles. Turn off for solid panels while keeping the selected style. Paper always uses solid surfaces.']);
    this.select(el,'density',['界面密度','Interface density'],['统一侧栏、材料库、写作与媒体摘录的控件和条目间距；正文及格式栏密度保持独立。','Controls spacing in sidebars, materials, writing and media excerpts; reading text and formatting toolbar density remain independent.'],{comfortable:['舒适','Comfortable'],compact:['紧凑','Compact']});return;
   }
   if(page==='cards'){

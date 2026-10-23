@@ -11,6 +11,7 @@
    One surface joins three semantic groups without enlarging the hit targets. */
 .ts-root .ts-main > .ts-board-rail {
   --ts-board-control: 36px;
+  --ts-canvas-chrome-shadow: 0 2px 8px #00000009;
   left: 16px;
   top: var(--ts-format-reserve, 28px);
   bottom: var(--ts-footer-reserve, 68px);
@@ -30,6 +31,7 @@
   pointer-events: auto;
   scroll-padding-block: 5px;
 }
+.theme-dark .ts-root .ts-main > .ts-board-rail { --ts-canvas-chrome-shadow: 0 2px 8px #00000024; }
 .ts-root[data-glass][data-surface] .ts-main > .ts-board-rail { background: var(--ts-canvas-chrome-surface) !important; backdrop-filter: none !important; }
 .ts-root .ts-board-rail .ts-rail-tools { display: flex; flex-direction: column; gap: 0; padding: 0; }
 .ts-root .ts-board-rail .ts-rail-group {
@@ -224,12 +226,9 @@
 /* Retain geometry and the cached SVG while an active edit or drag needs this corner. */
 .ts-root .ts-main > .ts-minimap.is-avoiding {visibility:hidden;pointer-events:none;}
 
-/* Shared chrome uses a ruled edge and a clear pressed state. The measured rail,
-   footer reserve and native header ownership are unchanged. */
-.ts-root .ts-main > .ts-board-rail { border-radius:10px; box-shadow:0 2px 4px #00000008,0 8px 24px #00000008!important; }
+/* Keep the 1.3.36 floating rail surface above; retain clear pressed/focus states. */
 .ts-root .ts-board-rail .ts-rail-group > .ts-button { color:var(--ts-e-muted,var(--text-muted)); }
 .ts-root .ts-board-rail .ts-rail-group > .ts-button:active:not(:disabled) { background:var(--ts-e-wash,var(--background-modifier-hover))!important; box-shadow:inset 0 0 0 1px var(--ts-accent)!important; }
-.ts-root .ts-board-rail .ts-rail-group > .ts-button:is(.is-active,[aria-expanded=true]) { box-shadow:inset 3px 0 var(--ts-accent)!important; }
 /* Primary ink follows the actual pressed surface; focus stays distinct inside it. */
 .ts-root .ts-board-rail .ts-rail-group > .ts-primary:active:not(:disabled) { color:var(--ts-e-ink,var(--text-normal))!important; }
 .ts-root .ts-board-rail .ts-rail-group > .ts-primary:focus-visible:not(:disabled) { outline-color:currentColor; }
@@ -241,36 +240,6 @@
 .ts-native-header .ts-header-action:active:not([aria-disabled=true]) { background:var(--ts-e-wash,var(--background-modifier-hover)); box-shadow:inset 0 0 0 1px var(--ts-accent); }
 .ts-root .ts-main > .ts-minimap .ts-map-label { color:var(--ts-e-muted,var(--text-muted)); font-size:11px; line-height:1.6; }
 
-
-/* Ordinary board tools occupy their own column. The same original stage and
-   controls remain mounted through width changes; authored coordinates and the
-   persisted camera are untouched. Dedicated brain/ink hide this whole body. */
-.ts-root .ts-main.ts-board-layout {
-  --ts-rail-column:50px;
-  display:grid; grid-template-columns:var(--ts-rail-column) minmax(0,1fr);
-  grid-template-rows:minmax(0,1fr); min-height:0;
-}
-.ts-root .ts-main.ts-board-layout.ts-compact-chrome { --ts-rail-column:54px; }
-.ts-root .ts-main.ts-board-layout > .ts-stage { grid-column:2; grid-row:1; min-width:0; min-height:0; }
-.ts-root .ts-main.ts-board-layout > .ts-board-rail {
-  grid-column:1; grid-row:1; position:relative; inset:auto;
-  display:flex; flex-direction:column; align-items:stretch;
-  align-self:stretch; box-sizing:border-box; width:100%; min-width:0;
-  height:auto; max-height:100%; min-height:0; margin:0; padding:4px 0;
-  border:0!important; border-inline-end:1px solid var(--ts-canvas-chrome-line)!important;
-  border-radius:0; transform:none; box-shadow:none!important;
-  overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; visibility:visible;
-}
-.ts-root .ts-main.ts-board-layout > .ts-board-rail .ts-rail-tools { flex:0 0 auto; margin-block:auto; }
-.ts-root .ts-main.ts-board-layout > .ts-floating-formatbar {
-  left:calc(var(--ts-rail-column) + (100% - var(--ts-rail-column))/2);
-  max-width:calc(100% - var(--ts-rail-column) - 16px);
-}
-.ts-root .ts-main.ts-board-layout > .ts-footer { left:calc(var(--ts-rail-column) + 8px); right:8px; }
-.ts-root .ts-main.ts-board-layout > .ts-inspector { right:8px; max-width:calc(100% - var(--ts-rail-column) - 16px); }
-.ts-root .ts-main.ts-board-layout > .ts-object-filter-status { left:calc(var(--ts-rail-column) + 8px); max-width:calc(100% - var(--ts-rail-column) - 16px); }
-.ts-root .ts-main.ts-board-layout > .ts-rail-popover { left:calc(var(--ts-rail-column) + 8px); max-width:calc(100% - var(--ts-rail-column) - 16px); }
-.ts-root .ts-main.ts-board-layout > .ts-stage > .ts-start-screen { left:50%; width:calc(100% - 24px); max-width:480px; transform:translate(-50%,-50%); }
 
 /* Actual short, narrow ordinary panes keep the four primary controls visible.
    Fit, selected focus and overview remain in the original zoom menu. */

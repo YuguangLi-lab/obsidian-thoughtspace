@@ -1,7 +1,9 @@
-/* The calendar is a quiet margin note beneath the writing surface. */
-.ts-collection-heatmap{--ts-ui-control:32px;--ts-ui-gap:8px;width:100%;max-width:var(--ts-c-column,800px);min-width:0;margin:18px auto 0;font-size:12px;color:var(--ts-c-muted)}
-.ts-collection-heatmap-disclosure{min-width:0;border-bottom:1px solid var(--ts-c-line)}
-.ts-collection-heatmap-summary{display:flex;align-items:center;gap:12px;min-height:44px;padding:4px 1px;cursor:pointer;list-style:none;font-size:11px;letter-spacing:.035em}
+/* The collapsed calendar shares the record toolbar; expansion stays in flow. */
+.ts-collection-heatmap{--ts-ui-control:32px;--ts-ui-gap:8px;width:100%;max-width:var(--ts-c-column,800px);min-width:0;margin:0;font-size:12px;color:var(--ts-c-muted)}
+.ts-collection-heatmap-disclosure{min-width:0}
+.ts-collection-feed-tools>.ts-collection-heatmap{flex:0 1 auto;width:auto;max-width:100%;margin:0}
+.ts-collection-feed-tools>.ts-collection-heatmap:has(.ts-collection-heatmap-disclosure[open]),.ts-collection-feed-tools>.ts-collection-heatmap:has(.ts-collection-heatmap-filter:not([hidden])){flex-basis:100%;width:100%}
+.ts-collection-heatmap-summary{display:flex;align-items:center;gap:12px;min-height:44px;padding:4px 1px;cursor:pointer;list-style:none;font-size:11px;letter-spacing:0}
 .ts-collection-heatmap-summary::-webkit-details-marker{display:none}.ts-collection-heatmap-summary::after{content:'⌄';margin-left:auto}.ts-collection-heatmap-disclosure[open]>.ts-collection-heatmap-summary::after{content:'⌃'}
 .ts-collection-heatmap-summary-count{font-variant-numeric:tabular-nums;color:var(--ts-c-faint);font-size:11px}.ts-collection-heatmap-disclosure[open]>.ts-collection-heatmap-summary{color:var(--ts-c-editorial)}
 .ts-collection-heatmap-body{min-width:0;margin:4px 0 16px;padding:16px 18px 12px;background:color-mix(in srgb,var(--ts-c-wash) 50%,transparent);border:1px solid var(--ts-c-line);border-radius:var(--ts-c-radius)}.ts-collection-heatmap-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
@@ -27,5 +29,5 @@
 .ts-collection .ts-collection-heatmap-day:focus-visible{z-index:1;outline:2px solid var(--ts-c-accent);outline-offset:-2px}.ts-collection .ts-collection-heatmap-day[data-level='4']:focus-visible{outline-color:var(--ts-c-on-accent)}
 .ts-collection-heatmap-legend{display:flex;align-items:center;flex-wrap:wrap;gap:4px;justify-content:flex-end;max-width:100%;font-size:11px}.ts-collection-heatmap-note{margin-bottom:0;color:var(--ts-c-faint)}
 .ts-collection-heatmap-filter{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px 12px;padding-top:4px;font-size:11px}.ts-collection-heatmap-filter>span{overflow-wrap:anywhere}.ts-collection .ts-collection-heatmap-filter>button{font-size:11px;color:var(--ts-c-accent);padding:4px 0}
-@container (max-width:680px){.ts-collection-heatmap{margin-top:14px}.ts-collection-heatmap-body{padding:12px 10px 10px}.ts-collection-heatmap-summary,.ts-collection .ts-collection-heatmap-tools button,.ts-collection .ts-collection-heatmap-tools>select,.ts-collection .ts-collection-heatmap-filter>button{min-height:44px}.ts-collection .ts-collection-heatmap-tools button{min-width:44px}.ts-collection-heatmap-caption,.ts-collection-heatmap-detail,.ts-collection-heatmap-note{font-size:11px}}
+@container (max-width:680px){.ts-collection-heatmap{margin-top:0}.ts-collection-heatmap-body{padding:12px 10px 10px}.ts-collection-heatmap-summary,.ts-collection .ts-collection-heatmap-tools button,.ts-collection .ts-collection-heatmap-tools>select,.ts-collection .ts-collection-heatmap-filter>button{min-height:44px}.ts-collection .ts-collection-heatmap-tools button{min-width:44px}.ts-collection-heatmap-caption,.ts-collection-heatmap-detail,.ts-collection-heatmap-note{font-size:11px}}
 @media (any-pointer:coarse){.ts-collection-heatmap-summary,.ts-collection .ts-collection-heatmap-tools button,.ts-collection .ts-collection-heatmap-tools>select,.ts-collection .ts-collection-heatmap-filter>button{min-height:44px}.ts-collection .ts-collection-heatmap-tools button{min-width:44px}}

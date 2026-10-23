@@ -169,6 +169,28 @@ test('a restored layout session already owned by another window gets an independ
 test('released owner can be explicitly recovered while another active session is not stolen',async()=>{
  const f=fixture(),first=await f.open();first.host.updateDraft({body:'recover me'});const id=first.host.sessionId();first.host.release?.();await until(()=>!!f.journal(first.host));assert.equal(await f.workspace().recoverableSession(),id);const next=await f.open();await next.host.setSessionId(id);assert.equal(next.host.draft().body,'recover me');assert.equal(await f.workspace().recoverableSession(),undefined);next.host.release?.();
 });
+test('full-page and docked hosts share records while closing and reopening preserves their independent drafts',async()=>{
+ const f=fixture(),window=f.window(),page=await f.open(window),sidebar=await f.open(window),notices:string[]=[];
+ // Both leaves belong to the same document, as a right sidebar and a main tab do.
+ sidebar.leaf.view.containerEl.ownerDocument=page.leaf.view.containerEl.ownerDocument;
+ page.host.subscribe(kind=>{if(kind==='records')notices.push('page');});
+ sidebar.host.subscribe(kind=>{if(kind==='records')notices.push('sidebar');});
+ page.host.updateDraft({body:'完整页面尚未提交的草稿',tags:'#保留'});
+ sidebar.host.updateDraft({body:'侧边栏保存的记录'});await sidebar.host.submit(()=>true);
+ assert.deepEqual(await page.host.list(),await sidebar.host.list());
+ assert.equal((await page.host.list()).length,1);assert.ok(notices.includes('page'));assert.ok(notices.includes('sidebar'));
+ assert.equal(page.host.draft().body,'完整页面尚未提交的草稿');assert.equal(sidebar.host.draft().body,'');
+ sidebar.host.updateDraft({body:'关闭后继续的侧边栏草稿',tags:'#稍后'});const session=sidebar.host.sessionId();
+ sidebar.host.release?.();sidebar.leaf.view.containerEl.isConnected=false;await settleWrites();
+ assert.equal(await f.workspace().recoverableSession(),session);
+ const reopened=await f.open(window);await reopened.host.setSessionId(session);
+ assert.equal(reopened.host.draft().body,'关闭后继续的侧边栏草稿');assert.equal(reopened.host.draft().tags,'#稍后');
+ assert.equal(page.host.draft().body,'完整页面尚未提交的草稿');assert.equal(page.host.draft().tags,'#保留');
+ assert.equal(await f.workspace().recoverableSession(),undefined,'the active full-page draft is not offered for recovery');
+ await reopened.host.submit(()=>true);assert.equal((await page.host.list()).length,2);
+ assert.equal(f.counts().creates,2);assert.equal(f.disk.get(f.native.path),original);assert.equal(f.counts().mutations,0);
+ page.host.release?.();reopened.host.release?.();
+});
 test('invalid session IDs cannot escape the journal directory or replace another file',async()=>{
  const f=fixture(),view=await f.open(),id=view.host.sessionId();for(const invalid of ['../outside','session-../../outside','session-/absolute','session-bad.json','session-'])await view.host.setSessionId(invalid);assert.equal(view.host.sessionId(),id);view.host.updateDraft({body});await view.host.submit(()=>true);assert.ok(f.adapterWrites.every(path=>journalStore.collectionJournalCanonical(path)===`${f.directory}/collection-drafts/${id}.json`));assert.equal(f.disk.get(f.native.path),original);view.host.release?.();
 });

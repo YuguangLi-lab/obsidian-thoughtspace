@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { readFileSync } from 'node:fs';
 import postcss, { type Rule } from 'postcss';
 import selectorParser from 'postcss-selector-parser';
 import { interfaceStyleRules } from '../src/interface-style-tokens';
-import type { InterfaceStyle } from '../src/workspace';
 
-const styles: InterfaceStyle[] = ['paper', 'editorial', 'glass'];
-function palette(style: InterfaceStyle, dark = false): Record<string, string> {
+const styles = ['paper', 'editorial', 'glass', 'unknown', undefined] as const;
+function palette(style: unknown, dark = false): Record<string, string> {
   const result: Record<string, string> = {};
   postcss.parse(interfaceStyleRules(style, true)).walkRules(rule => {
     if (rule.parent?.type !== 'root' || rule.selector.startsWith('.theme-dark') !== dark) return;
@@ -41,17 +41,12 @@ test('paper preserves all twelve historical light and dark steps, host type and 
   assert.doesNotMatch(css, /blur\(|url\(|--ts-paper-/);
 });
 
-test('magazine preserves the released warm palette and serif typesetting', () => {
-  assert.equal(palette('editorial')['--ts-e-sheet'], '#fffdf7');
-  assert.equal(palette('editorial')['--ts-e-editorial'], '#a24b32');
-  assert.equal(palette('editorial', true)['--ts-e-paper'], '#24211d');
-  assert.equal(palette('editorial', true)['--ts-e-muted'], '#bcad99');
-  assert.match(palette('editorial')['--ts-c-serif'], /^"Iowan Old Style"/);
-  const css = interfaceStyleRules('editorial', true);
-  assert.doesNotMatch(css, /backdrop-filter|font-family:/);
-  postcss.parse(css).walkDecls('background', decl => {
-    assert.match((decl.parent as Rule).selector, /\.ts-ui-menu/);
-  });
+test('retired and unknown style values always resolve to the same paper material', () => {
+  const paper = interfaceStyleRules('paper', false);
+  for (const style of styles) for (const effects of [true, false]) {
+    assert.equal(interfaceStyleRules(style, effects), paper);
+  }
+  assert.doesNotMatch(paper, /data-ts-glass-optics|ts-glass-content-shield|linear-gradient|blur\(/);
 });
 
 test('every generated selector stays inside named plugin roots and outside Calendar', () => {
@@ -87,88 +82,7 @@ test('selected material beats late legacy palette selectors without global impor
   }
 });
 
-test('glass limits blur to the compact dock and has opaque accessibility/small-pane fallbacks', () => {
-  const css = interfaceStyleRules('glass', true);
-  const ast = postcss.parse(css);
-  let filters = 0;
-  ast.walkDecls(/^(?:-webkit-)?backdrop-filter$/, decl => {
-    if (decl.value === 'none') return;
-    if (decl.value === 'var(--ts-glass-filter,none)') {
-      assert.match((decl.parent as Rule).selector, /\[data-ts-glass-optics=true\]/);
-      return;
-    }
-    assert.equal(decl.value, 'blur(6px)');
-    const rule = decl.parent as Rule;
-    assert.match(rule.selector, /\.ts-footer \.ts-view-dock/);
-    assert.equal(rule.parent?.type, 'atrule');
-    assert.match(rule.parent?.toString() ?? '', /@container ts-board-canvas \(min-width:681px\)/);
-    filters++;
-  });
-  assert.equal(filters, 2);
-  assert.match(css, /prefers-reduced-transparency:reduce/);
-  assert.match(css, /prefers-contrast:more/);
-  assert.match(css, /@container \(max-width:680px\)/);
-  assert.match(css, /@supports not/);
-  const disabled = postcss.parse(interfaceStyleRules('glass', false));
-  disabled.walkDecls(/^(?:-webkit-)?backdrop-filter$/, decl => assert.equal(decl.value, 'none'));
-  disabled.walkDecls('--ts-glass-surface', decl => assert.equal(decl.value, 'var(--ts-e-sheet)'));
-  disabled.walkDecls('--ts-glass-reflection', decl => assert.equal(decl.value, 'none'));
-});
-
-test('macOS glass uses neutral material, with reflections confined to navigation and tools', () => {
-  for (const dark of [false, true]) {
-    const values = palette('glass', dark);
-    for (const name of ['paper', 'sheet', 'wash', 'line']) {
-      const hex = values[`--ts-e-${name}`];
-      const channels = [1, 3, 5].map(i => Number.parseInt(hex.slice(i, i + 2), 16));
-      assert.ok(Math.max(...channels) - Math.min(...channels) <= 6, `${name} must remain neutral: ${hex}`);
-    }
-    assert.match(values['--ts-e-shadow'], /inset 0 1px 0 #ffffff/);
-    assert.doesNotMatch(values['--ts-e-shadow'], /#(?:24466b|d6eaff)/);
-  }
-  const css = postcss.parse(interfaceStyleRules('glass', true));
-  css.walkDecls('background', decl => {
-    if (!decl.value.includes('var(--ts-glass-reflection)')) return;
-    const selector = (decl.parent as Rule).selector;
-    selectorParser().astSync(selector).walkClasses(node => {
-      assert.ok(!['ts-collection-composer', 'ts-settings-panel', 'ts-inspector', 'ts-calendar', 'ts-writing-transition'].includes(node.value));
-    });
-    assert.match(selector, /\.ts-commandbar|\[data-ts-glass-optics=true\]/);
-  });
-  assert.equal(palette('glass')['--ts-e-radius'], '16px');
-});
-
-test('verified optics protect content without moving controls and have static CSS escape paths', () => {
-  const css = interfaceStyleRules('glass', true);
-  const ast = postcss.parse(css);
-  const opticsRules: Rule[] = [];
-  ast.walkRules(rule => { if (rule.selector.includes('[data-ts-glass-optics=true]')) opticsRules.push(rule); });
-  assert.ok(opticsRules.length > 0);
-  for (const rule of opticsRules) {
-    assert.doesNotMatch(rule.selector, /\.ts-collection-nav|\.ts-settings-nav|\.ts-commandbar|\.ts-native-header|\.ts-inspector/);
-    rule.walkDecls(decl => {
-      assert.notEqual(decl.prop, 'transform');
-      assert.notEqual(decl.prop, 'outline');
-      if (['inset', 'position', 'z-index', 'transition', 'margin', 'padding'].includes(decl.prop)) {
-        assert.match(rule.selector, /\.ts-glass-content-shield/);
-      }
-    });
-  }
-  const shield = opticsRules.find(rule => rule.nodes.some(node => node.type === 'decl' && node.prop === 'z-index'));
-  assert.ok(shield);
-  const values = new Map(shield.nodes.flatMap(node => node.type === 'decl' ? [[node.prop, node.value]] : []));
-  assert.equal(values.get('z-index'), '-1');
-  assert.equal(values.get('pointer-events'), 'none');
-  assert.equal(values.get('inset'), '7px');
-  assert.match(values.get('background') ?? '', /var\(--ts-e-sheet\) 96%/);
-  assert.match(values.get('background') ?? '', /var\(--ts-glass-x,50%\).*var\(--ts-glass-y,50%\)/);
-  assert.match(css, /prefers-reduced-motion:reduce/);
-  assert.match(css, /forced-colors:active/);
-  for (const style of ['paper', 'editorial'] as const) assert.doesNotMatch(interfaceStyleRules(style, true), /data-ts-glass-optics|ts-glass-content-shield/);
-  assert.doesNotMatch(interfaceStyleRules('glass', false), /data-ts-glass-optics|ts-glass-content-shield/);
-});
-
-test('all three palettes retain AA text contrast on their sheet, page and wash surfaces', () => {
+test('paper retains AA text contrast on sheet, page and wash surfaces for all legacy settings', () => {
   for (const style of styles) for (const dark of [false, true]) {
     const values = palette(style, dark);
     for (const text of ['ink', 'muted', 'editorial']) for (const surface of ['sheet', 'paper', 'wash']) {
@@ -176,4 +90,13 @@ test('all three palettes retain AA text contrast on their sheet, page and wash s
       assert.ok(ratio >= 4.5, `${style}/${dark ? 'dark' : 'light'} ${text}/${surface}: ${ratio.toFixed(2)}`);
     }
   }
+});
+
+// Rendering paper chrome must not reactivate the old !important stage fill.
+test('the interface finish leaves authored canvas paper and image backgrounds in control',()=>{
+  const css=postcss.parse(readFileSync('styles.css','utf8'));
+  css.walkDecls(/^background(?:-color)?$/,decl=>{
+    const selector=(decl.parent as Rule).selector;
+    if(selector.includes('[data-surface=paper]')&&/\.ts-(?:stage|brain-stage|handwriting-stage)\b/.test(selector))assert.ok(!decl.important,selector);
+  });
 });

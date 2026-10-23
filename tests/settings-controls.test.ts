@@ -3,12 +3,14 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import {applyBoardMousePreset,cleanBoardPreferences,defaultBoardPreferences,resetBoardInputPreferences,resetBoardPagePreferences,type BoardPreferences} from '../src/board-experience';
+import {cleanPluginSettings} from '../src/plugin-settings';
 
 class Element{
- texts:string[]=[];rows:Setting[]=[];
- createEl(_tag:string,options:{text?:string}){this.texts.push(options.text||'');return new Element();}
- empty(){this.texts=[];this.rows=[];}
- allText(){return [...this.texts,...this.rows.flatMap(row=>[row.name,row.desc,...row.buttons.map(button=>button.text),...Object.values(row.dropdown?.options||{})])].join('\n');}
+ texts:string[]=[];rows:Setting[]=[];children:Element[]=[];
+ createEl(_tag:string,options:{text?:string}={}){this.texts.push(options.text||'');const child=new Element();this.children.push(child);return child;}
+ createDiv(options:{text?:string}|string={}){return this.createEl('div',typeof options==='string'?{}:options);}
+ empty(){this.texts=[];this.rows=[];this.children=[];}
+ allText():string{return [...this.texts,...this.rows.flatMap(row=>[row.name,row.desc,...row.buttons.map(button=>button.text),...Object.values(row.dropdown?.options||{})]),...this.children.map(child=>child.allText())].join('\n');}
 }
 class Dropdown{
  options:Record<string,string>={};value='';change?:(value:string)=>void;
@@ -23,6 +25,7 @@ class Toggle{
 }
 class Button{
  text='';click?:()=>void;
+ setIcon(_icon:string){return this;}
  setButtonText(text:string){this.text=text;return this;}
  onClick(callback:()=>void){this.click=callback;return this;}
 }
@@ -46,6 +49,36 @@ const mouse=controls.mousePreferenceControls as (el:Element,settings:BoardPrefer
 const tick=async()=>{await Promise.resolve();await Promise.resolve();};
 const row=(el:Element,name:string)=>{const found=el.rows.find(item=>item.name===name);assert.ok(found,`Missing row: ${name}`);return found;};
 const button=(el:Element,name:string)=>{const found=el.rows.flatMap(item=>item.buttons).find(item=>item.text===name);assert.ok(found,`Missing button: ${name}`);return found;};
+const settingsSource=readFileSync('src/settings-view.ts','utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
+const settingsDeps={Modal:class{},PluginSettingTab:class{containerEl=new Element();},Setting,Notice,boardPreferenceControls:board,mousePreferenceControls:mouse};
+const Settings=new Function(...Object.keys(settingsDeps),transformSync(settingsSource+'\nreturn ThoughtSpaceSettings;',{loader:'ts'}).code)(...Object.values(settingsDeps));
+function settingsPage(page:'general'|'board',language:'zh-CN'|'en'){
+ const settings=cleanPluginSettings({interfaceStyle:'glass',surfaceStyle:'soft',glassEffects:true,accent:'rose',density:'compact',canvasBackground:'image',paperPreset:'custom',paperColor:'#abcdef',paperTexture:73,backgroundImagePath:'Assets/custom.png',backgroundImageFit:'tile',backgroundImageOpacity:42});
+ const opened:string[]=[],host={settings,openPaperSettings:()=>{opened.push('paper');return{onClose(){}};},openBackgroundImageSettings:()=>{opened.push('image');return{onClose(){}};}};
+ const tab=new Settings({},host),el=new Element();tab.language=language;tab.renderPage(page,el);
+ return{el,settings,opened};
+}
+
+test('interface settings render only accent and density controls in both languages',()=>{
+ for(const language of ['zh-CN','en'] as const){
+  const {el}=settingsPage('general',language),interactive=el.rows.filter(item=>item.dropdown||item.toggle||item.buttons.length);
+  assert.deepEqual(interactive.map(item=>item.settingEl.dataset.settingKey),['accent','density']);
+  for(const key of ['interfaceStyle','surfaceStyle','glassEffects'])assert.equal(interactive.some(item=>item.settingEl.dataset.settingKey===key),false,`${key} must not be offered`);
+  assert.equal(el.rows.find(item=>item.settingEl.dataset.settingKey==='accent')!.dropdown!.value,'rose');
+  assert.equal(el.rows.find(item=>item.settingEl.dataset.settingKey==='density')!.dropdown!.value,'compact');
+ }
+});
+test('canvas settings retain paper appearance and background image controls in both languages',()=>{
+ for(const language of ['zh-CN','en'] as const){
+  const {el,settings,opened}=settingsPage('board',language),before=structuredClone(settings);
+  const background=el.rows.find(item=>item.settingEl.dataset.settingKey==='canvasBackground')!.dropdown!;
+  assert.deepEqual(Object.keys(background.options),['dots','grid','plain','paper','image']);assert.equal(background.value,'image');
+  const paper=el.rows.find(item=>item.settingEl.dataset.settingKey==='paper'),image=el.rows.find(item=>item.settingEl.dataset.settingKey==='backgroundImage');
+  assert.ok(paper);assert.ok(image);assert.equal(paper.buttons.length,1);assert.equal(image.buttons.length,1);
+  assert.match(paper.desc,language==='en'?/color and texture strength/:/纸色与纹理强度/);
+  paper.buttons[0].click!();image.buttons[0].click!();assert.deepEqual(opened,['paper','image']);assert.deepEqual(settings,before);
+ }
+});
 
 test('existing controls remain Chinese by default and retain all combined board controls',()=>{
  const el=new Element();board(el,cleanBoardPreferences({}),async()=>{});

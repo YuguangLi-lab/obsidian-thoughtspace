@@ -33,16 +33,26 @@ class El extends Events {
  action(name:string){return this.all(el=>el.dataset.heatmapAction===name)[0];}
  day(key:string){return this.all(el=>el.dataset.date===key)[0];}
 }
-function fixture(width=800,onCalendarContextChange?:()=>void,heatmapWidth=width,gridWidth=heatmapWidth){
+function fixture(width=800,onCalendarContextChange?:()=>void,heatmapWidth=width,gridWidth=heatmapWidth,toolbar=false){
  const doc=new Doc(),win=new Win();doc.defaultView=win;const parent=new El('main',doc);parent.clientWidth=width;
  const editor=parent.createEl('textarea');editor.value='Unfinished draft';editor.focus();const selected:string[]=[];let clears=0;
- const view=new CollectionHeatmapView(parent as any,{onSelectDay:day=>selected.push(day),onClearDates:()=>clears++,onCalendarContextChange});
- const root=parent.findClass('ts-collection-heatmap'),grid=root.findClass('ts-collection-heatmap-grid');root.clientWidth=heatmapWidth;grid.clientWidth=gridWidth;win.emit('resize');return{doc,win,parent,editor,view,root,grid,selected,clears:()=>clears};
+ const mount=toolbar?parent.createDiv('ts-collection-feed-tools'):parent;
+ const view=new CollectionHeatmapView(parent as any,{onSelectDay:day=>selected.push(day),onClearDates:()=>clears++,onCalendarContextChange},mount as any);
+ const root=parent.findClass('ts-collection-heatmap'),grid=root.findClass('ts-collection-heatmap-grid');root.clientWidth=heatmapWidth;grid.clientWidth=gridWidth;win.emit('resize');return{doc,win,parent,mount,editor,view,root,grid,selected,clears:()=>clears};
 }
 function record(path:string,day:string,archived=false){return{path,createdAt:parseCollectionDay(day)!.toISOString(),archived};}
 function open(f:ReturnType<typeof fixture>){const details=f.root.findClass('ts-collection-heatmap-disclosure');details.open=true;details.emit('toggle');return details;}
 function key(cell:El,value:string,extra:any={}){const event={key:value,altKey:false,ctrlKey:false,metaKey:false,shiftKey:false,isComposing:false,prevented:false,stopped:false,preventDefault(){this.prevented=true;},stopPropagation(){this.stopped=true;},...extra};cell.emit('keydown',event);return event;}
 const blank={since:'',until:''};
+
+test('a compact record-toolbar mount retains the main pane calendar mode and scroll owner',()=>{
+ const f=fixture(1200,undefined,800,760,true);f.mount.clientWidth=800;f.win.emit('resize');
+ assert.equal(f.root.parent,f.mount);assert.equal(f.root.dataset.mode,'year');
+ f.view.update([],{since:'2026-10-12',until:'2026-10-12'});open(f);f.root.day('2026-10-12').focus();f.parent.scrollTop=271;
+ f.view.update([record('A','2026-10-12')],{since:'2026-10-12',until:'2026-10-12'});
+ assert.equal(f.parent.scrollTop,271);assert.equal(f.mount.scrollTop,0);assert.equal(f.doc.activeElement,f.root.day('2026-10-12'));
+ f.parent.clientWidth=390;f.win.emit('resize');assert.equal(f.root.dataset.mode,'month');assert.equal(f.parent.scrollTop,271);f.view.destroy();
+});
 
 test('collapsed metadata calendar counts archived records, explains scope, and never selects implicitly',()=>{
  const f=fixture();f.view.update([record('A','2026-10-12'),record('B','2026-10-12',true),record('C','2026-10-13')],blank);

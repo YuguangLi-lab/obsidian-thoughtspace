@@ -1,5 +1,23 @@
 # 更新记录
 
+## 1.3.39
+
+### 暖白纸质界面与收集侧栏
+
+- 统一为纸质界面，收集默认采用自然暖白底纸、轻微纸纹与清晰的输入卡片层次；已有界面风格配置迁移为纸质，白板自定义背景、纸色和对象内容继续保留各自设置。
+- 精简收集页的标题、输入区和筛选布局，让记录更早进入首屏。输入区随内容调整，记录热力图可折叠，窄侧栏保持独立紧凑布局。
+- 增加“在侧边栏打开收集”命令，可与当前笔记或白板并排使用；重复打开复用已有侧栏，完整页和侧栏共用记录并保留各自草稿。
+- 在收集标题旁增加背景调色盘，复用白板的点阵、网格、纯色、纸张纹理及本地图片设置。收集背景独立保存、同步到完整页和侧栏；自定义颜色调整文字对比，图片文字区保留柔和底纸。
+- 恢复普通白板左侧按内容高度显示、垂直居中的短浮动工具栏及原圆角与轻阴影，保留触控按钮、短窗滚动和键盘焦点保护。
+
+### English
+
+- Consolidate the plugin into the Paper interface. Collection defaults to warm-white paper with subtle grain and clear input surfaces. Existing style selections migrate to Paper while authored canvas backgrounds, pigments and object content retain their settings.
+- Compact the Collection heading, composer and filters so records appear sooner. The composer adjusts to its content, the activity calendar remains collapsible, and narrow sidebars use a compact layout.
+- Add “Open Collection in sidebar” alongside the full-page entry. Repeated opens reuse the sidebar; both views share records while retaining separate drafts.
+- Add a background palette beside the Collection title, reusing the board's dots, grid, solid color, paper and local-image controls. Collection backgrounds persist independently and synchronize across both views, with readable text palettes and a reading scrim over images.
+- Restore the ordinary board's short, vertically centered floating toolbar, original rounding and subtle shadow while retaining touch controls, short-pane scrolling and keyboard focus protection.
+
 ## 1.3.38
 
 ### 三套可切换的界面风格

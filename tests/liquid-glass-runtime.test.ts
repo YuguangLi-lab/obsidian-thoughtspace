@@ -152,9 +152,10 @@ test('canvas failure is a static fallback and dispose restores exact preexisting
  assert.equal(element.getAttribute('data-ts-glass-active'),'prior');assert.equal(element.getAttribute('data-ts-glass-optics'),null);assert.equal(element.style.getPropertyValue('--ts-glass-x'),'17px');assert.equal(element.style.getPropertyPriority('--ts-glass-x'),'important');assert.deepEqual(element.children,[original]);assert.equal(doc.frames.size,0);assert.equal(doc.listenerCount,0);
 });
 
-test('interface document lifecycle enables optics only for saved glass with effects and releases it on style changes',()=>{
- const doc=new DocumentFixture();doc.surface();const styles=new InterfaceStyleDocuments({interfaceStyle:'paper',glassEffects:true});styles.register(doc.document);assert.equal(doc.listenerCount,0);
- styles.update({interfaceStyle:'glass',glassEffects:false});assert.equal(doc.listenerCount,0);styles.update({interfaceStyle:'glass',glassEffects:true});assert.equal(doc.filters.length,1);
- styles.update({interfaceStyle:'editorial',glassEffects:true});assert.equal(doc.filters.length,0);assert.equal(doc.listenerCount,0);styles.update({interfaceStyle:'glass',glassEffects:true});assert.equal(doc.filters.length,1);
+test('paper-only document lifecycle never installs optics from retired saved choices',()=>{
+ const doc=new DocumentFixture();doc.surface();const styles=new InterfaceStyleDocuments({interfaceStyle:'glass',glassEffects:true});styles.register(doc.document);
+ for(const interfaceStyle of ['paper','glass','editorial'])for(const glassEffects of [true,false]){
+  styles.update({interfaceStyle,glassEffects});assert.equal(doc.filters.length,0);assert.equal(doc.listenerCount,0);assert.equal(doc.frames.size,0);
+ }
  styles.release(doc.document);assert.equal(doc.filters.length,0);assert.equal(doc.listenerCount,0);styles.dispose();
 });

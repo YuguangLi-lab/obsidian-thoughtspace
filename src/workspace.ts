@@ -4,7 +4,7 @@ import {defaultBackgroundImagePreferences,type BackgroundImagePreferences} from 
 export function isWorkspaceFile(file: {path: string}): boolean {
   return !file.path.startsWith('ThoughtSpace/白板搜索/') && file.path !== 'ThoughtSpace-plugin-backups' && !file.path.startsWith('ThoughtSpace-plugin-backups/');
 }
-export type InterfaceStyle='paper'|'editorial'|'glass';
+export type InterfaceStyle='paper';
 export interface AppearanceSettings extends PaperPreferences,BackgroundImagePreferences {
   interfaceStyle:InterfaceStyle;
   surfaceStyle:'soft'|'paper';readingSize:number;readingWidth:'standard'|'wide';

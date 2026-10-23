@@ -7,17 +7,30 @@ import {exportSettingsProfile,parseSettingsProfile,resetSettingsCategory,resolve
 const profile=(preferences:unknown)=>JSON.stringify({format:'thoughtspace-preferences',version:1,preferences});
 const rejects=(text:string,code:SettingsProfileErrorCode)=>assert.throws(()=>parseSettingsProfile(text),(error:unknown)=>error instanceof SettingsProfileError&&error.code===code);
 
-test('interface styles default to historical paper and preserve every explicit valid selection on reopen',()=>{
+test('every stored interface style migrates to paper without replacing canvas or legacy preferences',()=>{
  for(const raw of [undefined,null,{}, {surfaceStyle:'soft',glassEffects:true},{interfaceStyle:'unknown'},{interfaceStyle:null},{interfaceStyle:[]}])assert.equal(cleanPluginSettings(raw).interfaceStyle,'paper');
- for(const interfaceStyle of ['paper','editorial','glass'] as const){
-  const saved=cleanPluginSettings({interfaceStyle,surfaceStyle:'soft',glassEffects:false,canvasBackground:'image',backgroundImagePath:'Assets/keep.png',paperColor:'#bbcccc',paperTexture:87});
+ for(const interfaceStyle of [undefined,'paper','editorial','glass','unknown',null,1,{},[]]){
+  const raw={interfaceStyle,surfaceStyle:'soft',glassEffects:false,canvasBackground:'image',backgroundImagePath:'Assets/keep.png',backgroundImageFit:'tile',backgroundImageOpacity:36,paperPreset:'custom',paperColor:'#bbcccc',paperTexture:87,defaultCardStyle:'sticky',favoriteBoards:['Boards/keep.thoughtspace'],cardFolder:'Keep/cards'};
+  const before=structuredClone(raw),saved=cleanPluginSettings(raw);
   const reopened=cleanPluginSettings(JSON.parse(JSON.stringify(saved)));
-  assert.equal(reopened.interfaceStyle,interfaceStyle);assert.equal(reopened.surfaceStyle,'soft');assert.equal(reopened.glassEffects,false);
+  assert.deepEqual(raw,before);assert.equal(reopened.interfaceStyle,'paper');assert.equal(reopened.surfaceStyle,'soft');assert.equal(reopened.glassEffects,false);
   assert.equal(reopened.canvasBackground,'image');assert.equal(reopened.backgroundImagePath,'Assets/keep.png');assert.equal(reopened.paperColor,'#bbcccc');assert.equal(reopened.paperTexture,87);
-  assert.equal(parseSettingsProfile(exportSettingsProfile(saved)).interfaceStyle,interfaceStyle);
+  assert.equal(reopened.backgroundImageFit,'tile');assert.equal(reopened.backgroundImageOpacity,36);assert.equal(reopened.paperPreset,'custom');assert.equal(reopened.defaultCardStyle,'sticky');
+  assert.deepEqual(reopened.favoriteBoards,['Boards/keep.thoughtspace']);assert.equal(reopened.cardFolder,'Keep/cards');
+  assert.equal(parseSettingsProfile(exportSettingsProfile(saved)).interfaceStyle,'paper');
  }
  const selected=cleanPluginSettings({interfaceStyle:'glass'});Object.assign(selected,parseSettingsProfile(profile({accent:'blue'})));
- assert.equal(selected.interfaceStyle,'glass');assert.equal(settingsCategoryDefaults('general').interfaceStyle,'paper');
+ assert.equal(selected.interfaceStyle,'paper');assert.equal(settingsCategoryDefaults('general').interfaceStyle,'paper');
+});
+
+test('legacy profile styles normalize to paper while omitted and nonportable settings remain unchanged',()=>{
+ for(const interfaceStyle of ['paper','editorial','glass','unknown',null,1,{},[]]){
+  const settings=cleanPluginSettings({canvasBackground:'image',backgroundImagePath:'Assets/keep.png',paperColor:'#bbcccc',paperTexture:87,defaultCardStyle:'sticky',surfaceStyle:'paper',glassEffects:false});
+  const before=structuredClone(settings),patch=parseSettingsProfile(profile({interfaceStyle,accent:'blue'}));
+  assert.deepEqual(patch,{interfaceStyle:'paper',accent:'blue'});Object.assign(settings,patch);
+  assert.deepEqual(settings,{...before,interfaceStyle:'paper',accent:'blue'});
+ }
+ assert.deepEqual(parseSettingsProfile(profile({accent:'blue'})),{accent:'blue'});
 });
 
 test('settings language follows the host unless explicitly selected and survives persistence',()=>{
@@ -106,9 +119,9 @@ test('profiles reject every nonportable, unknown and prototype-related key',()=>
  assert.equal(Object.hasOwn({},'polluted'),false);
 });
 
-test('all imported values are strictly typed and validated instead of coerced or clamped',()=>{
+test('active imported preferences remain strictly typed and validated instead of coerced or clamped',()=>{
  const invalid:{[key:string]:unknown[]}={
-  interfaceStyle:['soft','dark','Paper',null,1,{},[]],accent:['purple',null,1],glassEffects:['false',0,{},[]],readingSize:[15,'16',null],defaultCardStyle:['unknown',null,{}],
+  accent:['purple',null,1],glassEffects:['false',0,{},[]],readingSize:[15,'16',null],defaultCardStyle:['unknown',null,{}],
   defaultCardWidth:[219,521,'300'],defaultTextSize:[11,33,'16'],gridStep:[7,65],previewLimit:[19,161],detailZoom:[.19,.91],zoomSpeed:[.29,2.01],panSpeed:[.29,3.01],dragThreshold:[1,13],nudgeStep:[0,11],fastNudge:[9,101],
   canvasBackground:['image','transparent'],leftDrag:['drag',null],wheelMode:['scroll',1],zoomAnchor:['cursor',true],defaultEdgeDirection:['backward'],defaultEdgeStyle:['rounded'],toolbarDensity:['dense'],surfaceStyle:['solid'],density:['dense'],readingWidth:['full'],
  };

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
-import {InterfaceStyleDocuments,designTokens,themePluginMenu} from '../src/ui-tokens';
+import {InterfaceStyleDocuments,designTokens,themePluginMenu,themeSurface} from '../src/ui-tokens';
 import {cleanPluginSettings} from '../src/plugin-settings';
 
 function documentFixture(){
@@ -16,19 +16,19 @@ function documentFixture(){
 
 test('document sheets work without any board DOM and repeated registration is idempotent',()=>{
  const f=documentFixture(),styles=new InterfaceStyleDocuments({interfaceStyle:'editorial',glassEffects:false});
- const sheet=styles.register(f.doc)!;assert.equal(sheet.dataset.interfaceStyle,'editorial');assert.equal(sheet.dataset.glassEffects,'false');
+ const sheet=styles.register(f.doc)!;assert.equal(sheet.dataset.interfaceStyle,'paper');assert.equal(sheet.dataset.glassEffects,'false');
  assert.equal(styles.register(f.doc),sheet);assert.equal(f.attached.size,1);assert.equal(f.writes,1);
  styles.update({interfaceStyle:'editorial',glassEffects:false});assert.equal(f.writes,1);
  styles.dispose();assert.equal(f.attached.size,0);
 });
 
-test('switching updates each existing document once and newly opened windows inherit the selected style',()=>{
- const a=documentFixture(),b=documentFixture(),c=documentFixture(),styles=new InterfaceStyleDocuments();
- const first=styles.register(a.doc)!,second=styles.register(b.doc)!;assert.equal(first.dataset.interfaceStyle,'paper');
- const before=first.textContent;styles.update({interfaceStyle:'glass',glassEffects:true});
- assert.equal(first.dataset.interfaceStyle,'glass');assert.equal(second.textContent,first.textContent);assert.notEqual(first.textContent,before);
- assert.equal(a.writes,2);assert.equal(b.writes,2);const third=styles.register(c.doc)!;assert.equal(third.textContent,first.textContent);
- styles.update({interfaceStyle:'glass',glassEffects:false});assert.equal(first.dataset.glassEffects,'false');assert.equal(third.textContent,first.textContent);
+test('retired styles keep every existing and newly opened document on paper without redundant writes',()=>{
+ const a=documentFixture(),b=documentFixture(),c=documentFixture(),styles=new InterfaceStyleDocuments({interfaceStyle:'glass',glassEffects:true});
+ const first=styles.register(a.doc)!,second=styles.register(b.doc)!;const before=first.textContent;
+ for(const interfaceStyle of ['editorial','glass','unknown',undefined])styles.update({interfaceStyle,glassEffects:true});
+ assert.equal(first.dataset.interfaceStyle,'paper');assert.equal(first.dataset.glassEffects,'false');
+ assert.equal(second.textContent,first.textContent);assert.equal(first.textContent,before);assert.equal(a.writes,1);assert.equal(b.writes,1);
+ const third=styles.register(c.doc)!;assert.equal(third.textContent,first.textContent);assert.equal(third.dataset.interfaceStyle,'paper');
  styles.dispose();assert.equal(a.attached.size+b.attached.size+c.attached.size,0);
 });
 
@@ -57,11 +57,20 @@ const dependencies={VIEW:'board',COLLECTION_VIEW_TYPE:'collection',WRITING:'writ
 const Plugin=new Function(...Object.keys(dependencies),transformSync(`class Plugin{${main.slice(start,end)}}return Plugin;`,{loader:'ts'}).code)(...Object.values(dependencies));
 function deferred(){let resolve!:()=>void,reject!:(error:Error)=>void;const promise=new Promise<void>((yes,no)=>{resolve=yes;reject=no;});return{promise,resolve,reject};}
 
-for(const succeeds of [true,false])test(`the actual plugin save ${succeeds?'commits':'does not apply'} interface changes ${succeeds?'after':'when failing'} persistence`,async()=>{
+for(const succeeds of [true,false])test(`actual plugin preferences refresh only after ${succeeds?'successful':'failed'} persistence`,async()=>{
  const f=documentFixture(),styles=new InterfaceStyleDocuments({interfaceStyle:'editorial'}),sheet=styles.register(f.doc)!,before=sheet.textContent,pending=deferred(),plugin=new Plugin();
- Object.assign(plugin,{settings:cleanPluginSettings({interfaceStyle:'glass',glassEffects:false}),interfaceStyles:styles,saveData:()=>pending.promise,app:{workspace:{getLeavesOfType:()=>[]}},refreshDock:()=>{}});
- const saving=plugin.savePreferences();assert.equal(sheet.textContent,before);assert.equal(sheet.dataset.interfaceStyle,'editorial');
- if(succeeds){pending.resolve();await saving;assert.equal(sheet.dataset.interfaceStyle,'glass');assert.equal(sheet.dataset.glassEffects,'false');assert.notEqual(sheet.textContent,before);}
- else{pending.reject(Error('storage unavailable'));await assert.rejects(saving,/storage unavailable/);assert.equal(sheet.textContent,before);assert.equal(sheet.dataset.interfaceStyle,'editorial');}
- styles.dispose();
+ let updates=0;const update=styles.update.bind(styles);styles.update=appearance=>{updates++;update(appearance);};
+ Object.assign(plugin,{settings:cleanPluginSettings({interfaceStyle:'glass',paperColor:'#bbcccc',paperTexture:87}),interfaceStyles:styles,saveData:()=>pending.promise,app:{workspace:{getLeavesOfType:()=>[]}},refreshDock:()=>{}});
+ const saving=plugin.savePreferences();assert.equal(updates,0);assert.equal(sheet.textContent,before);
+ if(succeeds){pending.resolve();await saving;assert.equal(updates,1);}
+ else{pending.reject(Error('storage unavailable'));await assert.rejects(saving,/storage unavailable/);assert.equal(updates,0);}
+ assert.equal(sheet.dataset.interfaceStyle,'paper');assert.equal(sheet.dataset.glassEffects,'false');assert.equal(sheet.textContent,before);
+ assert.equal(plugin.settings.paperColor,'#bbcccc');assert.equal(plugin.settings.paperTexture,87);styles.dispose();
+});
+
+test('dialog chrome ignores retired soft/glass switches while preserving accent and density',()=>{
+ const source={dataset:{surface:'soft',glass:'true',accent:'blue',density:'compact'}},classes=new Set<string>();
+ const el={dataset:{} as Record<string,string>,ownerDocument:{querySelector:()=>source},addClass:(name:string)=>classes.add(name)};
+ themeSurface(el as unknown as HTMLElement,{accent:'rose',glassEffects:true});
+ assert.deepEqual(el.dataset,{surface:'paper',glass:'false',accent:'rose',density:'compact'});assert.ok(classes.has('ts-ui-modal'));
 });

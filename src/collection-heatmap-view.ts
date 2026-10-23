@@ -18,9 +18,9 @@ export class CollectionHeatmapView {
  private selection:CollectionHeatmapSelection={since:'',until:''};private year:number;private month:number;private yearsKey='';private today='';private clockKey='';private zoneKey='';
  private mode:'year'|'month'='month';private monthColumns=7;private calendarKey='';private focusDay='';private detailDay='';private dead=false;
 
- constructor(private readonly parent:HTMLElement,private readonly actions:CollectionHeatmapActions){
+ constructor(private readonly parent:HTMLElement,private readonly actions:CollectionHeatmapActions,mount:HTMLElement=parent){
   this.win=parent.ownerDocument.defaultView;const now=new Date();this.year=now.getFullYear();this.month=now.getMonth()+1;
-  this.root=parent.createDiv('ts-collection-heatmap');
+  this.root=mount.createDiv('ts-collection-heatmap');
   this.disclosure=this.root.createEl('details',{cls:'ts-collection-heatmap-disclosure'});
   const summary=this.disclosure.createEl('summary',{cls:'ts-collection-heatmap-summary'});summary.createSpan({text:'记录热力图'});this.summaryCount=summary.createSpan('ts-collection-heatmap-summary-count');
   const body=this.disclosure.createDiv('ts-collection-heatmap-body');

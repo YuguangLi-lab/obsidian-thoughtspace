@@ -1,10 +1,10 @@
 import {applyWorkspaceDensity} from './workspace-density';
 import {interfaceStyleRules} from './interface-style-tokens';
-import type {InterfaceStyle} from './workspace';
-import {createLiquidGlassRuntime,type LiquidGlassRuntime} from './liquid-glass-runtime';
 
-export type InterfaceStyleAppearance={interfaceStyle?:InterfaceStyle;glassEffects?:boolean};
-const resolvedAppearance=(appearance:InterfaceStyleAppearance)=>({interfaceStyle:appearance.interfaceStyle??'paper',glassEffects:appearance.glassEffects??true});
+export type InterfaceStyleAppearance={interfaceStyle?:unknown;glassEffects?:boolean};
+// Retired values may arrive from synced settings or an older window. They never
+// reactivate a second interface or install optical effects.
+const resolvedAppearance=(_appearance:InterfaceStyleAppearance)=>({interfaceStyle:'paper' as const,glassEffects:false});
 
 function updateTokens(el:HTMLStyleElement,appearance:InterfaceStyleAppearance){
  const {interfaceStyle,glassEffects}=resolvedAppearance(appearance);
@@ -25,27 +25,23 @@ export function designTokens(doc:Document,appearance:InterfaceStyleAppearance={}
  * Updates operate on sheets, never on the potentially large card/document trees. */
 export class InterfaceStyleDocuments {
  private sheets=new Map<Document,HTMLStyleElement>();
- private optics=new Map<Document,LiquidGlassRuntime>();
  private appearance:ReturnType<typeof resolvedAppearance>;
  private stopped=false;
  constructor(appearance:InterfaceStyleAppearance={}){this.appearance=resolvedAppearance(appearance);}
  register(doc:Document):HTMLStyleElement|undefined{
   if(this.stopped||doc.defaultView?.closed)return;
   const existing=this.sheets.get(doc);if(existing)return existing;
-  const sheet=designTokens(doc,this.appearance);this.sheets.set(doc,sheet);this.syncOptics(doc);return sheet;
+  const sheet=designTokens(doc,this.appearance);this.sheets.set(doc,sheet);return sheet;
  }
  update(appearance:InterfaceStyleAppearance):void{
   if(this.stopped)return;
   const next=resolvedAppearance(appearance);
+  for(const doc of this.sheets.keys())if(doc.defaultView?.closed)this.release(doc);
   if(next.interfaceStyle===this.appearance.interfaceStyle&&next.glassEffects===this.appearance.glassEffects)return;
   this.appearance=next;
-  for(const [doc,sheet]of this.sheets){if(doc.defaultView?.closed)this.release(doc);else{updateTokens(sheet,next);this.syncOptics(doc);}}
+  for(const [doc,sheet]of this.sheets){if(doc.defaultView?.closed)this.release(doc);else{updateTokens(sheet,next);}}
  }
- private syncOptics(doc:Document){
-  if(this.appearance.interfaceStyle==='glass'&&this.appearance.glassEffects){if(!this.optics.has(doc))this.optics.set(doc,createLiquidGlassRuntime(doc));}
-  else{this.optics.get(doc)?.dispose();this.optics.delete(doc);}
- }
- release(doc:Document):void{this.optics.get(doc)?.dispose();this.optics.delete(doc);this.sheets.get(doc)?.remove();this.sheets.delete(doc);}
+ release(doc:Document):void{this.sheets.get(doc)?.remove();this.sheets.delete(doc);}
  dispose():void{this.stopped=true;for(const doc of this.sheets.keys())this.release(doc);}
 }
 
@@ -62,5 +58,5 @@ export function themePluginMenu<T extends object>(menu:T):T{
 /** Carry the active workspace's appearance into plugin-owned dialogs only. */
 export function themeSurface(el:HTMLElement,appearance?:{accent?:string;glassEffects?:boolean}) {
   const source=el.ownerDocument.querySelector<HTMLElement>('.workspace-leaf.mod-active .ts-root')||el.ownerDocument.querySelector<HTMLElement>('.ts-root');
-  applyWorkspaceDensity(el,source?.dataset.density);el.addClass('ts-ui-modal');el.dataset.surface=source?.dataset.surface||'soft';el.dataset.accent=appearance?.accent||source?.dataset.accent||'forest';el.dataset.glass=String(appearance?.glassEffects??(source?.dataset.glass!=='false'));
+  applyWorkspaceDensity(el,source?.dataset.density);el.addClass('ts-ui-modal');el.dataset.surface='paper';el.dataset.accent=appearance?.accent||source?.dataset.accent||'forest';el.dataset.glass='false';
 }
