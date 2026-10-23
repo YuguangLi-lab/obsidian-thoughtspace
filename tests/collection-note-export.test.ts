@@ -11,7 +11,7 @@ import * as excerpts from '../src/excerpt-sources';
 import {paragraphLink} from '../src/paragraph-card';
 import type {App,CachedMetadata,TFile as NativeFile} from 'obsidian';
 import type {CollectionLibrary} from '../src/collection-library';
-import type {CollectionNoteTarget} from '../src/collection-note-export';
+import type {CollectionNoteTarget,CollectionNoteExportReceipt} from '../src/collection-note-export';
 
 const yaml=createRequire(import.meta.url)('js-yaml') as {load:(source:string)=>unknown};
 class TFile {
@@ -39,7 +39,18 @@ const exports=load<typeof import('../src/collection-note-export')>('src/collecti
 const identity={id:'capture-export-12345678',createdAt:'2026-10-20T12:00:00.000Z'};
 const directory='.obsidian/plugins/thoughtspace/collection-library/note-exports';
 function deferred(){let resolve!:()=>void;const promise=new Promise<void>(yes=>{resolve=yes;});return{promise,resolve};}
-async function until(predicate:()=>boolean){for(let i=0;i<300&&!predicate();i++)await new Promise(resolve=>setImmediate(resolve));assert.ok(predicate(),'reached asynchronous boundary');}
+async function waitForEntry(signal:Promise<void>,pending:Promise<CollectionNoteExportReceipt>,boundary:'process'|'create'){
+ // WebCrypto may still be pending after hundreds of event-loop turns on CI.
+ // Wait for the fixture's actual storage boundary without hiding early failure.
+ let timer:ReturnType<typeof setTimeout>|undefined;
+ try{
+  await Promise.race([
+   signal,
+   pending.then(receipt=>{throw Error(`commit finished before ${boundary} entry: ${receipt.status}${receipt.message?`: ${receipt.message}`:''}`);},cause=>{throw Error(`commit rejected before ${boundary} entry`,{cause});}),
+   new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(Error(`timed out after 5000ms waiting for ${boundary} entry`)),5000);}),
+  ]);
+ }finally{clearTimeout(timer);}
+}
 function position(raw:string,start:number,end:number){
  const point=(offset:number)=>({offset,line:raw.slice(0,offset).split('\n').length-1,col:offset-(raw.lastIndexOf('\n',offset-1)+1)});
  return{start:point(start),end:point(end)};
@@ -58,6 +69,7 @@ function fixture(body='保留正文\n\n- [ ] 待办',targetText='---\r\nkeep: &i
  const files=new Map<string,TFile|TFolder>(),disk=new Map<TFile,string>(),journals=new Map<string,string>(),cache=new Map<TFile,CachedMetadata>();
  const root=new TFolder('');files.set('',root);files.set('Inbox',new TFolder('Inbox'));files.set('Notes',new TFolder('Notes'));files.set('Assets',new TFolder('Assets'));
  let serial=0,active=true,targetWrites=0,processes=0,creates=0,ensures=0,journalWrites=0;
+ const processEntered=deferred(),createEntered=deferred();
  const views:MarkdownView[]=[];
  const controls:{
   processGate?:Promise<void>;createGate?:Promise<void>;beforeProcess?:()=>void;afterWrite?:()=>void;
@@ -87,9 +99,9 @@ function fixture(body='保留正文\n\n- [ ] 待办',targetText='---\r\nkeep: &i
    adapter,on,offref,getRoot:()=>root,getAbstractFileByPath:(path:string)=>files.get(path),
    getFiles:()=>[...files.values()].filter((file):file is TFile=>file instanceof TFile),getMarkdownFiles:()=>[...disk.keys()].filter(file=>file.extension==='md'),
    read:async(file:TFile)=>{if(controls.readbackFailure&&targetWrites&&file!==source)throw Error('readback unavailable');const text=disk.get(file);if(text===undefined)throw Error('absent');return text;},
-   process:async(file:TFile,change:(text:string)=>string)=>{processes++;await controls.processGate;controls.beforeProcess?.();if(controls.failure==='before')throw Error('write refused');if(controls.skipProcess)return;
+   process:async(file:TFile,change:(text:string)=>string)=>{processes++;processEntered.resolve();await controls.processGate;controls.beforeProcess?.();if(controls.failure==='before')throw Error('write refused');if(controls.skipProcess)return;
     const next=change(disk.get(file)!);setText(file,controls.damage?.(next)??next);targetWrites++;controls.afterWrite?.();if(controls.failure==='after')throw Error('lost response');return next;},
-   create:async(path:string,text:string)=>{creates++;await controls.createGate;if(files.has(path))throw Error('already exists');if(controls.failure==='before')throw Error('create refused');
+   create:async(path:string,text:string)=>{creates++;createEntered.resolve();await controls.createGate;if(files.has(path))throw Error('already exists');if(controls.failure==='before')throw Error('create refused');
     const file=put(path,controls.damage?.(text)??text);emit('create',file);targetWrites++;controls.afterWrite?.();if(controls.failure==='after')throw Error('lost create response');return file;},
   },
   metadataCache:{
@@ -118,6 +130,7 @@ function fixture(body='保留正文\n\n- [ ] 待办',targetText='---\r\nkeep: &i
  const record={...identity,path:source.path},current=()=>active;
  const prepare=(destination:CollectionNoteTarget={kind:'append',path:target.path})=>exporter.prepare(record,destination,current);
  return{source,target,files,disk,journals,cache,views,controls,app,exporter,service,current,record,prepare,put,setText,emit,
+  processEntered:processEntered.promise,createEntered:createEntered.promise,
   cancel:()=>{active=false;},counts:()=>({targetWrites,processes,creates,ensures,journalWrites}),
   nativeView:(file=target)=>{const view=new MarkdownView(file,disk.get(file)!,text=>setText(file,text,false));views.push(view);return view;},
  };
@@ -172,11 +185,15 @@ test('unresolved, ambiguous, stale, overlapping and omitted local references fai
  const overlap=fixture('[[../Notes/Target]]');overlap.cache.get(overlap.source)!.links!.push({...overlap.cache.get(overlap.source)!.links![0]});await assert.rejects(overlap.prepare(),/重叠/);
  const omitted=fixture('[[../Notes/Target]]');omitted.cache.get(omitted.source)!.links=[];await assert.rejects(omitted.prepare(),/未确认/);
 });
-test('two simultaneous commits share one target operation and later retry is already-present',async()=>{
+test('two simultaneous commits share one target operation and later retry is already-present',{timeout:10000},async t=>{
  const f=fixture(),gate=deferred(),p=await f.prepare();f.controls.processGate=gate.promise;
- const a=f.exporter.commit(p,f.current),b=f.exporter.commit(p,f.current);assert.equal(a,b);await until(()=>f.counts().processes===1);gate.resolve();
- assert.equal((await a).status,'confirmed');assert.equal((await b).status,'confirmed');
- assert.equal((await f.exporter.commit(p,f.current)).status,'already-present');assert.equal(f.counts().targetWrites,1);
+ t.after(gate.resolve);
+ const a=f.exporter.commit(p,f.current),b=f.exporter.commit(p,f.current);
+ try{
+  assert.equal(a,b);await waitForEntry(f.processEntered,a,'process');assert.equal(f.counts().processes,1);gate.resolve();
+  assert.equal((await a).status,'confirmed');assert.equal((await b).status,'confirmed');
+  assert.equal((await f.exporter.commit(p,f.current)).status,'already-present');assert.equal(f.counts().targetWrites,1);
+ }finally{gate.resolve();}
 });
 for(const mode of ['append','new'] as const)test(`${mode} failure after a completed write is confirmed from exact readback`,async()=>{
  const f=fixture(),p=await f.prepare(mode==='new'?{kind:'new',path:'Notes/New.md'}:undefined);f.controls.failure='after';
@@ -219,10 +236,14 @@ for(const mode of ['readback','replacement','rename','damage'] as const)test(`po
  else f.controls.afterWrite=()=>{if(mode==='replacement')f.files.set(f.target.path,new TFile(f.target.path));else{const old=f.target.path;f.files.delete(old);f.target.path='Notes/Renamed.md';f.files.set(f.target.path,f.target);f.emit('rename',f.target,old);}};
  assert.equal((await f.exporter.commit(p,f.current)).status,'unknown');assert.equal((await f.exporter.commit(p,f.current)).status,'unknown');assert.equal(f.counts().targetWrites,1);
 });
-test('an occupied new filename is never overwritten at create boundary',async()=>{
+test('an occupied new filename is never overwritten at create boundary',{timeout:10000},async t=>{
  const f=fixture(),p=await f.prepare({kind:'new',path:'Notes/New.md'}),gate=deferred();f.controls.createGate=gate.promise;
- const pending=f.exporter.commit(p,f.current);await until(()=>f.counts().creates===1);const other=f.put('Notes/New.md','someone else');gate.resolve();
- assert.equal((await pending).status,'unknown');assert.equal(f.disk.get(other),'someone else');assert.equal(f.counts().targetWrites,0);
+ t.after(gate.resolve);
+ const pending=f.exporter.commit(p,f.current);
+ try{
+  await waitForEntry(f.createEntered,pending,'create');assert.equal(f.counts().creates,1);const other=f.put('Notes/New.md','someone else');gate.resolve();
+  assert.equal((await pending).status,'unknown');assert.equal(f.disk.get(other),'someone else');assert.equal(f.counts().targetWrites,0);
+ }finally{gate.resolve();}
 });
 test('journal intent failure stops before any target write',async()=>{
  const f=fixture(),p=await f.prepare();f.controls.journalFail='intent';assert.equal((await f.exporter.commit(p,f.current)).status,'not-written');assert.equal(f.counts().targetWrites,0);
@@ -257,18 +278,26 @@ test('unknown results lock this source across a fresh exporter and a different p
  await assert.rejects(f.service().prepare(f.record,{kind:'new',path:'Notes/Different.md'},f.current),/待核对/);
  assert.equal(f.counts().targetWrites,1);
 });
-test('persisted pending lock blocks another preview before first target completes',async()=>{
+test('persisted pending lock blocks another preview before first target completes',{timeout:10000},async t=>{
  const f=fixture(),gate=deferred(),p=await f.prepare();f.controls.processGate=gate.promise;
- const first=f.exporter.commit(p,f.current);await until(()=>f.counts().processes===1);
- await assert.rejects(f.service().prepare(f.record,{kind:'new',path:'Notes/Other.md'},f.current),/待核对/);
- gate.resolve();assert.equal((await first).status,'confirmed');assert.equal(f.counts().targetWrites,1);
+ t.after(gate.resolve);
+ const first=f.exporter.commit(p,f.current);
+ try{
+  await waitForEntry(f.processEntered,first,'process');assert.equal(f.counts().processes,1);
+  await assert.rejects(f.service().prepare(f.record,{kind:'new',path:'Notes/Other.md'},f.current),/待核对/);
+  gate.resolve();assert.equal((await first).status,'confirmed');assert.equal(f.counts().targetWrites,1);
+ }finally{gate.resolve();}
 });
-test('two previously prepared independent previews cannot bypass the shared source lock',async()=>{
+test('two previously prepared independent previews cannot bypass the shared source lock',{timeout:10000},async t=>{
  const f=fixture(),other=f.service(),p=await f.prepare(),q=await other.prepare(f.record,{kind:'new',path:'Notes/Other.md'},f.current);
  const gate=deferred();f.controls.processGate=gate.promise;
- const first=f.exporter.commit(p,f.current);await until(()=>f.counts().processes===1);
- assert.equal((await other.commit(q,f.current)).status,'not-written');assert.equal(f.counts().creates,0);
- gate.resolve();assert.equal((await first).status,'confirmed');
+ t.after(gate.resolve);
+ const first=f.exporter.commit(p,f.current);
+ try{
+  await waitForEntry(f.processEntered,first,'process');assert.equal(f.counts().processes,1);
+  assert.equal((await other.commit(q,f.current)).status,'not-written');assert.equal(f.counts().creates,0);
+  gate.resolve();assert.equal((await first).status,'confirmed');
+ }finally{gate.resolve();}
 });
 test('a confirmed source permits another explicit preview while history remains read-only',async()=>{
  const f=fixture(),p=await f.prepare();await f.exporter.commit(p,f.current);
