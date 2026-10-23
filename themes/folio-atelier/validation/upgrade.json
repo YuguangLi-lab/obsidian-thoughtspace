@@ -1,0 +1,10 @@
+{
+  "pass": true,
+  "cases": [
+    "dry run is read only",
+    "explicit settings and appearance preserved byte for byte",
+    "previous theme and settings backed up before replacement",
+    "concurrent settings change refused without writes"
+  ],
+  "scope": "owned temporary vault only; no real vault touched"
+}

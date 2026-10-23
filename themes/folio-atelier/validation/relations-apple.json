@@ -1,0 +1,1334 @@
+{
+  "kind": "owned offline Chromium fixture",
+  "nativeVerified": false,
+  "inputs": [
+    {
+      "path": "src/value-guards.ts",
+      "sha256": "5e1e72ac8be7445d323c9032fbbf0c87139bbe65a5e0c05c158d95359e68bd23",
+      "bytes": 798
+    },
+    {
+      "path": "src/background-image.ts",
+      "sha256": "c2334c2b994044759839fd166916e615bd5f2f0219b314531e7d28e235a16de4",
+      "bytes": 6455
+    },
+    {
+      "path": "src/paper-appearance.ts",
+      "sha256": "97aa08b96bdfd525ed93cf8d27843727480add8e800991cc769a622a623d9256",
+      "bytes": 1815
+    },
+    {
+      "path": "src/board-background.ts",
+      "sha256": "64870924e3278056f928445258431235ecd499d0f85acee4deef989f9aa8784f",
+      "bytes": 1023
+    },
+    {
+      "path": "src/brain-colors.ts",
+      "sha256": "968057ffbb8ab976c6f26606d91ee89d1ebe8f553430133ae41381671f609920",
+      "bytes": 1543
+    },
+    {
+      "path": "src/markdown-literals.ts",
+      "sha256": "c56d4a5988abf8f157c33cd34b33c601235e49b50115164ca41e9f4a3b6510aa",
+      "bytes": 4016
+    },
+    {
+      "path": "src/markdown-context.ts",
+      "sha256": "2aac2223b26ba319bb2f0ed890ce95cab49aa284a9430441120a54a27936dfa1",
+      "bytes": 3737
+    },
+    {
+      "path": "src/excerpt-sources.ts",
+      "sha256": "10c88fe6b3ad0319188f1c3efdecb01e8c9f2dc3a19c7bb74a556858201aed02",
+      "bytes": 5313
+    },
+    {
+      "path": "src/sections.ts",
+      "sha256": "4f962d4ae114614afbe3a16460fcbd6329910c3af521313656285dffed764e07",
+      "bytes": 5436
+    },
+    {
+      "path": "src/mindmap.ts",
+      "sha256": "2569d1f0880ce4c712d525dc1d4c5b23f952965afabe59650ac685711c3a027a",
+      "bytes": 15718
+    },
+    {
+      "path": "src/materials.ts",
+      "sha256": "9ac5624dec7cb8af149e791f7b55a4f19faa6aaaae1d7ef577b3fe4892a9a900",
+      "bytes": 14484
+    },
+    {
+      "path": "src/note-fragments.ts",
+      "sha256": "c90148311d611a7451a899eaeba92fd1f2596724e2ed851b175136922adb1acc",
+      "bytes": 2610
+    },
+    {
+      "path": "src/reference-reading.ts",
+      "sha256": "5d59d71c508aeec41bbb0e14e098717f81bd802538c3391fdefcc2862d92224e",
+      "bytes": 1386
+    },
+    {
+      "path": "src/writing-reference.ts",
+      "sha256": "c9e3c8b40c0cd0088e0a33e5f4019a2aae88934cc634ddf7edbe376bc02a4ff9",
+      "bytes": 1731
+    },
+    {
+      "path": "src/paragraph-card.ts",
+      "sha256": "b6d409db2550810bcae11393e71ddc3ca82d9b343373f6450dbde5ae93db3a6a",
+      "bytes": 5472
+    },
+    {
+      "path": "src/online-video.ts",
+      "sha256": "121c5bc9e99110c3c2d9bae8776b633c9c19478e7a413fe7c4da5056854ff0e8",
+      "bytes": 4927
+    },
+    {
+      "path": "src/web-card.ts",
+      "sha256": "862e07cb85ec31a08c7df89e43cbe717fd01ccab1921a8edc29e4ea15a9317eb",
+      "bytes": 4526
+    },
+    {
+      "path": "src/expansion-checkpoint.ts",
+      "sha256": "6a9341bbb06fb1fdd1aaebd0cdbef95ee1fdc81cf186ad59ca7b75172e946a77",
+      "bytes": 2686
+    },
+    {
+      "path": "src/text-sizing.ts",
+      "sha256": "7216cba3627ea5eed1631fd5a1056a676b11112542cef022de8feb92b1818a72",
+      "bytes": 1816
+    },
+    {
+      "path": "src/relation-geometry-checkpoint.ts",
+      "sha256": "7368bf29d72320e8eb620486191a558453ec3a30c299368e6c386f9cadcdf892",
+      "bytes": 3367
+    },
+    {
+      "path": "src/board-mindmap.ts",
+      "sha256": "b4d540f4c1c11227f0a7f2c52425ee55e18b73e528476981a02ab8dd878aeffa",
+      "bytes": 7174
+    },
+    {
+      "path": "src/board-path.ts",
+      "sha256": "53d2394651b21995abe73843dd40e61a16bfa4c8bda62b687ba24f4255770236",
+      "bytes": 437
+    },
+    {
+      "path": "src/media-source.ts",
+      "sha256": "31d70fc8d6229dae222964e43c58ccc61869b3ead5757f80e6feb5e7d049bd4f",
+      "bytes": 6064
+    },
+    {
+      "path": "src/markdown-links.ts",
+      "sha256": "acc1f9781fc5857ed3c7638cba1555c0402d6c2b65a6cacbe87aca6ea8965a44",
+      "bytes": 2695
+    },
+    {
+      "path": "src/media-notes.ts",
+      "sha256": "d3c5b70bbe8fb84ce70d1776d3fa66b589ed4fd77617b054b16027bb391f5b86",
+      "bytes": 13510
+    },
+    {
+      "path": "src/media-export.ts",
+      "sha256": "a1abb4a904331a3dc41424569121c5c98fa505d73265ecb0c32849182f8e5899",
+      "bytes": 687
+    },
+    {
+      "path": "src/image-host.ts",
+      "sha256": "1977fe4e747cd2523dd2a3b8434c95fa6552397884ae47a53b7c7cf5f495b7cd",
+      "bytes": 1703
+    },
+    {
+      "path": "src/yingjian.ts",
+      "sha256": "929365544f6dac947305e4cac83758606b8392d395acdce939379c58dad268bd",
+      "bytes": 6549
+    },
+    {
+      "path": "src/saved-searches.ts",
+      "sha256": "ae73c641f4607d8ee58d7c8a54098046b629fd7d0d22922d4694c977c94bf319",
+      "bytes": 3164
+    },
+    {
+      "path": "src/connections.ts",
+      "sha256": "324b0a9708fbe3ebeb6dce02ca5e28dd8c3e9889f5a936dbd9c8620fc979a00c",
+      "bytes": 3316
+    },
+    {
+      "path": "src/model.ts",
+      "sha256": "46413d3ed0c80eeaa67a5ec3eb28408b0f8f65d5fb2e788fca6bfac405d7e0a7",
+      "bytes": 34984
+    },
+    {
+      "path": "src/local-relations.ts",
+      "sha256": "58db1eb41e13ed383dd3c6589f0a8c15f2b427d1c962761fd273fd24273f23a5",
+      "bytes": 14731
+    },
+    {
+      "path": "src/local-relations-edit.ts",
+      "sha256": "d86a0bb1c56db3bf9c2e4df021c115497d7df1f0ab33c979d870155714346f93",
+      "bytes": 7891
+    },
+    {
+      "path": "src/local-relations-state.ts",
+      "sha256": "199007c83e60d06fc92f16deea857c7ea481e78d9f0b8f8ffa3cf1744d7e56a9",
+      "bytes": 7488
+    },
+    {
+      "path": "src/local-relations-headings.ts",
+      "sha256": "6dde6e7e77ec0d87c0f120110bbe5833d43214e7bce0e2260ac5c144fdcffee2",
+      "bytes": 8812
+    },
+    {
+      "path": "src/local-relations-depth.ts",
+      "sha256": "533b89ceff0946dd511882e6e87c78c519c2379cc565de64a5718a3c7cb4b7f5",
+      "bytes": 5278
+    },
+    {
+      "path": "src/local-relations-motion.ts",
+      "sha256": "a49f20e17291b47960679afaaf3ffc6af7082860314413f9fcfc90cf6d7a8b14",
+      "bytes": 8802
+    },
+    {
+      "path": "src/local-relations-view.ts",
+      "sha256": "43e795ed7c3ba1bec2056d763a9f693d8c1b670117fee1a5583ce7e27f1eb32c",
+      "bytes": 103893
+    }
+  ],
+  "sourceCopies": {
+    "local-relations-view.ts": {
+      "origin": "src/local-relations-view.ts",
+      "sha256": "43e795ed7c3ba1bec2056d763a9f693d8c1b670117fee1a5583ce7e27f1eb32c",
+      "bytes": 103893
+    },
+    "local-relations.css": {
+      "origin": "src/local-relations.css",
+      "sha256": "b8bc0657e283159644c624e2a3a3d3b0a65061ea406963a0fb0d6f090d18a376",
+      "bytes": 45531
+    },
+    "local-relations.ts": {
+      "origin": "src/local-relations.ts",
+      "sha256": "58db1eb41e13ed383dd3c6589f0a8c15f2b427d1c962761fd273fd24273f23a5",
+      "bytes": 14731
+    },
+    "local-relations-state.ts": {
+      "origin": "src/local-relations-state.ts",
+      "sha256": "199007c83e60d06fc92f16deea857c7ea481e78d9f0b8f8ffa3cf1744d7e56a9",
+      "bytes": 7488
+    },
+    "local-relations-headings.ts": {
+      "origin": "src/local-relations-headings.ts",
+      "sha256": "6dde6e7e77ec0d87c0f120110bbe5833d43214e7bce0e2260ac5c144fdcffee2",
+      "bytes": 8812
+    },
+    "local-relations-depth.ts": {
+      "origin": "src/local-relations-depth.ts",
+      "sha256": "533b89ceff0946dd511882e6e87c78c519c2379cc565de64a5718a3c7cb4b7f5",
+      "bytes": 5278
+    },
+    "local-relations-motion.ts": {
+      "origin": "src/local-relations-motion.ts",
+      "sha256": "a49f20e17291b47960679afaaf3ffc6af7082860314413f9fcfc90cf6d7a8b14",
+      "bytes": 8802
+    },
+    "local-relations-edit.ts": {
+      "origin": "src/local-relations-edit.ts",
+      "sha256": "d86a0bb1c56db3bf9c2e4df021c115497d7df1f0ab33c979d870155714346f93",
+      "bytes": 7891
+    },
+    "model.ts": {
+      "origin": "src/model.ts",
+      "sha256": "46413d3ed0c80eeaa67a5ec3eb28408b0f8f65d5fb2e788fca6bfac405d7e0a7",
+      "bytes": 34984
+    }
+  },
+  "styles": [
+    {
+      "path": "native.css",
+      "sha256": "866e50ac84dd8ad2775e0047ebd3ec5bd03e5af722aff259e6c4ea3cec42d7ba"
+    },
+    {
+      "path": "plugin.css",
+      "sha256": "729d0991151e87d5a55683fdfc2c26a150d000c4744e8d3477609f80a6d5e1d9"
+    },
+    {
+      "path": "theme.css",
+      "sha256": "9d28382753c67d21fdae877e3548c3577364b516f587db85640bbb1a200e1be5"
+    }
+  ],
+  "cases": [
+    {
+      "theme": "light",
+      "width": 320,
+      "normal": {
+        "paths": 12,
+        "controls": [
+          {
+            "key": "center-info",
+            "rect": {
+              "left": 267,
+              "right": 295,
+              "top": 199,
+              "bottom": 227
+            },
+            "hit": true,
+            "crossings": []
+          },
+          {
+            "key": "pin-center",
+            "rect": {
+              "left": 236,
+              "right": 264,
+              "top": 199,
+              "bottom": 227
+            },
+            "hit": true,
+            "crossings": []
+          },
+          {
+            "key": "source",
+            "rect": {
+              "left": 89.5,
+              "right": 168.5,
+              "top": 199,
+              "bottom": 227
+            },
+            "hit": true,
+            "crossings": []
+          }
+        ],
+        "pass": true
+      },
+      "sourceFocus": true,
+      "infoOpen": true,
+      "infoClosed": true,
+      "variants": [
+        {
+          "name": "short-title",
+          "paths": 12,
+          "controls": [
+            {
+              "key": "center-info",
+              "rect": {
+                "left": 202.5,
+                "right": 230.5,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "pin-center",
+              "rect": {
+                "left": 171.5,
+                "right": 199.5,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "source",
+              "rect": {
+                "left": 89.5,
+                "right": 168.5,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            }
+          ],
+          "pass": true
+        },
+        {
+          "name": "second-page",
+          "paths": 10,
+          "controls": [
+            {
+              "key": "center-info",
+              "rect": {
+                "left": 267,
+                "right": 295,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "pin-center",
+              "rect": {
+                "left": 236,
+                "right": 264,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "source",
+              "rect": {
+                "left": 89.5,
+                "right": 168.5,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            }
+          ],
+          "pass": true
+        },
+        {
+          "name": "scrolled-lists",
+          "paths": 10,
+          "controls": [
+            {
+              "key": "center-info",
+              "rect": {
+                "left": 267,
+                "right": 295,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "pin-center",
+              "rect": {
+                "left": 236,
+                "right": 264,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "source",
+              "rect": {
+                "left": 89.5,
+                "right": 168.5,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            }
+          ],
+          "pass": true
+        }
+      ],
+      "cleanup": {
+        "eventsRemoved": true,
+        "ownedDOMRemoved": true,
+        "boardBytesUnchanged": true,
+        "actualPersistentActions": 0,
+        "forbidden": [],
+        "hostStateProposals": 0,
+        "layoutRequests": 0,
+        "mediaElements": 0
+      },
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "width": 600,
+      "normal": {
+        "paths": 12,
+        "controls": [
+          {
+            "key": "center-info",
+            "rect": {
+              "left": 547,
+              "right": 575,
+              "top": 199,
+              "bottom": 227
+            },
+            "hit": true,
+            "crossings": []
+          },
+          {
+            "key": "pin-center",
+            "rect": {
+              "left": 516,
+              "right": 544,
+              "top": 199,
+              "bottom": 227
+            },
+            "hit": true,
+            "crossings": []
+          },
+          {
+            "key": "source",
+            "rect": {
+              "left": 229.5,
+              "right": 308.5,
+              "top": 199,
+              "bottom": 227
+            },
+            "hit": true,
+            "crossings": []
+          }
+        ],
+        "pass": true
+      },
+      "sourceFocus": true,
+      "infoOpen": true,
+      "infoClosed": true,
+      "variants": [
+        {
+          "name": "short-title",
+          "paths": 12,
+          "controls": [
+            {
+              "key": "center-info",
+              "rect": {
+                "left": 342.5,
+                "right": 370.5,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "pin-center",
+              "rect": {
+                "left": 311.5,
+                "right": 339.5,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "source",
+              "rect": {
+                "left": 229.5,
+                "right": 308.5,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            }
+          ],
+          "pass": true
+        },
+        {
+          "name": "second-page",
+          "paths": 10,
+          "controls": [
+            {
+              "key": "center-info",
+              "rect": {
+                "left": 547,
+                "right": 575,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "pin-center",
+              "rect": {
+                "left": 516,
+                "right": 544,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "source",
+              "rect": {
+                "left": 229.5,
+                "right": 308.5,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            }
+          ],
+          "pass": true
+        },
+        {
+          "name": "scrolled-lists",
+          "paths": 10,
+          "controls": [
+            {
+              "key": "center-info",
+              "rect": {
+                "left": 547,
+                "right": 575,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "pin-center",
+              "rect": {
+                "left": 516,
+                "right": 544,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "source",
+              "rect": {
+                "left": 229.5,
+                "right": 308.5,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            }
+          ],
+          "pass": true
+        }
+      ],
+      "cleanup": {
+        "eventsRemoved": true,
+        "ownedDOMRemoved": true,
+        "boardBytesUnchanged": true,
+        "actualPersistentActions": 0,
+        "forbidden": [],
+        "hostStateProposals": 0,
+        "layoutRequests": 0,
+        "mediaElements": 0
+      },
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "width": 960,
+      "normal": {
+        "paths": 23,
+        "controls": [
+          {
+            "key": "center-info",
+            "rect": {
+              "left": 553,
+              "right": 581,
+              "top": 316,
+              "bottom": 344
+            },
+            "hit": true,
+            "crossings": []
+          },
+          {
+            "key": "pin-center",
+            "rect": {
+              "left": 522,
+              "right": 550,
+              "top": 316,
+              "bottom": 344
+            },
+            "hit": true,
+            "crossings": []
+          },
+          {
+            "key": "source",
+            "rect": {
+              "left": 409.5,
+              "right": 488.5,
+              "top": 316,
+              "bottom": 344
+            },
+            "hit": true,
+            "crossings": []
+          }
+        ],
+        "pass": true
+      },
+      "sourceFocus": true,
+      "infoOpen": true,
+      "infoClosed": true,
+      "variants": [
+        {
+          "name": "short-title",
+          "paths": 23,
+          "controls": [
+            {
+              "key": "center-info",
+              "rect": {
+                "left": 522.5,
+                "right": 550.5,
+                "top": 316,
+                "bottom": 344
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "pin-center",
+              "rect": {
+                "left": 491.5,
+                "right": 519.5,
+                "top": 316,
+                "bottom": 344
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "source",
+              "rect": {
+                "left": 409.5,
+                "right": 488.5,
+                "top": 316,
+                "bottom": 344
+              },
+              "hit": true,
+              "crossings": []
+            }
+          ],
+          "pass": true
+        },
+        {
+          "name": "second-page",
+          "paths": 15,
+          "controls": [
+            {
+              "key": "center-info",
+              "rect": {
+                "left": 553,
+                "right": 581,
+                "top": 364,
+                "bottom": 392
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "pin-center",
+              "rect": {
+                "left": 522,
+                "right": 550,
+                "top": 364,
+                "bottom": 392
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "source",
+              "rect": {
+                "left": 409.5,
+                "right": 488.5,
+                "top": 364,
+                "bottom": 392
+              },
+              "hit": true,
+              "crossings": []
+            }
+          ],
+          "pass": true
+        },
+        {
+          "name": "scrolled-lists",
+          "paths": 15,
+          "controls": [
+            {
+              "key": "center-info",
+              "rect": {
+                "left": 553,
+                "right": 581,
+                "top": 364,
+                "bottom": 392
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "pin-center",
+              "rect": {
+                "left": 522,
+                "right": 550,
+                "top": 364,
+                "bottom": 392
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "source",
+              "rect": {
+                "left": 409.5,
+                "right": 488.5,
+                "top": 364,
+                "bottom": 392
+              },
+              "hit": true,
+              "crossings": []
+            }
+          ],
+          "pass": true
+        }
+      ],
+      "cleanup": {
+        "eventsRemoved": true,
+        "ownedDOMRemoved": true,
+        "boardBytesUnchanged": true,
+        "actualPersistentActions": 0,
+        "forbidden": [],
+        "hostStateProposals": 0,
+        "layoutRequests": 0,
+        "mediaElements": 0
+      },
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "normal": {
+        "paths": 12,
+        "controls": [
+          {
+            "key": "center-info",
+            "rect": {
+              "left": 267,
+              "right": 295,
+              "top": 199,
+              "bottom": 227
+            },
+            "hit": true,
+            "crossings": []
+          },
+          {
+            "key": "pin-center",
+            "rect": {
+              "left": 236,
+              "right": 264,
+              "top": 199,
+              "bottom": 227
+            },
+            "hit": true,
+            "crossings": []
+          },
+          {
+            "key": "source",
+            "rect": {
+              "left": 89.5,
+              "right": 168.5,
+              "top": 199,
+              "bottom": 227
+            },
+            "hit": true,
+            "crossings": []
+          }
+        ],
+        "pass": true
+      },
+      "sourceFocus": true,
+      "infoOpen": true,
+      "infoClosed": true,
+      "variants": [
+        {
+          "name": "short-title",
+          "paths": 12,
+          "controls": [
+            {
+              "key": "center-info",
+              "rect": {
+                "left": 202.5,
+                "right": 230.5,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "pin-center",
+              "rect": {
+                "left": 171.5,
+                "right": 199.5,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "source",
+              "rect": {
+                "left": 89.5,
+                "right": 168.5,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            }
+          ],
+          "pass": true
+        },
+        {
+          "name": "second-page",
+          "paths": 10,
+          "controls": [
+            {
+              "key": "center-info",
+              "rect": {
+                "left": 267,
+                "right": 295,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "pin-center",
+              "rect": {
+                "left": 236,
+                "right": 264,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "source",
+              "rect": {
+                "left": 89.5,
+                "right": 168.5,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            }
+          ],
+          "pass": true
+        },
+        {
+          "name": "scrolled-lists",
+          "paths": 10,
+          "controls": [
+            {
+              "key": "center-info",
+              "rect": {
+                "left": 267,
+                "right": 295,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "pin-center",
+              "rect": {
+                "left": 236,
+                "right": 264,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "source",
+              "rect": {
+                "left": 89.5,
+                "right": 168.5,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            }
+          ],
+          "pass": true
+        }
+      ],
+      "cleanup": {
+        "eventsRemoved": true,
+        "ownedDOMRemoved": true,
+        "boardBytesUnchanged": true,
+        "actualPersistentActions": 0,
+        "forbidden": [],
+        "hostStateProposals": 0,
+        "layoutRequests": 0,
+        "mediaElements": 0
+      },
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "width": 600,
+      "normal": {
+        "paths": 12,
+        "controls": [
+          {
+            "key": "center-info",
+            "rect": {
+              "left": 547,
+              "right": 575,
+              "top": 199,
+              "bottom": 227
+            },
+            "hit": true,
+            "crossings": []
+          },
+          {
+            "key": "pin-center",
+            "rect": {
+              "left": 516,
+              "right": 544,
+              "top": 199,
+              "bottom": 227
+            },
+            "hit": true,
+            "crossings": []
+          },
+          {
+            "key": "source",
+            "rect": {
+              "left": 229.5,
+              "right": 308.5,
+              "top": 199,
+              "bottom": 227
+            },
+            "hit": true,
+            "crossings": []
+          }
+        ],
+        "pass": true
+      },
+      "sourceFocus": true,
+      "infoOpen": true,
+      "infoClosed": true,
+      "variants": [
+        {
+          "name": "short-title",
+          "paths": 12,
+          "controls": [
+            {
+              "key": "center-info",
+              "rect": {
+                "left": 342.5,
+                "right": 370.5,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "pin-center",
+              "rect": {
+                "left": 311.5,
+                "right": 339.5,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "source",
+              "rect": {
+                "left": 229.5,
+                "right": 308.5,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            }
+          ],
+          "pass": true
+        },
+        {
+          "name": "second-page",
+          "paths": 10,
+          "controls": [
+            {
+              "key": "center-info",
+              "rect": {
+                "left": 547,
+                "right": 575,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "pin-center",
+              "rect": {
+                "left": 516,
+                "right": 544,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "source",
+              "rect": {
+                "left": 229.5,
+                "right": 308.5,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            }
+          ],
+          "pass": true
+        },
+        {
+          "name": "scrolled-lists",
+          "paths": 10,
+          "controls": [
+            {
+              "key": "center-info",
+              "rect": {
+                "left": 547,
+                "right": 575,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "pin-center",
+              "rect": {
+                "left": 516,
+                "right": 544,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "source",
+              "rect": {
+                "left": 229.5,
+                "right": 308.5,
+                "top": 199,
+                "bottom": 227
+              },
+              "hit": true,
+              "crossings": []
+            }
+          ],
+          "pass": true
+        }
+      ],
+      "cleanup": {
+        "eventsRemoved": true,
+        "ownedDOMRemoved": true,
+        "boardBytesUnchanged": true,
+        "actualPersistentActions": 0,
+        "forbidden": [],
+        "hostStateProposals": 0,
+        "layoutRequests": 0,
+        "mediaElements": 0
+      },
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "width": 960,
+      "normal": {
+        "paths": 23,
+        "controls": [
+          {
+            "key": "center-info",
+            "rect": {
+              "left": 553,
+              "right": 581,
+              "top": 316,
+              "bottom": 344
+            },
+            "hit": true,
+            "crossings": []
+          },
+          {
+            "key": "pin-center",
+            "rect": {
+              "left": 522,
+              "right": 550,
+              "top": 316,
+              "bottom": 344
+            },
+            "hit": true,
+            "crossings": []
+          },
+          {
+            "key": "source",
+            "rect": {
+              "left": 409.5,
+              "right": 488.5,
+              "top": 316,
+              "bottom": 344
+            },
+            "hit": true,
+            "crossings": []
+          }
+        ],
+        "pass": true
+      },
+      "sourceFocus": true,
+      "infoOpen": true,
+      "infoClosed": true,
+      "variants": [
+        {
+          "name": "short-title",
+          "paths": 23,
+          "controls": [
+            {
+              "key": "center-info",
+              "rect": {
+                "left": 522.5,
+                "right": 550.5,
+                "top": 316,
+                "bottom": 344
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "pin-center",
+              "rect": {
+                "left": 491.5,
+                "right": 519.5,
+                "top": 316,
+                "bottom": 344
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "source",
+              "rect": {
+                "left": 409.5,
+                "right": 488.5,
+                "top": 316,
+                "bottom": 344
+              },
+              "hit": true,
+              "crossings": []
+            }
+          ],
+          "pass": true
+        },
+        {
+          "name": "second-page",
+          "paths": 15,
+          "controls": [
+            {
+              "key": "center-info",
+              "rect": {
+                "left": 553,
+                "right": 581,
+                "top": 364,
+                "bottom": 392
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "pin-center",
+              "rect": {
+                "left": 522,
+                "right": 550,
+                "top": 364,
+                "bottom": 392
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "source",
+              "rect": {
+                "left": 409.5,
+                "right": 488.5,
+                "top": 364,
+                "bottom": 392
+              },
+              "hit": true,
+              "crossings": []
+            }
+          ],
+          "pass": true
+        },
+        {
+          "name": "scrolled-lists",
+          "paths": 15,
+          "controls": [
+            {
+              "key": "center-info",
+              "rect": {
+                "left": 553,
+                "right": 581,
+                "top": 364,
+                "bottom": 392
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "pin-center",
+              "rect": {
+                "left": 522,
+                "right": 550,
+                "top": 364,
+                "bottom": 392
+              },
+              "hit": true,
+              "crossings": []
+            },
+            {
+              "key": "source",
+              "rect": {
+                "left": 409.5,
+                "right": 488.5,
+                "top": 364,
+                "bottom": 392
+              },
+              "hit": true,
+              "crossings": []
+            }
+          ],
+          "pass": true
+        }
+      ],
+      "cleanup": {
+        "eventsRemoved": true,
+        "ownedDOMRemoved": true,
+        "boardBytesUnchanged": true,
+        "actualPersistentActions": 0,
+        "forbidden": [],
+        "hostStateProposals": 0,
+        "layoutRequests": 0,
+        "mediaElements": 0
+      },
+      "pass": true
+    }
+  ],
+  "pass": true
+}

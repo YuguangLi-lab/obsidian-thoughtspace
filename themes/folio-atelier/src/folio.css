@@ -35,6 +35,45 @@ settings:
         value: atelier-amber
       - label: 松石 · Teal
         value: atelier-teal
+  - id: atelier-surface-mode
+    title: 界面风格
+    description: 经典保留当前外观；Apple 简洁使用中性面板；液态玻璃为导航与浮动工具增加磨砂高光。保留原生标签页方向与面板拖拽。
+    type: class-select
+    allowEmpty: false
+    default: atelier-surface-classic
+    options:
+      - label: Folio 经典
+        value: atelier-surface-classic
+      - label: Apple 简洁
+        value: atelier-surface-apple
+      - label: 液态玻璃
+        value: atelier-surface-liquid
+  - id: atelier-glass-blur
+    title: 玻璃模糊强度
+    description: 仅影响液态玻璃的导航和浮动工具；不模糊正文、白板卡片或视频。
+    type: variable-number-slider
+    default: 16
+    min: 8
+    max: 24
+    step: 2
+    format: px
+  - id: atelier-glass-finish
+    title: 玻璃质感
+    description: 柔和磨砂适合长时间阅读；通透高光突出玻璃边缘与背景层次。仅在液态玻璃模式生效。
+    type: class-select
+    allowEmpty: false
+    default: atelier-glass-frosted
+    options:
+      - label: 柔和磨砂
+        value: atelier-glass-frosted
+      - label: 通透高光
+        value: atelier-glass-clear
+  - id: atelier-glass-solid
+    title: 减少透明效果
+    description: 保留圆角与层次，使用实色表面；系统减少透明度或提高对比度时也会自动启用实色。
+    type: class-toggle
+    default: false
+    addCommand: true
   - id: atelier-neutral
     title: 中性背景
     description: 浅色切换为中性白，深色切换为中性灰。
@@ -2242,3 +2281,4 @@ body.atelier-grid-reading-on:not(.atelier-grid-off) .workspace-leaf-content[data
 /* @folio-source atelier-foundation.css */
 /* @folio-source atelier-native-ui.css */
 /* @folio-source atelier-thoughtspace-ui.css */
+/* @folio-source atelier-surface-modes.css */

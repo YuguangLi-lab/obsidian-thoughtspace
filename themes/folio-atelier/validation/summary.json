@@ -1,0 +1,38 @@
+{
+  "version": "3.33.0",
+  "themeSHA256": "9d28382753c67d21fdae877e3548c3577364b516f587db85640bbb1a200e1be5",
+  "surfaceCases": 44,
+  "minimumSampledTextContrast": 7.0152155517322585,
+  "contrastSamples": 64,
+  "relations": [
+    {
+      "mode": "apple",
+      "layouts": 6,
+      "checks": 24,
+      "pass": true
+    },
+    {
+      "mode": "liquid",
+      "layouts": 6,
+      "checks": 24,
+      "pass": true
+    },
+    {
+      "mode": "clear",
+      "layouts": 6,
+      "checks": 24,
+      "pass": true
+    }
+  ],
+  "upgradeChecks": [
+    "dry run is read only",
+    "explicit settings and appearance preserved byte for byte",
+    "previous theme and settings backed up before replacement",
+    "concurrent settings change refused without writes"
+  ],
+  "pass": true,
+  "nativeVerified": false,
+  "realVaultModified": false,
+  "previousArchiveSHA256": "404fc9c45ce31c927e606791fdfe164cfb94a70e7f795a0e4027151003ae67d7",
+  "scope": "Owned offline Chromium fixtures; selected controls only, no native Obsidian acceptance."
+}

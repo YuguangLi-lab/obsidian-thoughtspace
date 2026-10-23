@@ -1,6 +1,6 @@
 ## Folio Atelier 主题适配预览
 
-本分支包含 Folio Atelier 3.32.12 与可选 ThoughtSpace 1.3.35-folio.9 适配，基于 1.3.35。请阅读[主题、安装与验证说明](themes/folio-atelier/README.md)。主线 1.3.36 独立保留。
+本分支提供 Folio Atelier 3.33.0 主题预览版：Apple 简洁与液态玻璃。请阅读[主题、安装与验证说明](themes/folio-atelier/README.md)。本次下载包只更新主题；插件源码仍为基于 1.3.35 的 Folio 定制版，插件正式版请使用 Releases 的最新正式发布。
 
 # ThoughtSpace Whiteboard
 

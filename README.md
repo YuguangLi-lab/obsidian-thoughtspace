@@ -1,6 +1,6 @@
-## Folio Atelier integration preview
+## Folio Atelier theme preview
 
-This branch contains Folio Atelier 3.32.12 and the optional ThoughtSpace 1.3.35-folio.9 adaptation, based on 1.3.35. See [theme, installation and validation](themes/folio-atelier/README.md). Mainline 1.3.36 remains separate.
+This branch provides Folio Atelier 3.33.0 with Apple-inspired and liquid-glass CSS modes. See [installation and validation](themes/folio-atelier/README.md). The download is theme-only. Plugin sources on this branch remain the Folio fork based on 1.3.35; use the latest stable release for the official plugin.
 
 # ThoughtSpace Whiteboard
 

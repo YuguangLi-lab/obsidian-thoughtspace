@@ -6,7 +6,7 @@ source = (root / 'src/folio.css').read_text()
 modules = []
 EXPECTED_MODULES = ['palette.css', 'thoughtspace-current.css',
                     'atelier-foundation.css', 'atelier-native-ui.css',
-                    'atelier-thoughtspace-ui.css']
+                    'atelier-thoughtspace-ui.css', 'atelier-surface-modes.css']
 def inline(match):
     name = match.group(1)
     assert name in EXPECTED_MODULES, name

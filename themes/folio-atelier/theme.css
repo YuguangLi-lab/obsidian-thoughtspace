@@ -35,6 +35,45 @@ settings:
         value: atelier-amber
       - label: 松石 · Teal
         value: atelier-teal
+  - id: atelier-surface-mode
+    title: 界面风格
+    description: 经典保留当前外观；Apple 简洁使用中性面板；液态玻璃为导航与浮动工具增加磨砂高光。保留原生标签页方向与面板拖拽。
+    type: class-select
+    allowEmpty: false
+    default: atelier-surface-classic
+    options:
+      - label: Folio 经典
+        value: atelier-surface-classic
+      - label: Apple 简洁
+        value: atelier-surface-apple
+      - label: 液态玻璃
+        value: atelier-surface-liquid
+  - id: atelier-glass-blur
+    title: 玻璃模糊强度
+    description: 仅影响液态玻璃的导航和浮动工具；不模糊正文、白板卡片或视频。
+    type: variable-number-slider
+    default: 16
+    min: 8
+    max: 24
+    step: 2
+    format: px
+  - id: atelier-glass-finish
+    title: 玻璃质感
+    description: 柔和磨砂适合长时间阅读；通透高光突出玻璃边缘与背景层次。仅在液态玻璃模式生效。
+    type: class-select
+    allowEmpty: false
+    default: atelier-glass-frosted
+    options:
+      - label: 柔和磨砂
+        value: atelier-glass-frosted
+      - label: 通透高光
+        value: atelier-glass-clear
+  - id: atelier-glass-solid
+    title: 减少透明效果
+    description: 保留圆角与层次，使用实色表面；系统减少透明度或提高对比度时也会自动启用实色。
+    type: class-toggle
+    default: false
+    addCommand: true
   - id: atelier-neutral
     title: 中性背景
     description: 浅色切换为中性白，深色切换为中性灰。
@@ -4372,4 +4411,165 @@ body.atelier-plugin-polish .ts-local-relations-lines path[data-kind]:not(:where(
 }
 
 } /* screen */
+
+/* Optional Apple-inspired chrome. CSS approximation, not Apple's native
+ * Liquid Glass. Navigation gets material; document/media/node bodies stay
+ * solid. No positioned overlays, transforms, pointer listeners or animations.
+ * Default/no-class mode has no declarations. Calendar plugin stays isolated. */
+@media screen {
+  body:is(.atelier-surface-apple,.atelier-surface-liquid) {
+    --font-interface: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    --atelier-ui-canvas: #f5f5f7;
+    --atelier-ui-panel: #f0f0f3;
+    --atelier-ui-raised: #ffffff;
+    --atelier-ui-ink: #1d1d1f;
+    --atelier-ui-muted: #55555e;
+    --atelier-ui-dim: #62626c;
+    --atelier-ui-line: #d5d5dc;
+    --atelier-ui-line-strong: #b5b5bf;
+    --atelier-ui-subtle: color-mix(in srgb, var(--atelier-accent) 9%, #ffffff);
+    --atelier-ui-radius-sm: 7px;
+    --atelier-ui-radius-md: 11px;
+    --atelier-ui-radius-lg: 16px;
+    --atelier-ui-shadow-sm: 0 1px 3px #1010200a;
+    --atelier-ui-shadow-md: 0 3px 8px #10102008, 0 12px 30px -12px #10102026;
+    --atelier-ui-shadow-lg: 0 8px 36px -10px #10102030;
+    --folio-glass-fill: var(--atelier-ui-raised);
+    --folio-glass-edge: var(--atelier-ui-line);
+    --folio-glass-light: inset 0 1px 0 #ffffffb8;
+    --folio-glass-filter: none;
+    --folio-glass-sheen: none;
+    --folio-glass-clear-fill: rgb(250 250 253 / .82);
+  }
+  body.theme-dark:is(.atelier-surface-apple,.atelier-surface-liquid) {
+    --atelier-ui-canvas: #1c1c1e;
+    --atelier-ui-panel: #252528;
+    --atelier-ui-raised: #303034;
+    --atelier-ui-ink: #f5f5f7;
+    --atelier-ui-muted: #b8b8c0;
+    --atelier-ui-dim: #a8a8b1;
+    --atelier-ui-line: #44444b;
+    --atelier-ui-line-strong: #6b6b76;
+    --atelier-ui-subtle: color-mix(in srgb, var(--atelier-accent) 13%, #303034);
+    --atelier-ui-shadow-sm: 0 1px 3px #00000026;
+    --atelier-ui-shadow-md: 0 4px 10px #00000026, 0 14px 32px -12px #00000066;
+    --atelier-ui-shadow-lg: 0 8px 36px -10px #00000080;
+    --folio-glass-light: inset 0 1px 0 #ffffff16;
+    --folio-glass-clear-fill: rgb(40 40 45 / .86);
+  }
+
+  /* Solid first: unsupported engines never get a transparent-only surface. */
+  @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    body.atelier-surface-liquid {
+      --folio-glass-fill: rgb(250 250 253 / .88);
+      --folio-glass-edge: rgb(255 255 255 / .9);
+      --folio-glass-filter: blur(clamp(8px, var(--atelier-glass-blur, 16px), 24px)) saturate(135%);
+      --folio-glass-sheen: linear-gradient(145deg, #ffffff38 0%, #ffffff00 42%, #ffffff12 100%);
+      --folio-glass-light: inset 0 1px 0 #ffffffd9, inset 1px 0 0 #ffffff66, inset 0 -1px 0 #ffffff30;
+    }
+    body.theme-dark.atelier-surface-liquid {
+      --folio-glass-fill: rgb(40 40 45 / .9);
+      --folio-glass-edge: rgb(255 255 255 / .19);
+      --folio-glass-sheen: linear-gradient(145deg, #ffffff12 0%, #ffffff00 42%, #ffffff06 100%);
+      --folio-glass-light: inset 0 1px 0 #ffffff40, inset 1px 0 0 #ffffff18, inset 0 -1px 0 #00000030;
+    }
+    body.atelier-surface-liquid.atelier-glass-clear {
+      --folio-glass-fill: var(--folio-glass-clear-fill);
+      --folio-glass-filter: blur(clamp(8px, var(--atelier-glass-blur, 16px), 24px)) saturate(155%);
+    }
+  }
+  /* Native tab geometry, titlebar drag regions and ribbon hit areas are owned
+   * by Obsidian. Paint only; do not filter a full workspace or a scroll host. */
+  body:is(.atelier-surface-apple,.atelier-surface-liquid) .workspace-tabs > .workspace-tab-header-container {
+    background: var(--folio-glass-sheen), var(--folio-glass-fill);
+    border-color: var(--atelier-ui-line);
+    box-shadow: var(--folio-glass-light);
+  }
+  body:is(.atelier-surface-apple,.atelier-surface-liquid) .workspace-tab-header.is-active {
+    border-radius: 9px 9px 0 0;
+    background-color: var(--atelier-ui-raised);
+    box-shadow: inset 0 1px 0 var(--atelier-ui-line);
+  }
+  body:is(.atelier-surface-apple,.atelier-surface-liquid) .workspace-tab-header.is-active .workspace-tab-header-inner {
+    background-color: transparent;
+  }
+  body:is(.atelier-surface-apple,.atelier-surface-liquid) :is(.menu,.suggestion-container) {
+    background: var(--folio-glass-sheen), var(--folio-glass-fill);
+    border: 1px solid var(--folio-glass-edge);
+    border-radius: var(--atelier-ui-radius-lg);
+    box-shadow: var(--folio-glass-light), var(--atelier-ui-shadow-lg);
+    -webkit-backdrop-filter: var(--folio-glass-filter);
+    backdrop-filter: var(--folio-glass-filter);
+    color: var(--atelier-ui-ink);
+  }
+  body:is(.atelier-surface-apple,.atelier-surface-liquid) .modal {
+    border-color: var(--atelier-ui-line);
+    border-radius: var(--atelier-ui-radius-lg);
+    box-shadow: var(--atelier-ui-shadow-lg);
+  }
+  body:is(.atelier-surface-apple,.atelier-surface-liquid) .workspace-leaf-content:is([data-type="file-explorer"],[data-type="search"],[data-type="outline"],[data-type="bookmarks"]) {
+    background-color: var(--atelier-ui-panel);
+  }
+  body:is(.atelier-surface-apple,.atelier-surface-liquid) .menu-item:not(.is-warning):not(.is-disabled) {
+    color: var(--atelier-ui-ink);
+    border-radius: var(--atelier-ui-radius-sm);
+  }
+  /* Solid plugin panels and text. No changed card geometry or content fonts. */
+  body:is(.atelier-surface-apple,.atelier-surface-liquid) :is(.ts-space-hub,.ts-writing,.ts-settings,.ts-local-relations,.ts-reading-desk,.ts-reference-reading,.ts-materials-panel,.ts-media-workspace,.ts-online-workspace):not(:where(.ts-calendar-plugin,.ts-calendar-plugin *)) {
+    background-color: var(--atelier-ui-canvas);
+    color: var(--atelier-ui-ink);
+  }
+  body:is(.atelier-surface-apple,.atelier-surface-liquid) :is(.ts-hub-nav,.ts-hub-tools,.ts-hub-detail,.ts-writing-header,.ts-writing-formatbar,.ts-reading-commandbar,.ts-materials-header,.ts-settings-header,.ts-local-relations-toolbar):not(:where(.ts-calendar-plugin,.ts-calendar-plugin *)) {
+    background-color: var(--atelier-ui-panel);
+    border-color: var(--atelier-ui-line);
+    border-radius: var(--atelier-ui-radius-md);
+  }
+  body:is(.atelier-surface-apple,.atelier-surface-liquid) .ts-local-relations .ts-local-relations-center:not(:where(.ts-calendar-plugin,.ts-calendar-plugin *)) {
+    background: var(--atelier-ui-raised);
+    border-color: var(--atelier-ui-line-strong);
+    box-shadow: var(--atelier-ui-shadow-md);
+  }
+  /* Only floating board controls are blurred. Existing !important flat-paint
+   * rules require equally scoped overrides; never apply blur to card prose. */
+  body:is(.atelier-surface-apple,.atelier-surface-liquid) .ts-root :is(.ts-commandbar,.ts-canvas-controls,.ts-rail-popover,.ts-tools-palette):not(:where(.ts-calendar-plugin,.ts-calendar-plugin *)) {
+    background: var(--folio-glass-sheen), var(--folio-glass-fill) !important;
+    border-color: var(--folio-glass-edge) !important;
+    border-radius: var(--atelier-ui-radius-lg) !important;
+    box-shadow: var(--folio-glass-light), var(--atelier-ui-shadow-md) !important;
+    -webkit-backdrop-filter: var(--folio-glass-filter) !important;
+    backdrop-filter: var(--folio-glass-filter) !important;
+  }
+  /* Muted palette text can lose contrast through glass over a dark/light
+   * canvas. Neutral actions use opaque ink; semantic/selected states stay owned
+   * by the plugin. No shared --text-muted override reaches card content. */
+  body:is(.atelier-surface-apple,.atelier-surface-liquid) .ts-root :is(.ts-commandbar,.ts-canvas-controls,.ts-rail-popover,.ts-tools-palette) .ts-button:not(:is(.is-active,.ts-primary,.mod-cta,.is-warning,.mod-warning,.is-danger,:disabled,[aria-disabled="true"],[aria-pressed="true"],[aria-expanded="true"])):not(:where(.ts-calendar-plugin,.ts-calendar-plugin *)) {
+    color: var(--atelier-ui-ink) !important;
+  }
+  body:is(.atelier-surface-apple,.atelier-surface-liquid) .ts-root .ts-commandbar > .ts-toolbar:not(:where(.ts-calendar-plugin,.ts-calendar-plugin *)) {
+    background: transparent;
+    box-shadow: none;
+  }
+
+  body:is(.theme-light,.theme-dark):is(.atelier-surface-apple,.atelier-surface-liquid).atelier-glass-solid {
+    --folio-glass-fill: var(--atelier-ui-raised);
+    --folio-glass-filter: none;
+    --folio-glass-edge: var(--atelier-ui-line-strong);
+    --folio-glass-sheen: none;
+  }
+  @media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
+    body:is(.theme-light,.theme-dark):is(.atelier-surface-apple,.atelier-surface-liquid) {
+      --folio-glass-fill: var(--atelier-ui-raised);
+      --folio-glass-filter: none;
+      --folio-glass-edge: var(--atelier-ui-line-strong);
+      --folio-glass-light: inset 0 0 0 0 transparent;
+      --folio-glass-sheen: none;
+    }
+  }
+  body:is(.atelier-surface-apple,.atelier-surface-liquid).atelier-flat {
+    --atelier-ui-shadow-sm: 0 0 0 0 transparent;
+    --atelier-ui-shadow-md: 0 0 0 0 transparent;
+    --atelier-ui-shadow-lg: 0 0 0 0 transparent;
+    --folio-glass-light: inset 0 0 0 0 transparent;
+  }
+}
 
