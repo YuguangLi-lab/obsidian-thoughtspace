@@ -1,3 +1,5 @@
+import * as reviewFeature from '../src/collection-review';
+import * as calendarFeature from '../src/collection-calendar';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -122,4 +124,32 @@ for(const damage of ['body','unknown-property','identity','target-flag','verific
 });
 test('an API that does not execute its callback cannot produce a confirmed receipt',async()=>{
  const f=fixture();f.control.skipCallback=true;await assert.rejects(f.set(),outcome('not-written',/未确认/));assert.equal(f.source(),original);
+});
+
+const reviewHost=load<typeof import('../src/collection-review-host')>('src/collection-review-host.ts',{'./value-guards':guards,'./collection-organize':organize,'./native-note-state':native,'./collection-review':reviewFeature,'./collection-calendar':calendarFeature});
+test('review scheduling adds only opt-in namespaced properties and preserves native body/other properties',async()=>{
+ const f=fixture(),before=parse(original);await reviewHost.setCollectionReview(f.app,f.file as TFile,identity,'2026-10-29',()=>true);
+ const after=parse(f.source());assert.equal(after.body,before.body);assert.deepEqual(after.properties,{...before.properties,thoughtspace_review_version:1,thoughtspace_review_on:'2026-10-29'});
+ await reviewHost.setCollectionReview(f.app,f.file as TFile,identity,undefined,()=>true,'2026-10-29');assert.deepEqual(parse(f.source()).properties,before.properties);
+});
+test('foreign or damaged review fields are not silently adopted or overwritten',async()=>{
+ for(const extra of [{thoughtspace_review_on:'2026-10-29'},{thoughtspace_review_version:2,thoughtspace_review_on:'2026-10-29'}]){
+  const f=fixture(serialize({...parse(original).properties,...extra})),before=f.source();await assert.rejects(reviewHost.setCollectionReview(f.app,f.file as TFile,identity,'2026-11-01',()=>true));assert.equal(f.source(),before);assert.equal(f.counts().writes,0);
+ }
+});
+test('review scheduling refuses competing dates and preserves concurrent native body edits',async()=>{
+ const f=fixture(),before=f.source();await assert.rejects(reviewHost.setCollectionReview(f.app,f.file as TFile,identity,'2026-11-01',()=>true,'2026-10-29'));assert.equal(f.source(),before);
+ f.control.beforeProperties=()=>f.replaceSource(f.source()+'Native concurrent edit');await assert.rejects(reviewHost.setCollectionReview(f.app,f.file as TFile,identity,'2026-11-01',()=>true));assert.equal(f.counts().writes,1);assert.ok(f.source().endsWith('Native concurrent edit'));assert.equal(parse(f.source()).properties.thoughtspace_review_on,'2026-11-01');
+});
+test('review cancellation at the atomic callback makes no property changes',async()=>{
+ const f=fixture();let current=true;f.control.beforeProperties=()=>{current=false;};await assert.rejects(reviewHost.setCollectionReview(f.app,f.file as TFile,identity,'2026-11-01',()=>current));assert.equal(f.source(),original);
+});
+test('review write response loss requires actual readback and never retries an unknown write',async()=>{
+ const f=fixture();f.control.failure='after';await reviewHost.setCollectionReview(f.app,f.file as TFile,identity,'2026-11-01',()=>true);assert.equal(f.counts().writes,1);
+ const g=fixture();g.control.verificationReadFailure=true;await assert.rejects(reviewHost.setCollectionReview(g.app,g.file as TFile,identity,'2026-11-01',()=>true));assert.equal(g.counts().writes,1);
+});
+
+test('a concurrent unrelated property change cannot be overwritten by a review callback',async()=>{
+ const f=fixture();f.control.beforeProperties=()=>f.replaceSource(serialize({...parse(f.source()).properties,user_new_property:'preserve me'}));
+ await assert.rejects(reviewHost.setCollectionReview(f.app,f.file as TFile,identity,'2026-11-01',()=>true),/属性已变化/);assert.equal(f.counts().writes,0);assert.equal(parse(f.source()).properties.user_new_property,'preserve me');
 });

@@ -1,5 +1,6 @@
+import {findCollectionDuplicates} from './collection-duplicates';
 import {App,Component,FuzzySuggestModal,TFile,WorkspaceLeaf,normalizePath} from 'obsidian';
-import {CollectionRecovery,type CollectionDraft} from './collection-recovery';
+import {CollectionRecovery,isCollectionJournalSource,type CollectionDraft,type CollectionJournalRead} from './collection-recovery';
 import {collectionNoteSource,collectionTitle} from './collection-model';
 import {CollectionContext} from './collection-context';
 import {CollectionNoteExporter} from './collection-note-export';
@@ -10,6 +11,7 @@ import {CollectionJournalStore,collectionJournalCanonical} from './collection-jo
 import {normalizeNativeTags} from './native-tags';
 import {isWorkspaceFile} from './workspace';
 import {bindBoardModalViewport} from './board-modal-viewport';
+import {setCollectionReview} from './collection-review-host';
 import {setCollectionFlag} from './collection-organize';
 import {CollectionJsonStore,collectionJsonCanonical} from './collection-json-store';
 import {CollectionSavedFilters,isCollectionSavedFiltersDocument} from './collection-saved-filters';
@@ -20,6 +22,7 @@ import type {BoardBackground} from './board-background';
 export interface CollectionBridge {
  accent?():string;density?():string;
  background?():BoardBackground;backgroundResource?:(path:string)=>string;
+ openRecoveryCenter?:()=>void;
  openBackground?:(anchor:HTMLElement,current:()=>boolean)=>void;
  directory:string;
  folder():string;
@@ -90,6 +93,31 @@ export class CollectionWorkspace extends Component {
    try{const data:unknown=JSON.parse(text);if(data&&typeof data==='object'&&('attempt'in data&&data.attempt||'draft'in data&&data.draft&&typeof data.draft==='object'&&(('body'in data.draft&&data.draft.body)||('tags'in data.draft&&data.draft.tags)||('attachments'in data.draft&&Array.isArray(data.draft.attachments)&&data.draft.attachments.length)||('target'in data.draft&&data.draft.target))))return id;}catch{return id;/* The recovery controller surfaces the preserved damaged journal. */}
   }
  }
+ async recoveryEntries(current:()=>boolean){
+  const entries:{id:string;title:string;storage:'memory'|'checkpoint'|'unknown';text:string;description:string}[]=[];
+  const describe=(value:{body:string;tags:string;attachments:readonly {path:string}[]})=>value.body+(value.tags?'\n\n标签：'+value.tags:'')+(value.attachments.length?'\n\n附件：\n'+value.attachments.map(a=>a.path).join('\n'):'');
+  for(const[id,recovery]of this.sessions){if(!current())return entries;const state=recovery.snapshot;if(state.draft.body||state.draft.tags||state.draft.attachments.length||state.attempt)entries.push({id:id+':memory',title:id,storage:'memory',text:describe(state.draft),description:'当前会话输入；'+state.status+(state.error?'；'+state.error:'')});}
+  const directory=normalizePath(`${this.bridge.directory}/collection-drafts`);if(!await this.app.vault.adapter.exists(directory))return entries;
+  const files=(await this.app.vault.adapter.list(directory)).files,paths=[...new Set(files.map(collectionJournalCanonical).filter((p):p is string=>!!p&&p.startsWith(directory+'/')))];
+  for(const path of paths.slice(0,500)){if(!current())return entries;const id=path.slice(path.lastIndexOf('/')+1).replace(/\.json$/,'');if(!validSession(id))continue;
+   try{let canonical:string|undefined;try{canonical=await this.app.vault.adapter.read(path);}catch{/* The existing store handles missing/damaged canonical files and previous checkpoints. */}
+    const raw:CollectionJournalRead=canonical!==undefined&&isCollectionJournalSource(canonical)?canonical:await new CollectionJournalStore(this.app.vault.adapter,path,()=>this.bridge.newId()).read();
+    if(raw===null)continue;const serialized=typeof raw==='string'?raw:raw.serialized;if(!isCollectionJournalSource(serialized))throw Error('恢复检查点格式无法确认');const data:unknown=JSON.parse(serialized);
+    if(!data||typeof data!=='object'||!('draft'in data)||!data.draft||typeof data.draft!=='object'||!('body'in data.draft)||typeof data.draft.body!=='string')continue;
+    const draft=data.draft as CollectionDraft;if(!draft.body&&!draft.tags&&!draft.attachments.length&&!('attempt'in data&&data.attempt))continue;
+    entries.push({id:id+':checkpoint',title:id,storage:typeof raw==='string'?'checkpoint':'unknown',text:describe(draft),description:typeof raw==='string'?'已读取并校验的会话检查点；与当前内存输入可能不同。':raw.blockedReason});
+   }catch(error){entries.push({id:id+':unknown',title:id,storage:'unknown',text:'',description:'恢复材料无法确认，请从收集原入口核对：'+String(error)});}
+  }
+  if(paths.length>500)entries.push({id:'collection-limit',title:'还有更多恢复材料',storage:'unknown',text:'',description:'本次最多检查500个会话，请从原收集入口核对剩余材料。'});return entries;
+ }
+ private draftBody(draft:Pick<CollectionDraft,'body'|'attachments'>,path:string){
+    const references=draft.attachments.map(attachment=>{
+     const file=this.app.vault.getAbstractFileByPath(attachment.path);if(!(file instanceof TFile)||!isWorkspaceFile(file))throw Error('所选附件已移动或删除，请重新选择');
+     const link=this.app.fileManager.generateMarkdownLink(file,path);
+     return /^(png|jpe?g|gif|webp|avif|bmp|svg|pdf|mp3|m4a|wav|ogg|mp4|webm|mov)$/i.test(file.extension)?`!${link}`:link;
+    });
+    return draft.body+(references.length?`${draft.body?'\n\n':''}${references.join('\n')}`:'');
+ }
  private recovery(id:string):CollectionRecovery{
   const prior=this.sessions.get(id);if(prior)return prior;
   const journal=this.journal(id),adapter=this.app.vault.adapter,store=new CollectionJournalStore(adapter,journal,()=>this.bridge.newId()),provedAbsent=new Set<string>(),notStarted=new Set<string>();
@@ -105,12 +133,7 @@ export class CollectionWorkspace extends Component {
     const folder=normalizePath(this.bridge.folder());
     if(!folder||folder.startsWith('/')||folder.split('/').some(part=>part==='.'||part==='..'||part.startsWith('.')))throw Error('请先设置有效的卡片文件夹');
     const path=normalizePath(`${folder}/${safeName(collectionTitle(draft.body))}-${identity.id.slice(-8)}.md`);
-    const references=draft.attachments.map(attachment=>{
-     const file=this.app.vault.getAbstractFileByPath(attachment.path);if(!(file instanceof TFile)||!isWorkspaceFile(file))throw Error('所选附件已移动或删除，请重新选择');
-     const link=this.app.fileManager.generateMarkdownLink(file,path);
-     return /^(png|jpe?g|gif|webp|avif|bmp|svg|pdf|mp3|m4a|wav|ogg|mp4|webm|mov)$/i.test(file.extension)?`!${link}`:link;
-    });
-    const body=draft.body+(references.length?`${draft.body?'\n\n':''}${references.join('\n')}`:'');
+    const body=this.draftBody(draft,path);
     const markdown=collectionNoteSource({...identity,body,tags:normalizeNativeTags(draft.tags)});
     notStarted.add(identity.id);return{path,markdown};
    },
@@ -162,7 +185,7 @@ export class CollectionWorkspace extends Component {
  }
  host(leaf:WorkspaceLeaf):CollectionViewHost{
   let context:CollectionContext|undefined;const contexts=()=>context??=new CollectionContext(this.app,this.library);
-  const owner=Symbol('collection-view');let session=`session-${this.bridge.newId()}`,recovery=this.recovery(session),released=false;
+  const owner=Symbol('collection-view');let session=`session-${this.bridge.newId()}`,recovery=this.recovery(session),released=false,sessionEpoch=0;
   const listeners=new Set<(kind?:'draft'|'records'|'filters'|'batches')=>void>();let detach=()=>{};
   const libraryChanged=(kind:'filters'|'batches')=>{for(const listener of listeners)listener(kind);};this.libraryListeners.add(libraryChanged);
   this.owners.set(session,owner);
@@ -229,9 +252,13 @@ export class CollectionWorkspace extends Component {
    accent:()=>this.bridge.accent?.()||'forest',density:()=>this.bridge.density?.()||'comfortable',
    background:this.bridge.background?()=>this.bridge.background!():undefined,backgroundResource:this.bridge.backgroundResource,
    openBackground:this.bridge.openBackground?(anchor,current)=>this.bridge.openBackground!(anchor,()=>live()&&current()):undefined,
+   openRecoveryCenter:this.bridge.openRecoveryCenter,
    sessionId:()=>session,
    setSessionId:async id=>{
+    const epoch=++sessionEpoch;
     if(!validSession(id)||id===session)return;
+    await recovery.flushDraft();
+    if(released||epoch!==sessionEpoch)return;
     if(this.owners.get(session)===owner)this.owners.delete(session);
     session=this.owners.has(id)?`session-${this.bridge.newId()}`:id;
     this.owners.set(session,owner);recovery=this.recovery(session);bind();await recovery.ready;
@@ -239,8 +266,11 @@ export class CollectionWorkspace extends Component {
    ready:async()=>{await recovery.ready;},
    draft:()=>{const state=recovery.snapshot;return{...state.draft,busy:state.busy,locked:state.locked,targetLocked:state.targetLocked,canSubmit:state.canSubmit,status:[state.error,state.status].filter(Boolean).join('；')};},
    updateDraft:patch=>recovery.updateDraft({...patch,...('target'in patch?{target:patch.target||undefined}:{}),...('attachments'in patch?{attachments:patch.attachments?[...patch.attachments]:[]}:{} )} as Partial<CollectionDraft>),
+   flushDraft:()=>recovery.flushDraft(),
    submit:current=>scoped(async active=>{await recovery.submit(active);this.library.invalidate();},current),
    subscribe:listener=>{listeners.add(listener);return()=>listeners.delete(listener);},
+   checkDuplicates:async(body,current,attachments=[])=>{const rendered=this.draftBody({body,attachments:[...attachments]},normalizePath(this.bridge.folder())+'/capture-duplicate-check.md');const records=await this.library.list();return findCollectionDuplicates(records,rendered,async record=>{const source=await file(record,true);if(source.stat.size>1024*1024)throw Error('记录过大，未检查');return this.library.readBody(record);},()=>live()&&current());},
+   setReview:(record,on,current)=>scoped(active=>locked(record,async()=>{const source=await file(record,true);const watch=this.library.watchIdentity(record);try{await setCollectionReview(this.app,source,record,on,()=>active()&&watch.current(source),record.reviewOn);}finally{watch.release();}}),current),
    list:()=>this.library.list(),readBody:record=>this.library.readBody(record),
    inspectContext:(record,current)=>contexts().inspect(record,()=>live()&&current()),
    attachmentPage:async(query,current)=>contexts().attachments(await this.library.list(),query,()=>live()&&current()),
@@ -302,7 +332,7 @@ export class CollectionWorkspace extends Component {
    showOccurrences:record=>scoped(async active=>{const source=await file(record);if(active())this.bridge.occurrences(source);}),
    locateBoard:(record,reference)=>scoped(async active=>{const source=await file(record),board=this.library.referenceFile(reference);if(!active())return;if(!board)throw Error('所在白板已改名、移除或替换，请刷新记录');this.bridge.locateBoard?.(source,board,reference.nodeId);}),
    openLegacyInbox:()=>{if(live())this.bridge.legacyInbox();},
-   release:()=>{released=true;context?.dispose();context=undefined;detach();offLibrary();this.libraryListeners.delete(libraryChanged);listeners.clear();if(this.owners.get(session)===owner)this.owners.delete(session);void recovery.flushDraft().catch(()=>undefined);},
+   release:()=>{released=true;sessionEpoch++;context?.dispose();context=undefined;detach();offLibrary();this.libraryListeners.delete(libraryChanged);listeners.clear();if(this.owners.get(session)===owner)this.owners.delete(session);void recovery.flushDraft().catch(()=>undefined);},
   };
  }
 }

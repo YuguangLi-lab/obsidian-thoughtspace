@@ -136,3 +136,53 @@ test('two independent composer journals preserve separate drafts and create diff
 test('rapid draft changes coalesce into a single flush and disposal retains the last input',async()=>{
  const f=await fixture();for(let i=1;i<=30;i++)f.controller.updateDraft({body:`草稿 ${i}`});await f.controller.flushDraft();assert.equal(f.counts().writes,1);assert.equal(f.journal()!.draft.body,'草稿 30');f.controller.updateDraft({body:'最终输入'});f.controller.dispose();await until(()=>f.journal()?.draft.body==='最终输入');assert.equal(f.journal()!.draft.body,'最终输入');
 });
+
+test('typing across event turns keeps only the latest ordinary draft behind an in-flight write',async()=>{
+ const f=await fixture(),gate=deferred(),entered:Journal[]=[],write=f.host.writeJournal;
+ f.host.writeJournal=async value=>{entered.push(JSON.parse(value) as Journal);if(entered.length===1)await gate.promise;await write(value);};
+ f.controller.updateDraft({body:'already started'});await until(()=>entered.length===1);
+ for(let i=1;i<=40;i++){f.controller.updateDraft({body:`pending ${i}`,tags:`tag-${i}`});await Promise.resolve();}
+ const flushed=f.controller.flushDraft();assert.equal(entered.length,1);gate.resolve();await flushed;
+ assert.deepEqual(entered.map(value=>value.draft.body),['already started','pending 40']);
+ assert.equal(f.journal()!.draft.tags,'tag-40');assert.equal(f.counts().creates,0);
+});
+
+test('flush follows newer queued typing and waits for its actual adapter completion',async()=>{
+ const f=await fixture(),first=deferred(),second=deferred(),entered:Journal[]=[],write=f.host.writeJournal;
+ f.host.writeJournal=async value=>{entered.push(JSON.parse(value) as Journal);await(entered.length===1?first:second).promise;await write(value);};
+ f.controller.updateDraft({body:'first'});await until(()=>entered.length===1);
+ let complete=false;const flushing=f.controller.flushDraft().then(()=>{complete=true;});
+ await Promise.resolve();f.controller.updateDraft({body:'typed during flush'});await Promise.resolve();first.resolve();
+ await until(()=>entered.length===2);await Promise.resolve();assert.equal(complete,false);
+ second.resolve();await flushing;assert.equal(f.journal()!.draft.body,'typed during flush');
+});
+
+test('closing retains the last queued draft without replaying obsolete pending snapshots',async()=>{
+ const f=await fixture(),gate=deferred(),entered:Journal[]=[],write=f.host.writeJournal;
+ f.host.writeJournal=async value=>{entered.push(JSON.parse(value) as Journal);if(entered.length===1)await gate.promise;await write(value);};
+ f.controller.updateDraft({body:'first'});await until(()=>entered.length===1);
+ f.controller.updateDraft({body:'intermediate'});await Promise.resolve();f.controller.updateDraft({body:'closed with this'});f.controller.dispose();
+ gate.resolve();await until(()=>f.journal()?.draft.body==='closed with this');
+ assert.deepEqual(entered.map(value=>value.draft.body),['first','closed with this']);
+});
+
+test('submission preserves every delivery checkpoint after merging queued ordinary drafts',async()=>{
+ const f=await fixture(),gate=deferred(),entered:Journal[]=[],write=f.host.writeJournal;
+ f.host.writeJournal=async value=>{entered.push(JSON.parse(value) as Journal);if(entered.length===1)await gate.promise;await write(value);};
+ f.controller.updateDraft({body:'first',target});await until(()=>entered.length===1);
+ for(const body of ['second','third','final']){f.controller.updateDraft({body});await Promise.resolve();}
+ const saving=f.controller.submit();gate.resolve();await saving;
+ assert.deepEqual(entered.filter(value=>value.attempt).map(value=>value.attempt!.phase),['prepared','creating','created','delivering','completed']);
+ assert.deepEqual(entered.filter(value=>!value.attempt).map(value=>value.draft.body),['first','final','']);
+ assert.equal(f.counts().creates,1);assert.equal(f.counts().placements,1);
+});
+
+test('a failed latest coalesced draft remains visible and a retry saves its full value',async()=>{
+ const f=await fixture(),gate=deferred(),entered:Journal[]=[],write=f.host.writeJournal;
+ f.host.writeJournal=async value=>{entered.push(JSON.parse(value) as Journal);if(entered.length===1)await gate.promise;await write(value);};
+ f.controller.updateDraft({body:'confirmed first'});await until(()=>entered.length===1);
+ f.controller.updateDraft({body:'obsolete'});await Promise.resolve();f.controller.updateDraft({body:'latest unsaved',tags:'keep'});
+ f.control.writeFailure=value=>value.draft.body==='latest unsaved';const flushing=f.controller.flushDraft();gate.resolve();await assert.rejects(flushing,/disk full/);
+ assert.equal(f.journal()!.draft.body,'confirmed first');assert.equal(f.controller.snapshot.draft.body,'latest unsaved');assert.match(f.controller.snapshot.error!,/恢复信息/);
+ f.control.writeFailure=undefined;await f.controller.flushDraft();assert.equal(f.journal()!.draft.body,'latest unsaved');assert.equal(f.journal()!.draft.tags,'keep');assert.equal(f.controller.snapshot.error,undefined);
+});

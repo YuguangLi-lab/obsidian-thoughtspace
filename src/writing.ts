@@ -1,9 +1,11 @@
+import type {WritingSourceCheck} from './writing-source-check';
 import {Board,Card,contained} from './model';
 import {readingOrder,nodeName} from './board-studio';
 import {sectionMemberQuery} from './sections';
 export interface WritingChapter {id:string;title:string;body:string}
 export interface WritingOption {title?:string;level?:number;note?:string;excluded?:boolean}
 export interface WritingState {
+ sourceChecks?:WritingSourceCheck[];
  manuscript?:string;
  assemblyStamp?:string;completedSections?:string[];
  title:string;order:string[];referenceId?:string;draftPath?:string;
@@ -40,12 +42,14 @@ function writingBody(body:string,hasHeading:boolean){
  body=body.replace(/^---\r?\n(?:[\s\S]*?\r?\n)??(?:---|\.\.\.)[ \t]*(?:\r?\n|$)/,'');
  return hasHeading?body.replace(/^# [^\n]*(?:\n|$)/,''):body;
 }
+const writingHeading=(s:string)=>s.replace(/[\r\n]+/g,' ').replace(/^#+\s*/,'').trim();
+export function writingPartMarkdown(p:{title:string;depth:number;body:string;source?:string}){return(p.depth?'#'.repeat(p.depth)+' '+writingHeading(p.title)+'\n\n':'')+(p.body?writingBody(p.body,p.depth>0).trim()+'\n\n':'')+(p.source?'来源：'+p.source+'\n':'');}
 export function writingMarkdown(title:string,parts:{title:string;depth:number;body:string;source?:string}[],boardLink:string){
  if(!title.trim()||!parts.length)throw Error('请填写标题并添加文章内容');
  if(parts.reduce((total,p)=>total+p.body.length,0)>1000000)throw Error('草稿超过 1,000,000 字符，请分章生成');
- const heading=(s:string)=>s.replace(/[\r\n]+/g,' ').replace(/^#+\s*/,'').trim();
- return '# '+heading(title)+'\n\n白板：'+boardLink+'\n\n'+parts.map(p=>(p.depth?'#'.repeat(p.depth)+' '+heading(p.title)+'\n\n':'')+(p.body?writingBody(p.body,p.depth>0).trim()+'\n\n':'')+(p.source?'来源：'+p.source+'\n':'')).join('\n')+'\n';
+ return '# '+writingHeading(title)+'\n\n白板：'+boardLink+'\n\n'+parts.map(writingPartMarkdown).join('\n')+'\n';
 }
+
 export const writingName=(node:Card)=>node.title||nodeName(node).replace(/^#+\s*/,'').replace(node.file?/\.(md|png|jpe?g|webp|gif|avif)$/i:/$^/,'').slice(0,120);
 /** Count CJK runs without an expanded manuscript; retain the native non-CJK fast path. */
 export function writingWordCount(text:string){

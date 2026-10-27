@@ -18,11 +18,14 @@ export class CollectionOpener {
   // Obsidian exposes one main-window sidedock, not a popout-specific right leaf.
   if(placement==='sidebar'&&doc!==workspace.containerEl.ownerDocument)return Promise.reject(Error('独立窗口不支持收集侧边栏，请在主窗口运行此命令。'));
   const pending=this.opening[placement].get(doc);if(pending?.current())return pending.work;
-  let cancelled=false,allocating=false,target:WorkspaceLeaf|undefined;
+  let cancelled=false,allocating=false,reusedSource=false,target:WorkspaceLeaf|undefined;
   const sourceFile=(view as {file?:unknown}|undefined)?.file;
   const current=(target?:WorkspaceLeaf)=>!cancelled&&!this.stopped&&!doc.defaultView?.closed&&
    (workspace.activeLeaf===source||!!target&&workspace.activeLeaf===target)&&
-   (!source||source.view===view&&(view as {file?:unknown}|undefined)?.file===sourceFile&&source.getContainer().doc===doc&&view?.containerEl.isConnected!==false);
+   (!source||source.getContainer().doc===doc&&(
+    source.view===view&&(view as {file?:unknown}|undefined)?.file===sourceFile&&view?.containerEl.isConnected!==false||
+    reusedSource&&source===target&&source.getViewState().type===this.viewType&&!(source.view as {file?:unknown}).file&&source.view.containerEl.isConnected!==false
+   ));
   // Observed navigation cannot be revived by returning to the original tab.
   // Synchronous allocation may focus its own new placeholder; validate it below.
   const observe=()=>{if(!allocating&&!current(target))cancelled=true;};
@@ -41,23 +44,25 @@ export class CollectionOpener {
      let created:WorkspaceLeaf|null;
      allocating=true;try{created=placement==='sidebar'?workspace.getRightLeaf(false):workspace.getLeaf('tab');}finally{allocating=false;}
      if(!created)throw Error('当前无法新建收集侧边栏，请稍后重试。');
-     if(before.has(created))throw Error('未获得新的收集标签页，已有页面保持不变。');
+     const allocated=!before.has(created);
+     if(!allocated&&(created.getViewState().type!=='empty'||(created.view as {file?:unknown}).file))throw Error('未获得新的收集标签页，已有页面保持不变。');
+     reusedSource=!allocated&&created===source;
      leaf=created;target=created;
      const empty=created.view;
      // The container is authoritative before a popout view's DOM is mounted.
      if(created.getContainer().doc!==doc||this.isSidebar(created)!==(placement==='sidebar')){
-      if(created.view===empty&&created.getViewState().type==='empty')created.detach();
+      if(allocated&&created.view===empty&&created.getViewState().type==='empty')created.detach();
       throw Error('收集目标不在请求的窗口或区域，已有页面保持不变。');
      }
      if(!current(created)){
-      if(created.view===empty&&created.getViewState().type==='empty')created.detach();
+      if(allocated&&created.view===empty&&created.getViewState().type==='empty')created.detach();
       return;
      }
      try{await created.setViewState({type:this.viewType,active:false,state:session?{collectionSession:session}:{}});}
      catch(error){
       // Only remove our still-empty placeholder. A view that already mounted
       // may own a draft and must remain available to its normal recovery path.
-      if(created.view===empty&&created.getViewState().type==='empty')created.detach();
+      if(allocated&&created.view===empty&&created.getViewState().type==='empty')created.detach();
       throw error;
      }
     }

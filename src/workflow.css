@@ -381,3 +381,22 @@
  .ts-writing[data-writing-mode][data-writing-short=true] .ts-writing-header-actions>.ts-writing-mode-menu {width:44px;min-width:44px;padding-inline:0;}
  .ts-writing[data-writing-mode] .ts-writing-mode-menu>span:not(.ts-writing-icon) {display:none;}
 }
+
+/* Keep failed writing saves visible while retaining the live editor instance. */
+.ts-writing[data-writing-mode] .ts-writing-save-warning {flex:none;max-height:40%;overflow:auto;padding:10px 18px;border-bottom:1px solid var(--text-error);background:var(--ts-e-wash);color:var(--ts-e-ink);font-size:12px;line-height:1.6;overflow-wrap:anywhere;}
+.ts-writing[data-writing-mode] .ts-writing-save-warning strong {color:var(--text-error);}
+.ts-writing[data-writing-mode] .ts-writing-save-warning p {margin:4px 0;}
+.ts-writing[data-writing-mode] .ts-writing-save-warning-actions {display:flex;flex-wrap:wrap;gap:8px;}
+.ts-writing[data-writing-mode] .ts-writing-save-warning :is(button,summary) {min-height:36px;}
+.ts-writing[data-writing-mode] .ts-writing-save-warning textarea {width:100%;min-height:96px;max-height:160px;padding:10px;border:1px solid var(--ts-e-line);border-radius:5px;background:var(--ts-e-sheet);color:var(--ts-e-ink);font-size:14px;line-height:1.8;}
+@container ts-writing (max-width:620px) {
+ .ts-writing[data-writing-mode] .ts-writing-save-warning {padding:8px 10px;}
+ .ts-writing[data-writing-mode] .ts-writing-save-warning :is(button,summary) {min-height:44px;}
+ .ts-writing[data-writing-mode] .ts-writing-save-warning textarea {font-size:16px;}
+}
+
+.ts-writing-source-check textarea,.ts-recovery-center textarea {box-sizing:border-box;width:100%;max-width:100%;resize:vertical;min-height:100px;line-height:1.65;font-size:14px}
+.ts-writing-source-check :is(p,summary),.ts-recovery-center :is(p,summary){overflow-wrap:anywhere}
+.ts-writing-source-check button,.ts-recovery-center button,.ts-handwriting-png-modal button{min-height:36px;white-space:normal}
+.ts-writing-source-check details,.ts-recovery-center details{padding-block:8px;border-bottom:1px solid var(--background-modifier-border)}
+@media(max-width:600px){.ts-writing-source-check button,.ts-recovery-center button,.ts-handwriting-png-modal :is(button,select){min-height:44px}.ts-writing-source-check textarea,.ts-recovery-center textarea{font-size:16px}}

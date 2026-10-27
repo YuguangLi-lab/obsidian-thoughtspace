@@ -1,9 +1,10 @@
+import {isReviewDue} from './collection-review';
 import type {CollectionRecord} from './collection-view';
 import {collectionLocalDay,parseCollectionDay} from './collection-calendar';
 import {isCollectionTaskFilter,matchesCollectionTasks,type CollectionTaskFilter} from './collection-tasks';
 
 export type CollectionSearchScope='all'|'unplaced'|'placed'|'archived';
-export interface CollectionSearchOptions {query:string;includeBody?:boolean;scope?:CollectionSearchScope;pinnedOnly?:boolean;since?:string;until?:string;tasks?:CollectionTaskFilter;}
+export interface CollectionSearchOptions {query:string;reviewDue?:boolean;includeBody?:boolean;scope?:CollectionSearchScope;pinnedOnly?:boolean;since?:string;until?:string;tasks?:CollectionTaskFilter;}
 export interface CollectionSearchSnippet {text:string;ranges:{start:number;end:number}[];}
 export interface CollectionSearchHit {record:CollectionRecord;snippet?:CollectionSearchSnippet;}
 export interface CollectionSearchProgress {scanned:number;total:number;unread:number;}
@@ -22,6 +23,7 @@ function validateDate(value:string|undefined):string|undefined {
  return value;
 }
 function compile(options:CollectionSearchOptions){
+ if(options.reviewDue!==undefined&&typeof options.reviewDue!=='boolean')throw Error('回顾筛选条件无效');
  const tasks=options.tasks===undefined?'all':options.tasks;
  if(!isCollectionTaskFilter(tasks))throw Error('任务筛选条件无效');
  const since=validateDate(options.since),until=validateDate(options.until);
@@ -30,10 +32,11 @@ function compile(options:CollectionSearchOptions){
  const required=terms.filter(term=>term.startsWith('#')).map(term=>term.slice(1));
  const excluded=terms.filter(term=>term.startsWith('-#')).map(term=>term.slice(2));
  const text=terms.filter(term=>!term.startsWith('#')&&!term.startsWith('-#'));
- return{since,until,required,excluded,text,tasks};
+ return{since,until,required,excluded,text,tasks,reviewToday:collectionLocalDay(new Date())};
 }
 type Query=ReturnType<typeof compile>;
 function eligible(record:CollectionRecord,options:CollectionSearchOptions,query:Query):boolean {
+ if(options.reviewDue&&!isReviewDue(record,query.reviewToday))return false;
  const scope=options.scope||'all';
  if(scope==='archived'?record.archived!==true:record.archived===true)return false;
  if(scope==='placed'&&record.inBoard!==true||scope==='unplaced'&&record.inBoard!==false||options.pinnedOnly&&record.pinned!==true)return false;

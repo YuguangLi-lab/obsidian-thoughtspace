@@ -14,7 +14,7 @@ export interface HandwritingHost {
  commitStroke(stroke:InkStroke,key:unknown):void|Promise<void>;
  commitErase(ids:readonly string[],key:unknown):void|Promise<void>;
  commitInk?(edit:InkEdit,key:unknown,expectedInk:InkData):void|Promise<void>;
- export?():void|Promise<void>;
+ export?():void|Promise<void>;exportPng?():void|Promise<void>;
  camera(viewport:HandwritingViewport,key:unknown,persist:boolean):void|Promise<void>;
  undo(redo:boolean):void;
  notice(message:string):void;
@@ -90,6 +90,7 @@ export class HandwritingView {
   this.editActions.push(...this.selectionActions,this.button(this.more,'导出 / 插入笔记…','image',()=>{this.closeMenus();this.cancelInput('leave');const work=this.host.export?.();if(work)void work.catch(error=>this.host.notice(error instanceof Error?error.message:String(error)));},'export'));
   this.stage=this.element.createDiv({cls:'ts-handwriting-stage',attr:{tabindex:'0','aria-label':'手写画布 · 笔写字，双指移动与缩放'}});
   this.world=this.stage.createDiv('ts-handwriting-world');
+  if(this.host.exportPng)this.editActions.push(this.button(this.more,'导出 PNG…','image',()=>{this.closeMenus();this.cancelInput('leave');const work=this.host.exportPng?.();if(work)void work.catch(error=>this.host.notice(error instanceof Error?error.message:String(error)));},'export-png'));
   this.svg=doc.createElementNS(svgNamespace,'svg');this.svg.classList.add('ts-handwriting-ink');this.svg.setAttribute('aria-hidden','true');this.world.appendChild(this.svg);
   this.draftGroup=doc.createElementNS(svgNamespace,'g');this.draftGroup.classList.add('ts-handwriting-draft-fallback');this.svg.appendChild(this.draftGroup);
   this.selectionGroup=doc.createElementNS(svgNamespace,'g');this.selectionGroup.classList.add('ts-handwriting-selection');this.svg.appendChild(this.selectionGroup);

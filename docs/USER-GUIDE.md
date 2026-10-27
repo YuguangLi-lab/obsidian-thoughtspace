@@ -108,7 +108,7 @@ Actual 1.3.35 UI in a dedicated synthetic tutorial vault; the example illustrate
 
 1. If you have an interview recording, open it with **在右侧栏打开媒体播放器**. Click **记下此刻**, write a short excerpt, then **保存摘录**. Click the saved timestamp to return to the source moment. [Section 13](#audio-video) covers screenshots and sending an excerpt to the board.
 2. Back on the ordinary research board, open **工作区 → 白板写作模式**. In **编排**, arrange `Evidence`, `Cooling comparison` and a concluding chapter.
-3. In **写作**, develop your argument, keeping material in **固定参考**. Check **预览**, then click **生成草稿** to create a separate Markdown manuscript.
+3. In **写作**, develop your argument, keeping material in **固定参考**. Check **预览**, then click **导出 Markdown 草稿** to create a separate Markdown manuscript.
 4. Wait for **已保存** on the board. Before a major rearrangement, use **工作区 → 快照与导出 → 保存布局快照**. Next time, **继续上次白板** (Resume last board) returns to your latest valid recent board.
 
 ![Writing workspace: article arrangement and the material library](https://raw.githubusercontent.com/YuguangLi-lab/obsidian-thoughtspace/main/docs/images/writing-research.png)
@@ -556,11 +556,13 @@ Tags are Obsidian-native tags. A note card's **编辑标签** action edits them.
 4. Set the article title, chapter titles, heading levels, annotations, and **纳入正文** (Include in body).
 5. Switch to **写作** and develop the Markdown manuscript; use a material's plus action to insert content.
 6. Keep sources beside the manuscript in **固定参考** (Pinned references).
-7. Check **预览**, then click **生成草稿** to create an independent Markdown file.
+7. Check **预览**, then click **导出 Markdown 草稿** to create an independent Markdown file.
 
-Chapter titles and annotations affect the article without rewriting the original material. The board stores the working manuscript and arrangement; the generated draft is a separate file. Use **打开上次草稿** to reopen the latest generated output. If you change the outline after writing, use **写作选项 → 从编排重建正文（先另存当前正文）** deliberately: it rebuilds the manuscript after saving the existing body separately. **保留材料来源链接** controls source links in composition.
+Chapter titles and annotations affect the article without rewriting the original material. The board stores the working manuscript and arrangement; each exported draft is a separate file. Edits to either document do not sync to the other, and exporting again creates a new file. Use **打开上次导出草稿** to reopen the latest exported output. If you change the outline after writing, use **写作选项 → 从编排重建正文（先另存当前正文）** deliberately: it rebuilds the manuscript after saving the existing body separately. **保留材料来源链接** controls source links in composition.
 
-For the tutorial project, use chapters such as `Question and setting`, `Evidence` and `Trade-offs`. Pin `Tree canopy` while writing the comparison, then use **选段引用** (Select excerpt) to quote the specific passage rather than inserting the whole source. Check that a source link leads back to the relevant note before generating the draft.
+For the tutorial project, use chapters such as `Question and setting`, `Evidence` and `Trade-offs`. Pin `Tree canopy` while writing the comparison, then use **选段引用** (Select excerpt) to quote the specific passage rather than inserting the whole source. Check that a source link leads back to the relevant note before exporting the draft.
+
+Searching, filtering, and loading more material refresh only the material list, preserving the live chapter editor, selection, and IME composition. A persistent save warning offers **复制全文** (Copy full text) and **重试保存** (Retry save). Retry verifies the original file and disk baseline before writing and refuses conflicting changes. Unsaved inputs and session recovery copies exist only in memory and are lost on restart, forced exit, or power loss; save successfully or copy them to a reliable location before closing.
 
 ### Select references and navigate the manuscript
 
@@ -670,7 +672,7 @@ Before a major rearrangement, open **工作区 → 快照与导出 → 保存布
 | Markdown outline | **快照与导出 → 导出 Markdown 大纲** | Portable board outline under `ThoughtSpace/导出/` |
 | Native-link index | **快照与导出 → 导出原生链接索引** | A Markdown index for native backlinks and graph browsing |
 | Native Canvas | **工作区 → 导出 Canvas** | A separate `.canvas` file beside the source board |
-| Writing draft | **白板写作模式 → 生成草稿** | Independent Markdown manuscript |
+| Writing draft | **白板写作模式 → 导出 Markdown 草稿** | Independent Markdown manuscript |
 | Mind-map Markdown/SVG | **思维导图工作台 → 导出 Markdown / 导出 SVG** | Share a tree or selected branch |
 | Database CSV/Base | **卡片资料库 → 导出 CSV / 打开 Bases** | Reuse structured note properties |
 

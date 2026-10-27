@@ -43,3 +43,9 @@ test('an in-flight autosave failure followed by a newer queued flush never repla
  const put=disk.put.bind(disk);disk.put=async value=>{if(calls++===0){await gate;throw Error('first write failed');}await put(value);};
  s.stage(d);const first=s.flush();await Promise.resolve();d.text='newest while write pending';s.stage(d);const second=s.flush();release();await assert.rejects(first);await second;await s.flush();assert.equal(disk.rows.get(d.id)?.text,'newest while write pending');assert.equal(disk.writes.length,1);
 });
+
+test('recovery snapshots distinguish new memory input from an older confirmed checkpoint without IO',async()=>{
+ const disk=new Storage(),s=store(disk),d=draft();s.stage(d);await s.flush();const count=disk.writes.length;
+ d.text='latest volatile input';s.stage(d);const entries=s.recoverySnapshot();assert.equal(disk.writes.length,count);assert.deepEqual(entries.map(v=>[v.storage,v.text]),[['memory','latest volatile input'],['checkpoint','**未保存**\n摘录']]);
+ disk.failPut=true;await assert.rejects(s.flush());assert.equal(s.recoverySnapshot()[0].storage,'memory');assert.equal(disk.rows.get(d.id)?.text,'**未保存**\n摘录');
+});

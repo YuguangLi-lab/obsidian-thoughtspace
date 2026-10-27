@@ -1,3 +1,4 @@
+import {validWritingSourceChecks} from './writing-source-check';
 import {validBrainReadingPositions} from './brain-reading-positions';
 import {assertInkData,type InkData} from './ink-model';
 import {cleanBoardBackground,type BoardBackground} from './board-background';
@@ -116,6 +117,7 @@ function assertBoardData(b:unknown):asserts b is Board {
   if(b.savedSearches!==undefined&&(b.version!==3||!validSavedSearches(b.savedSearches)))throw Error('材料清单数据无效');
   if(b.selectionSets!==undefined){if(!isUnknownArray(b.selectionSets)||b.selectionSets.length>30)throw Error('保存选区无效');const seen=new Set<string>();for(const s of b.selectionSets){if(!isRecord(s)||typeof s.id!=='string'||seen.has(s.id)||typeof s.name!=='string'||!s.name.trim()||s.name.length>60||!isUnknownArray(s.ids)||s.ids.length>100000||s.ids.some((id:unknown)=>typeof id!=='string')||new Set(s.ids).size!==s.ids.length)throw Error('保存选区无效');seen.add(s.id);}}
   if(b.writing!==undefined){const w=b.writing;if(!isRecord(w)||typeof w.title!=='string'||w.title.length>160||!isUnknownArray(w.order)||w.order.length>100000||w.order.some((id:unknown)=>typeof id!=='string')||new Set(w.order).size!==w.order.length||(w.referenceId!==undefined&&typeof w.referenceId!=='string')||(w.draftPath!==undefined&&typeof w.draftPath!=='string'))throw Error('写作顺序数据无效');
+    if(w.sourceChecks!==undefined&&!validWritingSourceChecks(w.sourceChecks))throw Error('写作来源检查数据无效');
     if(w.manuscript!==undefined&&(typeof w.manuscript!=='string'||w.manuscript.length>1000000))throw Error('写作正文数据无效');
     if(w.assemblyStamp!==undefined&&(typeof w.assemblyStamp!=='string'||! /^[a-f0-9]{16}$/.test(w.assemblyStamp)))throw Error('写作编排对照无效');
     if(w.completedSections!==undefined&&(!isUnknownArray(w.completedSections)||w.completedSections.length>10000||w.completedSections.some((key:unknown)=>typeof key!=='string'||! /^[a-f0-9]{16}:\d+:\d+$/.test(key))||new Set(w.completedSections).size!==w.completedSections.length))throw Error('写作章节进度无效');

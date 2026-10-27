@@ -1,3 +1,7 @@
+import {RecoveryCenterModal} from './recovery-center-view';
+import type {RecoveryCenterItem} from './recovery-center';
+import {allWritingRecoveryEntries} from './writing-draft-recovery';
+import {openHandwritingPng,type HandwritingPngModal} from './handwriting-png-view';
 import {planCollectionReferenceRename} from './collection-placement-recovery';
 import {CollectionView,COLLECTION_VIEW_TYPE,type CollectionTarget,type CollectionRecord} from './collection-view';
 import {CollectionWorkspace} from './collection-host';
@@ -556,16 +560,25 @@ class Session {
   /** A retained capture receipt may retry a transient write failure only when
    * both its exact in-memory draft and the original disk layout still match. */
   async retryCaptureSave(expected:string,current:()=>boolean){
-    await this.flush();if(!current()||JSON.stringify(this.board)!==expected)throw Error('投递草稿已变化，请先核对恢复草稿');
+    await this.retryRetainedSave(expected,current,'投递');
+  }
+  /** Writing uses the same identity/baseline checks as a retained receipt; a
+   * failed write never authorizes overwriting a newer native document. */
+  async retryWritingSave(expected:string,current:()=>boolean){
+    await this.retryRetainedSave(expected,current,'写作');
+    if(!current()||JSON.stringify(this.board)!==expected)throw Error('页面或写作草稿已变化，请核对当前保存状态');
+  }
+  private async retryRetainedSave(expected:string,current:()=>boolean,kind:'投递'|'写作'){
+    await this.flush();if(!current()||JSON.stringify(this.board)!==expected)throw Error(`${kind}草稿已变化，请先核对恢复草稿`);
     if(this.writeBlocked){
       const path=this.file.path;if(this.plugin.app.vault.getAbstractFileByPath(path)!==this.file)throw Error('目标白板已替换或移除');
       assertBoardEditorOwnership(this.plugin.app,this.file);if(this.plugin.nativeBoardTransitions.has(this.file))throw Error('原生页面正在交接，请稍后核对');
-      const disk=await this.plugin.app.vault.read(this.file);if(!current()||this.file.path!==path||JSON.stringify(this.board)!==expected)throw Error('页面或投递草稿已变化');
+      const disk=await this.plugin.app.vault.read(this.file);if(!current()||this.file.path!==path||JSON.stringify(this.board)!==expected)throw Error(`页面或${kind}草稿已变化`);
       const unchanged=this.document?JSON.stringify(readBoardDocument(disk,'md',parseYaml).board,null,2)===this.layoutBaseline:disk===this.baseline;
-      if(!unchanged)throw Error('磁盘布局已变化；投递草稿已保留，请先对照版本，不能自动重试覆盖');
+      if(!unchanged)throw Error(`磁盘布局已变化；${kind}草稿已保留，请先对照版本，不能自动重试覆盖`);
       this.blocked=false;this.refreshNativeEditing();if(this.blocked)throw Error('原生编辑尚未完成，请先返回白板');this.persist();
     }
-    await this.flush();if(this.blocked)throw Error('投递仍未保存；笔记和恢复草稿保留，重试不会重复创建');
+    await this.flush();if(this.blocked)throw Error(kind==='投递'?'投递仍未保存；笔记和恢复草稿保留，重试不会重复创建':'写作仍未落盘；当前输入仍在会话中，请复制全文或稍后重试');
   }
   /** Only a retained collection receipt can rebase its own reference paths.
    * The same TFile identity and unchanged disk baseline are checked by caller/CAS. */
@@ -649,6 +662,7 @@ export default class ThoughtSpace extends Plugin {
   mediaWorkspace!:MediaWorkspaceService;
   private mediaWorkspaceHost!:MediaWorkspaceHost;
   private mediaDrafts?:MediaDraftStore;
+  private recoveryCenter?:RecoveryCenterModal;
   private mediaRecovery?:MediaDraftRecoveryModal;
   private mediaOpening:Promise<unknown>=Promise.resolve();
   private mediaClosed=false;
@@ -807,12 +821,13 @@ export default class ThoughtSpace extends Plugin {
       deliveryReceipts:identity=>this.collectionDeliveryReceipts(identity),
       isBoardFile:file=>isBoardFile(this.app,file),
       openRelated:(file,source,current,doc)=>this.openCollectionNote(file,current,doc,source),
-      openNote:(file,current,doc)=>this.openCollectionNote(file,current,doc),occurrences:file=>{this.openNativeRelations(file,true);},legacyInbox:()=>{this.openSpaceHub('inbox');},
+      openNote:(file,current,doc)=>this.openCollectionNote(file,current,doc),occurrences:file=>{this.openNativeRelations(file,true);},legacyInbox:()=>{this.openSpaceHub('inbox');},openRecoveryCenter:()=>this.openRecoveryCenter(),
       locateBoard:(file,board,nodeId)=>{this.openNativeRelations(file,true,undefined,{board,nodeId});},
     }));
     this.register(()=>{for(const stop of this.collectionRelatedReturns.values())stop();this.collectionRelatedReturns.clear();});
     this.registerView(COLLECTION_VIEW_TYPE,leaf=>new CollectionView(leaf,this.collectionWorkspace!.host(leaf)));
     this.register(()=>this.collectionOpener?.dispose());
+    this.addCommand({id:'open-recovery-center',name:'打开恢复中心',callback:()=>this.openRecoveryCenter()});this.register(()=>this.recoveryCenter?.close());
     this.addCommand({id:'open-collection',name:'打开收集',callback:()=>act(()=>this.openCollection())});
     this.addCommand({id:'open-collection-sidebar',name:'在侧边栏打开收集',callback:()=>act(()=>this.openCollection('sidebar'))});
     this.addRibbonIcon('inbox','ThoughtSpace 收集',()=>act(()=>this.openCollection()));
@@ -1094,6 +1109,30 @@ export default class ThoughtSpace extends Plugin {
   private collectionBoardReceiptStores?:Map<string,CollectionBoardReceipts>;
   private collectionDeliveryLocks?:Set<string>;
   private collectionPlacements=new Map<string,{file:TFile;group?:string;operationId:string;receipt:CaptureBoardPlacement}>();
+  openRecoveryCenter(){this.recoveryCenter?.close();const doc=this.app.workspace.getActiveViewOfType(View)?.containerEl.ownerDocument||this.app.workspace.containerEl.ownerDocument;this.recoveryCenter=new RecoveryCenterModal(this.app,current=>this.listRecoveryItems(current),doc);this.recoveryCenter.open();}
+  private async listRecoveryItems(current:()=>boolean):Promise<RecoveryCenterItem[]>{
+    const items:RecoveryCenterItem[]=[];
+    try{for(const value of await this.collectionWorkspace?.recoveryEntries(current)||[]){if(!current())return items;items.push({id:'collection:'+value.id,kind:'收集',title:value.title,storage:value.storage,description:value.description,read:()=>value.text,open:()=>this.openCollection()});}}
+    catch(error){items.push({id:'collection:unavailable',kind:'收集',title:'无法读取恢复材料',storage:'unknown',description:String(error),read:()=>''});}
+    for(const leaf of this.app.workspace.getLeavesOfType(WRITING)){
+      const view=leaf.view;if(!(view instanceof WritingView))continue;const value=view.getRecoveryCenterDraft();if(!value)continue;
+      items.push({id:'writing-live:'+items.length,kind:'写作',title:value.file.path,storage:'memory',description:'当前编辑器视图副本；列出不代表已经落盘。',read:()=>{const live=view.getRecoveryCenterDraft();if(!live||live.file!==value.file)throw Error('写作页面已变化');return live.text;},open:()=>this.app.workspace.revealLeaf(leaf)});
+    }
+    for(const value of allWritingRecoveryEntries(this)){
+      const source=value.source,entry=value.entry;if(!(source instanceof TFile))continue;items.push({id:'writing-recovery:'+entry.id,kind:'写作恢复',title:entry.name,storage:'memory',description:'关闭或切换时保留的进程内存副本，退出或重启会丢失。',read:()=>{const live=allWritingRecoveryEntries(this).find(item=>item.entry.id===entry.id);if(!live)throw Error('该内存恢复副本已处理');return live.entry.text;},open:async()=>{if(!(source instanceof TFile)||this.app.vault.getAbstractFileByPath(source.path)!==source)throw Error('来源白板已变化');await this.openBoard(source);if(this.currentBoard?.file!==source)throw Error('页面已变化');await this.openWriting(this.currentBoard);}});
+    }
+    for(const[file,pending]of this.sessions){if(!current())return items;let owner:Session;try{owner=await pending;}catch{continue;}if(!owner.blocked)continue;
+      items.push({id:'board-memory:'+file.path,kind:'白板',title:file.path,storage:'memory',description:owner.status+'；当前会话布局副本，不能据此认为已保存。',read:()=>{if(this.app.vault.getAbstractFileByPath(file.path)!==file)throw Error('原白板已变化');return owner.localDraftSource();},open:()=>this.openBoard(file)});
+      const recovery=owner.recoveryFile;if(recovery&&this.app.vault.getAbstractFileByPath(recovery.path)===recovery){const path=recovery.path;items.push({id:'board-checkpoint:'+path,kind:'白板恢复文件',title:path,storage:'checkpoint',description:'原保存保护流程另存的恢复文件；不代表当前内存全文。',read:async()=>{if(recovery.path!==path||this.app.vault.getAbstractFileByPath(path)!==recovery)throw Error('恢复文件已变化');const raw=await this.app.vault.read(recovery);if(this.app.vault.getAbstractFileByPath(path)!==recovery||recovery.path!==path)throw Error('恢复文件已变化');return raw;},open:()=>{if(this.app.vault.getAbstractFileByPath(path)!==recovery)throw Error('恢复文件已变化');return this.app.workspace.getLeaf('tab').openFile(recovery);}});}
+    }
+    for(const type of [MEDIA_WORKSPACE,ONLINE_WORKSPACE])for(const leaf of this.app.workspace.getLeavesOfType(type)){
+      const view=leaf.view;if(!(view instanceof MediaWorkspaceView)&&!(view instanceof OnlineWorkspaceView))continue;const snapshot=view.getRecoveryCenterDraft();if(!snapshot)continue;
+      items.push({id:'editor-buffer:'+type+':'+items.length,kind:'摘录编辑器',title:snapshot.path,storage:'memory',description:'当前编辑器可见输入；即使暂存不可用也只保留内存。'+(snapshot.hasImage?'含截图，文字复制不包含截图。':''),read:()=>{const live=view.getRecoveryCenterDraft();if(!live||live.path!==snapshot.path)throw Error('摘录页面已变化');return live.text;},open:()=>this.app.workspace.revealLeaf(leaf)});
+    }
+    for(const draft of this.mediaDrafts?.recoverySnapshot()||[])items.push({id:'media:'+draft.id,kind:'媒体摘录',title:draft.path,storage:draft.storage,description:`时间 ${draft.time} 秒${draft.hasImage?' · 含截图，文字复制不包含截图':''}；上次确认的检查点与当前输入可能不同。`,read:()=>draft.text,open:()=>{this.mediaRecovery?.close();if(this.mediaDrafts){this.mediaRecovery=new MediaDraftRecoveryModal(this.app,this.mediaDrafts,(value,request)=>this.restoreMediaDraft(value,request));this.mediaRecovery.open();}}});
+    for(const draft of this.onlineWorkspaceHost?.drafts?.recoverySnapshot()||[])items.push({id:'online:'+draft.id,kind:'在线视频摘录',title:draft.source,storage:draft.storage,description:`时间 ${draft.time} 秒${draft.hasImage?' · 含截图，文字复制不包含截图':''}；设备本地记录，不保证跨设备恢复。`,read:()=>draft.text,open:()=>this.openOnlineWorkspace(draft.source,'tab',draft.time,draft.note)});
+    return items;
+  }
   async openCollection(placement:CollectionPlacement='page'){
     if(!this.collectionWorkspace)return;
     this.collectionOpener??=new CollectionOpener(this.app.workspace,COLLECTION_VIEW_TYPE,()=>this.collectionWorkspace!.recoverableSession());
@@ -2948,7 +2987,7 @@ class BoardView extends FileView {
   private onlineBoardStates=new Map<string,{source:string;time:number}>();
   private boardMindmaps=new Map<string,BoardMindmapView>();
   private brainBoardView?:BrainBoardView;
-  private handwritingView?:HandwritingView;private handwritingOwner?:Session;private handwritingExport?:HandwritingExportModal;private handwritingExportStop?:()=>void;
+  private handwritingView?:HandwritingView;private handwritingOwner?:Session;private handwritingExport?:HandwritingExportModal|HandwritingPngModal;private handwritingExportStop?:()=>void;
   private brainNativeRevision=0;
   private brainBoardOwner?:Session;
   private brainBoardEl?:HTMLElement;
@@ -4483,7 +4522,7 @@ class BoardView extends FileView {
   private clearHandwritingBoard(){
     this.handwritingExportStop?.();this.handwritingExportStop=undefined;this.handwritingExport?.close();this.handwritingExport=undefined;this.handwritingView?.dispose();this.handwritingView=undefined;this.handwritingOwner=undefined;this.contentEl.removeClass('ts-handwriting-board');
   }
-  private async exportHandwriting(){
+  private async exportHandwriting(format:'svg'|'png'='svg'){
     const owner=this.session;if(!owner||!isHandwritingBoard(owner.board)||this.closed||this.closing||this.app.workspace.getActiveViewOfType(View)!==this)return;
     this.requireOwner(owner);const file=owner.file,path=file.path,ink=owner.board.ink,board=owner.board,doc=this.contentEl.ownerDocument,win=doc.defaultView,inkView=this.handwritingView;
     this.handwritingExportStop?.();this.handwritingExport?.close();let stopped=false;
@@ -4491,7 +4530,7 @@ class BoardView extends FileView {
     const changed=()=>{if(!current())this.handwritingExport?.close();},refs=[this.app.workspace.on('active-leaf-change',changed),this.app.workspace.on('file-open',changed)];
     const stop=()=>{stopped=true;for(const ref of refs)this.app.workspace.offref(ref);if(this.handwritingExportStop===stop)this.handwritingExportStop=undefined;};this.handwritingExportStop=stop;
     try{await owner.flush();if(!current()){stop();return;}
-      this.handwritingExport=openHandwritingExport(this.app,{source:file,ink,document:doc,current,isTargetAllowed:target=>target!==file&&isWorkspaceFile(target)&&!isBoardFile(this.app,target),notice:message=>{new Notice(message,10000);},closed:pointer=>{if(pointer&&current()&&this.handwritingView===inkView)inkView?.suppressPointerRepeat(pointer);stop();}});
+      this.handwritingExport=(format==='png'?openHandwritingPng:openHandwritingExport)(this.app,{source:file,ink,document:doc,current,isTargetAllowed:target=>target!==file&&isWorkspaceFile(target)&&!isBoardFile(this.app,target),notice:message=>{new Notice(message,10000);},closed:pointer=>{if(pointer&&current()&&this.handwritingView===inkView)inkView?.suppressPointerRepeat(pointer);stop();}});
     }catch(error){stop();throw error;}
   }
   private renderHandwritingBoard(){
@@ -4506,7 +4545,7 @@ class BoardView extends FileView {
         commitStroke:(stroke,key)=>{editable(key).changeHandwritingInk({kind:'append',stroke});},
         commitErase:(ids,key)=>{editable(key).changeHandwritingInk({kind:'remove',ids});},
         commitInk:(edit,key,expectedInk)=>{editable(key).changeHandwritingInk(edit,expectedInk);},
-        export:()=>this.exportHandwriting(),
+        export:()=>this.exportHandwriting(),exportPng:()=>this.exportHandwriting('png'),
         camera:(viewport,key,persist)=>{if(persist)editable(key).changeHandwritingViewport(viewport);},
         undo:redo=>{editable(owner).undo(redo);},notice:text=>{new Notice(text,8000);}
       });

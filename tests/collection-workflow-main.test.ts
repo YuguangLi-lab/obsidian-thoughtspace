@@ -1,3 +1,5 @@
+import * as reviewFeature from '../src/collection-review';
+import * as duplicateFeature from '../src/collection-duplicates';
 /// <reference types="obsidian" />
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -39,9 +41,9 @@ function load<T>(path:string,dependencies:Record<string,unknown>):T {
  new Function('require','module','exports',code)((name:string)=>{assert.ok(Object.hasOwn(dependencies,name),`Unexpected dependency ${name}`);return dependencies[name];},module,module.exports);
  return module.exports as T;
 }
-const libraryModule=load<typeof import('../src/collection-library')>('src/collection-library.ts',{'obsidian':obsidian,'./collection-model':collectionModel,'./collection-search':collectionSearch,'./collection-tasks':collectionTasks,'./workspace':workspaceFiles});
+const libraryModule=load<typeof import('../src/collection-library')>('src/collection-library.ts',{'obsidian':obsidian,'./collection-model':collectionModel,'./collection-review':reviewFeature,'./collection-duplicates':duplicateFeature,'./collection-review-host':{setCollectionReview:async()=>{throw Error('review write not provided by this fixture');}},'./collection-search':collectionSearch,'./collection-tasks':collectionTasks,'./workspace':workspaceFiles});
 const contextModule=load<typeof import('../src/collection-context')>('src/collection-context.ts',{'obsidian':obsidian,'./collection-model':collectionModel,'./workspace':workspaceFiles});
-const hostModule=load<typeof import('../src/collection-host')>('src/collection-host.ts',{'obsidian':obsidian,'./collection-recovery':recovery,'./collection-model':collectionModel,'./collection-library':libraryModule,'./collection-context':contextModule,'./collection-note-export':{CollectionNoteExporter:class{constructor(){throw Error('Unexpected note export');}}},'./collection-json-store':collectionJsonStore,'./collection-saved-filters':collectionSavedFilters,'./collection-batch':collectionBatch,'./collection-organize':{setCollectionFlag:()=>{throw Error('Unexpected flag write');}},'./collection-journal-store':journalStore,'./native-tags':nativeTags,'./workspace':workspaceFiles,'./board-modal-viewport':{bindBoardModalViewport:()=>()=>{}}});
+const hostModule=load<typeof import('../src/collection-host')>('src/collection-host.ts',{'obsidian':obsidian,'./collection-recovery':recovery,'./collection-model':collectionModel,'./collection-library':libraryModule,'./collection-context':contextModule,'./collection-note-export':{CollectionNoteExporter:class{constructor(){throw Error('Unexpected note export');}}},'./collection-json-store':collectionJsonStore,'./collection-saved-filters':collectionSavedFilters,'./collection-batch':collectionBatch,'./collection-duplicates':duplicateFeature,'./collection-review-host':{setCollectionReview:async()=>{throw Error('review write not provided by this fixture');}},'./collection-organize':{setCollectionFlag:()=>{throw Error('Unexpected flag write');}},'./collection-journal-store':journalStore,'./native-tags':nativeTags,'./workspace':workspaceFiles,'./board-modal-viewport':{bindBoardModalViewport:()=>()=>{}}});
 const main=readFileSync('src/main.ts','utf8');
 function take(from:string,to:string){const start=main.indexOf(from),end=main.indexOf(to,start+from.length);assert.ok(start>=0&&end>start,from);return main.slice(start,end);}
 const methods=take('  private async deliverCollection(','  private captureDraft:')+take('  private validateCaptureDestination(','  private captureDestinationPicker(');

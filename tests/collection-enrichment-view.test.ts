@@ -1,3 +1,5 @@
+import * as reviewFeature from '../src/collection-review';
+import * as duplicateFeature from '../src/collection-duplicates';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -65,6 +67,7 @@ const module={exports:{} as {CollectionView:new(leaf:any,host:any)=>any}};
 new Function('require','module','exports',compiled)((name:string)=>{
  if(name==='obsidian')return{ItemView,Component,Scope,MarkdownRenderer:{render:async()=>{}},setIcon:()=>{}};
  if(name==='./workspace-density')return density;
+ if(name==='./collection-review')return reviewFeature;
  if(name==='./collection-search')return collectionSearch;
  if(name==='./collection-background')return collectionBackground;
  if(name==='./collection-calendar')return calendar;
@@ -76,9 +79,9 @@ new Function('require','module','exports',compiled)((name:string)=>{
 },module,module.exports);
 const View=module.exports.CollectionView;
 const settle=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
-async function fixture(initialRecords:any[]=[],appearance:{accent?:string;density?:string}={}){
+async function fixture(initialRecords:any[]=[],appearance:{accent?:string;density?:string;resizeObserver?:any}={}){
  let records=initialRecords,session='session-shortcut';
- const doc=new Doc();doc.body=new El('ROOT',doc);const content=doc.body.createDiv(),outside=doc.body.createEl('input'),parent=new Scope();let nativeEffects=0,calls=0,released=0;
+ const doc=new Doc();if(appearance.resizeObserver)(doc.defaultView as any).ResizeObserver=appearance.resizeObserver;doc.body=new El('ROOT',doc);const content=doc.body.createDiv(),outside=doc.body.createEl('input'),parent=new Scope();let nativeEffects=0,calls=0,released=0;
  parent.register(['Mod'],'Enter',event=>{nativeEffects++;event.preventDefault();event.stopPropagation();return false;});
  const handlers=new Map<string,(...args:any[])=>void>();const leaf:any={contentEl:content},workspace={active:leaf,get activeLeaf(){return this.active;},getMostRecentLeaf(){return this.active;},requestSaveLayout(){},on:(name:string,fn:(...args:any[])=>void)=>{handlers.set(name,fn);return{};}};leaf.app={scope:parent,workspace};
  const draft={body:'待记录正文',tags:'',attachments:[],busy:false,locked:false,canSubmit:true};let finish:(()=>void)|undefined;
@@ -99,6 +102,63 @@ function pendingSearch(f:Awaited<ReturnType<typeof fixture>>){
 }
 const wait=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
 const action=(root:El,name:string)=>root.querySelectorAll('[data-collection-action]').find(el=>el.dataset.collectionAction===name)!;
+
+test('pending searches retain the mounted successful cards and block selection until the latest complete result',async()=>{
+ const a=record(1),b=record(2),f=await fixture([a,b]),calls=pendingSearch(f);let batches=0;(f.host as any).batch=async()=>{batches++;};
+ f.view.requestSearch();calls[0].pending.resolve(result([a]));await settle();const card=f.view.cards[0],epoch=f.view.renderEpoch;
+ assert.equal(f.view.canSelect(),true);f.view.selectionMode=true;f.view.selectRecord(a,true);assert.equal(f.view.selected.size,1);
+ f.view.search.value='new';f.view.search.oninput();assert.equal(f.view.cards[0],card);assert.equal(card.row.isConnected,true);assert.equal(f.view.renderEpoch,epoch);assert.equal(f.view.selected.size,0);assert.equal(f.view.canSelect(),false);assert.equal(f.view.canReview(),false);
+ assert.equal(f.view.feed.attrs['aria-busy'],'true');assert.equal(f.view.root.dataset.collectionSearchStale,'true');assert.match(f.view.searchFeedback.text,/正在更新.*上次搜索结果/);assert.match(f.view.feedStatus.text,/上次 1 条.*更新中/);
+ f.view.selectionMode=true;f.view.selectRecord(a,true);assert.equal(f.view.selected.size,0);f.view.batchReview={items:[a],operation:'archive',epoch:f.view.selectionEpoch};await f.view.confirmBatch();assert.equal(batches,0);
+ await wait(220);assert.equal(f.view.cards[0],card);calls[1].pending.resolve(result([b]));await settle();assert.equal(f.view.cards[0].record.id,b.id);assert.equal(card.row.isConnected,false);assert.equal(f.view.root.dataset.collectionSearchStale,'false');assert.equal(f.view.feed.attrs['aria-busy'],'false');assert.equal(f.view.canSelect(),true);await f.view.onClose();
+});
+for(const reason of ['cancel','navigation','filter','ime','body-awaiting-start'] as const)test(`${reason} preserves the successful snapshot while invalidating old result authority`,async()=>{
+ const a=record(1),b=record(2),f=await fixture([a,b]),calls=pendingSearch(f);(f.host as any).batch=async()=>{};
+ f.view.requestSearch();calls[0].pending.resolve(result([a]));await settle();const card=f.view.cards[0];f.view.query='pending';f.view.requestSearch();const pending=calls[1];
+ if(reason==='cancel')action(f.view.searchPanel,'cancel-search').onclick!();
+ if(reason==='navigation')f.handlers.get('active-leaf-change')!({});
+ if(reason==='filter')f.view.changeFilter('archived');
+ if(reason==='ime')f.view.search.listeners.get('compositionstart')!({});
+ if(reason==='body-awaiting-start'){f.view.includeBody=true;f.view.manualBodyMode=true;f.view.requestSearch();assert.equal(calls.length,2);assert.equal(f.view.startSearchButton.hidden,false);}
+ assert.equal(pending.current(),false);pending.progress({scanned:999,total:1000,unread:0});pending.pending.resolve(result([b]));await settle();assert.equal(f.view.cards[0],card);assert.deepEqual(f.view.filteredRecords().map((item:any)=>item.id),[a.id]);assert.equal(f.view.canSelect(),false);assert.equal(f.view.canReview(),false);assert.doesNotMatch(f.view.searchFeedback.text,/999/);assert.match(f.view.searchFeedback.text,/上次搜索结果/);
+ if(reason==='filter'){calls[2].pending.resolve(result([b]));await settle();assert.equal(f.view.cards[0].record.id,b.id);}
+ if(reason==='body-awaiting-start'){action(f.view.searchPanel,'start-search').onclick!();assert.equal(calls[2].options.includeBody,true);assert.equal(f.view.cards[0],card);calls[2].pending.resolve(result([b]));await settle();assert.equal(f.view.cards[0].record.id,b.id);}
+ await f.view.onClose();
+});
+test('a late cancelled body scan cannot overwrite a newer result or its snippets',async()=>{
+ const a=record(1),b=record(2),f=await fixture([a,b]),calls=pendingSearch(f);f.view.requestSearch();calls[0].pending.resolve(result([a]));await settle();
+ f.view.includeBody=true;f.view.query='old body';f.view.requestSearch();f.view.query='latest body';f.view.requestSearch();calls[2].pending.resolve(result([b]));await settle();const row=f.view.cards[0].row;
+ calls[1].progress({scanned:2,total:2,unread:0});calls[1].pending.resolve(result([a]));await settle();assert.equal(f.view.cards[0].record.id,b.id);assert.equal(f.view.cards[0].row,row);assert.equal(f.view.displayedSearchResult.key,f.view.searchKey());assert.equal(f.view.root.dataset.collectionSearchState,'complete');await f.view.onClose();
+});
+test('a retained old page cannot navigate with controls whose query already reset the page index',async()=>{
+ const items=Array.from({length:30},(_,index)=>record(index)),f=await fixture(items),calls=pendingSearch(f);f.view.requestSearch();calls[0].pending.resolve(result(items));await settle();f.view.page=1;f.view.renderFeed();const card=f.view.cards[0],previous=action(f.view.pagination,'previous'),next=action(f.view.pagination,'next');assert.equal(previous.disabled,false);
+ f.view.search.value='new page';f.view.search.oninput();assert.equal(f.view.page,0);assert.equal(f.view.cards[0],card);assert.equal(previous.disabled,true);assert.equal(next.disabled,true);previous.onclick!();next.onclick!();assert.equal(f.view.page,0);assert.equal(f.view.cards[0],card);await f.view.onClose();
+});
+test('a retained card releases pending flag controls after its superseded save completes',async()=>{
+ const item=record(1),f=await fixture([item]),calls=pendingSearch(f),saved=deferred<void>();(f.host as any).setFlag=async()=>saved.promise;f.view.requestSearch();calls[0].pending.resolve(result([item]));await settle();const card=f.view.cards[0],actions=card.row.querySelector('.ts-collection-card-actions'),changing=f.view.changeFlag(card,actions,'pinned',true,f.view.renderEpoch);
+ assert.equal(actions.dataset.pending,'true');f.view.query='new query';f.view.requestSearch();assert.equal(f.view.cards[0],card);saved.resolve();await changing;assert.equal(f.view.cards[0],card);assert.equal(actions.dataset.pending,'false');assert.equal(action(actions,'pin').disabled,false);assert.equal(actions.querySelector('[data-collection-flag-status]').hidden,true);assert.equal(f.view.searchResult,undefined);calls[1].pending.resolve(result([]));await settle();await f.view.onClose();
+});
+test('a list refresh keeps the prior cards visible and cannot authorize a batch before its search completes',async()=>{
+ const a=record(1),f=await fixture([a]),calls=pendingSearch(f),listed=deferred<any[]>();(f.host as any).batch=async()=>{};f.view.requestSearch();calls[0].pending.resolve(result([a]));await settle();const card=f.view.cards[0];f.host.list=async()=>listed.promise;
+ const refreshing=f.view.refreshRecords();assert.equal(f.view.cards[0],card);assert.equal(f.view.canReview(),false);assert.equal(f.view.feed.attrs['aria-busy'],'true');listed.resolve([a]);await settle();assert.equal(f.view.cards[0],card);assert.equal(f.view.canSelect(),false);calls[1].pending.resolve(result([a]));await refreshing;assert.equal(f.view.canSelect(),true);assert.equal(f.view.feed.attrs['aria-busy'],'false');await f.view.onClose();
+});
+test('starting IME composition while a list is awaiting cannot launch a body scan when that list returns',async()=>{
+ const item=record(1),f=await fixture([item]),calls=pendingSearch(f),listed=deferred<any[]>();f.view.requestSearch();calls[0].pending.resolve(result([item]));await settle();const card=f.view.cards[0];f.view.includeBody=true;f.view.query='body';f.host.list=async()=>listed.promise;
+ const refreshing=f.view.refreshRecords();f.view.search.listeners.get('compositionstart')!({});listed.resolve([item]);await refreshing;assert.equal(calls.length,1);assert.equal(f.view.cards[0],card);assert.equal(f.view.root.dataset.collectionSearchState,'composing');assert.equal(f.view.canReview(),false);
+ f.view.search.value='完整正文';f.view.search.listeners.get('compositionend')!({});await wait(220);assert.equal(calls.length,2);assert.equal(calls[1].options.query,'完整正文');calls[1].pending.resolve(result([item]));await settle();await f.view.onClose();
+});
+test('the owned textarea resize observer shares sizing logic and disconnects at close',async()=>{
+ let callback!:()=>void,observed:unknown,disconnected=false;
+ const f=await fixture([], {resizeObserver:class{constructor(run:()=>void){callback=run;}observe(input:unknown){observed=input;}disconnect(){disconnected=true;}}});assert.equal(observed,f.view.bodyInput);let fits=0;f.view.fitBodyInput=()=>{fits++;};callback();assert.equal(fits,1);await f.view.onClose();assert.equal(disconnected,true);callback();assert.equal(fits,1);
+});
+test('body/tag blur and leaving the leaf flush through the host with visible failures and no draft mutation',async()=>{
+ const f=await fixture(),body=f.view.bodyInput;let flushes=0;(f.host as any).flushDraft=async()=>{flushes++;if(flushes===2)throw Error('草稿写入失败，请重试');};
+ body.listeners.get('blur')!({});await settle();f.view.tagInput.listeners.get('blur')!({});await settle();assert.equal(flushes,2);assert.match(f.view.status.text,/草稿写入失败/);assert.equal(f.draft.body,'待记录正文');assert.equal(f.view.bodyInput,body);
+ f.handlers.get('active-leaf-change')!({});await settle();assert.equal(flushes,3);await f.view.onClose();assert.equal(flushes,4);
+});
+test('closing waits for the draft flush before releasing the host and tolerates a rejected flush',async()=>{
+ const f=await fixture(),gate=deferred<void>();(f.host as any).flushDraft=async()=>gate.promise;const closing=f.view.onClose();await settle();assert.equal(f.released(),0);gate.reject(Error('仍保留草稿状态'));await closing;assert.equal(f.released(),1);assert.equal(f.draft.body,'待记录正文');
+});
 
 test('combined controls preserve explicit tags and query across all four scopes, body scanning starts off',async()=>{
  const f=await fixture([record(1)]),calls=pendingSearch(f),composer=f.view.bodyInput;

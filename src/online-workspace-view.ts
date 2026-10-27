@@ -154,6 +154,10 @@ export class OnlineWorkspaceView extends ItemView {
  private rebindLayout?:()=>void;
  private submitHotkey?:KeymapEventHandler;
 
+ getRecoveryCenterDraft(){
+  if(this.closed)return;const draft=this.memory?.draft,text=this.input?.value??draft?.text??'';
+  if(!text&&!draft?.image)return;return {text,path:this.source?.path||this.memory?.source||'未选来源',time:draft?.time||0,hasImage:!!draft?.image};
+ }
  constructor(leaf:WorkspaceLeaf,private host:OnlineWorkspaceHost){super(leaf);this.scope=new Scope(this.app.scope);this.stopViewport=bindMobileViewport(this.contentEl);}
  applyPreferences(){applyWorkspaceDensity(this.contentEl,this.host.density?.());this.contentEl.dataset.accent=this.host.accent?.()||'forest';}
  getViewType(){return ONLINE_WORKSPACE;}

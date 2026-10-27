@@ -17,8 +17,8 @@ const validDate=(value:unknown)=>{
  const date=new Date(value+'T12:00:00');return Number.isFinite(date.getTime())&&date.getFullYear()===Number(value.slice(0,4))&&date.getMonth()+1===Number(value.slice(5,7))&&date.getDate()===Number(value.slice(8,10));
 };
 export function isCollectionSavedFilterOptions(value:unknown):value is CollectionSearchOptions {
- if(!object(value)||!keys(value,['query','includeBody','scope','pinnedOnly','since','until','tasks'])||typeof value.query!=='string'||value.query.length>COLLECTION_SAVED_FILTER_QUERY_LIMIT)return false;
- for(const key of ['includeBody','pinnedOnly'])if(Object.hasOwn(value,key)&&typeof value[key]!=='boolean')return false;
+ if(!object(value)||!keys(value,['query','reviewDue','includeBody','scope','pinnedOnly','since','until','tasks'])||typeof value.query!=='string'||value.query.length>COLLECTION_SAVED_FILTER_QUERY_LIMIT)return false;
+ for(const key of ['includeBody','pinnedOnly','reviewDue'])if(Object.hasOwn(value,key)&&typeof value[key]!=='boolean')return false;
  if(Object.hasOwn(value,'scope')&&(typeof value.scope!=='string'||!['all','unplaced','placed','archived'].includes(value.scope)))return false;
  if(Object.hasOwn(value,'tasks')&&!isCollectionTaskFilter(value.tasks))return false;
  for(const key of ['since','until'])if(Object.hasOwn(value,key)&&!validDate(value[key]))return false;
@@ -47,7 +47,7 @@ export class CollectionSavedFilters {
   // in the live UI, but they never enter the strictly validated JSON document.
   const savedName=typeof name==='string'?nameKey(name):'';
   if(!savedName||savedName.length>COLLECTION_SAVED_FILTER_NAME_LIMIT)return Promise.reject(Error('筛选名称需为 1 至 80 个字符'));
-  if(!object(options)||!keys(options,['query','includeBody','scope','pinnedOnly','since','until','tasks']))return Promise.reject(Error('筛选条件无效'));
+  if(!object(options)||!keys(options,['query','reviewDue','includeBody','scope','pinnedOnly','since','until','tasks']))return Promise.reject(Error('筛选条件无效'));
   const frozen=Object.fromEntries(Object.entries(options).filter(([,value])=>value!==undefined));
   if(!isCollectionSavedFilterOptions(frozen))return Promise.reject(Error('筛选条件、范围或日期无效'));
   // The default adds no constraint; retain the existing beta.3 JSON shape.

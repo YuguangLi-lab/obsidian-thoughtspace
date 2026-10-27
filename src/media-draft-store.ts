@@ -49,6 +49,7 @@ export class IndexedMediaDraftStorage implements MediaDraftStorage {
 
 /** Coalesce typing, serialize writes/deletions, and retain failed writes for retry. */
 export class MediaDraftStore {
+ private confirmed=new Map<string,StoredMediaDraft>();
  private recovered=new Map<string,StoredMediaDraft>();
  private active=new Map<string,MediaDraft>();
  private dirty=new Map<string,StoredMediaDraft>();
@@ -61,8 +62,16 @@ export class MediaDraftStore {
  constructor(private storage:MediaDraftStorage,private failed:(error:unknown)=>void=()=>{},private clock:MediaDraftClock=window){}
  async load(){
   const values=await this.storage.read();let invalid=0;
-  for(const value of values){if(validStoredMediaDraft(value)){this.recovered.set(value.id,value);this.states.set(value.id,'saved');}else invalid++;}
+  for(const value of values){if(validStoredMediaDraft(value)){this.recovered.set(value.id,value);this.confirmed.set(value.id,value);this.states.set(value.id,'saved');}else invalid++;}
   if(invalid)this.failed(Error(`${invalid} 条暂存记录无法读取，原始数据未删除`));
+ }
+ recoverySnapshot(){
+  const ids=new Set([...this.confirmed.keys(),...this.active.keys(),...this.dirty.keys()]);
+  return [...ids].filter(id=>!this.removed.has(id)).flatMap(id=>{const checkpoint=this.confirmed.get(id),latest=this.active.get(id)||this.dirty.get(id)||checkpoint;if(!latest)return[];
+   const saved=!!checkpoint&&!this.dirty.has(id)&&this.states.get(id)==='saved'&&latest.text===checkpoint.text&&latest.time===checkpoint.time&&latest.image===checkpoint.image&&latest.locked===checkpoint.locked&&JSON.stringify(latest.source)===JSON.stringify(checkpoint.source);
+   const item={id:JSON.stringify([id,'latest']),path:latest.source.path,text:latest.text,time:latest.time,hasImage:!!latest.image,storage:saved?'checkpoint' as const:'memory' as const};
+   return [item,...(!saved&&checkpoint?[{id:JSON.stringify([id,'checkpoint']),path:checkpoint.source.path,text:checkpoint.text,time:checkpoint.time,hasImage:!!checkpoint.image,storage:'checkpoint' as const}]:[])];
+  });
  }
  pending(){return [...this.recovered.values()].filter(draft=>!this.active.has(draft.id));}
  state(id:string){return this.states.get(id);}
@@ -92,14 +101,14 @@ export class MediaDraftStore {
    const batch=[...this.dirty.values()];this.dirty.clear();
    for(const [index,draft] of batch.entries()){
     if(this.removed.has(draft.id))continue;
-    try{await this.storage.put(draft);if(!this.removed.has(draft.id))this.states.set(draft.id,this.dirty.has(draft.id)?'pending':'saved');this.notify();}
+    try{await this.storage.put(draft);this.confirmed.set(draft.id,draft);if(!this.removed.has(draft.id))this.states.set(draft.id,this.dirty.has(draft.id)?'pending':'saved');this.notify();}
     catch(error){for(const remaining of batch.slice(index))if(!this.removed.has(remaining.id)){if(!this.dirty.has(remaining.id))this.dirty.set(remaining.id,remaining);this.states.set(remaining.id,'error');}this.notify();throw error;}
    }
   });
  }
  async discard(id:string){
   this.removed.add(id);const pending=this.dirty.get(id);this.dirty.delete(id);
-  try{await this.enqueue(()=>this.storage.remove(id));this.recovered.delete(id);this.active.delete(id);this.states.delete(id);this.notify();}
+  try{await this.enqueue(()=>this.storage.remove(id));this.confirmed.delete(id);this.recovered.delete(id);this.active.delete(id);this.states.delete(id);this.notify();}
   catch(error){this.removed.delete(id);if(pending)this.dirty.set(id,pending);throw error;}
  }
  async dispose(){await this.flush();this.disposed=true;this.storage.close?.();}

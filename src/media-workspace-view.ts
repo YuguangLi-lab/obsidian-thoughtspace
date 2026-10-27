@@ -127,6 +127,10 @@ export class MediaWorkspaceView extends ItemView {
  private stopViewport?:()=>void;
  private submitHotkey?:KeymapEventHandler;
 
+ getRecoveryCenterDraft(){
+  if(this.closed)return;const draft=this.memory?.draft,text=this.input?.value??draft?.text??'';
+  if(!text&&!draft?.image)return;return {text,path:this.file?.path||'未选来源',time:draft?.time||0,hasImage:!!draft?.image};
+ }
  constructor(leaf:WorkspaceLeaf,private host:MediaWorkspaceHost){super(leaf);this.scope=new Scope(this.app.scope);this.stopViewport=bindMobileViewport(this.contentEl);this.unsubscribeDrafts=host.drafts?.subscribe(()=>{
   if(this.file&&this.memory&&!this.closed){if(!this.memory.draft)this.memory.draft=host.drafts?.activeFor(this.file.path);this.paintComposer();}
  });}

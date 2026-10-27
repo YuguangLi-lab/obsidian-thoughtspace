@@ -101,6 +101,14 @@ export class OnlineDraftStore {
  private reportedFailures=new WeakSet<object>();
  private reportedPrimitive?:{value:unknown};
  constructor(private storage:OnlineDraftStorage,private failed:(error:unknown,draftIds?:readonly string[])=>void=()=>{},private clock:OnlineDraftClock=window){}
+ recoverySnapshot(){
+  const ids=new Set([...this.persisted.keys(),...this.dirty.keys()]);
+  return [...ids].filter(id=>!this.removed.has(id)).flatMap(id=>{const checkpoint=this.persisted.get(id),latest=this.dirty.get(id)||checkpoint;if(!latest||latest.phase==='committed')return[];
+   const saved=!!checkpoint&&!this.dirty.has(id)&&this.states.get(id)==='saved'&&!this.blocked.has(id);
+   const item={id:JSON.stringify([id,'latest']),source:latest.source,note:latest.note,text:latest.text,time:latest.time,hasImage:!!latest.image,storage:saved?'checkpoint' as const:'memory' as const};
+   return [item,...(!saved&&checkpoint&&checkpoint.phase!=='committed'?[{id:JSON.stringify([id,'checkpoint']),source:checkpoint.source,note:checkpoint.note,text:checkpoint.text,time:checkpoint.time,hasImage:!!checkpoint.image,storage:'checkpoint' as const}]:[])];
+  });
+ }
  get error(){return this.unscopedFailure||this.failedDrafts.size?this.lastError:'';}
  get isLoaded(){return this.loaded;}
  get active(){return !this.closing&&!this.disposed;}

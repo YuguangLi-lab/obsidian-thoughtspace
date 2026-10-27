@@ -25,19 +25,19 @@ export function readCollectionFlags(frontmatter:unknown):CollectionFlags {
  return{pinned:read('thoughtspace_pinned'),archived:read('thoughtspace_archived')};
 }
 function flagValue(flags:CollectionFlags,field:CollectionFlagField){return field==='thoughtspace_pinned'?flags.pinned:flags.archived;}
-function nativeSource(source:string){
+export function nativeSource(source:string){
  const header=/^\uFEFF?---[ \t]*\r?\n([\s\S]*?)\r?\n(?:---|\.\.\.)[ \t]*(?:\r?\n|$)/.exec(source);
  if(!header)throw Error('原记录的收集属性已移除，请刷新后核对');
  const properties:unknown=parseYaml(header[1]);if(!isRecord(properties))throw Error('记录属性格式无效，请在原生笔记中核对');
  return{properties,body:source.slice(header[0].length)};
 }
-function assertIdentity(properties:unknown,expected:CollectionIdentity){
+export function assertIdentity(properties:unknown,expected:CollectionIdentity){
  const actual=readCollectionIdentity(properties);
  if(!actual||actual.id!==expected.id||actual.createdAt!==expected.createdAt)throw Error('收集记录身份已变化，请刷新后核对');
 }
 /** Compare native YAML values without serializing or rebuilding the document.
  * Alias topology is not a semantic difference; cycles remain bounded. */
-function sameNativeValue(a:unknown,b:unknown,seen=new WeakMap<object,WeakSet<object>>()):boolean {
+export function sameNativeValue(a:unknown,b:unknown,seen=new WeakMap<object,WeakSet<object>>()):boolean {
  if(Object.is(a,b))return true;
  if(!a||!b||typeof a!=='object'||typeof b!=='object')return false;
  if(a instanceof Date||b instanceof Date)return a instanceof Date&&b instanceof Date&&Object.is(a.getTime(),b.getTime());

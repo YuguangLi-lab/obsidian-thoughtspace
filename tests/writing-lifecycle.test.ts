@@ -8,7 +8,8 @@ class TFile {constructor(public path:string){}get basename(){return this.path;}}
 const source=readFileSync('src/writing-view.ts','utf8');
 const setState=source.slice(source.indexOf(' async setState('),source.indexOf('\n private action('));
 const onClose=source.slice(source.indexOf(' async onClose(){'),source.lastIndexOf('\n}'));
-const View=new Function('TFile','writingSignature','Notice','rememberWritingRecovery',transformSync('class View{'+setState+onClose+'};return View',{loader:'ts'}).code)(TFile,()=>'',class{},rememberWritingRecovery);
+const snapshot=source.slice(source.indexOf(' private currentWritingSnapshot('),source.indexOf('\n private renderSaveWarning(',source.indexOf(' private currentWritingSnapshot(')));
+const View=new Function('TFile','writingSignature','Notice','rememberWritingRecovery',transformSync('class View{'+setState+snapshot+onClose+'};return View',{loader:'ts'}).code)(TFile,()=>'',class{},rememberWritingRecovery);
 function deferred<T=void>(){let resolve!:(value:T)=>void,reject!:(reason:unknown)=>void;const promise=new Promise<T>((a,b)=>{resolve=a;reject=b});return{promise,resolve,reject};}
 function fixture(){
  const files=new Map(['old','a','b'].map(p=>[p,new TFile(p)]));
@@ -66,6 +67,13 @@ test('failed close and failed recovery write preserve text under the original fi
 
 test('a failed final session flush retains the visible manuscript even after editor disposal',async()=>{
  const f=fixture(),file=f.files.get('old')!;f.view.manuscriptInput={value:'visible body'};f.view.disposeEditors=()=>{f.view.manuscriptInput=undefined;};f.view.host.release=async()=>{throw Error('final write failure')};await assert.rejects(f.view.onClose(),/final write failure/);assert.equal(writingRecoveryEntries(f.view.host,file)[0].text,'visible body');
+});
+test('a resolved final flush that leaves persistence blocked retains the whole writing snapshot',async()=>{
+ const f=fixture(),file=f.files.get('old')!,owner:any=f.view.owner;owner.board.writing={title:'Draft',order:[],manuscript:'stored manuscript',chapters:[{id:'one',title:'Unopened chapter',body:'unopened content'}]};owner.blocked=true;f.view.manuscriptInput={value:'live body'};
+ await f.view.onClose();const snapshot=writingRecoveryEntries(f.view.host,file)[0];assert.match(snapshot.text,/live body/);assert.match(snapshot.text,/Unopened chapter\n\nunopened content/);assert.deepEqual(f.releases,[owner]);
+});
+test('switching boards preserves the previous buffers when release leaves writing blocked',async()=>{
+ const f=fixture(),file=f.files.get('old')!,owner:any=f.view.owner;owner.blocked=true;f.view.manuscriptInput={value:'previous live body'};await f.view.setState({board:'a'});assert.equal(f.view.owner,f.sessions.get('a'));assert.equal(writingRecoveryEntries(f.view.host,file)[0].text,'previous live body');assert.equal(writingRecoveryEntries(f.view.host,f.files.get('a')!).length,0);
 });
 test('repeated close does not release twice and removes the active listener',async()=>{
  const f=fixture();await f.view.setState({board:'a'});assert.equal(f.sessions.get('a')!.listeners.size,1);await Promise.all([f.view.onClose(),f.view.onClose()]);assert.equal(f.sessions.get('a')!.listeners.size,0);assert.equal(f.releases.filter(x=>x===f.sessions.get('a')).length,1);

@@ -125,3 +125,9 @@ test('write feedback names all affected drafts; load failures have no view-speci
  const storage=new Storage(),calls:(readonly string[]|undefined)[]=[],s=new OnlineDraftStore(storage,(_error,ids)=>calls.push(ids),clock);await s.load();s.stage(data({id:'first',note:'A.md'}));s.stage(data({id:'second',note:'B.md'}));storage.writeError=true;await assert.rejects(s.flush());assert.deepEqual(calls[0],['first','second']);assert.equal(calls.length,1);assert.equal(storage.rows.size,0);
  await assert.rejects(s.flush('second'));assert.deepEqual(calls.at(-1),['second']);const unreadable=new Storage();unreadable.readError=true;const next=new OnlineDraftStore(unreadable,(_error,ids)=>calls.push(ids),clock);await next.load();assert.equal(calls.at(-1),undefined);
 });
+
+test('recovery center snapshots do not write, claim leases or label pending input as durable',async()=>{
+ const {storage,s}=await stored(),writes=storage.writes.length;s.stage(data({text:'volatile new text'}));
+ const entries=s.recoverySnapshot();assert.equal(storage.writes.length,writes);assert.deepEqual(entries.map(v=>[v.storage,v.text]),[['memory','volatile new text'],['checkpoint','第一行\n第二行\n']]);
+ storage.writeError=true;await assert.rejects(s.flush());assert.equal(s.recoverySnapshot()[0].storage,'memory');assert.equal(storage.deletes.length,0);
+});

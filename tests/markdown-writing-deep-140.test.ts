@@ -1,3 +1,5 @@
+import * as sourceChecks from '../src/writing-source-check';
+import {writingPartMarkdown} from '../src/writing';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -10,8 +12,8 @@ import {sourceLinkTarget} from '../src/excerpt-sources';
 import {emptyBoard,clone,Card} from '../src/model';
 
 const source=readFileSync('src/writing-view.ts','utf8');
-function method(start:string,end:string,deps:Record<string,unknown>={}){return new Function(...Object.keys(deps),transformSync('class View{'+source.slice(source.indexOf(start),source.indexOf(end,source.indexOf(start)))+'};return View',{loader:'ts'}).code)(...Object.values(deps)).prototype;}
-class TFile{extension='md';constructor(public path:string){}get basename(){return this.path;}}
+function method(start:string,end:string,deps:Record<string,unknown>={}){deps={...sourceChecks,writingPartMarkdown,...deps};return new Function(...Object.keys(deps),transformSync('class View{'+source.slice(source.indexOf(start),source.indexOf(end,source.indexOf(start)))+'};return View',{loader:'ts'}).code)(...Object.values(deps)).prototype;}
+class TFile{stat={ctime:1,mtime:1,size:20};extension='md';constructor(public path:string){}get basename(){return this.path;}}
 const card=(id:string,kind:Card['kind']='text'):Card=>({id,kind,text:'内容',file:kind==='card'?'source.md':undefined,x:0,y:0,width:240,height:100,color:'sand'});
 
 for(const eol of ['\n','\r\n'])test(`writing compose accepts unchanged native note with ${JSON.stringify(eol)} endings`,async()=>{
@@ -25,6 +27,13 @@ test('writing export strips only the actual YAML block and retains prose followi
  const body='---\n---\nEssential finding\n\n---\n\nLater finding';
  const value=writingMarkdown('Article',[{title:'Section',depth:2,body}],'[[board]]');assert.match(value,/Essential finding/);assert.match(value,/Later finding/);
  const alternate=writingMarkdown('Article',[{title:'Section',depth:2,body:'---\nsecret: metadata\n...\nEvidence'}],'[[board]]');assert.ok(!alternate.includes('secret:'));assert.match(alternate,/Evidence/);
+});
+
+test('composing a note containing only Properties keeps the material without inventing an empty quote baseline',async()=>{
+ const note=new TFile('source.md'),boardFile=new TFile('board.thoughtspace'),raw='---\nproject: fixture\n---\n',board={...emptyBoard(),nodes:[card('c','card')],writing:{title:'草稿',order:['c']}},owner={board};
+ const proto=method(' private async compose(','\n async refreshArticle()', {TFile,clone,writingParts,writingSignature,writingWordCount,writingMarkdown,writingName,excerptNoteMarkdown,rebaseFragment,remoteImageUrl:()=>false,readCurrentNativeNote:async()=>raw,parseLinktext:(link:string)=>({path:link,subpath:''})});
+ const view=Object.assign(Object.create(proto),{file:boardFile,commitFields(){},ensure:()=>owner,app:{vault:{getAbstractFileByPath:(path:string)=>path==='source.md'?note:boardFile},metadataCache:{getFileCache:()=>null},fileManager:{generateMarkdownLink:(file:TFile)=>'[['+file.path+']]'}}});
+ const result=await view.compose();assert.match(result.text,/\[\[source.md\]\]/);assert.deepEqual(result.sourceChecks,[]);assert.equal(raw,'---\nproject: fixture\n---\n');
 });
 
 test('writing prose without a generated section heading retains its source H1',()=>{
@@ -51,7 +60,7 @@ class Input extends EventTarget{value='Draft';selectionStart=0;selectionEnd=0;se
 for(const mode of ['newChapter','insertMaterial'])test(`writing fallback ${mode} persists its programmatic textarea edit`,async()=>{
  const start=mode==='newChapter'?' private newChapter()':' private async insertMaterial(',end=mode==='newChapter'?'\n private dragRow(':'\n private async rebuildManuscript(';
  const proto=method(start,end,{writingAssemblyStamp:()=>''}),input=new Input();let persisted='Draft';input.addEventListener('input',()=>{persisted=input.value;});
- const view=Object.assign(Object.create(proto),{mode:'write',ensure:()=>({board:{}}),manuscriptInput:input,manuscriptNative:undefined,openManuscript:async()=>{},compose:async()=>({text:'# Draft\n\n白板：[[board]]\n\n## Evidence\n\nBody'}),flushFields(){}});
+ const view=Object.assign(Object.create(proto),{mode:'write',update:(fn:(s:any)=>void)=>fn({}),ensure:()=>({board:{}}),manuscriptInput:input,manuscriptNative:undefined,openManuscript:async()=>{},compose:async()=>({text:'# Draft\n\n白板：[[board]]\n\n## Evidence\n\nBody'}),flushFields(){}});
  await view[mode](['material']);assert.notEqual(input.value,'Draft');assert.equal(persisted,input.value);
 });
 
@@ -59,7 +68,7 @@ class Element extends EventTarget{children:Element[]=[];value='';checked=false;c
 for(const custom of [true,false])test(`writing ${custom?'chapter':'annotation'} detects a remote body change before applying pending local text`,()=>{
  const node=card('entry'),state={title:'Article',order:['entry'],chapters:custom?[{id:'entry',title:'Chapter',body:'Original'}]:[],options:custom?{}:{entry:{note:'Original'}}} as any;
  const proto=method(' private renderEntryEditor(','\n private renderStatus(',{writingName,writingParts:()=>[],writingEntryBody:undefined}),input=new Input();input.value='Original';let pending:()=>void=()=>{};
- const view=Object.assign(Object.create(proto),{entryInputs:[],state:()=>state,ensure:()=>({board:{}}),markdownInput:()=>input,queueField:(_key:string,fn:()=>void)=>{pending=fn;},update:(fn:(s:any)=>void)=>fn(state),option:(_id:string,value:any)=>Object.assign(state.options.entry,value),flushFields(){}});
+ const view=Object.assign(Object.create(proto),{entryInputs:[],entryDrafts:new Map(),state:()=>state,ensure:()=>({board:{}}),markdownInput:()=>input,queueField:(_key:string,fn:()=>void)=>{pending=fn;},update:(fn:(s:any)=>void)=>fn(state),option:(_id:string,value:any)=>Object.assign(state.options.entry,value),flushFields(){}});
  view.renderEntryEditor(new Element(),node,custom);input.value='Local';input.dispatchEvent(new Event('input'));
  if(custom)state.chapters[0].body='Remote';else state.options.entry.note='Remote';
  assert.throws(()=>pending(),/变化|修改|冲突/);assert.equal(custom?state.chapters[0].body:state.options.entry.note,'Remote');assert.equal(input.value,'Local');
@@ -68,7 +77,7 @@ for(const custom of [true,false])test(`writing ${custom?'chapter':'annotation'} 
 test('writing pending field retries do not apply successful operations again',()=>{
  const proto=method(' private flushFields()','\n private commitFields('),pendingFields=new Map<string,()=>void>();let successes=0,attempts=0;
  pendingFields.set('first',()=>successes++);pendingFields.set('second',()=>{if(++attempts===1)throw Error('recoverable conflict');});
- const view=Object.assign(Object.create(proto),{pendingFields,containerEl:{win:{clearTimeout(){}}}});
+ const view=Object.assign(Object.create(proto),{pendingFields,renderSaveWarning(){},containerEl:{win:{clearTimeout(){}}}});
  assert.throws(()=>view.flushFields(),/recoverable conflict/);view.flushFields();assert.equal(successes,1);assert.equal(attempts,2);assert.equal(pendingFields.size,0);
 });
 
@@ -96,14 +105,14 @@ test('clear still toggles ordinary inline code and prose around indented code',(
 test('a successful queued writing field is not replayed over a later remote update after a different field fails',()=>{
  const proto=method(' private flushFields()','\n private commitFields('),pendingFields=new Map<string,()=>void>();let title='Initial',failed=true;
  pendingFields.set('title',()=>{title='Local';});pendingFields.set('chapter',()=>{if(failed)throw Error('Chapter too large');});
- const view=Object.assign(Object.create(proto),{pendingFields,containerEl:{win:{clearTimeout(){}}}});
+ const view=Object.assign(Object.create(proto),{pendingFields,renderSaveWarning(){},containerEl:{win:{clearTimeout(){}}}});
  assert.throws(()=>view.flushFields());assert.equal(title,'Local');title='Remote';failed=false;view.flushFields();assert.equal(title,'Remote');
 });
 
 test('successful chapter saves advance their edit baseline and allow another local edit',()=>{
  const node=card('entry'),state={title:'Article',order:['entry'],chapters:[{id:'entry',title:'Chapter',body:'Original'}],options:{}};
  const proto=method(' private renderEntryEditor(','\n private renderStatus(',{writingName,writingParts:()=>[]}),input=new Input();let pending:()=>void=()=>{};
- const view=Object.assign(Object.create(proto),{entryInputs:[],state:()=>state,ensure:()=>({board:{}}),markdownInput:()=>input,queueField:(_key:string,fn:()=>void)=>{pending=fn;},update:(fn:(s:typeof state)=>void)=>fn(state),flushFields(){}});
+ const view=Object.assign(Object.create(proto),{entryInputs:[],entryDrafts:new Map(),state:()=>state,ensure:()=>({board:{}}),markdownInput:()=>input,queueField:(_key:string,fn:()=>void)=>{pending=fn;},update:(fn:(s:typeof state)=>void)=>fn(state),flushFields(){}});
  view.renderEntryEditor(new Element(),node,true);
  for(const value of ['First','Second']){input.value=value;input.dispatchEvent(new Event('input'));pending();assert.equal(state.chapters[0].body,value);}
 });
@@ -111,7 +120,7 @@ test('successful chapter saves advance their edit baseline and allow another loc
 test('pending writer callbacks queued by a successful callback survive for the next flush',()=>{
  const proto=method(' private flushFields()','\n private commitFields('),pendingFields=new Map<string,()=>void>();let next=0;
  pendingFields.set('title',()=>{pendingFields.set('title',()=>{next++;});});
- const view=Object.assign(Object.create(proto),{pendingFields,containerEl:{win:{clearTimeout(){}}}});view.flushFields();assert.equal(pendingFields.size,1);view.flushFields();assert.equal(next,1);
+ const view=Object.assign(Object.create(proto),{pendingFields,renderSaveWarning(){},containerEl:{win:{clearTimeout(){}}}});view.flushFields();assert.equal(pendingFields.size,1);view.flushFields();assert.equal(next,1);
 });
 
 test('link envelopes retain soft-line-break destinations and existing literal escape behavior',()=>{

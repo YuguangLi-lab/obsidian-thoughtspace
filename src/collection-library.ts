@@ -4,6 +4,7 @@ import {collectionNoteBody,readCollectionIdentity,type CollectionIdentity} from 
 import type {CollectionRecord,CollectionBoardReference} from './collection-view';
 import {isWorkspaceFile} from './workspace';
 import {searchCollectionRecords,type CollectionSearchOptions,type CollectionSearchProgress,type CollectionSearchResult} from './collection-search';
+import {readCollectionReview} from './collection-review';
 import {collectionTaskSummary} from './collection-tasks';
 
 export interface CollectionLibraryHost {
@@ -124,7 +125,7 @@ export class CollectionLibrary extends Component {
    if(file.extension!=='md'||this.host.isBoardFile(file))return[];
    const identity=this.identity(file);if(!identity)return[];
    const cache=this.app.metadataCache.getFileCache(file),frontmatter=cache?.frontmatter;
-   return[{...identity,path:file.path,title:file.basename,tags:[...new Set(getAllTags(cache||{})||[])],tasks:collectionTaskSummary(cache),pinned:frontmatter?.thoughtspace_pinned===true,archived:frontmatter?.thoughtspace_archived===true,placements:(usage.get(file.path)||[]).sort((a,b)=>a.boardPath.localeCompare(b.boardPath)||a.nodeId.localeCompare(b.nodeId)),placementsComplete:known,inBoard:usage.has(file.path)?true:known?false:'unknown' as const}];
+   return[{...identity,path:file.path,title:file.basename,tags:[...new Set(getAllTags(cache||{})||[])],...(()=>{const r=readCollectionReview(frontmatter);return{reviewOn:r.on,reviewIssue:r.issue};})(),tasks:collectionTaskSummary(cache),pinned:frontmatter?.thoughtspace_pinned===true,archived:frontmatter?.thoughtspace_archived===true,placements:(usage.get(file.path)||[]).sort((a,b)=>a.boardPath.localeCompare(b.boardPath)||a.nodeId.localeCompare(b.nodeId)),placementsComplete:known,inBoard:usage.has(file.path)?true:known?false:'unknown' as const}];
   }).sort((a,b)=>b.createdAt.localeCompare(a.createdAt)||a.path.localeCompare(b.path));
  }
  async search(options:CollectionSearchOptions,current:()=>boolean,onProgress?:(progress:CollectionSearchProgress)=>void):Promise<CollectionSearchResult>{

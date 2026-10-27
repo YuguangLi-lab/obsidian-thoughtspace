@@ -9,14 +9,15 @@ assert.ok(start>=0&&end>start);
 const View=new Function(transformSync(`class View {${source.slice(start,end)}} return View`,{loader:'ts'}).code)();
 
 function fixture(){
- let width=300,height='72px',scrollHeight=72,scrollTop=0;
+ let width=300,height='72px',scrollHeight=72,scrollTop=0,maxHeight='260px';
  const writes:string[]=[];
  const style={get height(){return height;},set height(value:string){height=value;writes.push(value);scrollTop=0;}};
  const input={isConnected:true,style,value:'一条记录',setCssStyles(values:Record<string,string>){assert.deepEqual(Object.keys(values),['height']);style.height=values.height;},get scrollHeight(){return scrollHeight;},get scrollTop(){return scrollTop;},set scrollTop(value:number){scrollTop=value;},getBoundingClientRect:()=>({width})};
- const document={activeElement:input};
+ const document={activeElement:input,defaultView:{getComputedStyle:()=>({minHeight:'72px',maxHeight})}};
+ Object.assign(input,{ownerDocument:document});
  for(const[key,value]of Object.entries({selectionStart:1,selectionEnd:3,selectionDirection:'backward'}))Object.defineProperty(input,key,{get:()=>value,set:()=>{throw Error(`Unexpected ${key} write`);}});
  const view=new View();view.bodyInput=input;
- return{view,input,document,writes,fit:()=>view.fitBodyInput(),height:()=>height,measure:(w:number,h:number)=>{width=w;scrollHeight=h;}};
+ return{view,input,document,writes,fit:()=>view.fitBodyInput(),height:()=>height,measure:(w:number,h:number)=>{width=w;scrollHeight=h;},limit:(value:string)=>{maxHeight=value;}};
 }
 test('the existing textarea grows with content and contracts after clearing without replacing the field',()=>{
  const f=fixture();f.fit();f.input.value='更长的正文\n第二行\n第三行';f.measure(300,124);f.fit();assert.equal(f.height(),'124px');
@@ -33,6 +34,31 @@ test('detached or unmeasurable panes do not write a guessed height or consume th
 });
 test('failed height measurement keeps the prior height and permits a later retry',()=>{
  const f=fixture();f.measure(300,0);f.fit();assert.equal(f.height(),'72px');f.measure(300,168);f.fit();assert.equal(f.height(),'168px');
+});
+test('a native manual height survives metadata sync, further typing and clearing',()=>{
+ const f=fixture();f.fit();f.input.style.height='220px';f.fit();assert.equal(f.height(),'220px');assert.equal(f.view.bodyManualHeight,220);
+ f.writes.length=0;f.fit();assert.deepEqual(f.writes,[]);
+ f.input.value+='\n新的正文';f.measure(300,244);f.fit();assert.equal(f.height(),'220px');
+ f.input.value='';f.measure(300,72);f.fit();assert.equal(f.height(),'220px');
+ f.input.style.height='120px';f.fit();assert.equal(f.height(),'120px');assert.equal(f.view.bodyManualHeight,120);
+});
+test('CSS limits constrain automatic and manual height without forgetting the preferred height',()=>{
+ const f=fixture();f.fit();f.input.style.height='240px';f.fit();f.limit('128px');f.fit();assert.equal(f.height(),'128px');assert.equal(f.view.bodyManualHeight,240);
+ f.limit('260px');f.fit();assert.equal(f.height(),'240px');
+ f.input.value='长正文';f.measure(220,800);f.input.scrollTop=35;f.fit();assert.equal(f.height(),'240px');assert.equal(f.input.scrollTop,35);
+ f.input.value='';f.measure(300,72);f.fit();assert.equal(f.height(),'240px');
+});
+test('manually shrinking long content is effective immediately and does not rebound after typing or wrapping',()=>{
+ const f=fixture();f.measure(300,800);f.fit();assert.equal(f.height(),'260px');f.input.style.height='96px';f.fit();assert.equal(f.height(),'96px');
+ f.input.value+='\n继续输入';f.measure(300,950);f.input.scrollTop=320;f.fit();assert.equal(f.height(),'96px');assert.equal(f.input.scrollTop,320);
+ f.measure(180,1500);f.fit();assert.equal(f.height(),'96px');f.input.value='';f.measure(180,72);f.fit();assert.equal(f.height(),'96px');
+});
+test('automatic growth stops at the responsive limit and clearing restores the default height',()=>{
+ const f=fixture();f.measure(300,800);f.fit();assert.equal(f.height(),'260px');f.limit('128px');f.fit();assert.equal(f.height(),'128px');
+ f.input.value='';f.measure(300,72);f.fit();assert.equal(f.height(),'72px');f.limit('260px');f.fit();assert.equal(f.height(),'72px');assert.equal(f.view.bodyManualHeight,undefined);
+});
+test('a failed manual-resize measurement keeps the requested preference for the next measurable frame',()=>{
+ const f=fixture();f.fit();f.input.style.height='192px';f.measure(300,0);f.fit();assert.equal(f.height(),'192px');f.measure(300,72);f.fit();assert.equal(f.height(),'192px');
 });
 test('reopening clears only geometry cache and both draft sync and native leaf resize use the same editor sizing',()=>{
  assert.match(source,/async onOpen\(\)\{\s*this\.alive=true;this\.bodySizeValue=undefined;this\.bodySizeWidth=0;/);

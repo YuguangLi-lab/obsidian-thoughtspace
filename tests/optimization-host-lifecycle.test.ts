@@ -18,7 +18,7 @@ function fixture(extension='md'){
  class Copy {closed=false;constructor(_app:unknown,public host:any){if(copyFailure)throw Error(copyFailure);copies.push(this);}open(){}close(){if(this.closed)return;this.closed=true;this.host.closed();}}
  const deps={View:class{},TFile:File,isHandwritingBoard,readBoardConflictFile,validateBoardConflictOpen,BoardConflictCompareModal:Compare,BoardLocalDraftCopyModal:Copy,act:(run:()=>unknown)=>run(),Notice:class{constructor(message:string){notices.push(message);}},isWorkspaceFile:()=>true,isBoardFile:()=>false,
   openHandwritingExport:(_app:unknown,host:any)=>{const modal={host,close(){host.closed();}};exports.push(modal);return modal;}};
- const methods=take('  private async compareSaveVersions(){','  private scheduleRender(')+take('  private async exportHandwriting(){','  private renderHandwritingBoard(){');
+ const methods=take('  private async compareSaveVersions(){','  private scheduleRender(')+take('  private async exportHandwriting(','  private renderHandwritingBoard(){');
  const Host=new Function(...Object.keys(deps),transformSync('class Host{'+methods+'};return Host',{loader:'ts'}).code)(...Object.values(deps));
  const host=new Host();Object.assign(host,{app,session:owner,file,contentEl:{ownerDocument:doc,isConnected:true},leaf:{},plugin:{nativeBoardTransitions:new Set(),openBoardNativeMarkdown:async(target:File)=>{opened.push(target);}},closed:false,closing:false,saveFeedbackSequence:0,saveFeedbackPending:false,requireOwner:()=>{},runSaveFeedbackAction:async(action:string)=>actions.push(action)});host.leaf.view=host;active=host;
  const navigate=(next:any)=>{active=next;for(const [fn,name]of [...refs])if(name==='active-leaf-change')fn();};

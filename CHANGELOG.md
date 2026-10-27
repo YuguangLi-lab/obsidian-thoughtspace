@@ -1,5 +1,34 @@
 # 更新记录
 
+## 1.3.40
+
+### 回顾、来源检查与安全恢复
+
+- 收集记录可安排回顾日期，并筛选今日与逾期记录；只在明确安排时写入独立的原生 Properties，不回填旧笔记。
+- 保存收集前提醒完全相同的正文或整段 URL，可打开已有记录、取消或明确继续保存，不自动合并或删除。
+- 新的静态写作引用记录来源基线，可只读核对原文变化；旧引用不猜测版本，也不自动覆盖文章。
+- 手写白板可导出透明或暖白背景 PNG，限制像素和内存，遇重名保留原文件，可编辑笔迹继续保留。
+- 增加统一恢复中心，分别标记已确认检查点、易失内存和待核对材料，提供复制与原模块处理入口，不自动清理或回写。
+
+### 输入、搜索与流畅性修复
+
+- 合并尚未开始的普通收集草稿写入，在失焦、关闭与保存前确认最新输入，不合并投递事务。
+- 收集搜索更新时保留旧结果并标明状态，防止过期搜索覆盖新结果及批量误操作。
+- 写作材料搜索只更新局部列表；保存失败持续提示复制全文和重试，导出明确生成独立 Markdown 草稿。
+- 统一输入框自动与手动高度；保持暖白纸质界面、收集侧栏与现有白板背景设置。
+- 同次来源检查复用受限快照与摘要，减少重复读文件；恢复中心避免逐条重复扫描目录，损坏材料仍走原恢复流程。
+- 修复较早的异步恢复读取覆盖新预览的问题，关闭、刷新和取消后不再应用旧响应。
+
+### English
+
+- Schedule explicit Collection review dates, filter due items, and show advisory exact-text/URL duplicate reminders without merging or deleting notes.
+- Record baselines for new static writing references and compare sources read-only. Existing untracked references remain untracked and articles are never replaced automatically.
+- Export handwriting as bounded transparent or warm-white PNG attachments while preserving editable ink and existing files.
+- Add a unified recovery center distinguishing confirmed checkpoints, volatile memory and uncertain records, using the existing controlled recovery paths.
+- Coalesce only unstarted ordinary draft writes, preserve search results while updating, retain writing editors during material searches, and keep save-failure recovery visible.
+- Reuse bounded source snapshots within a check pass, avoid repeated recovery-directory scans, and discard stale recovery-preview responses. Preserve the Paper interface and existing data/settings.
+
+
 ## 1.3.39
 
 ### 暖白纸质界面与收集侧栏

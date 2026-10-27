@@ -1,3 +1,5 @@
+import * as reviewFeature from '../src/collection-review';
+import * as duplicateFeature from '../src/collection-duplicates';
 // Execute the production collection view against isolated native DOM/host boundaries.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -72,6 +74,7 @@ const module={exports:{} as {CollectionView:new(leaf:any,host:any)=>any}};
 new Function('require','module','exports',compiled)((name:string)=>{
  if(name==='obsidian')return{ItemView,Component,Scope,MarkdownRenderer:{render:async()=>{}},setIcon:()=>{}};
  if(name==='./workspace-density')return density;
+ if(name==='./collection-review')return reviewFeature;
  if(name==='./collection-search')return collectionSearch;
  if(name==='./collection-background')return collectionBackground;
  if(name==='./collection-calendar')return calendar;

@@ -1,3 +1,4 @@
+import {makeWritingSourceCheck,appendWritingSourceChecks} from '../src/writing-source-check';
 import {boardLink} from '../src/deeplinks';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -5,14 +6,14 @@ import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import {writingReferenceRanges,writingReferenceMarkdown} from '../src/writing-reference';
 import {selectionFragment,rebaseFragment,pdfLiteralText} from '../src/materials';
-class TFile{extension='md';constructor(public path:string){}}
+class TFile{stat={ctime:1,mtime:1,size:20};extension='md';constructor(public path:string){}}
 class Picker{current=true;constructor(_app:unknown,public path:string,public raw:string,public ranges:any[],public insert:(mode:string,r:any)=>Promise<void>,public restore:()=>void){}open(){}isCurrent(){return this.current}}
 const source=readFileSync('src/writing-view.ts','utf8'),start=source.indexOf(' private async openReferencePicker('),end=source.indexOf('\n private renderReferenceTabs(',start);
-const View=new Function('TFile','WritingReferenceModal','writingItems','writingReferenceRanges','writingReferenceMarkdown','assertNativeNoteUnchanged','selectionFragment','rebaseFragment','parseLinktext','boardLink','pdfLiteralText',transformSync('class View{'+source.slice(start,end)+'};return View',{loader:'ts'}).code)(TFile,Picker,(b:any)=>b.nodes,writingReferenceRanges,writingReferenceMarkdown,()=>{},selectionFragment,rebaseFragment,(link:string)=>({path:link,subpath:''}),boardLink,pdfLiteralText);
+const View=new Function('makeWritingSourceCheck','appendWritingSourceChecks','TFile','WritingReferenceModal','writingItems','writingReferenceRanges','writingReferenceMarkdown','assertNativeNoteUnchanged','selectionFragment','rebaseFragment','parseLinktext','boardLink','pdfLiteralText',transformSync('class View{'+source.slice(start,end)+'};return View',{loader:'ts'}).code)(makeWritingSourceCheck,appendWritingSourceChecks,TFile,Picker,(b:any)=>b.nodes,writingReferenceRanges,writingReferenceMarkdown,()=>{},selectionFragment,rebaseFragment,(link:string)=>({path:link,subpath:''}),boardLink,pdfLiteralText);
 function fixture(){
  const file=new TFile('资料/原文 + 空格.md'),boardFile=new TFile('boards/test.thoughtspace'),node={id:'n',kind:'card',file:file.path},board={nodes:[node],writing:{manuscript:'before AFTER'}},owner={board};let raw='# Source\n\nEvidence\n';
  const input={value:board.writing.manuscript,selectionStart:7,selectionEnd:7,focus(){},dispatchEvent(){},setRangeText(text:string,a:number,b:number){this.value=this.value.slice(0,a)+text+this.value.slice(b);this.selectionStart=this.selectionEnd=a+text.length}};
- const view=Object.assign(new View(),{owner,file:boardFile,manuscriptInput:input,manuscriptNative:{},state:()=>board.writing,ensure:()=>owner,flushFields:()=>{board.writing.manuscript=input.value},openManuscript:async()=>{},app:{vault:{read:async()=>raw,getAbstractFileByPath:(p:string)=>p===file.path?file:undefined},metadataCache:{getFileCache:()=>null,getFirstLinkpathDest:()=>file},fileManager:{generateMarkdownLink:(f:TFile,_dest:string,sub?:string)=>'[['+f.path+(sub||'')+']]'}}});
+ const view=Object.assign(new View(),{owner,file:boardFile,manuscriptInput:input,manuscriptNative:{},update:(fn:(s:any)=>void)=>fn(board.writing),state:()=>board.writing,ensure:()=>owner,flushFields:()=>{board.writing.manuscript=input.value},openManuscript:async()=>{},app:{vault:{read:async()=>raw,getAbstractFileByPath:(p:string)=>p===file.path?file:undefined},metadataCache:{getFileCache:()=>null,getFirstLinkpathDest:()=>file},fileManager:{generateMarkdownLink:(f:TFile,_dest:string,sub?:string)=>'[['+f.path+(sub||'')+']]'}}});
  return{view,file,node,board,input,setRaw:(value:string)=>raw=value,range:{label:'selected',from:10,to:18}};
 }
 test('reference inserts at captured caret with exact source identity and leaves original untouched',async()=>{const f=fixture();await f.view.openReferencePicker('n');await f.view.referencePicker.insert('quote',f.range);assert.match(f.input.value,/^before \n\n> Evidence/);assert.match(f.input.value,/资料\/原文 \+ 空格.md/);assert.ok(f.input.value.endsWith('AFTER'));assert.equal(f.view.referencePicker.raw,'# Source\n\nEvidence\n');});

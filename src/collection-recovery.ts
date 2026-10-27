@@ -67,6 +67,7 @@ export class CollectionRecovery {
  private disposed=false;
  private pending?:Promise<CollectionResult>;
  private writes:Promise<void>=Promise.resolve();
+ private queuedDraft?:{serialized:string;work:Promise<void>};
  private draftTask=0;
  private dirty=false;
  private fatal?:string;
@@ -97,15 +98,26 @@ export class CollectionRecovery {
  private ensureCurrent(current:()=>boolean){this.ensureAvailable();if(!current())throw Error('收集页或当前位置已变化；本条记录及输入已保留');}
  private journal(){return copy(this.state);}
  private cancelScheduledDraft(){this.draftTask++;}
- private write(value:Journal):Promise<void> {
+ private write(value:Journal,coalesceDraft=false):Promise<void> {
   const serialized=JSON.stringify(value);
-  const work=this.writes.catch(()=>undefined).then(()=>this.host.writeJournal(serialized));
+  // Only an ordinary draft that has not entered the adapter may be replaced.
+  // Transaction checkpoints (including the final empty journal) are barriers;
+  // later typing must never change a snapshot before such a checkpoint.
+  const ordinary=coalesceDraft&&!value.attempt;
+  if(ordinary&&this.queuedDraft){this.queuedDraft.serialized=serialized;return this.queuedDraft.work;}
+  this.queuedDraft=undefined;
+  const entry={serialized,work:Promise.resolve()};
+  const work=this.writes.catch(()=>undefined).then(()=>{
+   if(this.queuedDraft===entry)this.queuedDraft=undefined;
+   return this.host.writeJournal(entry.serialized);
+  });
+  entry.work=work;if(ordinary)this.queuedDraft=entry;
   this.writes=work;
   void work.then(()=>{this.persistenceError=undefined;this.emit();},error=>{this.persistenceError=`无法保存收集恢复信息：${message(error)}；输入仍在本页，请重试`;this.emit();});
   return work;
  }
- private persist(){this.cancelScheduledDraft();this.dirty=false;return this.write(this.journal());}
- /** Synchronous UI edits are coalesced before writing. flushDraft() is available
+ private persist(){this.cancelScheduledDraft();this.dirty=false;return this.write(this.journal(),true);}
+ /** UI edits are coalesced until their ordinary draft write starts. flushDraft() is available
   * for blur/close and is awaited before any note creation. */
  updateDraft(patch:Partial<CollectionDraft>){
   this.ensureAvailable();
@@ -122,7 +134,14 @@ export class CollectionRecovery {
   void Promise.resolve().then(()=>{if(task===this.draftTask&&this.dirty)void this.persist().catch(()=>undefined);});
   this.emit();
  }
- async flushDraft(){await this.ready;if(this.fatal)throw Error(this.fatal);if(this.dirty||this.persistenceError)await this.persist();else await this.writes;}
+ async flushDraft(){
+  await this.ready;if(this.fatal)throw Error(this.fatal);
+  for(;;){
+   const work=this.dirty||this.persistenceError?this.persist():this.writes;
+   await work;
+   if(work===this.writes&&!this.dirty)return;
+  }
+ }
  private async checkAttempt(saved:CollectionAttempt,allowAbsent:boolean){
   let result:CollectionProbe;
   try{result=await this.host.probe(copy(saved));}catch(error){throw Error(`无法确认原笔记：${message(error)}；请核对后重试，不会另建笔记`);}

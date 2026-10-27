@@ -1,3 +1,5 @@
+import * as reviewFeature from '../src/collection-review';
+import * as duplicateFeature from '../src/collection-duplicates';
 /// <reference types="obsidian" />
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
@@ -51,13 +53,13 @@ function load<T>(path:string,dependencies:Record<string,unknown>):T {
  new Function('require','module','exports',code)((name:string)=>{if(!Object.hasOwn(dependencies,name))throw Error(`Unmocked dependency: ${name}`);return dependencies[name];},module,module.exports);
  return module.exports as T;
 }
-const libraryModule=load<typeof import('../src/collection-library')>('src/collection-library.ts',{'obsidian':obsidian,'./collection-model':model,'./collection-search':collectionSearch,'./collection-tasks':collectionTasks,'./workspace':workspaceFiles});
+const libraryModule=load<typeof import('../src/collection-library')>('src/collection-library.ts',{'obsidian':obsidian,'./collection-model':model,'./collection-review':reviewFeature,'./collection-duplicates':duplicateFeature,'./collection-review-host':{setCollectionReview:async()=>{throw Error('review write not provided by this fixture');}},'./collection-search':collectionSearch,'./collection-tasks':collectionTasks,'./workspace':workspaceFiles});
 const contextModule=load<typeof import('../src/collection-context')>('src/collection-context.ts',{'obsidian':obsidian,'./collection-model':model,'./workspace':workspaceFiles});
 const nativeNoteModule=load<typeof import('../src/native-note-state')>('src/native-note-state.ts',{'obsidian':obsidian});
 const noteExportModule=load<typeof import('../src/collection-note-export')>('src/collection-note-export.ts',{'obsidian':obsidian,'./collection-model':model,'./collection-json-store':collectionJsonStore,'./native-note-state':nativeNoteModule,'./markdown-context':markdownContext,'./markdown-literals':markdownLiterals,'./excerpt-sources':excerptSources,'./paragraph-card':{paragraphLink}});
 // The injected flag operation observes host arguments and cancellation only.
 // Real YAML writes and verification are covered by collection-organize tests.
-const hostModule=load<typeof import('../src/collection-host')>('src/collection-host.ts',{'obsidian':obsidian,'./collection-recovery':recovery,'./collection-model':model,'./collection-context':contextModule,'./collection-note-export':noteExportModule,'./collection-library':libraryModule,'./collection-search':collectionSearch,'./collection-json-store':collectionJsonStore,'./collection-saved-filters':collectionSavedFilters,'./collection-batch':collectionBatch,'./collection-organize':{setCollectionFlag:async(app:any,...args:unknown[])=>{if(typeof app.collectionFlagOperation!=='function')throw Error('flag mutation not mocked in legacy fixture');return app.collectionFlagOperation(app,...args);}},'./collection-journal-store':journalStore,'./native-tags':tags,'./workspace':workspaceFiles,'./board-modal-viewport':{bindBoardModalViewport:()=>()=>{}}});
+const hostModule=load<typeof import('../src/collection-host')>('src/collection-host.ts',{'obsidian':obsidian,'./collection-recovery':recovery,'./collection-model':model,'./collection-context':contextModule,'./collection-note-export':noteExportModule,'./collection-library':libraryModule,'./collection-review':reviewFeature,'./collection-duplicates':duplicateFeature,'./collection-review-host':{setCollectionReview:async()=>{throw Error('review write not provided by this fixture');}},'./collection-search':collectionSearch,'./collection-json-store':collectionJsonStore,'./collection-saved-filters':collectionSavedFilters,'./collection-batch':collectionBatch,'./collection-organize':{setCollectionFlag:async(app:any,...args:unknown[])=>{if(typeof app.collectionFlagOperation!=='function')throw Error('flag mutation not mocked in legacy fixture');return app.collectionFlagOperation(app,...args);}},'./collection-journal-store':journalStore,'./native-tags':tags,'./workspace':workspaceFiles,'./board-modal-viewport':{bindBoardModalViewport:()=>()=>{}}});
 function deferred(){let resolve!:()=>void;const promise=new Promise<void>(yes=>{resolve=yes;});return{promise,resolve};}
 async function until(check:()=>boolean){for(let i=0;i<1000&&!check();i++)await Promise.resolve();assert.ok(check(),'asynchronous checkpoint reached');}
 async function settleWrites(){for(let i=0;i<400;i++)await Promise.resolve();}
@@ -70,7 +72,7 @@ function fixture(){
  const boardDocs=new Map<TFile,any>();let boardReadGate:Promise<void>|undefined;
  const events=new Map<string,Set<(...args:any[])=>void>>(),adapterWrites:string[]=[],createdPaths:string[]=[],delivered:{session:string;file:TFile;target:CollectionTarget}[]=[],opened:TFile[]=[],links:{file:TFile;source:string}[]=[],pickers:AttachmentPicker[]=[];
  let uid=0,active:any,ensureCalls=0,creates=0,mutations=0,legacy=0,sourceReads=0;
- const control:{journalFailure?:(journal:Journal)=>boolean;partialWrite?:(path:string,source:string)=>boolean;processFailure?:'before'|'after'|'partial';processPhase?:recovery.CollectionPhase;processExternal?:string;processAfterReadFailure?:boolean;renameFailure?:'before'|'after';noOverwriteRename?:boolean;existsFailure?:(path:string)=>boolean;ensureFailure?:boolean;ensureGate?:ReturnType<typeof deferred>;createGate?:ReturnType<typeof deferred>;readGate?:ReturnType<typeof deferred>;afterRead?:()=>void;afterCreate?:(file:TFile)=>void;createFailure?:'before'|'after';lagFileCache?:boolean;lockDelivery?:boolean;deliveryFailure?:boolean;readJournalFailure?:boolean}={};
+ const control:{journalGate?:ReturnType<typeof deferred>;journalFailure?:(journal:Journal)=>boolean;partialWrite?:(path:string,source:string)=>boolean;processFailure?:'before'|'after'|'partial';processPhase?:recovery.CollectionPhase;processExternal?:string;processAfterReadFailure?:boolean;renameFailure?:'before'|'after';noOverwriteRename?:boolean;existsFailure?:(path:string)=>boolean;ensureFailure?:boolean;ensureGate?:ReturnType<typeof deferred>;createGate?:ReturnType<typeof deferred>;readGate?:ReturnType<typeof deferred>;afterRead?:()=>void;afterCreate?:(file:TFile)=>void;createFailure?:'before'|'after';lagFileCache?:boolean;lockDelivery?:boolean;deliveryFailure?:boolean;readJournalFailure?:boolean}={};
  const emit=(name:string,...args:any[])=>{for(const listener of events.get(name)||[])listener(...args);};
  const on=(name:string,callback:(...args:any[])=>void)=>{const listeners=events.get(name)||new Set();listeners.add(callback);events.set(name,listeners);return{name,callback};};
  const setFile=(path:string,source:string,cached=true)=>{const file=new TFile(path);file.stat.size=Buffer.byteLength(source);disk.set(path,source);if(cached)files.set(path,file);return file;};
@@ -85,7 +87,7 @@ function fixture(){
     mkdir:async(path:string)=>{folders.add(path);},
     list:async(path:string)=>({files:[...disk.keys()].filter(key=>key.startsWith(path+'/')&&!key.slice(path.length+1).includes('/')),folders:[]}),
     read:async(path:string)=>{if(control.readJournalFailure&&path.endsWith('.json'))throw Error('journal read unavailable');if(!disk.has(path))throw Error('missing disk file');return disk.get(path)!;},
-    write:async(path:string,source:string)=>{adapterWrites.push(path);if(control.partialWrite?.(path,source)){disk.set(path,source.slice(0,35));throw Error('partial temporary write');}if(control.journalFailure?.(JSON.parse(source) as Journal))throw Error('journal storage failed');disk.set(path,source);},
+    write:async(path:string,source:string)=>{adapterWrites.push(path);await control.journalGate?.promise;if(control.partialWrite?.(path,source)){disk.set(path,source.slice(0,35));throw Error('partial temporary write');}if(control.journalFailure?.(JSON.parse(source) as Journal))throw Error('journal storage failed');disk.set(path,source);},
     process:async(path:string,change:(source:string)=>string)=>{if(control.processExternal!==undefined)disk.set(path,control.processExternal);if(!disk.has(path))throw Error('process target missing');const next=change(disk.get(path)!);const fail=!control.processPhase||(JSON.parse(next) as Journal).attempt?.phase===control.processPhase;if(fail&&control.processFailure==='before')throw Error('process write rejected');if(fail&&control.processFailure==='partial'){disk.set(path,next.slice(0,35));throw Error('adapter left partial canonical');}disk.set(path,next);if(control.processAfterReadFailure)control.readJournalFailure=true;if(fail&&control.processFailure==='after')throw Error('process response lost');return next;},
     copy:async(from:string,to:string)=>{if(!disk.has(from))throw Error('copy source missing');if(disk.has(to))throw Error('copy destination already exists');disk.set(to,disk.get(from)!);},
     rename:async(from:string,to:string)=>{if(control.renameFailure==='before')throw Error('rename rejected');if(!disk.has(from))throw Error('rename source missing');if(control.noOverwriteRename&&disk.has(to))throw Error('rename cannot replace existing target');disk.set(to,disk.get(from)!);disk.delete(from);if(control.renameFailure==='after')throw Error('rename response lost');},
@@ -129,6 +131,12 @@ test('real host writes one native Markdown record, reuses tags/attachment links,
  assert.equal(model.collectionNoteBody(source,parseYaml,record),body+'\n\n![[Images/示意图.png]]');assert.deepEqual((parseYaml(source.match(/^---\n([\s\S]*?)\n---\n/)![1]) as any).tags,['阅读','研究/记录']);
  assert.deepEqual(f.links,[{file:image,source:record.path}]);assert.equal(f.disk.get(f.native.path),original);assert.equal(f.counts().mutations,0);assert.ok(f.adapterWrites.length>=4);assert.ok(f.adapterWrites.every(path=>journalStore.collectionJournalCanonical(path)===f.journalPath(view.host)));assert.equal(f.adapterWrites.includes(f.journalPath(view.host)),false);assert.equal(f.journal(view.host)!.draft.body,'');assert.equal(f.counts().creates,1);view.host.release?.();
 });
+
+test('recovery aggregation lists valid canonicals once and preserves damaged-canonical fallback without writes',async()=>{
+ const f=fixture(),dir=f.directory+'/collection-drafts';f.folders.add(dir);const value=(i:number)=>JSON.stringify({version:1,draft:{body:'checkpoint '+i,tags:'',attachments:[]}}),path=(i:number)=>`${dir}/session-checkpoint-${String(i).padStart(8,'0')}.json`;
+ for(let i=0;i<16;i++)f.disk.set(path(i),value(i));let lists=0;const list=f.app.vault.adapter.list;f.app.vault.adapter.list=async(p:string)=>{lists++;return list(p);};const before=new Map(f.disk),rows=await f.workspace().recoveryEntries(()=>true);assert.equal(lists,1);assert.equal(rows.length,16);assert.ok(rows.every(r=>r.storage==='checkpoint'));assert.deepEqual(f.disk,before);
+ f.disk.set(path(0),'partial canonical');f.disk.set(path(0)+'.previous-000000000001-fixture.json',JSON.stringify({format:'thoughtspace-collection-previous',version:1,journal:path(0),sequence:1,source:value(0)}));const damaged=new Map(f.disk);lists=0;const fallback=await f.workspace().recoveryEntries(()=>true);assert.equal(lists,2);assert.equal(fallback.find(r=>r.text==='checkpoint 0')?.storage,'unknown');assert.equal(fallback.filter(r=>r.storage==='checkpoint').length,15);assert.deepEqual(f.disk,damaged);assert.equal(f.adapterWrites.length,0);assert.equal(f.counts().mutations,0);
+});
 test('creating-journal failure proves create was not started and safely resumes same ID on this host',async()=>{
  const f=fixture(),view=await f.open();view.host.updateDraft({body});f.control.journalFailure=journal=>journal.attempt?.phase==='creating';await assert.rejects(view.host.submit(()=>true),/journal storage failed/);assert.equal(f.counts().creates,0);const originalAttempt=f.journal(view.host)!.attempt!;assert.equal(originalAttempt.phase,'prepared');
  f.control.journalFailure=undefined;await view.host.submit(()=>true);const records=await view.host.list();assert.equal(records[0].id,originalAttempt.id);assert.equal(f.createdPaths[0],originalAttempt.path);assert.equal(f.counts().creates,1);view.host.release?.();
@@ -168,6 +176,32 @@ test('a restored layout session already owned by another window gets an independ
 });
 test('released owner can be explicitly recovered while another active session is not stolen',async()=>{
  const f=fixture(),first=await f.open();first.host.updateDraft({body:'recover me'});const id=first.host.sessionId();first.host.release?.();await until(()=>!!f.journal(first.host));assert.equal(await f.workspace().recoverableSession(),id);const next=await f.open();await next.host.setSessionId(id);assert.equal(next.host.draft().body,'recover me');assert.equal(await f.workspace().recoverableSession(),undefined);next.host.release?.();
+});
+test('switching composer sessions waits for the previous draft checkpoint',async()=>{
+ const f=fixture(),view=await f.open(),previous=view.host.sessionId(),path=f.journalPath(view.host);
+ f.control.journalGate=deferred();view.host.updateDraft({body:'retain before switch'});await until(()=>f.adapterWrites.length>0);
+ let switched=false;const changing=view.host.setSessionId('session-switch-target').then(()=>{switched=true;});
+ await Promise.resolve();assert.equal(switched,false);assert.equal(view.host.sessionId(),previous);
+ f.control.journalGate!.resolve();await changing;
+ assert.equal((JSON.parse(f.disk.get(path)!) as Journal).draft.body,'retain before switch');assert.equal(view.host.sessionId(),'session-switch-target');assert.equal(view.host.draft().body,'');view.host.release?.();
+});
+test('a failed draft flush keeps the original composer identity and recoverable input',async()=>{
+ const f=fixture(),view=await f.open(),previous=view.host.sessionId();f.control.journalFailure=()=>true;
+ view.host.updateDraft({body:'not yet on disk'});await assert.rejects(view.host.flushDraft!(),/journal storage failed/);
+ await assert.rejects(view.host.setSessionId('session-failed-switch'),/journal storage failed/);
+ assert.equal(view.host.sessionId(),previous);assert.equal(view.host.draft().body,'not yet on disk');assert.match(view.host.draft().status!,/无法保存/);
+ f.control.journalFailure=undefined;await view.host.flushDraft!();assert.equal(f.journal(view.host)!.draft.body,'not yet on disk');view.host.release?.();
+});
+test('only the latest session navigation can claim a composer after pending IO completes',async()=>{
+ const f=fixture(),view=await f.open();f.control.journalGate=deferred();view.host.updateDraft({body:'keep old draft'});await until(()=>f.adapterWrites.length>0);
+ const first=view.host.setSessionId('session-first-navigation'),latest=view.host.setSessionId('session-latest-navigation');
+ f.control.journalGate!.resolve();await Promise.all([first,latest]);assert.equal(view.host.sessionId(),'session-latest-navigation');view.host.release?.();
+});
+test('closing during a pending session switch does not acquire a new composer owner',async()=>{
+ const f=fixture(),view=await f.open(),previous=view.host.sessionId();f.control.journalGate=deferred();view.host.updateDraft({body:'closed while switching'});await until(()=>f.adapterWrites.length>0);
+ const changing=view.host.setSessionId('session-closed-navigation');view.host.release?.();f.control.journalGate!.resolve();await changing;
+ assert.equal(view.host.sessionId(),previous);assert.equal(f.journal(view.host)!.draft.body,'closed while switching');
+ const next=await f.open();await next.host.setSessionId(previous);assert.equal(next.host.draft().body,'closed while switching');next.host.release?.();
 });
 test('full-page and docked hosts share records while closing and reopening preserves their independent drafts',async()=>{
  const f=fixture(),window=f.window(),page=await f.open(window),sidebar=await f.open(window),notices:string[]=[];

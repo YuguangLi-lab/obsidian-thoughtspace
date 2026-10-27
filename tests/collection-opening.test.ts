@@ -169,6 +169,15 @@ test('an unexpected existing sidebar returned by the host is never overwritten',
  await assert.rejects(f.opener.open('sidebar'),/已有页面保持不变/);assert.deepEqual(f.calendar.sets,[]);assert.equal(f.calendar.state.type,'calendar');assert.equal(f.calendar.detached,false);assert.equal(f.reveals.length,0);
 });
 
+test('host may reuse its initial empty main leaf without losing a draft or failing collection opening',async()=>{
+ const f=fixture(),empty=f.add('empty');f.activate(empty);f.workspace.getLeaf=()=>empty;
+ await f.opener.open();assert.equal(empty.state.type,TYPE);assert.equal(empty.detached,false);assert.deepEqual(f.reveals,[empty]);assert.equal(f.note.view.file.draft,'unsaved text');
+});
+test('failed mount on a reused empty host leaf never detaches the preexisting leaf',async()=>{
+ const f=fixture(),empty=f.add('empty');f.activate(empty);f.workspace.getLeaf=()=>empty;f.hooks.beforeSet=async()=>{throw Error('mount unavailable');};
+ await assert.rejects(f.opener.open(),/mount unavailable/);assert.equal(empty.detached,false);assert.equal(empty.state.type,'empty');assert.equal(f.reveals.length,0);
+});
+
 test('no available sidebar yields a recoverable error without touching any view',async()=>{
  const f=fixture();f.workspace.getRightLeaf=()=>null;
  await assert.rejects(f.opener.open('sidebar'),/无法新建收集侧边栏/);assert.equal(f.allocations.length,0);assert.equal(f.active(),f.note);assert.equal(f.refs.size,0);

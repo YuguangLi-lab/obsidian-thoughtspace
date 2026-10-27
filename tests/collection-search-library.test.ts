@@ -1,3 +1,5 @@
+import * as reviewFeature from '../src/collection-review';
+import * as duplicateFeature from '../src/collection-duplicates';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -16,7 +18,7 @@ class TFile {
 }
 const module={exports:{}},dependencies:Record<string,unknown>={
  obsidian:{Component,TFile,parseYaml,getAllTags:(cache:{frontmatter?:{tags?:string[]}})=>cache.frontmatter?.tags||[]},
- './collection-model':model,'./collection-search':search,'./collection-tasks':tasks,'./workspace':workspace,
+ './collection-model':model,'./collection-review':reviewFeature,'./collection-duplicates':duplicateFeature,'./collection-review-host':{setCollectionReview:async()=>{throw Error('review write not provided by this fixture');}},'./collection-search':search,'./collection-tasks':tasks,'./workspace':workspace,
 };
 new Function('require','module','exports',transformSync(readFileSync('src/collection-library.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>{assert.ok(name in dependencies,`mock ${name}`);return dependencies[name];},module,module.exports);
 const {CollectionLibrary}=module.exports as typeof import('../src/collection-library');

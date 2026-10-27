@@ -1,3 +1,5 @@
+import * as sourceChecks from '../src/writing-source-check';
+import {writingPartMarkdown} from '../src/writing';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -40,7 +42,7 @@ test('writing compose safeguards binary references even if a future queue admits
  const source=readFileSync('src/writing-view.ts','utf8'),start=source.indexOf(' private async compose('),end=source.indexOf('\n async refreshArticle(',start);
  class TFile {constructor(public path:string){}get basename(){return this.path;}}
  const b=board();b.nodes=b.nodes.filter(n=>n.kind!=='card');const owner={board:b},boardFile=new TFile('board.thoughtspace'),files=new Map(b.nodes.map(n=>[n.file!,new TFile(n.file!)]));let reads=0;
- const values={clone,writingSignature,writingParts:()=>b.nodes.map(node=>({node,depth:2})),TFile,remoteImageUrl:()=>undefined,imageMarkdown:()=>'',excerptNoteMarkdown:(text:string)=>text,readCurrentNativeNote:()=>{reads++;throw Error('binary read');},writingName,writingMarkdown,writingWordCount};
+ const values={...sourceChecks,writingPartMarkdown,clone,writingSignature,writingParts:()=>b.nodes.map(node=>({node,depth:2})),TFile,remoteImageUrl:()=>undefined,imageMarkdown:()=>'',excerptNoteMarkdown:(text:string)=>text,readCurrentNativeNote:()=>{reads++;throw Error('binary read');},writingName,writingMarkdown,writingWordCount};
  const compose=new Function(...Object.keys(values),transformSync('class View{'+source.slice(start,end)+'};return View.prototype.compose;',{loader:'ts'}).code)(...Object.values(values)) as (this:unknown)=>Promise<{text:string}>;
  const result=await compose.call({commitFields(){},ensure:()=>owner,file:boardFile,app:{vault:{getAbstractFileByPath:(path:string)=>files.get(path)},fileManager:{generateMarkdownLink:(file:TFile)=>'[['+file.path+']]'}}});
  assert.equal(reads,0);assert.match(result.text,/音频/);assert.match(result.text,/视频/);

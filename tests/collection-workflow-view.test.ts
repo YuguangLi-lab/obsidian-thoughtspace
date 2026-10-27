@@ -1,3 +1,5 @@
+import * as reviewFeature from '../src/collection-review';
+import * as duplicateFeature from '../src/collection-duplicates';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -65,6 +67,7 @@ const module={exports:{} as {CollectionView:new(leaf:any,host:any)=>any}};
 new Function('require','module','exports',compiled)((name:string)=>{
  if(name==='obsidian')return{ItemView,Component,Scope,MarkdownRenderer:{render:async()=>{}},setIcon:()=>{}};
  if(name==='./workspace-density')return density;
+ if(name==='./collection-review')return reviewFeature;
  if(name==='./collection-search')return collectionSearch;
  if(name==='./collection-background')return collectionBackground;
  if(name==='./collection-calendar')return calendar;
@@ -100,6 +103,20 @@ function pendingSearch(f:Awaited<ReturnType<typeof fixture>>){
 }
 const wait=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
 const action=(root:El,name:string)=>root.querySelectorAll('[data-collection-action]').find(el=>el.dataset.collectionAction===name)!;
+
+test('duplicate warning is advisory: cancel retains input and save-anyway confirms exactly once',async()=>{
+ let scans=0;const f=await fixture([record(1)],{}, {checkDuplicates:async()=>{scans++;return{matches:[record(1)],unread:0,scanned:1,cancelled:false};}});
+ await f.view.submit();assert.equal(f.calls(),0);assert.equal(scans,1);action(f.view.duplicatePanel,'duplicate-cancel').onclick!();assert.equal(f.draft.body,'待记录正文');assert.equal(f.view.duplicatePanel,undefined);
+ await f.view.submit();action(f.view.duplicatePanel,'duplicate-save-anyway').onclick!();await settle();assert.equal(f.calls(),1);assert.equal(scans,2);f.finish();await settle();await f.view.onClose();
+});
+for(const reason of ['cancel','edit','navigation','close'] as const)test(`duplicate ${reason} invalidates a late scan without saving or reviving its warning`,async()=>{
+ const pending=deferred<any>();let current!:()=>boolean;const f=await fixture([record(1)],{}, {checkDuplicates:async(_body:string,valid:()=>boolean)=>{current=valid;return pending.promise;}});const work=f.view.submit();assert.equal(current(),true);
+ if(reason==='cancel')action(f.view.duplicatePanel,'duplicate-cancel').onclick!();if(reason==='edit')f.view.patch({body:'new input'});if(reason==='navigation')f.handlers.get('active-leaf-change')!({});if(reason==='close')await f.view.onClose();assert.equal(current(),false);
+ pending.resolve({matches:[record(1)],unread:0,scanned:1,cancelled:false});await work;assert.equal(f.calls(),0);assert.equal(f.view.duplicatePanel,undefined);if(reason!=='close')await f.view.onClose();
+});
+test('duplicate unread sources demand explicit confirmation and a changed draft cannot reuse old approval',async()=>{
+ const f=await fixture([],{}, {checkDuplicates:async()=>({matches:[],unread:1,scanned:1,cancelled:false})});await f.view.submit();const old=action(f.view.duplicatePanel,'duplicate-save-anyway');assert.equal(f.calls(),0);f.view.patch({body:'revised'});old.onclick!();await settle();assert.equal(f.calls(),0);assert.equal(f.view.duplicatePanel,undefined);await f.view.onClose();
+});
 
 test('heatmap date selection retains other conditions and composer while cancelling old search and batch selection',async()=>{
  const records=[record(1),record(2,{archived:true})],f=await fixture(records,{}, {search:search(records),batch:async()=>report(records)});

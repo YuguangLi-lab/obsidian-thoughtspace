@@ -1,3 +1,5 @@
+import type {CollectionDuplicateResult} from './collection-duplicates';
+import {reviewDayAfter} from './collection-review';
 import {Component,ItemView,MarkdownRenderer,Scope,setIcon,type KeymapEventHandler,type ViewStateResult,type WorkspaceLeaf} from 'obsidian';
 import {bindMobileViewport} from './mobile-viewport';
 import {applyWorkspaceDensity} from './workspace-density';
@@ -24,7 +26,7 @@ export interface CollectionRecord {
  inBoard:boolean|'unknown';
  placements?:readonly CollectionBoardReference[];
  placementsComplete?:boolean;
- pinned?:boolean;archived?:boolean;tasks?:CollectionTaskSummary;
+ pinned?:boolean;archived?:boolean;reviewOn?:string;reviewIssue?:string;tasks?:CollectionTaskSummary;
 }
 export interface CollectionTarget {key:string;title:string;path?:string;groups:readonly {id:string;title:string}[];groupId?:string;duplicate?:'allow';}
 export interface CollectionBatchRequest {items:readonly CollectionRecord[];operation:CollectionBatchOperation;target?:CollectionTarget;}
@@ -37,11 +39,15 @@ export interface CollectionDraftPatch {body?:string;tags?:string;attachments?:re
 /** Each view owns one host session. The host journals the draft and atomically
  * clears it only after confirmed creation/delivery. UI teardown never discards it. */
 export interface CollectionViewHost {
+ openRecoveryCenter?:()=>void;
  accent?():string;density?():string;
  background?():BoardBackground;backgroundResource?:(path:string)=>string;
  openBackground?:(anchor:HTMLElement,current:()=>boolean)=>void;
  ready:()=>Promise<void>;sessionId:()=>string;setSessionId:(id:string)=>Promise<void>;
+ checkDuplicates?:(body:string,current:()=>boolean,attachments?:readonly CollectionAttachment[])=>Promise<CollectionDuplicateResult>;
+ setReview?:(record:CollectionRecord,on:string|undefined,current:()=>boolean)=>Promise<void>;
  draft:()=>CollectionViewDraft;updateDraft:(patch:CollectionDraftPatch)=>void;
+ flushDraft?:()=>Promise<void>;
  submit:(current:()=>boolean)=>Promise<void>;
  subscribe:(listener:(kind?:'draft'|'records'|'filters'|'batches')=>void)=>()=>void;
  list:()=>Promise<readonly CollectionRecord[]>;
@@ -102,7 +108,7 @@ export class CollectionView extends ItemView {
  private cards:CardPreview[]=[];private readQueue:CardPreview[]=[];private activeReads=0;
  private root?:HTMLElement;private main?:HTMLElement;private nav?:HTMLElement;private tagsList?:HTMLElement;private backdrop?:HTMLButtonElement;
  private bodyInput?:HTMLTextAreaElement;private tagInput?:HTMLInputElement;private options?:HTMLDetailsElement;private attachments?:HTMLElement;
- private bodySizeValue?:string;private bodySizeWidth=0;
+ private bodySizeValue?:string;private bodySizeWidth=0;private bodySizeHeight?:string;private bodySizeLimits='';private bodyManualHeight?:number;private bodyResizeObserver?:ResizeObserver;
  private targetLabel?:HTMLElement;private groupSelect?:HTMLSelectElement;private groupField?:HTMLElement;private targetButton?:HTMLButtonElement;private clearTarget?:HTMLButtonElement;
  private attachButton?:HTMLButtonElement;private submitButton?:HTMLButtonElement;private status?:HTMLElement;private search?:HTMLInputElement;
  private drawerButton?:HTMLButtonElement;private refreshButton?:HTMLButtonElement;private feed?:HTMLElement;private feedStatus?:HTMLElement;private pagination?:HTMLElement;
@@ -116,8 +122,11 @@ export class CollectionView extends ItemView {
  private reviewIdentityEpoch=0;
  private review?:{items:readonly CollectionRecord[];index:number;origin:CollectionBrowseLocation;outcomes:Map<string,string>;busy:boolean;confirmArchive:boolean};
  private searchEpoch=0;private searchTimer?:number;private searchTimerWindow?:Window;private searchComposing=false;private searchBusy=false;
+ private duplicatePanel?:HTMLElement;private duplicateEpoch=0;
+ private reviewDue=false;private reviewToggle?:HTMLInputElement;
  private includeBody=false;private pinnedOnly=false;private since='';private until='';private taskFilter:CollectionTaskFilter='all';private taskSelect?:HTMLSelectElement;
  private searchProgress?:CollectionSearchProgress;private searchMessage='';private searchResult?:{epoch:number;key:string;value:CollectionSearchResult};
+ private displayedSearchResult?:{key:string;value:CollectionSearchResult};
  private searchPanel?:HTMLElement;private searchFeedback?:HTMLElement;private cancelSearchButton?:HTMLButtonElement;private retrySearchButton?:HTMLButtonElement;
  private placedButton?:HTMLButtonElement;private archivedButton?:HTMLButtonElement;private bodySearchToggle?:HTMLInputElement;private pinnedToggle?:HTMLInputElement;private sinceInput?:HTMLInputElement;private untilInput?:HTMLInputElement;
  private browseMessage='';private browseEpoch=0;private browseNotice?:HTMLElement;
@@ -157,7 +166,7 @@ export class CollectionView extends ItemView {
   if(this.root){const background=cleanCollectionBackground(this.host.background?.());this.root.dataset.collectionBackground=background.canvasBackground;this.root.setCssProps(collectionBackgroundStyles(background,this.host.accent?.(),this.host.backgroundResource?.(background.backgroundImagePath)));}
  }
  async onOpen(){
-  this.alive=true;this.bodySizeValue=undefined;this.bodySizeWidth=0;this.contentEl.empty();this.contentEl.addClass('ts-collection-content');this.applyPreferences();
+  this.alive=true;this.bodySizeValue=undefined;this.bodySizeWidth=0;this.bodySizeHeight=undefined;this.bodySizeLimits='';this.bodyManualHeight=undefined;this.displayedSearchResult=undefined;this.contentEl.empty();this.contentEl.addClass('ts-collection-content');this.applyPreferences();
   this.bindSubmitHotkey();
   const root=this.root=this.contentEl.createDiv({cls:'ts-collection',attr:{'aria-label':'收集'}});
   this.applyPreferences();
@@ -181,7 +190,7 @@ export class CollectionView extends ItemView {
   this.heatmap=new CollectionHeatmapView(this.main,{onSelectDay:day=>this.changeHeatmapDate(day),onClearDates:()=>this.changeHeatmapDate(),onCalendarContextChange:()=>this.changeCalendarContext()},feedTools);
   this.searchPanel=this.main.createDiv({cls:'ts-collection-search-progress'});
   this.searchFeedback=this.searchPanel.createEl('p',{attr:{role:'status','aria-live':'polite','data-collection-search-status':'true'}});
-  this.cancelSearchButton=this.button(this.searchPanel,'取消搜索','cancel-search',()=>{this.clearSelection(true);this.cancelSearch('搜索已取消，可重试。');if(this.manualBodyMode&&this.includeBody)this.bodyAwaitingStart=true;this.renderFeed();this.syncSearchFeedback();},'x');
+  this.cancelSearchButton=this.button(this.searchPanel,'取消搜索','cancel-search',()=>{this.clearSelection(true);this.cancelSearch('搜索已取消，可重试。');if(this.manualBodyMode&&this.includeBody)this.bodyAwaitingStart=true;this.syncSearchFeedback();},'x');
   this.retrySearchButton=this.button(this.searchPanel,'重试','retry-search',()=>{this.clearSelection(true);void this.refreshRecords(true,true);},'refresh-cw');
   this.startSearchButton=this.button(this.searchPanel,'开始搜索','start-search',()=>this.requestSearch(0,true),'search');
   this.syncSearchFeedback();
@@ -192,13 +201,13 @@ export class CollectionView extends ItemView {
   this.pagination=this.main.createDiv('ts-collection-pagination');
   this.unbindViewport=bindMobileViewport(root);
   this.registerDomEvent(root,'keydown',event=>this.keydown(event));
-  this.registerEvent(this.app.workspace.on('active-leaf-change',leaf=>{if(leaf!==this.leaf){this.navigationEpoch++;this.clearSelection(true);if(this.searchBusy||this.searchTimer){this.cancelSearch('搜索已暂停，可重试。');this.renderFeed();}this.setDrawer(false,false);}}));
+  this.registerEvent(this.app.workspace.on('active-leaf-change',leaf=>{if(leaf!==this.leaf){this.dismissDuplicate();this.submitting=false;void this.flushDraft();this.navigationEpoch++;this.clearSelection(true);if(this.searchBusy||this.searchTimer)this.cancelSearch('搜索已暂停，可重试。');this.setDrawer(false,false);}}));
   this.unsubscribe=this.host.subscribe(kind=>{
    if(!this.alive)return;
    if(kind==='batches'){void this.loadBatchReports();return;}
    this.syncDraft();
    if(kind==='filters'){void this.loadSavedFilters();return;}
-   if(kind==='records'){if(!this.batchRunning)this.clearSelection(false);this.stale=true;this.syncRefresh();if(this.searchBusy||this.searchTimer){this.cancelSearch('记录有更新，请重新搜索。');this.renderFeed();}this.membershipEpoch++;if(this.membershipTimer)clearTimeout(this.membershipTimer);this.membershipTimer=setTimeout(()=>{this.membershipTimer=undefined;void this.refreshMembership();},80);}
+   if(kind==='records'){if(!this.batchRunning)this.clearSelection(false);this.stale=true;this.syncRefresh();if(this.searchBusy||this.searchTimer)this.cancelSearch('记录有更新，请重新搜索。');this.membershipEpoch++;if(this.membershipTimer)clearTimeout(this.membershipTimer);this.membershipTimer=setTimeout(()=>{this.membershipTimer=undefined;void this.refreshMembership();},80);}
   });
   this.syncDraft();
   const stateEpoch=this.stateEpoch;
@@ -207,13 +216,14 @@ export class CollectionView extends ItemView {
  }
  onResize(){this.fitBodyInput();}
  async onClose(){
-  this.batchStopRequested=true;this.batchEpoch++;this.savedEpoch++;this.historyEpoch++;this.alive=false;this.stateEpoch++;this.navigationEpoch++;this.listEpoch++;this.renderEpoch++;this.restoreEpoch++;
+  this.batchStopRequested=true;this.batchEpoch++;this.savedEpoch++;this.historyEpoch++;this.alive=false;this.dismissDuplicate();this.stateEpoch++;this.navigationEpoch++;this.listEpoch++;this.renderEpoch++;this.restoreEpoch++;
   this.cancelSearch();
+  this.bodyResizeObserver?.disconnect();this.bodyResizeObserver=undefined;
   if(this.membershipTimer)clearTimeout(this.membershipTimer);this.membershipTimer=undefined;this.membershipEpoch++;
   this.unsubscribe?.();this.unsubscribe=undefined;this.unbindViewport?.();this.unbindViewport=undefined;
   this.attachmentBrowser?.close();this.attachmentBrowser=undefined;this.noteExport?.close();this.noteExport=undefined;this.review=undefined;this.heatmap?.destroy();this.heatmap=undefined;
   if(this.submitHotkey)this.scope?.unregister(this.submitHotkey);this.submitHotkey=undefined;
-  this.disposeCards();this.host.release?.();this.contentEl.removeClass('ts-collection-content');this.contentEl.empty();
+  this.disposeCards();await this.flushDraft();this.host.release?.();this.contentEl.removeClass('ts-collection-content');this.contentEl.empty();
  }
  private current(){return this.alive&&this.contentEl.isConnected&&!!this.contentEl.ownerDocument.defaultView&&!this.contentEl.ownerDocument.defaultView.closed;}
  /** Retain filters and the actual focused control; no note or draft changes. */
@@ -351,6 +361,8 @@ export class CollectionView extends ItemView {
   const fields=advanced.createDiv('ts-collection-search-fields');
   const bodyLabel=fields.createEl('label',{cls:'ts-collection-check-field'});this.bodySearchToggle=bodyLabel.createEl('input',{type:'checkbox',attr:{'data-collection-include-body':'true'}});bodyLabel.createSpan({text:'包含正文'});
   this.bodySearchToggle.onchange=()=>{this.includeBody=this.bodySearchToggle!.checked;if(!this.includeBody){this.manualBodyMode=false;this.bodyAwaitingStart=false;}this.search?.setAttribute('placeholder',this.includeBody?'正文、标题、路径或 #标签':'标题、路径或 #标签');this.page=0;this.requestSearch();};
+  const reviewLabel=fields.createEl('label',{cls:'ts-collection-check-field'});this.reviewToggle=reviewLabel.createEl('input',{type:'checkbox',attr:{'data-collection-review-due':'true'}});reviewLabel.createSpan({text:'今日回顾（含逾期）'});
+  this.reviewToggle.onchange=()=>{this.reviewDue=this.reviewToggle!.checked;this.page=0;this.appliedFilterId=undefined;this.requestSearch();};
   const pinLabel=fields.createEl('label',{cls:'ts-collection-check-field'});this.pinnedToggle=pinLabel.createEl('input',{type:'checkbox',attr:{'data-collection-pinned-only':'true'}});pinLabel.createSpan({text:'仅置顶'});
   this.pinnedToggle.onchange=()=>{this.pinnedOnly=this.pinnedToggle!.checked;this.page=0;this.requestSearch();};
   const taskLabel=fields.createEl('label',{cls:'ts-collection-field'});taskLabel.createSpan({text:'任务'});this.taskSelect=taskLabel.createEl('select',{attr:{'aria-label':'任务筛选','data-collection-task-filter':'true'}});
@@ -366,6 +378,7 @@ export class CollectionView extends ItemView {
   this.buildSavedFilters(nav);
   const tags=nav.createEl('details',{cls:'ts-collection-tag-browser'});tags.createEl('summary',{text:'标签'});this.tagsList=tags.createDiv('ts-collection-tag-list');
   const tail=nav.createDiv('ts-collection-nav-tail');
+  if(this.host.openRecoveryCenter)this.button(tail,'恢复中心','recovery-center',()=>this.host.openRecoveryCenter!(),'history');
   this.button(tail,'旧收件箱','legacy-inbox',()=>this.runAction(()=>this.host.openLegacyInbox()),'archive').setAttribute('title','打开原来的收件箱笔记范围');
  }
  private buildSavedFilters(nav:HTMLElement){
@@ -414,7 +427,7 @@ export class CollectionView extends ItemView {
   finally{this.savedBusy=false;if(this.current())this.renderSavedFilters();}
  }
  private applySavedFilter(saved:SavedCollectionFilter){
-  const options=saved.options;this.query=options.query;this.tag='';this.filter=options.scope||'all';this.includeBody=!!options.includeBody;this.pinnedOnly=!!options.pinnedOnly;this.since=options.since||'';this.until=options.until||'';this.taskFilter=options.tasks||'all';if(this.taskSelect)this.taskSelect.value=this.taskFilter;this.page=0;this.searchComposing=false;
+  const options=saved.options;this.reviewDue=!!options.reviewDue;if(this.reviewToggle)this.reviewToggle.checked=this.reviewDue;this.query=options.query;this.tag='';this.filter=options.scope||'all';this.includeBody=!!options.includeBody;this.pinnedOnly=!!options.pinnedOnly;this.since=options.since||'';this.until=options.until||'';this.taskFilter=options.tasks||'all';if(this.taskSelect)this.taskSelect.value=this.taskFilter;this.page=0;this.searchComposing=false;
   this.appliedFilterId=saved.id;this.manualBodyMode=this.includeBody;
   if(this.search){this.search.value=this.query;this.search.setAttribute('placeholder',this.includeBody?'正文、标题、路径或 #标签':'标题、路径或 #标签');}
   if(this.bodySearchToggle)this.bodySearchToggle.checked=this.includeBody;if(this.pinnedToggle)this.pinnedToggle.checked=this.pinnedOnly;if(this.sinceInput)this.sinceInput.value=this.since;if(this.untilInput)this.untilInput.value=this.until;
@@ -423,7 +436,7 @@ export class CollectionView extends ItemView {
  private recordKey(record:CollectionRecord){return JSON.stringify([record.id,record.createdAt,record.path]);}
  private selectionRecords(){return this.filteredRecords().slice(this.page*PAGE_SIZE,(this.page+1)*PAGE_SIZE);}
  private canSelect(){return!this.review&&!!this.host.batch&&this.canReview()&&this.selectionRecords().length>0;}
- private canReview(){return!this.batchRunning&&!this.batchChoosing&&!this.stale&&!this.searchBusy&&!this.searchTimer&&!this.searchComposing&&!this.bodyAwaitingStart&&(!this.host.search||!!this.searchResult&&this.searchResult.epoch===this.searchEpoch&&this.searchResult.key===this.searchKey()&&!this.searchResult.value.cancelled&&this.searchResult.value.unread===0)&&this.filteredRecords().length>0;}
+ private canReview(){return!this.preparing&&!this.indexBusy&&!this.batchRunning&&!this.batchChoosing&&!this.stale&&!this.searchBusy&&!this.searchTimer&&!this.searchComposing&&!this.bodyAwaitingStart&&(!this.host.search||!!this.searchResult&&this.searchResult.epoch===this.searchEpoch&&this.searchResult.key===this.searchKey()&&!this.searchResult.value.cancelled&&this.searchResult.value.unread===0)&&this.filteredRecords().length>0;}
  private startReview(){
   if(this.review||!this.current()||!this.canReview())return;
   const items=this.filteredRecords().slice(0,500).map(record=>Object.freeze({...record,tags:Object.freeze([...record.tags])}));
@@ -526,7 +539,7 @@ export class CollectionView extends ItemView {
   finally{this.batchChoosing=false;if(this.current())this.syncSelection();}
  }
  private async confirmBatch(){
-  const review=this.batchReview;if(!review||review.epoch!==this.selectionEpoch||this.batchRunning||!this.host.batch||!this.current())return;
+  const review=this.batchReview;if(!review||review.epoch!==this.selectionEpoch||!this.canReview()||!this.host.batch||!this.current())return;
   const request:CollectionBatchRequest={items:review.items.map(record=>({...record,tags:[...record.tags]})),operation:review.operation,...(review.target?{target:{...review.target,groups:[...review.target.groups]}}:{})};
   const epoch=++this.batchEpoch,base=this.invocation(),current=()=>base()&&epoch===this.batchEpoch&&!this.batchStopRequested;
   this.batchRunning=true;this.batchStopRequested=false;this.batchMessage='正在准备批量操作…';this.batchReport=undefined;this.batchReview=undefined;this.selectionMode=false;this.selected.clear();this.selectionEpoch++;this.syncSelection();this.renderBatchPanel();
@@ -581,12 +594,16 @@ export class CollectionView extends ItemView {
   this.bodyInput.oninput=()=>this.patch({body:this.bodyInput!.value});
   this.bodyInput.addEventListener('compositionstart',()=>{this.composing=true;});
   this.bodyInput.addEventListener('compositionend',()=>{this.composing=false;this.patch({body:this.bodyInput!.value});});
+  this.bodyInput.addEventListener('blur',()=>{void this.flushDraft();});
+  const window=this.bodyInput.ownerDocument.defaultView as(Window&{ResizeObserver?:typeof ResizeObserver})|null;
+  if(window?.ResizeObserver){this.bodyResizeObserver=new window.ResizeObserver(()=>{if(this.alive)this.fitBodyInput();});this.bodyResizeObserver.observe(this.bodyInput);}
   this.options=composer.createEl('details',{cls:'ts-collection-options',attr:{'data-collection-options':'true'}});
   const summary=this.options.createEl('summary');summary.createSpan({text:'标签 · 附件 · 白板'});
   const extras=this.options.createDiv('ts-collection-extras');
   const tags=extras.createEl('label',{cls:'ts-collection-field'});tags.createSpan({text:'标签'});
   this.tagInput=tags.createEl('input',{type:'text',attr:{'aria-label':'记录标签',placeholder:'#想法 #阅读/摘录','data-collection-tags':'true',maxlength:'1000'}});
   this.tagInput.oninput=()=>this.patch({tags:this.tagInput!.value});
+  this.tagInput.addEventListener('blur',()=>{void this.flushDraft();});
   const attachmentArea=extras.createDiv('ts-collection-attachment-area');
   this.attachButton=this.button(attachmentArea,'引用已有附件','attachment',()=>{void this.chooseAttachment();},'paperclip');
   this.attachments=attachmentArea.createDiv('ts-collection-attachments');
@@ -604,6 +621,7 @@ export class CollectionView extends ItemView {
   this.status=composer.createEl('p',{cls:'ts-collection-status',attr:{role:'status','aria-live':'polite','data-collection-status':'true'}});
  }
  private patch(patch:CollectionDraftPatch){
+  this.dismissDuplicate();
   if(!this.current()||this.preparing)return;
   try{this.host.updateDraft(patch);this.liveMessage='';this.syncDraft();}
   catch(error){this.report(error);this.syncDraft();}
@@ -646,19 +664,25 @@ export class CollectionView extends ItemView {
   }
   this.draftMessage=draft.status||'';this.status?.setText(this.liveMessage||this.draftMessage|| (this.preparing?'正在恢复记录草稿…':''));
  }
- /** Grow with the draft without rebuilding the editor or touching its selection.
-  * Metadata refreshes at the same width do not reset the textarea's scroll. */
+ /** Grow automatically until a native resize chooses this editor's height.
+  * Further input and clearing retain that preference within responsive limits.
+  * Keep our last inline write separate so CSS clamping is not a manual resize. */
  private fitBodyInput(){
   const input=this.bodyInput;if(!input?.isConnected||!input.style)return;
   const width=input.getBoundingClientRect().width;
-  if(!width||this.bodySizeValue===input.value&&this.bodySizeWidth===width)return;
+  if(!width)return;
+  const computed=input.ownerDocument?.defaultView?.getComputedStyle?.(input),minimum=Number.parseFloat(computed?.minHeight||'72')||72,maximum=Number.parseFloat(computed?.maxHeight||'260')||260,limits=`${minimum}:${maximum}`;
+  const resized=this.bodySizeHeight!==undefined&&input.style.height!==this.bodySizeHeight;
+  if(resized){const preferred=Number.parseFloat(input.style.height);if(preferred>0)this.bodyManualHeight=preferred;}
+  if(!resized&&this.bodySizeValue===input.value&&this.bodySizeWidth===width&&this.bodySizeLimits===limits)return;
   const previousHeight=input.style.height,scroll=input.scrollTop;
   input.setCssStyles({height:'auto'});
   const height=input.scrollHeight;
-  if(height>0){input.style.height=`${height}px`;this.bodySizeValue=input.value;this.bodySizeWidth=width;}
+  if(height>0){input.style.height=`${Math.min(maximum,Math.max(minimum,this.bodyManualHeight??height))}px`;this.bodySizeHeight=input.style.height;this.bodySizeValue=input.value;this.bodySizeWidth=width;this.bodySizeLimits=limits;}
   else input.style.height=previousHeight;
   if(scroll>0)input.scrollTop=scroll;
  }
+ private async flushDraft(){try{await this.host.flushDraft?.();}catch(error){this.report(error);}}
  private report(error:unknown){if(this.alive){this.liveMessage=error instanceof Error?error.message:String(error);this.status?.setText(this.liveMessage);}}
  private async chooseAttachment(){
   if(this.choosing||this.preparing||this.host.draft().busy||this.host.draft().locked)return;
@@ -672,12 +696,33 @@ export class CollectionView extends ItemView {
   try{const target=await this.host.pickTarget(current);if(current()&&target)this.patch({target});}
   catch(error){if(current())this.report(error);}finally{this.choosing=false;if(this.alive)this.syncDraft();}
  }
- private async submit(){
+ private draftStamp(){const draft=this.host.draft();return JSON.stringify([draft.body,draft.tags,draft.attachments,draft.target]);}
+ private dismissDuplicate(){this.duplicateEpoch++;this.duplicatePanel?.remove();this.duplicatePanel=undefined;}
+ private duplicateWarning(stamp:string,result?:CollectionDuplicateResult){
+  this.duplicatePanel?.remove();const panel=this.status?.parentElement?.createDiv({cls:'ts-collection-duplicate-warning',attr:{role:'status','aria-live':'polite'}});if(!panel)return;
+  this.duplicatePanel=panel;panel.createEl('p',{text:result?result.matches.length?`发现 ${result.matches.length} 条相同正文或链接，尚未保存新记录。`:'部分记录未能检查，尚未保存新记录。':'正在检查相同正文或链接…'});
+  const same=()=>this.current()&&this.duplicatePanel===panel&&this.draftStamp()===stamp;
+  if(result){
+   if(result.unread)panel.createEl('p',{text:`${result.unread} 条未能检查，结果可能不完整。`});
+   for(const record of result.matches.slice(0,20))this.button(panel,'打开已有：'+record.title,'duplicate-open',()=>{if(same())this.runAction(()=>this.host.openNote(record));},'file-text');
+   this.button(panel,'仍然保存新记录','duplicate-save-anyway',()=>{if(same())void this.submit(stamp);},'plus');
+  }
+  this.button(panel,'取消','duplicate-cancel',()=>{this.dismissDuplicate();this.submitting=false;this.syncDraft();},'x');
+ }
+ private async submit(approval?:string){
   if(this.composing||this.submitButton?.disabled||this.submitting||!this.current())return;
-  const current=this.invocation();this.submitting=true;this.liveMessage='';this.syncDraft();
-  try{await this.host.submit(current);if(current()){this.liveMessage='已保存，可以继续记录。';await this.refreshRecords();}}
+  const base=this.invocation(),stamp=this.draftStamp();this.dismissDuplicate();const epoch=this.duplicateEpoch,current=()=>base()&&epoch===this.duplicateEpoch&&this.draftStamp()===stamp;this.submitting=true;this.liveMessage='';this.syncDraft();
+  try{
+   if(this.host.checkDuplicates&&!this.host.draft().locked&&approval!==stamp){
+    this.duplicateWarning(stamp);let result:CollectionDuplicateResult;
+    try{result=await this.host.checkDuplicates(this.host.draft().body,current,this.host.draft().attachments);}catch{result={matches:[],unread:1,scanned:0,cancelled:false};}
+    if(!current()||result.cancelled)return;
+    if(result.matches.length||result.unread){this.duplicateWarning(stamp,result);return;}
+   }
+   this.duplicatePanel?.remove();this.duplicatePanel=undefined;
+   await this.host.submit(()=>base()&&epoch===this.duplicateEpoch);if(base()&&epoch===this.duplicateEpoch){this.liveMessage='已保存，可以继续记录。';await this.refreshRecords();}}
   catch(error){if(current())this.report(error);}
-  finally{this.submitting=false;if(this.alive)this.syncDraft();}
+  finally{if(epoch===this.duplicateEpoch){this.submitting=false;if(this.alive)this.syncDraft();}}
  }
  private keydown(event:KeyboardEvent){
   if(['ArrowDown','ArrowUp','PageDown','PageUp','Home','End',' '].includes(event.key))this.restoreEpoch++;
@@ -732,14 +777,15 @@ export class CollectionView extends ItemView {
  private changeFilter(filter:CollectionFilter){this.filter=filter;this.page=0;this.setDrawer(false);this.renderNavigation();this.requestSearch();}
  private chooseTag(tag:string){this.tag=tag;this.page=0;this.setDrawer(false);this.renderNavigation();this.requestSearch();}
  private clearFilters(){
+  this.reviewDue=false;if(this.reviewToggle)this.reviewToggle.checked=false;
   this.manualBodyMode=false;this.bodyAwaitingStart=false;this.appliedFilterId=undefined;this.query='';this.tag='';this.filter='all';this.includeBody=false;this.pinnedOnly=false;this.since='';this.until='';this.taskFilter='all';if(this.taskSelect)this.taskSelect.value='all';this.page=0;this.searchComposing=false;
   if(this.search){this.search.value='';this.search.setAttribute('placeholder','标题、路径或 #标签');}if(this.bodySearchToggle)this.bodySearchToggle.checked=false;if(this.pinnedToggle)this.pinnedToggle.checked=false;if(this.sinceInput)this.sinceInput.value='';if(this.untilInput)this.untilInput.value='';
   this.renderNavigation();this.requestSearch();
  }
- private searchOptions():CollectionSearchOptions{return{query:(this.tag?'#'+this.tag.replace(/^#/,'')+' ':'')+this.query,includeBody:this.includeBody,scope:this.filter,pinnedOnly:this.pinnedOnly,since:this.since||undefined,until:this.until||undefined,...(this.taskFilter!=='all'?{tasks:this.taskFilter}:{})};}
+ private searchOptions():CollectionSearchOptions{return{...(this.reviewDue?{reviewDue:true}:{}),query:(this.tag?'#'+this.tag.replace(/^#/,'')+' ':'')+this.query,includeBody:this.includeBody,scope:this.filter,pinnedOnly:this.pinnedOnly,since:this.since||undefined,until:this.until||undefined,...(this.taskFilter!=='all'?{tasks:this.taskFilter}:{})};}
  private syncHeatmap(){this.heatmap?.update(this.records,{since:this.since,until:this.until});}
  private changeCalendarContext(){
-  if(!this.current()||!this.since&&!this.until)return;
+  if(!this.current()||!this.since&&!this.until&&!this.reviewDue)return;
   this.page=0;if(this.includeBody)this.manualBodyMode=true;
   // A system timezone change invalidates the date query just as changing its
   // bounds does. Whole-body reads still require a new explicit start.
@@ -759,8 +805,9 @@ export class CollectionView extends ItemView {
  private sameRecord(a:CollectionRecord,b:CollectionRecord){return a.id===b.id&&a.createdAt===b.createdAt&&a.path===b.path;}
  private filteredRecords():CollectionRecord[]{
   if(!this.host.search){try{return filterCollectionSearchRecords(this.records,this.searchOptions());}catch(error){this.searchMessage=error instanceof Error?error.message:String(error);return[];}}
-  return this.searchResult?.epoch===this.searchEpoch&&this.searchResult.key===this.searchKey()?this.searchResult.value.hits.map(hit=>hit.record):[];
+  return this.displayedSearchResult?.value.hits.map(hit=>hit.record)||[];
  }
+ private showingPreviousSearch(){return!!this.host.search&&!!this.displayedSearchResult&&(!this.searchResult||this.searchResult.epoch!==this.searchEpoch||this.searchResult.key!==this.searchKey());}
  private cancelSearch(message=''){
   this.searchEpoch++;if(this.searchTimer!==undefined)this.searchTimerWindow?.clearTimeout(this.searchTimer);this.searchTimer=undefined;this.searchTimerWindow=undefined;this.searchBusy=false;this.searchProgress=undefined;this.searchResult=undefined;this.searchMessage=message;this.syncSearchFeedback();
  }
@@ -769,37 +816,48 @@ export class CollectionView extends ItemView {
   this.syncHeatmap();
   this.clearSelection(true);this.bodyAwaitingStart=this.manualBodyMode&&this.includeBody&&!explicit;
   this.restoreEpoch++;this.listEpoch++;this.browseEpoch++;this.indexBusy=false;this.browseMessage='';this.syncBrowseMessage();this.syncRefresh();this.cancelSearch();
-  if(this.bodyAwaitingStart){this.searchMessage='筛选已就绪。点击开始搜索后读取正文。';this.renderFeed();this.syncSearchFeedback();return;}
+  // Retain the mounted previews while a new result is pending, but dismiss
+  // action panels whose invocation belonged to the previous browse request.
+  this.feed?.querySelectorAll('.ts-collection-delivery').forEach(panel=>panel.remove());
+  if(this.bodyAwaitingStart){this.searchMessage='筛选已就绪。点击开始搜索后读取正文。';if(!this.displayedSearchResult)this.renderFeed();this.syncSearchFeedback();return;}
   if(!this.host.search){this.renderFeed();this.syncSearchFeedback();return;}
-  if(this.searchComposing){this.searchMessage='输入完成后开始搜索。';this.syncSearchFeedback();this.renderFeed();return;}
-  this.searchMessage=delay?'等待输入完成…':'';this.renderFeed();this.syncSearchFeedback();
+  if(this.searchComposing){this.searchMessage='输入完成后开始搜索。';if(!this.displayedSearchResult)this.renderFeed();this.syncSearchFeedback();return;}
+  this.searchMessage=delay?'等待输入完成…':'';if(!this.displayedSearchResult)this.renderFeed();this.syncSearchFeedback();
   const window=this.contentEl.ownerDocument.defaultView;
   if(delay&&window){this.searchTimerWindow=window;this.searchTimer=window.setTimeout(()=>{this.searchTimer=undefined;this.searchTimerWindow=undefined;void this.runSearch();},delay);this.syncSearchFeedback();}else void this.runSearch();
  }
  private syncSearchFeedback(){
-  const progress=this.searchProgress;
-  const text=this.searchBusy?(progress?`正在搜索 · 已检查 ${progress.scanned} / ${progress.total} 条正文${progress.unread?` · ${progress.unread} 条未能读取`:''}`:'正在搜索…'):this.searchMessage;
+  const progress=this.searchProgress,previous=this.showingPreviousSearch(),updating=this.searchBusy||!!this.searchTimer||this.indexBusy;
+  const phase=this.searchBusy?(progress?`正在搜索 · 已检查 ${progress.scanned} / ${progress.total} 条正文${progress.unread?` · ${progress.unread} 条未能读取`:''}`:'正在搜索…'):this.searchMessage;
+  const text=previous?`${updating?'正在更新，':''}当前显示上次搜索结果。${phase}`:phase;
   this.searchFeedback?.setText(text);if(this.searchPanel)this.searchPanel.hidden=!text;
-  if(this.root){this.root.dataset.collectionSearchState=this.searchBusy?'running':this.searchTimer?'pending':this.searchComposing?'composing':this.bodyAwaitingStart?'awaiting-start':this.searchResult?'complete':this.searchMessage?'stopped':'idle';this.root.dataset.collectionSearchEpoch=String(this.searchEpoch);}
+  if(this.root){this.root.dataset.collectionSearchState=this.searchBusy?'running':this.searchTimer?'pending':this.searchComposing?'composing':this.bodyAwaitingStart?'awaiting-start':this.searchResult?'complete':this.searchMessage?'stopped':'idle';this.root.dataset.collectionSearchEpoch=String(this.searchEpoch);this.root.dataset.collectionSearchStale=String(previous);}
+  this.feed?.setAttribute('aria-busy',String(updating));this.feed?.setAttribute('aria-label',previous?'上次搜索结果':'收集记录');this.syncFeedStatus();
+  if(previous)this.pagination?.querySelectorAll<HTMLButtonElement>('button').forEach(button=>{button.disabled=true;});
   if(this.cancelSearchButton)this.cancelSearchButton.hidden=!this.searchBusy&&!this.searchTimer;
   if(this.retrySearchButton)this.retrySearchButton.hidden=this.bodyAwaitingStart||this.searchBusy||!!this.searchTimer||!this.searchMessage;
   if(this.startSearchButton)this.startSearchButton.hidden=!this.bodyAwaitingStart||this.searchComposing;
   this.syncSelection();
  }
+ private syncFeedStatus(){
+  const previous=this.showingPreviousSearch(),complete=!this.host.search||!!this.displayedSearchResult,unread=this.displayedSearchResult?.value.unread||0,unknown=(this.filter==='unplaced'||this.filter==='placed')&&this.records.some(record=>record.inBoard==='unknown');
+  const count=this.host.search?this.displayedSearchResult?.value.hits.length||0:this.filteredRecords().length,text=previous?`上次 ${count} 条 · ${this.searchBusy||this.searchTimer||this.indexBusy?'更新中':this.searchComposing?'输入中':this.bodyAwaitingStart?'等待开始':'待更新'}`:complete?`${count} 条${unread?'已找到 · 结果可能不完整':''}`:this.searchBusy?'正在搜索…':'尚无搜索结果';
+  this.feedStatus?.setText(text+(unknown&&(this.filter==='unplaced'||this.filter==='placed')?' · 部分白板未完成索引':''));
+ }
  private syncBrowseMessage(){if(this.browseNotice){this.browseNotice.setText(this.browseMessage);this.browseNotice.hidden=!this.browseMessage;}}
  private async runSearch(location?:CollectionBrowseLocation,restoreEpoch=this.restoreEpoch){
-  if(!this.host.search||!this.current()||this.bodyAwaitingStart)return;
+  if(!this.host.search||!this.current()||this.bodyAwaitingStart||this.searchComposing)return;
   const epoch=++this.searchEpoch,key=this.searchKey(),base=this.invocation(),current=()=>base()&&epoch===this.searchEpoch&&key===this.searchKey();
-  this.searchBusy=true;this.searchMessage='';this.searchProgress=undefined;this.searchResult=undefined;this.syncSearchFeedback();this.feedStatus?.setText('正在搜索…');
+  this.searchBusy=true;this.searchMessage='';this.searchProgress=undefined;this.searchResult=undefined;this.syncSearchFeedback();
   try{
    const value=await this.host.search(this.searchOptions(),current,progress=>{if(current()){this.searchProgress=progress;this.syncSearchFeedback();}});
    if(!current())return;
    this.searchBusy=false;
-   if(value.cancelled){this.searchMessage='搜索已取消，可重试。';this.renderFeed();this.syncSearchFeedback();return;}
+   if(value.cancelled){this.searchMessage='搜索已取消，可重试。';if(!this.displayedSearchResult)this.renderFeed();this.syncSearchFeedback();return;}
    const restore=!!location?.focus&&location.focus===this.contentEl.ownerDocument.activeElement&&restoreEpoch===this.restoreEpoch;
-   this.stale=false;this.syncRefresh();this.searchResult={epoch,key,value};this.searchMessage=value.unread?`${value.unread} 条正文未能读取，结果可能不完整。可重试。`:'';this.renderFeed();this.syncSearchFeedback();
+   this.stale=false;this.syncRefresh();this.searchResult={epoch,key,value};this.displayedSearchResult={key,value};this.searchMessage=value.unread?`${value.unread} 条正文未能读取，结果可能不完整。可重试。`:'';this.renderFeed();this.syncSearchFeedback();
    if(restore&&location&&base())await this.restoreCollectionLocation(location,current,true);
-  }catch(error){if(current()){this.searchBusy=false;this.searchMessage=error instanceof Error?error.message:String(error);this.renderFeed();this.syncSearchFeedback();}}
+  }catch(error){if(current()){this.searchBusy=false;this.searchMessage=error instanceof Error?error.message:String(error);if(!this.displayedSearchResult)this.renderFeed();this.syncSearchFeedback();}}
  }
  private renderNavigation(){
   this.syncHeatmap();
@@ -815,13 +873,13 @@ export class CollectionView extends ItemView {
   if(this.refreshButton){this.refreshButton.disabled=this.indexBusy;this.refreshButton.querySelector('span:last-child')?.setText(this.stale?'有更新 · 刷新':'刷新');}
  }
  private async refreshRecords(preserve=true,explicitBody=false,background=false){
-  if(this.manualBodyMode&&this.includeBody){this.bodyAwaitingStart=!explicitBody;if(this.bodyAwaitingStart){this.cancelSearch('筛选已就绪。点击开始搜索后读取正文。');this.renderFeed();return;}}
-  const epoch=++this.listEpoch,base=this.invocation(),restoreEpoch=this.restoreEpoch,location=preserve?this.captureCollectionLocation():undefined;this.cancelSearch();this.indexBusy=true;this.syncRefresh();this.feedStatus?.setText('正在读取记录…');if(background)this.backgroundRefreshEpoch=epoch;
+  if(this.manualBodyMode&&this.includeBody){this.bodyAwaitingStart=!explicitBody;if(this.bodyAwaitingStart){this.cancelSearch('筛选已就绪。点击开始搜索后读取正文。');if(!this.displayedSearchResult)this.renderFeed();return;}}
+  const epoch=++this.listEpoch,base=this.invocation(),restoreEpoch=this.restoreEpoch,location=preserve?this.captureCollectionLocation():undefined;this.cancelSearch();this.indexBusy=true;this.syncRefresh();this.syncSearchFeedback();if(!this.displayedSearchResult)this.feedStatus?.setText('正在读取记录…');if(background)this.backgroundRefreshEpoch=epoch;
   try{
    const records=await this.host.list();if(!base()||epoch!==this.listEpoch)return;
    this.records=records;this.stale=false;this.renderNavigation();if(this.host.search)await this.runSearch(location,restoreEpoch);else this.renderFeed();
   }catch(error){if(base()&&epoch===this.listEpoch){this.searchMessage=error instanceof Error?error.message:String(error);this.syncSearchFeedback();this.feedStatus?.setText('记录暂时无法读取，请重试。');}}
-  finally{if(this.backgroundRefreshEpoch===epoch)this.backgroundRefreshEpoch=undefined;if(this.alive&&epoch===this.listEpoch){this.indexBusy=false;this.syncRefresh();}}
+  finally{if(this.backgroundRefreshEpoch===epoch)this.backgroundRefreshEpoch=undefined;if(this.alive&&epoch===this.listEpoch){this.indexBusy=false;this.syncRefresh();this.syncSearchFeedback();}}
  }
  private disposeCards(){this.observer?.disconnect();this.observer=undefined;this.readQueue=[];for(const card of this.cards){card.scope.unload();card.finishPreview?.();}this.cards=[];}
  private renderFeed(){
@@ -831,9 +889,8 @@ export class CollectionView extends ItemView {
   this.page=Math.min(this.page,Math.max(0,Math.ceil(filtered.length/PAGE_SIZE)-1));
   this.tagHeading?.setText(({all:'收集记录',unplaced:'未放入白板',placed:'已放入白板',archived:'已归档'}[this.filter])+(this.tag?' · '+this.tag:'')+(this.pinnedOnly?' · 仅置顶':''));
   if(this.tagHeading)this.tagHeading.tabIndex=-1;
-  const unknown=this.records.some(record=>record.inBoard==='unknown');
-  const complete=!this.host.search||!!this.searchResult,unread=this.searchResult?.value.unread||0;
-  this.feedStatus?.setText((complete?`${filtered.length} 条${unread?'已找到 · 结果可能不完整':''}`:this.searchBusy?'正在搜索…':'尚无搜索结果')+(unknown&&(this.filter==='unplaced'||this.filter==='placed')?' · 部分白板未完成索引':''));this.syncBrowseMessage();
+  const complete=!this.host.search||!!this.displayedSearchResult,unread=this.displayedSearchResult?.value.unread||0;
+  this.syncFeedStatus();this.syncBrowseMessage();
   if(this.located){const banner=this.feed.createDiv('ts-collection-return-banner');banner.createEl('p',{text:hiddenLocated?'这条记录被当前筛选隐藏，已临时展示。原筛选仍保留。':'已定位原记录，原筛选仍保留。'});this.button(banner,'返回原浏览位置','return-browse',()=>{void this.dismissLocated();},'arrow-left');}
   if(!filtered.length&&complete){const constrained=!!(this.query||this.tag||this.pinnedOnly||this.since||this.until||this.taskFilter!=='all'),empty=this.feed.createDiv('ts-collection-empty');setIcon(empty.createDiv(),'notebook-pen');empty.createEl('h3',{text:unread?'暂未找到匹配的记录':constrained?'没有匹配的记录':this.filter==='archived'?'这里还没有归档记录':this.filter==='unplaced'?'这里暂时没有待投递记录':this.filter==='placed'?'这里还没有已投递记录':'从一个念头开始'});empty.createEl('p',{text:unread?'部分正文未能读取，请重试后再确认结果。':constrained?'试试其他关键词，或调整组合筛选。':this.filter==='archived'?'归档只隐藏收集流中的记录，可随时恢复。':'写在上方，保存后就会出现在这里。'});}
   const win=this.contentEl.ownerDocument.defaultView as(Window&{IntersectionObserver?:typeof IntersectionObserver})|null;
@@ -844,7 +901,7 @@ export class CollectionView extends ItemView {
    const recordHeading=row.createDiv('ts-collection-card-heading'),kicker=recordHeading.createDiv('ts-collection-card-kicker'),date=new Date(record.createdAt);
    kicker.createEl('time',{text:Number.isFinite(date.getTime())?date.toLocaleString('zh-CN',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'时间未知',attr:{datetime:record.createdAt,title:Number.isFinite(date.getTime())?date.toLocaleString():record.createdAt}});
    if(this.host.batch&&!(hiddenLocated&&located&&this.sameRecord(record,located))){const label=row.createEl('label',{cls:'ts-collection-check-field ts-collection-selection-check'});label.hidden=!this.selectionMode;const check=label.createEl('input',{type:'checkbox',attr:{'data-collection-select':record.id,'aria-label':'选择 '+(record.title||record.path)}});check.checked=this.selected.has(this.recordKey(record));check.onchange=()=>this.selectRecord(record,check.checked);label.createSpan({text:'选择此记录'});}
-   const snippet=this.searchResult?.value.hits.find(hit=>this.sameRecord(hit.record,record))?.snippet;
+   const snippet=this.displayedSearchResult?.value.hits.find(hit=>this.sameRecord(hit.record,record))?.snippet;
    if(snippet)this.renderSnippet(row,snippet);
    const body=row.createDiv({cls:'ts-collection-card-body markdown-rendered',attr:{'aria-label':record.title||'记录内容'}});body.createEl('p',{cls:'ts-collection-preview-placeholder',text:'正在载入内容…'});
    const scope=new Component();scope.load();const card:CardPreview={record,row,body,scope,expanded:false,loaded:false,reading:false};this.cards.push(card);
@@ -865,13 +922,14 @@ export class CollectionView extends ItemView {
     this.button(actions,record.pinned?'取消置顶':'置顶',record.pinned?'unpin':'pin',()=>{void this.changeFlag(card,actions,'pinned',!card.record.pinned,epoch);},'pin');
     if(!this.review)this.button(actions,record.archived?'恢复到收集':'归档',record.archived?'restore':'archive',()=>{void this.changeFlag(card,actions,'archived',!card.record.archived,epoch);},record.archived?'archive-restore':'archive');
    }
+   if(this.host.setReview)this.buildReviewSchedule(card,actions,epoch);
    if(this.review){actions.hidden=false;more.setAttribute('aria-expanded','true');}
    this.observer?this.observer.observe(row):this.enqueueRead(card);
   }
   if(this.pagination&&filtered.length&&!this.review){
-   const previous=this.button(this.pagination,'上一页','previous',()=>{this.clearSelection(true);this.page--;this.renderFeed();this.scrollToFeed();},'chevron-left');previous.disabled=this.page===0;
+   const previous=this.button(this.pagination,'上一页','previous',()=>{if(this.showingPreviousSearch())return;this.clearSelection(true);this.page--;this.renderFeed();this.scrollToFeed();},'chevron-left');previous.disabled=this.showingPreviousSearch()||this.page===0;
    this.pagination.createSpan({text:`第 ${this.page+1} / ${Math.max(1,Math.ceil(filtered.length/PAGE_SIZE))} 页`});
-   const next=this.button(this.pagination,'下一页','next',()=>{this.clearSelection(true);this.page++;this.renderFeed();this.scrollToFeed();},'chevron-right');next.disabled=(this.page+1)*PAGE_SIZE>=filtered.length;
+   const next=this.button(this.pagination,'下一页','next',()=>{if(this.showingPreviousSearch())return;this.clearSelection(true);this.page++;this.renderFeed();this.scrollToFeed();},'chevron-right');next.disabled=this.showingPreviousSearch()||(this.page+1)*PAGE_SIZE>=filtered.length;
   }
   if(this.main)this.main.scrollTop=scroll;this.renderReview();this.syncSelection();
  }
@@ -887,9 +945,25 @@ export class CollectionView extends ItemView {
   }
   if(offset<text.length)box.createSpan({text:text.slice(offset)});
  }
+ private buildReviewSchedule(card:CardPreview,parent:HTMLElement,render:number){
+  const box=parent.createEl('details',{cls:'ts-collection-review-schedule'});box.createEl('summary',{text:card.record.reviewIssue?'回顾属性待核对':card.record.reviewOn?'下次回顾：'+card.record.reviewOn:'安排回顾'});
+  const status=box.createEl('p',{attr:{role:'status','aria-live':'polite'}});if(card.record.reviewIssue){status.setText(card.record.reviewIssue);return;}
+  const input=box.createEl('input',{type:'date',value:card.record.reviewOn||reviewDayAfter(new Date(),1),attr:{'aria-label':'下次回顾日期'}});let busy=false;
+  const run=async(on:string|undefined)=>{
+   const base=this.invocation(),browse=this.browseEpoch,current=()=>base()&&browse===this.browseEpoch&&render===this.renderEpoch&&this.cards.includes(card);
+   if(busy||!current())return;busy=true;box.querySelectorAll<HTMLInputElement|HTMLButtonElement>('input,button').forEach(el=>el.disabled=true);status.setText('正在保存回顾安排…');
+   try{await this.host.setReview!(card.record,on,current);if(current()){status.setText('回顾安排已确认。');await this.refreshRecords();}}
+   catch(error){if(current())status.setText(error instanceof Error?error.message:String(error));}
+   finally{busy=false;if(box.isConnected)box.querySelectorAll<HTMLInputElement|HTMLButtonElement>('input,button').forEach(el=>el.disabled=false);}
+  };
+  this.button(box,'安排回顾','review-schedule',()=>{void run(input.value);},'calendar');
+  for(const days of [1,3,7])this.button(box,days+'天后','review-after-'+days,()=>{void run(reviewDayAfter(new Date(),days));});
+  if(card.record.reviewOn)this.button(box,'取消回顾安排','review-disable',()=>{void run(undefined);});
+  this.button(box,'关闭','review-close',()=>{box.open=false;});
+ }
  private async changeFlag(card:CardPreview,actions:HTMLElement,flag:'pinned'|'archived',value:boolean,epoch:number){
   if(!this.host.setFlag||actions.dataset.pending==='true')return;
-  const base=this.invocation(),browseEpoch=this.browseEpoch,current=()=>base()&&epoch===this.renderEpoch&&this.cards.includes(card);if(!current())return;
+  const base=this.invocation(),browseEpoch=this.browseEpoch,current=()=>base()&&browseEpoch===this.browseEpoch&&epoch===this.renderEpoch&&this.cards.includes(card);if(!current())return;
   let feedback=actions.querySelector<HTMLElement>('[data-collection-flag-status]');if(!feedback)feedback=actions.createEl('p',{cls:'ts-collection-flag-status',attr:{role:'status','aria-live':'polite','data-collection-flag-status':'true'}});
   actions.dataset.pending='true';actions.querySelectorAll<HTMLButtonElement>('button').forEach(button=>{button.disabled=true;});feedback.hidden=false;feedback.setText('正在保存…');
   try{
@@ -897,7 +971,7 @@ export class CollectionView extends ItemView {
    this.browseMessage=flag==='pinned'?(value?'已置顶':'已取消置顶'):(value?'已归档，笔记和白板引用均保留。':'已恢复到收集。');
    feedback.setText(this.browseMessage);await this.refreshRecords(true);
   }catch(error){if(base()&&browseEpoch===this.browseEpoch){const message=error instanceof Error?error.message:String(error);this.browseMessage=message;this.syncBrowseMessage();if(current()){feedback.setText('');feedback.hidden=true;}}}
-  finally{if(current()){actions.dataset.pending='false';actions.querySelectorAll<HTMLButtonElement>('button').forEach(button=>{button.disabled=false;});}}
+  finally{if(this.alive&&epoch===this.renderEpoch&&this.cards.includes(card)){actions.dataset.pending='false';actions.querySelectorAll<HTMLButtonElement>('button').forEach(button=>{button.disabled=false;});if(!current()){feedback.setText('');feedback.hidden=true;}}}
  }
  private enqueueRead(card:CardPreview){if(card.loaded||card.reading||this.readQueue.includes(card))return;this.readQueue.push(card);this.drainReads();}
  private drainReads(){
@@ -929,7 +1003,7 @@ export class CollectionView extends ItemView {
   // user opens the picker. Supersede only that background invocation before
   // capturing this delivery; explicit refreshes keep their normal authority.
   if(this.backgroundRefreshEpoch!==undefined&&this.backgroundRefreshEpoch===this.listEpoch){this.backgroundRefreshEpoch=undefined;this.listEpoch++;this.indexBusy=false;this.stale=true;this.cancelSearch('记录有更新，当前投递操作已保留。刷新后查看最新结果。');this.syncRefresh();}
-  const currentBase=this.invocation(),current=()=>currentBase()&&epoch===this.renderEpoch&&this.cards.includes(card)&&(!this.review||!!this.reviewRecord()&&this.sameRecord(this.reviewRecord()!,card.record));
+  const currentBase=this.invocation(),browseEpoch=this.browseEpoch,current=()=>currentBase()&&browseEpoch===this.browseEpoch&&epoch===this.renderEpoch&&this.cards.includes(card)&&(!this.review||!!this.reviewRecord()&&this.sameRecord(this.reviewRecord()!,card.record));
   actions.dataset.pending='true';actions.dataset.deliveryPicking='true';actions.querySelectorAll<HTMLButtonElement>('button').forEach(button=>{button.disabled=true;});
   try{
    const target=await this.host.pickTarget(current);if(!current()||!target)return;
@@ -962,7 +1036,7 @@ export class CollectionView extends ItemView {
   if(this.host.deliveryReceipts)this.button(menu,'查看投递回执','delivery-history',()=>{void this.showDeliveryHistory(card,menu,epoch);},'list-checks');
  }
  private async showDeliveryHistory(card:CardPreview,parent:HTMLElement,epoch:number){
-  const base=this.invocation(),current=()=>base()&&epoch===this.renderEpoch&&this.cards.includes(card)&&parent.isConnected;
+  const base=this.invocation(),browseEpoch=this.browseEpoch,current=()=>base()&&browseEpoch===this.browseEpoch&&epoch===this.renderEpoch&&this.cards.includes(card)&&parent.isConnected;
   try{const history=await this.host.deliveryReceipts!(card.record);if(!current())return;
    parent.querySelector('[data-collection-delivery-history]')?.remove();const box=parent.createDiv({cls:'ts-collection-delivery-history',attr:{'data-collection-delivery-history':'true'}});
    if(history.warning)box.createEl('p',{text:history.warning});
