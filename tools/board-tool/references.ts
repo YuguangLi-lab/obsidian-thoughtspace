@@ -19,6 +19,7 @@ function collect(board:Board,base:string):Reference[]{
   const np=pointer(pointer(base,'nodes'),i),add=(kind:string,target:string,keys:string|string[],extra:Partial<Reference>={})=>refs.push({kind,target,pointer:(typeof keys==='string'?[keys]:keys).reduce(pointer,np),...extra});
   if(node.file!==undefined&&['card','board','image','pdf','audio','video'].includes(node.kind))add(node.kind,node.file,'file',{child:node.kind==='board',...(node.kind==='pdf'&&node.pdfPage!==undefined?{semantic:'PDF page existence is not checked.'}:{}),...((node.kind==='audio'||node.kind==='video')&&node.mediaStart!==undefined?{semantic:'Media timestamp is not checked.'}:{})});
   if(node.paragraphQuote)add('paragraph',node.paragraphQuote.path,['paragraphQuote','path'],{semantic:'Paragraph selection/hash and native heading/block anchors are not checked.'});
+  if(node.pdfExcerpt)add('pdf-excerpt',node.pdfExcerpt.path,['pdfExcerpt','path'],{semantic:'PDF page text and precise selection are not checked.'});
   if(node.pdfQuote)add('pdf-quote',node.pdfQuote.sourcePath,['pdfQuote','sourcePath'],{semantic:'PDF quote text, pages and coordinates are not checked.'});
   if(node.videoCapture)add('video-capture',node.videoCapture.note,['videoCapture','note'],{semantic:'Capture ID within the note is not checked.'});
   if(node.webUrl)add('web',node.webUrl,'webUrl',{remote:true});

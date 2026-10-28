@@ -20,3 +20,21 @@
 .ts-root .ts-online-board-player__clock { flex:none; min-width:4ch; text-align:right; color:var(--text-muted); font:12px/1.4 var(--font-monospace); font-variant-numeric:tabular-nums; }
 .ts-root .ts-online-board-player__status { flex:none; min-height:20px; max-height:44px; overflow:auto; padding:2px; color:var(--text-muted); font:12px/1.5 var(--font-interface); overflow-wrap:anywhere; }
 @container (max-width:360px) { .ts-root .ts-online-board-player__label { display:none; } .ts-root .ts-online-board-player__action { width:30px; padding:4px; } }
+
+.ts-root .ts-web-card--online{position:relative;}
+.ts-root .ts-web-card--online .ts-web-heading{position:absolute;top:0;left:0;right:78px;z-index:4;background:transparent;opacity:0;pointer-events:none;}
+.ts-root .ts-web-card--online:is(:hover,:focus-within) .ts-web-heading{opacity:1;pointer-events:auto;}
+.ts-root .ts-web-card--online .ts-online-preview{position:absolute;inset:0;border-radius:inherit;overflow:hidden;}
+.ts-root .ts-online-board-player{position:relative;}
+.ts-root .ts-online-board-player__footer{position:absolute;left:6px;right:6px;bottom:6px;z-index:4;padding:3px;opacity:0;pointer-events:none;background:rgb(15 20 25 / 80%);color:white;border-radius:5px;}
+.ts-root .ts-online-board-player:is(:hover,:focus-within) .ts-online-board-player__footer{opacity:1;pointer-events:auto;}
+.ts-root .ts-online-board-player__camera,.ts-root .ts-online-board-player__remove{position:absolute;top:6px;z-index:6;width:28px;min-height:28px;padding:5px;}
+.ts-root .ts-online-board-player__camera{right:38px;}
+.ts-root .ts-online-board-player__remove{right:6px;}
+.ts-root .ts-online-board-player__camera .ts-online-board-player__label,.ts-root .ts-online-board-player__remove .ts-online-board-player__label{display:none;}
+.ts-root .ts-online-board-player__status:empty{display:none;}
+
+.ts-root .ts-online-board-player__overlay{position:absolute;inset:0 0 auto 0;height:40px;z-index:6;pointer-events:none;opacity:0;}
+.ts-root .ts-online-board-player:is(:hover,:focus-within) .ts-online-board-player__overlay{opacity:1;}
+.ts-root .ts-online-board-player__overlay button{pointer-events:auto;}
+@media(hover:none){.ts-root .ts-online-board-player__overlay{opacity:1;}.ts-root .ts-online-board-player__overlay button{min-height:40px;width:40px;}.ts-root .ts-online-board-player__camera{right:50px;}}

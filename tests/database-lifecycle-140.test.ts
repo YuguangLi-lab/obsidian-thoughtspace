@@ -7,6 +7,7 @@ import {isRecord,isUnknownArray} from '../src/value-guards';
 import * as database from '../src/database';
 import * as custom from '../src/database-custom';
 import {libraryFiles,noteExcerpt} from '../src/workspace';
+import {localDay} from '../src/filing';
 const parseYaml=createRequire(import.meta.url)('js-yaml').load;
 const tick=async()=>{for(let i=0;i<20;i++)await Promise.resolve();};
 class Element{
@@ -17,7 +18,7 @@ class Element{
 function moduleFixture(){
  const modals:Modal[]=[],notices:string[]=[];
  class Modal{modalEl=new Element();contentEl=new Element();titleEl=new Element();closed=false;constructor(readonly app:any){modals.push(this);}open(){}close(){this.closed=true;}}
- const deps={Modal,Component:class{},Notice:class{constructor(text:string){notices.push(text);}},TFile:class{},setIcon:()=>{},themeSurface:()=>{},isRecord,isUnknownArray,parseYaml,libraryFiles,noteExcerpt,getAllTags:(cache:any)=>cache.tags||[],...database,...custom};
+ const deps={Modal,Component:class{},Notice:class{constructor(text:string){notices.push(text);}},TFile:class{},setIcon:()=>{},themeSurface:()=>{},isRecord,isUnknownArray,parseYaml,libraryFiles,noteExcerpt,localDay,getAllTags:(cache:any)=>cache.tags||[],...database,...custom};
  const source=readFileSync('src/database-view.ts','utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
  const parsed=new Function(...Object.keys(deps),transformSync(source+'\nreturn {DatabaseModal,parseRecord};',{loader:'ts'}).code)(...Object.values(deps));
  return{...parsed,modals,notices};
@@ -58,4 +59,10 @@ test('saved-view dialog checks in-place changes and rolls back only its own fail
 
 test('an unchanged saved-view dialog updates its original id and closes once',async()=>{
  const f=saveFixture();f.dialog.contentEl.children[0].value='新的视图名';f.button.onclick!();await tick();assert.equal(f.preferences.views.length,1);assert.equal(f.preferences.views[0].id,'v');assert.equal(f.preferences.views[0].name,'新的视图名');assert.equal(f.dialog.closed,true);assert.deepEqual(f.notices,[]);
+});
+
+test('restoring a legacy table view does not change the separate overview scope control',()=>{
+ const {DatabaseModal}=moduleFixture(),modal=Object.create(DatabaseModal.prototype),overview={value:'cards'},legacy={value:'cards'},query={value:''},overdue={checked:false};
+ Object.assign(modal,{host:{preferences:{views:[structuredClone(current)]}},overview:{},filter:{},contentEl:{querySelector(selector:string){if(selector.includes('资料范围'))return selector.includes('.ts-db-legacy')?legacy:overview;if(selector.includes('资料搜索'))return query;if(selector.includes('ts-db-overdue-filter'))return overdue;return {value:''};}},syncView(){},renderCustomFilters(){},schedule(){}});
+ modal.applySaved('v');assert.equal(legacy.value,'vault');assert.equal(overview.value,'cards');assert.equal(modal.view,'table');assert.equal(modal.filter.tag,current.filter.tag);
 });

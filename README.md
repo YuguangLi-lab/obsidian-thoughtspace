@@ -46,6 +46,7 @@ Open the writing workspace, order cards, groups, and chapters, pin references, w
 | Insert notes, PDFs and images; edit cards and groups | [Board objects](docs/USER-GUIDE.md#objects) |
 | Organize relationships and fold or expand reading | [Mind maps and brain boards](docs/USER-GUIDE.md#mind-maps) |
 | Read sources, take excerpts and find unread material | [Reading](docs/USER-GUIDE.md#reading) · [Search and material lists](docs/USER-GUIDE.md#search) |
+| Browse library cards, combine filters and save dynamic card boxes | [Library and card boxes (Chinese)](docs/LIBRARY-CARDBOXES.zh-CN.md) |
 | Watch, capture frames and follow timestamps to a source | [Audio and video](docs/USER-GUIDE.md#audio-video) |
 | Order an outline, pin references and generate a draft | [Writing](docs/USER-GUIDE.md#writing) |
 | Find commands, set hotkeys or resolve saving problems | [Controls](docs/USER-GUIDE.md#controls) · [Troubleshooting](docs/USER-GUIDE.md#troubleshooting) |

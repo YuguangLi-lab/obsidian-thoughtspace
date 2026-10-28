@@ -12,6 +12,7 @@ interface Options {
  initialTime?:number;
  onState?:(state:OnlineState)=>void;
  onPlay?:()=>void;
+ onRemove?:()=>void;
  onCapture:(moment:OnlineBoardMoment)=>Promise<unknown>;
  createPlatform?:(notify:(state:OnlineState)=>void)=>Platform;
 }
@@ -42,7 +43,7 @@ export function mountOnlineBoardPlayer(host:HTMLElement,url:string,options:Optio
   await platform.command(path,verified()?'toggle':'reload');
  });
  const timestamp=action('记下此刻','bookmark-plus',()=>acquire(false));
- const screenshot=action('截取画面','camera',()=>acquire(true));
+ const overlay=root.createDiv('ts-online-board-player__overlay'),screenshot=action('截取画面','camera',()=>acquire(true));screenshot.button.addClass('ts-online-board-player__camera');overlay.append(screenshot.button);if(options.onRemove){const remove=action('从白板移除视频（保留原文件）','x',()=>options.onRemove?.());remove.button.addClass('ts-online-board-player__remove');remove.button.disabled=!!options.disabled;overlay.append(remove.button);}
  const retry=action('重试保存','rotate-cw',()=>save());retry.button.hidden=true;
  const clock=footer.createSpan({cls:'ts-online-board-player__clock',text:'时间未同步'});
  const status=root.createDiv({cls:'ts-online-board-player__status',attr:{role:'status','aria-live':'polite'}});
@@ -86,7 +87,7 @@ export function mountOnlineBoardPlayer(host:HTMLElement,url:string,options:Optio
    if(started!==revision||!verified())throw Error('视频来源或播放状态已变化，请重新摘录');
    if(!Number.isFinite(time)||time<0||time>864000)throw Error('播放时间无效，请重新同步');
    pending={id:uid(),time,text:'',...(captured?{image:new Blob([Uint8Array.from(captured.bytes)],{type:'image/png'})}:{})};
-  }catch(error){if(live())message=error instanceof Error?error.message:'无法读取当前视频，请重试';}
+  }catch(error){if(live()){message=error instanceof Error?error.message:'无法读取当前视频，请重试';if(frame&&started===revision&&verified())try{const time=await platform.position(path);if(live()&&started===revision&&verified()&&Number.isFinite(time))pending={id:uid(),time,text:'此来源暂不支持截帧，保留时间锚。'};}catch{/* Never bypass provider frame or source restrictions. */}}}
   finally{busy=false;paint();}
   if(live()&&pending)await save();
  }

@@ -113,9 +113,10 @@ export function createBoardReferenceRenamer(oldPath:string,newPath:string,curren
    // Excerpt/PDF snapshots retain literal source content; their provenance is
    // rebased above. Plain text and dynamic paragraph nodes own live embeds.
    if(node.kind==='text'&&text&&node.paragraphQuote?.mode!=='snapshot'&&!node.pdfQuote)text=rebaseDynamicEmbeds(text,rewrite);
+   const pdfExcerpt=node.pdfExcerpt?{...node.pdfExcerpt,path:move(node.pdfExcerpt.path)}:undefined;
    const paragraphQuote=node.paragraphQuote?{...node.paragraphQuote,path:move(node.paragraphQuote.path)}:undefined;
-   if(paragraphQuote?.path===node.paragraphQuote?.path&&file===node.file&&note===node.videoCapture?.note&&text===node.text)return node;
-   changed=true;return{...node,...(paragraphQuote?{paragraphQuote}:{}),...(file!==node.file?{file}:{}),...(note!==node.videoCapture?.note&&node.videoCapture?{videoCapture:{...node.videoCapture,note:note!}}:{}),...(text!==node.text?{text}:{})};
+   if(pdfExcerpt?.path===node.pdfExcerpt?.path&&paragraphQuote?.path===node.paragraphQuote?.path&&file===node.file&&note===node.videoCapture?.note&&text===node.text)return node;
+   changed=true;return{...node,...(pdfExcerpt?{pdfExcerpt}:{}),...(paragraphQuote?{paragraphQuote}:{}),...(file!==node.file?{file}:{}),...(note!==node.videoCapture?.note&&node.videoCapture?{videoCapture:{...node.videoCapture,note:note!}}:{}),...(text!==node.text?{text}:{})};
   });
   const draft=board.writing?.draftPath,draftPath=draft?move(draft):draft;
   if(draftPath!==draft)changed=true;

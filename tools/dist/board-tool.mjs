@@ -3085,6 +3085,14 @@ function hasAsciiControl(value) {
   return false;
 }
 
+// tools/board-tool/schema/pdf-excerpt-origin.ts
+var pdfExcerptColors = ["purple", "sand", "green", "blue", "rose"];
+function validPdfExcerpt(value) {
+  if (!isRecord(value) || value.version !== 1 || typeof value.path !== "string" || value.path.length > 2048 || !value.path.toLowerCase().endsWith(".pdf") || value.path.startsWith("/") || value.path.includes("\\") || value.path.split("/").some((p) => !p || p === "." || p === "..") || hasAsciiControl(value.path) || typeof value.ctime !== "number" || !Number.isFinite(value.ctime) || value.ctime < 0 || typeof value.mtime !== "number" || !Number.isFinite(value.mtime) || value.mtime < 0 || typeof value.size !== "number" || !Number.isSafeInteger(value.size) || value.size < 0 || !Number.isSafeInteger(value.page) || Number(value.page) < 1 || !Number.isSafeInteger(value.endPage) || Number(value.endPage) < Number(value.page) || typeof value.quote !== "string" || !value.quote.trim() || value.quote.length > 1e5 || !pdfExcerptColors.includes(value.color)) return false;
+  const a = value.anchor;
+  return a === void 0 || isRecord(a) && value.page === value.endPage && typeof a.hash === "string" && /^[a-f0-9]{64}$/.test(a.hash) && Number.isSafeInteger(a.from) && Number(a.from) >= 0 && Number.isSafeInteger(a.to) && Number(a.to) > Number(a.from) && Number(a.to) <= 2e6 && Number(a.to) - Number(a.from) === value.quote.length && typeof a.prefix === "string" && a.prefix.length <= 80 && typeof a.suffix === "string" && a.suffix.length <= 80;
+}
+
 // tools/board-tool/schema/board-mindmap.ts
 var BOARD_MINDMAP_HISTORY_LIMIT = 40;
 var BOARD_MINDMAP_PINS_LIMIT = 6;
@@ -3692,6 +3700,7 @@ function assertBoardData(b) {
     if (n.textMaxWidth !== void 0 && (n.kind !== "text" || !isFiniteNumber(n.textMaxWidth) || n.textMaxWidth < 160 || n.textMaxWidth > 720)) throw Error("\u4E3B\u9898\u6362\u884C\u5BBD\u5EA6\u65E0\u6548");
     if (n.mediaStart !== void 0 && (!isOneOf(n.kind, ["audio", "video"]) || !validMediaTime(n.mediaStart))) throw Error("\u5A92\u4F53\u8D77\u59CB\u65F6\u95F4\u65E0\u6548");
     if (n.pdfPage !== void 0 && (n.kind !== "pdf" || !isFiniteNumber(n.pdfPage) || !Number.isSafeInteger(n.pdfPage) || n.pdfPage < 1)) throw Error("PDF \u9875\u7801\u65E0\u6548");
+    if (n.pdfExcerpt !== void 0 && (n.kind !== "text" || !validPdfExcerpt(n.pdfExcerpt))) throw Error("PDF \u6458\u5F55\u5B9A\u4F4D\u6570\u636E\u65E0\u6548");
     if (n.paragraphQuote !== void 0 && (n.kind !== "text" || !validParagraphOrigin(n.paragraphQuote))) throw Error("\u6BB5\u843D\u6765\u6E90\u65E0\u6548");
     if (n.pdfQuote !== void 0 && (n.kind !== "text" || !isRecord(n.pdfQuote) || typeof n.pdfQuote.original !== "string" || n.pdfQuote.original.length > 1e5 || typeof n.pdfQuote.sourcePath !== "string" || n.pdfQuote.sourcePath.length > 2048 || hasAsciiControl(n.pdfQuote.sourcePath))) throw Error("PDF \u5F15\u7528\u539F\u6587\u65E0\u6548");
     if (n.webUrl !== void 0 && (n.kind !== "text" || !webUrl(n.webUrl))) throw Error("\u7F51\u9875\u94FE\u63A5\u65E0\u6548");
@@ -4145,6 +4154,7 @@ function collect(board, base) {
     const np = pointer(pointer(base, "nodes"), i), add = (kind, target, keys2, extra = {}) => refs.push({ kind, target, pointer: (typeof keys2 === "string" ? [keys2] : keys2).reduce(pointer, np), ...extra });
     if (node.file !== void 0 && ["card", "board", "image", "pdf", "audio", "video"].includes(node.kind)) add(node.kind, node.file, "file", { child: node.kind === "board", ...node.kind === "pdf" && node.pdfPage !== void 0 ? { semantic: "PDF page existence is not checked." } : {}, ...(node.kind === "audio" || node.kind === "video") && node.mediaStart !== void 0 ? { semantic: "Media timestamp is not checked." } : {} });
     if (node.paragraphQuote) add("paragraph", node.paragraphQuote.path, ["paragraphQuote", "path"], { semantic: "Paragraph selection/hash and native heading/block anchors are not checked." });
+    if (node.pdfExcerpt) add("pdf-excerpt", node.pdfExcerpt.path, ["pdfExcerpt", "path"], { semantic: "PDF page text and precise selection are not checked." });
     if (node.pdfQuote) add("pdf-quote", node.pdfQuote.sourcePath, ["pdfQuote", "sourcePath"], { semantic: "PDF quote text, pages and coordinates are not checked." });
     if (node.videoCapture) add("video-capture", node.videoCapture.note, ["videoCapture", "note"], { semantic: "Capture ID within the note is not checked." });
     if (node.webUrl) add("web", node.webUrl, "webUrl", { remote: true });

@@ -1,6 +1,7 @@
+import type {PdfBranchLanding} from './pdf-branch-drop';
 import {Board,Card} from './model';
 import {branchState} from './mindmap';
-export type MaterialPoint={x:number;y:number;targetId?:string};
+export type MaterialPoint={x:number;y:number;targetId?:string;branch?:PdfBranchLanding};
 /** Reverse paint order, excluding folded descendants. A locked target is rejected, not bypassed. */
 export function evidenceTarget(board:Board,point:{x:number;y:number}):Card|undefined{
  const hidden=branchState(board).hidden;

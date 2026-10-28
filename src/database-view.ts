@@ -1,3 +1,7 @@
+import {DatabaseLibraryView} from './database-library-view';
+import {cleanLibraryPreferences,type LibraryPreferences} from './database-library';
+import {applyWorkspaceDensity} from './workspace-density';
+import type {WorkspaceLeaf} from 'obsidian';
 import {isRecord,isUnknownArray} from './value-guards';
 import {CustomField,CustomCondition,SavedDatabaseView,DatabasePreferences,customValue,customMatches,validCustomKey,databaseBase} from './database-custom';
 import { themeSurface } from './ui-tokens';
@@ -7,7 +11,7 @@ import { LibraryScope, isWorkspaceFile, libraryFiles, noteExcerpt } from './work
 import { localDay } from './filing';
 
 interface RecordRow extends DatabaseRow { file: TFile; raw: string; excerpt: string; fields:Record<string,unknown>; }
-interface DatabaseHost { preferences:DatabasePreferences;savePreferences:()=>Promise<void>;boardPath?:string; cardFolder: string; boardPaths?: Set<string>; boardTitle?: string; preview: (file: TFile) => void; }
+interface DatabaseHost { preferences:DatabasePreferences;savePreferences:()=>Promise<void>;boardPath?:string; cardFolder: string; boardPaths?: Set<string>; boardTitle?: string; preview: (file: TFile) => void;appearance?:()=>{accent:string;density:string};librarySave?:(next:LibraryPreferences,expected:string)=>Promise<void>;currentBoardPaths?:()=>ReadonlySet<string>;currentBoardPath?:()=>string|undefined;open?:(file:TFile,current:()=>boolean)=>Promise<WorkspaceLeaf|undefined>;closed?:()=>void; }
 
 /** 所有资料窗口共用队列。只改一个属性，并在原始文件变化时拒绝覆盖。 */
 export class PropertyStore {
@@ -59,7 +63,8 @@ export class DatabaseModal extends Modal {
   private busy = false;
   private dragged?: RecordRow;
   private rows: RecordRow[] = [];
-  private view: 'table'|'kanban' = 'table';
+  private view: 'overview'|'table'|'kanban' = 'overview';
+  private overview?:DatabaseLibraryView;
   private source: LibraryScope;private conditions:CustomCondition[]=[];private customBar!:HTMLElement;private savedSelect!:HTMLSelectElement;
   private limit = 100;
   private filter: DatabaseFilter = { query:'',tag:'',status:'',priority:'',overdue:false,sort:'updated',today:localDay() };
@@ -70,14 +75,15 @@ export class DatabaseModal extends Modal {
   private tabButtons: HTMLButtonElement[] = [];
   constructor(app: App, private host: DatabaseHost, private store: PropertyStore) { super(app); this.source=host.boardPaths?'board':'cards'; }
   onOpen() {
-    this.active=true;this.lifecycle.load();this.modalEl.addClass('ts-database-modal');themeSurface(this.modalEl);this.titleEl.setText('卡片资料库');
+    this.active=true;this.lifecycle.load();this.modalEl.addClass('ts-database-modal');this.applyPreferences();this.titleEl.setText('卡片资料库');
     const root=this.contentEl;root.addClass('ts-database');
     root.createDiv({cls:'ts-db-subtitle',text:this.host.boardTitle ? `${this.host.boardTitle} · 从想法到行动，在表格与看板之间切换。` : '用状态、优先级与日期，整理阅读和项目进展。'});
     const top=root.createDiv('ts-db-top');const tabs=top.createDiv('ts-db-tabs');
-    for(const [view,label,icon] of [['table','资料表','table-2'],['kanban','进度看板','columns-3']] as const){const b=btn(tabs,label,icon,()=>{this.view=view;this.render();});this.tabButtons.push(b);}
-    this.count=top.createDiv('ts-db-count');btn(top,'自定义字段','plus',()=>this.addField());btn(top,'打开 Bases','table-properties',()=>void this.openBase());btn(top,'导出 CSV','download',()=>void this.exportCsv());btn(top,'刷新资料','refresh-cw',()=>this.schedule());
-    const views=root.createDiv('ts-db-saved-views');this.savedSelect=views.createEl('select',{attr:{'aria-label':'保存的筛选视图'}});this.renderSaved();this.savedSelect.onchange=()=>this.applySaved(this.savedSelect.value);btn(views,'保存筛选视图','bookmark-plus',()=>this.saveView());btn(views,'删除此视图','trash-2',()=>void this.deleteView());
-    const filters=root.createDiv('ts-db-filters');
+    for(const [view,label,icon] of [['overview','鸟瞰','layout-grid'],['table','资料表','table-2'],['kanban','进度看板','columns-3']] as const){const b=btn(tabs,label,icon,()=>{this.view=view;this.syncView();if(view!=='overview')this.schedule();});b.dataset.dbView=view;this.tabButtons.push(b);}
+    this.count=top.createDiv('ts-db-count ts-db-legacy-action');const legacyActions=top.createDiv('ts-db-legacy-action');btn(legacyActions,'自定义字段','plus',()=>this.addField());btn(legacyActions,'打开 Bases','table-properties',()=>void this.openBase());btn(legacyActions,'导出 CSV','download',()=>void this.exportCsv());btn(legacyActions,'刷新资料','refresh-cw',()=>this.schedule());
+    const overviewRoot=root.createDiv('ts-db-overview-host'),legacy=root.createDiv('ts-db-legacy');
+    const views=legacy.createDiv('ts-db-saved-views');this.savedSelect=views.createEl('select',{attr:{'aria-label':'保存的筛选视图'}});this.renderSaved();this.savedSelect.onchange=()=>this.applySaved(this.savedSelect.value);btn(views,'保存筛选视图','bookmark-plus',()=>this.saveView());btn(views,'删除此视图','trash-2',()=>void this.deleteView());
+    const filters=legacy.createDiv('ts-db-filters');
     const search=filters.createEl('input',{type:'search',placeholder:'搜索标题、路径或标签…',attr:{'aria-label':'资料搜索'}});search.oninput=()=>{this.filter.query=search.value;this.limit=100;this.render();};
     this.select(filters,'资料范围',{cards:'卡片目录',...(this.host.boardPaths?{board:'当前白板'}:{}),vault:'整个仓库'},this.source,v=>{this.source=v as LibraryScope;this.filter.tag='';this.limit=100;this.schedule();});
     this.tags=this.select(filters,'资料标签',{'':'所有标签'},'',v=>{this.filter.tag=v;this.limit=100;this.render();});
@@ -85,19 +91,23 @@ export class DatabaseModal extends Modal {
     this.select(filters,'资料优先级',{'':'所有优先级',high:'高优先级',medium:'中优先级',low:'低优先级'},'',v=>{this.filter.priority=v;this.limit=100;this.render();});
     this.select(filters,'资料排序',{updated:'最近修改',title:'标题排序',due:'截止日期',priority:'优先级'},this.filter.sort,v=>{this.filter.sort=v as DatabaseFilter['sort'];this.render();});
     const overdue=filters.createEl('label',{cls:'ts-db-overdue-filter'});const check=overdue.createEl('input',{type:'checkbox'});overdue.createSpan({text:'仅逾期'});check.onchange=()=>{this.filter.overdue=check.checked;this.render();};
-    this.customBar=root.createDiv('ts-db-custom-filters');this.renderCustomFilters();
-    this.message=root.createDiv({cls:'ts-db-message',attr:{role:'status','aria-live':'polite'}});
-    this.results=root.createDiv('ts-db-results');
-    root.createDiv({cls:'ts-db-help',text:'修改属性即保存；拖动看板卡片可改变状态，也可使用卡片上的状态菜单。关闭后回到原白板。'});
+    this.customBar=legacy.createDiv('ts-db-custom-filters');this.renderCustomFilters();
+    this.message=legacy.createDiv({cls:'ts-db-message',attr:{role:'status','aria-live':'polite'}});
+    this.results=legacy.createDiv('ts-db-results');
+    legacy.createDiv({cls:'ts-db-help',text:'修改属性即保存；拖动看板卡片可改变状态，也可使用卡片上的状态菜单。关闭后回到原白板。'});
     this.lifecycle.registerEvent(this.app.metadataCache.on('changed',()=>this.schedule()));
     for(const event of ['create','delete','rename'] as const) this.lifecycle.registerEvent(this.app.vault.on(event as 'create',()=>this.schedule()));
-    this.schedule();
+    this.overview=new DatabaseLibraryView(this.app,overviewRoot,{preferences:()=>cleanLibraryPreferences(this.host.preferences.library),save:(next,expected)=>{if(!this.host.librarySave)throw Error('资料集存储尚未就绪');return this.host.librarySave(next,expected);},cardFolder:this.host.cardFolder,boardPaths:()=>this.host.currentBoardPaths?.()||this.host.boardPaths||new Set(),hasBoard:!!this.host.boardPaths,boardPath:this.host.currentBoardPath,preview:this.host.preview,open:(file,current)=>this.host.open?this.host.open(file,current):Promise.reject(Error('原生打开入口尚未就绪')),done:()=>this.close()});
+    this.lifecycle.addChild(this.overview);this.syncView();
   }
-  onClose(){this.active=false;this.run++;window.clearTimeout(this.timer);this.lifecycle.unload();this.contentEl.empty();}
+  applyPreferences(){const appearance=this.host.appearance?.();themeSurface(this.modalEl,appearance);if(appearance)applyWorkspaceDensity(this.modalEl,appearance.density);this.overview?.applyPreferences();}
+  refreshLibraryPreferences(){this.overview?.refreshPreferences();}
+  private syncView(){this.contentEl.toggleClass('is-overview',this.view==='overview');this.modalEl.toggleClass('is-db-overview',this.view==='overview');this.overview?.setVisible(this.view==='overview');this.tabButtons.forEach(b=>{b.toggleClass('is-active',b.dataset.dbView===this.view);b.setAttribute('aria-pressed',String(b.dataset.dbView===this.view));});}
+  onClose(){this.active=false;this.run++;window.clearTimeout(this.timer);this.lifecycle.unload();this.host.closed?.();this.contentEl.empty();}
   private select(parent: HTMLElement,label: string,options: Record<string,string>,value: string,change:(value:string)=>void){
     const s=parent.createEl('select',{attr:{'aria-label':label,title:label}});for(const [key,text] of Object.entries(options))s.createEl('option',{value:key,text});s.value=value;s.onchange=()=>change(s.value);return s;
   }
-  private schedule(){if(!this.active)return;window.clearTimeout(this.timer);this.timer=window.setTimeout(()=>void this.load(),100);}
+  private schedule(){if(!this.active||this.overview&&this.view==='overview')return;window.clearTimeout(this.timer);this.timer=window.setTimeout(()=>void this.load(),100);}
   private async load(){
     if(this.busy)return;
     const run=++this.run;const rows:RecordRow[]=[];let skipped=0;
@@ -115,9 +125,10 @@ export class DatabaseModal extends Modal {
   }
   private render(){
     if(!this.active)return;
+    if(this.overview&&this.view==='overview'){this.syncView();return;}
     this.filter.today=localDay();const all=filterRows(this.rows,this.filter).filter(row=>customMatches(row.fields,this.conditions,this.host.preferences.fields)),rows=all.slice(0,this.limit);
     this.count.setText(`${all.length} 篇笔记 · ${all.filter(r=>r.props.status==='done').length} 已完成`);
-    this.tabButtons.forEach((b,i)=>b.toggleClass('is-active',(i===0)===(this.view==='table')));
+    this.tabButtons.forEach(b=>b.toggleClass('is-active',b.dataset.dbView===this.view));
     const scroll=this.results.scrollTop;this.results.empty();this.results.toggleClass('is-kanban',this.view==='kanban');
     if(this.view==='table')this.table(rows);else this.kanban(rows);
     if(!all.length)this.results.createDiv({cls:'ts-db-empty',text:'没有匹配笔记。试试其他范围，或清除筛选。'});
@@ -157,10 +168,10 @@ export class DatabaseModal extends Modal {
     }
   }
   private async persist(){try{await this.host.savePreferences();}catch(e){new Notice('视图设置保存失败：'+String(e));throw e;}}
-  private currentView(name='当前筛选'):SavedDatabaseView{return{id:crypto.randomUUID(),name,source:this.source,boardPath:this.source==='board'?this.host.boardPath:undefined,layout:this.view,filter:{...this.filter},conditions:this.conditions.map(c=>({...c}))};}
+  private currentView(name='当前筛选'):SavedDatabaseView{return{id:crypto.randomUUID(),name,source:this.source,boardPath:this.source==='board'?this.host.boardPath:undefined,layout:this.view==='overview'?'table':this.view,filter:{...this.filter},conditions:this.conditions.map(c=>({...c}))};}
   private renderSaved(){this.savedSelect.empty();this.savedSelect.createEl('option',{value:'',text:'选择保存的筛选视图'});for(const v of this.host.preferences.views)if(v.source!=='board'||v.boardPath===this.host.boardPath)this.savedSelect.createEl('option',{value:v.id,text:v.name});}
-  private applySaved(id:string){const v=this.host.preferences.views.find(v=>v.id===id);if(!v)return;this.source=v.source;this.view=v.layout;this.filter={...v.filter,today:localDay()};this.conditions=v.conditions.map(c=>({...c}));this.limit=100;
-    const values:Record<string,string>={'资料范围':this.source,'资料标签':this.filter.tag,'资料状态':this.filter.status,'资料优先级':this.filter.priority,'资料排序':this.filter.sort};for(const [label,value]of Object.entries(values)){const el=this.contentEl.querySelector<HTMLSelectElement>(`select[aria-label="${label}"]`);if(el)el.value=value;}
+  private applySaved(id:string){const v=this.host.preferences.views.find(v=>v.id===id);if(!v)return;this.source=v.source;this.view=v.layout;if(this.overview)this.syncView();this.filter={...v.filter,today:localDay()};this.conditions=v.conditions.map(c=>({...c}));this.limit=100;
+    const values:Record<string,string>={'资料范围':this.source,'资料标签':this.filter.tag,'资料状态':this.filter.status,'资料优先级':this.filter.priority,'资料排序':this.filter.sort};for(const [label,value]of Object.entries(values)){const el=this.contentEl.querySelector<HTMLSelectElement>(`.ts-db-legacy select[aria-label="${label}"]`);if(el)el.value=value;}
     this.contentEl.querySelector<HTMLInputElement>('[aria-label="资料搜索"]')!.value=this.filter.query;this.contentEl.querySelector<HTMLInputElement>('.ts-db-overdue-filter input')!.checked=this.filter.overdue;this.renderCustomFilters();this.schedule();
   }
   private saveView(){

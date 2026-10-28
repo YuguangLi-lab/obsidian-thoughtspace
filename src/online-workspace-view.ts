@@ -1,3 +1,5 @@
+import {cleanMediaStudy,newMediaStudy,canResumeMedia,mediaRecordKey,type MediaStudyState,type MediaImportSelection,type MediaResumeTicket,type MediaStudyReference} from './media-study-state';
+import type {MediaStudyHost} from './media-study-workspace';
 import {Component,ItemView,MarkdownRenderer,Notice,Scope,TFile,WorkspaceLeaf,setIcon,type KeymapEventHandler,type ViewStateResult} from 'obsidian';
 import {applyWorkspaceDensity} from './workspace-density';
 import {bindMobileViewport} from './mobile-viewport';
@@ -11,6 +13,7 @@ import {parseOnlineSource,type OnlineState,type OnlineAction,type OnlineSource} 
 
 export const ONLINE_WORKSPACE='thoughtspace-online-player';
 export interface OnlineWorkspaceHost {
+ study?:MediaStudyHost;
  drafts?:OnlineDraftStore;
  playbackAvailable?():boolean;
  openExternal?(source:string):Promise<unknown>;
@@ -26,11 +29,11 @@ export interface OnlineWorkspaceHost {
  adopt(source:string,placement:MediaPlacement):Promise<unknown>;
  notes(source:string,note?:string):Promise<{note?:TFile;entries:MediaMoment[]}>;
  save(source:string,data:{id:string;time:number;text:string;image?:Blob},note?:string):Promise<{note:TFile}>;
- send(source:string,time?:number,text?:string,image?:string):Promise<unknown>;
+ send(source:string,time?:number,text?:string,image?:string,reference?:MediaStudyReference):Promise<unknown>;
  openNote(file:TFile):Promise<unknown>;
 }
 type OnlinePanel='player'|'compose'|'timeline';
-export interface OnlineWorkspaceState extends Record<string,unknown>{source?:string;note?:string;placement?:MediaPlacement;time?:number;panel?:OnlinePanel;draftId?:string}
+export interface OnlineWorkspaceState extends Record<string,unknown>{study?:MediaStudyState;source?:string;note?:string;placement?:MediaPlacement;time?:number;panel?:OnlinePanel;draftId?:string}
 interface Draft {id:string;time:number;text:string;mode:'synced'|'manual';image?:Blob;locked?:boolean}
 interface Capture {owner:symbol;source:string;invalid:boolean}
 interface Memory {source:string;phase?:OnlineDraftSnapshot['phase'];recovered?:boolean;persistedNote?:string;persistenceWarning?:string;restoreBlocked?:boolean;draft?:Draft;manualTime?:number;pending?:symbol;capture?:Capture;editor?:symbol;note?:TFile;listeners:Set<(refresh:boolean)=>void>}
@@ -86,6 +89,10 @@ function notePath(value:unknown):string|undefined {
 
 /** The official platform owns the video; this view owns notes and explicit controls. */
 export class OnlineWorkspaceView extends ItemView {
+ study=newMediaStudy();
+ private resumeAfterSave?:MediaResumeTicket;
+ private recordHotkey?:KeymapEventHandler;
+ private recording=false;
  private source?:OnlineSource;
  private note?:string;
  private placement:MediaPlacement='tab';
@@ -154,6 +161,14 @@ export class OnlineWorkspaceView extends ItemView {
  private rebindLayout?:()=>void;
  private submitHotkey?:KeymapEventHandler;
 
+ async configureStudy(selection:MediaImportSelection){this.study={...this.study,enabled:true,id:this.study.id||crypto.randomUUID(),title:selection.title,board:selection.board};this.studyChanged();await this.host.study?.show(this,'notes');}
+ studyCurrent(){return !this.closed&&!!this.source&&this.leaf.view===this;}
+ studyNote(){return this.memory?.note;}
+ studyChanged(){this.contentEl.toggleClass('is-study-paired',this.study.enabled);const title=this.contentEl.querySelector<HTMLElement>('.ts-online-workspace__title');if(title)title.textContent=this.study.title||this.source?.name||'在线视频';const destination=this.contentEl.querySelector<HTMLElement>('[data-study-target]');if(destination)destination.textContent=this.study.board||'尚未选择白板';this.contentEl.querySelectorAll<HTMLElement>('[data-study-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.studyMode===this.study.mode)));this.app.workspace.requestSaveLayout();}
+ private studyControls(root:HTMLElement){if(!this.host.study||!this.source)return;const bar=root.createDiv('ts-media-study-tools');for(const [mode,label]of [['notes','笔记'],['board','白板']]as const){const b=this.action(bar,label,mode==='notes'?'notebook-pen':'panels-top-left',async()=>{this.study.enabled=true;this.study.id ||=crypto.randomUUID();await this.host.study!.show(this,mode);});b.dataset.studyMode=mode;b.setAttribute('aria-pressed',String(this.study.enabled&&this.study.mode===mode));}this.action(bar,'暂停并记下 · M','bookmark-plus',()=>this.studyRecord()).addClass('mod-cta');const more=bar.createEl('details');more.createEl('summary',{text:'更多'});const panel=more.createDiv('ts-media-study-more');const destination=panel.createEl('p',{attr:{'data-study-target':''},text:this.study.board||'尚未选择白板'});destination.title='发送目标';this.action(panel,'发送末条摘录','arrow-up-right',async()=>{const source=this.source,generation=this.generation,pair=this.study.id;if(!source)return;const current=()=>this.studyCurrent()&&this.source===source&&this.generation===generation&&this.study.id===pair&&this.app.workspace.getActiveViewOfType(OnlineWorkspaceView)===this;if(!this.study.board){await this.host.study!.show(this,'board');this.message('目标已选择，请核对后再次点击发送。');return;}await this.host.study!.show(this,'board');if(!current())return;await this.refreshNotes();if(!current())return;const entry=this.entries.at(-1),note=this.currentNote();if(this.source&&entry&&note)await this.host.send(this.source.path,entry.time,entry.text,entry.image,{id:entry.id,note,board:this.study.board});});const ratio=panel.createEl('input',{type:'range',attr:{min:'38',max:'70','aria-label':'视频与内容比例'}});ratio.value=String(this.study.ratio);ratio.oninput=()=>this.host.study?.ratio(this,Number(ratio.value));}
+ private recordKey(event:KeyboardEvent){if(this.closed||!this.opened)return false;const target=this.contentEl.ownerDocument.activeElement;if(this.app.workspace.getActiveViewOfType(OnlineWorkspaceView)!==this||target&&target!==this.contentEl.ownerDocument.body&&!this.contentEl.contains(target)||!mediaRecordKey(event,!!target?.closest('input,textarea,select,button,a,[contenteditable],video,audio')))return false;event.preventDefault();event.stopPropagation();void this.studyRecord().catch(e=>this.failure('记下此刻',e));return true;}
+ async studyRecord(){const source=this.source,memory=this.memory,state=this.verified(),generation=this.generation;if(!source||!memory||!this.studyCurrent()||memory.draft||memory.pending||memory.capture||this.composing||this.recording)return;const time=this.captureTime();if(!time){this.message('请先同步平台时间，或确认手动时间。');return;}this.recording=true;try{const playing=!!state&&!state.paused;if(state){const paused=await this.host.command(source.path,'pause');if(paused===false)throw Error('未确认暂停，未创建新的记录');}if(this.closed||this.generation!==generation||this.memory!==memory||this.source!==source||memory.draft||state&&!this.verified())return;this.rememberTimestamp();const draft=this.memory?.draft;if(!draft)return;this.resumeAfterSave=playing?{source:source.path,draft:draft.id,generation,time:draft.time}:undefined;this.app.workspace.setActiveLeaf(this.leaf,{focus:true});this.input?.focus();}finally{this.recording=false;}}
+
  getRecoveryCenterDraft(){
   if(this.closed)return;const draft=this.memory?.draft,text=this.input?.value??draft?.text??'';
   if(!text&&!draft?.image)return;return {text,path:this.source?.path||this.memory?.source||'未选来源',time:draft?.time||0,hasImage:!!draft?.image};
@@ -173,7 +188,7 @@ export class OnlineWorkspaceView extends ItemView {
  }
  getState():OnlineWorkspaceState {
   const time=this.verified()?.time;
-  return {source:this.source?.path,note:this.currentNote(),placement:this.placement,panel:this.panel,...(this.memory?.draft?{draftId:this.memory.draft.id}:{}),...(time!==undefined?{time}:{})};
+  return {source:this.source?.path,note:this.currentNote(),placement:this.placement,panel:this.panel,...(this.study?.enabled?{study:{...this.study}}:{}),...(this.memory?.draft?{draftId:this.memory.draft.id}:{}),...(time!==undefined?{time}:{})};
  }
  canMove(){
   if(this.composing){new Notice('请先完成当前输入，再切换视频或工作区位置');return false;}
@@ -183,9 +198,9 @@ export class OnlineWorkspaceView extends ItemView {
  }
  async onOpen(){
   if(this.opened||this.closed)return;this.opened=true;
-  this.bindSubmitHotkey();
+  this.bindSubmitHotkey();this.recordHotkey=this.scope?.register([],'m',event=>{if(this.recordKey(event))return false;});this.registerDomEvent(this.contentEl.ownerDocument,'keydown',event=>this.recordKey(event),{capture:true});
   this.stopDrafts=this.host.drafts?.subscribe(()=>{if(!this.closed)this.paintComposer();});
-  this.subscription=this.host.subscribe(state=>{if(this.closed)return;this.live=state;this.invalidateCapture();this.paintPlayback();this.paintComposer();});
+  this.subscription=this.host.subscribe(state=>{if(this.closed)return;this.live=state;if(this.resumeAfterSave&&(state.sourcePath!==this.source?.path||state.status==='source-changed'||state.candidate&&state.candidate.path!==this.source?.path||Math.abs(state.time-this.resumeAfterSave.time)>.5))this.resumeAfterSave=undefined;this.invalidateCapture();this.paintPlayback();this.paintComposer();});
   this.live=this.host.state();if(!this.input)this.render();else{this.paintPlayback();this.paintComposer();}
  }
  async setState(state:OnlineWorkspaceState,result?:ViewStateResult){
@@ -198,12 +213,13 @@ export class OnlineWorkspaceView extends ItemView {
   const same=source?.path===this.source?.path&&(note||'')===(this.currentNote()||'');
   if((!same||placement!==this.placement)&&!this.canMove())return;
   if(same&&this.memory){
+   if(state.study)this.study=cleanMediaStudy(state.study);this.studyChanged();
    if(state.panel==='player'||state.panel==='compose'||state.panel==='timeline')this.setPanel(state.panel);
    this.placement=placement;this.requestedTime=validMediaTime(state.time)?state.time:this.requestedTime;
    this.contentEl.dataset.placement=placement;this.paintPositions();this.live=this.host.state();this.invalidateCapture();this.paintPlayback();this.paintComposer();
    this.app.workspace.requestSaveLayout();if(result)result.history=true;return;
   }
-  this.release();this.generation++;this.timelineRun++;this.source=source;this.note=note;this.placement=placement;
+  this.resumeAfterSave=undefined;this.host.study?.release(this);this.study=cleanMediaStudy(state.study);this.release();this.generation++;this.timelineRun++;this.source=source;this.note=note;this.placement=placement;
   this.panel=state.panel==='player'||state.panel==='timeline'?state.panel:'compose';
   this.requestedTime=validMediaTime(state.time)?state.time:source?.initialTime;this.entries=[];this.page=0;
   this.memory=source?memoryFor(this.host,source.path,note,typeof state.draftId==='string'?state.draftId:undefined):undefined;
@@ -212,8 +228,8 @@ export class OnlineWorkspaceView extends ItemView {
    const owned=this.memory,listener=(refresh:boolean)=>{if(this.closed||this.memory!==owned)return;this.paintComposer();if(refresh)void this.refreshNotes();};
    owned.listeners.add(listener);this.releaseMemory=()=>owned.listeners.delete(listener);
   }
-  this.live=this.host.state();this.render();this.app.workspace.requestSaveLayout();if(result)result.history=true;
-  await this.refreshNotes();
+  this.live=this.host.state();this.render();this.studyChanged();this.app.workspace.requestSaveLayout();if(result)result.history=true;
+  await this.refreshNotes();if(this.study.enabled)this.app.workspace.onLayoutReady(()=>{if(this.studyCurrent())void this.host.study?.show(this,this.study.mode).catch(error=>this.message(String(error)));});
  }
  private release(){
   this.releasePlayer();this.releasePreview();this.releaseTimeline();if(this.memory?.capture?.owner===this.editor)this.memory.capture.invalid=true;
@@ -277,6 +293,7 @@ export class OnlineWorkspaceView extends ItemView {
   const switcher=root.createDiv({cls:'ts-online-workspace__panel-switcher',attr:{role:'group','aria-label':'工作区显示内容'}});
   for(const[panel,label,icon]of [['player','播放','play'],['compose','写摘录','square-pen'],['timeline','时间轴','list-video']]as const)this.panelButtons.set(panel,this.action(switcher,label,icon,()=>this.setPanel(panel)));
   this.setPanel(this.panel);
+  this.studyControls(root);
   const layout=root.createDiv('ts-online-workspace__layout'),player=layout.createDiv('ts-online-workspace__player');
   const playerHeading=player.createDiv('ts-online-workspace__section-heading');playerHeading.createEl('strong',{text:'视频播放器'});
   this.connection=playerHeading.createSpan({cls:'ts-online-workspace__connection'});
@@ -358,6 +375,7 @@ export class OnlineWorkspaceView extends ItemView {
   const state=this.verified();return state?{time:state.time,mode:'synced'}:undefined;
  }
  private paintComposer(){
+  this.contentEl.dataset.studyDraft=String(!!this.memory?.draft);
   const memory=this.memory,draft=memory?.draft,pending=!!(memory?.pending||memory?.capture||memory?.restoreBlocked),other=!!memory?.editor&&memory.editor!==this.editor,time=draft||this.captureTime();
   if(this.input){if(!this.composing&&this.input.value!==(draft?.text||''))this.input.value=draft?.text||'';this.input.readOnly=!memory||pending||other||!time||!!draft?.locked;}
   if(this.draftTime)this.draftTime.textContent=time?`${mediaClock(time.time)} · ${draft?(draft.mode==='manual'?'手动已固定':'已固定'):time.mode==='manual'?'手动已确认':'随播放同步'}`:'请先同步或确认时间';
@@ -449,6 +467,7 @@ export class OnlineWorkspaceView extends ItemView {
   finally{if(memory.pending===pending){memory.pending=undefined;notify(memory);}}
  }
  private async cancelDraft(){
+  this.resumeAfterSave=undefined;
   const memory=this.memory;if(this.composing||this.closed||!memory||memory.pending||memory.capture||memory.editor&&memory.editor!==this.editor)return;
   const draft=memory.draft,pending=Symbol('online-draft-cancel');memory.pending=pending;notify(memory);
   try{
@@ -510,7 +529,8 @@ export class OnlineWorkspaceView extends ItemView {
    if(memory.pending!==pending||memory.draft!==draft)return;
    memory.draft=undefined;memory.manualTime=undefined;memory.editor=undefined;memory.phase=undefined;memory.persistenceWarning=undefined;
    if(!this.closed&&this.memory===memory){this.message('摘录已保存。');this.app.workspace.requestSaveLayout();}
-   notify(memory,true);
+   notify(memory,true);void this.host.study?.sync(this).catch(()=>this.message('摘录已保存；连续笔记页尚未打开，可点“笔记”重试。'));
+   const ticket=this.resumeAfterSave;this.resumeAfterSave=undefined;const playback=this.verified();if(playback&&canResumeMedia(ticket,{source:source.path,draft:draft.id,generation:this.generation,time:playback.time,active:this.studyCurrent()&&this.app.workspace.getActiveViewOfType(OnlineWorkspaceView)===this,paused:playback.paused}))void this.host.command(source.path,'toggle').catch(()=>this.message('摘录已保存，播放尚未恢复，可手动播放。'));
   }catch(error){if(!this.closed&&this.memory===memory)this.failure('保存摘录',error);}
   finally{if(memory.pending===pending){memory.pending=undefined;notify(memory);}}
  }
@@ -519,7 +539,7 @@ export class OnlineWorkspaceView extends ItemView {
   const generation=this.generation,run=++this.timelineRun,targetNote=this.currentNote();
   try{const result=await this.host.notes(source.path,targetNote);
    if(this.closed||this.generation!==generation||this.timelineRun!==run||this.memory!==memory||this.currentNote()!==targetNote)return;
-   rememberNote(this.host,source.path,memory,result.note);if(result.note&&memory.draft&&!memory.recovered&&!memory.pending){memory.persistedNote=result.note.path;this.stageDraft(memory,source.path);}this.entries=result.entries.filter(entry=>typeof entry.id==='string'&&validMediaTime(entry.time)&&typeof entry.text==='string').sort((a,b)=>a.time-b.time);
+   rememberNote(this.host,source.path,memory,result.note);void this.host.study?.sync(this).catch(()=>{});if(result.note&&memory.draft&&!memory.recovered&&!memory.pending){memory.persistedNote=result.note.path;this.stageDraft(memory,source.path);}this.entries=result.entries.filter(entry=>typeof entry.id==='string'&&validMediaTime(entry.time)&&typeof entry.text==='string').sort((a,b)=>a.time-b.time);
    this.paintComposer();this.renderTimeline();
   }catch(error){if(!this.closed&&this.generation===generation&&this.timelineRun===run&&this.memory===memory&&this.currentNote()===targetNote)this.failure('读取摘录',error);}
  }
@@ -540,7 +560,7 @@ export class OnlineWorkspaceView extends ItemView {
     if(!this.timelineScope){this.timelineScope=new Component();this.timelineScope.load();}const scope=this.timelineScope;
     void MarkdownRenderer.render(this.app,entry.image,image,this.currentNote()||'',scope).catch(()=>{if(!this.closed&&this.timelineScope===scope&&this.generation===generation)image.textContent='截图预览暂不可用，请打开笔记查看。';});
    }
-   this.action(row,'发送到白板','panels-top-left',()=>{if(source&&this.generation===generation)return this.host.send(source,entry.time,entry.text,entry.image);},true);
+   this.action(row,'发送到白板','panels-top-left',()=>{if(source&&this.generation===generation)return this.host.send(source,entry.time,entry.text,entry.image,this.study.enabled&&this.currentNote()?{id:entry.id,note:this.currentNote()!,board:this.study.board}:undefined);},true);
   }
  }
  private releaseTimeline(){this.timelineScope?.unload();this.timelineScope=undefined;}
@@ -555,5 +575,5 @@ export class OnlineWorkspaceView extends ItemView {
  private async command(action:OnlineAction,value?:number){if(this.source&&this.verified())await this.host.command(this.source.path,action,value);}
  private async seekBy(delta:number){const state=this.verified();if(!state)return;await this.command('seek',Math.max(0,Math.min(validMediaTime(state.duration)&&state.duration>0?state.duration:100000000,state.time+delta)));}
  private async seekTo(){const time=parseMediaTime(this.seek?.value||'');if(time===undefined){this.message('请输入有效的跳转时间。');return;}await this.command('seek',time);}
- async onClose(){if(this.closed)return;this.stopDrafts?.();this.stopDrafts=undefined;if(this.composing)this.edit();if(this.submitHotkey)this.scope?.unregister(this.submitHotkey);this.submitHotkey=undefined;this.composerLayout?.dispose();this.composerLayout=undefined;this.stopInset?.();this.stopInset=undefined;this.rebindLayout=undefined;this.stopViewport?.();this.stopViewport=undefined;this.closed=true;this.generation++;this.timelineRun++;this.subscription?.();this.subscription=undefined;this.release();this.contentEl.empty();try{await this.host.drafts?.flush();}catch{/* Same-host memory and the existing persisted record remain; no restart guarantee. */}}
+ async onClose(){if(this.closed)return;this.resumeAfterSave=undefined;this.host.study?.release(this);if(this.recordHotkey)this.scope?.unregister(this.recordHotkey);this.recordHotkey=undefined;this.stopDrafts?.();this.stopDrafts=undefined;if(this.composing)this.edit();if(this.submitHotkey)this.scope?.unregister(this.submitHotkey);this.submitHotkey=undefined;this.composerLayout?.dispose();this.composerLayout=undefined;this.stopInset?.();this.stopInset=undefined;this.rebindLayout=undefined;this.stopViewport?.();this.stopViewport=undefined;this.closed=true;this.generation++;this.timelineRun++;this.subscription?.();this.subscription=undefined;this.release();this.contentEl.empty();try{await this.host.drafts?.flush();}catch{/* Same-host memory and the existing persisted record remain; no restart guarantee. */}}
 }

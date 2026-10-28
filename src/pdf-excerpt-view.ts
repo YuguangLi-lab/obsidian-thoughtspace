@@ -1,0 +1,23 @@
+import {App,FileView,Notice,TFile,type WorkspaceLeaf} from 'obsidian';
+import {themeSurface} from './ui-tokens';
+import {pdfAnchorRange,validPdfExcerpt,type PdfExcerptOrigin} from './pdf-excerpt-anchor';
+function pageFallback(root:HTMLElement,message:string){new Notice(message);const hint=root.createDiv({cls:'ts-pdf-return-status',attr:{role:'status'}});themeSurface(hint);hint.createSpan({text:message});const close=hint.createEl('button',{text:'×',attr:{'aria-label':'关闭定位提示'}});close.onclick=()=>hint.remove();return()=>hint.remove();}
+/** Already rendered native text only; no PDF writes or OCR. */
+export async function openPdfExcerpt(app:App,origin:PdfExcerptOrigin,from:WorkspaceLeaf,current:()=>boolean):Promise<()=>void>{
+ if(!validPdfExcerpt(origin))throw Error('PDF 摘录来源无效');const file=app.vault.getAbstractFileByPath(origin.path);if(!(file instanceof TFile))throw Error('来源 PDF 已移动或删除，摘录仍保留');
+ const stamp={mtime:file.stat.mtime,size:file.stat.size},doc=from.view.containerEl.ownerDocument,win=doc.defaultView!,sourceView=from.view;let target:WorkspaceLeaf|undefined,cancelled=false,allocating=false;
+ const alive=()=>!cancelled&&current()&&from.view===sourceView&&!win.closed&&file.path===origin.path&&app.vault.getAbstractFileByPath(origin.path)===file&&file.stat.mtime===stamp.mtime&&file.stat.size===stamp.size;
+ const ref=app.workspace.on('active-leaf-change',leaf=>{if(!allocating&&leaf!==from&&leaf!==target)cancelled=true;});
+ try{if(!alive())return()=>{};target=app.workspace.getLeavesOfType('pdf').find(l=>l.view instanceof FileView&&l.view.file===file&&l.view.containerEl.ownerDocument===doc);
+  if(!target){allocating=true;try{target=app.workspace.createLeafBySplit(from,'vertical');}finally{allocating=false;}}
+  const leaf=target;await leaf.openFile(file,{active:false,eState:{subpath:'#page='+origin.page}});if(!alive()||!(leaf.view instanceof FileView)||leaf.view.file!==file)return()=>{};const view=leaf.view,root=view.containerEl;app.workspace.setActiveLeaf(leaf,{focus:true});leaf.setEphemeralState({subpath:'#page='+origin.page});
+  let layer:HTMLElement|undefined;for(let i=0;i<30&&alive();i++){layer=root.querySelector<HTMLElement>(`.page[data-page-number="${origin.page}"] .textLayer`)||undefined;if(layer?.textContent?.trim())break;await new Promise<void>(resolve=>win.setTimeout(resolve,100));}
+  if(!alive()||leaf.view!==view||view.file!==file)return()=>{};
+  if(!layer||!origin.anchor||origin.ctime!==file.stat.ctime||origin.mtime!==file.stat.mtime||origin.size!==file.stat.size){return pageFallback(root,`未能精确定位选区，已打开 PDF（请求第 ${origin.page} 页）；原摘录与页码仍保留`);}
+  let range=pdfAnchorRange(layer,origin);if(!range){return pageFallback(root,`PDF 选区文本已变化或尚未就绪，退回页码；请核对第 ${origin.page} 页原摘录`);}
+  range.startContainer.parentElement?.scrollIntoView({block:'center'});const overlay=doc.body.createDiv({cls:'ts-pdf-anchor-highlight',attr:{'aria-hidden':'true'}});overlay.dataset.color=origin.color;let frame:number|undefined,closed=false;
+  const clear=()=>{if(closed)return;closed=true;if(frame!==undefined)win.cancelAnimationFrame(frame);overlay.remove();observer.disconnect();doc.removeEventListener('scroll',schedule,true);win.removeEventListener('resize',schedule);app.workspace.offref(changes);for(const ref of fileChanges)app.vault.offref(ref);};
+  const paint=()=>{frame=undefined;if(closed)return;if(!alive()||!root.isConnected||leaf.view!==view||view.file!==file){clear();return;}const next=root.querySelector<HTMLElement>(`.page[data-page-number="${origin.page}"] .textLayer`);range=next?pdfAnchorRange(next,origin):undefined;if(!range){clear();return;}overlay.empty();const bounds=root.getBoundingClientRect();for(const rect of Array.from(range.getClientRects()).slice(0,500)){const left=Math.max(bounds.left,rect.left),top=Math.max(bounds.top,rect.top),right=Math.min(bounds.right,rect.right),bottom=Math.min(bounds.bottom,rect.bottom);if(right>left&&bottom>top){const mark=overlay.createSpan();Object.assign(mark.style,{left:left+'px',top:top+'px',width:right-left+'px',height:bottom-top+'px'});}}};
+  const schedule=()=>{if(frame===undefined&&!closed)frame=win.requestAnimationFrame(paint);},observer=new MutationObserver(schedule),changes=app.workspace.on('layout-change',schedule),fileChanges=[app.vault.on('modify',changed=>{if(changed===file)clear();}),app.vault.on('delete',changed=>{if(changed===file)clear();}),app.vault.on('rename',changed=>{if(changed===file)clear();})];observer.observe(root,{subtree:true,childList:true,attributes:true,attributeFilter:['style','data-main-rotation']});doc.addEventListener('scroll',schedule,true);win.addEventListener('resize',schedule);paint();return clear;
+ }finally{app.workspace.offref(ref);}
+}

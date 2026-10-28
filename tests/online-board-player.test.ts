@@ -26,6 +26,7 @@ class Element {
  setText(value:string){this.textContent=value;}
  empty(){for(const child of this.children){child.parentElement=undefined;child.connected=false;}this.children=[];this.textContent='';}
  remove(){if(this.parentElement)this.parentElement.children=this.parentElement.children.filter(node=>node!==this);this.parentElement=undefined;this.connected=false;}
+ append(...nodes:Element[]){for(const node of nodes){if(node.parentElement)node.parentElement.children=node.parentElement.children.filter(n=>n!==node);node.parentElement=this;this.children.push(node);}}
  all():Element[]{return[this,...this.children.flatMap(child=>child.all())];}
  addEventListener(type:string,listener:(event:any)=>unknown){this.listeners.set(type,[...this.listeners.get(type)||[],listener]);}
  removeEventListener(type:string,listener:(event:any)=>unknown){this.listeners.set(type,(this.listeners.get(type)||[]).filter(item=>item!==listener));}

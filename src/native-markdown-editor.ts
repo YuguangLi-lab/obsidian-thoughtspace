@@ -7,6 +7,8 @@ import {protectNativeCursorAssociation} from './native-cursor-focus';
 
 /** The small draft surface shared by a textarea and Obsidian's live editor. */
 export interface DraftInput extends EventTarget {
+ positionAtCoords?(x:number,y:number):number|undefined;
+ insertDrop?(text:string,position:number):void;
  value:string;readonly selectionCount?:number;readonly selectionStart:number;readonly selectionEnd:number;readOnly:boolean;
  readonly style:CSSStyleDeclaration;readonly ownerDocument:Document;
  focus(options?:FocusOptions):void;setSelectionRange(start:number,end:number):void;
@@ -151,6 +153,8 @@ export class NativeMarkdownDraft extends EventTarget implements DraftInput {
  set value(value:string){if(!this.disposed)this.setRangeText(value,0,this.value.length);}
  get selectionCount():number{return this.disposed?1:this.engine.cm.state.selection.ranges.length;}
  get selectionStart():number{return this.selection().from;}
+ positionAtCoords(x:number,y:number){return this.disposed?undefined:this.engine.cm.posAtCoords({x,y},false)??undefined;}
+ insertDrop(text:string,position:number){if(!this.disposed&&!this.locked)this.edit({changes:{from:position,to:position,insert:text},selection:{anchor:position+text.length},scrollIntoView:true,userEvent:'input.drop'},position+text.length,position+text.length);}
  get selectionEnd():number{return this.selection().to;}
  get readOnly(){return this.locked;}
  set readOnly(value:boolean){this.locked=value;if(!this.disposed){this.engine.cm.contentDOM.contentEditable=String(!value);this.host.style.pointerEvents=value?'none':'auto';}}

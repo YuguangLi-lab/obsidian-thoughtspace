@@ -32,7 +32,7 @@ export function mediaCard(id:string,file:string,x:number,y:number,width=320,star
  if(!isVaultMediaPath(file))throw Error('请选择仓库中的音频或视频');
  if(!id.trim()||![x,y,width].every(Number.isFinite)||width<80)throw Error('媒体卡片尺寸无效');
  const kind=mediaKind(file)!;width=Math.max(220,Math.min(1600,width));
- return{id,kind,file,mediaStart:mediaTime(start),x:x-width/2,y:y-70,width,height:kind==='video'?Math.round(width*9/16)+72:140,color:'slate'};
+ return{id,kind,file,mediaStart:mediaTime(start),x:x-width/2,y:y-70,width,height:kind==='video'?Math.round(width*9/16):140,color:'slate'};
 }
 
 export interface MediaSource {vault:string;board:string;node:string;file:string;time:number}

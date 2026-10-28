@@ -1,10 +1,11 @@
+import {cleanLibraryPreferences,type LibraryPreferences} from './database-library';
 import {isRecord,isUnknownArray,isOneOf} from './value-guards';
 import {DatabaseFilter,propertyKeys,dateValid} from './database';
 export type CustomType='text'|'number'|'date'|'checkbox'|'list';
 export interface CustomField{key:string;type:CustomType}
 export interface CustomCondition{key:string;op:'eq'|'contains'|'gte'|'lte'|'empty';value:string}
 export interface SavedDatabaseView{id:string;name:string;source:'cards'|'vault'|'board';boardPath?:string;layout:'table'|'kanban';filter:DatabaseFilter;conditions:CustomCondition[]}
-export interface DatabasePreferences{fields:CustomField[];views:SavedDatabaseView[]}
+export interface DatabasePreferences{fields:CustomField[];views:SavedDatabaseView[];library?:LibraryPreferences}
 export function validCustomKey(key:unknown):key is string{return typeof key==='string'&&!!key.trim()&&key===key.trim()&&key.length<=80&&!/[\r\n.]/.test(key)&&!['__proto__','constructor','prototype','tags','aliases','cssclasses',...Object.values(propertyKeys)].includes(key);}
 export function customValue(field:CustomField,value:string|boolean){
  if(!validCustomKey(field.key))throw Error('属性名称无效或属于已有内置属性');
@@ -30,7 +31,7 @@ export function cleanDatabasePreferences(value:unknown):DatabasePreferences{
   for(const c of v.conditions)if(isRecord(c)&&typeof c.key==='string'&&fields.some(f=>f.key===c.key)&&isOneOf(c.op,['eq','contains','gte','lte','empty'] as const)&&typeof c.value==='string'&&conditions.length<20)conditions.push({key:c.key,op:c.op,value:c.value});
   views.push({id:v.id,name:v.name,source:v.source,layout:v.layout,...(typeof v.boardPath==='string'?{boardPath:v.boardPath}:{}),filter:{query:v.filter.query,sort:v.filter.sort,tag:typeof f.tag==='string'?f.tag:'',status:typeof f.status==='string'?f.status:'',priority:typeof f.priority==='string'?f.priority:'',overdue:f.overdue===true,today:typeof f.today==='string'?f.today:''},conditions});
  }
- return {fields,views};
+ return {fields,views,...(raw.library!==undefined?{library:cleanLibraryPreferences(raw.library)}:{})};
 }
 /** Bases and UI share typed operands. Bracket notation preserves native property names. */
 export function conditionExpression(c:CustomCondition,fields:CustomField[]){const f=fields.find(f=>f.key===c.key);if(!f)throw Error('筛选字段已移除');const key=`note[${JSON.stringify(c.key)}]`;if(c.op==='empty')return `(${key} == null || ${key} == "" || ${key} == [])`;

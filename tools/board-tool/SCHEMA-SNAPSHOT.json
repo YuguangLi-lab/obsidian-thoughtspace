@@ -209,9 +209,9 @@
       "path": "schema/model.ts",
       "upstreamPath": "src/model.ts",
       "originalSHA256": "612d223c92c8d2e808548112c5afbcebd0594cf7aece28362210766435f01ae1",
-      "deliveredSHA256": "612d223c92c8d2e808548112c5afbcebd0594cf7aece28362210766435f01ae1",
+      "deliveredSHA256": "0724e8eb57fcaaa12d152edafd4afd8b322006737f1d61ee5b24074072c59f7f",
       "identicalToPublicBeta2": false,
-      "transformation": "exact copy"
+      "transformation": "Previous standalone parser snapshot plus validated plugin-side PDF excerpt provenance; other snapshot behavior unchanged."
     },
     {
       "path": "schema/note-fragments.ts",
@@ -348,6 +348,14 @@
       "deliveredSHA256": "929365544f6dac947305e4cac83758606b8392d395acdce939379c58dad268bd",
       "identicalToPublicBeta2": true,
       "transformation": "exact copy"
+    },
+    {
+      "path": "schema/pdf-excerpt-origin.ts",
+      "upstreamPath": "src/pdf-excerpt-anchor.ts",
+      "originalSHA256": "ca0890d4856d68b5c2bdf50fcc68b67c43b3a3e5aa590e523fced5f858aa97e2",
+      "deliveredSHA256": "00ebaf219ad51b927d5fec2aef28343b6200862fa757f478b1b037ee0066a7c1",
+      "identicalToPublicBeta2": false,
+      "transformation": "Origin type, colors and validation extracted before DOM anchor helpers; no PDF reading or rendering in the CLI."
     }
   ],
   "unpublishedDifferences": [
@@ -356,5 +364,12 @@
     "src/model.ts"
   ],
   "pluginSourceChanged": false,
-  "unpublishedPositionActionsIncluded": false
+  "unpublishedPositionActionsIncluded": false,
+  "localCompatibilityUpdate": {
+    "baseCommit": "2e9b632e4cb3d12342fb01e582cfb15bbdffb2c7",
+    "changes": [
+      "PDF excerpt metadata validation",
+      "Structured PDF source reference checks"
+    ]
+  }
 }

@@ -2,6 +2,8 @@ import {markdownToolbar,MarkdownToolbarEditor} from './markdown-toolbar';
 import {planMarkdownEdit} from './markdown-edit';
 import {DraftInput,NativeMarkdownDraft} from './native-markdown-editor';
 
+/** Native textarea edit history, shared by formatting and dropped material. */
+export function insertTextareaTransaction(input:DraftInput,from:number,to:number,text:string){input.setSelectionRange(from,to);return input.ownerDocument.execCommand('insertText',false,text);}
 /** Bind the shared toolbar to one draft; never redirect a command to an active note. */
 export function writingFormatToolbar(parent:HTMLElement,input:DraftInput,native:NativeMarkdownDraft|undefined,blocked:()=>boolean,feedback:(message:string)=>void){
  const bar=parent.createDiv({cls:'ts-writing-formatbar ts-note-markdown-toolbar',attr:{role:'toolbar','aria-label':'写作 Markdown 编辑工具栏'}});parent.prepend(bar);
@@ -16,7 +18,7 @@ export function writingFormatToolbar(parent:HTMLElement,input:DraftInput,native:
  const binding:MarkdownToolbarEditor={input,snapshot,
   format(command){try{const state=focus();if(!state)return;const edit=planMarkdownEdit(state.text,state.start,state.end,command);if(!edit.change)return;const {text,from,to}=edit.change;
    if(native)native.replaceFormatted(text,from,to,edit.start,edit.end);
-   else{input.setSelectionRange(from,to);const inserted=input.ownerDocument.execCommand('insertText',false,text);if(!inserted){input.setRangeText(text,from,to,'end');input.dispatchEvent(new Event('input'));}input.setSelectionRange(edit.start,edit.end);}
+   else{const inserted=insertTextareaTransaction(input,from,to,text);if(!inserted){input.setRangeText(text,from,to,'end');input.dispatchEvent(new Event('input'));}input.setSelectionRange(edit.start,edit.end);}
   }catch(error){feedback(String(error));}},
   history(redo=false){try{if(!focus())return;if(native)native.history(redo);else input.ownerDocument.execCommand(redo?'redo':'undo');}catch(error){feedback(String(error));}},
   replaceToolbar(dispose){cleanup?.();cleanup=dispose;}

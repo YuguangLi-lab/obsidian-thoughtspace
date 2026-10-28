@@ -18,7 +18,8 @@ export interface MediaCardTrack {
 export interface MediaCardOptions {
   kind: 'audio' | 'video';
   /** Board cards keep native playback controls and one compact excerpt row. */
-  controls?: 'board' | 'full';
+  controls?: 'board' | 'full' | 'canvas';
+  onRemove?:()=>void;
   /** Host-owned native prompt; returns a close callback for player teardown. */
   requestTime?: (current: string, submit: (value: string) => void) => (() => void);
   title: string;
@@ -49,6 +50,8 @@ export interface MediaCardHandle {
   play(): void;
   /** Suspend playback and release its source; resuming always requires a click. */
   pause(): void;
+  /** Explicit note capture pauses without releasing the currently decoded frame. */
+  pauseForNote?():void;
 }
 
 const rates = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const;
@@ -86,7 +89,7 @@ const sourceErrorMessage = (error: unknown): string => {
 /** A card owns one decoder at most, and owns none until the user presses Play. */
 export function mountMediaCard(host: HTMLElement, options: MediaCardOptions): MediaCardHandle {
   const doc = host.ownerDocument;
-  const boardControls = options.controls === 'board';
+  const canvasControls=options.controls==='canvas',boardControls=options.controls==='board'||canvasControls;
   let menu: Menu | undefined, closeTimePrompt: (() => void) | undefined;
   let timePromptEpoch = 0;
   let playRequestEpoch = 0;
@@ -96,6 +99,7 @@ export function mountMediaCard(host: HTMLElement, options: MediaCardOptions): Me
   let loopA = Number.isFinite(options.state?.loopA) && options.state!.loopA! >= 0 ? options.state!.loopA : undefined;
   let loopB = loopA !== undefined && Number.isFinite(options.state?.loopB) && options.state!.loopB! >= loopA + 0.5 ? options.state!.loopB : undefined;
   let metadataReady = false, editingTime = false, subtitleWarning = '';
+  let pendingFrame:{blob:Blob;time:number}|undefined;
   let frameTask: { canvas: HTMLCanvasElement; finish: (message?: string) => void } | undefined;
   let presentationTask: { media: HTMLMediaElement } | undefined;
   const mediaTracks: HTMLTrackElement[] = [];
@@ -133,7 +137,7 @@ export function mountMediaCard(host: HTMLElement, options: MediaCardOptions): Me
     if (parts.label.textContent !== text) parts.label.textContent = text;
     if (parts.name !== icon) { setIcon(parts.icon, icon); parts.name = icon; }
   };
-  const card = element('div', `ts-av-player ts-av-player--${options.kind}${boardControls ? ' ts-av-player--board' : ''}`);
+  const card = element('div', `ts-av-player ts-av-player--${options.kind}${boardControls ? ' ts-av-player--board' : ''}${canvasControls?' ts-av-player--canvas':''}`);
   card.tabIndex = 0;
   card.setAttribute('role', 'group');
   card.setAttribute('aria-label', `${options.kind === 'audio' ? '音频' : '视频'}播放器：${options.title}`);
@@ -177,7 +181,8 @@ export function mountMediaCard(host: HTMLElement, options: MediaCardOptions): Me
   card.append(title, stage, toolbar, status);
   host.append(card);
 
-  const report = (text: string) => { if (live()) status.textContent = text; };
+  let feedbackTimer:number|undefined;
+  const report = (text: string) => { if (!live()) return;if(feedbackTimer!==undefined)doc.defaultView?.clearTimeout(feedbackTimer);feedbackTimer=undefined;status.textContent = text;if(canvasControls&&text==='已截取画面。')feedbackTimer=doc.defaultView?.setTimeout(()=>{feedbackTimer=undefined;if(live()&&status.textContent===text)status.textContent='';},1600); };
   const readState = (): MediaCardState => ({ ...state, ...(loopA === undefined ? {} : { loopA }), ...(loopB === undefined ? {} : { loopB }) });
   const clampLoop = (duration: number) => {
     const a = loopA, b = loopB;
@@ -329,6 +334,7 @@ export function mountMediaCard(host: HTMLElement, options: MediaCardOptions): Me
   const extraActions = group('ts-media-card__extra-actions', '循环与显示');
   extraActions.append(loop, ...(fullscreen ? [fullscreen] : []), ...(pip ? [pip] : []), openButton);
   more.append(exactJump, extraActions);
+  if(canvasControls){const overlay=element('div','ts-media-card__canvas-actions');stage.append(overlay);if(frameButton)overlay.append(frameButton);if(options.onRemove){const remove=button('移出白板',()=>invoke(()=>options.onRemove?.(),'暂时不能移出此视频，请重试。'),'从白板移除视频（保留原文件）','x');remove.className+=' ts-media-card__remove';remove.disabled=options.captureEnabled===false;overlay.append(remove);}}
   if (boardControls) toolbar.append(captureActions);
   else toolbar.append(transport, captureActions, more);
 
@@ -395,8 +401,8 @@ export function mountMediaCard(host: HTMLElement, options: MediaCardOptions): Me
     rate.value = String(state.rate);
     capture.disabled = !metadataReady || options.captureEnabled === false || !!frameTask;
     if (frameButton) {
-      frameButton.disabled = options.captureEnabled === false || !!frameTask || !validFrame();
-      paintButton(frameButton, frameTask ? '正在截图…' : '截取画面', 'camera');
+      frameButton.disabled = options.captureEnabled === false || !!frameTask || !pendingFrame&&!validFrame();
+      paintButton(frameButton, frameTask ? '正在截图…' : pendingFrame?'重试保存截图':'截取画面', 'camera');frameButton.setAttribute('aria-label',pendingFrame?'重试保存截图':'截取当前视频画面并记录时间点');
       frameButton.setAttribute('aria-busy', String(!!frameTask));
     }
     backward.disabled = !metadataReady;
@@ -459,10 +465,11 @@ export function mountMediaCard(host: HTMLElement, options: MediaCardOptions): Me
   const freeCanvas = (canvas: HTMLCanvasElement) => { canvas.width = 0; canvas.height = 0; };
   function captureFrame() {
     const current = media;
+    if(pendingFrame&&canvasControls&&!frameTask&&live()&&options.captureEnabled!==false){const retained=pendingFrame;const task={canvas:element('canvas'),finish:()=>{}};frameTask=task;refresh();void Promise.resolve().then(()=>options.onCaptureFrame!(retained.blob,retained.time)).then(()=>{if(pendingFrame===retained){pendingFrame=undefined;report('已截取画面。');}},()=>{report('截图仍保留在本次播放器会话，可再次点击相机重试。');}).finally(()=>{if(frameTask===task){frameTask=undefined;if(live())refresh();}});return;}
     if (!live() || options.captureEnabled === false || frameTask || !options.onCaptureFrame || !validFrame(current)) return;
     // Pause and draw in the same event turn: neither encoding nor file writes can
     // move the captured frame's timestamp to a later point in playback.
-    try { current.pause(); } catch { report('暂时无法截取画面，请稍后重试。'); return; }
+    try { if(!canvasControls)current.pause(); } catch { report('暂时无法截取画面，请稍后重试。'); return; }
     if (!live() || media !== current || !validFrame(current)) return;
     const time = finiteTime(current.currentTime), canvas = element('canvas');
     const ratio = Math.min(1, 1600 / Math.max(current.videoWidth, current.videoHeight));
@@ -501,12 +508,12 @@ export function mountMediaCard(host: HTMLElement, options: MediaCardOptions): Me
         if (!blob || !blob.size) { finish('未能生成截图，请重新播放此处后再试。'); return; }
         try {
           void Promise.resolve(options.onCaptureFrame!(blob, time)).then(
-            () => finish('已截取画面。'),
-            () => finish('未能保存截图，请稍后重试。'),
+            () => {pendingFrame=undefined;finish('已截取画面。');},
+            () => {if(canvasControls)pendingFrame={blob,time};finish(canvasControls?'截图仍保留，可点击相机重试保存。':'未能保存截图，请稍后重试。');},
           );
-        } catch { finish('未能保存截图，请稍后重试。'); }
+        } catch { if(canvasControls)pendingFrame={blob,time};finish('未能保存截图，请稍后重试。'); }
       }, 'image/png');
-    } catch { finish('此画面暂时无法截取，请重新播放此处后再试。'); }
+    } catch { finish(canvasControls?'此画面无法截取，可改用时间锚记录。':'此画面暂时无法截取，请重新播放此处后再试。');if(canvasControls)invoke(()=>options.onCapture(time),'无法截帧，时间锚也未保存，请手动重试。'); }
   }
   /** Clearing src followed by load aborts fetches and releases native decoder state. */
   const release = () => {
@@ -751,7 +758,7 @@ export function mountMediaCard(host: HTMLElement, options: MediaCardOptions): Me
   });
   // Keep native range/select/touch handling intact while shielding the canvas.
   for (const name of ['click', 'dblclick', 'contextmenu', 'pointerdown', 'pointerup', 'mousedown', 'mouseup', 'touchstart', 'touchmove', 'touchend', 'wheel', 'keyup']) {
-    listening(card, name, event => event.stopPropagation());
+    listening(card, name, event => {if(canvasControls&&name==='wheel'&&!(event.target as Element|null)?.closest('input,select,button'))return;event.stopPropagation();});
   }
   listening(card, 'dragstart', event => { event.stopPropagation(); event.preventDefault(); });
   listening(card, 'keydown', event => {
@@ -787,8 +794,10 @@ export function mountMediaCard(host: HTMLElement, options: MediaCardOptions): Me
     play,
     getState() { if (media && live()) snapshot(media); return readState(); },
     pause: suspend,
+    pauseForNote(){if(media&&live()){media.pause();snapshot(media);refresh();}},
     dispose() {
       if (disposed) return;
+      if(feedbackTimer!==undefined)doc.defaultView?.clearTimeout(feedbackTimer);
       release();
       disposed = true;
       observer?.disconnect();

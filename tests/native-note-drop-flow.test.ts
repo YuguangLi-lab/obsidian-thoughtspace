@@ -50,7 +50,7 @@ function fixture(){
  const forbidWrite=()=>{calls.sourceWrites++;throw Error('Source note writes are forbidden during reference insertion');};
  Object.assign(view,{session:owner,file:owner.file,closed:false,selected:new Set(['previous']),selectedEdge:'previous-edge',contextOpen:true,
   app:{dragManager:{draggable:null},vault:{getName:()=> 'demo-vault',getResourcePath:(file:TFile)=>'app://local/'+file.path,getAbstractFileByPath:(path:string)=>files.get(path),getFileByPath:(path:string)=>files.get(path),modify:forbidWrite,process:forbidWrite,create:forbidWrite,createBinary:forbidWrite},metadataCache:{getFirstLinkpathDest:resolve,getFileCache:()=>undefined}},
-  plugin:{settings:{defaultCardWidth:300},receiveMaterial:(...args:unknown[])=>calls.materials.push(args)},
+  plugin:{settings:{defaultCardWidth:300},materialDragIsPdf:()=>false,receiveMaterial:(...args:unknown[])=>calls.materials.push(args)},
   point:position,materialDropPoint:position,stage:{focus:()=>calls.focus++},updateSelection:()=>calls.selection++,renderBoard(){},
   importBoardAttachments:(...args:unknown[])=>calls.attachments.push(args),addBoard:(...args:unknown[])=>calls.boards.push(args),
   insertPdfCard:(...args:unknown[])=>calls.pdfs.push(args),addFile:(...args:unknown[])=>calls.files.push(args),

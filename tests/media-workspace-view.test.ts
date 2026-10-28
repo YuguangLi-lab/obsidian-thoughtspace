@@ -1,3 +1,4 @@
+import * as mediaStudyState from '../src/media-study-state';
 import {themePluginMenu} from '../src/ui-tokens';
 import * as density from '../src/workspace-density';
 import * as viewport from '../src/mobile-viewport';
@@ -51,6 +52,7 @@ class Element {
  append(...nodes:Element[]){for(const node of nodes){node.remove();node.parentElement=this;node.ownerDocument=this.ownerDocument;this.children.push(node);}}
  remove(){if(this.parentElement)this.parentElement.children=this.parentElement.children.filter(child=>child!==this);this.parentElement=undefined;}
  addClass(name:string){this.className+=' '+name;}
+ toggleClass(name:string,on:boolean){if(on)this.addClass(name);else this.removeClass(name);}
  removeClass(name:string){this.className=this.className.split(' ').filter(part=>part!==name).join(' ');}
  setAttribute(key:string,value:string){this.attributes.set(key,value);}
  getAttribute(key:string){return this.attributes.get(key)??null;}
@@ -81,6 +83,7 @@ class ItemView {
  app:any;contentEl=new Element();containerEl=new Element();events:unknown[]=[];
  constructor(readonly leaf:{app:unknown}){this.app=leaf.app;}
  registerEvent(event:unknown){this.events.push(event);}
+ registerDomEvent(el:Element,type:string,fn:(event:any)=>unknown){el.addEventListener(type,fn);}
 }
 class Modal {
  containerEl=new Element();modalEl=new Element();titleEl=Object.assign(new Element(),{setText(this:Element,text:string){this.textContent=text;}});contentEl=new Element();opened=false;closed=false;
@@ -113,7 +116,7 @@ function menuItem(menu:Menu,title:string){const item=menu.items.find(value=>valu
 async function settled(){await new Promise<void>(resolve=>setImmediate(resolve));}
 const compiled=transformSync(readFileSync('src/media-workspace-view.ts','utf8'),{loader:'ts',format:'cjs'}).code;
 const module={exports:{}};
-new Function('require','module','exports',compiled)((name:string)=>name==='obsidian'?{ItemView,Menu,Modal,Scope,TFile,setIcon:()=>{},Notice:class{constructor(text:string){notices.push(text);}}}:name==='./workspace-density'?density:name==='./mobile-viewport'?viewport:name==='./media-source'?mediaSource:name==='./media-preview-source'?previewSource:name==='./ui-tokens'?{themePluginMenu,themeSurface(){}}:name==='./board-modal-viewport'?{bindBoardModalViewport:()=>()=>{}}:undefined,module,module.exports);
+new Function('require','module','exports',compiled)((name:string)=>name==='./media-study-state'?mediaStudyState:name==='obsidian'?{ItemView,Menu,Modal,Scope,TFile,setIcon:()=>{},Notice:class{constructor(text:string){notices.push(text);}}}:name==='./workspace-density'?density:name==='./mobile-viewport'?viewport:name==='./media-source'?mediaSource:name==='./media-preview-source'?previewSource:name==='./ui-tokens'?{themePluginMenu,themeSurface(){}}:name==='./board-modal-viewport'?{bindBoardModalViewport:()=>()=>{}}:undefined,module,module.exports);
 const {MediaWorkspaceView} = module.exports as {MediaWorkspaceView:new(leaf:unknown,host:unknown)=>any};
 function fixture(drafts?:MediaDraftStore){
  const a=new TFile('media/A.mp4'),b=new TFile('media/B.mp3'),noteA=new TFile('notes/A.md'),noteB=new TFile('notes/B.md');
@@ -192,7 +195,7 @@ test('failed media shortcut save retains the exact snapshot and permits an expli
  const first=f.saves[0].data;f.setWrite(async()=>({note:f.noteA}));f.dispatch(f.event());await settled();assert.equal(f.saves.length,2);assert.deepEqual(f.saves[1].data,first);assert.equal(f.nativeEffects(),0);assert.equal(f.v.memory.draft,undefined);await f.v.onClose();
 });
 test('closing unregisters the media scope and retained native and DOM callbacks cannot save',async()=>{
- const f=await shortcutFixture(),handler=f.v.scope.handlers[0],input=f.v.input;await f.v.onOpen();assert.equal(f.v.scope.handlers.length,1);
+ const f=await shortcutFixture(),handler=f.v.scope.handlers[0],input=f.v.input;await f.v.onOpen();assert.deepEqual(f.v.scope.handlers.map((h:ShortcutHandler)=>h.key).sort(),['Enter','m']);
  await f.v.onClose();assert.equal(f.v.scope.handlers.length,0);const key=f.event();assert.equal(handler.func(key),undefined);input.onkeydown(key);await settled();assert.equal(f.saves.length,0);assert.equal(key.defaultPrevented,false);
  await f.v.onOpen();assert.equal(f.v.scope.handlers.length,0,'closed views do not reinstall shortcut ownership');
 });

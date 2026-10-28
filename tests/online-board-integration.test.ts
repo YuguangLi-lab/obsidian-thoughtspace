@@ -1,3 +1,5 @@
+import {mediaPreviewPath} from '../src/media-preview-source';
+import {canvasFramePosition} from '../src/media-canvas';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -15,19 +17,20 @@ function method(start:string){
  const tail=main.slice(at+start.length),next=/\n  (?:(?:private|public|protected|async|static)\s+)*(?:get\s+)?[A-Za-z_$][\w$]*\(/.exec(tail);
  assert.ok(next);return main.slice(at,at+start.length+next.index);
 }
+class TFile {constructor(public path:string){}}
 const source='https://www.bilibili.com/video/BV1xx411c7mD/?p=2';
 function fixture(){
  let sequence=0;const notices:string[]=[],saves:unknown[]=[],history=new History();
  const methods=['  private requireOwner(','  private async captureOnlineBoardMoment(','  async seekOnlineSource('].map(method).join('\n');
- const deps={parseOnlineSource,onlinePlayerUrl,mediaTime,mediaClock,foldCards,uid:()=>`generated-${++sequence}`,Notice:class{constructor(message:string){notices.push(message);}}};
+ const deps={mediaPreviewPath,canvasFramePosition,TFile,parseOnlineSource,onlinePlayerUrl,mediaTime,mediaClock,foldCards,uid:()=>`generated-${++sequence}`,Notice:class{constructor(message:string){notices.push(message);}}};
  const View=new Function(...Object.keys(deps),transformSync(`class View {${methods}};return View`,{loader:'ts'}).code)(...Object.values(deps));
  const node=webCard(source,'video',{x:100,y:200});
- const owner={board:{...emptyBoard(),version:3,nodes:[node]} as Board,file:{path:'Boards/course.thoughtspace'},blocked:false,refreshNativeEditing(){},change(run:(board:Board)=>void){const before=structuredClone(this.board);run(this.board);parseBoard(JSON.stringify(this.board));history.push(before);}};
+ const owner={board:{...emptyBoard(),version:3,nodes:[node]} as Board,file:{path:'Boards/course.thoughtspace'},blocked:false,flush:async()=>{},refreshNativeEditing(){},change(run:(board:Board)=>void){const before=structuredClone(this.board);run(this.board);parseBoard(JSON.stringify(this.board));history.push(before);}};
  const view=new View(),seeks:number[]=[],revealed:string[]=[];let renderCount=0;
  const note={path:'Notes/video.md'},moment={id:'capture-1',time:12.875,text:'',line:1};
  let save=async(_source:string,data:unknown)=>{saves.push(data);return {note,moment};};
  Object.assign(view,{session:owner,file:owner.file,closed:false,selected:new Set(),onlineBoardPlayers:new Map([['video',{seek:async(time:number)=>{seeks.push(time);}}]]),onlineBoardStates:new Map(),nodeKeys:new Map(),
-  app:{vault:{getName:()=> 'Vault'}},plugin:{settings:{defaultTextSize:18,defaultEdgeStyle:'curve',detailZoom:.5},saveOnlineBoardMoment:(path:string,data:unknown)=>save(path,data)},
+  app:{vault:{getName:()=> 'Vault',getAbstractFileByPath:(path:string)=>path==='Attachments/frame.png'?new TFile(path):undefined}},plugin:{settings:{defaultTextSize:18,defaultEdgeStyle:'curve',detailZoom:.5},saveOnlineBoardMoment:(path:string,data:unknown)=>save(path,data)},
   updateSelection(){},revealNode(id:string){revealed.push(id);},renderBoard(){renderCount++;}});
  return{view,owner,node,moment,note,saves,seeks,notices,history,revealed,setSave:(fn:typeof save)=>{save=fn;},renders:()=>renderCount};
 }
@@ -45,7 +48,7 @@ test('a screenshot uses the persisted attachment and retry never duplicates a bo
  f.setSave(async()=>({note:f.note,moment}));
  const draft={...f.moment,image:new Blob(['png'],{type:'image/png'})};
  await f.view.captureOnlineBoardMoment('video',source,draft,f.owner);await f.view.captureOnlineBoardMoment('video',source,draft,f.owner);
- assert.equal(f.owner.board.nodes.length,2);assert.equal(f.owner.board.edges.length,1);assert.match(f.owner.board.nodes[1].text!,/Attachments\/frame\.png/);
+ assert.equal(f.owner.board.nodes.length,3);assert.equal(f.owner.board.edges.length,1);assert.equal(f.owner.board.nodes[1].kind,'image');assert.equal(f.owner.board.nodes[1].file,'Attachments/frame.png');assert.match(f.owner.board.nodes[2].text!,/回看视频/);
 });
 test('new excerpts avoid existing cards in the adjacent column',async()=>{
  const f=fixture();f.owner.board.nodes.push({id:'existing',kind:'text',text:'keep',x:f.node.x+f.node.width+56,y:f.node.y,width:350,height:500,color:'blue'});

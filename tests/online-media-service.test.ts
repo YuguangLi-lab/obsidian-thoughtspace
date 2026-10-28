@@ -17,8 +17,11 @@ class TFile {
 type Moment={id:string;time:number;text:string;image?:Blob};
 type Result={note?:TFile;entries:(Moment&{line:number})[]};
 interface Service {notes(input:string,pinned?:string):Promise<Result>;save(input:string,data:Moment,pinned?:string):Promise<{note:TFile}>;dispose():void}
+const nativeNoteModule={exports:{}};
+new Function('require','module','exports',transformSync(readFileSync('src/native-note-state.ts','utf8'),{loader:'ts',format:'cjs'}).code)(()=>({MarkdownView:class{}}),nativeNoteModule,nativeNoteModule.exports);
 const compiled=transformSync(readFileSync('src/online-media-service.ts','utf8'),{loader:'ts',format:'cjs'}).code,module={exports:{}};
 new Function('require','module','exports',compiled)((name:string)=>{
+ if(name==='./native-note-state')return nativeNoteModule.exports;
  if(name==='obsidian')return{TFile};
  if(name==='./online-platform')return onlinePlatform;
  if(name==='./online-media-notes')return onlineNotes;
@@ -42,7 +45,7 @@ function fixture(runtimeVaultId:()=>string|undefined=()=>vaultId){
  const update=(file:TFile,raw:string)=>{texts.set(file,raw);file.stat.mtime++;file.stat.size=Buffer.byteLength(raw);};
  const rename=(file:TFile,path:string)=>{files.delete(file.path);file.path=path;files.set(path,file);};
  const binaries:{file:TFile;bytes:ArrayBuffer}[]=[];
- const app={fileManager:{getAvailablePathForAttachment:async(name:string)=>'attachments/'+name},vault:{
+ const app={workspace:{getLeavesOfType:()=>[]},fileManager:{getAvailablePathForAttachment:async(name:string)=>'attachments/'+name},vault:{
   createBinary:async(path:string,bytes:ArrayBuffer)=>{const file=new TFile(path,bytes.byteLength);files.set(path,file);binaries.push({file,bytes});return file;},
   getName:()=>vaultName,getMarkdownFiles:()=>[...files.values()].filter(file=>file.extension==='md'),getAbstractFileByPath:(path:string)=>files.get(path),
   read:async(file:TFile)=>{reads.push(file);const snapshot=texts.get(file);await controls.beforeRead?.(file);if(controls.readFailures.has(file))throw Error('read failed');if(snapshot===undefined)throw Error('missing contents');return snapshot;},

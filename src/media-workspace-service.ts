@@ -1,3 +1,4 @@
+import {settleNativeNoteBeforeAppend,assertNativeNoteUnchanged} from './native-note-state';
 import {App,FileSystemAdapter,TFile} from 'obsidian';
 import {desktopPathResolve,isDesktopRuntime} from './platform-runtime';
 import {sha256} from './portable-sha256';
@@ -72,7 +73,7 @@ export class MediaWorkspaceService {
    onState:state=>{if(alive()){this.playback.remember(identity,state,handle);hooks.state(state);}},onCapture:async time=>{await validateCapture();return hooks.capture(time);},onCaptureFrame:async(blob,time)=>{await validateCapture();return hooks.frame(blob,time);},onFrameCaptureState:hooks.frameCaptureState,
    onOpen:()=>{this.playback.pauseAll();return this.operations.openFile(file);},alive});
   const unregister=this.playback.register(identity,handle);
-  const wrapper:MediaCardHandle={getState:()=>handle.getState(),play:()=>{if(!closed)handle.play();},pause:()=>{if(!closed)handle.pause();},seek:time=>{if(!closed)handle.seek(time);},dispose:()=>{
+  const wrapper:MediaCardHandle={getState:()=>handle.getState(),play:()=>{if(!closed)handle.play();},pause:()=>{if(!closed)handle.pause();},pauseForNote:()=>{if(!closed)(handle.pauseForNote||handle.pause)();},seek:time=>{if(!closed)handle.seek(time);},dispose:()=>{
    if(closed)return;try{if(sourceAlive())this.playback.remember(identity,handle.getState(),handle);}finally{closed=true;try{handle.dispose();}finally{if(subtitleUrl){urlApi.revokeObjectURL(subtitleUrl);subtitleUrl=undefined;}unregister();this.mounted.delete(wrapper);}}
   }};this.mounted.add(wrapper);return wrapper;
  }
@@ -174,8 +175,8 @@ export class MediaWorkspaceService {
     image=encodedImage(attachment.image.path);
    }
    if(this.app.vault.getAbstractFileByPath(notePath)!==note)throw Error('记录笔记已移动或删除，草稿保留');
-   await verify();
-   await this.app.vault.process(note,current=>{ensure();if(reference)validateExternalMediaReferenceSync(reference);if(note.path!==notePath||this.app.vault.getAbstractFileByPath(notePath)!==note||!isWorkspaceFile(note)||!this.sourceMatches(mediaNoteSource(current),file))throw Error('记录笔记的媒体来源已变化，草稿保留');return appendMediaMoment(current,{id:snapshot.id,time:snapshot.time,text:snapshot.text,image},source);});
+   await verify();await settleNativeNoteBeforeAppend(this.app,note);await verify();
+   await this.app.vault.process(note,current=>{assertNativeNoteUnchanged(this.app,note,current);ensure();if(reference)validateExternalMediaReferenceSync(reference);if(note.path!==notePath||this.app.vault.getAbstractFileByPath(notePath)!==note||!isWorkspaceFile(note)||!this.sourceMatches(mediaNoteSource(current),file))throw Error('记录笔记的媒体来源已变化，草稿保留');return appendMediaMoment(current,{id:snapshot.id,time:snapshot.time,text:snapshot.text,image},source);});
    this.images.delete(snapshot.id);this.drafts.delete(snapshot.id);return {note};
   });this.noteQueues.set(file,task);void task.finally(()=>{if(this.noteQueues.get(file)===task)this.noteQueues.delete(file);}).catch(()=>undefined);return task;
  }

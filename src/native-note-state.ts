@@ -58,3 +58,8 @@ export async function writeNativeNoteDraft(app:App,file:TFile,expected:string,va
   return value;
  });
 }
+
+/** Explicit append operations settle existing native editors before writing. */
+export async function settleNativeNoteBeforeAppend(app:App,file:TFile):Promise<void>{
+ if(nativeViews(app,file).length)await readCurrentNativeNote(app,file);
+}

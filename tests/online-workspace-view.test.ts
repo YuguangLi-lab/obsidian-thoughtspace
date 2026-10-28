@@ -1,3 +1,4 @@
+import * as mediaStudyState from '../src/media-study-state';
 import test from 'node:test';
 import {OnlineDraftStore,type OnlineDraftStorage,type StoredOnlineDraft,type OnlineDraftStamp} from '../src/online-draft-store';
 import assert from 'node:assert/strict';
@@ -22,7 +23,7 @@ class ObjectURLs {
 }
 class Element {
  children:Element[]=[];parentElement?:Element;dataset:Record<string,string>={};attributes=new Map<string,string>();
- ownerDocument:{nodeType?:number;defaultView:{setTimeout:typeof setTimeout;clearTimeout:typeof clearTimeout;URL:ObjectURLs;Blob:typeof Blob;closed:boolean};activeElement?:Element}={defaultView:{setTimeout,clearTimeout,URL:new ObjectURLs(),Blob,closed:false}};
+ ownerDocument:{nodeType?:number;addEventListener:(...args:unknown[])=>void;removeEventListener:(...args:unknown[])=>void;defaultView:{setTimeout:typeof setTimeout;clearTimeout:typeof clearTimeout;URL:ObjectURLs;Blob:typeof Blob;closed:boolean};activeElement?:Element}={addEventListener(){},removeEventListener(){},defaultView:{setTimeout,clearTimeout,URL:new ObjectURLs(),Blob,closed:false}};
  connected=true;visible=true;
  get isConnected():boolean{return this.parentElement?this.parentElement.isConnected:this.connected;}
  getClientRects(){if(!this.isConnected||!this.visible)return[];if(realComposerLayout)for(let node:Element|undefined=this;node;node=node.parentElement){if(node.hidden)return[];const parent=node.parentElement;if(parent?.attributes.get('tag')==='details'&&!parent.open&&node.attributes.get('tag')!=='summary')return[];}return[{}];}
@@ -116,6 +117,7 @@ const errorsLogged:unknown[][]=[];
 const compiled=transformSync(readFileSync('src/online-workspace-view.ts','utf8'),{loader:'ts',format:'cjs'}).code;
 const module={exports:{}};
 new Function('require','module','exports','console',compiled)((name:string)=>{
+ if(name==='./media-study-state')return mediaStudyState;
  if(name==='obsidian')return{ItemView,Scope,TFile,Component,MarkdownRenderer,setIcon:()=>{},Notice:class{constructor(message:string){notices.push(message);}}};
  if(name==='./online-platform')return onlinePlatform;
  if(name==='./media-source')return mediaSource;
@@ -162,7 +164,7 @@ function fixture(){
   capture:(source:string)=>{captures.push(source);return capture(source);},
   send:async(source:string,time?:number,text?:string,image?:string)=>{sent.push({source,time,text,image});},openNote:async()=>{},
  };
- const app={scope:new Scope(),workspace:{activeLeaf:undefined as unknown,mostRecentLeaf:undefined as unknown,getMostRecentLeaf(){return this.mostRecentLeaf;},getActiveViewOfType(type:new(...args:any[])=>any){const view=(this.activeLeaf as {view?:unknown}|undefined)?.view;return view instanceof type?view:null;},requestSaveLayout:()=>{layoutSaves++;}}};
+ const app={scope:new Scope(),workspace:{activeLeaf:undefined as unknown,mostRecentLeaf:undefined as unknown,getMostRecentLeaf(){return this.mostRecentLeaf;},getActiveViewOfType(type:new(...args:any[])=>any){const view=(this.activeLeaf as {view?:unknown}|undefined)?.view;return view instanceof type?view:null;},setActiveLeaf(leaf:unknown){this.activeLeaf=leaf;},requestSaveLayout:()=>{layoutSaves++;}}};
  const view=()=>{const leaf:{app:typeof app;view?:unknown}={app};app.workspace.activeLeaf=leaf;app.workspace.mostRecentLeaf=leaf;const instance=new OnlineWorkspaceView(leaf,host);leaf.view=instance;return instance;};
  const publish=(state:OnlineState)=>{live=state;for(const fn of listeners)fn(state);};
  return{view,app,host,publish,noteA,noteB,saves,commands,opens,reads,adoptions,captures,sent,subscriptions,listeners,mounts,mountEvents,
@@ -228,7 +230,7 @@ test('online failed shortcut saves retain and retry the exact locked snapshot wi
  f.dispatch(f.event({repeat:true}));await settle();assert.equal(f.saves.length,1);f.dispatch(f.event());await settle();assert.equal(f.saves.length,2);assert.deepEqual(f.saves.map(save=>save.data),[snapshot,snapshot]);assert.equal(f.v.memory.draft,undefined);assert.equal(f.nativeEffects(),0);await f.v.onClose();
 });
 test('closing online view unregisters its scope and retained native or DOM callbacks cannot save',async()=>{
- const f=await shortcutFixture(),input=f.v.input,handler=f.v.scope.handlers[0];await f.v.onOpen();assert.equal(f.v.scope.handlers.length,1);await f.v.onClose();assert.equal(f.v.scope.handlers.length,0);
+ const f=await shortcutFixture(),input=f.v.input,handler=f.v.scope.handlers[0];await f.v.onOpen();assert.deepEqual(f.v.scope.handlers.map((h:ShortcutHandler)=>h.key).sort(),['Enter','m']);await f.v.onClose();assert.equal(f.v.scope.handlers.length,0);
  const key=f.event();assert.equal(handler.func(key),undefined);input.onkeydown(key);await settle();assert.equal(f.saves.length,0);assert.equal(key.defaultPrevented,false);await f.v.onOpen();assert.equal(f.v.scope.handlers.length,0);
 });
 test('old online DOM key callback cannot submit a newly selected source generation',async()=>{
@@ -915,4 +917,22 @@ for(const kind of ['invalid','duplicate','claim']as const)test(`current draft cl
  const storage=new OnlineStorageFixture(),row:StoredOnlineDraft={id:'blocked',source:youtube.path,note:'blocked.md',time:83,text:'original',mode:'manual',phase:'editing',version:1,key:JSON.stringify([youtube.path,'blocked.md']),revision:1,lease:'seed',updatedAt:1};
  if(kind==='invalid')storage.rows.set('future',{id:'future',version:9} as unknown as StoredOnlineDraft);else{storage.rows.set(row.id,row);if(kind==='duplicate')storage.rows.set('other',{...row,id:'other'});else storage.failWrite=true;}
  const f=await persistenceFixture(storage);assert.notEqual(f.drafts.error,'');storage.failWrite=false;f.drafts.stage({id:'current',source:youtube.path,note:'current.md',time:83,text:'current',mode:'manual',phase:'editing'});await f.drafts.flush('current');await f.drafts.discard('current');assert.notEqual(f.drafts.error,'','successful current cleanup cannot dismiss unreadable or blocked original records');assert.equal(storage.rows.has('current'),false);assert.equal(storage.rows.size,kind==='duplicate'?2:1);if(kind!=='invalid')assert.deepEqual(storage.rows.get(row.id),row);await f.drafts.dispose();
+});
+
+
+test('study pause is single-flight and cannot create a draft after a source change',async()=>{
+ const f=fixture(),v=await open(f);f.publish(synchronized(youtube));const gate=deferred<void>();f.host.command=async(source,action,value)=>{f.commands.push({source,action,value});await gate.promise;};
+ const first=v.studyRecord(),second=v.studyRecord();assert.equal(f.commands.length,1);await v.setState({source:biliOne.path});f.publish(synchronized(biliOne));gate.resolve();await Promise.all([first,second]);assert.equal(v.memory.draft,undefined);assert.equal(f.saves.length,0);assert.equal(f.commands.filter(x=>x.action==='toggle').length,0);await v.onClose();
+});
+test('study recording resumes only after acknowledged save; cancellation and failure stay paused',async()=>{
+ const f=fixture(),v=await open(f);f.publish(synchronized(youtube));f.host.command=async(source,action,value)=>{f.commands.push({source,action,value});if(action==='pause')f.publish({...synchronized(youtube),paused:true});};
+ await v.studyRecord();assert.ok(v.memory.draft);type(editor(v),'fictional video study');await v.saveDraft();assert.equal(f.saves.length,1);assert.equal(f.commands.filter(x=>x.action==='toggle').length,1);
+ f.publish(synchronized(youtube));await v.studyRecord();await v.cancelDraft();assert.equal(f.commands.filter(x=>x.action==='toggle').length,1);
+ f.publish(synchronized(youtube));await v.studyRecord();type(editor(v),'retained after failure');f.setWrite(async()=>{throw Error('test disk failure');});await v.saveDraft();assert.equal(v.memory.draft.text,'retained after failure');assert.equal(f.commands.filter(x=>x.action==='toggle').length,1);await v.onClose();
+});
+test('study pause rejection, seek, IME and close never resume or retarget a recording',async()=>{
+ const f=fixture(),v=await open(f);f.publish(synchronized(youtube));v.composing=true;await v.studyRecord();assert.equal(f.commands.length,0);v.composing=false;
+ f.host.command=async()=>{throw Error('pause not acknowledged');};await assert.rejects(v.studyRecord(),/pause not acknowledged/);assert.equal(v.memory.draft,undefined);
+ f.host.command=async(source,action,value)=>{f.commands.push({source,action,value});if(action==='pause')f.publish({...synchronized(youtube),paused:true});};await v.studyRecord();type(editor(v),'seek cancels resume');f.publish({...synchronized(youtube,24),paused:true});await v.saveDraft();assert.equal(f.commands.filter(x=>x.action==='toggle').length,0);
+ const gate=deferred<void>();f.publish(synchronized(youtube));f.host.command=async()=>{await gate.promise;};const pending=v.studyRecord();await v.onClose();gate.resolve();await pending;assert.equal(v.memory?.draft,undefined);
 });

@@ -28,6 +28,8 @@ class FileSystemAdapter {getBasePath(){return '/vaultroot';}}
 function deferred<T=void>(){let resolve!:(value:T)=>void,reject!:(error:unknown)=>void;const promise=new Promise<T>((a,b)=>{resolve=a;reject=b;});return{promise,resolve,reject};}
 const tick=()=>new Promise<void>(resolve=>setImmediate(resolve));
 const timers=new Map<number,()=>void>();let timerId=0;
+const nativeNoteModule={exports:{}};
+new Function('require','module','exports',transformSync(readFileSync('src/native-note-state.ts','utf8'),{loader:'ts',format:'cjs'}).code)(()=>({MarkdownView:class{}}),nativeNoteModule,nativeNoteModule.exports);
 const compiled=transformSync(readFileSync('src/media-workspace-service.ts','utf8'),{loader:'ts',format:'cjs'}).code,module={exports:{}},nodeRequire=createRequire(import.meta.url);
 const externalModule={exports:{}},runtimeModule={exports:{}};
 const desktopHost={TFile,FileSystemAdapter,Platform:{isDesktop:true,resourcePathPrefix:'app://runtime-id/'}};
@@ -42,6 +44,7 @@ new Function('require','module','exports',transformSync(readFileSync('src/extern
 const external=externalModule.exports as typeof import('../src/external-media');
 let mountPlayer:(_host:unknown,options:MediaCardOptions)=>unknown;
 new Function('require','module','exports','setTimeout','clearTimeout',compiled)((name:string)=>{
+ if(name==='./native-note-state')return nativeNoteModule.exports;
  if(name==='obsidian')return desktopHost;
  if(name==='./platform-runtime')return runtimeModule.exports;
  if(name==='./portable-sha256')return{sha256};
@@ -71,7 +74,7 @@ function fixture(){
   exists:async(path:string)=>storage.has(path),read:async(path:string)=>{await controls.beforeStateRead?.();return storage.get(path)!;},
   write:async(path:string,text:string)=>{counters.writes.push(text);await controls.beforeWrite?.(text);storage.set(path,text);},
  });
- const app={vault:{adapter,getName:()=> 'vault',getAbstractFileByPath:(path:string)=>files.get(path),getMarkdownFiles:()=>[...files.values()].filter(file=>file.extension==='md'),getResourcePath:(file:TFile)=>'app://'+file.path,
+ const app={workspace:{getLeavesOfType:()=>[]},vault:{adapter,getName:()=> 'vault',getAbstractFileByPath:(path:string)=>files.get(path),getMarkdownFiles:()=>[...files.values()].filter(file=>file.extension==='md'),getResourcePath:(file:TFile)=>'app://'+file.path,
   read:async(file:TFile)=>{counters.reads.push(file);await controls.beforeRead?.(file);if(!texts.has(file))throw Error('missing');return texts.get(file)!;},
   createBinary:async(path:string,bytes:ArrayBuffer)=>{if(files.has(path))throw Error('existing attachment');counters.binaries++;const file=new TFile(path,bytes.byteLength);files.set(path,file);return file;},
   process:async(note:TFile,change:(raw:string)=>string)=>{counters.processes++;await controls.beforeProcess?.(note);if(controls.processFailures>0){controls.processFailures--;throw Error('write failed');}update(note,change(texts.get(note)!));if(controls.throwAfterCommit>0){controls.throwAfterCommit--;throw Error('commit acknowledgement failed');}},
@@ -326,4 +329,10 @@ test('board references reject unsaved, missing, moved and mismatched note blocks
   if(state==='missing')f.files.delete(saved.note.path);if(state==='moved'){f.files.delete(saved.note.path);saved.note.path='moved.md';f.files.set(saved.note.path,saved.note);}if(state==='foreign')f.update(saved.note,f.texts.get(saved.note)!.replaceAll('media/A.mp4','media/B.mp4'));if(state==='anchor')f.update(saved.note,f.texts.get(saved.note)!.replace('^thoughtspace-media-stable-block',''));
   await assert.rejects(f.service.referenceMoment(f.source,request),state);assert.equal(f.counters.processes,before);
  }
+});
+
+test('service forwards note pause without releasing the underlying decoded frame',()=>{
+ const f=fixture();let paused=0,notePaused=0,disposed=0;
+ mountPlayer=()=>({getState:()=>state(12),play(){},seek(){},pause(){paused++;},pauseForNote(){notePaused++;},dispose(){disposed++;}});
+ const player=f.service.mount(f.host(),f.source,f.hooks());player.pauseForNote!();assert.equal(notePaused,1);assert.equal(paused,0);player.dispose();player.pauseForNote!();assert.equal(notePaused,1);assert.equal(disposed,1);
 });

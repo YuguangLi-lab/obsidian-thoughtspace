@@ -1,3 +1,5 @@
+import {canvasFramePosition} from '../src/media-canvas';
+import {readBoardDocument} from '../src/board-document';
 import {applyDefaultCardStyle} from '../src/card-style';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -32,6 +34,7 @@ class TFile {
  stat={mtime:1,size:100};parent={path:'Boards'};
  constructor(public path:string){}
  get basename(){return this.path.split('/').at(-1)!.replace(/\.[^.]+$/,'');}
+ get extension(){return this.path.split('.').at(-1)!;}
 }
 function deferred(){let resolve!:()=>void;const promise=new Promise<void>(done=>resolve=done);return{promise,resolve};}
 async function fixture(t:{after:(fn:()=>Promise<void>)=>void}){
@@ -40,28 +43,22 @@ async function fixture(t:{after:(fn:()=>Promise<void>)=>void}){
  const descriptor=await external.createExternalMediaReference(originalPath),file=new TFile('References/lesson.tsvideo');file.stat.size=Buffer.byteLength(descriptor.content);
  const files=new Map([[file.path,file]]),binaries:{path:string;bytes:ArrayBuffer}[]=[],notes:{file:TFile;body:string}[]=[],notices:string[]=[];
  const noteStarted=deferred(),noteGate=deferred();let changes=0,sequence=0;
- const node=mediaSource.mediaCard('source',file.path,200,200),owner={file:new TFile('Boards/board.thoughtspace'),blocked:false,refreshNativeEditing(){},board:{...emptyBoard(),version:3 as const,nodes:[node]} as Board,change(fn:(board:Board)=>void){changes++;fn(this.board);}};
- const deps={applyDefaultCardStyle,TFile,mediaTime:mediaSource.mediaTime,mediaClock:mediaSource.mediaClock,mediaSourceMarkdown:mediaSource.mediaSourceMarkdown,uid:()=>`new-${++sequence}`,Notice:class{constructor(text:string){notices.push(text);}}};
+ const node=mediaSource.mediaCard('source',file.path,200,200),owner={file:new TFile('Boards/board.thoughtspace'),blocked:false,refreshNativeEditing(){},board:{...emptyBoard(),version:3 as const,nodes:[node]} as Board,change(fn:(board:Board)=>void){changes++;fn(this.board);},async flush(){}};
+ const deps={applyDefaultCardStyle,canvasFramePosition,readBoardDocument,parseYaml:()=>({}),TFile,mediaTime:mediaSource.mediaTime,mediaClock:mediaSource.mediaClock,mediaSourceMarkdown:mediaSource.mediaSourceMarkdown,uid:()=>`new-${++sequence}`,Notice:class{constructor(text:string){notices.push(text);}}};
  const View=new Function(...Object.keys(deps),transformSync(`class View{${methods}};return View`,{loader:'ts'}).code)(...Object.values(deps));
- const app={vault:{getAbstractFileByPath:(path:string)=>files.get(path),getName:()=> 'test-vault',read:async()=>descriptor.content,createBinary:async(path:string,bytes:ArrayBuffer)=>{binaries.push({path,bytes});const image=new TFile(path);files.set(path,image);return image;}},fileManager:{getAvailablePathForAttachment:async()=> 'Attachments/frame.png',generateMarkdownLink:()=> '[frame](Attachments/frame.png)'}};
- const view=new View();Object.assign(view,{session:owner,closed:false,app,updateSelection:()=>{},plugin:{settings:{defaultEdgeStyle:'curve'},mediaWorkspace:{validateResource:async(source:TFile)=>{await external.resolveMediaResource(app as any,source as any);}},createUnique:async(_folder:string,_title:string,_ext:string,body:string)=>{
+ const app={vault:{getAbstractFileByPath:(path:string)=>files.get(path),getName:()=> 'test-vault',read:async(target:TFile)=>target===owner.file?JSON.stringify(owner.board):descriptor.content,readBinary:async(target:TFile)=>binaries.find(item=>item.path===target.path)!.bytes,createBinary:async(path:string,bytes:ArrayBuffer)=>{binaries.push({path,bytes});const image=new TFile(path);files.set(path,image);noteStarted.resolve();await noteGate.promise;return image;}},fileManager:{getAvailablePathForAttachment:async()=> 'Attachments/frame.png',generateMarkdownLink:()=> '[frame](Attachments/frame.png)'}};
+ const retained:{id:string;blob:Blob}[]=[],finished:string[]=[];const view=new View();Object.assign(view,{canvasFrameReceipts:new Map(),session:owner,closed:false,app,updateSelection:()=>{},plugin:{retainCanvasFrame:async(_file:TFile,id:string,blob:Blob)=>{retained.push({id,blob});},finishCanvasFrame:async(id:string)=>{finished.push(id);},settings:{defaultEdgeStyle:'curve'},mediaWorkspace:{validateResource:async(source:TFile)=>{await external.resolveMediaResource(app as any,source as any);}},createUnique:async(_folder:string,_title:string,_ext:string,body:string)=>{
   const note=new TFile('Boards/frame.md');notes.push({file:note,body});files.set(note.path,note);noteStarted.resolve();await noteGate.promise;return note;
  }}});
- const capture=()=>view.captureMediaFrame(node.id,new Blob(['PNG'],{type:'image/png'}),12.125,owner) as Promise<void>;
- return{view,owner,node,file,files,binaries,notes,notices,noteStarted,noteGate,originalPath,originalBytes,capture,get changes(){return changes;}};
+ const bytes=new Uint8Array(24),png=new DataView(bytes.buffer);png.setUint32(0,0x89504e47);png.setUint32(4,0x0d0a1a0a);png.setUint32(12,0x49484452);png.setUint32(16,16);png.setUint32(20,9);const blob=new Blob([bytes],{type:'image/png'}),capture=()=>view.captureMediaFrame(node.id,blob,12.125,owner) as Promise<void>;
+ return{view,owner,node,file,files,binaries,notes,notices,noteStarted,noteGate,retained,finished,originalPath,originalBytes,capture,get changes(){return changes;}};
 }
 
-test('external screenshot inserts a note card with exact timestamp and only copies the PNG attachment',async t=>{
- const f=await fixture(t);f.noteGate.resolve();await f.capture();
- assert.equal(f.changes,1);assert.equal(f.binaries.length,1);assert.equal(f.binaries[0].bytes.byteLength,3);assert.equal(f.notes.length,1);
- assert.equal(f.owner.board.nodes.filter(node=>node.kind==='card').length,1);assert.equal(f.owner.board.edges[0].from,f.node.id);assert.equal(f.owner.board.edges[0].label,'0:12');
- const match=/\]\((obsidian:\/\/thoughtspace-media[^)]+)\)/.exec(f.notes[0].body);assert.ok(match);
- assert.deepEqual(mediaSource.parseMediaSourceUrl(match[1]),{vault:'test-vault',board:f.owner.file.path,node:f.node.id,file:f.file.path,time:12.125});
- assert.equal(await readFile(f.originalPath,'utf8'),f.originalBytes);assert.ok(!f.notes[0].body.includes(f.originalPath));
+test('external screenshot inserts a direct image and time source, while preserving the original media',async t=>{
+ const f=await fixture(t);f.noteGate.resolve();await f.capture();assert.equal(f.changes,1);assert.equal(f.binaries.length,1);assert.equal(f.binaries[0].bytes.byteLength,24);assert.equal(f.notes.length,0);assert.equal(f.owner.board.nodes.filter(node=>node.kind==='image').length,1);assert.equal(f.owner.board.edges[0].from,f.node.id);assert.equal(f.owner.board.edges[0].label,'0:12');const caption=f.owner.board.nodes.find(node=>node.kind==='text')!.text!,match=/\]\((obsidian:\/\/thoughtspace-media[^)]+)\)/.exec(caption);assert.ok(match);assert.deepEqual(mediaSource.parseMediaSourceUrl(match[1]),{vault:'test-vault',board:f.owner.file.path,node:f.node.id,file:f.file.path,time:12.125});assert.equal(await readFile(f.originalPath,'utf8'),f.originalBytes);assert.ok(!caption.includes(f.originalPath));assert.equal(f.retained.length,1);assert.equal(f.finished.length,1);
 });
-
-for(const mutation of ['external media','reference modified','reference deleted','reference replaced','board switched','board closed','board blocked'] as const)test(`${mutation} during note creation preserves PNG and Markdown without inserting a stale card`,async t=>{
- const f=await fixture(t),pending=f.capture();await f.noteStarted.promise;
+for(const mutation of ['external media','reference modified','reference deleted','reference replaced','board switched','board closed','board blocked'] as const)test(`${mutation} during screenshot write preserves PNG and recovery draft without inserting stale objects`,async t=>{
+ const f=await fixture(t),pending=f.capture();const rejected=assert.rejects(pending);await f.noteStarted.promise;
  if(mutation==='external media')await writeFile(f.originalPath,'Changed external video');
  if(mutation==='reference modified')f.file.stat.mtime++;
  if(mutation==='reference deleted')f.files.delete(f.file.path);
@@ -69,8 +66,8 @@ for(const mutation of ['external media','reference modified','reference deleted'
  if(mutation==='board switched')f.view.session={...f.owner,board:emptyBoard()};
  if(mutation==='board closed')f.view.closed=true;
  if(mutation==='board blocked')f.owner.blocked=true;
- f.noteGate.resolve();await pending;
- assert.equal(f.changes,0);assert.equal(f.owner.board.nodes.length,1);assert.equal(f.owner.board.edges.length,0);
- assert.equal(f.binaries.length,1);assert.equal(f.notes.length,1);assert.ok(f.files.has('Attachments/frame.png'));assert.ok(f.files.has('Boards/frame.md'));
- assert.match(f.notices.join('\n'),/截图笔记已保留.*未插入卡片/);assert.ok(!f.notices.some(text=>text.includes('视频截图已保存为')));
+ f.noteGate.resolve();await rejected;assert.equal(f.changes,0);assert.equal(f.owner.board.nodes.length,1);assert.equal(f.owner.board.edges.length,0);assert.equal(f.binaries.length,1);assert.equal(f.notes.length,0);assert.ok(f.files.has('Attachments/frame.png'));assert.equal(f.retained.length,1);assert.equal(f.finished.length,0);
+});
+test('retry after a layout write failure reuses its image and object identities',async t=>{
+ const f=await fixture(t);f.noteGate.resolve();let failed=true;f.owner.flush=async()=>{if(failed)throw Error('disk unavailable');};await assert.rejects(f.capture(),/disk unavailable/);const ids=f.owner.board.nodes.map(node=>node.id);failed=false;await f.capture();assert.equal(f.binaries.length,1);assert.equal(f.changes,1);assert.deepEqual(f.owner.board.nodes.map(node=>node.id),ids);assert.equal(f.finished.length,1);
 });

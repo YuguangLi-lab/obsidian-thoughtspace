@@ -1,3 +1,4 @@
+import {beginCardInsertDrag,acceptsCardInsert,dropCardIntoDraft,draftDropPosition} from './card-insert';
 import {makeWritingSourceCheck,appendWritingSourceChecks,writingSourceBodyStart,type WritingSourceCheck} from './writing-source-check';
 import {WritingSourceCheckModal} from './writing-source-check-view';
 import {applyWorkspaceDensity} from './workspace-density';
@@ -208,9 +209,9 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   this.outline.ondragover=e=>{if(this.dragged)e.preventDefault();};
   this.outline.ondrop=e=>{if(!this.dragged)return;e.preventDefault();const id=this.dragged;this.dragged=undefined;this.add(id,writingOrder(this.ensure().board).length);};
   this.manuscriptHost=scroll.createDiv('ts-writing-manuscript');
-  this.manuscriptHost.addEventListener('dragover',event=>{if(this.dragged){event.preventDefault();this.manuscriptHost.addClass('is-material-drop');}});
+  this.manuscriptHost.addEventListener('dragover',event=>{if(this.dragged||acceptsCardInsert(this.app,event)){event.preventDefault();this.manuscriptHost.addClass('is-material-drop');}});
   this.manuscriptHost.addEventListener('dragleave',()=>this.manuscriptHost.removeClass('is-material-drop'));
-  this.manuscriptHost.addEventListener('drop',event=>{if(!this.dragged)return;event.preventDefault();event.stopPropagation();const id=this.dragged;this.dragged=undefined;this.manuscriptHost.removeClass('is-material-drop');this.add(id,writingOrder(this.ensure().board).length,true);},true);
+  this.manuscriptHost.addEventListener('drop',event=>{if(acceptsCardInsert(this.app,event)&&this.manuscriptInput){const input=this.manuscriptInput,owner=this.owner;this.dragged=undefined;dropCardIntoDraft(this.app,event,input,'ThoughtSpace/草稿/草稿.md',this.manuscriptHost,()=>!this.closed&&this.owner===owner&&this.manuscriptInput===input&&!this.composing&&!!owner&&!owner.blocked,draftDropPosition(input,event.clientX,event.clientY));return;}if(!this.dragged)return;event.preventDefault();event.stopPropagation();const id=this.dragged;this.dragged=undefined;this.manuscriptHost.removeClass('is-material-drop');this.add(id,writingOrder(this.ensure().board).length,true);},true);
   this.paper=scroll.createDiv('ts-writing-paper markdown-rendered');this.outline.hidden=this.mode!=='outline';this.paper.hidden=this.mode!=='preview';this.manuscriptHost.hidden=this.mode!=='write';this.contentEl.dataset.writingMode=this.mode;
   this.status=middle.createDiv({cls:'ts-writing-status',attr:{role:'status','aria-live':'polite','aria-atomic':'true'}});
   this.bindWritingChrome(mode);
@@ -345,7 +346,7 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
  private option(id:string,patch:Partial<WritingOption>){this.update(s=>{s.options={...s.options,[id]:{...s.options?.[id],...patch}};});}
  private dragRow(el:HTMLElement,id:string,index?:number){
   el.draggable=true;
-  el.ondragstart=e=>{if((e.target as HTMLElement).closest('input,textarea,select')){e.preventDefault();return;}this.dragged=id;if(index===undefined&&this.mode==='preview')this.setArticleMode('outline');e.dataTransfer?.setData('text/x-thoughtspace-writing',id);if(e.dataTransfer)e.dataTransfer.effectAllowed='copyMove';el.addClass('is-dragging');};
+  el.ondragstart=e=>{if((e.target as HTMLElement).closest('input,textarea,select')){e.preventDefault();return;}this.dragged=id;const node=writingItems(this.ensure().board).find(n=>n.id===id),file=node?.file&&this.app.vault.getAbstractFileByPath(node.file);if(file instanceof TFile)beginCardInsertDrag(this.app,e,file);if(index===undefined&&this.mode==='preview')this.setArticleMode('outline');e.dataTransfer?.setData('text/x-thoughtspace-writing',id);if(e.dataTransfer)e.dataTransfer.effectAllowed='copyMove';el.addClass('is-dragging');};
   el.ondragend=()=>{this.dragged=undefined;el.removeClass('is-dragging');this.outline.querySelectorAll('.is-drop-before,.is-drop-after').forEach(e=>e.removeClass('is-drop-before','is-drop-after'));};
   if(index===undefined)return;
   el.ondragover=e=>{if(!this.dragged)return;e.preventDefault();e.stopPropagation();const after=e.clientY>el.getBoundingClientRect().top+el.getBoundingClientRect().height/2;el.toggleClass('is-drop-before',!after);el.toggleClass('is-drop-after',after);};

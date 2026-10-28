@@ -46,6 +46,7 @@
 | 插入笔记、PDF、图片，编辑卡片与分组 | [白板对象](docs/USER-GUIDE.zh-CN.md#objects) |
 | 理清主题与关系，折叠或展开阅读 | [思维导图与独立脑图](docs/USER-GUIDE.zh-CN.md#mind-maps) |
 | 读原文、做摘录、找待读材料 | [阅读与来源](docs/USER-GUIDE.zh-CN.md#reading) · [搜索与材料清单](docs/USER-GUIDE.zh-CN.md#search) |
+| 在资料库鸟瞰资料、组合筛选并保存动态卡片盒 | [资料库与卡片盒](docs/LIBRARY-CARDBOXES.zh-CN.md) |
 | 看音视频，截图，点击时间戳回到来源 | [音视频](docs/USER-GUIDE.zh-CN.md#audio-video) |
 | 编排结构、固定参考、生成草稿 | [白板写作](docs/USER-GUIDE.zh-CN.md#writing) |
 | 找命令、设置快捷键或解决保存问题 | [操作设置](docs/USER-GUIDE.zh-CN.md#controls) · [常见问题](docs/USER-GUIDE.zh-CN.md#troubleshooting) |

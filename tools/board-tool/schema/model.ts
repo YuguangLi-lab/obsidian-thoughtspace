@@ -1,3 +1,4 @@
+import {validPdfExcerpt,type PdfExcerptOrigin} from './pdf-excerpt-origin';
 import {validBrainReadingPositions} from './brain-reading-positions';
 import {assertInkData,type InkData} from './ink-model';
 import {cleanBoardBackground,type BoardBackground} from './board-background';
@@ -18,7 +19,7 @@ import {yingjianNotePath} from './yingjian';
 import {validSavedSearches,type SavedSearch} from './saved-searches';
 import {isBoardPath} from './board-path';
 /** Capture provenance survives independent text/image editing and safe note renames. */
-export interface Card { brainIdea?:true; mindmap?:BoardMindmapState;paragraphQuote?:ParagraphOrigin; pdfQuote?:PdfQuoteOrigin; videoCapture?:{id:string;note:string}; sectionFolded?:boolean; sectionDivider?:'none'|'solid'|'dashed'|'dotted'; cardStyle?:'band'|'paper'|'index'|'sticky' }
+export interface Card { pdfExcerpt?:PdfExcerptOrigin;brainIdea?:true; mindmap?:BoardMindmapState;paragraphQuote?:ParagraphOrigin; pdfQuote?:PdfQuoteOrigin; videoCapture?:{id:string;note:string}; sectionFolded?:boolean; sectionDivider?:'none'|'solid'|'dashed'|'dotted'; cardStyle?:'band'|'paper'|'index'|'sticky' }
 export interface Board {background?:BoardBackground;readingLayout?:ReadingLayoutCheckpoint;relationGeometry?:RelationGeometryCheckpoint;savedSearches?:SavedSearch[]}
 /** Dedicated relation boards keep their view state separate from ordinary card geometry. */
 export interface Board {presentation?:'brain'|'handwriting';ink?:InkData;brain?:BoardMindmapState;brainViewport?:{x:number;y:number;zoom:number};brainColors?:BrainColors}
@@ -79,6 +80,7 @@ function assertBoardData(b:unknown):asserts b is Board {
     if(n.textMaxWidth!==undefined&&(n.kind!=='text'||!isFiniteNumber(n.textMaxWidth)||n.textMaxWidth<160||n.textMaxWidth>720))throw Error('主题换行宽度无效');
     if(n.mediaStart!==undefined&&(!isOneOf(n.kind,['audio','video'])||!validMediaTime(n.mediaStart)))throw Error('媒体起始时间无效');
     if(n.pdfPage!==undefined&&(n.kind!=='pdf'||!isFiniteNumber(n.pdfPage)||!Number.isSafeInteger(n.pdfPage)||n.pdfPage<1))throw Error('PDF 页码无效');
+    if(n.pdfExcerpt!==undefined&&(n.kind!=='text'||!validPdfExcerpt(n.pdfExcerpt)))throw Error('PDF 摘录定位数据无效');
     if(n.paragraphQuote!==undefined&&(n.kind!=='text'||!validParagraphOrigin(n.paragraphQuote)))throw Error('段落来源无效');
     if(n.pdfQuote!==undefined&&(n.kind!=='text'||!isRecord(n.pdfQuote)||typeof n.pdfQuote.original!=='string'||n.pdfQuote.original.length>100000||typeof n.pdfQuote.sourcePath!=='string'||n.pdfQuote.sourcePath.length>2048||hasAsciiControl(n.pdfQuote.sourcePath)))throw Error('PDF 引用原文无效');
     if(n.webUrl!==undefined&&(n.kind!=='text'||!webUrl(n.webUrl)))throw Error('网页链接无效');

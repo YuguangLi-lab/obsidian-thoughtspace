@@ -171,3 +171,19 @@
  .ts-media-workspace .ts-media-workspace__panel-switcher>.ts-media-workspace__action>span:first-child{display:none}
  .ts-media-workspace .ts-media-workspace__panel-count{min-width:0;max-width:100%;overflow-wrap:anywhere}
 }
+
+/* Paired study pages always expose their video. The legacy phone switcher
+   applies only to the self-contained timeline layout. */
+.ts-media-workspace.is-study-paired .ts-media-workspace__layout{display:flex!important;flex-direction:column;overflow:auto;}
+.ts-media-workspace.is-study-paired[data-focus-player] .ts-media-workspace__layout>.ts-media-workspace__main{display:flex!important;flex:1 0 240px;min-height:220px!important;max-height:none;height:auto;}
+.ts-media-workspace.is-study-paired[data-focus-player] :is(.ts-media-workspace__desk,.ts-media-workspace__panel-switcher,.ts-media-workspace__positions){display:none!important;}
+.ts-media-workspace.is-study-paired[data-study-draft=false][data-focus-player] .ts-media-workspace__layout>.ts-media-workspace__composer{display:none!important;}
+.ts-media-workspace.is-study-paired[data-study-draft=true][data-focus-player] .ts-media-workspace__layout>.ts-media-workspace__composer{display:flex!important;flex:1 0 180px;min-height:180px!important;max-height:none;}
+.ts-online-workspace.is-study-paired[data-panel] .ts-online-workspace__player{display:flex!important;flex:1 0 160px;min-height:160px;}
+.ts-online-workspace.is-study-paired[data-panel] :is(.ts-online-workspace__records,.ts-online-workspace__panel-switcher){display:none!important;}
+.ts-online-workspace.is-study-paired[data-study-draft=false][data-panel] .ts-online-workspace__composer{display:none!important;}
+.ts-online-workspace.is-study-paired[data-study-draft=true][data-panel] .ts-online-workspace__composer{display:flex!important;flex:1 0 180px;min-height:180px;max-height:none;}
+
+.ts-media-workspace.is-study-paired .ts-media-workspace__header{display:flex;flex-wrap:wrap;min-height:44px;padding:6px 10px;gap:4px 8px;}
+.ts-media-workspace.is-study-paired :is(.ts-media-workspace__eyebrow,.ts-media-workspace__mark){display:none;}
+.ts-media-workspace.is-study-paired .ts-media-workspace__names{display:flex;min-width:0;}

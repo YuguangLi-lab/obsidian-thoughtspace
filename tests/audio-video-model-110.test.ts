@@ -12,7 +12,7 @@ test('native audio/video cards round-trip all supported extensions only in versi
  const audio=['mp3','m4a','wav','ogg','oga','flac','aac','opus'],video=['mp4','webm','mov','m4v','ogv'];
  for(const extension of [...audio,...video]){
   const kind=audio.includes(extension)?'audio':'video',path=`音视频/片段 #[一] 100%2F.${extension.toUpperCase()}`,n=mediaCard('media',path,120,180,320,12.5);
-  assert.equal(n.kind,kind);assert.equal(mediaKind(path),kind);assert.equal(n.width,320);assert.equal(n.height,kind==='video'?252:140);assert.equal(n.x,-40);assert.equal(n.mediaStart,12.5);
+  assert.equal(n.kind,kind);assert.equal(mediaKind(path),kind);assert.equal(n.width,320);assert.equal(n.height,kind==='video'?180:140);assert.equal(n.x,-40);assert.equal(n.mediaStart,12.5);
   b.nodes=[n];assert.deepEqual(parseBoard(JSON.stringify(b)),b);
   for(const version of [1,2])assert.throws(()=>parseBoard(JSON.stringify({...b,version})));
  }

@@ -1,0 +1,8 @@
+import {isRecord,hasAsciiControl} from './value-guards';
+export const pdfExcerptColors=['purple','sand','green','blue','rose'] as const;
+export type PdfExcerptColor=typeof pdfExcerptColors[number];
+export interface PdfExcerptOrigin {version:1;path:string;ctime:number;mtime:number;size:number;page:number;endPage:number;quote:string;color:PdfExcerptColor;anchor?:{hash:string;from:number;to:number;prefix:string;suffix:string}}
+export function validPdfExcerpt(value:unknown):value is PdfExcerptOrigin{
+ if(!isRecord(value)||value.version!==1||typeof value.path!=='string'||value.path.length>2048||!value.path.toLowerCase().endsWith('.pdf')||value.path.startsWith('/')||value.path.includes('\\')||value.path.split('/').some(p=>!p||p==='.'||p==='..')||hasAsciiControl(value.path)||typeof value.ctime!=='number'||!Number.isFinite(value.ctime)||value.ctime<0||typeof value.mtime!=='number'||!Number.isFinite(value.mtime)||value.mtime<0||typeof value.size!=='number'||!Number.isSafeInteger(value.size)||value.size<0||!Number.isSafeInteger(value.page)||Number(value.page)<1||!Number.isSafeInteger(value.endPage)||Number(value.endPage)<Number(value.page)||typeof value.quote!=='string'||!value.quote.trim()||value.quote.length>100000||!pdfExcerptColors.includes(value.color as PdfExcerptColor))return false;
+ const a=value.anchor;return a===undefined||isRecord(a)&&value.page===value.endPage&&typeof a.hash==='string'&&/^[a-f0-9]{64}$/.test(a.hash)&&Number.isSafeInteger(a.from)&&Number(a.from)>=0&&Number.isSafeInteger(a.to)&&Number(a.to)>Number(a.from)&&Number(a.to)<=2000000&&Number(a.to)-Number(a.from)===value.quote.length&&typeof a.prefix==='string'&&a.prefix.length<=80&&typeof a.suffix==='string'&&a.suffix.length<=80;
+}

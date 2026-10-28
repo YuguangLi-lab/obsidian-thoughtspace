@@ -1,3 +1,4 @@
+import {settleNativeNoteBeforeAppend,assertNativeNoteUnchanged} from './native-note-state';
 import {TFile,type App} from 'obsidian';
 import {parseOnlineSource} from './online-platform';
 import {onlineNoteSource,onlineNoteDocument,appendOnlineMoment,readOnlineMoments} from './online-media-notes';
@@ -90,7 +91,9 @@ export class OnlineMediaService {
    }
    const target=note,path=target.path;
    if(!this.alive(target))throw Error('在线视频笔记已变化');
+   await settleNativeNoteBeforeAppend(this.app,target);
    await this.app.vault.process(target,raw=>{
+    assertNativeNoteUnchanged(this.app,target,raw);
     if(!this.alive(target)||target.path!==path)throw Error('在线视频笔记已移动或删除');
     return appendOnlineMoment(raw,moment,source.path,this.app.vault.getName(),path);
    });

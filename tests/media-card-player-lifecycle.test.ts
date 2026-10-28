@@ -154,7 +154,7 @@ class FakeDocument extends Events {
   fullscreenExits = 0; pipExits = 0;
   exitFullscreen = async () => { this.fullscreenExits++; this.fullscreenElement = undefined; this.emit('fullscreenchange'); };
   exitPictureInPicture = async () => { this.pipExits++; const previous = this.pictureInPictureElement; this.pictureInPictureElement = undefined; previous?.emit('leavepictureinpicture'); };
-  defaultView = { IntersectionObserver: class extends FakeObserver {
+  defaultView = { setTimeout,clearTimeout,IntersectionObserver: class extends FakeObserver {
     constructor(callback: ConstructorParameters<typeof FakeObserver>[0]) { super(callback); activeDocument.observers.push(this); }
   } };
   createElement(tagName: string) {
@@ -186,6 +186,12 @@ function fixture(extra: Partial<MediaCardOptions> = {}) {
     setLive: (value: boolean) => { live = value; }, stats: () => ({ resolutions, opens }) };
 }
 const tick = () => new Promise<void>(resolve => setImmediate(resolve));
+test('note pause retains its decoded frame while ordinary pause releases the source',()=>{
+ const f=fixture(),media=f.play();media.metadata();media.frame();media.currentTime=12.5;const src=media.src,loads=media.loadCalls;f.handle.pauseForNote!();assert.equal(media.paused,true);assert.equal(media.src,src);assert.equal(media.loadCalls,loads);assert.equal(f.handle.getState().time,12.5);f.handle.pause();assert.equal(media.src,'');f.handle.dispose();
+});
+test('canvas screenshot keeps playback running and retries the exact failed frame',async()=>{
+ let fail=true;const saved:{blob:Blob;time:number}[]=[],f=fixture({controls:'canvas',onCaptureFrame:(blob,time)=>{saved.push({blob,time});if(fail)throw Error('write failed');}}),media=f.play();media.metadata();media.frame();media.currentTime=8.5;f.click('截取画面');await tick();assert.equal(media.paused,false);assert.equal(saved.length,1);fail=false;media.currentTime=10;f.click('重试保存截图');await tick();assert.equal(saved.length,2);assert.equal(saved[0].blob,saved[1].blob);assert.equal(saved[1].time,8.5);assert.equal(media.paused,false);f.handle.dispose();
+});
 function deferred() { let resolve!: () => void, reject!: (reason: unknown) => void; const promise = new Promise<void>((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; }
 function deferredSource() { let resolve!: (source: string) => void, reject!: (reason: unknown) => void; const promise = new Promise<string>((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; }
 function timeRequests() {

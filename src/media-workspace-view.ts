@@ -1,3 +1,5 @@
+import {cleanMediaStudy,newMediaStudy,canResumeMedia,mediaRecordKey,type MediaStudyState,type MediaImportSelection,type MediaResumeTicket} from './media-study-state';
+import type {MediaStudyHost} from './media-study-workspace';
 import {applyWorkspaceDensity} from './workspace-density';
 import {bindMobileViewport} from './mobile-viewport';
 import {bindBoardModalViewport} from './board-modal-viewport';
@@ -13,21 +15,22 @@ import {isVaultMediaPath,mediaClock,mediaKind,validMediaTime} from './media-sour
 export const MEDIA_WORKSPACE='thoughtspace-media-player';
 export type MediaPlacement='tab'|'sidebar'|'window';
 export interface MediaWorkspaceHost {
+ study?:MediaStudyHost;
  density?():string;
  accent?():string;
  drafts?:MediaDraftStore;
  recoverDrafts?():void;
  open(file:TFile|undefined,placement:MediaPlacement,time?:number):Promise<unknown>;
- pick(done:(file:TFile)=>void):void;
+ pick(done:(file:TFile)=>unknown):void;
  pickExternal?(done:(file:TFile)=>unknown):void;
  pickOnline?(placement:MediaPlacement):void;
  mount(host:HTMLElement,file:TFile,hooks:{initialState?:MediaCardState;state:(state:MediaCardState)=>void;capture:(time:number)=>Promise<unknown>;frame:(blob:Blob,time:number)=>Promise<unknown>;frameCaptureState?:(busy:boolean,time:number)=>void}):MediaCardHandle;
  moments(file:TFile):Promise<{note?:TFile;entries:MediaMoment[];warnings?:string[]}>;
  saveMoment(file:TFile,data:{id:string;time:number;text:string;image?:Blob;source?:MediaIdentity}):Promise<{note:TFile}>;
  openNote(file:TFile):Promise<unknown>;
- sendToBoard(file:TFile,moment?:MediaMoment):Promise<unknown>;
+ sendToBoard(file:TFile,moment?:MediaMoment,board?:string):Promise<unknown>;
 }
-export interface MediaWorkspaceState extends Record<string,unknown>{file?:string;time?:number;placement?:MediaPlacement;playback?:MediaCardState;focusPlayer?:boolean;recordPanel?:RecordPanel;compactPlayer?:boolean;viewerRatio?:number;recordDensity?:RecordDensity;composerRatio?:number}
+export interface MediaWorkspaceState extends Record<string,unknown>{study?:MediaStudyState;file?:string;time?:number;placement?:MediaPlacement;playback?:MediaCardState;focusPlayer?:boolean;recordPanel?:RecordPanel;compactPlayer?:boolean;viewerRatio?:number;recordDensity?:RecordDensity;composerRatio?:number}
 type Draft=MediaDraft;
 type WorkspaceMoment=MediaMoment & {key?:string;notePath?:string};
 type RecordPanel='player'|'compose'|'timeline';
@@ -56,6 +59,9 @@ const matchesSource=(file:TFile,source:MediaIdentity|undefined)=>!!source&&file.
 const compositionKey=(event:{isComposing:boolean;keyCode?:number})=>event.isComposing||event.keyCode===229;
 const broadcast=(memory:Memory,refresh=false)=>{for(const notify of memory.listeners)notify(refresh);};
 export class MediaWorkspaceView extends ItemView {
+ study=newMediaStudy();
+ private resumeAfterSave?:MediaResumeTicket;
+ private recordHotkey?:KeymapEventHandler;
  private file?:TFile;
  private note?:TFile;
  private placement:MediaPlacement='tab';
@@ -127,6 +133,14 @@ export class MediaWorkspaceView extends ItemView {
  private stopViewport?:()=>void;
  private submitHotkey?:KeymapEventHandler;
 
+ async configureStudy(selection:MediaImportSelection){this.study={...this.study,enabled:true,id:this.study.id||crypto.randomUUID(),title:selection.title,board:selection.board};this.studyChanged();await this.host.study?.show(this,'notes');}
+ studyCurrent(){return !this.closed&&!!this.file&&this.leaf.view===this&&this.app.vault.getAbstractFileByPath(this.file.path)===this.file&&matchesSource(this.file,this.sourceIdentity);}
+ studyNote(){return this.note;}
+ studyChanged(){this.contentEl.toggleClass('is-study-paired',this.study.enabled);this.renderTitle();const destination=this.contentEl.querySelector<HTMLElement>('[data-study-target]');if(destination)destination.textContent=this.study.board||'尚未选择白板';this.contentEl.querySelectorAll<HTMLElement>('[data-study-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.studyMode===this.study.mode)));this.app.workspace.requestSaveLayout();}
+ private studyControls(root:HTMLElement){if(!this.host.study||!this.file)return;const bar=root.createDiv('ts-media-study-tools');for(const [mode,label]of [['notes','笔记'],['board','白板']]as const){const b=this.action(bar,label,mode==='notes'?'notebook-pen':'panels-top-left',async()=>{this.study.enabled=true;this.study.id ||=crypto.randomUUID();await this.host.study!.show(this,mode);});b.dataset.studyMode=mode;b.setAttribute('aria-pressed',String(this.study.enabled&&this.study.mode===mode));}this.action(bar,'暂停并记下 · M','bookmark-plus',()=>this.studyRecord()).addClass('mod-cta');const more=bar.createEl('details');more.createEl('summary',{text:'更多'});const panel=more.createDiv('ts-media-study-more');const destination=panel.createEl('p',{attr:{'data-study-target':''},text:this.study.board||'尚未选择白板'});destination.title='发送目标';this.action(panel,'发送末条摘录','arrow-up-right',async()=>{const source=this.file,generation=this.generation,pair=this.study.id;if(!source)return;const current=()=>this.studyCurrent()&&this.file===source&&this.generation===generation&&this.study.id===pair&&this.app.workspace.getActiveViewOfType(MediaWorkspaceView)===this;if(!this.study.board){await this.host.study!.show(this,'board');this.message('目标已选择，请核对后再次点击发送。');return;}await this.host.study!.show(this,'board');if(!current())return;await this.refreshMoments();if(!current())return;const entry=this.entries.at(-1);if(this.file&&entry)await this.host.sendToBoard(this.file,entry,this.study.board);});const ratio=panel.createEl('input',{type:'range',attr:{min:'38',max:'70','aria-label':'视频与内容比例'}});ratio.value=String(this.study.ratio);ratio.oninput=()=>this.host.study?.ratio(this,Number(ratio.value));}
+ private recordKey(event:KeyboardEvent){if(this.closed||!this.opened)return false;const target=this.contentEl.ownerDocument.activeElement;if(this.app.workspace.getActiveViewOfType(MediaWorkspaceView)!==this||target&&target!==this.contentEl.ownerDocument.body&&!this.contentEl.contains(target)||!mediaRecordKey(event,!!target?.closest('input,textarea,select,button,a,[contenteditable],video,audio')))return false;event.preventDefault();event.stopPropagation();void this.studyRecord().catch(e=>this.message(String(e)));return true;}
+ async studyRecord(){const file=this.file,memory=this.memory;if(!file||!memory||!this.studyCurrent()||memory.draft||memory.pending||memory.capturePending||this.composing)return;const state=this.currentPlayback(),playing=this.contentEl.querySelector<HTMLMediaElement>('video,audio')?.paused===false;if(this.player?.pauseForNote)this.player.pauseForNote();else this.player?.pause();const draft=this.beginDraft(state.time);this.resumeAfterSave=playing?{source:file.path,draft:draft.id,generation:this.generation,time:state.time}:undefined;this.stashDraft();this.setRecordPanel('compose');broadcast(memory);this.app.workspace.setActiveLeaf(this.leaf,{focus:true});this.input?.focus();}
+
  getRecoveryCenterDraft(){
   if(this.closed)return;const draft=this.memory?.draft,text=this.input?.value??draft?.text??'';
   if(!text&&!draft?.image)return;return {text,path:this.file?.path||'未选来源',time:draft?.time||0,hasImage:!!draft?.image};
@@ -140,12 +154,12 @@ export class MediaWorkspaceView extends ItemView {
  currentFile(){return this.file;}
  currentPlayback():MediaCardState{const state=playback(this.player?.getState?.(),this.memory?.state||{time:0,rate:1,volume:1});if(this.memory)this.memory.state=state;return{...state};}
  resumePlayback(){this.player?.play();}
- getState():MediaWorkspaceState{const state=this.currentPlayback();return{file:this.file?.path,time:this.memory?state.time:undefined,placement:this.placement,focusPlayer:this.focusPlayer,recordPanel:this.recordPanel,compactPlayer:this.compactPlayer,viewerRatio:this.viewerRatio,recordDensity:this.recordDensity,composerRatio:this.composerRatio,...(this.memory?{playback:state}:{})};}
+ getState():MediaWorkspaceState{const state=this.currentPlayback();return{file:this.file?.path,time:this.memory?state.time:undefined,placement:this.placement,focusPlayer:this.focusPlayer,recordPanel:this.recordPanel,compactPlayer:this.compactPlayer,viewerRatio:this.viewerRatio,recordDensity:this.recordDensity,composerRatio:this.composerRatio,...(this.study?.enabled?{study:{...this.study}}:{}),...(this.memory?{playback:state}:{})};}
  hasPendingDraft(){return!!(this.memory?.draft||this.memory?.pending||this.memory?.capturePending);}
  canMove(){if(this.hasPendingDraft()){new Notice('请先保存或清空当前摘录，再切换媒体或播放位置');return false;}return!this.closed;}
  async onOpen(){
   if(this.opened||this.closed)return;this.opened=true;
-  this.bindSubmitHotkey();
+  this.bindSubmitHotkey();this.recordHotkey=this.scope?.register([],'m',event=>{if(this.recordKey(event))return false;});this.registerDomEvent(this.contentEl.ownerDocument,'keydown',event=>this.recordKey(event),{capture:true});
   this.registerEvent(this.app.vault.on('modify',file=>{if(file===this.note)this.scheduleRefresh();if(file===this.file)this.sourceChanged();}));
   this.registerEvent(this.app.vault.on('rename',file=>{if(file===this.note)this.scheduleRefresh();if(file===this.file)this.sourceChanged();}));
   this.registerEvent(this.app.vault.on('delete',file=>{if(file===this.note)this.scheduleRefresh();if(file===this.file){this.disposePlayer();this.message('媒体文件已移除，未保存的摘录仍保留在此窗口。');}}));
@@ -161,6 +175,7 @@ export class MediaWorkspaceView extends ItemView {
   if(changed&&this.hasPendingDraft()){this.disposePlayer();this.paintComposer();this.message('媒体来源已更新，当前摘录仍保留；请先清空草稿后重新选择媒体。');return;}
   if(next===this.file&&this.memory&&!changed){
    if(next&&!this.memory.draft)this.memory.draft=this.host.drafts?.activeFor(next.path);this.paintComposer();
+   if(state.study)this.study=cleanMediaStudy(state.study);this.studyChanged();
    this.placement=placement;this.contentEl.dataset.placement=placement;
    if(typeof state.focusPlayer==='boolean')this.setFocusPlayer(state.focusPlayer);
    if(state.recordPanel==='player'||state.recordPanel==='compose'||state.recordPanel==='timeline')this.setRecordPanel(state.recordPanel);
@@ -176,7 +191,7 @@ export class MediaWorkspaceView extends ItemView {
   // dispose emits the final playback snapshot before its generation is retired.
   const contentChanged=changed&&!!this.sourceIdentity&&(next.stat.mtime!==this.sourceIdentity.mtime||next.stat.size!==this.sourceIdentity.size),initialAudio=!this.file&&!!next&&mediaKind(next.path)==='audio';
   this.disposePlayer();this.releasePreview();this.closePreviews();this.unsubscribe?.();this.unsubscribe=undefined;this.releaseEditor();
-  this.generation++;this.timelineRun++;this.cancelRefresh();
+  this.resumeAfterSave=undefined;this.host.study?.release(this);this.study=cleanMediaStudy(state.study);this.generation++;this.timelineRun++;this.cancelRefresh();
   this.file=next;this.placement=placement;this.note=undefined;this.entries=[];this.query='';this.limit=50;this.pageStart=0;this.recordFilter='all';this.expandedRecords.clear();
   this.recordPanel=state.recordPanel==='player'||state.recordPanel==='timeline'?state.recordPanel:'compose';
   this.recordDensity=state.recordDensity==='compact'?'compact':'comfortable';
@@ -196,9 +211,9 @@ export class MediaWorkspaceView extends ItemView {
    const owned=this.memory,notify=(refresh:boolean)=>{if(this.closed||this.memory!==owned)return;this.paintComposer();if(refresh&&!owned.pending)this.scheduleRefresh();};
    owned.listeners.add(notify);this.unsubscribe=()=>owned.listeners.delete(notify);
   }
-  this.render();this.syncFocusedPanel();if(state.file&&!next)this.message('找不到这份音视频文件，请重新选择。');
+  this.render();this.studyChanged();this.syncFocusedPanel();if(state.file&&!next)this.message('找不到这份音视频文件，请重新选择。');
   this.app.workspace.requestSaveLayout();if(result)result.history=true;
-  await this.refreshMoments();
+  await this.refreshMoments();if(this.study.enabled)this.app.workspace.onLayoutReady(()=>{if(this.studyCurrent())void this.host.study?.show(this,this.study.mode).catch(error=>this.message(String(error)));});
  }
  private action(parent:HTMLElement,label:string,icon:string,fn:(event?:MouseEvent)=>unknown,iconOnly=false){
   const button=parent.createEl('button',{cls:'ts-media-workspace__action',attr:{type:'button','aria-label':label,title:label}});
@@ -209,7 +224,7 @@ export class MediaWorkspaceView extends ItemView {
  private message(text:string){if(!this.closed&&this.status){this.status.textContent=text;this.status.title=text;}}
  private renderTitle(){
   const title=this.contentEl.querySelector<HTMLElement>('.ts-media-workspace__title');
-  if(title){title.textContent=this.file?.basename||'媒体工作区';title.title=this.file?.path||'选择音频或视频开始';}
+  if(title){title.textContent=this.study?.title||this.file?.basename||'媒体工作区';title.title=this.file?.path||'选择音频或视频开始';}
   const kind=this.contentEl.querySelector<HTMLElement>('.ts-media-workspace__file-kind');
   if(kind){kind.textContent=this.file?(['tsvideo','tsaudio'].includes(this.file.extension.toLowerCase())?'本地引用':this.file.extension.toUpperCase()):'';kind.hidden=!this.file;}
   const source=this.contentEl.querySelector<HTMLElement>('.ts-media-workspace__source');
@@ -347,6 +362,7 @@ export class MediaWorkspaceView extends ItemView {
   this.status=messageArea.createDiv({cls:'ts-media-workspace__status',attr:{role:'status','aria-live':'polite'}});
   if(this.host.recoverDrafts){this.recoveryButton=this.action(messageArea,'恢复 / 丢弃','history',()=>this.host.recoverDrafts?.());this.recoveryButton.hidden=true;this.recoveryButton.title='查看暂存草稿，选择恢复或丢弃；恢复不会自动写入笔记。';}
   if(!this.file){const empty=el.createDiv('ts-media-workspace__empty');setIcon(empty.createDiv('ts-media-workspace__empty-icon'),'clapperboard');empty.createSpan({cls:'ts-media-workspace__eyebrow',text:'媒体笔记'});empty.createEl('h2',{text:'留下值得回看的瞬间'});empty.createEl('p',{text:'选择音频或视频，边播放边记录。文字、画面与时间点保存在同一份笔记里。'});const actions=empty.createDiv('ts-media-workspace__empty-actions');this.action(actions,'选择媒体','folder-open',()=>this.pick()).addClass('mod-cta');if(this.host.pickOnline)this.action(actions,'B 站 / YouTube','globe',()=>this.host.pickOnline?.(this.placement));return;}
+  this.studyControls(el);
   const layout=el.createDiv('ts-media-workspace__layout'),main=layout.createDiv('ts-media-workspace__main');
   const playerHost=main.createDiv('ts-media-workspace__player');
   const desk=layout.createDiv('ts-media-workspace__desk');
@@ -417,7 +433,7 @@ export class MediaWorkspaceView extends ItemView {
   const file=this.file,memory=this.memory!,generation=this.generation,captureToken=Symbol('media-frame');let reservedDraft:Draft|undefined;
   try{
    this.player=this.host.mount(playerHost,file,{initialState:{...memory.state},
-    state:value=>{if(this.isCurrent(file,generation)){memory.state=playback(value,memory.state);this.paintComposer();this.highlightPlayback(memory.state.time);}},
+    state:value=>{if(this.resumeAfterSave&&Math.abs(value.time-this.resumeAfterSave.time)>.5)this.resumeAfterSave=undefined;if(this.isCurrent(file,generation)){memory.state=playback(value,memory.state);this.paintComposer();this.highlightPlayback(memory.state.time);}},
     capture:async time=>{if(!this.isCurrent(file,generation))return;this.beginDraft(time);this.stashDraft();this.setRecordPanel('compose');this.setFocusPlayer(false);broadcast(memory);this.input?.focus();},
     frameCaptureState:(busy,time)=>{
      if(!busy){if(memory.capturePending===captureToken){memory.capturePending=undefined;reservedDraft=undefined;broadcast(memory);}return;}
@@ -444,6 +460,7 @@ export class MediaWorkspaceView extends ItemView {
  }
  private isCurrent(file:TFile,generation=this.generation){return!this.closed&&this.generation===generation&&this.file===file&&matchesSource(file,this.sourceIdentity)&&this.app.vault.getAbstractFileByPath(file.path)===file;}
  private sourceChanged(){
+  this.resumeAfterSave=undefined;
   if(!this.file||this.closed||matchesSource(this.file,this.sourceIdentity))return;
   this.renderTitle();const state=this.getState();
   if(this.hasPendingDraft()){this.disposePlayer();this.paintComposer();this.message('媒体来源已更新，当前摘录仍保留；请先清空草稿后重新选择媒体。');return;}
@@ -462,6 +479,7 @@ export class MediaWorkspaceView extends ItemView {
   try{this.host.drafts.stage(draft);}catch{this.message('本机暂存失败，草稿仍在当前会话中，请保存摘录或复制文字。');new Notice('媒体草稿未能暂存到本机，请及时保存摘录或复制文字。',10000);}
  }
  private async clearDraft(){
+  this.resumeAfterSave=undefined;
   const memory=this.memory;if(this.composing||!memory||memory.pending||memory.capturePending||memory.editor&&memory.editor!==this.editorKey)return;
   const draft=memory.draft;if(!draft)return;
   const job=this.host.drafts?.discard(draft.id);if(job){memory.pending=job;broadcast(memory);try{await job;}catch{this.message('无法删除本机暂存，草稿仍保留，请重试。');throw Error('暂存删除失败');}finally{if(memory.pending===job)memory.pending=undefined;broadcast(memory);}}
@@ -476,6 +494,7 @@ export class MediaWorkspaceView extends ItemView {
  }
  private paintComposer(){
   if(!this.input)return;
+  this.contentEl.dataset.studyDraft=String(!!this.memory?.draft);
   const draft=this.memory?.draft,pending=!!this.memory?.pending,capturing=!!this.memory?.capturePending,elsewhere=!!this.memory?.editor&&this.memory.editor!==this.editorKey,stale=!!this.file&&(!this.isCurrent(this.file)||!!draft&&!matchesSource(this.file,draft.source));
   if(!this.composing&&this.input.value!==(draft?.text||''))this.input.value=draft?.text||'';
   const recovery=!!this.file&&!!this.host.drafts?.pendingFor(this.file.path);
@@ -534,12 +553,14 @@ export class MediaWorkspaceView extends ItemView {
    const result=await job;
    if(this.host.drafts)await this.host.drafts.discard(draft.id);
    if(memory.draft===draft){memory.draft=undefined;memory.editor=undefined;}
-   if(this.isCurrent(file)){this.note=result.note;this.message('摘录已保存到 Markdown 笔记。');}
+   if(this.isCurrent(file)){this.note=result.note;this.message('摘录已保存到 Markdown 笔记。');void this.host.study?.sync(this).catch(()=>this.message('摘录已保存；连续笔记页尚未打开，可点“笔记”重试。'));}
+   const ticket=this.resumeAfterSave;this.resumeAfterSave=undefined;
+   if(canResumeMedia(ticket,{source:file.path,draft:draft.id,generation:this.generation,time:this.currentPlayback().time,active:this.isCurrent(file)&&this.app.workspace.getActiveViewOfType(MediaWorkspaceView)===this,paused:this.contentEl.querySelector<HTMLMediaElement>('video,audio')?.paused!==false}))this.player?.play();
   }catch(error){if(this.isCurrent(file))this.message('保存未完成，文字、截图与记录时间已保留，可重试。');throw error;}
   finally{if(memory.pending===job)memory.pending=undefined;broadcast(memory,true);}
  }
  private pickExternal(){if(!this.canMove()||!this.host.pickExternal)return;const generation=this.generation;this.host.pickExternal(file=>{if(this.closed||generation!==this.generation||!this.canMove())return;return this.host.open(file,this.placement);});}
- private pick(){if(!this.canMove())return;const generation=this.generation;this.host.pick(file=>{if(this.closed||generation!==this.generation||!this.canMove())return;void this.host.open(file,this.placement).catch(()=>this.message('暂时无法切换媒体，请重试。'));});}
+ private pick(){if(!this.canMove())return;const generation=this.generation;this.host.pick(file=>{if(this.closed||generation!==this.generation||!this.canMove())return;return this.host.open(file,this.placement).catch(()=>this.message('暂时无法切换媒体，请重试。'));});}
  private async move(placement:MediaPlacement){if(this.busy||placement===this.placement||!this.canMove())return;this.busy=true;try{await this.host.open(this.file,placement,this.currentPlayback().time);}finally{this.busy=false;}}
  private cancelRefresh(){if(this.refreshTimer!==undefined)this.refreshWindow?.clearTimeout(this.refreshTimer);this.refreshTimer=undefined;this.refreshWindow=undefined;}
  private scheduleRefresh(){this.cancelRefresh();this.timelineRun++;const owner=this.contentEl.ownerDocument.defaultView;if(this.closed||!owner)return;this.refreshWindow=owner;this.refreshTimer=owner.setTimeout(()=>{this.refreshTimer=undefined;this.refreshWindow=undefined;void this.refreshMoments();},100);}
@@ -549,7 +570,7 @@ export class MediaWorkspaceView extends ItemView {
   try{
    const result=await this.host.moments(file);
    if(!this.isCurrent(file,generation)||run!==this.timelineRun)return;
-   this.note=result.note;this.entries=result.entries;this.renderTimeline();this.paintComposer();if(result.warnings?.length)this.message(result.warnings.join(' '));
+   this.note=result.note;this.entries=result.entries;void this.host.study?.sync(this).catch(()=>{});this.renderTimeline();this.paintComposer();if(result.warnings?.length)this.message(result.warnings.join(' '));
   }catch{if(this.isCurrent(file,generation)&&run===this.timelineRun)this.message('暂时无法读取时间轴；当前播放和草稿不受影响。');}
   finally{if(this.isCurrent(file,generation)&&run===this.timelineRun)this.timeline?.removeAttribute('aria-busy');}
  }
@@ -585,12 +606,13 @@ export class MediaWorkspaceView extends ItemView {
    const footer=row.createDiv('ts-media-workspace__moment-footer');
    if(entry.image){const badge=footer.createSpan('ts-media-workspace__moment-image');setIcon(badge.createSpan(),'image');badge.createSpan({text:'含截图'});}
    if(entry.text.trim()){const toggle=this.action(footer,expanded?'收起摘录':'展开摘录',expanded?'chevron-up':'chevron-down',()=>{if(this.expandedRecords.has(key))this.expandedRecords.delete(key);else this.expandedRecords.add(key);row.dataset.expanded=String(this.expandedRecords.has(key));const label=this.expandedRecords.has(key)?'收起摘录':'展开摘录';toggle.setAttribute('aria-label',label);toggle.title=label;(toggle.children[1] as HTMLElement).textContent=label;toggle.setAttribute('aria-expanded',String(this.expandedRecords.has(key)));setIcon(toggle.children[0] as HTMLElement,this.expandedRecords.has(key)?'chevron-up':'chevron-down');});toggle.setAttribute('aria-expanded',String(expanded));}
-   this.action(footer,'将这条摘录送到白板','arrow-up-right',()=>this.isCurrent(file,generation)&&this.host.sendToBoard(file,entry),true);
+   this.action(footer,'将这条摘录送到白板','arrow-up-right',()=>this.isCurrent(file,generation)&&this.host.sendToBoard(file,entry,this.study.enabled?this.study.board:undefined),true);
   }
   this.highlightPlayback(this.currentPlayback().time);el.scrollTop=scroll;
  }
  private disposePlayer(){const player=this.player;try{if(player&&this.memory)this.memory.state=playback(player.getState?.(),this.memory.state);}finally{this.player=undefined;player?.dispose();}}
  async onClose(){
+  this.resumeAfterSave=undefined;this.host.study?.release(this);if(this.recordHotkey)this.scope?.unregister(this.recordHotkey);this.recordHotkey=undefined;
   if(this.closed)return;
   if(this.submitHotkey)this.scope?.unregister(this.submitHotkey);this.submitHotkey=undefined;
   // Closing or mobile navigation can end composition without a final input event.

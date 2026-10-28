@@ -1,3 +1,5 @@
+import {mediaPreviewPath} from '../src/media-preview-source';
+import {canvasFramePosition} from '../src/media-canvas';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -71,15 +73,16 @@ test('online identity survives movement and resizing but URL, part, fold and loc
 });
 test('capture retains the player preview under a saturated preview limit and edge repaint does not interrupt playback',async()=>{
  const f=fixture(),board:Board={...emptyBoard(),version:3,nodes:[{id:'other',kind:'text',text:'other',x:0,y:0,width:100,height:100,color:'blue'},f.video]};
- const owner=Object.assign(f.view.session,{board,change(run:(board:Board)=>void){run(this.board);}});
+ const owner=Object.assign(f.view.session,{board,flush:async()=>{},change(run:(board:Board)=>void){run(this.board);}});
  const moment={id:'capture-1',time:43.125,text:'',image:'![frame](Attachments/frame.png)'},note={path:'Notes/video.md'};
- const dependencies={parseOnlineSource,mediaTime,mediaClock,onlinePlayerUrl,uid:()=> 'edge-1',Notice:class{}};
+ class TFile{constructor(public path:string){}}
+ const dependencies={mediaPreviewPath,canvasFramePosition,TFile,parseOnlineSource,mediaTime,mediaClock,onlinePlayerUrl,uid:()=> 'edge-1',Notice:class{}};
  const Capture=new Function(...Object.keys(dependencies),code('class Capture{'+capture+'};return Capture;'))(...Object.values(dependencies));
- const view=Object.assign(f.view,{session:owner,closed:false,app:{vault:{getName:()=> 'Vault'}},
+ const view=Object.assign(f.view,{session:owner,closed:false,app:{vault:{getName:()=> 'Vault',getAbstractFileByPath:(path:string)=>new TFile(path)}},
   plugin:{settings:{previewLimit:1,defaultTextSize:18,defaultEdgeStyle:'curve'},saveOnlineBoardMoment:async()=>({note,moment})},
   requireOwner:()=>owner,updateSelection(){},mediaStates:new Map(),mediaIdentities:new Map(),onlineBoardStates:new Map()});
  const before=detailIds.call(view,board.nodes,board,true) as Set<string>;assert.equal(before.has('video'),true);assert.equal(before.has('other'),false);
  await Capture.prototype.captureOnlineBoardMoment.call(view,'video',bili,{...moment,image:new Blob(['png'],{type:'image/png'})},owner);
- const after=detailIds.call(view,board.nodes,board,true) as Set<string>;assert.equal(board.nodes.length,3);assert.equal(board.edges.length,1);assert.equal(after.has('video'),true,'saving must not demote the playing source below previewLimit');
+ const after=detailIds.call(view,board.nodes,board,true) as Set<string>;assert.equal(board.nodes.length,4);assert.equal(board.edges.length,1);assert.equal(board.nodes[2].kind,'image');assert.equal(after.has('video'),true,'saving must not demote the playing source below previewLimit');
  f.render(f.video,1,1,after.has('video'));assert.equal(f.calls.unloads,0);assert.equal(f.calls.removed,0);assert.equal(f.player.paused,false);assert.equal(f.player.time,43.125);
 });

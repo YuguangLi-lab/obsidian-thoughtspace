@@ -85,7 +85,7 @@ for(const extension of ['mp3','mp4'])test(`mobile vault-local ${extension} notes
  ]),storage=new Map<string,string>();
  for(const [note,text] of texts)note.stat.size=text.length;
  const adapter=Object.assign(new MobileAdapter(),{exists:async(path:string)=>storage.has(path),read:async(path:string)=>storage.get(path)!,write:async(path:string,text:string)=>{storage.set(path,text);}});
- const app={vault:{adapter,getName:()=> 'mobile-vault',getAbstractFileByPath:(path:string)=>files.get(path),getMarkdownFiles:()=>[native,legacy],getResourcePath:(source:TFile)=>'vault://'+source.path,
+ const app={workspace:{getLeavesOfType:()=>[]},vault:{adapter,getName:()=> 'mobile-vault',getAbstractFileByPath:(path:string)=>files.get(path),getMarkdownFiles:()=>[native,legacy],getResourcePath:(source:TFile)=>'vault://'+source.path,
   read:async(note:TFile)=>texts.get(note)!,process:async(note:TFile,change:(raw:string)=>string)=>{const text=change(texts.get(note)!);texts.set(note,text);note.stat.mtime++;note.stat.size=text.length;}
  },metadataCache:{getFileCache:(note:TFile)=>({frontmatter:note===native?{thoughtspace_media:file.path}:{source:'/desktop/'+file.path}})}};
  const service=new MediaWorkspaceService(app as any,'plugin/media-state.json',{createNote:async()=>{throw Error('Existing native note must be reused');},openFile:async()=>{}});

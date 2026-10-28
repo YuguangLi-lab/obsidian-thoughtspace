@@ -1,5 +1,23 @@
 # 更新记录
 
+## 1.3.41
+
+### 资料库、视频学习与 PDF 摘录
+
+- 新增资料库鸟瞰与动态卡片盒，组合目录、标签和原生 Properties 筛选；正文搜索按需开启并提示受限或部分结果。卡片盒保存规则，不复制、移动或删除原笔记。
+- 完善视频学习工作区，在原生连续笔记和普通白板之间切换；支持暂停记录、画布内播放与截帧，库内截帧保留受控恢复检查点。在线视频继续遵循平台与来源限制。
+- Markdown 资料卡可拖入原生编辑器或白板文章，以链接、嵌入、正文或标题加正文插入；支持整篇及可靠章节，取消和过期操作不写入，插入可撤销。
+- 新增 PDF 彩色摘录与主题分支整理，保存页码、来源及可用的选区锚点，不改写 PDF。只有原文件身份和原页文字匹配时精确回跳；跨页、无文字层或失效锚点退回页码，不猜测位置或执行 OCR。
+- 沿用现有纸质界面、白板背景和配置；原有笔记、媒体和 PDF 文件保持独立，升级时保留 data.json 及其他插件数据。
+
+### English
+
+- Add a library overview and dynamic card boxes with folder, tag and native Properties filters, plus opt-in bounded body search. Saved rules do not copy, move or delete source notes.
+- Add a video study workspace with native continuous notes and freeform boards, pause-and-capture controls, in-canvas playback and local frame capture with controlled recovery checkpoints. Existing online-platform restrictions remain in force.
+- Insert Markdown source cards into native editors or board articles as links, embeds, body text or title plus body. Whole-note and reliable heading scopes support cancellation, stale-operation guards and undo.
+- Add colored PDF excerpts and branch placement with source-preserving page and selection anchors. Exact return requires matching file identity and page text; unsupported or stale anchors fall back to the requested page without OCR or fuzzy relocation.
+- Preserve existing notes, media, PDF files, settings and authored board backgrounds. Keep data.json and all other plugin data when updating.
+
 ## 1.3.40
 
 ### 回顾、来源检查与安全恢复
