@@ -2,6 +2,7 @@ import {capturePdfExcerpt,type PdfExcerptOrigin,type PdfExcerptColor} from './pd
 import {openPdfExcerpt} from './pdf-excerpt-view';
 import {pdfBranchLanding,pdfBranchStamp,applyPdfBranch,type PdfBranchLanding} from './pdf-branch-drop';
 import {CardInsertion,beginCardInsertDrag} from './card-insert';
+import {DATABASE_NOTE_DRAG,takeDatabaseNoteDrop} from './database-note-drag';
 import {mediaPreviewPath} from './media-preview-source';
 import {canvasFramePosition} from './media-canvas';
 import {MediaImportModal,chooseMediaStudyBoard} from './media-import-modal';
@@ -1622,8 +1623,9 @@ export default class ThoughtSpace extends Plugin {
       try{await this.savePreferences();}catch(error){if(paperAppearanceStamp(this.settings)===paperAppearanceStamp(next)&&this.settings.canvasBackground==='paper'){Object.assign(this.settings,previous);for(const leaf of this.app.workspace.getLeavesOfType(VIEW))if(leaf.view instanceof BoardView)leaf.view.applyPreferences();}throw error;}
     }});this.paperSettingsModal=modal;modal.open();return modal;
   }
+  ensureInterfaceStyleDocument(doc:Document){return this.interfaceStyles?.register(doc);}
   async savePreferences() {
-    const appearance={interfaceStyle:this.settings.interfaceStyle,glassEffects:this.settings.glassEffects};
+    const appearance={interfaceStyle:this.settings.interfaceStyle,glassEffects:this.settings.glassEffects,interfacePalette:this.settings.interfacePalette,interfaceMode:this.settings.interfaceMode,surfaceStyle:this.settings.surfaceStyle,accent:this.settings.accent};
     await this.saveData(this.settings);
     this.interfaceStyles?.update(appearance);
     for (const leaf of this.app.workspace.getLeavesOfType(VIEW)) if (leaf.view instanceof BoardView) leaf.view.applyPreferences();
@@ -4131,6 +4133,7 @@ class BoardView extends FileView {
     // Snapshot native files while the drag is alive. Window-level drop cleanup
     // clears dragManager immediately, before an inline editor may finish saving.
     const owner=this.session,position=()=>this.point(e.clientX,e.clientY);
+    if(transfer.types.includes(DATABASE_NOTE_DRAG)){e.preventDefault();const file=takeDatabaseNoteDrop(this.app,e);if(file)act(()=>this.insertDroppedNotes([{file,path:file.path,page:1}],position(),owner));return;}
     if(transfer.types.includes(MATERIAL_DRAG)){e.preventDefault();e.stopPropagation();act(()=>this.plugin.receiveMaterial(e,this,this.materialDropPoint(e.clientX,e.clientY,this.plugin.materialDragIsPdf())));return;}
     const customPath=transfer.getData('text/x-thoughtspace-note')||transfer.getData('text/x-thoughtspace-board');
     if(customPath){

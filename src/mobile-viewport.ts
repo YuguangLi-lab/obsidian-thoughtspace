@@ -25,7 +25,7 @@ export function bindMobileViewport(root:HTMLElement):()=>void {
   const layout=mobileViewportLayout(rect.top,win.innerHeight,viewport??undefined,editing);
   const value=layout.visibleHeight+'px';
   if(root.style.getPropertyValue(properties[0])!==value)root.style.setProperty(properties[0],value);
-  const keyboard=String(layout.keyboard),compact=String(rect.width<=900);
+  const keyboard=String(layout.keyboard),compact=String((root.clientWidth>0?root.clientWidth:rect.width)<=900);
   if(root.dataset.tsKeyboard!==keyboard)root.dataset.tsKeyboard=keyboard;
   if(root.dataset.tsCompact!==compact)root.dataset.tsCompact=compact;
  };

@@ -32,7 +32,7 @@ function fixture(){
  const calls={changes:0,sourceWrites:0,selection:0,focus:0,materials:[] as unknown[][],attachments:[] as unknown[][],boards:[] as unknown[][],pdfs:[] as unknown[][],files:[] as unknown[][]};
  const imageSizes=new Map<string,{width:number;height:number}>();
  let measure=async(entries:NativeNoteReference<TFile>[],width:number)=>new Map(entries.filter(ref=>isImage(ref.path)).map(ref=>[ref.path,imageSizes.get(ref.path)||{width,height:width*.75}] as const));
- const deps={...boardHostDeps,applyDefaultCardStyle,webUrl,mediaKind,mediaCard,isImage,measureDroppedImages:(...args:Parameters<typeof measure>)=>measure(...args),resolveNativeNoteDrop,isWorkspaceFile,isPdfFile,pdfCard,pdfDropReference,pdfPage,TFile,MATERIAL_DRAG,EXT,
+ const deps={DATABASE_NOTE_DRAG:'application/x-thoughtspace-library-note',takeDatabaseNoteDrop:()=>undefined,...boardHostDeps,applyDefaultCardStyle,webUrl,mediaKind,mediaCard,isImage,measureDroppedImages:(...args:Parameters<typeof measure>)=>measure(...args),resolveNativeNoteDrop,isWorkspaceFile,isPdfFile,pdfCard,pdfDropReference,pdfPage,TFile,MATERIAL_DRAG,EXT,
   parseLinktext:(link:string)=>{const hash=link.indexOf('#');return{path:hash<0?link:link.slice(0,hash),subpath:hash<0?'':link.slice(hash)};},
   uid:()=>`drop-${++sequence}`,clone:structuredClone,
   act:(run:()=>unknown)=>{try{const pending=Promise.resolve(run());tasks.push(pending);void pending.catch(error=>errors.push(error));}catch(error){errors.push(error);}},
@@ -73,6 +73,10 @@ test('native drop is accepted synchronously before saving an existing draft and 
  // Obsidian clears this state immediately after bubbling drop; insertion owns its snapshot.
  f.view.app.dragManager.draggable=null;saved.resolve(true);await f.drain();
  assert.equal(f.owner.board.nodes.length,1);assert.equal(f.owner.board.nodes[0].file,file.path);assert.equal(f.calls.sourceWrites,0);
+});
+
+test('a cancelled library token never falls back to its otherwise valid note path',async()=>{
+ const f=fixture(),file=f.add(),e=f.event({'application/x-thoughtspace-library-note':'cancelled','text/x-thoughtspace-note':file.path});f.view.handleBoardDrop(e.value);await f.drain();assert.equal(e.value.defaultPrevented,true);assert.equal(f.owner.board.nodes.length,0);assert.equal(f.calls.sourceWrites,0);
 });
 
 test('multiple native references insert as one undoable grid without changing viewport or source notes',async()=>{

@@ -1,3 +1,4 @@
+import type {InterfacePaletteId,InterfaceMode} from './interface-palettes';
 import {defaultPaperPreferences,type PaperPreferences} from './paper-appearance';
 import {defaultBackgroundImagePreferences,type BackgroundImagePreferences} from './background-image';
 /** 安装备份可由原生文件管理器查看，但不作为当前工作台资料，也不随重命名改写。 */
@@ -6,15 +7,15 @@ export function isWorkspaceFile(file: {path: string}): boolean {
 }
 export type InterfaceStyle='paper';
 export interface AppearanceSettings extends PaperPreferences,BackgroundImagePreferences {
-  interfaceStyle:InterfaceStyle;
+  interfaceStyle:InterfaceStyle;interfacePalette:InterfacePaletteId;interfaceMode:InterfaceMode;
   surfaceStyle:'soft'|'paper';readingSize:number;readingWidth:'standard'|'wide';
-  accent: 'forest' | 'blue' | 'amber' | 'rose';
+  accent: 'forest' | 'blue' | 'amber' | 'rose' | 'palette';
   density: 'comfortable' | 'compact';
   canvasBackground: 'dots' | 'grid' | 'plain' | 'paper' | 'image';
   showMinimap: boolean;
   glassEffects: boolean;
 }
-export const defaultAppearance: AppearanceSettings = { ...defaultPaperPreferences,...defaultBackgroundImagePreferences,interfaceStyle:'paper',surfaceStyle:'soft',readingSize:16,readingWidth:'standard',accent: 'forest', density: 'comfortable', canvasBackground: 'dots', showMinimap: true, glassEffects: true };
+export const defaultAppearance: AppearanceSettings = { ...defaultPaperPreferences,...defaultBackgroundImagePreferences,interfaceStyle:'paper',interfacePalette:'paper',interfaceMode:'auto',surfaceStyle:'soft',readingSize:16,readingWidth:'standard',accent: 'forest', density: 'comfortable', canvasBackground: 'dots', showMinimap: true, glassEffects: true };
 export type LibraryScope = 'vault' | 'cards' | 'board';
 export type LibrarySort = 'updated' | 'title';
 export function libraryFiles<T extends {path: string; basename: string; stat: {mtime: number}}>(files: readonly T[], scope: LibraryScope, sort: LibrarySort, cardRoot: string, boardPaths: ReadonlySet<string>): T[] {

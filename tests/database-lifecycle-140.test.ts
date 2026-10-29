@@ -17,8 +17,9 @@ class Element{
 }
 function moduleFixture(){
  const modals:Modal[]=[],notices:string[]=[];
- class Modal{modalEl=new Element();contentEl=new Element();titleEl=new Element();closed=false;constructor(readonly app:any){modals.push(this);}open(){}close(){this.closed=true;}}
- const deps={Modal,Component:class{},Notice:class{constructor(text:string){notices.push(text);}},TFile:class{},setIcon:()=>{},themeSurface:()=>{},isRecord,isUnknownArray,parseYaml,libraryFiles,noteExcerpt,localDay,getAllTags:(cache:any)=>cache.tags||[],...database,...custom};
+ class Modal{modalEl=new Element();contentEl=new Element();titleEl=new Element();closed=false;scope={original:true};constructor(readonly app:any){modals.push(this);}open(){}close(){this.closed=true;}}
+ class Scope{listeners:any[]=[];constructor(readonly parent:any){}register(modifiers:any,key:any,run:any){this.listeners.push({modifiers,key,run});}}
+ const deps={Modal,Scope,Component:class{},Notice:class{constructor(text:string){notices.push(text);}},TFile:class{},setIcon:()=>{},themeSurface:()=>{},isRecord,isUnknownArray,parseYaml,libraryFiles,noteExcerpt,localDay,getAllTags:(cache:any)=>cache.tags||[],...database,...custom};
  const source=readFileSync('src/database-view.ts','utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
  const parsed=new Function(...Object.keys(deps),transformSync(source+'\nreturn {DatabaseModal,parseRecord};',{loader:'ts'}).code)(...Object.values(deps));
  return{...parsed,modals,notices};
@@ -65,4 +66,15 @@ test('restoring a legacy table view does not change the separate overview scope 
  const {DatabaseModal}=moduleFixture(),modal=Object.create(DatabaseModal.prototype),overview={value:'cards'},legacy={value:'cards'},query={value:''},overdue={checked:false};
  Object.assign(modal,{host:{preferences:{views:[structuredClone(current)]}},overview:{},filter:{},contentEl:{querySelector(selector:string){if(selector.includes('资料范围'))return selector.includes('.ts-db-legacy')?legacy:overview;if(selector.includes('资料搜索'))return query;if(selector.includes('ts-db-overdue-filter'))return overdue;return {value:''};}},syncView(){},renderCustomFilters(){},schedule(){}});
  modal.applySaved('v');assert.equal(legacy.value,'vault');assert.equal(overview.value,'cards');assert.equal(modal.view,'table');assert.equal(modal.filter.tag,current.filter.tag);
+});
+
+test('library Escape consumes only its transient layer before the native modal keymap',()=>{
+ const {DatabaseModal}=moduleFixture(),modal=new DatabaseModal({}, {cardFolder:'Cards'}, {});
+ assert.deepEqual(modal.scope.parent,{original:true});const handler=modal.scope.listeners.find((item:any)=>item.key==='Escape').run;
+ let calls=0,prevented=0,stopped=0,open=true;modal.active=true;modal.overview={dismissTransient(){calls++;return open;}};
+ const event={isComposing:false,keyCode:27,preventDefault(){prevented++;},stopPropagation(){stopped++;}};
+ assert.equal(handler(event),false);assert.deepEqual([calls,prevented,stopped],[1,1,1]);
+ open=false;assert.equal(handler(event),false);assert.equal(modal.closed,true,'Without a transient layer Escape still closes the library');
+ modal.closed=false;modal.view='table';handler(event);assert.equal(modal.closed,true,'The original table retains Escape-to-close');
+ const prior=calls;handler({...event,isComposing:true});handler({...event,keyCode:229});modal.active=false;handler(event);assert.equal(calls,prior,'IME and inactive dialogs do not consume the event');
 });

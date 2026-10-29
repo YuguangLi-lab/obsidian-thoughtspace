@@ -1,3 +1,4 @@
+import {interfacePaletteIds,interfacePalettes} from './interface-palettes';
 import {App,Modal,Notice,Plugin,PluginSettingTab,Setting,getLanguage,setIcon} from 'obsidian';
 import type {ThoughtSpacePreferences} from './plugin-settings';
 import {boardPreferenceControls,mousePreferenceControls} from './board-experience-view';
@@ -23,6 +24,7 @@ const pages:readonly {id:Page;label:Pair;icon:string}[]=[
  {id:'profiles',label:['偏好配置','Preference profiles'],icon:'settings-2'}
 ];
 export interface SettingsHost extends Plugin {
+ ensureInterfaceStyleDocument?:(doc:Document)=>unknown;
  settings:ThoughtSpacePreferences;
  journalRoot:string;
  savePreferences:()=>Promise<void>;
@@ -105,7 +107,7 @@ export class ThoughtSpaceSettings extends PluginSettingTab {
   this.categoryFocus?.();this.categoryFocus=undefined;
   this.viewport?.();this.viewport=undefined;
   this.language=settingsLanguage(this.host.settings);
-  const root=this.containerEl;root.empty();root.addClass('ts-settings','ts-settings-v2');root.dataset.accent=this.host.settings.accent;root.lang=this.language;
+  const root=this.containerEl;this.host.ensureInterfaceStyleDocument?.(root.ownerDocument);root.empty();root.addClass('ts-settings','ts-settings-v2');root.dataset.accent=this.host.settings.accent;root.lang=this.language;
   this.panels.clear();this.navigation.clear();
   const header=root.createDiv('ts-settings-header');new Setting(header).setName('ThoughtSpace').setHeading();
   const languageRow=new Setting(header).setName(this.t(['设置语言','Settings language'])).setClass('ts-settings-language-row');
@@ -165,7 +167,9 @@ export class ThoughtSpaceSettings extends PluginSettingTab {
   // Legacy controls edit a local draft; serialize their differences with other settings writes.
   const persist=()=>{const changes:Partial<ThoughtSpacePreferences>={};for(const key of Object.keys(prefs) as (keyof ThoughtSpacePreferences)[])if(prefs[key]!==baseline[key])Object.assign(changes,{[key]:prefs[key]});baseline={...prefs};return this.patch(changes);};
   if(page==='general'){
-   this.select(el,'accent',['强调色','Accent color'],['影响按钮与导航，不改变卡片自己的配色。','Changes buttons and navigation, not individual card colors.'],{forest:['森林绿','Forest'],blue:['湖水蓝','Lake'],amber:['暖琥珀','Amber'],rose:['玫瑰色','Rose']});
+   this.select(el,'interfacePalette',['整套配色','Color palette'],['选择界面配色，不改变白板纸张、收集背景或卡片颜色。','Changes interface colors, not canvas, collection backgrounds or card colors.'],Object.fromEntries(interfacePaletteIds.map(id=>[id,interfacePalettes[id].name])));
+   this.select(el,'interfaceMode',['明暗模式','Light and dark'],['仅控制 ThoughtSpace 界面；可跟随 Obsidian。','Controls ThoughtSpace only; can follow Obsidian.'],{auto:['跟随 Obsidian','Follow Obsidian'],light:['浅色','Light'],dark:['深色','Dark']});
+   this.select(el,'accent',['强调色','Accent color'],['影响按钮与导航，不改变卡片自己的配色。','Changes buttons and navigation, not individual card colors.'],{palette:['随配色','Use palette'],forest:['森林绿','Forest'],blue:['湖水蓝','Lake'],amber:['暖琥珀','Amber'],rose:['玫瑰色','Rose']});
    this.select(el,'density',['界面密度','Interface density'],['统一侧栏、材料库、写作与媒体摘录的控件和条目间距；正文及格式栏密度保持独立。','Controls spacing in sidebars, materials, writing and media excerpts; reading text and formatting toolbar density remain independent.'],{comfortable:['舒适','Comfortable'],compact:['紧凑','Compact']});return;
   }
   if(page==='cards'){

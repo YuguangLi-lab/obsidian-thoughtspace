@@ -534,3 +534,75 @@
 
 .ts-pdf-return-status{position:absolute;bottom:28px;right:12px;z-index:1002;display:flex;align-items:start;gap:8px;max-width:min(340px,calc(100% - 24px));padding:10px 12px;border:1px solid var(--background-modifier-border);border-radius:8px;background:var(--background-primary);color:var(--text-normal);box-shadow:0 4px 16px #0002;font-size:var(--font-ui-small);}
 .ts-pdf-return-status button{flex-shrink:0;min-width:24px;min-height:24px;padding:0;}
+/* Preserve the narrow paired-video overflow fix; this does not restyle controls. */
+.workspace-split.ts-media-study-stack { min-width:0; }
+
+/* BEGIN library-only presentation
+   The approved library dialog treatment is deliberately scoped here. Shared
+   palette tokens, settings, board controls and other workspaces stay unchanged. */
+.ts-database-modal.ts-ui-modal{width:min(1800px,calc(100vw - 48px));max-width:calc(100vw - 32px);height:min(860px,91dvh);padding:24px;border-radius:12px;}
+.ts-database-modal.ts-ui-modal .modal-header{margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--ts-e-line);}
+.ts-database-modal.ts-ui-modal .modal-title,.ts-database-modal.ts-ui-modal.is-db-overview .modal-title{font-size:22px;line-height:1.4;font-weight:650;letter-spacing:normal;margin:0;}
+.ts-database-modal.ts-ui-modal .modal-content{min-height:0;flex:1;}
+.ts-database-modal.ts-ui-modal .ts-database{display:flex;flex:1;flex-direction:column;min-height:0;gap:16px;overflow:hidden;}
+.ts-database-modal.ts-ui-modal.is-db-overview .ts-database.is-overview{height:auto;min-height:0;}
+.ts-database-modal.ts-ui-modal .ts-db-top{flex:none;flex-wrap:wrap;gap:12px;margin:0;}
+.ts-database-modal.ts-ui-modal .ts-db-tabs{gap:5px;padding:3px;border:0;border-radius:8px;background:var(--ts-e-paper);}
+.ts-database-modal.ts-ui-modal .ts-db-tabs button{display:flex;align-items:center;justify-content:center;gap:8px;min-height:36px;padding:7px 16px!important;border:1px solid transparent!important;border-radius:6px!important;background:transparent!important;box-shadow:none;font-size:var(--font-ui-small)!important;font-weight:500;}
+.ts-database-modal.ts-ui-modal .ts-db-tabs button.is-active{border-color:var(--ts-accent)!important;background:var(--ts-e-sheet)!important;color:var(--ts-accent)!important;font-weight:600;}
+.ts-database-modal.ts-ui-modal .ts-db-tabs svg{width:16px;height:16px;}
+.ts-database-modal.ts-ui-modal .ts-db-overview{grid-template-columns:200px minmax(0,1fr);gap:24px;}
+.ts-database-modal.ts-ui-modal .ts-db-collections{padding:2px 16px 12px 0;}
+.ts-database-modal.ts-ui-modal .ts-db-collections>button,.ts-database-modal.ts-ui-modal .ts-db-box-row>button:first-child{min-height:38px;padding:8px 10px;border-radius:6px;gap:9px;font-size:var(--font-ui-small);}
+.ts-database-modal.ts-ui-modal .ts-db-box-row>button:first-child{padding-right:32px;}
+.ts-database-modal.ts-ui-modal .ts-db-box-heading{padding:22px 10px 8px;font-weight:600;}
+.ts-database-modal.ts-ui-modal .ts-db-box-empty{padding:0 10px;line-height:1.65;overflow-wrap:anywhere;}
+.ts-database-modal.ts-ui-modal .ts-db-overview-main{gap:12px;}
+.ts-database-modal.ts-ui-modal .ts-db-overview-toolbar{gap:10px;}
+.ts-database-modal.ts-ui-modal .ts-db-search{display:flex;align-items:center;gap:10px;flex:1;min-width:0;height:38px;padding-inline:12px;border:1px solid var(--ts-e-line);border-radius:7px;background:var(--ts-e-paper);color:var(--ts-e-muted);}
+.ts-database-modal.ts-ui-modal .ts-db-search>span{display:flex;flex:none;pointer-events:none;}
+.ts-database-modal.ts-ui-modal .ts-db-search svg{width:16px;height:16px;}
+.ts-database-modal.ts-ui-modal .ts-db-search>input{flex:1;width:0;min-width:0;height:100%;padding:0;border:0;border-radius:0;box-shadow:none;background:transparent;color:var(--ts-e-ink);font:inherit;font-size:var(--font-ui-small);}
+.ts-database-modal.ts-ui-modal .ts-db-search:focus-within{outline:2px solid var(--ts-accent);outline-offset:2px;}
+.ts-database-modal.ts-ui-modal .ts-db-search>input:focus-visible{outline:none;}
+.ts-database-modal.ts-ui-modal .ts-db-refinements>summary{display:flex;align-items:center;justify-content:center;gap:8px;min-height:38px;padding:7px 12px;background:var(--ts-e-sheet);border-radius:7px;}
+.ts-database-modal.ts-ui-modal .ts-db-refinements>summary>span:first-child{display:flex;}
+.ts-database-modal.ts-ui-modal .ts-db-refinements>summary svg{width:16px;height:16px;}
+.ts-database-modal.ts-ui-modal .ts-db-refinements[open]>summary{border-color:var(--ts-accent);}
+.ts-database-modal.ts-ui-modal .ts-db-refinement-body{padding:20px;gap:14px;border-radius:9px;}
+.ts-database-modal.ts-ui-modal .ts-db-refinement-body>label{gap:6px;}
+.ts-database-modal.ts-ui-modal .ts-db-overview-caption{font-size:var(--font-ui-smaller);line-height:1.5;min-height:18px;}
+.ts-database-modal.ts-ui-modal .ts-db-library-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));gap:14px;padding:2px 4px 5px 2px;}
+.ts-database-modal.ts-ui-modal .ts-db-library-card{padding:18px;gap:12px;min-height:198px;border-radius:9px;box-shadow:none;}
+.ts-database-modal.ts-ui-modal .ts-db-library-card:hover{border-color:var(--ts-e-edge);}
+.ts-database-modal.ts-ui-modal .ts-db-library-card:focus-within{border-color:var(--ts-accent);}
+.ts-database-modal.ts-ui-modal .ts-db-library-card>.ts-db-library-title{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;padding-right:30px;font-size:var(--font-ui-medium,14px);line-height:1.5;font-weight:650;}
+.ts-database-modal.ts-ui-modal .ts-db-library-excerpt{font-size:var(--font-ui-small);line-height:1.75;overflow-wrap:anywhere;}
+.ts-database-modal.ts-ui-modal .ts-db-library-card-tags{gap:6px;padding-top:8px;}
+.ts-database-modal.ts-ui-modal .ts-db-library-card-tags span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 6px;border-radius:5px;}
+.ts-database-modal.ts-ui-modal .ts-db-library-path{line-height:1.6;}
+.ts-database-modal.ts-ui-modal .ts-db-library-card>.ts-card-insert-handle{top:12px;right:10px;color:var(--ts-e-muted);}
+.ts-database-modal.ts-ui-modal .ts-db-library-empty{padding:40px 18px;line-height:1.7;}
+.ts-database-modal.ts-ui-modal .ts-db-library-more{padding-top:4px;}
+.ts-database-modal.ts-ui-modal .ts-db-legacy{display:flex;flex:1;min-height:0;flex-direction:column;gap:12px;}
+.ts-database-modal.ts-ui-modal .ts-database.is-overview>.ts-db-legacy{display:none;}
+.ts-database-modal.ts-ui-modal .ts-db-saved-views{margin:0;padding:12px;border-radius:8px;}
+.ts-database-modal.ts-ui-modal .ts-db-filters{gap:10px;padding:12px;}
+.ts-database-modal.ts-ui-modal .ts-db-filters input,.ts-database-modal.ts-ui-modal .ts-db-filters select{height:36px;font-size:var(--font-ui-small);}
+.ts-database-modal.ts-ui-modal .ts-db-subtitle{margin:0;line-height:1.65;}
+.ts-database-modal.ts-ui-modal .ts-db-message:empty{display:none;}
+.ts-database-modal.ts-ui-modal .ts-db-table{font-size:var(--font-ui-small);}
+.ts-database-modal.ts-ui-modal .ts-db-table th{font-size:var(--font-ui-smaller);padding:14px 12px;}
+.ts-database-modal.ts-ui-modal .ts-db-help{padding-top:0;}
+.ts-database-modal.ts-ui-modal .ts-db-tabs button:focus-visible{outline:2px solid var(--ts-accent);outline-offset:2px;}
+.ts-database-modal.ts-ui-modal[data-density=compact] .ts-db-library-card{padding:14px;gap:9px;min-height:176px;}
+.ts-database-modal.ts-ui-modal[data-density=compact] .ts-db-library-grid{gap:10px;}
+@container(min-width:1200px){.ts-database-modal.ts-ui-modal .ts-db-library-grid{grid-template-columns:repeat(4,minmax(0,1fr));}}
+@container(max-width:760px){.ts-database-modal.ts-ui-modal .ts-db-overview{grid-template-columns:minmax(0,1fr);gap:0;}.ts-database-modal.ts-ui-modal .ts-db-overview.is-nav-open .ts-db-collections{padding:12px;}.ts-database-modal.ts-ui-modal .ts-db-library-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));}}
+@media(max-width:780px){.ts-database-modal.ts-ui-modal{width:calc(100vw - 20px);max-width:calc(100vw - 20px);height:92dvh;padding:16px;}.ts-database-modal.ts-ui-modal .ts-db-overview{grid-template-columns:minmax(0,1fr);gap:0;}.ts-database-modal.ts-ui-modal .ts-db-tabs{max-width:100%;flex-wrap:wrap;}.ts-database-modal.ts-ui-modal .ts-db-tabs button{padding:7px 12px!important;}.ts-database-modal.ts-ui-modal .ts-db-overview.is-nav-open .ts-db-collections{padding:12px;}.ts-database-modal.ts-ui-modal .ts-db-search{gap:7px;padding-inline:9px;}.ts-database-modal.ts-ui-modal .ts-db-refinements>summary{padding-inline:9px;}.ts-database-modal.ts-ui-modal .ts-db-refinements>summary>span:last-child{max-width:4em;white-space:normal;}.ts-database-modal.ts-ui-modal .ts-db-legacy-action{max-width:100%;}}
+@media(max-width:480px){.ts-database-modal.ts-ui-modal .ts-db-library-grid{grid-template-columns:minmax(0,1fr);}.ts-database-modal.ts-ui-modal .ts-db-box-toggle{max-width:72px;}.ts-database-modal.ts-ui-modal .ts-db-library-card{min-height:180px;}.ts-database-modal.ts-ui-modal .ts-db-library-condition{flex-wrap:wrap;}}
+@media(hover:none){.ts-database-modal.ts-ui-modal .ts-db-overview-toolbar button,.ts-database-modal.ts-ui-modal .ts-db-refinements>summary,.ts-database-modal.ts-ui-modal .ts-db-search{min-height:44px;}.ts-database-modal.ts-ui-modal .ts-db-library-card>.ts-card-insert-handle{width:32px;min-height:32px;}}
+/* END library-only presentation */
+/* Only the owning library modal yields to an active note drag. The source stays mounted. */
+.modal-container.ts-db-note-dragging{opacity:0!important;pointer-events:none!important;}
+.modal-container.ts-db-note-dragging>*{pointer-events:none!important;}

@@ -1,5 +1,21 @@
 # 更新记录
 
+## 1.3.42
+
+### 六套界面配色与资料库优化
+
+- 增加暖白纸张、中性白灰、北境蓝灰、柔雾紫灰、东京暮蓝、晴空雾蓝六套配色；支持跟随 Obsidian、浅色或深色，已有强调色、白板与收集背景保持各自设置。
+- 优化资料库的鸟瞰、资料表和进度看板导航、卡片盒侧栏、搜索筛选及卡片留白；窄窗下按 Esc 优先关闭展开的筛选或卡片盒导航。
+- 恢复资料库卡片拖到白板或正文：鸟瞰整卡与拖柄、资料表和看板标题均可作为拖动入口。拖动时暂时让出白板，接收成功后关闭资料库；取消或关闭来源后不再应用失效拖动。
+- 保留看板内部状态拖动、正文插入确认与撤销，以及原有笔记引用、配置、白板和卡片数据。
+
+### English
+
+- Add six light/dark interface palettes with system-following or explicit appearance. Preserve existing accent choices, authored board colors and independent Collection backgrounds.
+- Refine the library dialog's overview, table and progress-board navigation, collection sidebar, filters and card spacing. Escape closes an expanded inner navigation/filter panel first on narrow windows.
+- Restore cancellable library-card dragging to boards and editors from overview cards/handles and table/kanban titles. Temporarily expose the board during dragging, close the library after successful delivery, and reject cancelled or stale drag sessions.
+- Preserve internal kanban status moves, editor confirmation/undo, source-note references and existing settings and content.
+
 ## 1.3.41
 
 ### 资料库、视频学习与 PDF 摘录

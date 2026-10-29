@@ -1,11 +1,12 @@
 import {DatabaseLibraryView} from './database-library-view';
+import {DatabaseNoteDrag,beginDatabaseNoteDrag} from './database-note-drag';
 import {cleanLibraryPreferences,type LibraryPreferences} from './database-library';
 import {applyWorkspaceDensity} from './workspace-density';
 import type {WorkspaceLeaf} from 'obsidian';
 import {isRecord,isUnknownArray} from './value-guards';
 import {CustomField,CustomCondition,SavedDatabaseView,DatabasePreferences,customValue,customMatches,validCustomKey,databaseBase} from './database-custom';
 import { themeSurface } from './ui-tokens';
-import { App, Component, Modal, Notice, TFile, getAllTags, parseYaml, stringifyYaml, setIcon } from 'obsidian';
+import { App, Component, Modal, Notice, Scope, TFile, getAllTags, parseYaml, stringifyYaml, setIcon } from 'obsidian';
 import { DatabaseFilter, DatabaseRow, PropertyField, databaseCsv, filterRows, isOverdue, priorities, propertyKeys, propertyPatch, readProperties, statuses } from './database';
 import { LibraryScope, isWorkspaceFile, libraryFiles, noteExcerpt } from './workspace';
 import { localDay } from './filing';
@@ -65,6 +66,7 @@ export class DatabaseModal extends Modal {
   private rows: RecordRow[] = [];
   private view: 'overview'|'table'|'kanban' = 'overview';
   private overview?:DatabaseLibraryView;
+  private noteDrag?:DatabaseNoteDrag;
   private source: LibraryScope;private conditions:CustomCondition[]=[];private customBar!:HTMLElement;private savedSelect!:HTMLSelectElement;
   private limit = 100;
   private filter: DatabaseFilter = { query:'',tag:'',status:'',priority:'',overdue:false,sort:'updated',today:localDay() };
@@ -73,9 +75,19 @@ export class DatabaseModal extends Modal {
   private message!: HTMLElement;
   private tags!: HTMLSelectElement;
   private tabButtons: HTMLButtonElement[] = [];
-  constructor(app: App, private host: DatabaseHost, private store: PropertyStore) { super(app); this.source=host.boardPaths?'board':'cards'; }
+  constructor(app: App, private host: DatabaseHost, private store: PropertyStore) {
+    super(app);this.source=host.boardPaths?'board':'cards';
+    // Obsidian handles modal Escape before DOM bubbling. Dismiss our transient
+    // layer first; otherwise retain the modal's normal Escape-to-close behavior.
+    this.scope=new Scope(this.scope);this.scope.register([],'Escape',event=>{
+      if(!this.active||event.isComposing||Reflect.get(event,'keyCode')===229)return;
+      event.preventDefault();event.stopPropagation();
+      if(!this.noteDrag?.cancel()&&(this.view!=='overview'||!this.overview?.dismissTransient()))this.close();
+      return false;
+    });
+  }
   onOpen() {
-    this.active=true;this.lifecycle.load();this.modalEl.addClass('ts-database-modal');this.applyPreferences();this.titleEl.setText('卡片资料库');
+    this.active=true;this.lifecycle.load();this.noteDrag=new DatabaseNoteDrag(this.app,this.containerEl,()=>this.close());this.lifecycle.register(()=>this.noteDrag?.dispose());this.modalEl.addClass('ts-database-modal');this.applyPreferences();this.titleEl.setText('卡片资料库');
     const root=this.contentEl;root.addClass('ts-database');
     root.createDiv({cls:'ts-db-subtitle',text:this.host.boardTitle ? `${this.host.boardTitle} · 从想法到行动，在表格与看板之间切换。` : '用状态、优先级与日期，整理阅读和项目进展。'});
     const top=root.createDiv('ts-db-top');const tabs=top.createDiv('ts-db-tabs');
@@ -135,7 +147,7 @@ export class DatabaseModal extends Modal {
     if(all.length>rows.length)btn(this.results,`加载更多（${rows.length}/${all.length}）`,'chevrons-down',()=>{this.limit+=100;this.render();});
     this.results.scrollTop=scroll;
   }
-  private title(parent:HTMLElement,row:RecordRow){const title=btn(parent,row.title,'file-text',()=>{this.close();this.host.preview(row.file);});title.addClass('ts-db-note-title');parent.createDiv({cls:'ts-db-path',text:row.path,attr:{title:row.path}});}
+  private title(parent:HTMLElement,row:RecordRow){const title=btn(parent,row.title,'file-text',()=>{this.close();this.host.preview(row.file);});title.addClass('ts-db-note-title');title.draggable=true;title.setAttribute('aria-description','拖到白板或正文；点击预览');title.ondragstart=event=>{event.stopPropagation();if(this.busy){event.preventDefault();return;}beginDatabaseNoteDrag(this.app,event,row.file);this.noteDrag?.begin(event);};parent.createDiv({cls:'ts-db-path',text:row.path,attr:{title:row.path}});}
   private controls(parent:HTMLElement,row:RecordRow,field:PropertyField){
     if(field==='due'){
       const input=parent.createEl('input',{type:'date',attr:{'aria-label':`${row.title} 截止日期`}});input.value=row.props.due;input.disabled=this.busy;

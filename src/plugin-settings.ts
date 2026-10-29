@@ -1,3 +1,4 @@
+import {cleanInterfacePalette,cleanInterfaceMode} from './interface-palettes';
 import {cleanBoardCreationPreferences,type BoardCreationPreferences} from './board-creation';
 import {cleanPendingBoardReferences,type PendingBoardReference} from './pending-board-references';
 import {cleanPaperPreferences} from './paper-appearance';
@@ -35,11 +36,11 @@ export function cleanPluginSettings(raw:unknown):ThoughtSpacePreferences {
  try{Object.assign(out,validateFolders(typeof saved.cardFolder==='string'?saved.cardFolder:out.cardFolder,typeof saved.journalFolder==='string'?saved.journalFolder:out.journalFolder));}catch{/* Invalid folders never redirect automatic filing outside the configured vault paths. */}
  for(const key of ['autoFileCards','cleanupEmptyFolders','showMinimap','glassEffects','imageHostEnabled','noteMarkdownToolbar','boardSearchEnabled','nativeBookmarksMigrated'] as const)if(typeof saved[key]==='boolean')out[key]=saved[key];
  // Older appearance selections migrate without changing authored canvas settings.
- out.interfaceStyle='paper';
+ out.interfaceStyle='paper';out.interfacePalette=cleanInterfacePalette(saved.interfacePalette);out.interfaceMode=cleanInterfaceMode(saved.interfaceMode);
  if(isOneOf(saved.surfaceStyle,['soft','paper']))out.surfaceStyle=saved.surfaceStyle;
  if(isOneOf(saved.readingSize,[14,16,18,20]))out.readingSize=saved.readingSize;
  if(isOneOf(saved.readingWidth,['standard','wide']))out.readingWidth=saved.readingWidth;
- if(isOneOf(saved.accent,['forest','blue','amber','rose']))out.accent=saved.accent;
+ if(isOneOf(saved.accent,['forest','blue','amber','rose','palette']))out.accent=saved.accent;
  if(isOneOf(saved.density,['comfortable','compact']))out.density=saved.density;
  if(isOneOf(saved.canvasBackground,['dots','grid','plain','paper','image']))out.canvasBackground=saved.canvasBackground;
  if(typeof saved.notePaneLeafId==='string')out.notePaneLeafId=saved.notePaneLeafId;

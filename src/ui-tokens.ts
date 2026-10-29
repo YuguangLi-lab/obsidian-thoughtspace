@@ -1,16 +1,17 @@
+import {cleanInterfacePalette,cleanInterfaceMode} from './interface-palettes';
 import {applyWorkspaceDensity} from './workspace-density';
 import {interfaceStyleRules} from './interface-style-tokens';
 
-export type InterfaceStyleAppearance={interfaceStyle?:unknown;glassEffects?:boolean};
+export type InterfaceStyleAppearance={interfaceStyle?:unknown;glassEffects?:boolean;interfacePalette?:unknown;interfaceMode?:unknown;surfaceStyle?:unknown;accent?:unknown};
 // Retired values may arrive from synced settings or an older window. They never
 // reactivate a second interface or install optical effects.
-const resolvedAppearance=(_appearance:InterfaceStyleAppearance)=>({interfaceStyle:'paper' as const,glassEffects:false});
+const resolvedAppearance=(appearance:InterfaceStyleAppearance)=>({interfaceStyle:'paper' as const,glassEffects:false,interfacePalette:cleanInterfacePalette(appearance.interfacePalette),interfaceMode:cleanInterfaceMode(appearance.interfaceMode),surfaceStyle:appearance.surfaceStyle==='paper'?'paper':'soft',accent:['forest','blue','amber','rose','palette'].includes(String(appearance.accent))?String(appearance.accent):'forest'});
 
 function updateTokens(el:HTMLStyleElement,appearance:InterfaceStyleAppearance){
- const {interfaceStyle,glassEffects}=resolvedAppearance(appearance);
+ const resolved=resolvedAppearance(appearance),{interfaceStyle,glassEffects}=resolved;
  const scale=['var(--ts-e-sheet)','var(--ts-e-paper)','var(--ts-e-wash)','var(--ts-e-wash)','var(--ts-e-line)','var(--ts-e-line)','var(--ts-e-edge)','var(--ts-e-edge)','var(--ts-e-editorial)','var(--ts-e-editorial)','var(--ts-e-muted)','var(--ts-e-ink)'];
- el.textContent=`:is(.ts-root,.ts-journal,.ts-settings,.ts-space-modal,.ts-ui-modal,.ts-native-header,.ts-writing,.ts-note-markdown-toolbar,.ts-media-workspace,.ts-online-workspace,.ts-materials-panel,.ts-materials-modal):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){${scale.map((value,index)=>`--ts-ui-${index+1}:${value};`).join('')}}\n${interfaceStyleRules(interfaceStyle,glassEffects)}`;
- el.dataset.interfaceStyle=interfaceStyle;el.dataset.glassEffects=String(glassEffects);
+ el.textContent=`:is(.ts-root,.ts-journal,.ts-settings,.ts-space-modal,.ts-ui-modal,.ts-native-header,.ts-writing,.ts-note-markdown-toolbar,.ts-media-workspace,.ts-online-workspace,.ts-materials-panel,.ts-materials-modal):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){${scale.map((value,index)=>`--ts-ui-${index+1}:${value};`).join('')}}\n${interfaceStyleRules(interfaceStyle,glassEffects,resolved.interfacePalette,resolved.interfaceMode,resolved.surfaceStyle,resolved.accent)}`;
+ el.dataset.interfaceStyle=interfaceStyle;el.dataset.glassEffects=String(glassEffects);el.dataset.interfacePalette=resolved.interfacePalette;el.dataset.interfaceMode=resolved.interfaceMode;
 }
 
 /** Private chrome scale, shared by detached plugin windows as well as leaves.
@@ -37,7 +38,7 @@ export class InterfaceStyleDocuments {
   if(this.stopped)return;
   const next=resolvedAppearance(appearance);
   for(const doc of this.sheets.keys())if(doc.defaultView?.closed)this.release(doc);
-  if(next.interfaceStyle===this.appearance.interfaceStyle&&next.glassEffects===this.appearance.glassEffects)return;
+  if(JSON.stringify(next)===JSON.stringify(this.appearance))return;
   this.appearance=next;
   for(const [doc,sheet]of this.sheets){if(doc.defaultView?.closed)this.release(doc);else{updateTokens(sheet,next);}}
  }

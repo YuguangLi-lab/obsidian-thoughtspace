@@ -1,3 +1,4 @@
+import {interfacePalettes,cleanInterfacePalette,cleanInterfaceMode} from './interface-palettes';
 /** Palette/material changes only: document content and board objects own their colors. */
 const roots = [
   '.ts-root', '.ts-journal', '.ts-ui-modal', '.ts-space-modal', '.ts-settings',
@@ -59,9 +60,12 @@ function paletteRules(palette: Palette, scale?: string[]): string {
 }
 
 /** One historical paper interface, regardless of retired saved style values. */
-export function interfaceStyleRules(_style?: unknown, _glassEffects?: boolean): string {
-  const light = paperPalette(paperLight);
-  const dark = paperPalette(paperDark);
+export function interfaceStyleRules(_style?: unknown, _glassEffects?: boolean,selected?:unknown,mode?:unknown,_surface?:unknown,accent?:unknown): string {
+  const id=cleanInterfacePalette(selected),scheme=cleanInterfaceMode(mode),colors=interfacePalettes[id];
+  const light={...(id==='paper'?paperPalette(paperLight):colors.light),accent:colors.light.accent};
+  const dark={...(id==='paper'?paperPalette(paperDark):colors.dark),accent:colors.dark.accent};
+  // Retain the verified 1.3.41 material and geometry; presets change pigment only.
+  light.shadow=dark.shadow='0 1px 3px #00000009';
   const font = 'var(--font-interface)';
   const radius = '8px';
   const shared = `
@@ -76,8 +80,15 @@ export function interfaceStyleRules(_style?: unknown, _glassEffects?: boolean): 
     --ts-c-serif:${font};
     --ts-c-radius:6px;--ts-c-control-radius:5px;
   `;
-  let css = rule(allRoots, shared + paletteRules(light, paperLight)) +
-    rule(`.theme-dark ${allRoots}`, paletteRules(dark, paperDark));
+  const paint=(value:Palette&{accent:string},isDark:boolean)=>{
+    const custom=accent==='blue'?(isDark?'#8bbaf0':'#245a8b'):accent==='amber'?(isDark?'#e4bd75':'#805417'):accent==='rose'?(isDark?'#e8a6bc':'#9b4265'):accent==='palette'?value.accent:(isDark?'#93c8b4':'#356859');
+    return paletteRules(value,id==='paper'?(isDark?paperDark:paperLight):undefined)+`--ts-accent:${custom};--ts-palette-accent:${value.accent};--ts-e-on-accent:${isDark?value.paper:value.sheet};--ts-e-danger:${isDark?'#ffb4b4':'#9e2634'};--ts-e-warning:${isDark?'#edc78a':'#805417'};color-scheme:${isDark?'dark':'light'};`;
+  };
+  let css=rule(allRoots,shared+paint(scheme==='dark'?dark:light,scheme==='dark'));
+  if(scheme==='auto')css+=rule(`.theme-dark ${allRoots}`,paint(dark,true));
+  const nativeChrome=roots.filter(root=>!['.ts-root','.ts-brain-shell','.ts-handwriting','.ts-collection-content'].includes(root)).map(owned).join(',');
+  css+=rule(nativeChrome,'--background-primary:var(--ts-e-sheet);--background-secondary:var(--ts-e-paper);--background-modifier-border:var(--ts-e-line);--text-normal:var(--ts-e-ink);--text-muted:var(--ts-e-muted);--text-faint:var(--ts-e-muted);--icon-color:var(--ts-e-muted);--icon-color-hover:var(--ts-e-ink);--interactive-normal:var(--ts-e-sheet);--interactive-hover:var(--ts-e-wash);--interactive-accent:var(--ts-accent);--text-on-accent:var(--ts-e-on-accent);--text-error:var(--ts-e-danger);--text-warning:var(--ts-e-warning);');
+  for(const root of ['.ts-root','.ts-ui-modal','.ts-settings','.ts-writing','.ts-materials-modal','.ts-materials-panel','.ts-media-workspace','.ts-online-workspace','.ts-note-markdown-toolbar'])css+=rule(within(root,'.ts-button.ts-primary,.ts-button.mod-cta,.ts-writing-button.mod-cta'),'background:var(--ts-accent)!important;color:var(--ts-e-on-accent)!important;');
   // The marker is attached only to menus created by ThoughtSpace. Native menus
   // and another plugin's .menu are intentionally outside this layer.
   css += rule(owned('.ts-ui-menu'), 'background:var(--ts-e-sheet);color:var(--ts-e-ink);border-color:var(--ts-e-line);box-shadow:var(--ts-e-shadow);') +
@@ -95,8 +106,10 @@ export function interfaceStyleRules(_style?: unknown, _glassEffects?: boolean): 
 
   // Only named plugin chrome. In particular, there are no Markdown/editor,
   // node, media player, ink stage, canvas background or native-menu selectors.
+  const boardChrome=within('.ts-root','.ts-commandbar,.ts-inspector,.ts-minimap,.ts-calendar,.ts-tour-bar,.ts-board-rail,.ts-rail-popover,.ts-footer .ts-view-dock,.ts-canvas-settings-panel');
+  css+=rule(boardChrome,'--text-normal:var(--ts-e-ink);--text-muted:var(--ts-e-muted);--text-faint:var(--ts-e-muted);--icon-color:var(--ts-e-muted);--background-primary:var(--ts-e-sheet);--background-secondary:var(--ts-e-paper);--background-modifier-border:var(--ts-e-line);--background-modifier-hover:var(--ts-e-wash);--text-on-accent:var(--ts-e-on-accent);color:var(--ts-e-ink);');
   const sheetChrome = [
-    within('.ts-root', '.ts-commandbar,.ts-inspector,.ts-minimap,.ts-calendar,.ts-tour-bar,.ts-board-rail,.ts-rail-popover,.ts-footer .ts-view-dock'),
+    boardChrome,
     within('.ts-writing', '.ts-writing-header,.ts-writing-formatbar,.ts-writing-dock-head,.ts-writing-reference-heading,.ts-writing-panel-head,.ts-writing-transition'),
     within('.ts-media-workspace', '.ts-media-workspace__header,.ts-media-workspace__savebar,.ts-media-workspace__panel-switcher,.ts-media-workspace__layout-control'),
     within('.ts-online-workspace', '.ts-online-workspace__header,.ts-online-workspace__composer-actions'),

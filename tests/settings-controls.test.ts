@@ -1,3 +1,4 @@
+import {interfacePaletteIds,interfacePalettes} from '../src/interface-palettes';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -6,6 +7,7 @@ import {applyBoardMousePreset,cleanBoardPreferences,defaultBoardPreferences,rese
 import {cleanPluginSettings} from '../src/plugin-settings';
 
 class Element{
+ style={setProperty(){}};dataset:Record<string,string>={};attrs:Record<string,string>={};addClass(){}setAttribute(key:string,value:string){this.attrs[key]=value;}createSpan(options:any={}){return this.createEl('span',options);}
  texts:string[]=[];rows:Setting[]=[];children:Element[]=[];
  createEl(_tag:string,options:{text?:string}={}){this.texts.push(options.text||'');const child=new Element();this.children.push(child);return child;}
  createDiv(options:{text?:string}|string={}){return this.createEl('div',typeof options==='string'?{}:options);}
@@ -30,8 +32,8 @@ class Button{
  onClick(callback:()=>void){this.click=callback;return this;}
 }
 class Setting{
- name='';desc='';buttons:Button[]=[];dropdown?:Dropdown;toggle?:Toggle;settingEl={dataset:{} as Record<string,string>};
- constructor(el:Element){el.rows.push(this);}
+ name='';desc='';buttons:Button[]=[];dropdown?:Dropdown;toggle?:Toggle;settingEl=new Element();controlEl=new Element();
+ constructor(el:Element){el.rows.push(this);el.children.push(this.controlEl);}
  setName(value:string){this.name=value;return this;}
  setDesc(value:string){this.desc=value;return this;}
  addDropdown(callback:(control:Dropdown)=>void){this.dropdown=new Dropdown();callback(this.dropdown);return this;}
@@ -50,7 +52,7 @@ const tick=async()=>{await Promise.resolve();await Promise.resolve();};
 const row=(el:Element,name:string)=>{const found=el.rows.find(item=>item.name===name);assert.ok(found,`Missing row: ${name}`);return found;};
 const button=(el:Element,name:string)=>{const found=el.rows.flatMap(item=>item.buttons).find(item=>item.text===name);assert.ok(found,`Missing button: ${name}`);return found;};
 const settingsSource=readFileSync('src/settings-view.ts','utf8').replace(/^import .*;\n/gm,'').replace(/^export /gm,'');
-const settingsDeps={Modal:class{},PluginSettingTab:class{containerEl=new Element();},Setting,Notice,boardPreferenceControls:board,mousePreferenceControls:mouse};
+const settingsDeps={interfacePaletteIds,interfacePalettes,Modal:class{},PluginSettingTab:class{containerEl=new Element();},Setting,Notice,boardPreferenceControls:board,mousePreferenceControls:mouse};
 const Settings=new Function(...Object.keys(settingsDeps),transformSync(settingsSource+'\nreturn ThoughtSpaceSettings;',{loader:'ts'}).code)(...Object.values(settingsDeps));
 function settingsPage(page:'general'|'board',language:'zh-CN'|'en'){
  const settings=cleanPluginSettings({interfaceStyle:'glass',surfaceStyle:'soft',glassEffects:true,accent:'rose',density:'compact',canvasBackground:'image',paperPreset:'custom',paperColor:'#abcdef',paperTexture:73,backgroundImagePath:'Assets/custom.png',backgroundImageFit:'tile',backgroundImageOpacity:42});
@@ -59,13 +61,15 @@ function settingsPage(page:'general'|'board',language:'zh-CN'|'en'){
  return{el,settings,opened};
 }
 
-test('interface settings render only accent and density controls in both languages',()=>{
+const allRows=(el:Element):Setting[]=>[...el.rows,...el.children.flatMap(allRows)];
+test('legacy settings rows retain six native palette options without a gallery or new material controls',()=>{
  for(const language of ['zh-CN','en'] as const){
-  const {el}=settingsPage('general',language),interactive=el.rows.filter(item=>item.dropdown||item.toggle||item.buttons.length);
-  assert.deepEqual(interactive.map(item=>item.settingEl.dataset.settingKey),['accent','density']);
+  const {el}=settingsPage('general',language),interactive=allRows(el).filter(item=>item.dropdown||item.toggle||item.buttons.length);
+  assert.deepEqual(interactive.map(item=>item.settingEl.dataset.settingKey),['interfacePalette','interfaceMode','accent','density']);
   for(const key of ['interfaceStyle','surfaceStyle','glassEffects'])assert.equal(interactive.some(item=>item.settingEl.dataset.settingKey===key),false,`${key} must not be offered`);
-  assert.equal(el.rows.find(item=>item.settingEl.dataset.settingKey==='accent')!.dropdown!.value,'rose');
-  assert.equal(el.rows.find(item=>item.settingEl.dataset.settingKey==='density')!.dropdown!.value,'compact');
+  assert.deepEqual(Object.keys(allRows(el).find(item=>item.settingEl.dataset.settingKey==='interfacePalette')!.dropdown!.options),[...interfacePaletteIds]);
+  assert.equal(allRows(el).find(item=>item.settingEl.dataset.settingKey==='accent')!.dropdown!.value,'rose');
+  assert.equal(allRows(el).find(item=>item.settingEl.dataset.settingKey==='density')!.dropdown!.value,'compact');
  }
 });
 test('canvas settings retain paper appearance and background image controls in both languages',()=>{

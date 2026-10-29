@@ -62,7 +62,7 @@ test('every generated selector stays inside named plugin roots and outside Calen
       }
     });
     ast.walkDecls(decl => {
-      assert.doesNotMatch(decl.prop, /^--(?:background|text|font)-/);
+      if(/^--(?:background|text|font)-/.test(decl.prop)){const selector=(decl.parent as Rule).selector;assert.doesNotMatch(selector,/\.ts-(?:brain-shell|handwriting|collection-content)\b/);if(selector.includes('.ts-root'))assert.ok(selector.includes(' :is(.ts-commandbar,.ts-inspector,.ts-minimap,.ts-calendar,.ts-tour-bar,.ts-board-rail,.ts-rail-popover,.ts-footer .ts-view-dock,.ts-canvas-settings-panel)'),selector);else assert.match(selector,/\.ts-(?:settings|writing|ui-modal)/);}
       assert.doesNotMatch(decl.prop, /^animation/);
       if (decl.prop.startsWith('transition')) {
         assert.match((decl.parent as Rule).selector, /\.ts-glass-content-shield/);

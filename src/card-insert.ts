@@ -13,6 +13,7 @@ interface Source {file:TFile;path:string;mtime:number;ctime:number;size:number;a
 interface Target {root:HTMLElement;path:string;before:string;position:number;valid():boolean;commit(change:{from:number;to:number;insert:string}):void;focus():void}
 const services=new WeakMap<App,CardInsertion>();
 export function beginCardInsertDrag(app:App,event:DragEvent,file:TFile){services.get(app)?.begin(event,file);}
+export function cancelCardInsertDrag(app:App,token:string){services.get(app)?.cancelDrag(token);}
 export function acceptsCardInsert(app:App,event:DragEvent){return services.get(app)?.accepts(event)||false;}
 /** A temporary mirror maps textarea pixels without moving its real selection. */
 export function draftDropPosition(input:DraftInput,x:number,y:number):number|undefined{
@@ -25,6 +26,7 @@ export function dropCardIntoDraft(app:App,event:DragEvent,input:DraftInput,path:
 export class CardInsertion {
  private source?:{token:string;value:Source};private close?:()=>void;private stopped=false;
  constructor(private app:App){services.set(app,this);}
+ cancelDrag(token:string){if(this.source?.token===token)this.source=undefined;}
  begin(event:DragEvent,file:TFile){if(this.stopped||file.extension.toLowerCase()!=='md'||this.app.vault.getAbstractFileByPath(file.path)!==file)return;const token=crypto.randomUUID();this.source={token,value:{file,path:file.path,...file.stat,at:Date.now()}};event.dataTransfer?.setData(CARD_INSERT_MIME,token);if(event.dataTransfer)event.dataTransfer.effectAllowed='copy';}
  accepts(event:DragEvent){return !this.stopped&&!!this.source&&!!event.dataTransfer?.types.includes(CARD_INSERT_MIME)&&(event.type!=='drop'||event.dataTransfer.getData(CARD_INSERT_MIME)===this.source.token);}
  extension(){return EditorView.domEventHandlers({dragover:(event)=>{if(this.accepts(event)){event.preventDefault();if(event.dataTransfer)event.dataTransfer.dropEffect='copy';}return false;},drop:(event,view)=>{
