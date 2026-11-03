@@ -6295,6 +6295,7 @@ class BoardView extends FileView {
       add('在此新建卡片','plus',()=>this.newCard(position));
       add('在此插入笔记或 PDF…','file-input',()=>this.insertExistingNote(position));
       add('在此添加文本','type',()=>this.newText(position));add('在此添加表格','table-2',()=>this.newTable(position));
+      add('在此添加 Mermaid 卡片','workflow',()=>this.newMermaid(position));
       add('在此添加网页','globe',()=>this.newWebCard(position));
       add('在此添加图片','image-plus',()=>this.imageMenu(position));
       add('在此插入音频或视频…','clapperboard',()=>this.insertMediaCard(position));

@@ -1,5 +1,19 @@
 # 更新记录
 
+## 1.3.44
+
+### 右键创建 Mermaid 卡片
+
+- 白板空白处右键菜单新增“在此添加 Mermaid 卡片”，位于表格入口下方；保存后卡片中心落在右键位置，兼容画布平移与缩放。
+- 复用已有源码与原生预览编辑器，保留取消、保存重开、会话切换和禁写保护；不改变菜单风格、卡片格式及其他功能。
+- 本地 10,329 项自动化测试通过；实际 Obsidian 1.15.0 隔离环境核验原生右键点击、创建与编辑取消、保存重开、深浅色及 380px 右侧栏。物理移动设备未实测。
+
+### English
+
+- Add “Add Mermaid card here” to the blank-canvas context menu after the table action. Save the card at the captured world position, including panned and zoomed canvases.
+- Reuse the existing native source/preview editor, cancellation, persistence and owner guards without changing other menu actions or the stored text-node format.
+- Validate with 10,329 automated tests and actual Obsidian 1.15.0 native-menu checks in an isolated vault, including light/dark appearance and a 380px right sidebar. Physical mobile devices remain untested.
+
 ## 1.3.43
 
 ### Mermaid 图表卡片与 Obsidian 1.15
