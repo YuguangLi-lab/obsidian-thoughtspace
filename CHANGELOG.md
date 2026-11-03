@@ -1,5 +1,21 @@
 # 更新记录
 
+## 1.3.43
+
+### Mermaid 图表卡片与 Obsidian 1.15
+
+- 新增“插入内容 → Mermaid 图表”，左侧编辑源码，右侧原生实时预览；保存创建或更新卡片，取消不写入草稿。
+- 完整、独立的 Mermaid 文本代码块自动使用图表编辑器；混合 Markdown 继续使用原文本编辑器。图表仍按普通文本卡保存，不新增白板节点类型或迁移数据。
+- 兼容 Obsidian 1.15 的 Pele 渲染，保留卡片移动、尺寸调整、连线、撤销重做；卡片展示层不接管图形自身的缩放操作。
+- 语法错误保持可编辑并允许保存源码；异步预览、并发修改、锁定和关闭白板时保留写入与资源清理保护。
+- 本地 10,323 项自动化测试通过。实际 Obsidian 1.15.0 隔离库完成 41 项功能检查及最终样式的 10 项窄侧栏检查。物理移动设备和系统输入法未验证。
+
+### English
+
+- Add Mermaid diagram cards with a source/preview editor and explicit save/cancel. Use native Obsidian Markdown rendering, including Pele in Obsidian 1.15.
+- Keep diagrams as ordinary text nodes and preserve moving, resizing, connections and undo/redo. Mixed Markdown continues to use the existing text editor.
+- Retain editable invalid source and guard asynchronous previews, stale saves, locked cards and owner navigation. Verify native rendering and interactions in an isolated Obsidian 1.15.0 vault, including narrow layouts.
+
 ## 1.3.42
 
 ### 六套界面配色与资料库优化

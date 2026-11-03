@@ -11612,3 +11612,39 @@
 }
 
 /* END editorial-dialogs generated */
+
+/* BEGIN mermaid-card generated */
+/* Mermaid uses the host renderer; all rules stay within ThoughtSpace surfaces. */
+.modal.ts-mermaid-editor:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  width: min(1060px, calc(100vw - 40px));
+  max-width: calc(100vw - 24px);
+}
+.ts-mermaid-editor .modal-content:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { overflow: auto; }
+.ts-mermaid-editor-hint:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { margin: 0 0 16px; color: var(--text-muted); }
+.ts-mermaid-editor-columns:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.ts-mermaid-editor-pane:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { min-width: 0; display: flex; flex-direction: column; }
+.ts-mermaid-editor-label:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { display: flex; flex: 1; flex-direction: column; gap: 8px; font-weight: var(--font-semibold); }
+.ts-mermaid-editor-pane > .ts-mermaid-editor-label:not(label):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { flex: none; margin-bottom: 8px; }
+.ts-mermaid-editor textarea.ts-mermaid-editor-source:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),
+.ts-mermaid-editor-preview:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  width: 100%; min-height: 300px; height: min(48vh, 440px); border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m); background: var(--background-primary); padding: 14px; overflow: auto;
+}
+.ts-mermaid-editor textarea.ts-mermaid-editor-source:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { resize: vertical; font-family: var(--font-monospace); font-size: var(--font-smaller); line-height: 1.6; tab-size: 4; font-weight: var(--font-normal); }
+.ts-mermaid-editor-preview:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { font-weight: var(--font-normal); }
+.ts-mermaid-editor-preview .mermaid:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { min-width: 0; }
+.ts-mermaid-editor-status:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { min-height: 1.5em; margin-top: 12px; font-size: var(--font-ui-small); color: var(--text-muted); }
+.ts-mermaid-editor-error:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { color: var(--text-error); white-space: pre-wrap; overflow-wrap: anywhere; }
+.ts-mermaid-editor-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+/* Diagram panning must not steal the board's existing drag and connection gestures. */
+.ts-root .ts-node.is-mermaid-card .ts-text-body .mermaid:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),
+.ts-root .ts-node.is-mermaid-card .ts-text-body .mermaid *:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { pointer-events: none; }
+.ts-root .ts-node.is-mermaid-card .ts-text-body .mermaid .pele-zoom:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { display: none !important; }
+.ts-root .ts-node.is-mermaid-card .ts-text-body:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { overflow: auto; }
+@media (max-width: 680px) {
+  .ts-mermaid-editor-columns:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { grid-template-columns: minmax(0, 1fr); }
+  .ts-mermaid-editor textarea.ts-mermaid-editor-source:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),
+  .ts-mermaid-editor-preview:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { min-height: 180px; height: 28vh; }
+}
+
+/* END mermaid-card generated */

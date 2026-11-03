@@ -85,6 +85,8 @@ import {cleanLayoutPresets} from './layout-presets';
 import {GroupOrganizerModal} from './group-organizer-view';
 import {outlineTree} from './group-organizer';
 import {renderTextPreview} from './text-preview';
+import {DEFAULT_MERMAID_SOURCE,mermaidMarkdown,mermaidSource} from './mermaid-card';
+import {MermaidEditorModal} from './mermaid-editor-modal';
 import {renderCardPreview} from './card-preview';
 import {mountCardQuickActions} from './card-quick-actions';
 import {mountCardReadingAffordance} from './card-reading-affordance';
@@ -3470,6 +3472,7 @@ class BoardView extends FileView {
     this.focusButton?.setAttribute('aria-pressed',String(this.focusMode));
   }
   private searchModal?:BoardSearchModal;
+  private mermaidEditor?:MermaidEditorModal;
   findOnBoard() {
     if(isBrainBoard(this.session?.board)){this.brainBoardView?.focusSearch();return;}
     if(this.searchModal?.modalEl.isConnected){this.searchModal.modalEl.querySelector<HTMLInputElement>('input[type="search"]')?.focus();return this.searchModal;}
@@ -3671,6 +3674,7 @@ class BoardView extends FileView {
     tile(materials,'音频卡片','audio-lines','听音频并记录时间点',()=>this.insertMediaCard(this.point(),'audio'));
     tile(materials,'网页卡片','globe','链接、预览与网页参考',()=>this.newWebCard());
     tile(materials,'表格','table-2','在白板整理数据',()=>this.newTable());
+    tile(materials,'Mermaid 图表','workflow','用源码绘制流程图与时序图',()=>this.newMermaid());
     tile(structure,'脑图','network','在白板内浏览、展开与连接笔记',()=>this.addMindmap()).addClass('ts-insert-mindmap-entry');
     tile(structure,'子白板','panels-top-left','创建下一级白板',()=>this.newChildBoard());
     tile(structure,'引用白板','folder-input','连接已有白板',()=>new BoardPicker(this.app,this.file,f=>this.addBoard(f)).open());
@@ -3981,8 +3985,9 @@ class BoardView extends FileView {
     this.automaticGeometryDeferred=false;this.pendingFits.clear();this.deferredCardFits.clear();
     this.fitLegacyGeometry();this.paint();this.refreshFontMetrics();
   }
-  async onUnloadFile() {this.cancelSaveFeedbackNavigation(); const epoch=++this.dialogEpoch,owner=this.session;if(this.handwritingOwner||this.handwritingView)this.clearHandwritingBoard();this.clearBrainBoard();this.blankClicks.cancel();this.blankClickOwner=undefined;this.searchModal?.close();this.searchModal=undefined;this.reuseModal?.close();this.reuseModal=undefined;this.savedViewsModal?.close();this.savedViewsModal=undefined;this.groupOrganizer?.close();this.groupOrganizer=undefined;this.layoutPlannerModal?.close();this.layoutPlannerModal=undefined;await this.finishInlineForNavigation();if(epoch!==this.dialogEpoch||this.closed||this.closing)return; if(this.plugin.currentBoard===this)this.plugin.clearMaterialDrag();this.clearCanvasGesture();this.clearNodes();this.finishMarquee(true); this.sidebarRun++; this.unsubscribe?.(); this.unsubscribe = undefined; if (owner) await owner.flush();if(epoch!==this.dialogEpoch||this.closed||this.closing||this.session!==owner)return; this.session = undefined;this.plugin.refreshLocalRelations?.(this);this.plugin.refreshDock(); }
+  async onUnloadFile() {this.mermaidEditor?.closeForOwner();this.cancelSaveFeedbackNavigation(); const epoch=++this.dialogEpoch,owner=this.session;if(this.handwritingOwner||this.handwritingView)this.clearHandwritingBoard();this.clearBrainBoard();this.blankClicks.cancel();this.blankClickOwner=undefined;this.searchModal?.close();this.searchModal=undefined;this.reuseModal?.close();this.reuseModal=undefined;this.savedViewsModal?.close();this.savedViewsModal=undefined;this.groupOrganizer?.close();this.groupOrganizer=undefined;this.layoutPlannerModal?.close();this.layoutPlannerModal=undefined;await this.finishInlineForNavigation();if(epoch!==this.dialogEpoch||this.closed||this.closing)return; if(this.plugin.currentBoard===this)this.plugin.clearMaterialDrag();this.clearCanvasGesture();this.clearNodes();this.finishMarquee(true); this.sidebarRun++; this.unsubscribe?.(); this.unsubscribe = undefined; if (owner) await owner.flush();if(epoch!==this.dialogEpoch||this.closed||this.closing||this.session!==owner)return; this.session = undefined;this.plugin.refreshLocalRelations?.(this);this.plugin.refreshDock(); }
   async onClose() {
+    this.mermaidEditor?.closeForOwner();
     this.pdfReturnRun++;this.pdfReturnClose?.();this.pdfReturnClose=undefined;
     this.canvasBackgroundDialog?.close();this.canvasBackgroundDialog=undefined;
     if(this.closed)return;this.cancelSaveFeedbackNavigation();const owner=this.session;this.closing=true;
@@ -4304,6 +4309,37 @@ class BoardView extends FileView {
     this.selected=new Set([id]);this.selectedEdge=undefined;this.contextOpen=false;this.updateSelection();await this.startInlineEdit(id,false,true);
     if(this.session===owner&&this.inlineId===id)this.inline?.input.setSelectionRange(template.start,template.end);
   }
+  async newMermaid(position=this.point()){
+    const owner=this.requireOwner();if(this.inline&&!await this.inline.commit())return;this.requireOwner(owner);
+    if(this.mermaidEditor?.modalEl.isConnected)return;
+    const id=uid();let inserted=false,savedText='';
+    const modal=new MermaidEditorModal(this.app,{source:DEFAULT_MERMAID_SOURCE,sourcePath:owner.file.path,title:'新建 Mermaid 图表',
+      onSave:async source=>{
+        this.requireOwner(owner);const text=mermaidMarkdown(source),current=owner.board.nodes.find(n=>n.id===id);
+        if(inserted&&(!current||current.kind!=='text'||current.webUrl||current.locked||current.text!==savedText))throw Error('图表已变化或锁定，请重新打开编辑');
+        if(!inserted||text!==savedText)owner.change(b=>{
+          if(inserted)b.nodes.find(n=>n.id===id)!.text=text;
+          else{b.version=3;b.nodes.push({id,kind:'text',title:'Mermaid 图表',text,x:position.x-210,y:position.y-150,width:420,height:300,color:'sand',fontSize:this.plugin.settings.defaultTextSize,autoSize:false,textAutoHeight:false});}
+        });
+        inserted=true;savedText=text;this.selected=new Set([id]);this.selectedEdge=undefined;this.contextOpen=false;this.updateSelection();
+        await owner.flush();if(owner.blocked)throw Error('图表已保留在恢复草稿中，请先处理白板保存冲突');
+      },onClosed:()=>{if(this.mermaidEditor===modal)this.mermaidEditor=undefined;}});
+    this.mermaidEditor=modal;modal.open();
+  }
+  private editMermaid(id:string){
+    const owner=this.requireOwner(),node=owner.board.nodes.find(n=>n.id===id),source=node?.kind==='text'&&!node.webUrl?mermaidSource(node.text||''):undefined;
+    if(!node||source===undefined||node.locked)return;if(this.mermaidEditor?.modalEl.isConnected)return;
+    let original=node.text||'';
+    const modal=new MermaidEditorModal(this.app,{source,sourcePath:owner.file.path,
+      onSave:async value=>{
+        this.requireOwner(owner);const current=owner.board.nodes.find(n=>n.id===id);
+        if(!current||current.kind!=='text'||current.webUrl||current.locked||current.text!==original)throw Error('图表已被修改、移除或锁定；草稿仍保留，请复制后重新打开');
+        const text=value===mermaidSource(original)?original:mermaidMarkdown(value);
+        if(text!==original){owner.change(b=>{b.nodes.find(n=>n.id===id)!.text=text;});original=text;}
+        await owner.flush();if(owner.blocked)throw Error('图表已保留在恢复草稿中，请先处理白板保存冲突');
+      },onClosed:()=>{if(this.mermaidEditor===modal)this.mermaidEditor=undefined;}});
+    this.mermaidEditor=modal;modal.open();
+  }
   newWebCard(position=this.point()){
     const owner=this.requireOwner();new Prompt(this.app,'网页链接','https://',value=>{this.requireOwner(owner);return this.addWebCard(value,position);}).open();
   }
@@ -4347,6 +4383,7 @@ class BoardView extends FileView {
     if(request!==this.inlineStart)return;this.requireOwner(owner);let node=owner.board.nodes.find(n=>n.id===id);
     if(!node||!['text','card'].includes(node.kind))return;if(node.locked)throw Error('对象已锁定，请先解锁再编辑');
     if(node.webUrl){this.editWebCard(id);return;}
+    if(node.kind==='text'&&mermaidSource(node.text||'')!==undefined){this.editMermaid(id);return;}
     const kind=node.kind,file=kind==='card'?this.app.vault.getAbstractFileByPath(node.file!):undefined;if(kind==='card'&&!(file instanceof TFile))throw Error('原笔记不存在，请先重新关联');
     let original:string;
     try{original=file instanceof TFile?await readCurrentNativeNote(this.app,file):node.text||'';}
@@ -5271,6 +5308,7 @@ class BoardView extends FileView {
         const owner=this.session!;header.remove();renderWebCard(el,n,{open:()=>{this.requireOwner(owner);this.openWebCard(n.id);},edit:()=>{this.requireOwner(owner);this.editWebCard(n.id);},fold:()=>{this.requireOwner(owner);this.foldText(n.id,true);},copy:()=>{this.requireOwner(owner);this.copyWebCard(n.id);},disabled:owner.blocked||!!n.locked,register:dispose=>scope.register(dispose),online:parseOnlineSource(n.webUrl)?{open:()=>{this.requireOwner(owner);const state=this.onlineBoardStates.get(n.id);act(()=>this.plugin.openOnlineWorkspace(n.webUrl!,'sidebar',state&&state.source===parseOnlineSource(n.webUrl!)?.path?state.time:undefined));},mount:host=>this.mountOnlineBoardCard(n,host,owner)}:undefined});
       } else if(n.kind==='text'){
         header.remove();el.dataset.ink=n.textColor || 'default';
+        el.toggleClass('is-mermaid-card',mermaidSource(n.text||'')!==undefined);
         el.toggleClass('is-media-reference',/^!\[\[.*#\^thoughtspace-media-[A-Za-z0-9_-]+\]\]$|^!\[[^\]]*\]\([^\n]*#\^thoughtspace-media-[A-Za-z0-9_-]+\)$/.test((n.text||'').trim()));
         const presentation=textExcerptPresentation(n.text||'');el.toggleClass('has-excerpt-source',!!presentation.sources.length);
         const owner=this.session,actions=el.createDiv('ts-card-actions ts-text-actions');
@@ -6285,7 +6323,7 @@ class BoardView extends FileView {
         add('打开原网页','external-link',()=>this.openWebCard(node.id),false);add('复制网页链接','copy',()=>this.copyWebCard(node.id),false);add('修改网页链接','link',()=>this.editWebCard(node.id),true,locked);
         add(node.collapsed?'展开网页':'折叠网页',node.collapsed?'chevron-down':'chevron-up',()=>this.foldSelection(!node.collapsed),true,locked);
       }else if(node.kind==='text'){
-        add('编辑文本','pencil',()=>this.editText(node.id),true,locked);
+        add(mermaidSource(node.text||'')!==undefined?'编辑 Mermaid 图表':'编辑文本','pencil',()=>this.editText(node.id),true,locked);
         add(node.collapsed?'展开文本':'折叠文本',node.collapsed?'chevron-down':'chevron-up',()=>this.foldSelection(!node.collapsed),true,locked);
         add(textFitsContent(node)?'关闭自动适应高度':'自动适应文本高度','move-vertical',()=>this.setTextAutoHeight(node.id),true,locked);
         add('转换为笔记','file-plus-2',()=>this.promptTextToNote(node.id),true,locked);

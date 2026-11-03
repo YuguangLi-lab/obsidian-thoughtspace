@@ -282,6 +282,14 @@ Tables fit their content by default. Manual resizing or disabling auto-fit prese
 For a fresh table, use **插入内容 → 表格**, right-click empty space and choose **在此添加表格**, or use the editing toolbar's table button. The first header is selected for replacement, without moving your camera. Wide tables can scroll horizontally after you narrow their text frame. Text automatically fits rendered content when auto height is enabled; right-click **关闭自动适应高度** to keep the current size. For linked notes, **自动适应笔记大小** adjusts the card preview to its content.
 
 
+### Mermaid diagrams
+
+Choose **插入内容 → Mermaid 图表** (Insert content → Mermaid diagram). Enter Mermaid source on the left, without Markdown fences; the right pane updates automatically. **保存** (Save), or Ctrl/Cmd + Enter, creates the card. **取消** (Cancel) or Esc discards the draft.
+
+Double-click the diagram or use its edit action to reopen the source and preview. Moving, resizing, connecting, undo and redo use the existing text-card behavior. Syntax errors appear in the preview; you can still save the source and repair it later.
+
+Only a text card containing one complete Mermaid code block uses the diagram editor. Mixed Markdown continues to use the text editor. Rendering follows the installed Obsidian version (Pele in Obsidian 1.15), and the board still stores the diagram as an ordinary Markdown text card.
+
 ### Card styles
 
 Select one or more Markdown cards or text boxes and open **卡片** (Card) in the top toolbar to choose **Transparent / Solid / Color title band / Double-line paper / Index / Sticky**. The title band displays the board-specific card title. Use **背景 → 卡片颜色** (Background → Card color) for a preset or custom band color. Double-click the title to edit the card label without renaming the note. Leaving the title unchanged creates no fixed alias. The paper style adds a fine double frame and a decorative paperclip; its background color also tints the paper and the gap between the frame lines. Fixed-size cards keep their reading position when switching styles.
