@@ -23,7 +23,7 @@ const methods=take('  private pointerDown(', '  private key(')
   +take('  private reserveVisibleCardControls(', '  private positionNode(')
   +take('  private displayBoard()', '  private renderEdges(')
   +take('  private pointerCaptureLost(', '  private foldSelection(');
-const sessionMethods=take('  change(fn:', '  persist() {');
+const sessionMethods=take('  change(fn:', '  persist(viewportOnly');
 class Element {
   style:Record<string,string>={};dataset:Record<string,string>={};classes=new Set<string>();
   classList={contains:(name:string)=>this.classes.has(name),toggle:(name:string,on:boolean)=>this.toggleClass(name,on)};

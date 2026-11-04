@@ -64,6 +64,7 @@ jobs:
             main.js
             manifest.json
             styles.css
+            paper-grain.png
             dist/thoughtspace-*.zip
             dist/SHA256SUMS.txt
       - name: Create verified release tag from release branch
@@ -86,6 +87,6 @@ jobs:
           else
             release_flags+=(--latest)
           fi
-          gh release create "$RELEASE_TAG" main.js manifest.json styles.css "dist/thoughtspace-$RELEASE_TAG.zip" dist/SHA256SUMS.txt --verify-tag --title "ThoughtSpace Whiteboard $RELEASE_TAG" --notes-file dist/release-notes.md "${release_flags[@]}"
+          gh release create "$RELEASE_TAG" main.js manifest.json styles.css paper-grain.png "dist/thoughtspace-$RELEASE_TAG.zip" dist/SHA256SUMS.txt --verify-tag --title "ThoughtSpace Whiteboard $RELEASE_TAG" --notes-file dist/release-notes.md "${release_flags[@]}"
       - name: Verify public installer endpoints and asset contents
         run: python3 scripts/verify-release.py

@@ -24,19 +24,19 @@
 ### 首次安装
 
 1. 在 Obsidian **设置 → 第三方插件** 搜索 **ThoughtSpace Whiteboard**。若当前社区目录提供该插件，安装并启用，然后跳到第 4 步；搜索不到时使用手动安装。
-2. 手动安装：打开 [GitHub Releases](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases)，进入所需版本，下载同一版本的 **`main.js`、`manifest.json`、`styles.css`**。
-3. 在练习库的 `.obsidian/plugins/thoughtspace/` 中直接放入三个文件。不要多嵌套一层文件夹，也不要把 GitHub 自动生成的源码压缩包当安装包。
+2. 手动安装：打开 [GitHub Releases](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases)，进入所需版本，下载同一版本的 **`main.js`、`manifest.json`、`styles.css`、`paper-grain.png`**。
+3. 在练习库的 `.obsidian/plugins/thoughtspace/` 中直接放入这四个文件。`paper-grain.png` 是纸张背景纹理，必须与 `styles.css` 放在同一目录。不要多嵌套一层文件夹，也不要把 GitHub 自动生成的源码压缩包当安装包。
 4. 重新加载 Obsidian，在第三方插件列表启用插件。打开命令面板，搜索 **新建白板或脑图…**。
 
 默认配置目录是 `.obsidian`；使用自定义配置目录时，放到对应的 `plugins/thoughtspace/`。插件目前不支持移动端。
 
-Release 还提供 `thoughtspace-版本号.zip` 安装 ZIP 和 `SHA256SUMS.txt`。ZIP 是手动下载辅助包；解压后，Obsidian 仍只安装上述三个运行文件。需要核验下载时，在本机计算所下载文件的 SHA-256，与**同一 Release** 的 `SHA256SUMS.txt` 对应项逐项比较。例如 macOS/Linux 可运行 `shasum -a 256 thoughtspace-1.3.36.zip`，Windows PowerShell 可运行 `Get-FileHash thoughtspace-1.3.36.zip -Algorithm SHA256`。文件名按实际版本替换；这一校验需要你手动执行，Obsidian 不会自动验证 ZIP 或校验清单。
+Release 还提供 `thoughtspace-版本号.zip` 安装 ZIP 和 `SHA256SUMS.txt`。ZIP 是手动下载辅助包；解压后，把上述四个运行文件放到插件目录。需要核验下载时，在本机计算所下载文件的 SHA-256，与**同一 Release** 的 `SHA256SUMS.txt` 对应项逐项比较。例如 macOS/Linux 可运行 `shasum -a 256 thoughtspace-1.3.45.zip`，Windows PowerShell 可运行 `Get-FileHash thoughtspace-1.3.45.zip -Algorithm SHA256`。文件名按实际版本替换；这一校验需要你手动执行，Obsidian 不会自动验证 ZIP 或校验清单。
 
 ### 更新已有安装
 
 1. 保存笔记正文和媒体摘录，确认白板保存完成；普通白板显示 **已保存**，脑图不应还有待保存或错误提示。有只读或冲突提示时先按 [FAQ](#troubleshooting) 保留内容。
 2. 备份仓库及配置目录，包含 `.md`、`.thoughtspace`、附件和插件数据。
-3. 暂时关闭插件，用同一 Release 的三个运行文件替换旧文件。
+3. 暂时关闭插件，用同一 Release 的四个运行文件替换旧文件。
 4. **保留 `data.json`、背景图片、布局快照和其他已有数据文件**，不要删除整个插件目录。
 5. 重新启用，检查版本，重开一张白板和一篇关联笔记。
 
@@ -726,7 +726,7 @@ PDF 的文字选择与摘录使用前述右侧原生 PDF 阅读器。阅读桌�
 
 | 现象 | 下一步 |
 | --- | --- |
-| 第三方插件列表中找不到插件 | 检查桌面版 Obsidian、配置目录与同版本三个运行文件，避免多嵌套文件夹；重新加载后启用 |
+| 第三方插件列表中找不到插件 | 检查桌面版 Obsidian、配置目录与同版本四个运行文件（含与样式表同目录的 `paper-grain.png`），避免多嵌套文件夹；重新加载后启用 |
 | 左键、滚轮或快捷键与教程不同 | 查看 **鼠标与键盘** 当前方案；退出文字输入并点击画布，核对 Obsidian 自定义绑定 |
 | 四向脑图命令未执行 | 先确认活动页为独立脑图、有效选中节点（无选择时为中心）未锁定且非只读，完成组字并退出输入/编辑；命令没有默认热键 |
 | 找不到刚才的白板或材料 | 用 **继续上次白板**、空间总览 **最近打开**、适应、搜索或大纲；检查分组、分支折叠与筛选 |

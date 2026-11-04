@@ -34,6 +34,8 @@ export const colorNames:Record<Color,string>={sand:'米黄',blue:'蓝色',green:
 export type CardFill = Color | 'none' | `#${string}`;
 export const validCardFill=(value:unknown):value is CardFill=>typeof value==='string'&&(value==='none'||colors.includes(value as Color)||/^#[0-9a-fA-F]{6}$/.test(value));
 export const cardFillHex:Record<Color,string>={sand:'#e8d8a8',blue:'#bbd5e7',green:'#bedbca',rose:'#eac6cc',purple:'#d6cbe8',orange:'#edc49a',red:'#e7b1ae',teal:'#a9d4c9',cyan:'#a9d8e4',lime:'#cad9a3',slate:'#bdc8d2',brown:'#d2bca9'};
+/** Theme-aware fill for in-app paint. Exports and color inputs keep cardFillHex. */
+export const cardFillCss=(color:Color)=>`var(--ts-fill-${color}, ${cardFillHex[color]})`;
 export interface Card { mindmapRules?:{layout:'right'|'left'|'down'|'up'|'bilateral';density:'compact'|'standard'|'relaxed';automatic:boolean};textMaxWidth?:number; webUrl?:string; imageUrl?:string; transparent?:boolean; fillColor?:CardFill; branchFolded?:boolean; review?:'later'|'reading'|'done'; id: string; kind: 'card' | 'section' | 'board' | 'mindmap' | 'text' | 'image' | 'pdf' | 'audio' | 'video'; pdfPage?:number; mediaStart?:number; x: number; y: number; width: number; height: number; color: Color; file?: string; title?: string; collapsed?: boolean; expandedHeight?: number; text?: string; topic?: boolean; textColor?: Color | 'default'; fontSize?: number; fontFamily?: 'default' | 'serif' | 'mono'; textAlign?: 'left' | 'center' | 'right'; autoSize?: boolean; textAutoHeight?: boolean; autoFit?:boolean; preferredWidth?:number; locked?:boolean; customBorder?:boolean; borderStyle?:'solid'|'dashed'|'dotted'; borderWidth?:number }
 export interface Edge { id: string; from: string; to: string; label: string; style?: 'curve'|'straight'|'elbow'; direction?: 'forward'|'both'|'none'; dashed?: boolean; color?: Color; fromSide?: Side; toSide?: Side; kind?: 'branch' }
 export interface Board { defaultEdgeStyle?:Edge['style']; mindmapLayout?:'right'|'left'|'down'|'up'|'bilateral'; mindmapDensity?:'compact'|'standard'|'relaxed'; writing?:WritingState; selectionSets?:{id:string;name:string;ids:string[]}[]; spaceId?:string; snapToGrid?:boolean; savedViews?:{id:string;name:string;viewport:{x:number;y:number;zoom:number}}[]; version: 1 | 2 | 3; mode?: 'free'|'mindmap'; mindmapDirection?: 'right'|'down'|'up'; nodes: Card[]; edges: Edge[]; viewport: { x: number; y: number; zoom: number } }
@@ -173,7 +175,9 @@ export class History {
    while(this.undoStack.length+this.redoStack.length>1&&(bytes>this.maxBytes||this.undoStack.length+this.redoStack.length>this.maxEntries)){
     const removed=this.undoStack.length>1?this.undoStack.shift():this.redoStack.length>1?this.redoStack.shift():this.undoStack.shift();bytes-=removed!.length*2;
   }}
-  push(before:Board){this.undoStack.push(JSON.stringify(before));this.redoStack=[];this.trim();}
+  push(before:Board){this.pushSerialized(JSON.stringify(before));}
+  /** Reuse a snapshot already serialized for equality, instead of walking the board again. */
+  pushSerialized(json:string){this.undoStack.push(json);this.redoStack=[];this.trim();}
   undo(current:Board){const previous=this.undoStack.pop();if(previous){this.redoStack.push(JSON.stringify(current));this.trim();return JSON.parse(previous) as Board;}}
   redo(current:Board){const next=this.redoStack.pop();if(next){this.undoStack.push(JSON.stringify(current));this.trim();return JSON.parse(next) as Board;}}
 }

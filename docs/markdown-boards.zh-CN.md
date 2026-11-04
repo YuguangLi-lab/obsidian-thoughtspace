@@ -6,7 +6,7 @@
 
 本页解释 **1.3.36** 的 Markdown 白板创建、原生属性往返、格式另存与保存保护。完整入门用“城市降温研究”依次完成材料收集、脑图和写作；这里保留需要查阅的格式与恢复细节。
 
-Markdown 白板从 1.3.34 开始提供：原生 YAML 属性、普通 Markdown 正文和 ThoughtSpace 布局放在同一个 `.md` 文件。原有 `.thoughtspace` 白板继续使用，不会自动迁移。安装使用同一 Release 的三个运行文件；ZIP 和校验清单需要手动下载核验，见 [安装与更新](USER-GUIDE.zh-CN.md#installation)。
+Markdown 白板从 1.3.34 开始提供：原生 YAML 属性、普通 Markdown 正文和 ThoughtSpace 布局放在同一个 `.md` 文件。原有 `.thoughtspace` 白板继续使用，不会自动迁移。安装使用同一 Release 的四个运行文件（含 `paper-grain.png`）；ZIP 和校验清单需要手动下载核验，见 [安装与更新](USER-GUIDE.zh-CN.md#installation)。
 
 ## 创建与打开
 

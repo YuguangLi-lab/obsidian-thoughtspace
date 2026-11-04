@@ -14,7 +14,7 @@ function take(start:string,end:string){const a=source.indexOf(start),b=source.in
 const dependencies={...model,...cardStyles,excerptNoteMarkdown,branchState,validateBranches,reflowReadingContent,Notice:class{}};
 function compile(code:string){return new Function(...Object.keys(dependencies),transformSync(code,{loader:'ts'}).code)(...Object.values(dependencies));}
 const View=compile(`class View{${take('  async textToNote(','  async addTopic(')}${take('  private requireOwner(','  private canCreateBlankText(')}}return View;`);
-const Session=compile(`class Session{${take('  change(fn:','  persist() {')}}return Session;`);
+const Session=compile(`class Session{${take('  change(fn:','  persist(viewportOnly')}}return Session;`);
 function fixture(choice:cardStyles.CardStyleChoice,web=false){
  const node:model.Card={id:'text',kind:'text',text:'Source **Markdown**',x:20,y:30,width:300,height:100,color:'green',...(web?{webUrl:'https://example.com'}:{})};
  const created:{path:string;body:string}[]=[],opened:unknown[]=[];let saved=0;

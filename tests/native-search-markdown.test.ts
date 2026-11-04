@@ -119,6 +119,14 @@ test('unknown source metadata preserves the mirror without IO or self-retry unti
  assert.equal(sourceReads,2);assert.deepEqual(calls,['read:'+target,'write:'+target]);assert.equal(mtime,43);assert.ok(stored.includes('metadata-ready latest edit'));assert.ok(search.isManagedSearchIndex(stored));
 });
 
+test('viewport-only board changes do not rewrite a published search mirror',async()=>{
+ const value=board();let reads=0,writes=0;const sync=new search.BoardSearchSync({board:async()=>value,read:async()=>{reads++;return undefined;},write:async()=>{writes++;},remove:async()=>{}},vault,(_path,error)=>assert.fail(String(error)));
+ sync.enqueue(source);await sync.flush();assert.equal(writes,1);assert.equal(reads,1);
+ value.viewport={x:900,y:-40,zoom:1.4};value.nodes[0].x+=80;sync.enqueue(source);await sync.flush();
+ assert.equal(writes,1);assert.equal(reads,1);assert.equal(search.boardSearchStamp(value,source,vault),search.boardSearchStamp(board(),source,vault));
+ value.nodes[0].text='新的可检索句子';sync.enqueue(source);await sync.flush();assert.equal(writes,2);assert.equal(reads,2);
+});
+
 test('an unknown source does not block other verified boards or confirmed orphan cleanup',async()=>{
  const waiting='白板/等待.md',ready='白板/已知.thoughtspace',missing='白板/已删.md',waitingTarget=search.searchIndexPath(waiting),missingTarget=search.searchIndexPath(missing);
  const old=search.boardSearchDocument(board(),waiting,vault),files=new Map([[waitingTarget,old],[missingTarget,search.boardSearchDocument(board(),missing,vault)]]),reads:string[]=[],removed:string[]=[];

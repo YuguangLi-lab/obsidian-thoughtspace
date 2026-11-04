@@ -9,7 +9,7 @@ from pathlib import Path
 
 from release_version import is_prerelease
 
-RUNTIME = ('main.js', 'manifest.json', 'styles.css')
+RUNTIME = ('main.js', 'manifest.json', 'styles.css', 'paper-grain.png')
 
 
 def verify_listing(release, tag, expected):
@@ -64,7 +64,7 @@ def main():
     for attempt in range(6):
         try:
             url = verify_public(repo, tag, expected)
-            print(f'Public tag and all three downloads verified: {url}')
+            print(f'Public tag and all runtime downloads verified: {url}')
             return
         except (OSError, ValueError, KeyError) as error:
             print(f'Public verification {attempt + 1}/6 failed: {error}', flush=True)

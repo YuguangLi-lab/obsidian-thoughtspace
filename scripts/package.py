@@ -11,7 +11,7 @@ manifest = json.loads((root / 'manifest.json').read_text())
 version = manifest['version']
 assert version == json.loads((root / 'package.json').read_text())['version']
 assert '/' not in version and '\\' not in version
-runtime = ['main.js', 'manifest.json', 'styles.css']
+runtime = ['main.js', 'manifest.json', 'styles.css', 'paper-grain.png']
 # Keep this installation archive an explicit allowlist. Full documentation and
 # historical validation images stay in the repository, outside this package.
 files = runtime + ['LICENSE', 'THIRD_PARTY_NOTICES.md', 'README-INSTALL.txt']
