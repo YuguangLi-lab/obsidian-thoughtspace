@@ -45,7 +45,7 @@ const methods=take('  private renderBoard(', '  private pdfTotals=')
  +take('  async setTextAutoHeight(', '  fitCards(')
  +take('  private requireOwner(', '  private canCreateBlankText(');
 const sessionDeps={...model,branchState,reflowAutomaticMindmaps,reflowReadingContent,validateBranches,Notice:class{}};
-const Session=new Function(...Object.keys(sessionDeps),transformSync(`class Session{${take('  change(fn:', '  persist() {')}};return Session`,{loader:'ts'}).code)(...Object.values(sessionDeps));
+const Session=new Function(...Object.keys(sessionDeps),transformSync(`class Session{${take('  change(fn:', '  persist(viewportOnly')}};return Session`,{loader:'ts'}).code)(...Object.values(sessionDeps));
 const branchModule={exports:{} as typeof import('../src/branch-controls')};
 new Function('require','module','exports',transformSync(readFileSync('src/branch-controls.ts','utf8'),{loader:'ts',format:'cjs'}).code)(
  (name:string)=>{assert.equal(name,'obsidian');return{setIcon:()=>{}};},branchModule,branchModule.exports);

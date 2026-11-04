@@ -6,6 +6,15 @@ export function viewportRect(v:Board['viewport'],width:number,height:number,padd
 }
 /** Only visible cards own DOM/render components. Low zoom uses lightweight titles. */
 export function visibleNodes(nodes:Card[],rect:Rect){return nodes.filter(n=>intersects(n,rect));}
+/** Screen-pixel overscan. Load a wide margin; keep already mounted cards until they leave a wider one. */
+export const viewportLoadMargin=480;
+export const viewportKeepMargin=1100;
+export function visibleNodeWindow(nodes:Card[],viewport:Board['viewport'],width:number,height:number,mounted:ReadonlySet<string>){
+ const load=viewportRect(viewport,width,height,viewportLoadMargin),keep=viewportRect(viewport,width,height,viewportKeepMargin);
+ const visible:Card[]=[],ids=new Set<string>();
+ for(const node of nodes)if(intersects(node,load)||(mounted.has(node.id)&&intersects(node,keep))){visible.push(node);ids.add(node.id);}
+ return {visible,ids,load,keep};
+}
 export function edgeBounds(a:Card,b:Card):Rect {const x=Math.min(a.x,b.x)-240,y=Math.min(a.y,b.y)-240;return{x,y,width:Math.max(a.x+a.width,b.x+b.width)+240-x,height:Math.max(a.y+a.height,b.y+b.height)+240-y};}
 /** Bound preview work at block boundaries; close a clipped fence so following UI stays valid. */
 export function markdownPreview(raw:string,limit=16000):string {

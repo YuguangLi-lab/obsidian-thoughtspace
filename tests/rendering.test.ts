@@ -1,7 +1,16 @@
 import{test}from'node:test';import assert from'node:assert/strict';
-import{viewportRect,visibleNodes,edgeBounds,intersects,markdownPreview,RenderQueue}from'../src/rendering';import{Card,emptyBoard,History}from'../src/model';
+import{viewportRect,visibleNodes,visibleNodeWindow,viewportLoadMargin,edgeBounds,intersects,markdownPreview,RenderQueue}from'../src/rendering';import{Card,emptyBoard,History}from'../src/model';
 const nodes:Card[]=Array.from({length:1200},(_,i)=>({id:String(i),kind:'card',file:`${i}.md`,x:i%40*380,y:Math.floor(i/40)*330,width:300,height:270,color:'sand'}));
 test('1200 cards: viewport contains bounded nodes and pan reaches last row',()=>{const first=visibleNodes(nodes,viewportRect({x:40,y:40,zoom:1},1200,700));assert(first.length<30);assert(first.some(n=>n.id==='0'));assert(!first.some(n=>n.id==='1199'));const last=nodes[1199];assert(visibleNodes(nodes,viewportRect({x:-last.x,y:-last.y,zoom:1},1200,700)).some(n=>n.id==='1199'));assert.equal(nodes.length,1200);});
+test('mounted cards stay through a small pan and drop only after leaving the keep margin',()=>{
+ const camera={x:40,y:40,zoom:1},mounted=new Set(['0']);
+ const first=visibleNodeWindow(nodes,camera,1200,700,mounted);
+ assert.ok(first.ids.has('0'));assert.ok(first.visible.length<80);
+ const nudged=visibleNodeWindow(nodes,{...camera,x:camera.x-viewportLoadMargin},1200,700,new Set(first.ids));
+ assert.ok(nudged.ids.has('0'),'a card that was on screen stays mounted while it is still inside the keep margin');
+ const far=visibleNodeWindow(nodes,{x:-20000,y:-20000,zoom:1},1200,700,new Set(['0']));
+ assert.equal(far.ids.has('0'),false);
+});
 test('edge crossing viewport survives even when both nodes are offscreen',()=>{const a={...nodes[0],x:-1000},b={...nodes[1],x:2000};assert(intersects(edgeBounds(a,b),{x:0,y:0,width:1200,height:700}));assert(!intersects(edgeBounds(a,b),{x:0,y:3000,width:1200,height:700}));});
 test('Markdown preserves headings tables wiki links and closes truncated code fences',()=>{const text='# Heading\n\n| A |\n|---|\n| B |\n[[Link]]';assert.equal(markdownPreview(text),text);const long='```js\n'+('const n=1;\n'.repeat(100));const preview=markdownPreview(long,120);assert.equal(preview.match(/```/g)?.length,2);assert(preview.endsWith('双击打开完整笔记'));assert.equal(markdownPreview('---\ntags: [a]\n---\n# H'),'# H');});
 test('history budget bounds retained memory while recent undo and redo remain correct',()=>{const b=emptyBoard();b.nodes=nodes;const size=JSON.stringify(b).length*2,h=new History(size*3,80);for(let i=0;i<100;i++){h.push(b);b.viewport.x=i;}assert(h.bytes<=size*3+100);const prev=h.undo(b)!;assert.equal(prev.viewport.x,98);assert.equal(h.redo(prev)!.viewport.x,99);assert.equal(b.nodes.length,1200);});

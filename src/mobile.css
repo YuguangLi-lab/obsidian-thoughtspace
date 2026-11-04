@@ -1,3 +1,11 @@
+/* Coarse pointers and narrow windows skip blur. It repaints the whole board while panning. */
+@media (pointer: coarse), (max-width: 760px) {
+  :is(.ts-root,.ts-writing,.ts-media-workspace,.ts-online-workspace,.ts-materials-panel),
+  :is(.ts-root,.ts-writing,.ts-media-workspace,.ts-online-workspace,.ts-materials-panel) * {
+    -webkit-backdrop-filter:none !important;
+    backdrop-filter:none !important;
+  }
+}
 /* Responsive layout and input stay inside ThoughtSpace surfaces. */
 :is(.ts-root,.ts-writing,.ts-media-workspace,.ts-online-workspace,.ts-materials-panel){max-height:min(100%,var(--ts-visible-height,100%));min-width:0;min-height:0}
 :is(.ts-prompt-modal,.ts-board-creation-modal,.ts-board-search,.ts-settings-confirm-modal,.ts-workspace-settings-modal,.ts-materials-modal,.ts-database-modal){max-width:calc(100vw - max(16px,env(safe-area-inset-left,0px)) - max(16px,env(safe-area-inset-right,0px)));max-height:min(calc(100dvh - 24px),var(--ts-visible-height,100dvh))}

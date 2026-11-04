@@ -1,5 +1,27 @@
 # 更新记录
 
+## 1.3.45
+
+### 白板更跟手，保存不再被镜头打断
+
+- 平移、缩放、适应画面和定位不再每次都写盘，也不会把保存状态闪成「保存中 / 已保存」。镜头在停下、关闭或切换白板时再写入；内容修改仍立即进入保存队列。
+- 「保存中」大约延迟半秒才出现。很快完成的保存保持「已保存」，长时间写入仍会显示进行中。
+- 启动时的标签扫描和白板搜索索引改为分批进行，不再在打开时一次扫完整库。文件夹改名或删除只更新相关白板的搜索镜像；内容没变时不再重写搜索文件。
+- 视口外多保留一圈已打开的卡片，减轻平移时卡片和预览闪一下就消失的情况。
+- 生产构建压缩 `main.js`。纸张纹理改为同目录的 `paper-grain.png`，深浅色卡片颜色改用主题变量。功能区合并为一个 ThoughtSpace 图标。
+- 白板文件格式不变：`.thoughtspace` 与带 YAML 的 Markdown 白板、撤销重做、恢复草稿和保存所有权保持原样。
+- 本地 10,334 项自动化测试通过。物理移动设备未实测。
+
+### English
+
+- Pan, zoom, fit and reveal no longer write the board on every camera change, and they no longer flash the saving indicator. The camera is saved when movement settles and when the board closes or switches. Content edits still enter the save queue immediately.
+- The “saving” indicator waits about half a second. Fast saves stay on “saved”; longer writes still show progress.
+- Startup tag scanning and board-search indexing run in batches. Folder rename and delete update only the affected search mirrors, and unchanged mirrors are not rewritten.
+- Cards that have already been opened stay mounted a little outside the viewport, so panning is less likely to drop them and their previews.
+- Production `main.js` is minified. The paper texture is `paper-grain.png` beside `styles.css`, and named card colors follow light and dark theme variables. The ribbon is a single ThoughtSpace menu.
+- Board files are unchanged: `.thoughtspace` boards, Markdown boards with YAML, undo/redo, recovery drafts and save ownership behave as before.
+- Validated with 10,334 automated tests. Physical mobile devices were not tested.
+
 ## 1.3.44
 
 ### 右键创建 Mermaid 卡片

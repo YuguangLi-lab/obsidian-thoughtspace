@@ -25,7 +25,7 @@ function take(start:string,end:string){
 const methods=take('  private renderSelectionTools(){','  private renderInspector()')
   +take('  private requireOwner(','  async newText(')
   +take('  private positionNode(','  private applyInlineSize(');
-const sessionMethods=take('  change(fn:','  persist() {');
+const sessionMethods=take('  change(fn:','  persist(viewportOnly');
 
 // Exercise real toolbar callbacks and history. Only the host DOM, icons, focus,
 // and persistence boundary are substitutes; fill edits must never measure text.
@@ -164,7 +164,7 @@ test('a text locked after toolbar creation cannot acquire a fill or transparency
 test('positionNode applies and clears text fill and transparency without changing text geometry',()=>{
   const f=fixture(),element=new Element();
   f.view.positionNode(text('text',{fillColor:'blue'}),element);
-  assert.equal(element.classes.has('has-card-fill'),true);assert.equal(element.properties.get('--ts-card-fill'),model.cardFillHex.blue);
+  assert.equal(element.classes.has('has-card-fill'),true);assert.equal(element.properties.get('--ts-card-fill'),`var(--ts-fill-blue, ${model.cardFillHex.blue})`);
   assert.equal(element.classes.has('is-transparent'),false);
   f.view.positionNode(text('text',{fillColor:'#abcdef',transparent:true}),element);
   assert.equal(element.properties.get('--ts-card-fill'),'#abcdef');assert.equal(element.classes.has('is-transparent'),true);
@@ -211,7 +211,7 @@ for(const stale of ['locked','selection','detached','invalid'])test(`section app
 });
 test('section fill and divider remain present in folded display geometry and clear on reset',()=>{
  const f=fixture([section()]),element=new Element(),node=section('group',{fillColor:'green',sectionDivider:'dotted',borderWidth:0});
- f.view.positionNode(node,element);assert.equal(element.properties.get('--ts-card-fill'),model.cardFillHex.green);assert.equal(element.dataset.sectionDivider,'dotted');assert.equal(element.properties.get('--ts-section-divider-width'),'1px');
+  f.view.positionNode(node,element);assert.equal(element.properties.get('--ts-card-fill'),`var(--ts-fill-green, ${model.cardFillHex.green})`);assert.equal(element.dataset.sectionDivider,'dotted');assert.equal(element.properties.get('--ts-section-divider-width'),'1px');
  f.view.positionNode({...node,sectionFolded:true},element);assert.equal(element.dataset.sectionDivider,'dotted');assert.equal((element.style as any).height,'40px');assert.equal(node.height,300);
  f.view.positionNode(section('group',{transparent:true}),element);assert.equal(element.properties.has('--ts-card-fill'),false);assert.equal(element.classes.has('is-transparent'),true);assert.equal(element.dataset.sectionDivider,'none');
 });

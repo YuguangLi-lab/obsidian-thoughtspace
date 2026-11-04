@@ -101,6 +101,12 @@
 .ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style] > .ts-summary-title {
   font-family:var(--ts-card-body-font,var(--font-text));
 }
+.ts-root .ts-text-body,
+.ts-root .ts-node > .ts-card-preview {
+  font-family:var(--ts-card-body-font,var(--font-text));
+  font-size:var(--ts-card-body-size,16px);
+  text-align:var(--ts-card-body-align,left);
+}
 
 /* Index cards keep the accent at the edge, leaving the document itself quiet.
    Painted rules never change bounds, cover content or intercept pointer input. */

@@ -12,6 +12,8 @@ function indexSourcePath(path:string){
  if(!safeSourcePath(file)||!(file.endsWith('.thoughtspace')||markdownSourcePath(file)))return;
  return file;
 }
+/** Filename candidate only. Callers still validate the generated document before writing or navigating. */
+export function searchIndexSourcePath(path:string){return indexSourcePath(path);}
 /** A path candidate only: callers must validate the generated document before navigation. */
 export function isSearchIndexPath(path:string){return indexSourcePath(path)!==undefined;}
 const checksum=(text:string)=>sha256(text);
@@ -64,6 +66,13 @@ export function searchIndexTarget(path:string,text:string,vault:string,line?:num
 }
 /** Code fences retain exact searchable characters without executing embeds or tasks. */
 const plain=(text:string)=>{let longest=0;for(const match of text.matchAll(/`+/g))longest=Math.max(longest,match[0].length);const fence='`'.repeat(Math.max(3,longest+1));return `${fence}text\n${text}\n${fence}`;};
+/** Searchable text only. Camera, geometry and styling do not change the stamp. */
+export function boardSearchStamp(board:Board,path:string,vault:string){
+ let text=vault+'\0'+path;
+ for(const node of board.nodes)text+=`\n${node.kind}\0${node.title??''}\0${node.text??''}\0${node.file??''}\0${node.kind==='pdf'?String(node.pdfPage||1):''}`;
+ for(const edge of board.edges)if(edge.label.trim())text+=`\n${edge.from}\0${edge.label}`;
+ return checksum(text);
+}
 export function boardSearchDocument(board:Board,path:string,vault:string){
  const markdown=markdownSourcePath(path);if(markdown&&!safeSourcePath(path))throw Error('白板搜索来源路径无效');
  const chunks=[`# ${path.split('/').pop()!.replace(/\.thoughtspace$/,'').replace(/\.md$/i,'')} · 白板搜索`, `[打开白板](${boardLink(vault,path)})`, '自动生成的搜索索引。请在白板中编辑；笔记正文在原 Markdown 文件中搜索。'];
@@ -83,7 +92,7 @@ export interface SearchIndexIO {
 }
 /** One serial, coalescing worker; indexing never runs in the pointer/render path. */
 export class BoardSearchSync {
- private pending=new Set<string>();private running?:Promise<void>;private stopped=false;
+ private pending=new Set<string>();private running?:Promise<void>;private stopped=false;private published=new Map<string,string>();
  constructor(private io:SearchIndexIO,private vault:string,private error:(path:string,error:unknown)=>void){}
  enqueue(path:string){if(!this.stopped)this.pending.add(path);}
  flush():Promise<void>{if(this.running)return this.running;this.running=this.drain().finally(()=>{this.running=undefined;});return this.running;}
@@ -93,10 +102,15 @@ export class BoardSearchSync {
   const board=await this.io.board(path);if(this.stopped)return;
   // A metadata change will enqueue a retry; an unknown source must never recycle its mirror.
   if(board===null)continue;
+  if(!board){this.published.delete(path);const target=searchIndexPath(path),old=await this.io.read(target);if(this.stopped)return;const identity=old===undefined?undefined:searchDocumentIdentity(old);if(old!==undefined&&(!identity||markdownSourcePath(path)&&(identity.version!==2||identity.source!==path)))throw Error('搜索索引有手动修改或来源不匹配，已保留；移开该文件后可重建索引');if(old!==undefined)await this.io.remove(target,old);continue;}
+  const stamp=boardSearchStamp(board,path,this.vault);
+  // Unchanged searchable text skips the shadow read and write. A manual edit of the
+  // mirror is still detected the next time the board's searchable text changes.
+  if(this.published.get(path)===stamp)continue;
   const target=searchIndexPath(path),old=await this.io.read(target);if(this.stopped)return;
   const identity=old===undefined?undefined:searchDocumentIdentity(old);
   if(old!==undefined&&(!identity||markdownSourcePath(path)&&(identity.version!==2||identity.source!==path)))throw Error('搜索索引有手动修改或来源不匹配，已保留；移开该文件后可重建索引');
-  if(!board){if(old!==undefined)await this.io.remove(target,old);continue;}
   const next=boardSearchDocument(board,path,this.vault);if(next!==old&&!this.stopped)await this.io.write(target,next,old);
+  if(!this.stopped)this.published.set(path,stamp);
  }catch(error){this.error(path,error);}}}
 }

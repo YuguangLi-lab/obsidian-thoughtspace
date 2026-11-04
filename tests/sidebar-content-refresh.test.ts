@@ -17,7 +17,7 @@ import {boardHostDeps} from './board-host-deps';
 // builders. Vault reads/DOM publication are boundaries, not substituted filters.
 const source=readFileSync(process.env.SIDEBAR_SOURCE||'src/main.ts','utf8');
 function take(a:string,b:string){const start=source.indexOf(a),end=source.indexOf(b,start);assert.ok(start>=0&&end>start,a);return source.slice(start,end);}
-const eventStart=source.indexOf("    this.registerEvent(this.app.vault.on('modify', f => { if (f instanceof TFile && ['md','pdf']");
+const eventStart=source.indexOf('    const referencedFile=');
 assert.ok(eventStart>=0);const events=source.slice(eventStart,source.indexOf('\n  }',eventStart));
 const methods=take('  private renderSidebar()', '  private async populateSidebar()')
  +take('  private async buildSidebar(', '  private async exportCanvas(')

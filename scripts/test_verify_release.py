@@ -101,14 +101,14 @@ class PublicReleaseTests(unittest.TestCase):
                 verify.verify_public('example/repo', '0.98.12', self.expected)
 
     def test_all_downloads_verified(self):
-        with patch.object(verify, 'fetch', side_effect=[verify.json.dumps(self.release).encode(), b'test', b'test', b'test']):
+        with patch.object(verify, 'fetch', side_effect=[verify.json.dumps(self.release).encode(), *([b'test'] * len(verify.RUNTIME))]):
             self.assertEqual(verify.verify_public('example/repo', '0.98.12', self.expected), self.release['html_url'])
 
     def test_prerelease_verifies_its_exact_tag_endpoint_and_all_downloads(self):
         tag = '0.99.0-beta.1+build.00'
         release = {**self.release, 'tag_name': tag, 'prerelease': True,
                    'html_url': f'https://github.com/example/repo/releases/tag/{tag}'}
-        with patch.object(verify, 'fetch', side_effect=[verify.json.dumps(release).encode(), b'test', b'test', b'test']) as fetch:
+        with patch.object(verify, 'fetch', side_effect=[verify.json.dumps(release).encode(), *([b'test'] * len(verify.RUNTIME))]) as fetch:
             self.assertEqual(verify.verify_public('example/repo', tag, self.expected), release['html_url'])
         self.assertEqual([call.args[0] for call in fetch.call_args_list], [
             f'https://api.github.com/repos/example/repo/releases/tags/{tag}',

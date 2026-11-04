@@ -23,10 +23,10 @@ function fixture(){
  return{session,writes,events,recovered,original,disk:()=>disk,external:(raw:string)=>{disk=raw;}};
 }
 
-test('rapid viewport saves notify saving once, drain queued writes, and acknowledge the final disk state',async()=>{
+test('rapid viewport saves coalesce disk writes without flashing 保存中 before the delay',async()=>{
  const f=fixture(),s=f.session;s.board.viewport.x=100;s.persist();await tick();
  for(let i=0;i<5000;i++){s.board.viewport.x=i;s.persist();}
- assert.equal(f.events.length,1);assert.equal(f.events[0].status,'保存中…');
+ assert.equal(f.events.length,0);
  let finished=false;const flushing=s.flush().then(()=>{finished=true;});
  f.writes[0].release();await tick();
  assert.equal(f.writes.length,2);assert.equal(finished,false);
@@ -34,8 +34,7 @@ test('rapid viewport saves notify saving once, drain queued writes, and acknowle
  f.writes[1].release();await flushing;
  assert.equal(JSON.parse(f.disk()).viewport.x,4999);assert.equal(s.baseline,f.disk());
  assert.equal(s.blocked,false);assert.equal(s.status,'已保存');
- assert.deepEqual(f.events.map(e=>e.kind),['status','status','status']);
- assert.deepEqual(f.events.map(e=>e.status),['保存中…','保存中…','已保存']);
+ assert.equal(f.events.at(-1)?.kind,'status');assert.equal(f.events.at(-1)?.status,'已保存');
 });
 
 test('coalesced save notifications preserve every content edit and real undo/redo history',async()=>{
@@ -43,7 +42,7 @@ test('coalesced save notifications preserve every content edit and real undo/red
  s.change((b:model.Board)=>b.viewport.x=100);await tick();
  s.change((b:model.Board)=>b.viewport.x=200);s.undo();assert.equal(s.board.viewport.x,100);s.undo(true);assert.equal(s.board.viewport.x,200);
  assert.equal(f.events.filter(e=>e.kind==='board').length,4);
- assert.equal(f.events.filter(e=>e.kind==='status').length,1);
+ assert.equal(f.events.filter(e=>e.kind==='status').length,0);
  assert.equal(s.history.undoStack.length,2);assert.equal(s.history.redoStack.length,0);
  f.writes[0].release();await tick();assert.equal(f.writes.length,2);
  f.writes[1].release();await s.flush();
@@ -59,17 +58,16 @@ test('a conflict retains the latest recovery draft and terminal error notificati
  assert.equal(f.writes.length,1);assert.equal(f.disk(),external);assert.equal(s.baseline,f.original);
  assert.equal(f.recovered.length,1);assert.equal(JSON.parse(f.recovered[0]).viewport.x,200);
  assert.equal(s.blocked,true);assert.match(s.status,/恢复草稿/);
- assert.equal(f.events.filter(e=>e.kind==='status').length,1);
+ assert.equal(f.events.filter(e=>e.status==='已保存').length,0);
  assert.equal(f.events.at(-1)?.kind,'board');assert.equal(f.events.at(-1)?.blocked,true);
  const terminal=f.events.length;s.persist();await s.flush();assert.equal(f.events.length,terminal);assert.match(s.status,/恢复草稿/);
 });
 
-test('unchanged persistence still acknowledges saved and a later real save starts a new status transition',async()=>{
+test('unchanged persistence does not flash and a slow save shows 保存中 only after about 500ms',async()=>{
  const f=fixture(),s=f.session;for(let i=0;i<25;i++)s.persist();await s.flush();
- assert.equal(f.writes.length,0);assert.equal(f.disk(),f.original);
- assert.deepEqual(f.events.map(e=>e.status),['保存中…','已保存']);
- s.board.viewport.x=300;s.persist();await tick();assert.equal(f.events.at(-1)?.status,'保存中…');
- // A newly attached view reads the shared current status before receiving completion.
+ assert.equal(f.writes.length,0);assert.equal(f.disk(),f.original);assert.equal(s.status,'已保存');assert.equal(f.events.length,0);
+ s.board.viewport.x=300;s.persist();await tick();assert.notEqual(s.status,'保存中…');
+ await new Promise(resolve=>setTimeout(resolve,520));assert.equal(s.status,'保存中…');
  const late=[s.status];s.listeners.add(()=>late.push(s.status));
  f.writes[0].release();await s.flush();assert.deepEqual(late,['保存中…','已保存']);
  assert.equal(JSON.parse(f.disk()).viewport.x,300);
