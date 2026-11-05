@@ -11,7 +11,7 @@ import zipfile
 
 
 SOURCE = Path(__file__).resolve().parent.parent
-RUNTIME = ('main.js', 'manifest.json', 'styles.css', 'paper-grain.png')
+RUNTIME = ('main.js', 'manifest.json', 'styles.css')
 INSTALL_FILES = (*RUNTIME, 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'README-INSTALL.txt')
 
 
@@ -25,7 +25,6 @@ class InstallPackageTests(unittest.TestCase):
         self.set_version('1.2.3-beta.1')
         (self.root / 'main.js').write_bytes(b'// synthetic runtime\r\nconst value = "exact";\n')
         (self.root / 'styles.css').write_bytes('/* 自制 */\r\n.x { color: #123456; }\n'.encode())
-        (self.root / 'paper-grain.png').write_bytes(b'\x89PNG\r\n\x1a\nsynthetic-grain\n')
         (self.root / 'LICENSE').write_bytes(b'Synthetic project license\n')
         (self.root / 'THIRD_PARTY_NOTICES.md').write_bytes(b'Synthetic complete notices\n')
         shutil.copyfile(SOURCE / 'README-INSTALL.txt', self.root / 'README-INSTALL.txt')
