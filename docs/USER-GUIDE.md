@@ -29,20 +29,20 @@ The community directory and GitHub releases can update at different times. If th
 ### Install manually from GitHub
 
 1. Open [GitHub Releases](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases).
-2. Select a release and download its runtime assets: `main.js`, `manifest.json`, `styles.css`, and `paper-grain.png`.
+2. Select a release and download its three runtime assets: `main.js`, `manifest.json`, and `styles.css`.
 3. Create `<your-vault>/.obsidian/plugins/thoughtspace/` if necessary.
-4. Put all four files directly in that folder, without an extra nested release folder. `paper-grain.png` is the paper-background texture and must stay beside `styles.css`.
+4. Put all three files directly in that folder, without an extra nested release folder.
 5. Restart Obsidian or reload the plugin, then enable **ThoughtSpace Whiteboard** in Community plugins.
 
 Use your vault's actual configuration folder if it differs from `.obsidian`. The GitHub source ZIP is source code; it is not a substitute for the built release assets.
 
-The release asset named `thoughtspace-<version>.zip` is an alternative download containing the built files and public documentation. Extract it, then put its runtime files (`main.js`, `manifest.json`, `styles.css`, and `paper-grain.png`) directly in the plugin folder. A nested `thoughtspace-<version>/` directory inside `plugins/thoughtspace/` will not work. `SHA256SUMS.txt` is an optional integrity check for the release assets; it is not an installation file. If checking hashes, compare against that same release's checksum file before installing.
+The release asset named `thoughtspace-<version>.zip` is an alternative download containing the built files and public documentation. Extract it, then put its three runtime files directly in the plugin folder. A nested `thoughtspace-<version>/` directory inside `plugins/thoughtspace/` will not work. `SHA256SUMS.txt` is an optional integrity check for the release assets; it is not an installation file. If checking hashes, compare against that same release's checksum file before installing.
 
 ### Update an existing installation
 
 1. Save open edits and media excerpts, and back up the vault, including its plugin configuration folder.
 2. Disable ThoughtSpace before replacing its files.
-3. Replace **only** `main.js`, `manifest.json`, `styles.css`, and `paper-grain.png` with files from the same release.
+3. Replace **only** `main.js`, `manifest.json`, and `styles.css` with files from the same release.
 4. Keep `data.json`, layout snapshots, background images, playback state, and existing vault content.
 5. Re-enable the plugin, check the displayed version, and open an existing board to verify it.
 
@@ -705,7 +705,7 @@ Mobile/tablet checks use desktop size, touch and keyboard simulation. Physical i
 
 | Symptom | What to check |
 | --- | --- |
-| Plugin does not appear or enable | Desktop Obsidian 1.13.7+, correct `thoughtspace` folder, and all runtime assets from one release, including `paper-grain.png` beside `styles.css` |
+| Plugin does not appear or enable | Desktop Obsidian 1.13.7+, correct `thoughtspace` folder, and the three runtime assets from one release |
 | Double-clicking a Markdown board opens a note | This is Obsidian's normal `.md` view; run **以白板打开当前 Markdown** or use ThoughtSpace's board list |
 | Dragging pans when you expected selection | **鼠标与键盘** settings, the active **框选** tool, or Shift + left-drag |
 | A shortcut does nothing | Focus the canvas, finish text editing, check quick-key switches and Obsidian hotkey bindings |

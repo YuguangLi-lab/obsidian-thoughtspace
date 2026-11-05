@@ -9,7 +9,7 @@ from pathlib import Path
 
 from release_version import is_prerelease
 
-RUNTIME = ('main.js', 'manifest.json', 'styles.css', 'paper-grain.png')
+RUNTIME = ('main.js', 'manifest.json', 'styles.css')
 
 
 def verify_listing(release, tag, expected):
