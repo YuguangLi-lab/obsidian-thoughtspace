@@ -71,14 +71,14 @@ test('conversion accepts a section parent without changing board material',()=>{
 });
 
 for(const kind of ['inline text','title input','save conflict'] as const)test(`fold refuses to hide an active ${kind}, preserving its draft and current selection`,()=>{
- const f=fixture(),v=f.v,editor={dirty:true,saveError:kind==='save conflict'?'conflicting file':undefined,commit(){assert.fail('folding must not commit or discard a draft');}},input={value:'unsaved title'};
- if(kind==='title input')v.positions.set('last',{querySelector:(s:string)=>s==='.ts-card-title-input'?input:null});
+ const f=fixture(),v=f.v,editor={dirty:true,saveError:kind==='save conflict'?'conflicting file':undefined,commit(){assert.fail('folding must not commit or discard a draft');}};
+ if(kind==='title input')v.positions.set('last',{classList:{contains:(name:string)=>name==='is-editing-card-title'}});
  else Object.assign(v,{inlineId:'child',inlineTarget:'child',inline:editor});
  const before=clone(f.board),selected=[...v.selected],edge=v.selectedEdge;
  assert.equal(v.foldBranches(new Set(['portal']),true,'collapse'),undefined);
  assert.deepEqual(f.board,before);assert.deepEqual([...v.selected],selected);assert.equal(v.selectedEdge,edge);assert.equal(v.contextOpen,true);
  assert.deepEqual(f.stats(),{renders:0,cancels:0});assert.deepEqual(f.notices,['请先完成子节点编辑，再折叠分支']);
- if(kind==='title input')assert.equal(v.positions.get('last').querySelector('.ts-card-title-input'),input);else assert.equal(v.inline,editor);
+ if(kind==='title input')assert.equal(v.positions.get('last').classList.contains('is-editing-card-title'),true);else assert.equal(v.inline,editor);
 });
 test('editing a different branch does not block a synchronous fold',()=>{
  const{v,board,notices}=fixture();v.inlineId='ordinary';v.inlineTarget='ordinary';

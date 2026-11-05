@@ -30,7 +30,7 @@
 
 默认配置目录是 `.obsidian`；使用自定义配置目录时，放到对应的 `plugins/thoughtspace/`。插件目前不支持移动端。
 
-Release 还提供 `thoughtspace-版本号.zip` 安装 ZIP 和 `SHA256SUMS.txt`。ZIP 是手动下载辅助包；解压后，把上述三个运行文件放到插件目录。需要核验下载时，在本机计算所下载文件的 SHA-256，与**同一 Release** 的 `SHA256SUMS.txt` 对应项逐项比较。例如 macOS/Linux 可运行 `shasum -a 256 thoughtspace-1.3.45.zip`，Windows PowerShell 可运行 `Get-FileHash thoughtspace-1.3.45.zip -Algorithm SHA256`。文件名按实际版本替换；这一校验需要你手动执行，Obsidian 不会自动验证 ZIP 或校验清单。
+Release 还提供 `thoughtspace-版本号.zip` 安装 ZIP 和 `SHA256SUMS.txt`。ZIP 是手动下载辅助包；解压后，把上述三个运行文件放到插件目录。需要核验下载时，在本机计算所下载文件的 SHA-256，与**同一 Release** 的 `SHA256SUMS.txt` 对应项逐项比较。例如 macOS/Linux 可运行 `shasum -a 256 thoughtspace-1.3.46.zip`，Windows PowerShell 可运行 `Get-FileHash thoughtspace-1.3.46.zip -Algorithm SHA256`。文件名按实际版本替换；这一校验需要你手动执行，Obsidian 不会自动验证 ZIP 或校验清单。
 
 ### 更新已有安装
 

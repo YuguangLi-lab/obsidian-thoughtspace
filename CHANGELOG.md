@@ -1,5 +1,23 @@
 # 更新记录
 
+## 1.3.46
+
+### 无关的库变化不再重绘整张白板
+
+- 创建、删除或重命名一个与当前白板无关的文件时，画布不再整板重绘。被卡片引用的文件、包含引用的文件夹，以及重命名前的旧路径仍会刷新画布。
+- 侧栏按页面更新：资料库和任务跟随库变化；白板列表跟随白板文件和文件夹；大纲只在当前白板的引用变化时更新。
+- 正在编辑标题的卡片用 `is-editing-card-title` 标记保留，平移时不再逐张查找标题输入框。
+- 纸张纹理仍内嵌在 `styles.css` 中。白板文件格式不变。
+- 本地 10,335 项自动化测试通过。物理移动设备未实测。
+
+### English
+
+- Creating, deleting, or renaming a file that the open board does not reference no longer repaints the canvas. Referenced files, folders that contain them, and a rename's previous path still refresh it.
+- The sidebar updates by page: library and tasks follow vault changes, the board list follows board files and folders, and the outline follows references on the current board.
+- A card that is editing its title keeps the `is-editing-card-title` marker, so panning no longer searches each card for the title field.
+- The paper texture stays embedded in `styles.css`. Board files are unchanged.
+- Validated with 10,335 automated tests. Physical mobile devices were not tested.
+
 ## 1.3.45
 
 ### 白板更跟手，保存不再被镜头打断

@@ -40,12 +40,12 @@ class Element {
 type Tab='boards'|'outline'|'library'|'tasks';
 function fixture(tab:Tab){
  let now=0,next=0;const timers=new Map<number,{at:number;fn:()=>void}>(),frames=new Map<number,()=>void>(),pending:Promise<unknown>[]=[];
- const listeners={vault:new Map<string,((file:File)=>void)[]>(),metadata:new Map<string,((file:File)=>void)[]>()};
+ const listeners={vault:new Map<string,((file:any,oldPath?:string)=>void)[]>(),metadata:new Map<string,((file:any,oldPath?:string)=>void)[]>()};
  let lastList=new Element();
  const calls={build:0,readBoard:0,readNote:0,canvas:0,status:0},files=Array.from({length:30},(_,i)=>new File(`Boards/${i}.thoughtspace`));
  const note=new File('Notes/Note.md'),unrelated=new File('Notes/Unrelated.md'),pdf=new File('Books/Book.pdf');files.push(note,unrelated,pdf);
  const window={setTimeout(fn:()=>void,delay:number){const id=++next;timers.set(id,{at:now+delay,fn});return id;},clearTimeout(id:number){timers.delete(id);},requestAnimationFrame(fn:()=>void){const id=++next;frames.set(id,fn);return id;},cancelAnimationFrame(id:number){frames.delete(id);}};
- const on=(surface:'vault'|'metadata',event:string,fn:(file:File)=>void)=>{const handlers=listeners[surface].get(event)||[];handlers.push(fn);listeners[surface].set(event,handlers);};
+ const on=(surface:'vault'|'metadata',event:string,fn:(file:any,oldPath?:string)=>void)=>{const handlers=listeners[surface].get(event)||[];handlers.push(fn);listeners[surface].set(event,handlers);};
  const deps={...boardHostDeps,resolveSourceLink,mediaKind,mediaCard,window,TFile:File,EXT:'thoughtspace',isWorkspaceFile,libraryFiles,noteExcerpt,firstNoteReferences,outlineTree,taskSummary,visibleTasks,extractTasks,cardDisplayTitle,
   act:(run:()=>unknown)=>{pending.push(Promise.resolve().then(run));},button:(host:Element,title:string,_icon:string,run:()=>unknown,cls='')=>{const button=host.createEl('button',{text:title,cls,attr:{'aria-label':title}});button.onclick=run;return button;},setIcon(){},getAllTags:()=>[],readingTitle};
  const View=new Function(...Object.keys(deps),transformSync(`class View{init(){${events}}${methods}};return View`,{loader:'ts'}).code)(...Object.values(deps));
@@ -58,7 +58,7 @@ function fixture(tab:Tab){
   app:{vault,metadataCache:{on:(event:string,fn:(file:File)=>void)=>on('metadata',event,fn),getFileCache:()=>({})}},registerEvent(){},matches:()=>true,
   renderBoard(){calls.canvas++;},renderSaveStatus(){calls.status++;},populateSidebar(){calls.build++;lastList=new Element();return view.buildSidebar(lastList,view.sidebarRun);}});
  view.init();
- const emit=(surface:'vault'|'metadata',event:string,file=unrelated)=>{for(const fn of listeners[surface].get(event)||[])fn(file);};
+ const emit=(surface:'vault'|'metadata',event:string,file:{path:string;children?:unknown[]}=unrelated,oldPath?:string)=>{for(const fn of listeners[surface].get(event)||[])fn(file,oldPath);};
  async function advance(ms=100){now+=ms;for(const[id,timer]of [...timers])if(timer.at<=now){timers.delete(id);timer.fn();}for(const[id,fn]of [...frames]){frames.delete(id);fn();}await Promise.all(pending.splice(0));}
  return {view,plugin,board,calls,files,note,unrelated,pdf,emit,advance,timers,frames,get list(){return lastList;}};
 }
@@ -80,9 +80,27 @@ test('referenced Markdown and PDF events still refresh the canvas while the boar
  assert.equal(f.calls.build,0);assert.equal(f.calls.readBoard,0);
 });
 
-test('create, delete and rename still refresh both canvas and every sidebar page',async()=>{
+test('unrelated create, delete and rename skip the canvas and refresh only vault-wide sidebar pages',async()=>{
  for(const tab of ['boards','outline','library','tasks'] as const)for(const event of ['create','delete','rename']){
-  const f=fixture(tab);f.emit('vault',event);await f.advance();assert.equal(f.calls.canvas,1,`${tab}/${event}`);assert.equal(f.calls.build,1,`${tab}/${event}`);if(tab==='boards')assert.equal(f.calls.readBoard,30);
+  const f=fixture(tab);f.emit('vault',event);await f.advance();
+  assert.equal(f.calls.canvas,0,`${tab}/${event}`);
+  assert.equal(f.calls.build,tab==='library'||tab==='tasks'?1:0,`${tab}/${event}`);
+  assert.equal(f.calls.readBoard,0,`${tab}/${event}`);
+ }
+});
+
+test('referenced files, board files and folders still refresh the canvas or the sidebar they affect',async()=>{
+ for(const event of ['create','delete','rename'] as const){
+  const referenced=fixture('outline');referenced.emit('vault',event,referenced.note);await referenced.advance();
+  assert.equal(referenced.calls.canvas,1,`outline/${event}`);assert.equal(referenced.calls.build,1,`outline/${event}`);
+  const renamed=fixture('boards');renamed.emit('vault','rename',renamed.unrelated,renamed.note.path);await renamed.advance();
+  assert.equal(renamed.calls.canvas,1,'rename keeps the previous referenced path');assert.equal(renamed.calls.build,0);
+  const board=fixture('boards'),added=board.files[1];board.emit('vault',event,added);await board.advance();
+  assert.equal(board.calls.canvas,0,`board file/${event}`);assert.equal(board.calls.build,1,`board file/${event}`);assert.equal(board.calls.readBoard,30);
+  const folder=fixture('boards');folder.emit('vault',event,{path:'Notes',children:[]});await folder.advance();
+  assert.equal(folder.calls.canvas,1,'a folder containing a referenced note repaints');assert.equal(folder.calls.build,1);
+  const elsewhere=fixture('outline');elsewhere.emit('vault',event,{path:'Archive',children:[]});await elsewhere.advance();
+  assert.equal(elsewhere.calls.canvas,0);assert.equal(elsewhere.calls.build,0);
  }
 });
 

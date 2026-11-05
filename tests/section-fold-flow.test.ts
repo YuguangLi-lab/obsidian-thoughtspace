@@ -71,15 +71,15 @@ test('fold removes only hidden selected nodes and hidden selected edges',()=>{
 });
 
 for(const editing of ['inline','mounting','title','conflict'])test(`folding refuses to hide ${editing} editing without saving, discarding or changing selection`,()=>{
- const f=fixture(),before=clone(f.board),selected=[...f.v.selected],input={value:'Unsaved title'};
+ const f=fixture(),before=clone(f.board),selected=[...f.v.selected];
  const editor={dirty:true,saveError:editing==='conflict'?'Save failed':undefined,commit(){assert.fail('folding must not auto-commit');},dispose(){assert.fail('folding must not discard the editor');}};
- if(editing==='title')f.v.positions.set('inside',{querySelector:(selector:string)=>selector==='.ts-card-title-input'?input:null});
+ if(editing==='title')f.v.positions.set('inside',{classList:{contains:(name:string)=>name==='is-editing-card-title'}});
  else if(editing==='mounting')f.v.inlineTarget='inside';
  else Object.assign(f.v,{inlineId:'inside',inlineTarget:'inside',inline:editor});
  f.v.setSelectionFold(new Set(['group']),true,true);
  assert.deepEqual(f.board,before);assert.deepEqual([...f.v.selected],selected);assert.equal(f.v.selectedEdge,'inside-other');assert.equal(f.v.contextOpen,true);
  assert.deepEqual(f.calls,{writes:0,clears:0,renders:0});assert.deepEqual(f.notices,['请先完成内容编辑，再折叠分组或卡片']);
- if(editing==='title')assert.equal(f.v.positions.get('inside').querySelector('.ts-card-title-input'),input);
+ if(editing==='title')assert.equal(f.v.positions.get('inside').classList.contains('is-editing-card-title'),true);
  else if(editing!=='mounting')assert.equal(f.v.inline,editor);
 });
 
