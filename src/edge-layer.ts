@@ -21,7 +21,7 @@ export class EdgeLayer{
  private nodeHints=new Map<string,number>();private nodeHintCount=-1;
  constructor(readonly root:SVGSVGElement,private prefix:string,private edit:(id:string)=>void){this.defs=svg(root,'defs','');}
  clear(){for(const row of this.rows.values())row.group.remove();this.rows.clear();this.nodeHints.clear();this.nodeHintCount=-1;this.defs.remove();this.markers.clear();this.defs=svg(this.root,'defs','');}
- render(board:Board,width:number,height:number,selected?:string,focus?:ReadonlySet<string>,batchSelected?:ReadonlySet<string>){
+ render(board:Board,width:number,height:number,selected?:string,focus?:ReadonlySet<string>,batchSelected?:ReadonlySet<string>,touched?:ReadonlySet<string>){
   // With no visible connections there is nothing to index or cull. Preserve
   // marker definitions for reuse, just as normal row eviction does.
   if(!board.edges.length){for(const row of this.rows.values())row.group.remove();this.rows.clear();this.nodeHints.clear();this.nodeHintCount=-1;return;}
@@ -36,7 +36,7 @@ export class EdgeLayer{
   // every pan/drag frame. A unique scalar token needs no counter reset/overflow.
   const view=viewportRect(board.viewport,width,height),frame=Symbol();
   let order=0,reorder=false;
-  for(const edge of board.edges){const index=order++,a=endpoint(edge.from),b=endpoint(edge.to);if(!a||!b||!edgeInView(a,b,view))continue;
+  for(const edge of board.edges){const index=order++;if(touched&&!touched.has(edge.from)&&!touched.has(edge.to)){const row=this.rows.get(edge.id);if(row){row.frame=frame;if(row.order!==index){row.order=index;reorder=true;}}continue;}const a=endpoint(edge.from),b=endpoint(edge.to);if(!a||!b||!edgeInView(a,b,view))continue;
    let row=this.rows.get(edge.id);if(!row){const group=svg(this.root,'g','ts-edge-group');group.dataset.edge=edge.id;group.ondblclick=e=>{e.stopPropagation();this.edit(edge.id);};row={group,path:svg(group,'path','ts-edge'),hit:svg(group,'path','ts-edge-hit')};for(const el of [row.path,row.hit]){el.dataset.edge=edge.id;el.setAttribute('vector-effect','non-scaling-stroke');}this.rows.set(edge.id,row);}
    row.frame=frame;if(row.order!==index){row.order=index;reorder=true;}
    const geometryMatches=sameGeometry(row.geometry,a,b,edge);

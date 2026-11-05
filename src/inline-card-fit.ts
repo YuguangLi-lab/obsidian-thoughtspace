@@ -12,7 +12,7 @@ export class InlineCardFit {
  constructor(private app:App,private preview:HTMLElement,private path:string,private preferredWidth:number|undefined,private apply:(size:{width:number;height:number})=>void){
   this.win=preview.ownerDocument.defaultView||window;
  }
- schedule(value:string,appearanceChanged=false){if(this.disposed||(!appearanceChanged&&this.value===value))return;if(appearanceChanged)this.cached=undefined;this.value=value;this.revision++;if(this.timer!==undefined)this.win.clearTimeout(this.timer);this.timer=this.win.setTimeout(()=>{this.timer=undefined;void this.flush();},120);}
+ schedule(value:string,appearanceChanged=false){if(this.disposed||(!appearanceChanged&&this.value===value))return;if(appearanceChanged)this.cached=undefined;this.value=value;this.revision++;if(this.timer!==undefined)this.win.clearTimeout(this.timer);this.timer=this.win.setTimeout(()=>{this.timer=undefined;void this.flush();},1000);}
  async flush():Promise<void>{
   if(this.timer!==undefined){this.win.clearTimeout(this.timer);this.timer=undefined;}if(this.disposed||this.value===undefined)return;
   if(this.pending){if(this.pendingRevision!==this.revision)this.release?.();await this.pending;return this.flush();}if(this.measured===this.revision)return;

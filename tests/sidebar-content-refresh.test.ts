@@ -80,6 +80,11 @@ test('referenced Markdown and PDF events still refresh the canvas while the boar
  assert.equal(f.calls.build,0);assert.equal(f.calls.readBoard,0);
 });
 
+test('board search reuses the last graph when only the query changes',async()=>{
+ const f=fixture('boards');await f.view.buildSidebar(new Element(),f.view.sidebarRun);const reads=f.calls.readBoard;assert.equal(reads,30);
+ f.view.query='boards/2';await f.view.buildSidebar(new Element(),f.view.sidebarRun);assert.equal(f.calls.readBoard,reads);
+});
+
 test('unrelated create, delete and rename skip the canvas and refresh only vault-wide sidebar pages',async()=>{
  for(const tab of ['boards','outline','library','tasks'] as const)for(const event of ['create','delete','rename']){
   const f=fixture(tab);f.emit('vault',event);await f.advance();
