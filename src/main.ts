@@ -3256,7 +3256,7 @@ class BoardView extends FileView {
     if(connectChildren)makeChildConnections(prepared,ids);
     const state=branchState(prepared);const targets=owner.board.nodes.filter(n=>ids.has(n.id)&&state.children.has(n.id));if(!targets.length)return;if(targets.some(n=>n.locked)){new Notice('请先解锁分支根节点，再修改折叠状态');return;}
     const apply=(b:Board)=>{if(connectChildren){b.version=3;b.edges=prepared.edges;}if(disclosure)discloseBranches(b,ids,disclosure);else{b.version=3;for(const n of b.nodes)if(ids.has(n.id)&&state.children.has(n.id)){if(fold)n.branchFolded=true;else delete n.branchFolded;}}};
-    const editing=new Set([this.inlineId,this.inlineTarget].filter((id):id is string=>!!id));for(const[id,el]of this.positions)if(el.querySelector('.ts-card-title-input'))editing.add(id);
+    const editing=new Set([this.inlineId,this.inlineTarget].filter((id):id is string=>!!id));for(const[id,el]of this.positions)if(el.classList.contains('is-editing-card-title'))editing.add(id);
     if(editing.size){
       // Disclosure changes flags only: copy nodes without cloning note contents or
       // touching the live editor. One-level expansion can also hide a deeper draft.
@@ -3982,10 +3982,13 @@ class BoardView extends FileView {
     this.registerDomEvent(this.stage,'dragleave',e=>{if(!this.stage.contains(e.relatedTarget as Node|null))this.clearMaterialLanding();});
     this.registerDomEvent(this.stage,'drop',e=>this.handleBoardDrop(e));
     const referencedFile=(path:string)=>!!(typeof this.session?.referencedPaths==='function'?this.session.referencedPaths().has(path):this.session?.board.nodes.some(n=>n.file===path));
+    const referencedUnder=(root:string)=>typeof this.session?.referencedPaths==='function'?[...this.session.referencedPaths()].some(path=>path===root||path.startsWith(root+'/')):!!this.session?.board.nodes.some(n=>typeof n.file==='string'&&(n.file===root||n.file.startsWith(root+'/')));
+    const canvasStructural=(file:TAbstractFile,oldPath?:string)=>{if(!file||typeof file.path!=='string')return false;if(!(file instanceof TFile))return [file.path,oldPath].some(root=>typeof root==='string'&&root.length>0&&referencedUnder(root));return referencedFile(file.path)||!!(oldPath&&referencedFile(oldPath));};
+    const refreshVaultStructure=(file:TAbstractFile,oldPath?:string)=>{const canvas=canvasStructural(file,oldPath);if(canvas){this.brainNativeRevision++;this.scheduleRender();}const folder=!(file instanceof TFile);if(this.tab==='library'||this.tab==='tasks'||folder&&(this.tab==='boards'||canvas)||!folder&&(this.tab==='boards'&&isBoardFile(this.app,file)||this.tab==='outline'&&canvas))this.renderSidebar();};
     this.registerEvent(this.app.vault.on('modify', f => { if (f instanceof TFile && ['md','pdf'].includes(f.extension.toLowerCase())) { if (referencedFile(f.path)){this.brainNativeRevision++;this.scheduleRender();} if(this.tab==='library'||this.tab==='tasks')this.renderSidebar(); } }));
-    this.registerEvent(this.app.vault.on('create', () => {this.brainNativeRevision++;this.scheduleRender();this.renderSidebar();}));
-    this.registerEvent(this.app.vault.on('delete', () => {this.brainNativeRevision++;this.scheduleRender();this.renderSidebar();}));
-    this.registerEvent(this.app.vault.on('rename', () => {this.brainNativeRevision++;this.scheduleRender();this.renderSidebar();}));
+    this.registerEvent(this.app.vault.on('create', file => refreshVaultStructure(file)));
+    this.registerEvent(this.app.vault.on('delete', file => refreshVaultStructure(file)));
+    this.registerEvent(this.app.vault.on('rename', (file, oldPath) => refreshVaultStructure(file, oldPath)));
     this.registerEvent(this.app.metadataCache.on('changed', file => { this.refreshMediaReferences(file);if(this.tab==='library'||this.tab==='tasks')this.renderSidebar(); if (referencedFile(file.path)){this.brainNativeRevision++;if(!this.gesture&&!this.marquee)this.scheduleRender();} }));
     this.registerEvent(this.app.metadataCache.on('resolved',()=>{if(!(this.boardMindmaps.size||this.brainBoardView)||this.vaultRefreshFrame)return;const win=this.contentEl?.ownerDocument?.defaultView||window;this.vaultRefreshFrame=win.requestAnimationFrame(()=>{this.vaultRefreshFrame=0;if(this.closed||!(this.boardMindmaps.size||this.brainBoardView))return;this.brainNativeRevision++;this.scheduleRender();});}));
     this.registerEvent(this.app.vault.on('modify', f => { if(f instanceof TFile&&mediaKind(f.path)&&referencedFile(f.path))this.scheduleRender();if (f instanceof TFile && isBoardFile(this.app,f) && f !== this.file) { if (referencedFile(f.path)) this.scheduleRender(); this.renderSidebar(); } }));
@@ -5034,7 +5037,7 @@ class BoardView extends FileView {
   }
   get localRelationSelectedId(){const node=this.selected.size===1?this.session?.board.nodes.find(n=>this.selected.has(n.id)):undefined;return node&&supportsLocalRelations(node)?node.id:undefined;}
   get localRelationEditing(){return !!this.inline||!!this.inlineTarget;}
-  get localRelationEditBusy(){return this.closing||this.localRelationEditing||!!this.gesture||!!this.marquee||!!this.rightMarquee||!!this.linkDrag||!!this.contentEl.querySelector('.ts-card-title-input');}
+  get localRelationEditBusy(){return this.closing||this.localRelationEditing||!!this.gesture||!!this.marquee||!!this.rightMarquee||!!this.linkDrag||!!this.contentEl.querySelector('.is-editing-card-title');}
   localRelationSource(node:Card):{path:string;file?:TFile;subpath?:string;line?:number;paragraph?:ParagraphOrigin}|undefined {
     const origin=node.paragraphQuote;
     const path=origin?.path||node.file||node.videoCapture?.note;
@@ -5196,8 +5199,8 @@ class BoardView extends FileView {
     for(const node of cullNodes)if(overlap(node,load)){visible.push(node);live.add(node.id);}
     if(mountedIds.size>live.size)for(const node of cullNodes){if(!overlap(node,keep))continue;const id=node.id;if(mountedIds.has(id)&&!live.has(id)){visible.push(node);live.add(id);}}
     for(const id of new Set([this.inlineId,this.inlineTarget])){if(id===undefined)continue;const editing=b.nodes.find(n=>n.id===id);if(editing&&!live.has(id)){visible.push(editing);live.add(id);}}
-    // One query per mounted card, not a document-wide lookup. Offscreen title drafts stay mounted.
-    const editingTitles=new Set<string>();for(const[id,el]of this.positions)if(el.querySelector('.ts-card-title-input'))editingTitles.add(id);
+    // The title editor marks its card. Offscreen drafts stay mounted without a per-card query.
+    const editingTitles=new Set<string>();for(const[id,el]of this.positions)if(el.classList.contains('is-editing-card-title'))editingTitles.add(id);
     if(editingTitles.size)for(const node of b.nodes)if(editingTitles.has(node.id)&&!live.has(node.id)){visible.push(node);live.add(node.id);}
     let childCandidates:ReturnType<typeof childConnectionCandidates>|undefined;
     for(const [id,el] of this.positions){if(!live.has(id)){this.mediaPlayers.get(id)?.pause();this.cardControlContext?.clear(el);el.remove();this.positions.delete(id);this.cardControlRequests.delete(id);this.nodeScopes.get(id)?.unload();this.nodeScopes.delete(id);this.nodeKeys.delete(id);}}
@@ -6034,7 +6037,7 @@ class BoardView extends FileView {
     }
     if(!draft.nodes.some((n,i)=>n.sectionFolded!==owner.board.nodes[i].sectionFolded||n.branchFolded!==owner.board.nodes[i].branchFolded||n.collapsed!==owner.board.nodes[i].collapsed||n.height!==owner.board.nodes[i].height))return;
     const hidden=branchState(draft).hidden,editing=new Set([this.inlineId,this.inlineTarget].filter((id):id is string=>!!id));
-    for(const[id,el]of this.positions)if(el.querySelector('.ts-card-title-input'))editing.add(id);
+    for(const[id,el]of this.positions)if(el.classList.contains('is-editing-card-title'))editing.add(id);
     if([...editing].some(id=>hidden.has(id)||(folded&&unlocked.has(id)))){new Notice('请先完成内容编辑，再折叠分组或卡片');return;}
     this.clearCanvasGesture();owner.change(b=>{b.nodes=draft.nodes;b.version=draft.version;},undefined,false,true,false,owner.board.nodes.filter(n=>unlocked.has(n.id)).every(n=>n.kind==='mindmap'));
     this.selected=new Set([...this.selected,...(!folded?unlocked:[])].filter(id=>!hidden.has(id)));
@@ -6518,7 +6521,7 @@ class BoardView extends FileView {
     if(m.section){this.setSectionTool(false);if(!cancelled&&m.rect&&validSectionRect(m.rect))this.newSection(undefined,m.rect);}
     this.updateSelection();
   }
-  private foldText(id:string,fold:boolean){if(fold&&(this.inlineId===id||this.inlineTarget===id||this.positions.get(id)?.querySelector('.ts-card-title-input'))){new Notice('请先完成内容编辑，再折叠');return;}if(this.session?.board.nodes.some(n=>n.id===id&&n.kind==='mindmap')){this.session.change(b=>foldCards(b,new Set([id]),fold),undefined,false,true,false,true);return;}this.mutate(b=>foldCards(b,new Set([id]),fold));}
+  private foldText(id:string,fold:boolean){if(fold&&(this.inlineId===id||this.inlineTarget===id||this.positions.get(id)?.classList.contains('is-editing-card-title'))){new Notice('请先完成内容编辑，再折叠');return;}if(this.session?.board.nodes.some(n=>n.id===id&&n.kind==='mindmap')){this.session.change(b=>foldCards(b,new Set([id]),fold),undefined,false,true,false,true);return;}this.mutate(b=>foldCards(b,new Set([id]),fold));}
   private foldSelection(fold:boolean){if(fold&&[this.inlineId,this.inlineTarget].some(id=>id&&this.selected.has(id))){new Notice('请先完成内容编辑，再折叠');return;}this.mutate(b=>foldCards(b,this.selected,fold));}
   private focusSelection(){if(!this.session||this.session.blocked||!this.selected.size)return;const ids=expandedSelection(this.session.board,this.selected),nodes=visibleBranchBoard(this.session.board).nodes.filter(n=>ids.has(n.id));this.rememberViewport();this.session.board.viewport=this.fitContent(nodes);this.transform();this.session.persist(true);}
   private alignmentMenu(_event?:MouseEvent){

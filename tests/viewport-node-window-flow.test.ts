@@ -25,8 +25,7 @@ type Stats={nodeIds:number;positionGets:number;titleQueries:number;edgeKinds:num
 class Element {
  parent?:Element;children:Element[]=[];titleInput?:Element;classes=new Set<string>();style:Record<string,string|((key:string,value:string)=>void)>={setProperty:(key:string,value:string)=>{this.style[key]=value;}};
  constructor(readonly stats:Stats){}
- classList={contains:(name:string)=>this.classes.has(name)};
- querySelector(selector:string){assert.equal(selector,'.ts-card-title-input');this.stats.titleQueries++;return this.titleInput||null;}
+ classList={contains:(name:string)=>{if(name==='is-editing-card-title')this.stats.titleQueries++;return this.classes.has(name);}};
  contains(other:Element):boolean{return this===other||this.children.some(child=>child.contains(other));}
  get nextElementSibling():Element|null{const list=this.parent?.children;return list?.[list.indexOf(this)+1]||null;}
  get nextSibling():Element|null{return this.nextElementSibling;}
@@ -40,7 +39,7 @@ function fixture(size=1200,mounted=12){
  class Positions extends Map<string,Element>{get(id:string){stats.positionGets++;return super.get(id);}}
  const positions=new Positions(),world=new Element(stats),svg=new Element(stats),view=new View(),edgeBoards:Board[]=[],positioned:{node:Card;element:Element}[]=[];
  svg.parent=world;world.children.push(svg);const nodeScopes=new Map<string,{unload():void}>();
- const mount=(id:string,title=false)=>{const el=new Element(stats);if(title)el.titleInput=new Element(stats);positions.set(id,el);world.insertBefore(el,null);nodeScopes.set(id,{unload(){stats.unloads++;}});return el;};
+ const mount=(id:string,title=false)=>{const el=new Element(stats);if(title){el.titleInput=new Element(stats);el.classes.add('is-editing-card-title');}positions.set(id,el);world.insertBefore(el,null);nodeScopes.set(id,{unload(){stats.unloads++;}});return el;};
  for(let i=0;i<mounted;i++)mount('n'+i);
  const classes=new Set<string>();
  Object.assign(view,{syncMinimapAvoidance(){},reserveVisibleCardControls(){},cardControlRequests:new Map(),session:{board,blocked:false},world,svg,stage:{clientWidth:1000,clientHeight:700,style:{}},contentEl:{toggleClass(){}},zoomLabel:{setText(){}},
@@ -78,7 +77,7 @@ test('an entirely offscreen camera frame does not search undefined editor IDs or
  assert.equal(f.stats.edgeFrames,1);assert.equal(f.stats.mapFrames,1);
 });
 
-test('offscreen title editors are preserved in board order and queried once per frame',()=>{
+test('offscreen title editors are preserved in board order and checked once per frame',()=>{
  const f=fixture(8,2),last=f.mount('n7',true),earlier=f.mount('n5',true),input=last.titleInput;
  f.reset();f.render();assert.equal(f.stats.titleQueries,4);assert.equal(f.stats.unloads,0);
  assert.deepEqual(f.view.connectionCandidates.map((n:Card)=>n.id),['n0','n1','n5','n7']);
@@ -88,7 +87,7 @@ test('offscreen title editors are preserved in board order and queried once per 
 });
 
 test('title editing ends, deleted objects and replacement DOM are reflected on the next frame',()=>{
- const f=fixture(6,2),editor=f.mount('n5',true);f.render();editor.titleInput=undefined;f.reset();f.render();
+ const f=fixture(6,2),editor=f.mount('n5',true);f.render();editor.titleInput=undefined;editor.classes.delete('is-editing-card-title');f.reset();f.render();
  assert.equal(f.positions.has('n5'),false);assert.equal(editor.parent,undefined);assert.equal(f.stats.unloads,1);
  const replacement=f.mount('n5',true);f.reset();f.render();assert.equal(f.positions.get('n5'),replacement);assert.equal(f.stats.unloads,0);
  f.board.nodes=f.board.nodes.filter(n=>n.id!=='n5');f.reset();f.render();assert.equal(f.positions.has('n5'),false);assert.equal(replacement.parent,undefined);assert.equal(f.stats.unloads,1);
@@ -103,11 +102,11 @@ test('offscreen inline ID and target remain pinned without duplicate candidates'
 });
 
 test('folded boards still resolve visibility once per frame and keep active title drafts',()=>{
- const f=fixture(12,12),editor=f.positions.get('n5')!;editor.titleInput=new Element(f.stats);f.board.nodes[0].branchFolded=true;
+ const f=fixture(12,12),editor=f.positions.get('n5')!;editor.titleInput=new Element(f.stats);editor.classes.add('is-editing-card-title');f.board.nodes[0].branchFolded=true;
  f.reset();f.render();assert.equal(f.stats.edgeKinds,11);assert.deepEqual(f.view.connectionCandidates.map((n:Card)=>n.id),['n0','n5']);
  assert.deepEqual(f.edgeBoards[0].nodes.map(n=>n.id),['n0']);assert.equal(f.stats.unloads,10);assert.equal(f.positions.get('n5'),editor);
  f.reset();f.render();assert.equal(f.stats.edgeKinds,11);assert.equal(f.stats.titleQueries,2);assert.equal(f.stats.unloads,0);
- editor.titleInput=undefined;f.reset();f.render();assert.equal(f.positions.has('n5'),false);assert.equal(f.stats.unloads,1);
+ editor.titleInput=undefined;editor.classes.delete('is-editing-card-title');f.reset();f.render();assert.equal(f.positions.has('n5'),false);assert.equal(f.stats.unloads,1);
 });
 
 test('replacement board records supply current geometry to a preserved title editor',()=>{
