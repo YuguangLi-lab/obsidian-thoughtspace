@@ -17,7 +17,7 @@ export class InlineTextFit {
   if(this.disposed)return;
   // Fixed text uses the visible preview only; opting out also cancels any older fit.
   if(!textFitsContent(this.node())){this.value=undefined;this.revision++;if(this.timer!==undefined)this.win.clearTimeout(this.timer);this.timer=undefined;this.release?.();return;}
-  if(!appearanceChanged&&this.value===value)return;this.value=value;this.revision++;if(this.timer!==undefined)this.win.clearTimeout(this.timer);this.timer=this.win.setTimeout(()=>{this.timer=undefined;void this.flush();},120);
+  if(!appearanceChanged&&this.value===value)return;this.value=value;this.revision++;if(this.timer!==undefined)this.win.clearTimeout(this.timer);this.timer=this.win.setTimeout(()=>{this.timer=undefined;void this.flush();},1000);
  }
  async flush():Promise<void>{
   if(this.timer!==undefined){this.win.clearTimeout(this.timer);this.timer=undefined;}if(this.disposed||this.value===undefined)return;

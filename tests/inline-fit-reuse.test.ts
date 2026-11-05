@@ -40,7 +40,7 @@ for(const kind of ['card','text'] as const)for(const reason of ['close','timeout
 
 for(const kind of ['card','text'] as const)test(`${kind}: continuous input retains only the current measurement scope`,async t=>{
  const f=fixture(kind,'pending');let peak=0;f.fit.schedule('draft 0');const pending=f.fit.flush();
- for(let i=1;i<=100;i++){f.fit.schedule(`draft ${i}`);f.advance(i*120);await tick();const stats=f.stats();peak=Math.max(peak,stats.loads-stats.unloads);}
+ for(let i=1;i<=100;i++){f.fit.schedule(`draft ${i}`);f.advance(i*1000);await tick();const stats=f.stats();peak=Math.max(peak,stats.loads-stats.unloads);}
  t.diagnostic(`100 replacements: peak ${peak} live ${kind} scopes`);assert.equal(peak,1);f.jobs.at(-1)!.gate.resolve();await pending;assert.equal(f.stats().applies,1);f.fit.dispose();assert.equal(f.stats().loads,f.stats().unloads);assert.equal(f.timers.size,0);
  for(const job of f.jobs)job.gate.resolve();await tick();assert.equal(f.stats().applies,1);
 });
@@ -95,7 +95,7 @@ test('an unscheduled font change while a static renderer is pending cannot cache
 
 for(const kind of ['card','text'] as const)for(const phase of ['render','math'] as const)test(`${kind}: newer ${phase} measurement starts at its debounce without waiting for the obsolete deadline`,async()=>{
  const f=fixture(kind,phase==='math'?'math':'pending');f.fit.schedule(phase==='math'?'old $$x$$':'old');const pending=f.fit.flush();await tick();f.advance(40);f.fit.schedule('latest');f.advance(159);await tick();assert.equal(f.jobs.length,1);assert.equal(f.jobs[0].scope.loaded,true);
- f.advance(160);await tick();assert.equal(f.jobs.length,2);assert.equal(f.jobs[1].time,160);assert.equal(f.jobs[0].scope.loaded,false);assert.equal(f.stats().removes,phase==='math'?2:1);assert.equal(f.stats().applies,phase==='math'?1:0);
+ f.advance(1040);await tick();assert.equal(f.jobs.length,2);assert.equal(f.jobs[1].time,1040);assert.equal(f.jobs[0].scope.loaded,false);assert.equal(f.stats().removes,phase==='math'?2:1);assert.equal(f.stats().applies,phase==='math'?1:0);
  if(phase==='render'){f.jobs[0].gate.reject(Error('late old renderer'));await tick();assert.equal(f.jobs[1].scope.loaded,true);assert.equal(f.stats().applies,0);f.jobs[1].gate.resolve();}else f.mathJobs[0].resolve();await pending;await tick();assert.equal(f.stats().applies,1);assert.equal(f.stats().loads,f.stats().unloads);assert.equal(f.timers.size,0);f.fit.dispose();
 });
 
@@ -104,18 +104,18 @@ for(const kind of ['card','text'] as const)test(`${kind}: concurrent same-revisi
 });
 
 for(const kind of ['card','text'] as const)test(`${kind}: a superseded renderer immediately releases late registrations and pre-registered children`,async()=>{
- const f=fixture(kind,'pending');let cleaned=0;f.fit.schedule('old');const old=f.fit.flush();f.advance(40);f.fit.schedule('latest');f.advance(160);await tick();assert.equal(f.jobs.length,2);assert.equal(f.stats().removes,1);
+ const f=fixture(kind,'pending');let cleaned=0;f.fit.schedule('old');const old=f.fit.flush();f.advance(40);f.fit.schedule('latest');f.advance(1040);await tick();assert.equal(f.jobs.length,2);assert.equal(f.stats().removes,1);
  const oldScope=f.jobs[0].scope;oldScope.register(()=>cleaned++);const child=new f.Scope();child.register(()=>cleaned++);oldScope.addChild(child);assert.equal(oldScope.loaded,false);assert.equal(child.loaded,false);assert.equal(cleaned,2);
  f.jobs[0].gate.resolve();await tick();assert.equal(cleaned,2);assert.equal(oldScope.loaded,false);assert.equal(child.loaded,false);assert.equal(f.jobs[1].scope.loaded,true);f.jobs[1].gate.resolve();await old;f.fit.dispose();assert.equal(f.timers.size,0);
 });
 
 for(const kind of ['card','text'] as const)test(`${kind}: a superseded native scope cancels its deadline without shortening the latest one`,async()=>{
- const f=fixture(kind,'pending');f.fit.schedule('old');const old=f.fit.flush();f.advance(40);f.fit.schedule('latest');f.advance(160);await tick();assert.deepEqual([...f.timers.values()].map(timer=>timer.due),[1160]);f.advance(999);await tick();assert.equal(f.jobs[0].scope.loaded,false);f.advance(1000);await tick();assert.equal(f.jobs[0].scope.loaded,false);assert.equal(f.jobs[1].scope.loaded,true);assert.equal(f.stats().unloads,1);
+ const f=fixture(kind,'pending');f.fit.schedule('old');const old=f.fit.flush();f.advance(40);f.fit.schedule('latest');f.advance(1040);await tick();assert.deepEqual([...f.timers.values()].map(timer=>timer.due),[2040]);f.advance(999);await tick();assert.equal(f.jobs[0].scope.loaded,false);f.advance(1000);await tick();assert.equal(f.jobs[0].scope.loaded,false);assert.equal(f.jobs[1].scope.loaded,true);assert.equal(f.stats().unloads,1);
  f.jobs[1].gate.resolve();await old;f.jobs[0].gate.resolve();await tick();assert.equal(f.stats().unloads,2);f.fit.dispose();assert.equal(f.timers.size,0);
 });
 
 for(const kind of ['card','text'] as const)test(`${kind}: repeated stalled drafts keep only the current native scope, including after close`,async()=>{
  const f=fixture(kind,'pending');const waits:Promise<void>[]=[];let peak=0;f.fit.schedule('draft 0');waits.push(f.fit.flush());
- for(let i=1;i<=100;i++){f.fit.schedule(`draft ${i}`);f.advance(i*120);await tick();const stats=f.stats();peak=Math.max(peak,stats.loads-stats.unloads);assert.equal(stats.holders-stats.removes,1);assert.ok(stats.loads-stats.unloads<=1);}
+ for(let i=1;i<=100;i++){f.fit.schedule(`draft ${i}`);f.advance(i*1000);await tick();const stats=f.stats();peak=Math.max(peak,stats.loads-stats.unloads);assert.equal(stats.holders-stats.removes,1);assert.ok(stats.loads-stats.unloads<=1);}
  assert.equal(f.jobs.length,101);assert.equal(peak,1);f.fit.dispose();await Promise.all(waits);assert.equal(f.stats().holders,f.stats().removes);f.advance(13000);await tick();assert.equal(f.stats().loads,f.stats().unloads);assert.equal(f.timers.size,0);for(const job of f.jobs)job.gate.resolve();await tick();assert.equal(f.stats().loads,f.stats().unloads);assert.equal(f.stats().applies,0);
 });

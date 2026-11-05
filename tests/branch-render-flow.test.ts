@@ -47,7 +47,7 @@ test('120 full and camera frames scan each folded branch once across all render 
   t.diagnostic(`${viewportOnly?'camera':'full'}: ${f.counts.edgeKinds} branch edge reads / 120 frames`);
   assert.equal(f.counts.edgeKinds,1199*120,'back-to-content, nodes, edges and minimap share current topology');
   assert.equal(f.counts.displayBoards,120,'edge rendering reuses this frame\'s display geometry');
-  assert.equal(f.edgeBoards.length,120);assert.ok(f.edgeBoards.every(board=>board.edges.length===0));
+  assert.equal(f.edgeBoards.length,viewportOnly?0:120);if(!viewportOnly)assert.ok(f.edgeBoards.every(board=>board.edges.length===0));
   assert.deepEqual(f.board.nodes,before.nodes);assert.deepEqual(f.board.edges,before.edges);
  }
 });

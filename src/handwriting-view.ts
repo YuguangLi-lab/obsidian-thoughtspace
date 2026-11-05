@@ -108,7 +108,7 @@ export class HandwritingView {
   footer.createSpan({cls:'ts-handwriting-navigation-hint',text:'双指移动与缩放'});
   this.mixed=this.element.createDiv({cls:'ts-handwriting-mixed',attr:{role:'status'}});this.mixed.hidden=true;
   this.controller=new HandwritingInputController({
-   state:()=>{const snapshot=this.snapshot(),rect=this.stage.getBoundingClientRect();return{owner:snapshot?this.token(snapshot):undefined,writable:!!snapshot&&!snapshot.readOnly&&this.root.isConnected,canBeginInk:!this.rendering,rect:{left:rect.left,top:rect.top,width:rect.width,height:rect.height},viewport:snapshot?this.viewport(snapshot):{x:0,y:0,zoom:1}};},
+   state:()=>{const snapshot=this.snapshot(),rect=this.readStageRect();return{owner:snapshot?this.token(snapshot):undefined,writable:!!snapshot&&!snapshot.readOnly&&this.root.isConnected,canBeginInk:!this.rendering,rect,viewport:snapshot?this.viewport(snapshot):{x:0,y:0,zoom:1}};},
    capture:id=>{try{this.stage.setPointerCapture(id);}catch{/* Document release listeners remain available. */}},
    release:id=>{try{if(this.stage.hasPointerCapture(id))this.stage.releasePointerCapture(id);}catch{/* The host can release capture before disposal. */}},
    requestFrame:callback=>this.win.requestAnimationFrame(callback),cancelFrame:frame=>this.win.cancelAnimationFrame(frame),
@@ -126,6 +126,7 @@ export class HandwritingView {
    if(this.actionPointers.size){this.actionPointers.add(event.pointerId);this.invalidateSelectionPress();if(this.selectionPress)this.selectionPress.cancelled=true;return true;}
    if(this.suppressedPointerDown(event))return true;
    this.closeMenus();
+   this.stageRect=undefined;
    const consumed=this.controller.down(event),snapshot=this.snapshot();
    if(consumed){this.stagePointers.add(event.pointerId);this.invalidateSelectionPress();this.updateSelectionActions();}
    if(consumed&&(event.pointerType==='pen'||event.pointerType==='mouse')&&snapshot&&!snapshot.readOnly)this.stage.focus({preventScroll:true});
@@ -430,8 +431,10 @@ export class HandwritingView {
   this.transform(this.viewport(snapshot));this.syncTools();this.renderInk(true);
   }finally{this.refreshing=false;}
  }
+ private stageRect?:{left:number;top:number;width:number;height:number};
+ private readStageRect(){if(this.stageRect)return this.stageRect;const rect=this.stage.getBoundingClientRect();return this.stageRect={left:rect.left,top:rect.top,width:rect.width,height:rect.height};}
  private resize(){
-  if(this.disposed)return;this.invalidateSelectionPress();const rect=this.stage.getBoundingClientRect(),dpr=Math.max(1,Math.min(4,this.win.devicePixelRatio||1));
+  if(this.disposed)return;this.invalidateSelectionPress();const rect=this.stage.getBoundingClientRect(),dpr=Math.max(1,Math.min(4,this.win.devicePixelRatio||1));this.stageRect={left:rect.left,top:rect.top,width:rect.width,height:rect.height};
   const resized=rect.width!==this.size.width||rect.height!==this.size.height||dpr!==this.size.dpr;
   if(resized){this.size={width:rect.width,height:rect.height,dpr};this.canvas.width=Math.max(1,Math.round(rect.width*dpr));this.canvas.height=Math.max(1,Math.round(rect.height*dpr));this.drawn=0;this.draftGroup.replaceChildren();}
   this.controller.layoutChanged();

@@ -70,6 +70,7 @@
   opacity: clamp(0, var(--ts-paper-texture, .55), 1);
 }
 .ts-root[data-background=paper] .ts-stage > .ts-world { z-index: 1; }
+.ts-root .ts-stage > .ts-world { will-change: transform; }
 .ts-paper-preview > .ts-paper-preview-content { position: relative; z-index: 1; }
 /* Only opaque note cards gain a contact shadow. Content fonts, custom fills,
    borders, transparency and media retain their own presentation. */

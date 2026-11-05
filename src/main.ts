@@ -3069,7 +3069,7 @@ class BoardView extends FileView {
   private brainObjectEpoch=0;
   private brainRelationCreating=false;
   private mindmapFileIds=new WeakMap<TFile,number>();private mindmapFileSequence=0;
-  private nodeScopes=new Map<string,Component>(); private nodeKeys=new Map<string,string>(); private previewQueue=new RenderQueue(); private pdfPreviewQueue=new RenderQueue(2); private renderFrame=0; private viewportOnlyRender=true; private mapKey=''; private mapViewport?:()=>void; private mapRefresh?:(board:Board)=>boolean; private connectSide?:Side; private selected = new Set<string>(); private selectedEdge?: string;
+  private nodeScopes=new Map<string,Component>(); private nodeKeys=new Map<string,string>(); private previewQueue=new RenderQueue(); private pdfPreviewQueue=new RenderQueue(2); private renderFrame=0; private viewportOnlyRender=true; private mapKey=''; private mapViewport?:()=>void; private mapRefresh?:(board:Board)=>boolean; private cameraGeomKey?:string; private cameraZoom=Number.NaN; private stageClientRect?:{left:number;top:number;right:number;bottom:number}; private boardTreeCache?:{stamp:string;result:{graph:Map<string,string[]>;errors:Set<string>}}; private connectSide?:Side; private selected = new Set<string>(); private selectedEdge?: string;
   private batchFormatTarget:'nodes'|'edges'='nodes';private batchEdgeScope:SelectionEdgeScope='internal';
   private mode: 'select' | 'connect' = 'select'; private connectFrom?: string; private connectButton?: HTMLButtonElement;
   private tab: 'library' | 'boards' | 'tasks' | 'outline' = 'boards'; private query = '';private sidebarQueries=new Map<string,string>(); private tag = ''; private sidebarRun = 0;private sidebarContentKey='';
@@ -3453,7 +3453,7 @@ class BoardView extends FileView {
     if(this.renderFrame)return;
     this.renderFrame=(this.contentEl?.ownerDocument?.defaultView||window).requestAnimationFrame(()=>{this.renderFrame=0;const only=this.viewportOnlyRender;this.viewportOnlyRender=true;this.renderBoard(only);});
   }
-  private clearNodes(){this.cardControlContext?.clear();this.linkedContentMenu?.hide();this.linkedContentMenu=undefined;this.connectionCandidates=[];this.connectionIndex=undefined;this.connectionGeometryKey='';(this.contentEl?.ownerDocument?.defaultView||window).cancelAnimationFrame(this.renderFrame);this.renderFrame=0;this.viewportOnlyRender=true;this.relationBar?.remove();this.relationBar=undefined;this.nodeFitQueue.cancel();this.pendingFits.clear();this.deferredCardFits.clear();this.previewQueue.clear();this.pdfPreviewQueue.clear();this.nodeScopes.forEach(s=>s.unload());this.nodeScopes.clear();this.mediaPlayers.clear();this.mediaStates.clear();this.mediaIdentities.clear();this.onlineBoardPlayers.clear();this.onlineBoardStates.clear();this.nodeKeys.clear();this.positions.forEach(e=>e.remove());this.positions.clear();this.cardControlRequests.clear();this.endpointPorts.clear();this.mapKey='';this.mapRefresh=undefined;this.mapViewport=undefined;this.edgeLayer?.clear();}
+  private clearNodes(){this.cardControlContext?.clear();this.linkedContentMenu?.hide();this.linkedContentMenu=undefined;this.connectionCandidates=[];this.connectionIndex=undefined;this.connectionGeometryKey='';this.cameraGeomKey=undefined;this.stageClientRect=undefined;(this.contentEl?.ownerDocument?.defaultView||window).cancelAnimationFrame(this.renderFrame);this.renderFrame=0;this.viewportOnlyRender=true;this.relationBar?.remove();this.relationBar=undefined;this.nodeFitQueue.cancel();this.pendingFits.clear();this.deferredCardFits.clear();this.previewQueue.clear();this.pdfPreviewQueue.clear();this.nodeScopes.forEach(s=>s.unload());this.nodeScopes.clear();this.mediaPlayers.clear();this.mediaStates.clear();this.mediaIdentities.clear();this.onlineBoardPlayers.clear();this.onlineBoardStates.clear();this.nodeKeys.clear();this.positions.forEach(e=>e.remove());this.positions.clear();this.cardControlRequests.clear();this.endpointPorts.clear();this.mapKey='';this.mapRefresh=undefined;this.mapViewport=undefined;this.edgeLayer?.clear();}
   constructor(leaf: WorkspaceLeaf, private plugin: ThoughtSpace) {
     super(leaf);this.scope=new Scope(this.app.scope);
     const search=(event:KeyboardEvent)=>{
@@ -3792,7 +3792,7 @@ class BoardView extends FileView {
     this.filterBadge=main.createDiv({cls:'ts-object-filter-status',attr:{'aria-live':'polite'}});this.inspector = main.createDiv('ts-inspector');
     this.minimap = main.createDiv({ cls: 'ts-minimap', attr: { 'aria-label': '白板缩略图' } });
     const chromeWindow=root.ownerDocument.defaultView||window,coarseChrome=chromeWindow.matchMedia('(any-pointer: coarse)');let resizeFrame=0,chromeFrame=0,railFrame=0;
-    const resizeObserver=new ResizeObserver(()=>{if(resizeFrame)return;resizeFrame=chromeWindow.requestAnimationFrame(()=>{resizeFrame=0;this.stage.parentElement?.toggleClass('ts-short-canvas',this.stage.clientHeight<360);this.retryDeferredCardFits();this.scheduleRender();});});resizeObserver.observe(this.stage);this.register(()=>{resizeObserver.disconnect();chromeWindow.cancelAnimationFrame(resizeFrame);});
+    const resizeObserver=new ResizeObserver(()=>{if(resizeFrame)return;resizeFrame=chromeWindow.requestAnimationFrame(()=>{resizeFrame=0;this.stageClientRect=undefined;this.stage.parentElement?.toggleClass('ts-short-canvas',this.stage.clientHeight<360);this.retryDeferredCardFits();this.scheduleRender();});});resizeObserver.observe(this.stage);this.register(()=>{resizeObserver.disconnect();chromeWindow.cancelAnimationFrame(resizeFrame);});
     // View controls can grow with font scaling or a narrow split. Reserve their
     // actual screen height for the overview and editor actions, not a fixed row.
     const refreshRailObstacle=()=>{
@@ -5202,6 +5202,16 @@ class BoardView extends FileView {
     // The title editor marks its card. Offscreen drafts stay mounted without a per-card query.
     const editingTitles=new Set<string>();for(const[id,el]of this.positions)if(el.classList.contains('is-editing-card-title'))editingTitles.add(id);
     if(editingTitles.size)for(const node of b.nodes)if(editingTitles.has(node.id)&&!live.has(node.id)){visible.push(node);live.add(node.id);}
+    let cameraGeom=`${v.zoom}|${this.plugin.settings.previewLimit}|${[...this.selected].sort().join(',')}|`,sameMembers=live.size===this.positions.size;
+    if(sameMembers)for(const id of live)if(!this.positions.has(id)){sameMembers=false;break;}
+    cameraGeom+=cullNodes.length+'|';
+    for(const node of visible)cameraGeom+=`${node.id}:${node.x}:${node.y}:${node.width}:${node.height}:${node.branchFolded?1:0}:${node.sectionFolded?1:0}|`;
+    for(const edge of b.edges)cameraGeom+=`${edge.id}:${edge.from}:${edge.to}|`;
+    if(viewportOnly&&sameMembers&&this.cameraZoom===v.zoom&&this.cameraGeomKey===cameraGeom){
+      if(!this.mapKey)this.renderMinimap(branchRender);else this.mapViewport?.();
+      this.syncMinimapAvoidance();this.reserveVisibleCardControls();this.syncPortTabStops?.();
+      return;
+    }
     let childCandidates:ReturnType<typeof childConnectionCandidates>|undefined;
     for(const [id,el] of this.positions){if(!live.has(id)){this.mediaPlayers.get(id)?.pause();this.cardControlContext?.clear(el);el.remove();this.positions.delete(id);this.cardControlRequests.delete(id);this.nodeScopes.get(id)?.unload();this.nodeScopes.delete(id);this.nodeKeys.delete(id);}}
     // File metadata is shared only inside this synchronous render. Even a missing
@@ -5438,6 +5448,7 @@ class BoardView extends FileView {
       focusFold(el.querySelector<HTMLButtonElement>('.ts-content-fold,.ts-card-quick-fold,button[aria-label="折叠图片"]'));
     }
     let previous:Element=this.svg;for(const n of ordered){const el=this.positions.get(n.id);if(el){if(previous.nextElementSibling!==el)this.world.insertBefore(el,previous.nextSibling);previous=el;}}
+    this.cameraGeomKey=cameraGeom;this.cameraZoom=v.zoom;
     // Moving a mounted element during the stable ordering pass blurs focus.
     // Restore only after that pass, and reveal hidden docks before focusing.
     if(pendingFoldFocus){pendingFoldFocus.closest('.ts-node')?.classList.add('is-control-focus');pendingFoldFocus.focus({preventScroll:true});}
@@ -5623,11 +5634,11 @@ class BoardView extends FileView {
     const topicClick=owner.board.mode==='mindmap'&&owner.board.nodes.find(n=>n.id===from)?.kind!=='section'&&this.mode!=='connect'&&!edge;
     this.cancelConnection();this.setSectionTool(false);this.selectionTool=false;this.syncSelectionTool();this.contextOpen=false;
     this.mode='connect';this.connectFrom=from;this.connectSide=side;this.linkDrag={id:e.pointerId,x:e.clientX,y:e.clientY,moved:false,owner,edge,topicClick};
-    this.connectButton?.addClass('is-active');this.stage.addClass('ts-connecting');this.stage.focus();this.stage.setPointerCapture(e.pointerId);this.syncPortTabStops?.();this.previewConnection(e.clientX,e.clientY);e.preventDefault();e.stopPropagation();
+    this.connectButton?.addClass('is-active');this.stage.addClass('ts-connecting');this.stage.focus();this.stage.setPointerCapture(e.pointerId);this.syncPortTabStops?.();this.stageClientRect=undefined;this.previewConnection(e.clientX,e.clientY);e.preventDefault();e.stopPropagation();
   }
   private previewConnection(clientX:number,clientY:number){
     const owner=this.session,byId=owner?this.connectionNodes(owner):undefined,source=byId?.get(this.connectFrom||''),from=source&&sectionDisplayNode(source);if(!owner||!from||owner.blocked){this.cancelConnection();return;}
-    const rect=this.stage.getBoundingClientRect(),v=owner.board.viewport,point={x:(clientX-rect.left-v.x)/v.zoom,y:(clientY-rect.top-v.y)/v.zoom};
+    const rect=this.stageClientRect||=(()=>{const next=this.stage.getBoundingClientRect();return {left:next.left,top:next.top,right:next.right,bottom:next.bottom};})(),v=owner.board.viewport,point={x:(clientX-rect.left-v.x)/v.zoom,y:(clientY-rect.top-v.y)/v.zoom};
     const inside=clientX>=rect.left&&clientX<=rect.right&&clientY>=rect.top&&clientY<=rect.bottom;
     const target=inside?connectionTarget(this.connectionCandidates,point,from.id,v.zoom,n=>this.positions.has(n.id)&&(!this.filterMatches||this.filterMatches.has(n.id))&&(!this.relatedFocus||this.relatedFocus.has(n.id)),true):undefined;
     const targetEl=target?this.positions.get(target.id):undefined,targetChanged=this.linkTargetEl!==targetEl||this.linkTarget?.side!==target?.side;
@@ -5657,7 +5668,7 @@ class BoardView extends FileView {
     const owner=drag.owner,from=this.connectFrom,side=this.connectSide,target=this.linkTarget;
     if(!cancelled&&!drag.moved&&drag.topicClick&&from){this.cancelConnection();if(this.session===owner&&!owner.blocked)act(()=>this.addTopic(false,from));return;}
     if(!cancelled&&!drag.moved&&!drag.edge){this.linkDrag=undefined;if(this.stage.hasPointerCapture(e.pointerId))this.stage.releasePointerCapture(e.pointerId);this.selected=new Set(from?[from]:[]);this.updateSelection();return;}
-    const rect=this.stage.getBoundingClientRect(),inside=e.clientX>=rect.left&&e.clientX<=rect.right&&e.clientY>=rect.top&&e.clientY<=rect.bottom,point=this.point(e.clientX,e.clientY);
+    const rect=this.stageClientRect||=(()=>{const next=this.stage.getBoundingClientRect();return {left:next.left,top:next.top,right:next.right,bottom:next.bottom};})(),inside=e.clientX>=rect.left&&e.clientX<=rect.right&&e.clientY>=rect.top&&e.clientY<=rect.bottom,point=this.point(e.clientX,e.clientY);
     this.cancelConnection();if(cancelled||this.session!==owner||owner.blocked||!from)return;
     if(target){if(drag.edge){const next=clone(owner.board);if(reconnectEdge(next,drag.edge.id,drag.edge.end,target.id,target.side,drag.edge.expected)){owner.change(b=>{b.version=next.version;b.edges=next.edges;});this.selectedEdge=drag.edge.id;this.selected.clear();}}else this.createConnection(from,target.id,side,target.side);this.updateSelection();}
     else if(drag.moved&&!drag.edge&&inside){
@@ -5747,6 +5758,8 @@ class BoardView extends FileView {
     for(const[id,control]of placements){const el=targets.get(id)!,suppressed=String(!!control.suppressed);if(el.dataset.controlSuppressed!==suppressed)el.dataset.controlSuppressed=suppressed;for(const[name,value]of [['scale',String(control.scale)],['top',`${control.top}px`],['right',`${control.right}px`]]){const key=`--ts-control-${name}`;if(el.style.getPropertyValue(key)!==value)el.style.setProperty(key,value);}}
   }
   private positionNode(n: Card, el: HTMLElement,preserveDraftSize=false) {
+    const drag=this.dragging&&this.gesture&&!this.gesture.pan&&!this.gesture.resize?this.gesture:undefined;
+    if(drag){const original=drag.originals.get(n.id),dx=original?n.x-original.x:0,dy=original?n.y-original.y:0,transform=dx||dy?`translate(${dx}px, ${dy}px)`:'';if(el.style.transform!==transform)el.style.transform=transform;return;}
     n=sectionDisplayNode(n);
     // Camera and pointer updates often revisit unchanged presentation. Compare
     // against the live element rather than caching mutable node objects.
@@ -5844,10 +5857,10 @@ class BoardView extends FileView {
     if((previous?.id!==id||previous.width!==size.width||previous.height!==size.height)&&this.session?.board.edges.some(e=>e.from===id||e.to===id))this.renderEdges();
   }
   private displayBoard(){return dragDisplayBoard(this.inlineLayout&&this.inlineTarget?{...this.inlineLayout,viewport:this.session!.board.viewport}:this.session!.board,this.gesture?.draft,!!this.gesture?.resize);}
-  private renderEdges(branches?:BranchRenderSnapshot,board?:Board) {
+  private renderEdges(branches?:BranchRenderSnapshot,board?:Board,touched?:ReadonlySet<string>) {
     if(!this.session)return;if(!this.edgeLayer||this.edgeLayer.root!==this.svg)this.edgeLayer=new EdgeLayer(this.svg,this.markerId,id=>this.labelEdge(id));
     const display=inlineDisplayBoard(board||this.displayBoard(),this.inlineTarget===this.inlineGeometry?.id?this.inlineGeometry:undefined);
-    this.edgeLayer.render(branches?branches.visible(display):visibleBranchBoard(display),this.stage.clientWidth,this.stage.clientHeight,this.selectedEdge,this.relatedFocus,this.batchFormatTarget==='edges'&&this.selected.size>1?new Set(selectionEdges(display,this.selected,this.batchEdgeScope).map(e=>e.id)):undefined);
+    this.edgeLayer.render(branches?branches.visible(display):visibleBranchBoard(display),this.stage.clientWidth,this.stage.clientHeight,this.selectedEdge,this.relatedFocus,this.batchFormatTarget==='edges'&&this.selected.size>1?new Set(selectionEdges(display,this.selected,this.batchEdgeScope).map(e=>e.id)):undefined,touched);
     const nextPorts=new Map<Element,string>();
     const edge=this.selectedEdge?display.edges.find(e=>e.id===this.selectedEdge):undefined,a=edge&&display.nodes.find(n=>n.id===edge.from),b=edge&&display.nodes.find(n=>n.id===edge.to);
     if(edge&&a&&b){const sides=connectionSides(sectionDisplayNode(a),sectionDisplayNode(b),edge);for(const[id,side,title]of [[a.id,sides.fromSide,'拖动重接起点'],[b.id,sides.toSide,'拖动重接终点']]){const port=this.positions.get(id)?.querySelector(`[data-side="${side}"]`);if(port)nextPorts.set(port,title);}}
@@ -6687,7 +6700,7 @@ class BoardView extends FileView {
     // Only connections and a visible grid landing consume projected drag geometry.
     // Keep edge rendering active even without an overlay so stale rows/ports clear.
     const base=this.inlineLayout&&this.inlineTarget?{...this.inlineLayout,viewport:b.viewport}:b,landingIds=g.resize||g.guides?.length||e.altKey?undefined:g.idSet;
-    const display=base.edges.length||landingIds&&b.snapToGrid?this.displayBoard():base;this.previewGridLanding(landingIds,g.lockedAxis?new Set([g.lockedAxis]):undefined,display);this.renderEdges(undefined,display);
+    const display=base.edges.length||landingIds&&b.snapToGrid?this.displayBoard():base;this.previewGridLanding(landingIds,g.lockedAxis?new Set([g.lockedAxis]):undefined,display);this.renderEdges(undefined,display,g.resize?new Set([g.resize]):g.idSet);
   }
   private pdfGestureLanding?:PdfBranchLanding;
   private pointerUp(e: PointerEvent, cancelled = false) {
@@ -6884,7 +6897,10 @@ class BoardView extends FileView {
       const owner=this.session,current=()=>run===this.sidebarRun&&owner===this.session&&!this.closed&&this.tab==='boards';
       // Superseded searches discard the entire graph; nesting validation still
       // calls boardGraph without a cancellation predicate and checks every file.
-      const result=await this.plugin.boardGraph(current);if(!result||!current())return;
+      const stamp=this.app.vault.getFiles().filter(f=>isWorkspaceFile(f)&&isBoardFile(this.app,f)).map(f=>`${f.path}\0${f.stat.mtime}\0${f.stat.size}`).sort().join('\n');
+      let result=this.boardTreeCache?.stamp===stamp?this.boardTreeCache.result:undefined;
+      if(!result){result=await this.plugin.boardGraph(current);if(!result||!current())return;this.boardTreeCache={stamp,result};}
+      else if(!current())return;
       const {graph,errors}=result;
       const files = this.app.vault.getFiles().filter(isWorkspaceFile).filter(f => isBoardFile(this.app,f)).sort(compare);
       const byPath = new Map(files.map(f => [f.path, f]));

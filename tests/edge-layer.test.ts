@@ -325,6 +325,12 @@ test('moving edges do not recheck unchanged marker definitions',t=>{
  f.layer.clear();f.render('ab');assert.notEqual(f.root.children[0],defs);assert.equal(f.root.children[0].children.length,2);
 });
 
+test('moving one card updates only the edges that touch it',()=>{
+ const f=fixture();f.render();const kept=f.path('ac').getAttribute('d'),writes=f.doc.writes;
+ f.board.nodes[1].x=420;f.layer.render(f.board,1000,800,undefined,undefined,undefined,new Set(['b']));
+ assert.equal(f.path('ac').getAttribute('d'),kept);assert.notEqual(f.path('ab').getAttribute('d'),kept);assert.equal(f.group('ac').parent,f.root);assert.ok(f.doc.writes>writes);
+});
+
 test('truncated edge captions keep a surrogate pair intact and preserve the complete tooltip',()=>{
  const f=fixture(),value='a'.repeat(78)+'😀 evidence';f.board.edges[0].label=value;f.render();
  const caption=f.group('ab').querySelector('.ts-edge-caption')!;assert.equal(caption.querySelector('text')!.textContent,'a'.repeat(78)+'…');assert.equal(caption.querySelector('title')!.textContent,value);

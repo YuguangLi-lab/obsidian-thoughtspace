@@ -47,7 +47,7 @@ export function nodeRenderKey(node:Card,context:readonly unknown[]):string{
 export function syncNodeGeometry(node:Card,element:HTMLElement,preserveSize=false){
  // Called for every mounted node during interaction. Keep scalar comparison
  // local instead of allocating an object and entry arrays for each patch.
- const style=element.style;let value=`${node.x}px`;if(style.left!==value)style.left=value;
+ const style=element.style;if(style.transform)style.transform='';let value=`${node.x}px`;if(style.left!==value)style.left=value;
  value=`${node.y}px`;if(style.top!==value)style.top=value;
  if(preserveSize)return;
  value=`${node.width}px`;if(style.width!==value)style.width=value;

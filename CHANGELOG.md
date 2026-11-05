@@ -1,5 +1,27 @@
 # 更新记录
 
+## 1.3.47
+
+### 平移和拖动更跟手
+
+- 只有镜头在动、卡片内容和连线都没变时，画面只移动白板图层，不再逐张重绘卡片，也不再重走全部连线。缩放仍会按新的比例更新分组边缘的可点范围。
+- 拖动卡片时用位移预览，松手后才写入最终位置。拖动过程中只更新碰到这些卡片的连线。吸附参考线和网格落点仍按同一套预览坐标计算。
+- 手写时记住这一笔开始时的画布位置，窗口尺寸变化后再重新量。连线拖动在按下时记住画布位置，直到窗口尺寸变化。
+- 侧栏搜索在白板文件没有变化时复用上一次的嵌套关系，只按关键字过滤。
+- 输入时自动适应卡片高度的测量改为停顿约一秒后再做，减少边打字边重排。
+- 白板图层使用 `will-change: transform`。纸张纹理仍内嵌在 `styles.css`。写在笔记预览里的日历任务块仍不受白板按钮样式影响；写作、手写、媒体等日历进不去的界面不再重复那条隔离规则。
+- 白板文件格式不变。本地 10,339 项自动化测试通过。物理移动设备未实测。
+
+### English
+
+- When only the camera moves, the board layer moves and unchanged cards and connections are left alone. Zoom still updates the section edge hit size.
+- Dragging a card previews with a transform and writes the final position on release. Only connections that touch the moving cards update during the drag. Guides and snap use that same preview.
+- A handwriting stroke keeps the stage rectangle from its start and measures again after a resize. A connection drag keeps the stage rectangle from pointer-down until the stage resizes.
+- Sidebar search reuses the last board graph when the files have not changed and filters that graph by the query.
+- Auto-fit measurement waits about a second after typing pauses.
+- The board layer uses `will-change: transform`. The paper texture stays embedded in `styles.css`. A calendar task block inside a note preview is still excluded from board button styles. Surfaces the calendar never enters no longer repeat that isolation guard.
+- Board files are unchanged. Validated with 10,339 automated tests. Physical mobile devices were not tested.
+
 ## 1.3.46
 
 ### 无关的库变化不再重绘整张白板

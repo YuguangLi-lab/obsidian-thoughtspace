@@ -59,8 +59,8 @@ test('120 camera frames inspect only mounted DOM and skip unused branch topology
  for(let frame=0;frame<120;frame++){f.board.viewport.x=frame/100;f.render();}
  t.diagnostic(JSON.stringify(f.stats));
  assert.ok(f.stats.nodeIds<=18000,`full-board identity scans: ${f.stats.nodeIds}`);
- assert.equal(f.stats.positionGets,12*3*120);assert.equal(f.stats.titleQueries,12*120);assert.equal(f.stats.edgeKinds,0);
- assert.equal(f.stats.positioned,12*120);assert.equal(f.stats.edgeFrames,120);assert.equal(f.stats.mapFrames,120);assert.equal(f.stats.unloads,0);
+ assert.equal(f.stats.positionGets,12*3);assert.equal(f.stats.titleQueries,12*120);assert.equal(f.stats.edgeKinds,0);
+ assert.equal(f.stats.positioned,12);assert.equal(f.stats.edgeFrames,1);assert.equal(f.stats.mapFrames,120);assert.equal(f.stats.unloads,0);
  assert.deepEqual([...f.positions.values()],elements);f.board.viewport.x=0;assert.equal(JSON.stringify(f.board),saved);
 });
 test('120 camera frames preserve embedded mindmap DOM without recomputing its relationships or previews',()=>{
@@ -68,7 +68,7 @@ test('120 camera frames preserve embedded mindmap DOM without recomputing its re
  Object.assign(f.view,{boardMindmaps:new Map([['n0',{refresh(){refreshes++;}}]]),syncMindmapResize(node:Card,el:Element){assert.equal(node.id,'n0');assert.equal(el,element);resizes++;}});
  const before={x:f.nodes[0].x,y:f.nodes[0].y,width:f.nodes[0].width,height:f.nodes[0].height};
  for(let frame=0;frame<120;frame++){f.board.viewport.x=frame/100;f.render();}
- assert.equal(resizes,120);assert.equal(refreshes,0);assert.equal(f.positions.get('n0'),element);assert.equal(f.stats.unloads,0);assert.deepEqual({x:f.nodes[0].x,y:f.nodes[0].y,width:f.nodes[0].width,height:f.nodes[0].height},before);
+ assert.equal(resizes,1);assert.equal(refreshes,0);assert.equal(f.positions.get('n0'),element);assert.equal(f.stats.unloads,0);assert.deepEqual({x:f.nodes[0].x,y:f.nodes[0].y,width:f.nodes[0].width,height:f.nodes[0].height},before);
 });
 
 test('an entirely offscreen camera frame does not search undefined editor IDs or build unused topology',()=>{
