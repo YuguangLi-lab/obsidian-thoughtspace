@@ -7,7 +7,7 @@ import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import {boardLinks,emptyBoard,extractTasks,type Board} from '../src/model';
 import {isWorkspaceFile,libraryFiles,noteExcerpt} from '../src/workspace';
-import {firstNoteReferences} from '../src/sidebar-content';
+import {boardGraphStamp,firstNoteReferences} from '../src/sidebar-content';
 import {taskSummary,visibleTasks} from '../src/navigation';
 import {outlineTree} from '../src/group-organizer';
 import {readingTitle} from '../src/reading-desk';
@@ -46,7 +46,7 @@ function fixture(tab:Tab){
  const note=new File('Notes/Note.md'),unrelated=new File('Notes/Unrelated.md'),pdf=new File('Books/Book.pdf');files.push(note,unrelated,pdf);
  const window={setTimeout(fn:()=>void,delay:number){const id=++next;timers.set(id,{at:now+delay,fn});return id;},clearTimeout(id:number){timers.delete(id);},requestAnimationFrame(fn:()=>void){const id=++next;frames.set(id,fn);return id;},cancelAnimationFrame(id:number){frames.delete(id);}};
  const on=(surface:'vault'|'metadata',event:string,fn:(file:any,oldPath?:string)=>void)=>{const handlers=listeners[surface].get(event)||[];handlers.push(fn);listeners[surface].set(event,handlers);};
- const deps={...boardHostDeps,resolveSourceLink,mediaKind,mediaCard,window,TFile:File,EXT:'thoughtspace',isWorkspaceFile,libraryFiles,noteExcerpt,firstNoteReferences,outlineTree,taskSummary,visibleTasks,extractTasks,cardDisplayTitle,
+ const deps={...boardHostDeps,resolveSourceLink,mediaKind,mediaCard,window,TFile:File,EXT:'thoughtspace',isWorkspaceFile,libraryFiles,noteExcerpt,firstNoteReferences,boardGraphStamp,outlineTree,taskSummary,visibleTasks,extractTasks,cardDisplayTitle,
   act:(run:()=>unknown)=>{pending.push(Promise.resolve().then(run));},button:(host:Element,title:string,_icon:string,run:()=>unknown,cls='')=>{const button=host.createEl('button',{text:title,cls,attr:{'aria-label':title}});button.onclick=run;return button;},setIcon(){},getAllTags:()=>[],readingTitle};
  const View=new Function(...Object.keys(deps),transformSync(`class View{init(){${events}}${methods}};return View`,{loader:'ts'}).code)(...Object.values(deps));
  const graphDeps={...boardHostDeps,boardLinks,EXT:'thoughtspace'};
@@ -161,6 +161,13 @@ test('an old delayed scan does not cancel or replace a newer completed scan',asy
  const old=f.view.buildSidebar(oldList,f.view.sidebarRun),before=oldList.childElementCount;f.view.renderSidebar();const fresh=new Element();await f.view.buildSidebar(fresh,f.view.sidebarRun);
  assert.equal(reads,31);const freshCount=fresh.childElementCount;gate.resolve(emptyBoard());await old;
  assert.equal(reads,31);assert.equal(oldList.childElementCount,before);assert.equal(fresh.childElementCount,freshCount);assert.ok(freshCount>before);
+});
+
+test('an unsaved open-board epoch rebuilds the sidebar graph without a disk change',async()=>{
+ const f=fixture('boards');let epoch=0;f.plugin.openBoardEpochs=()=>[{path:f.files[0].path,epoch}];
+ f.view.renderSidebar();await f.advance();const first=f.calls.readBoard;assert.ok(first>0);
+ f.view.renderSidebar();await f.advance();assert.equal(f.calls.readBoard,first);
+ epoch=1;f.view.renderSidebar();await f.advance();assert.ok(f.calls.readBoard>first);
 });
 
 test('graph cancellation returns no partial graph, while unscoped validation still returns all links and errors',async()=>{

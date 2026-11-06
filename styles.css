@@ -3705,7 +3705,7 @@ body {
   background-image: linear-gradient(to right, var(--ts-grid-ink) 1px, transparent 1px), linear-gradient(to bottom, var(--ts-grid-ink) 1px, transparent 1px);
 }
 .ts-root[data-background=dots] :is(.ts-main > .ts-stage,.ts-brain-stage):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { background-image: radial-gradient(var(--ts-dot-ink) .8px, transparent .8px); }
-/* Neutral paper grain: 384px transparent indexed PNG, seed 100032. Fine
+/* Neutral paper grain over warm white #f8f5ef: 384px transparent indexed PNG, seed 100032. Fine
    per-pixel grain and 2000 tiny fibers carry no paper color or cloudy shading.
    The stage and settings preview share one decoded texture. Opacity is 0..1;
    saved preferences convert the user's 0..100 value before setting the variable. */
@@ -3716,12 +3716,12 @@ body {
 .ts-paper-preview:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
   position: relative;
   isolation: isolate;
-  background-color: var(--ts-paper-color, #f3e9d4);
+  background-color: var(--ts-paper-color, #f8f5ef);
   background-image: none;
 }
 .theme-dark .ts-root[data-background=paper] :is(.ts-main > .ts-stage,.ts-brain-stage):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),
 .theme-dark .ts-paper-preview:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
-  background-color: color-mix(in srgb, var(--ts-paper-color, #f3e9d4) 16%, #171918);
+  background-color: color-mix(in srgb, var(--ts-paper-color, #f8f5ef) 16%, #171918);
 }
 /* Texture remains in fixed stage pixels, separate from the live grid inline
    backgroundSize/backgroundPosition and the transformed world beneath objects. */
@@ -3745,7 +3745,7 @@ body {
 /* Only opaque note cards gain a contact shadow. Content fonts, custom fills,
    borders, transparency and media retain their own presentation. */
 .ts-root[data-background=paper] .ts-card:not(.is-transparent):not(.ts-media-card):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
-  box-shadow: 0 1px 2px #493c271a, 0 4px 12px #493c2712;
+  box-shadow: 0 1px 2px #3c39341a, 0 4px 12px #3c393412;
 }
 .theme-dark .ts-root[data-background=paper] .ts-card:not(.is-transparent):not(.ts-media-card):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
   box-shadow: 0 1px 2px #00000040, 0 5px 14px #00000032;

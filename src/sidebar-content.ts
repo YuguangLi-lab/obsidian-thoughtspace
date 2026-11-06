@@ -8,6 +8,14 @@ export function firstNoteReferences(nodes:readonly Card[]){
  return references;
 }
 
+/** Disk identity plus every open board's unsaved content epoch.
+ * A search that only changes the query must not reuse a graph from before an unsaved link edit. */
+export function boardGraphStamp(files:readonly {path:string;stat:{mtime:number;size:number}}[],openBoards:readonly {path:string;epoch:number}[]):string{
+ const disk=files.map(file=>`${file.path}\0${file.stat.mtime}\0${file.stat.size}`).sort().join('\n');
+ const open=openBoards.map(board=>`${board.path}\0${board.epoch}`).sort().join('\n');
+ return `${disk}\n${open}`;
+}
+
 /** Publish a complete sidebar without losing same-context scroll or an identifiable control. */
 export function replaceSidebarContents(host:HTMLElement,draft:HTMLElement,preserve:boolean){
  const top=preserve?host.scrollTop:0,active=host.ownerDocument.activeElement;

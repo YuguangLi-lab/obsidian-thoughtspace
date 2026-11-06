@@ -1,5 +1,25 @@
 # 更新记录
 
+## 1.3.48
+
+### 卡片库引用与属性视图
+
+- 新建或放入白板的笔记卡片是库里的引用，不是正文副本。正文仍是普通 Markdown 笔记，Obsidian 搜索和链接继续可用。同一篇笔记可以出现在多块白板上；修改笔记后，各处预览读到的是同一篇。
+- 旧白板不用迁移。原来的笔记卡片没有 `library` 标记，仍然是引用。新放入的笔记卡片会写上 `library: true`。白板版本仍是 3。文本框仍把文字保存在白板里。
+- 命令：放置已有卡片、从白板移除引用（保留笔记）、打开源卡片、浏览卡片库。移除引用只拿掉白板上的位置，不删除笔记。
+- 卡片库可以按类型、标签、白板和状态筛选，并在列表、表格、看板之间切换。状态、优先级和截止日期仍写在笔记的 Properties 里。看板里改状态会写回笔记。
+- 侧栏白板树的缓存会算上已打开白板尚未落盘的内容版本。只改搜索词时仍复用上次的嵌套关系；白板上的引用变了，即使文件时间还没变，也会重新计算。
+- 纸张纹理仍内嵌在 `styles.css`。默认纸色从米黄 `#f3e9d4` 改为暖白 `#f8f5ef`，纸纹还在，黄调去掉。已选「暖白纸」（原米黄纸预设）的白板会跟着变；牛皮纸、象牙白和自定义颜色不动。笔记预览里的日历任务块不受影响。
+
+### English
+
+- A note placed on a board is a library reference, not a copy of the body. The body stays a normal Markdown note, so Obsidian search and links keep working. The same note can sit on several boards, and editing it updates every placement.
+- Old boards do not need a migration. Existing note cards omit `library` and remain references. Newly placed note cards set `library: true`. The board version stays 3. Text frames still store their writing on the board.
+- Commands: place an existing card, remove the board reference without deleting the note, open the source card, and browse the card library. Removing a reference only removes that placement.
+- The library filters by type, tag, whiteboard, and status, and switches among list, table, and kanban. Status, priority, and due date stay in the note's Properties. Changing a kanban status writes back to the note.
+- The sidebar board graph stamp includes the unsaved content epoch of open boards. A search still reuses the last graph when only the query changed. An unsaved reference change rebuilds the graph before the file timestamp changes.
+- The paper texture stays embedded in `styles.css`. The default paper pigment changes from yellow `#f3e9d4` to warm white `#f8f5ef`. The grain remains. Kraft, ivory, and custom colors stay as they are. Calendar task blocks inside note previews are unchanged.
+
 ## 1.3.47
 
 ### 平移和拖动更跟手
