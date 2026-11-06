@@ -1,0 +1,31 @@
+import {Modal,Notice,type App} from 'obsidian';
+import {paintCardLibrary,type LibraryViewHandlers} from './card-library-view';
+import {emptyLibraryQuery,type LibraryCardRecord,type LibraryViewQuery} from './card-property-views';
+
+export interface CardLibraryHost extends Omit<LibraryViewHandlers,'setQuery'> {
+ records():readonly LibraryCardRecord[];
+ limitNote?:string;
+}
+/** Dedicated browser for the card library. Closing it does not delete notes. */
+export class CardLibraryModal extends Modal {
+ private query:LibraryViewQuery=emptyLibraryQuery();
+ constructor(app:App,private host:CardLibraryHost){super(app);}
+ onOpen(){
+  this.modalEl.addClass('ts-database-modal');
+  this.titleEl.setText('卡片库');
+  this.contentEl.addClass('ts-database');
+  this.refresh();
+ }
+ onClose(){this.contentEl.empty();}
+ refresh(){this.paint();}
+ private paint(){
+  paintCardLibrary(this.contentEl as unknown as Parameters<typeof paintCardLibrary>[0],this.host.records(),this.query,{
+   setQuery:next=>{this.query=next;this.paint();},
+   place:path=>{this.host.place(path);this.paint();},
+   open:path=>this.host.open(path),
+   unlink:path=>{this.host.unlink(path);this.paint();},
+   setStatus:this.host.setStatus?(path,status)=>Promise.resolve(this.host.setStatus!(path,status)).then(()=>{if(this.modalEl.isConnected)this.paint();}).catch((error:unknown)=>{new Notice(error instanceof Error?error.message:String(error));}):undefined,
+  });
+  if(this.host.limitNote)this.contentEl.createDiv({cls:'ts-muted',text:this.host.limitNote});
+ }
+}
