@@ -9,7 +9,7 @@
 - 命令：放置已有卡片、从白板移除引用（保留笔记）、打开源卡片、浏览卡片库。移除引用只拿掉白板上的位置，不删除笔记。
 - 卡片库可以按类型、标签、白板和状态筛选，并在列表、表格、看板之间切换。状态、优先级和截止日期仍写在笔记的 Properties 里。看板里改状态会写回笔记。
 - 侧栏白板树的缓存会算上已打开白板尚未落盘的内容版本。只改搜索词时仍复用上次的嵌套关系；白板上的引用变了，即使文件时间还没变，也会重新计算。
-- 纸张纹理仍内嵌在 `styles.css`。笔记预览里的日历任务块不受影响。
+- 纸张纹理仍内嵌在 `styles.css`。默认纸色从米黄 `#f3e9d4` 改为暖白 `#f8f5ef`，纸纹还在，黄调去掉。已选「暖白纸」（原米黄纸预设）的白板会跟着变；牛皮纸、象牙白和自定义颜色不动。笔记预览里的日历任务块不受影响。
 
 ### English
 
@@ -18,7 +18,7 @@
 - Commands: place an existing card, remove the board reference without deleting the note, open the source card, and browse the card library. Removing a reference only removes that placement.
 - The library filters by type, tag, whiteboard, and status, and switches among list, table, and kanban. Status, priority, and due date stay in the note's Properties. Changing a kanban status writes back to the note.
 - The sidebar board graph stamp includes the unsaved content epoch of open boards. A search still reuses the last graph when only the query changed. An unsaved reference change rebuilds the graph before the file timestamp changes.
-- The paper texture stays embedded in `styles.css`. Calendar task blocks inside note previews are unchanged.
+- The paper texture stays embedded in `styles.css`. The default paper pigment changes from yellow `#f3e9d4` to warm white `#f8f5ef`. The grain remains. Kraft, ivory, and custom colors stay as they are. Calendar task blocks inside note previews are unchanged.
 
 ## 1.3.47
 
