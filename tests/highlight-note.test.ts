@@ -60,12 +60,13 @@ test('a highlight note is removed when the board edit does not keep it',async()=
 });
 
 test('a failed save puts the highlight card back when the note cannot be deleted',async()=>{
- const board={nodes:[{file:'Cards/A.md'}]},before={nodes:[] as {file?:string}[]},history={undoStack:['snapshot'],push(value:{nodes:{file?:string}[]}){this.undoStack.push(value.nodes[0]?.file||'empty');}};
- let current=board;
+ type Nodes={nodes:{file:string}[]};
+ const board:Nodes={nodes:[{file:'Cards/A.md'}]},before:Nodes={nodes:[]},history={undoStack:['snapshot'],push(value:Nodes){this.undoStack.push(value.nodes[0]?.file||'empty');}};
+ let current:Nodes=board;
  await assert.rejects(rollbackUnsavedHighlight({board,before,history,historyMark:0,notePath:'Cards/A.md',restoreBoard:next=>{current=next;},remove:async()=>{throw Error('回收站不可用');}}),/仍保留在 Cards\/A\.md[\s\S]*回收站不可用/);
  assert.equal(current.nodes[0]?.file,'Cards/A.md');
  assert.deepEqual(history.undoStack,['empty']);
- const removed:string[]=[],saved={undoStack:['snapshot'],push(){}};
+ const removed:string[]=[],saved={undoStack:['snapshot'],push(_value:Nodes){}};
  current={nodes:[{file:'Cards/A.md'}]};
  await assert.rejects(rollbackUnsavedHighlight({board:current,before,history:saved,historyMark:0,notePath:'Cards/A.md',restoreBoard:next=>{current=next;},remove:async()=>{removed.push('Cards/A.md');}}),/未放置的高亮笔记已删除/);
  assert.equal(current.nodes.length,0);assert.deepEqual(removed,['Cards/A.md']);assert.deepEqual(saved.undoStack,[]);
