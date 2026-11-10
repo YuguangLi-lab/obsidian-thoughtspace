@@ -52,7 +52,10 @@ function actions(parent:LibraryElement,record:LibraryCardRecord,handlers:Library
  }
  if(record.highlight&&handlers.jump)button(row,'回到来源',()=>handlers.jump!(record.path));
  if(record.placements.length===1&&handlers.locate)button(row,'在白板中打开',()=>handlers.locate!(record.placements[0]));
- else if(record.placements.length>1&&handlers.locate)select(row,'所在白板 '+record.title,record.placements.map(place=>[`${place.boardPath}\n${place.nodeId}`,place.boardTitle] as [string,string]),'',value=>{const [boardPath,nodeId]=value.split('\n');const place=record.placements.find(item=>item.boardPath===boardPath&&item.nodeId===nodeId);if(place)handlers.locate!(place);});
+ else if(record.placements.length>1&&handlers.locate){
+  const labels=record.placements.map(place=>place.boardTitle),seen=new Map<string,number>();
+  const menu=select(row,'所在白板 '+record.title,[['', '选择白板'],...record.placements.map(place=>{const n=(seen.get(place.boardTitle)||0)+1;seen.set(place.boardTitle,n);const text=labels.filter(label=>label===place.boardTitle).length>1?`${place.boardTitle} · ${n}`:place.boardTitle;return [JSON.stringify([place.boardPath,place.nodeId]),text] as [string,string];})],'',value=>{try{const parsed:unknown=JSON.parse(value);if(!Array.isArray(parsed)||parsed.length!==2)return;const place=record.placements.find(item=>item.boardPath===parsed[0]&&item.nodeId===parsed[1]);if(place)handlers.locate!(place);}catch{/* ignore a damaged menu value */}menu.value='';});
+ }
 }
 /** Paint the card library. The note body is never rendered from the board. */
 export function paintCardLibrary(root:LibraryElement,records:readonly LibraryCardRecord[],query:LibraryViewQuery=emptyLibraryQuery(),handlers:LibraryViewHandlers){

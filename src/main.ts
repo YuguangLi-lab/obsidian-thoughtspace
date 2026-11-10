@@ -120,11 +120,12 @@ import {setBoardEdgeStyle,inheritNewEdgeStyle} from './model';
 import {BoardSearchSync,isSearchIndexPath,SEARCH_FOLDER,searchBoardPath,searchIndexSourcePath,searchIndexTarget} from './native-search';
 import {collectReferencedPaths} from './board-references';
 import {boardGraphStamp} from './sidebar-content';
-import {isLibraryCard,libraryFilesOnBoard,libraryPath,libraryPlacements,unlinkLibraryCards} from './card-library-model';
+import {isLibraryCard,libraryFilesOnBoard,libraryIndexFiles,libraryPath,libraryPlacements,unlinkLibraryCards} from './card-library-model';
 import {highlightMarkdown,parseHighlight} from './highlight-note';
 import {choiceKey} from './choice-field';
-import {boardExportScene,jpegPagePdf} from './board-export';
+import {assertExportable,boardExportScene,jpegPagePdf} from './board-export';
 import {FirstSessionModal} from './first-session-view';
+import {persistFirstSessionDismissal} from './first-session';
 import {buildLibraryRecords,mergeBoardSources,type LibraryBoardSource,type LibrarySourceNote} from './card-property-views';
 import {CardLibraryModal} from './card-library-modal';
 import {PdfDocumentPool} from './pdf-document-pool';
@@ -1529,8 +1530,8 @@ export default class ThoughtSpace extends Plugin {
     });
   }
   private async libraryBoardIndex(current:()=>boolean){
-    const files=this.app.vault.getFiles().filter(file=>isWorkspaceFile(file)&&isBoardFile(this.app,file)),limited=files.length>200,boards:LibraryBoardSource[]=[];
-    for(const file of files.slice(0,200)){
+    const indexed=libraryIndexFiles(this.app.vault.getFiles().filter(file=>isWorkspaceFile(file)&&isBoardFile(this.app,file))),limited=indexed.limited,boards:LibraryBoardSource[]=[];
+    for(const file of indexed.files){
       if(!current())return {boards,limited};
       try{const board=await this.readBoard(file);if(!current())return {boards,limited};boards.push({path:file.path,title:file.basename,files:libraryFilesOnBoard(board.nodes),placements:libraryPlacements(board.nodes)});}catch{/* 读不出的白板不进入索引 */}
     }
@@ -1555,12 +1556,14 @@ export default class ThoughtSpace extends Plugin {
     return modal;
   }
   private firstSession?:FirstSessionModal;
-  openFirstSession(again:boolean){if(!again&&this.settings.firstSessionDismissed)return;this.firstSession?.close();const modal=new FirstSessionModal(this.app,()=>{this.settings.firstSessionDismissed=true;void this.saveData(this.settings);});this.firstSession=modal;modal.open();}
+  openFirstSession(again:boolean){if(!again&&this.settings.firstSessionDismissed)return;this.firstSession?.close();const modal=new FirstSessionModal(this.app,()=>{void persistFirstSessionDismissal(()=>this.saveData(this.settings),dismissed=>{this.settings.firstSessionDismissed=dismissed;}).catch(error=>new Notice(error instanceof Error?error.message:String(error)));});this.firstSession=modal;modal.open();}
   private async revealLibraryCard(boardPath:string,nodeId:string){
     const file=this.app.vault.getAbstractFileByPath(boardPath);if(!(file instanceof TFile)||!isBoardFile(this.app,file))throw Error('白板已移动或删除');
     await this.openBoard(file);
     const view=this.app.workspace.getLeavesOfType(VIEW).map(leaf=>leaf.view).find(item=>item instanceof BoardView&&item.file===file) as BoardView|undefined;
-    if(!view?.session?.board.nodes.some(node=>node.id===nodeId))throw Error('这张卡片已从白板移除，笔记仍在库中');
+    if(!view?.session)throw Error('白板尚未打开，请重试');
+    if(!view.session.board.nodes.some(node=>node.id===nodeId))throw Error('这张卡片已从白板移除，笔记仍在库中');
+    if(view.session.blocked)throw Error('白板已暂停写入，画面暂时不能移动到这张卡片');
     view.focusLibraryCard(nodeId);
   }
   async jumpHighlightNote(path:string){
@@ -4414,8 +4417,11 @@ class BoardView extends FileView {
     return this.plugin.jumpHighlightNote(node.file);
   }
   async exportCurrentView(kind:'png'|'pdf'){
-    const owner=this.requireOwner(),stage=this.stage,rect=stage.getBoundingClientRect();
+    const owner=this.session;if(!owner||this.closed||this.closing)throw Error('请先打开白板');
+    const stage=this.stage;if(!stage)throw Error('白板尚未显示，无法导出');
+    const rect=stage.getBoundingClientRect();
     const scene=boardExportScene(owner.board,{width:rect.width||800,height:rect.height||600},id=>{const node=owner.board.nodes.find(item=>item.id===id);return node?.title||node?.file?.split('/').pop()||node?.text?.split('\n')[0]||'未命名';});
+    assertExportable(scene);
     const canvas=stage.ownerDocument.createElement('canvas');canvas.width=scene.width;canvas.height=scene.height;
     const context=canvas.getContext('2d');if(!context)throw Error('当前环境无法导出图像');
     context.fillStyle='#f8f5ef';context.fillRect(0,0,scene.width,scene.height);

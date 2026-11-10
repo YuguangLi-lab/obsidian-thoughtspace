@@ -57,3 +57,25 @@ test('status choices stay on the note path',()=>{
  status.value='done';status.onchange?.(undefined);
  assert.deepEqual(statuses,['Cards/Shade.md:done']);
 });
+
+test('several boards open the chosen card without splitting the path on a newline',()=>{
+ const records=buildLibraryRecords([
+  {path:'Cards/Shade.md',title:'林荫',tags:[],properties:{}},
+ ],[
+  {path:'Boards/A.md',title:'城市降温',files:['Cards/Shade.md'],placements:[{id:'one',file:'Cards/Shade.md'}]},
+  {path:'Boards/B "二".md',title:'城市降温',files:['Cards/Shade.md'],placements:[{id:'two',file:'Cards/Shade.md'}]},
+ ]);
+ const root=new El(),opened:{boardPath:string;nodeId:string}[]=[];
+ paintCardLibrary(root,records,emptyLibraryQuery(),{setQuery(){},place(){},open(){},unlink(){},locate:place=>opened.push(place)});
+ const menu=labeled(root,'所在白板 林荫')!;
+ assert.equal(menu.all().some(el=>el.text==='选择白板'),true);
+ assert.equal(menu.all().some(el=>el.text==='城市降温 · 1'),true);
+ const values=menu.all().map(el=>el.value).filter(value=>value.startsWith('['));
+ assert.equal(values.length,2);
+ menu.value=values[0];menu.onchange?.(undefined);
+ assert.deepEqual(opened,[{boardPath:'Boards/A.md',boardTitle:'城市降温',nodeId:'one'}]);
+ assert.equal(menu.value,'');
+ menu.value=values[1];menu.onchange?.(undefined);
+ assert.equal(opened[1].boardPath,'Boards/B "二".md');
+ assert.equal(opened[1].nodeId,'two');
+});

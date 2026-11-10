@@ -8,7 +8,9 @@ export interface BoardExportScene {width:number;height:number;nodes:BoardExportN
 export function boardExportScene(board:Board,view:{width:number;height:number},title:(id:string)=>string):BoardExportScene{
  const width=Math.max(1,Math.min(4096,Math.round(view.width))),height=Math.max(1,Math.min(4096,Math.round(view.height)));
  const zoom=board.viewport.zoom,ox=board.viewport.x,oy=board.viewport.y;
- const screen=(x:number,y:number)=>({x:(x+ox)*zoom,y:(y+oy)*zoom});
+ if(!Number.isFinite(zoom)||zoom<=0||!Number.isFinite(ox)||!Number.isFinite(oy))throw Error('当前画面无法导出');
+ // The board draws world point (x, y) at x*zoom+viewport.x, not (x+viewport.x)*zoom.
+ const screen=(x:number,y:number)=>({x:x*zoom+ox,y:y*zoom+oy});
  const nodes:BoardExportNode[]=[];
  for(const node of board.nodes){
   if(node.kind==='section')continue;
@@ -25,6 +27,7 @@ export function boardExportScene(board:Board,view:{width:number;height:number},t
  }
  return {width,height,nodes,edges};
 }
+export function assertExportable(scene:BoardExportScene){if(!scene.nodes.length)throw Error('当前画面没有可导出的卡片');}
 
 /** One-page PDF whose only content is a JPEG. Callers supply the already-encoded image. */
 export function jpegPagePdf(jpeg:Uint8Array,width:number,height:number):Uint8Array{

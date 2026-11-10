@@ -22,4 +22,17 @@ test('a video highlight keeps the timestamp in the note, not on the board',()=>{
  assert.deepEqual(parseHighlight({thoughtspace_highlight:'video',thoughtspace_source:'Media/Walk.mp4',thoughtspace_time:12.5}),{kind:'video',source:'Media/Walk.mp4',time:12.5});
  assert.equal(parseHighlight({thoughtspace_highlight:'video',thoughtspace_source:'../Walk.mp4',thoughtspace_time:1}),undefined);
  assert.equal(parseHighlight({thoughtspace_highlight:'pdf',thoughtspace_source:'Notes/A.md',thoughtspace_page:1}),undefined);
+ const typed=parseHighlight({thoughtspace_highlight:'pdf',thoughtspace_source:'Papers/A.pdf',thoughtspace_page:'2',thoughtspace_end_page:'4'});
+ assert.equal(typed?.page,2);assert.equal(typed?.endPage,4);
+ assert.equal(parseHighlight({thoughtspace_highlight:'pdf',thoughtspace_source:'Papers/A.pdf',thoughtspace_page:2,thoughtspace_end_page:'1'}),undefined);
+ assert.equal(parseHighlight({thoughtspace_highlight:'audio',thoughtspace_source:'Media/A.mp3'}),undefined);
+ assert.equal(parseHighlight({thoughtspace_highlight:'pdf',thoughtspace_source:'Papers/A.pdf',thoughtspace_page:'0'}),undefined);
+ assert.equal(parseHighlight({thoughtspace_highlight:'audio',thoughtspace_source:'Media/A.mp3',thoughtspace_time:'0'})?.time,0);
+ assert.equal(parseHighlight({thoughtspace_highlight:'video',thoughtspace_source:'Media/A].mp4',thoughtspace_time:1})?.source,'Media/A].mp4');
+ const bracketed=highlightMarkdown({kind:'video',source:'Media/A].mp4',time:1},'正文','标题');
+ assert.equal(bracketed.includes('[[Media/A].mp4]]'),false);
+ assert.equal(parseHighlight({title:'普通笔记'}),undefined);
+ const wrapped=highlightMarkdown({kind:'pdf',source:'Papers/A.pdf',page:1},'正文','第一行\n第二行');
+ assert.match(wrapped,/# 第一行 第二行/);
+ assert.throws(()=>highlightMarkdown({kind:'pdf',source:'../A.pdf',page:1},'正文','标题'),/来源无效/);
 });
