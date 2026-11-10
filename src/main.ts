@@ -121,7 +121,7 @@ import {BoardSearchSync,isSearchIndexPath,SEARCH_FOLDER,searchBoardPath,searchIn
 import {collectReferencedPaths} from './board-references';
 import {boardGraphStamp} from './sidebar-content';
 import {isLibraryCard,libraryFilesOnBoard,libraryIndexFiles,libraryPath,libraryPlacements,unlinkLibraryCards} from './card-library-model';
-import {highlightMarkdown,parseHighlight} from './highlight-note';
+import {highlightMarkdown,parseHighlight,placeHighlightNote} from './highlight-note';
 import {choiceKey} from './choice-field';
 import {assertExportable,boardExportScene,jpegPagePdf} from './board-export';
 import {FirstSessionModal} from './first-session-view';
@@ -3285,7 +3285,9 @@ class BoardView extends FileView {
     const link=`[[${source.path}#page=${page}]]`,document=pdfExcerptDocument(text,link,page,endPage);
     const citation=excerptPresentation(document.body).sources[0].citation;
     ensure();if(!origin){if(position.targetId)return this.appendCardEvidence(position.targetId,pdfLiteralText(text.trim())+'\n\n'+citation,owner,ensure);return this.placeExcerptTexts([text.trim()+'\n\n> '+citation],position,owner,'purple');}
-    const markdown=highlightMarkdown({kind:'pdf',source:path,page,endPage:endPage||page},pdfLiteralText(text.trim())+'\n\n> '+citation,`${source.basename} 第${page}页`);ensure();const note=await this.plugin.createUnique(this.plugin.settings.cardFolder,`${source.basename} 第${page}页`,'md',markdown);ensure();const node:Card={id:uid(),kind:'card',library:true,transparent:true,file:note.path,x:position.x,y:position.y,width:this.plugin.settings.defaultCardWidth,height:270,color:origin.color,autoFit:true,preferredWidth:this.plugin.settings.defaultCardWidth};ensure();const draft=clone(owner.board);if(position.branch)applyPdfBranch(draft,node,position.branch,uid());else{draft.nodes.push(node);draft.version=3;}ensure();owner.change(()=>{owner.board=draft;});this.selected=new Set([node.id]);this.contextOpen=false;this.renderBoard();await owner.flush();return{ids:[node.id],files:[note.path],boardPath:owner.file.path};
+    const markdown=highlightMarkdown({kind:'pdf',source:path,page,endPage:endPage||page},pdfLiteralText(text.trim())+'\n\n> '+citation,`${source.basename} 第${page}页`);ensure();const note=await this.plugin.createUnique(this.plugin.settings.cardFolder,`${source.basename} 第${page}页`,'md',markdown);const node:Card={id:uid(),kind:'card',library:true,transparent:true,file:note.path,x:position.x,y:position.y,width:this.plugin.settings.defaultCardWidth,height:270,color:origin.color,autoFit:true,preferredWidth:this.plugin.settings.defaultCardWidth};
+    await placeHighlightNote(note.path,()=>{ensure();const draft=clone(owner.board);if(position.branch)applyPdfBranch(draft,node,position.branch,uid());else{draft.nodes.push(node);draft.version=3;}ensure();owner.change(()=>{owner.board=draft;});},()=>owner.board.nodes.some(item=>item.file===note.path),()=>this.discardUnplacedHighlight(note,markdown));
+    this.selected=new Set([node.id]);this.contextOpen=false;this.renderBoard();await owner.flush();return{ids:[node.id],files:[note.path],boardPath:owner.file.path};
   }
   private async placeExcerptTexts(texts:string[],position:{x:number;y:number},owner:Session,color:Card['color']='sand'):Promise<MaterialImportResult>{
     this.requireOwner(owner);let y=position.y;const nodes=texts.map(text=>{const n:Card={id:uid(),kind:'text',text,x:position.x,y,width:240,height:60,color,fontSize:this.plugin.settings.defaultTextSize,autoSize:true,review:'later'};fitTextNode(n,this.contentEl);y+=n.height+24;return n;});
@@ -4351,11 +4353,22 @@ class BoardView extends FileView {
     const highlightId=text?'highlight-'+sha256((reference||text)+'\n'+path+'\n'+String(time)).slice(0,16):next;
     const identified=(stableId&&owner.board.nodes.find(n=>n.id===stableId))||owner.board.nodes.find(n=>n.id===highlightId);if(identified&&identified.kind!=='text'&&!(identified.kind==='card'&&identified.file))throw Error('摘录对象标识冲突，未覆盖');if(identified){this.selected=new Set([identified.id]);this.selectedEdge=undefined;this.updateSelection();return;}
     let highlightPath:string|undefined;
-    if(text){ensure();const note=await this.plugin.createUnique(this.plugin.settings.cardFolder,`${file.basename} ${mediaClock(time)}`,'md',highlightMarkdown({kind:mediaKind(path)!,source:path,time},text,`${file.basename} ${mediaClock(time)}`));ensure();highlightPath=note.path;}
     let y=media.y;const x=media.x+media.width+48,width=360,height=270;
     if(moment)for(const other of owner.board.nodes)if(other.x<x+width&&other.x+other.width>x&&other.y<y+height&&other.y+other.height>y)y=other.y+other.height+24;
-    owner.change(board=>{board.version=3;if(!existing)board.nodes.push(media);if(highlightPath){board.nodes.push({id:highlightId,kind:'card',library:true,transparent:true,file:highlightPath,x,y,width,height,color:'slate',autoFit:true,preferredWidth:width});board.edges.push({id:uid(),from:media.id,to:highlightId,label:mediaClock(time),style:this.plugin.settings.defaultEdgeStyle,direction:'forward'});}});
+    const place=()=>{ensure();owner.change(board=>{board.version=3;if(!existing)board.nodes.push(media);if(highlightPath){board.nodes.push({id:highlightId,kind:'card',library:true,transparent:true,file:highlightPath,x,y,width,height,color:'slate',autoFit:true,preferredWidth:width});board.edges.push({id:uid(),from:media.id,to:highlightId,label:mediaClock(time),style:this.plugin.settings.defaultEdgeStyle,direction:'forward'});}});};
+    if(text){ensure();const markdown=highlightMarkdown({kind:mediaKind(path)!,source:path,time},text,`${file.basename} ${mediaClock(time)}`);const note=await this.plugin.createUnique(this.plugin.settings.cardFolder,`${file.basename} ${mediaClock(time)}`,'md',markdown);highlightPath=note.path;await placeHighlightNote(note.path,place,()=>owner.board.nodes.some(item=>item.file===note.path),()=>this.discardUnplacedHighlight(note,markdown));}
+    else place();
     this.selected=new Set([highlightPath?highlightId:media.id]);this.selectedEdge=undefined;this.updateSelection();
+  }
+  private boardReferencesHighlight(path:string){return this.app.workspace.getLeavesOfType(VIEW).some(leaf=>leaf.view instanceof BoardView&&leaf.view.session?.board.nodes.some(node=>node.file===path));}
+  private async discardUnplacedHighlight(note:TFile,body:string){
+    const path=note.path,same=()=>note.path===path&&this.app.vault.getAbstractFileByPath(path)===note;
+    if(!same()||this.boardReferencesHighlight(path))throw Error('高亮笔记已移动或已被引用');
+    const raw=await this.app.vault.read(note);
+    if(!same()||raw!==body||this.boardReferencesHighlight(path))throw Error('高亮笔记已被修改或引用');
+    if(this.app.workspace.getLeavesOfType('markdown').some(leaf=>leaf.view instanceof MarkdownView&&leaf.view.file===note))throw Error('高亮笔记已打开');
+    await this.app.fileManager.trashFile(note);
+    if(this.app.vault.getAbstractFileByPath(path)===note)throw Error('高亮笔记仍在库中');
   }
   async insertMediaCard(position=this.point(),kind?:'audio'|'video'){
     const owner=this.requireOwner();if(this.inline&&!await this.inline.commit())return;this.requireOwner(owner);

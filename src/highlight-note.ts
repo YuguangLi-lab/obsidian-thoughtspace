@@ -56,3 +56,18 @@ export function highlightMarkdown(anchor:HighlightAnchor,body:string,title:strin
 export function highlightJump(anchor:HighlightAnchor):{path:string;page?:number;time?:number}{
  return {path:anchor.source,page:anchor.page,time:anchor.time};
 }
+
+function failureText(error:unknown){return error instanceof Error?error.message:String(error);}
+/** Apply the board edit that references a new highlight note. If that reference is not on the board afterward, delete the note. */
+export async function placeHighlightNote(path:string,place:()=>void,referenced:()=>boolean,remove:()=>Promise<void>):Promise<void>{
+ let cause:unknown;
+ try{place();}catch(error){cause=error;}
+ let kept=false;
+ try{kept=referenced();}catch(error){cause??=error;}
+ if(kept){if(cause instanceof Error)throw cause;if(cause)throw Error(failureText(cause));return;}
+ let cleanup:unknown;
+ try{await remove();}catch(error){cleanup=error;}
+ const reason=failureText(cause??Error('白板没有留下这张高亮笔记的引用'));
+ if(cleanup)throw Error(`高亮笔记未能放到白板，且笔记仍保留在 ${path}。${reason} ${failureText(cleanup)}`);
+ throw Error(`${reason} 未放置的高亮笔记已删除。`);
+}
