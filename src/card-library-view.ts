@@ -1,7 +1,7 @@
 import {libraryTypeNames,type LibraryCardType} from './card-library-model';
 import {statuses} from './database';
 import {highlightLocation,highlightReturnLabel} from './highlight-note';
-import {emptyLibraryQuery,filterLibraryCards,libraryBoardChoices,libraryKanban,libraryList,libraryTable,libraryTagChoices,type LibraryCardRecord,type LibraryLayout,type LibraryPlacement,type LibraryViewQuery} from './card-property-views';
+import {emptyLibraryQuery,filterLibraryCards,libraryBoardChoices,libraryKanban,libraryList,libraryTable,libraryTagChoices,uncategorizedChoice,type LibraryCardRecord,type LibraryLayout,type LibraryPlacement,type LibraryViewQuery} from './card-property-views';
 
 export interface LibraryElementOptions {text?:string;cls?:string;value?:string;attr?:Record<string,string>}
 export interface LibraryElement {
@@ -78,15 +78,16 @@ export function paintCardLibrary(root:LibraryElement,records:readonly LibraryCar
  select(filters,'标签',[['', '全部标签'],...libraryTagChoices(records).map(tag=>[tag,`#${tag}`] as [string,string])],query.tag,tag=>handlers.setQuery({...query,tag}));
  select(filters,'白板',[['', '全部白板'],...libraryBoardChoices(records).map(board=>[board.path,board.title] as [string,string])],query.board,board=>handlers.setQuery({...query,board}));
  select(filters,'状态',[['', '全部状态'],...Object.entries(statuses)],query.status,status=>handlers.setQuery({...query,status}));
- if(handlers.choiceOptions?.length)select(filters,'分类',[['', '全部分类'],...handlers.choiceOptions.map(option=>[option,option] as [string,string])],query.choice,choice=>handlers.setQuery({...query,choice}));
+ if(handlers.choiceOptions?.length)select(filters,'分类',[['', '全部分类'],[uncategorizedChoice,'未分类'],...handlers.choiceOptions.map(option=>[option,option] as [string,string])],query.choice,choice=>handlers.setQuery({...query,choice}));
  const search=filters.createEl('input',{attr:{type:'search','aria-label':'搜索卡片库',placeholder:'搜索标题、标签、属性或白板…'}});
  search.value=query.query;
  search.onchange=()=>handlers.setQuery({...query,query:search.value});
  root.createDiv({cls:'ts-db-count',text:`${shown.length} 张卡片 · 正文在笔记里，白板只保存引用`});
  const results=root.createDiv({cls:'ts-db-results',attr:{'data-library-view':query.view}});
- if(!shown.length){results.createDiv({cls:'ts-sidebar-empty',text:'没有匹配的卡片。'});return;}
+ if(!shown.length){results.createDiv({cls:'ts-sidebar-empty',text:query.choice===uncategorizedChoice?'没有符合条件的未分类卡片。':'没有匹配的卡片。'});return;}
+ const category=(record:LibraryCardRecord)=>handlers.choiceOptions?.length?record.choice||'未分类':'';
  if(query.view==='table'){
-  const table=libraryTable(shown),grid=results.createEl('table',{cls:'ts-db-table'});
+  const table=libraryTable(shown,!!handlers.choiceOptions?.length),grid=results.createEl('table',{cls:'ts-db-table'});
   const head=grid.createEl('tr');
   for(const column of table.columns)head.createEl('th',{text:column});
   for(const row of table.rows){
@@ -105,17 +106,17 @@ export function paintCardLibrary(root:LibraryElement,records:readonly LibraryCar
    for(const card of column.cards){
     const item=lane.createDiv({cls:'ts-library-card',attr:{'data-note-path':card.path}});
     item.createDiv({cls:'ts-library-title',text:card.title});
-    item.createDiv({cls:'ts-library-tags',text:[libraryTypeNames[card.type],card.highlight?highlightLocation(card.highlight):'',...card.tags].filter(Boolean).join(' ')});
+    item.createDiv({cls:'ts-library-tags',text:[libraryTypeNames[card.type],category(card),card.highlight?highlightLocation(card.highlight):'',...card.tags].filter(Boolean).join(' ')});
     actions(item,card,handlers);
    }
   }
   return;
  }
  for(const item of libraryList(shown)){
+  const record=shown.find(entry=>entry.path===item.path)!;
   const card=results.createDiv({cls:'ts-library-card',attr:{'data-note-path':item.path}});
   card.createDiv({cls:'ts-library-title',text:item.title});
-  card.createDiv({cls:'ts-library-excerpt',text:item.detail});
-  const record=shown.find(entry=>entry.path===item.path)!;
+  card.createDiv({cls:'ts-library-excerpt',text:[item.detail,category(record)].filter(Boolean).join(' · ')});
   if(Object.keys(record.custom).length)card.createDiv({cls:'ts-library-path',text:Object.entries(record.custom).map(([key,value])=>`${key}：${value}`).join('  ')});
   actions(card,record,handlers);
  }

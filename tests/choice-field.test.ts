@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {choiceKey,choiceValue,cleanChoiceField,defaultChoiceOptions} from '../src/choice-field';
-import {buildLibraryRecords,filterLibraryCards,emptyLibraryQuery} from '../src/card-property-views';
+import {buildLibraryRecords,filterLibraryCards,emptyLibraryQuery,libraryTable,uncategorizedChoice} from '../src/card-property-views';
 import {readProperties} from '../src/database';
 import {libraryIndexFiles} from '../src/card-library-model';
 import {firstSessionDismissed,firstSessionSteps,persistFirstSessionDismissal} from '../src/first-session';
@@ -47,6 +47,22 @@ test('library filters use the property and can open a real card placement',()=>{
  assert.equal(active.find(record=>record.path==='Cards/D.md')?.status,'active');
  assert.equal(active.find(record=>record.path==='Cards/D.md')?.priority,'low');
  assert.equal(active.find(record=>record.path==='Cards/D.md')?.due,'2026-02-02');
+ const typed=cleanChoiceField({options:['证据','1','true']});
+ assert.ok(uncategorizedChoice.length>40);
+ assert.equal(cleanChoiceField({options:[uncategorizedChoice,typed.options[0]]}).options.includes(uncategorizedChoice),false);
+ const mixed=buildLibraryRecords([
+  {path:'Cards/A.md',title:'有',tags:['#城市'],properties:{[choiceKey]:'证据'}},
+  {path:'Cards/B.md',title:'空',tags:['#城市'],properties:{}},
+  {path:'Cards/C.md',title:'数字',tags:[],properties:{[choiceKey]:1}},
+  {path:'Cards/D.md',title:'假',tags:[],properties:{[choiceKey]:false}},
+  {path:'Cards/E.md',title:'过期',tags:[],properties:{[choiceKey]:'不是选项'}},
+ ],[],typed);
+ const open=filterLibraryCards(mixed,{...emptyLibraryQuery(),choice:uncategorizedChoice});
+ assert.deepEqual(open.map(record=>record.path).sort(),['Cards/B.md','Cards/D.md','Cards/E.md']);
+ assert.deepEqual(filterLibraryCards(mixed,{...emptyLibraryQuery(),choice:uncategorizedChoice,tag:'城市'}).map(record=>record.path),['Cards/B.md']);
+ assert.deepEqual(filterLibraryCards(mixed,{...emptyLibraryQuery(),choice:'1'}).map(record=>record.path),['Cards/C.md']);
+ assert.equal(libraryTable(open).columns.includes('分类'),false);
+ assert.equal(libraryTable(open,true).rows.every(row=>row.cells.includes('未分类')),true);
 });
 
 test('the first session can be dismissed without removing its explanation',async()=>{

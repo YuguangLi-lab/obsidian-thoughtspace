@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {libraryModalHandlers,paintCardLibrary,type LibraryElement,type LibraryElementOptions} from '../src/card-library-view';
-import {buildLibraryRecords,emptyLibraryQuery,type LibraryViewQuery} from '../src/card-property-views';
+import {buildLibraryRecords,emptyLibraryQuery,uncategorizedChoice,type LibraryViewQuery} from '../src/card-property-views';
 
 class El implements LibraryElement {
  children:El[]=[];text='';cls='';value='';disabled=false;textContent:string|null=null;onclick:((event:unknown)=>void)|null=null;onchange:((event:unknown)=>void)|null=null;attrs:Record<string,string>={};
@@ -102,4 +102,33 @@ test('an incomplete index can search the remaining boards and still reports a de
  handlers.locate!({boardPath:'Boards/Gone.md',boardTitle:'已删',nodeId:'missing'});
  await new Promise(resolve=>setImmediate(resolve));
  assert.deepEqual(notices,['白板已移动或删除']);
+});
+
+test('uncategorized is a category filter in list, table, and kanban',()=>{
+ const records=buildLibraryRecords([
+  {path:'Cards/Shade.md',title:'林荫',tags:[],properties:{thoughtspace_choice:'证据',thoughtspace_status:'active'}},
+  {path:'Cards/Heat.md',title:'热岛',tags:[],properties:{thoughtspace_status:'inbox'}},
+ ],[],{options:['证据']});
+ const paint=(view:'list'|'table'|'kanban',choice:string)=>{
+  const root=new El();
+  paintCardLibrary(root,records,{...emptyLibraryQuery(),view,choice},{setQuery(){},place(){},open(){},unlink(){},choiceOptions:['证据']});
+  return root;
+ };
+ const list=paint('list','');
+ const menu=labeled(list,'分类')!;
+ assert.equal(menu.all().some(el=>el.text==='未分类'&&el.value===uncategorizedChoice),true);
+ assert.match(list.all().find(el=>el.attrs['data-note-path']==='Cards/Heat.md')!.all().find(el=>el.cls==='ts-library-excerpt')!.text,/未分类/);
+ assert.match(list.all().find(el=>el.attrs['data-note-path']==='Cards/Shade.md')!.all().find(el=>el.cls==='ts-library-excerpt')!.text,/证据/);
+ for(const view of ['list','table','kanban'] as const){
+  const root=paint(view,uncategorizedChoice);
+  assert.equal(root.all().some(el=>el.attrs['data-note-path']==='Cards/Shade.md'),false);
+  assert.equal(root.all().some(el=>el.attrs['data-note-path']==='Cards/Heat.md'),true);
+ }
+ const table=paint('table',uncategorizedChoice);
+ assert.equal(table.all().some(el=>el.text==='分类'),true);
+ assert.equal(table.all().find(el=>el.attrs['data-note-path']==='Cards/Heat.md')!.children.some(el=>el.text==='未分类'),true);
+ assert.match(paint('kanban',uncategorizedChoice).all().find(el=>el.cls==='ts-library-tags')!.text,/未分类/);
+ const empty=new El();
+ paintCardLibrary(empty,records.filter(record=>record.choice),{...emptyLibraryQuery(),choice:uncategorizedChoice},{setQuery(){},place(){},open(){},unlink(){},choiceOptions:['证据']});
+ assert.equal(empty.all().some(el=>el.text==='没有符合条件的未分类卡片。'),true);
 });
