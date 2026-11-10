@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
-import {discardHighlightRecovery,finishHighlightSave,highlightJump,highlightMarkdown,parseHighlight,placeHighlightNote,rollbackUnsavedHighlight} from '../src/highlight-note';
+import {discardHighlightRecovery,finishHighlightSave,highlightJump,highlightLocation,highlightMarkdown,highlightReturnLabel,parseHighlight,placeHighlightNote,rollbackUnsavedHighlight} from '../src/highlight-note';
 import {placeExistingCard} from '../src/card-library-model';
 import {clone,emptyBoard,parseBoard,uid} from '../src/model';
 import {pdfExcerptDocument,pdfLiteralText} from '../src/materials';
@@ -13,6 +13,9 @@ test('a PDF highlight is a Markdown note and the board stores only its path',()=
  assert.match(body,/thoughtspace_highlight: pdf/);
  assert.match(body,/thoughtspace_page: 2/);
  assert.match(body,/\[\[Papers\/Shade.pdf#page=2\]\]/);
+ assert.match(body,/PDF 第 2–3 页/);
+ assert.equal(highlightLocation({kind:'pdf',source:'Papers/Shade.pdf',page:2,endPage:3}),'PDF 第 2–3 页');
+ assert.equal(highlightReturnLabel({kind:'video',source:'Media/Walk.mp4',time:12.5}),'回到视频 0:12');
  const anchor=parseHighlight({thoughtspace_highlight:'pdf',thoughtspace_source:'Papers/Shade.pdf',thoughtspace_page:2,thoughtspace_end_page:3});
  assert.deepEqual(highlightJump(anchor!),{path:'Papers/Shade.pdf',page:2,time:undefined});
  const board=emptyBoard();placeExistingCard(board,'Cards/林荫摘录.md',{x:200,y:120},'a');

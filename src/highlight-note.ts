@@ -1,6 +1,6 @@
 import {clone} from './model';
 import {isRecord} from './value-guards';
-import {validMediaTime} from './media-source';
+import {mediaClock,validMediaTime} from './media-source';
 
 export const highlightKeys={kind:'thoughtspace_highlight',source:'thoughtspace_source',page:'thoughtspace_page',endPage:'thoughtspace_end_page',time:'thoughtspace_time'} as const;
 export type HighlightKind='pdf'|'audio'|'video';
@@ -50,10 +50,17 @@ export function highlightMarkdown(anchor:HighlightAnchor,body:string,title:strin
  }else if(typeof anchor.time!=='number'||!validMediaTime(anchor.time))throw Error('媒体时间无效');
  else lines.push(`${highlightKeys.time}: ${anchor.time}`);
  const linked=!/[#^[\]|]/.test(anchor.source),sourceLink=linked?(anchor.kind==='pdf'?`[[${anchor.source}#page=${anchor.page||1}]]`:`[[${anchor.source}]]`):`\`${anchor.source.replace(/`/g,'')}\``;
- lines.push('---','',`# ${heading.slice(0,80)}`,'',quote,'',`来源：${sourceLink}`,'');
+ lines.push('---','',`# ${heading.slice(0,80)}`,'',quote,'',`来源：${sourceLink} · ${highlightLocation(anchor)}`,'');
  return lines.join('\n');
 }
 
+/** Where the highlight lives, in the same words as older PDF citations. */
+export function highlightLocation(anchor:HighlightAnchor):string{
+ if(anchor.kind==='pdf'){const page=anchor.page||1,end=anchor.endPage||page;return end>page?`PDF 第 ${page}–${end} 页`:`PDF 第 ${page} 页`;}
+ const clock=typeof anchor.time==='number'?mediaClock(anchor.time):'';
+ return `${anchor.kind==='audio'?'音频':'视频'} ${clock}`.trim();
+}
+export function highlightReturnLabel(anchor:HighlightAnchor):string{return `回到${highlightLocation(anchor)}`;}
 export function highlightJump(anchor:HighlightAnchor):{path:string;page?:number;time?:number}{
  return {path:anchor.source,page:anchor.page,time:anchor.time};
 }

@@ -1,6 +1,6 @@
 import {propertyKeys,readProperties,statuses} from './database';
 import {choiceKey,choiceValue,type ChoiceField} from './choice-field';
-import {parseHighlight,type HighlightAnchor} from './highlight-note';
+import {highlightLocation,parseHighlight,type HighlightAnchor} from './highlight-note';
 import {libraryCardType,libraryTypeNames,type LibraryCardType} from './card-library-model';
 
 export interface LibrarySourceNote {path:string;title:string;tags:string[];properties:Record<string,unknown>}
@@ -87,12 +87,12 @@ export function libraryKanban(records:readonly LibraryCardRecord[]):LibraryKanba
 export interface LibraryTable {columns:string[];rows:{path:string;cells:string[]}[]}
 export function libraryTable(records:readonly LibraryCardRecord[]):LibraryTable{
  const custom=[...new Set(records.flatMap(record=>Object.keys(record.custom)))].sort(),choices=records.some(record=>record.choice);
- const columns=['笔记','类型','标签','状态',...(choices?['分类']:[]),'白板',...custom];
- const rows=records.map(record=>({path:record.path,cells:[record.title,libraryTypeNames[record.type],record.tags.join(' '),libraryStatusLabel(record.status),...(choices?[record.choice||'未分类']:[]),libraryBoardLabel(record,false),...custom.map(key=>record.custom[key]||'')]}));
+ const columns=['笔记','类型','标签','状态',...(choices?['分类']:[]),...(records.some(record=>record.highlight)?['来源']:[]),'白板',...custom];
+ const rows=records.map(record=>({path:record.path,cells:[record.title,libraryTypeNames[record.type],record.tags.join(' '),libraryStatusLabel(record.status),...(choices?[record.choice||'未分类']:[]),...(records.some(item=>item.highlight)?[record.highlight?highlightLocation(record.highlight):'']:[]),libraryBoardLabel(record,false),...custom.map(key=>record.custom[key]||'')]}));
  return {columns,rows};
 }
 export function libraryList(records:readonly LibraryCardRecord[]):{path:string;title:string;detail:string}[]{
- return records.map(record=>({path:record.path,title:record.title,detail:[libraryTypeNames[record.type],libraryStatusLabel(record.status),record.tags.join(' '),libraryBoardLabel(record,true)].filter(Boolean).join(' · ')}));
+ return records.map(record=>({path:record.path,title:record.title,detail:[libraryTypeNames[record.type],libraryStatusLabel(record.status),record.highlight?highlightLocation(record.highlight):'',record.tags.join(' '),libraryBoardLabel(record,true)].filter(Boolean).join(' · ')}));
 }
 function libraryBoardLabel(record:LibraryCardRecord,list:boolean):string{
  const names=record.boards.map(board=>board.title).join('、');

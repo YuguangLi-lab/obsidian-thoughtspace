@@ -80,6 +80,14 @@ test('several boards open the chosen card without splitting the path on a newlin
  assert.equal(opened[1].nodeId,'two');
 });
 
+test('a highlight jump button names the page range',()=>{
+ const records=buildLibraryRecords([{path:'Cards/Shade.md',title:'林荫',tags:[],properties:{thoughtspace_highlight:'pdf',thoughtspace_source:'Papers/A.pdf',thoughtspace_page:2,thoughtspace_end_page:4}}],[]);
+ const root=new El(),opened:string[]=[];
+ paintCardLibrary(root,records,emptyLibraryQuery(),{setQuery(){},place(){},open(){},unlink(){},jump:path=>opened.push(path)});
+ labeled(root,'回到PDF 第 2–4 页')!.onclick?.(undefined);
+ assert.deepEqual(opened,['Cards/Shade.md']);
+});
+
 test('an incomplete index can search the remaining boards and still reports a deleted board',async()=>{
  const records=buildLibraryRecords([{path:'Cards/Shade.md',title:'林荫',tags:[],properties:{}}],[],{options:[]},true);
  const root=new El(),searched:string[]=[];

@@ -45,6 +45,12 @@ test('table, kanban and list filter by type, tag, status and whiteboard',()=>{
  assert.equal(libraryList(hidden)[0].detail.includes('未放置'),false);
  const late=buildLibraryRecords([note('Cards/Shade.md')],[{path:'Boards/Late.md',title:'远处',files:['Cards/Shade.md'],placements:[{id:'card',file:'Cards/Shade.md'}]}],{options:[]},true);
  assert.match(libraryList(late).find(item=>item.path==='Cards/Shade.md')!.detail,/远处 · 其余白板未索引/);
+ const located=buildLibraryRecords([note('Cards/Shade.md',{properties:{thoughtspace_highlight:'pdf',thoughtspace_source:'Papers/A.pdf',thoughtspace_page:2,thoughtspace_end_page:4}}),note('Cards/Walk.md',{properties:{thoughtspace_highlight:'video',thoughtspace_source:'Media/Walk.mp4',thoughtspace_time:75}})],[]);
+ assert.match(libraryList(located).find(item=>item.path==='Cards/Shade.md')!.detail,/PDF 第 2–4 页/);
+ assert.match(libraryList(located).find(item=>item.path==='Cards/Walk.md')!.detail,/视频 1:15/);
+ const locatedTable=libraryTable(located);
+ assert.ok(locatedTable.columns.includes('来源'));
+ assert.equal(locatedTable.rows.find(row=>row.path==='Cards/Walk.md')?.cells.includes('视频 1:15'),true);
  assert.deepEqual(late.find(item=>item.path==='Cards/Shade.md')!.placements,[{boardPath:'Boards/Late.md',boardTitle:'远处',nodeId:'card'}]);
 });
 

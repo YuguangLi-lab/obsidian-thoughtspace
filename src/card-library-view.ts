@@ -1,5 +1,6 @@
 import {libraryTypeNames,type LibraryCardType} from './card-library-model';
 import {statuses} from './database';
+import {highlightLocation,highlightReturnLabel} from './highlight-note';
 import {emptyLibraryQuery,filterLibraryCards,libraryBoardChoices,libraryKanban,libraryList,libraryTable,libraryTagChoices,type LibraryCardRecord,type LibraryLayout,type LibraryPlacement,type LibraryViewQuery} from './card-property-views';
 
 export interface LibraryElementOptions {text?:string;cls?:string;value?:string;attr?:Record<string,string>}
@@ -57,7 +58,7 @@ function actions(parent:LibraryElement,record:LibraryCardRecord,handlers:Library
  if(handlers.choiceOptions?.length&&handlers.setChoice){
   select(row,'分类 '+record.title,[['', '未分类'],...handlers.choiceOptions.map(option=>[option,option] as [string,string])],record.choice,value=>{void handlers.setChoice!(record.path,value);});
  }
- if(record.highlight&&handlers.jump)button(row,'回到来源',()=>handlers.jump!(record.path));
+ if(record.highlight&&handlers.jump)button(row,highlightReturnLabel(record.highlight),()=>handlers.jump!(record.path));
  if(record.indexIncomplete&&handlers.searchUnindexed)button(row,'查找其余白板',()=>{void handlers.searchUnindexed!(record.path);});
  if(record.placements.length===1&&handlers.locate)button(row,'在白板中打开',()=>handlers.locate!(record.placements[0]));
  else if(record.placements.length>1&&handlers.locate){
@@ -104,7 +105,7 @@ export function paintCardLibrary(root:LibraryElement,records:readonly LibraryCar
    for(const card of column.cards){
     const item=lane.createDiv({cls:'ts-library-card',attr:{'data-note-path':card.path}});
     item.createDiv({cls:'ts-library-title',text:card.title});
-    item.createDiv({cls:'ts-library-tags',text:[libraryTypeNames[card.type],...card.tags].join(' ')});
+    item.createDiv({cls:'ts-library-tags',text:[libraryTypeNames[card.type],card.highlight?highlightLocation(card.highlight):'',...card.tags].filter(Boolean).join(' ')});
     actions(item,card,handlers);
    }
   }
