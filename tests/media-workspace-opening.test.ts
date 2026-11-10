@@ -7,6 +7,8 @@ import {emptyBoard,History,parseBoard,type Board} from '../src/model';
 import {isWorkspaceFile} from '../src/workspace';
 import {mediaCard,mediaClock,mediaKind,mediaTime} from '../src/media-source';
 import {mediaPlayerUrl} from '../src/media-notes';
+import {sha256} from '../src/portable-sha256';
+import {highlightMarkdown,placeHighlightNote} from '../src/highlight-note';
 
 const source=readFileSync('src/main.ts','utf8');
 function method(start:string){const at=source.indexOf(start);assert.ok(at>=0,start);const rest=source.slice(at+start.length),end=/\n  (?:(?:private|public|protected|async|static)\s+)*(?:get\s+)?[A-Za-z_$][\w$]*\(/.exec(rest);assert.ok(end,`end: ${start}`);return source.slice(at,at+start.length+end.index);}
@@ -164,18 +166,21 @@ for(const phase of ['setup','reveal']as const)test(`an online draft started duri
  assert.equal(f.calls.onlineStop,0);assert.equal(online.attached,true);assert.equal(online.view.draft,'打开过程中新增的摘录');assert.equal(f.leaves.at(-1)!.attached,false);
 });
 
+class BoardView {}
+class MarkdownView {constructor(public file?:TFile){}}
 function board(){
- let id=0,changes=0;const media=new TFile('media/clip #[1].mp4'),files=new Map([[media.path,media]]),history=new History();
+ let id=0,changes=0;const media=new TFile('media/clip #[1].mp4'),files=new Map<string,TFile>([[media.path,media]]),bodies=new Map<TFile,string>(),history=new History();
  const owner={board:{...emptyBoard(),version:3 as const,viewport:{x:33,y:44,zoom:.75}} as Board,blocked:false,refreshNativeEditing(){},change(fn:(board:Board)=>void){const before=structuredClone(this.board);fn(this.board);parseBoard(JSON.stringify(this.board));history.push(before);changes++;}};
- const deps={resolveSourceLink,mediaKind,isWorkspaceFile,mediaTime,mediaCard,mediaClock,mediaPlayerUrl,uid:()=>`new-${++id}`};
- const View=new Function(...Object.keys(deps),transformSync(`class View{${method('  private refreshMediaReferences(')}\n${method('  async addWorkspaceMedia(')}\n${method('  private requireOwner(')}};return View`,{loader:'ts'}).code)(...Object.values(deps));
- const view=new View();Object.assign(view,{session:owner,closed:false,selected:new Set(['old']),selectedEdge:'old-edge',point:()=>({x:400,y:250}),updateSelection:()=>{},app:{vault:{getName:()=> 'vault',getAbstractFileByPath:(path:string)=>files.get(path)}},plugin:{settings:{defaultCardWidth:320,defaultTextSize:18,defaultEdgeStyle:'curve'},mediaWorkspace:{identity:(file:TFile)=>file.path,playback:{get:()=>({time:8,rate:1,volume:1})}}}});
- return{view,owner,media,files,history,changes:()=>changes};
+ const deps={resolveSourceLink,mediaKind,isWorkspaceFile,mediaTime,mediaCard,mediaClock,mediaPlayerUrl,sha256,highlightMarkdown,placeHighlightNote,uid:()=>`new-${++id}`,VIEW:'thoughtspace-board',BoardView,MarkdownView};
+ const View=new Function(...Object.keys(deps),transformSync(`class View{${method('  private refreshMediaReferences(')}\n${method('  async addWorkspaceMedia(')}\n${method('  private boardReferencesHighlight(')}\n${method('  private async discardUnplacedHighlight(')}\n${method('  private requireOwner(')}};return View`,{loader:'ts'}).code)(...Object.values(deps));
+ const notes:string[]=[];
+ const view=new View();Object.assign(view,{session:owner,closed:false,selected:new Set(['old']),selectedEdge:'old-edge',point:()=>({x:400,y:250}),updateSelection:()=>{},app:{vault:{getName:()=> 'vault',getAbstractFileByPath:(path:string)=>files.get(path),read:async(file:TFile)=>bodies.get(file)??''},workspace:{getLeavesOfType:()=>[]},fileManager:{trashFile:async(file:TFile)=>{files.delete(file.path);}}},plugin:{settings:{defaultCardWidth:320,defaultTextSize:18,defaultEdgeStyle:'curve',cardFolder:'Cards'},createUnique:async(_folder:string,title:string,_ext:string,body:string)=>{const note=new TFile(`Cards/${title}.md`);notes.push(body);files.set(note.path,note);bodies.set(note,body);return note;},mediaWorkspace:{identity:(file:TFile)=>file.path,playback:{get:()=>({time:8,rate:1,volume:1})}}}});
+ return{view,owner,media,files,bodies,history,notes,changes:()=>changes};
 }
 test('adding media with an excerpt is one undoable transaction without moving the camera',async()=>{
  const f=board(),before=structuredClone(f.owner.board),camera=f.owner.board.viewport;await f.view.addWorkspaceMedia(f.media,{id:'moment',time:12.125,text:'**note**',image:'![[frame.png]]',line:1});
  assert.equal(f.changes(),1);assert.equal(f.owner.board.viewport,camera);assert.deepEqual(camera,before.viewport);assert.equal(f.owner.board.nodes.length,2);assert.equal(f.owner.board.edges.length,1);
- assert.equal(f.owner.board.nodes[0].mediaStart,12.125);assert.match(f.owner.board.nodes[1].text!,/!\[\[frame.png\]\][\s\S]*\*\*note\*\*[\s\S]*thoughtspace-player/);assert.equal(f.view.selectedEdge,undefined);assert.deepEqual(f.history.undo(f.owner.board),before);
+ assert.equal(f.owner.board.nodes[0].mediaStart,12.125);assert.equal(f.owner.board.nodes[1].kind,'card');assert.equal(f.owner.board.nodes[1].text,undefined);assert.match(f.notes[0],/!\[\[frame.png\]\][\s\S]*\*\*note\*\*[\s\S]*thoughtspace-player/);assert.match(f.notes[0],/thoughtspace_highlight: video/);assert.equal(f.view.selectedEdge,undefined);assert.deepEqual(f.history.undo(f.owner.board),before);
 });
 test('a repeated media selection adds no card or undo item and clears stale edge selection',async()=>{
  const f=board();await f.view.addWorkspaceMedia(f.media);const id=f.owner.board.nodes[0].id;f.view.selectedEdge='old-edge';await f.view.addWorkspaceMedia(f.media);assert.equal(f.owner.board.nodes.length,1);assert.equal(f.changes(),1);assert.deepEqual([...f.view.selected],[id]);assert.equal(f.view.selectedEdge,undefined);
@@ -209,11 +214,30 @@ test('opening another media does not inherit the previous file focused or collap
 
 test('saved excerpt reference stores only a native embed and repeated insertion selects the same node',async()=>{
  const f=board(),moment={id:'saved',time:12,text:'should not be copied',image:'![[frame.png]]',line:1},reference='![[notes/media.md#^thoughtspace-media-saved]]';
- await f.view.addWorkspaceMedia(f.media,moment,reference);assert.equal(f.owner.board.nodes[1].text,reference);assert.equal(f.owner.board.nodes[1].text!.includes(moment.text),false);
+ await f.view.addWorkspaceMedia(f.media,moment,reference);assert.equal(f.owner.board.nodes[1].kind,'card');assert.equal(f.owner.board.nodes[1].text,undefined);assert.equal(f.notes[0].includes(reference),true);assert.equal(f.notes[0].includes(moment.text),false);
  const count=f.changes(),id=f.owner.board.nodes[1].id;await f.view.addWorkspaceMedia(f.media,moment,reference);assert.equal(f.changes(),count);assert.equal(f.owner.board.nodes.length,2);assert.deepEqual([...f.view.selected],[id]);
 });
 
 
+test('a failed board edit deletes the new highlight note',async()=>{
+ const f=board(),path='Cards/clip #[1] 0:12.md';f.owner.change=()=>{throw Error('白板已暂停写入');};
+ await assert.rejects(f.view.addWorkspaceMedia(f.media,{id:'moment',time:12,text:'later',line:1}),/白板已暂停写入[\s\S]*未放置的高亮笔记已删除/);
+ assert.equal(f.owner.board.nodes.length,0);assert.equal(f.files.has(path),false);assert.equal(f.notes.length,1);
+});
+test('a failed board edit names the highlight note when deletion also fails',async()=>{
+ const f=board(),path='Cards/clip #[1] 0:12.md';f.owner.change=()=>{throw Error('白板已暂停写入');};
+ f.view.app.vault.read=async()=>'被改过的正文';
+ await assert.rejects(f.view.addWorkspaceMedia(f.media,{id:'moment',time:12,text:'later',line:1}),/笔记仍保留在 Cards\/clip #\[1\] 0:12\.md[\s\S]*已被修改或引用/);
+ assert.equal(f.files.has(path),true);assert.equal(f.owner.board.nodes.length,0);
+ f.view.app.vault.read=async(file:TFile)=>f.bodies.get(file)??'';f.view.app.fileManager.trashFile=async()=>{throw Error('回收站不可用');};
+ await assert.rejects(f.view.addWorkspaceMedia(f.media,{id:'moment',time:3,text:'again',line:1}),/笔记仍保留在 Cards\/clip #\[1\] 0:03\.md[\s\S]*回收站不可用/);
+});
+test('a highlight already used on another board is kept when this board edit fails',async()=>{
+ const f=board(),path='Cards/clip #[1] 0:12.md';f.owner.change=()=>{throw Error('白板已暂停写入');};
+ f.view.app.workspace.getLeavesOfType=(type:string)=>type==='thoughtspace-board'&&f.files.has(path)?[{view:Object.assign(new BoardView(),{session:{board:{nodes:[{file:path}]}}})}]:[];
+ await assert.rejects(f.view.addWorkspaceMedia(f.media,{id:'moment',time:12,text:'later',line:1}),/笔记仍保留在 Cards\/clip #\[1\] 0:12\.md[\s\S]*已被引用/);
+ assert.equal(f.files.has(path),true);assert.equal(f.owner.board.nodes.length,0);
+});
 test('source metadata refresh invalidates only matching media block previews without board writes',()=>{
  const f=board(),note=new TFile('notes/source.md');f.owner.board.nodes=[{id:'linked',kind:'text',text:'![[notes/source.md#^thoughtspace-media-record]]',x:0,y:0,width:300,height:180,color:'slate'},{id:'other',kind:'text',text:'![[notes/other.md#^thoughtspace-media-record]]',x:0,y:0,width:300,height:180,color:'slate'}];
  f.view.file={path:'board.thoughtspace'};f.view.nodeKeys=new Map([['linked','old'],['other','keep']]);let renders=0;f.view.scheduleRender=()=>{renders++;};f.view.app.metadataCache={getFirstLinkpathDest:(path:string)=>path===note.path?note:undefined};

@@ -1,6 +1,6 @@
 import {libraryTypeNames,type LibraryCardType} from './card-library-model';
 import {statuses} from './database';
-import {emptyLibraryQuery,filterLibraryCards,libraryBoardChoices,libraryKanban,libraryList,libraryTable,libraryTagChoices,type LibraryCardRecord,type LibraryLayout,type LibraryViewQuery} from './card-property-views';
+import {emptyLibraryQuery,filterLibraryCards,libraryBoardChoices,libraryKanban,libraryList,libraryTable,libraryTagChoices,type LibraryCardRecord,type LibraryLayout,type LibraryPlacement,type LibraryViewQuery} from './card-property-views';
 
 export interface LibraryElementOptions {text?:string;cls?:string;value?:string;attr?:Record<string,string>}
 export interface LibraryElement {
@@ -20,6 +20,10 @@ export interface LibraryViewHandlers {
  open(path:string):void;
  unlink(path:string):void;
  setStatus?(path:string,status:string):Promise<void>;
+ locate?(placement:LibraryPlacement):void;
+ jump?(path:string):void;
+ choiceOptions?:readonly string[];
+ setChoice?(path:string,value:string):Promise<void>;
 }
 const layouts:readonly [LibraryLayout,string][]=[['list','列表'],['table','表格'],['kanban','看板']];
 const types:readonly [''|LibraryCardType,string][]=[['','全部类型'],['note','笔记'],['pdf','PDF'],['image','图片'],['audio','音频'],['video','视频']];
@@ -43,6 +47,15 @@ function actions(parent:LibraryElement,record:LibraryCardRecord,handlers:Library
  if(handlers.setStatus){
   select(row,'状态 '+record.title,Object.entries(statuses),record.status in statuses?record.status:'inbox',value=>{void handlers.setStatus!(record.path,value);});
  }
+ if(handlers.choiceOptions?.length&&handlers.setChoice){
+  select(row,'分类 '+record.title,[['', '未分类'],...handlers.choiceOptions.map(option=>[option,option] as [string,string])],record.choice,value=>{void handlers.setChoice!(record.path,value);});
+ }
+ if(record.highlight&&handlers.jump)button(row,'回到来源',()=>handlers.jump!(record.path));
+ if(record.placements.length===1&&handlers.locate)button(row,'在白板中打开',()=>handlers.locate!(record.placements[0]));
+ else if(record.placements.length>1&&handlers.locate){
+  const labels=record.placements.map(place=>place.boardTitle),seen=new Map<string,number>();
+  const menu=select(row,'所在白板 '+record.title,[['', '选择白板'],...record.placements.map(place=>{const n=(seen.get(place.boardTitle)||0)+1;seen.set(place.boardTitle,n);const text=labels.filter(label=>label===place.boardTitle).length>1?`${place.boardTitle} · ${n}`:place.boardTitle;return [JSON.stringify([place.boardPath,place.nodeId]),text] as [string,string];})],'',value=>{try{const parsed:unknown=JSON.parse(value);if(!Array.isArray(parsed)||parsed.length!==2)return;const place=record.placements.find(item=>item.boardPath===parsed[0]&&item.nodeId===parsed[1]);if(place)handlers.locate!(place);}catch{/* ignore a damaged menu value */}menu.value='';});
+ }
 }
 /** Paint the card library. The note body is never rendered from the board. */
 export function paintCardLibrary(root:LibraryElement,records:readonly LibraryCardRecord[],query:LibraryViewQuery=emptyLibraryQuery(),handlers:LibraryViewHandlers){
@@ -56,6 +69,7 @@ export function paintCardLibrary(root:LibraryElement,records:readonly LibraryCar
  select(filters,'标签',[['', '全部标签'],...libraryTagChoices(records).map(tag=>[tag,`#${tag}`] as [string,string])],query.tag,tag=>handlers.setQuery({...query,tag}));
  select(filters,'白板',[['', '全部白板'],...libraryBoardChoices(records).map(board=>[board.path,board.title] as [string,string])],query.board,board=>handlers.setQuery({...query,board}));
  select(filters,'状态',[['', '全部状态'],...Object.entries(statuses)],query.status,status=>handlers.setQuery({...query,status}));
+ if(handlers.choiceOptions?.length)select(filters,'分类',[['', '全部分类'],...handlers.choiceOptions.map(option=>[option,option] as [string,string])],query.choice,choice=>handlers.setQuery({...query,choice}));
  const search=filters.createEl('input',{attr:{type:'search','aria-label':'搜索卡片库',placeholder:'搜索标题、标签、属性或白板…'}});
  search.value=query.query;
  search.onchange=()=>handlers.setQuery({...query,query:search.value});

@@ -34,6 +34,17 @@ export function unlinkLibraryCards(board:Board,ids:ReadonlySet<string>):string[]
  removeNodes(board,new Set(ids));
  return paths;
 }
+export const libraryIndexLimit=200;
+/** Stable order, then the first 200. A later board is omitted rather than an arbitrary vault order. */
+export function libraryIndexFiles<T extends {path:string}>(files:readonly T[],limit=libraryIndexLimit):{files:T[];limited:boolean}{
+ const sorted=[...files].sort((a,b)=>a.path.localeCompare(b.path)||0);
+ return {files:sorted.slice(0,limit),limited:sorted.length>limit};
+}
+export function libraryPlacements(nodes:readonly Pick<Card,'id'|'kind'|'file'>[]):{id:string;file:string}[]{
+ const places:{id:string;file:string}[]=[];
+ for(const node of nodes)if(node.id&&node.kind==='card'&&node.file&&/\.md$/i.test(node.file))places.push({id:node.id,file:node.file});
+ return places;
+}
 export function libraryFilesOnBoard(nodes:readonly Pick<Card,'kind'|'file'>[]):string[]{
  const files=new Set<string>();
  for(const node of nodes)if(node.file&&(node.kind==='card'&&/\.md$/i.test(node.file)||node.kind==='pdf'||node.kind==='image'||node.kind==='audio'||node.kind==='video'))files.add(node.file);
