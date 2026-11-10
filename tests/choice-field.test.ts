@@ -10,6 +10,7 @@ test('the select field is one property with a short option list',()=>{
  const field=cleanChoiceField({options:[' 证据 ','证据','主张','']});
  assert.deepEqual(field.options,['证据','主张']);
  assert.equal(choiceValue({[choiceKey]:'证据'},field),'证据');
+ assert.equal(choiceValue({[choiceKey]:' 证据 '},field),'证据');
  assert.equal(choiceValue({[choiceKey]:'其他'},field),'');
  const typed=cleanChoiceField({options:['1','true','主张']});
  assert.equal(choiceValue({[choiceKey]:1,thoughtspace_status:'active'},typed),'1');

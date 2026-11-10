@@ -53,6 +53,10 @@ test('folded branches and groups export the heading the board shows',()=>{
  assert.equal(picture.edges[0].label,'旁注');
  assert.equal(picture.edges[0].labelX,245);assert.equal(picture.edges[0].labelY,47);
  assert.deepEqual(picture.edges[0].dash,[6,4]);
+ assert.equal(picture.edges[0].arrows.length,1);
+ assert.equal(picture.edges[0].arrows[0].x,300);
+ assert.equal(picture.edges[0].arrows[0].y,70);
+ assert.ok(picture.edges[0].arrows[0].dx>0);
  assert.equal(folded.nodes.find(node=>node.id==='parent')?.height,120);
  assert.equal(folded.nodes.length,6);
  const open={...folded,nodes:folded.nodes.map(node=>node.id==='parent'?{...node,branchFolded:undefined}:node)};
@@ -77,6 +81,20 @@ test('exported links follow the board route under the camera',()=>{
  assert.ok(scene.edges[1].path.startsWith(`M ${elbow.from.x*2+12} ${elbow.from.y*2-4}`));
  assert.ok(scene.edges[1].path.includes(' Q '));
  assert.deepEqual(scene.edges[1].dash,[12,8]);
+ assert.equal(scene.edges[0].arrows.length,1);
+ assert.equal(scene.edges[0].arrows[0].x,curve.to.x*2+12);
+ assert.equal(scene.edges[0].arrows[0].y,curve.to.y*2-4);
+ assert.ok(scene.edges[0].arrows[0].dx>0);
+ const directed={...board,edges:[
+  {...board.edges[0],direction:'none' as const},
+  {...board.edges[1],direction:'both' as const},
+ ]};
+ const marked=boardExportScene(directed,{width:800,height:600},id=>id);
+ assert.deepEqual(marked.edges[0].arrows,[]);
+ assert.equal(marked.edges[1].arrows.length,2);
+ assert.equal(marked.edges[1].arrows[0].x,elbow.to.x*2+12);
+ assert.equal(marked.edges[1].arrows[1].x,elbow.from.x*2+12);
+ assert.ok(marked.edges[1].arrows[1].dx>0);
 });
 
 test('a JPEG becomes a one-page PDF and the image bytes stay intact',()=>{

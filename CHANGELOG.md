@@ -1,5 +1,27 @@
 # 更新记录
 
+## 1.3.50
+
+### 高亮保存、卡片库筛选与画面导出
+
+- 高亮笔记写上白板失败时，未放上的笔记会移到回收站。回收站也失败时，卡片回到白板，并说明笔记仍留在哪个路径。已经放上的高亮，撤销只拿掉白板引用，不删除笔记。
+- 分类属性写成数字或布尔值时，只要和选项文本一致就会被认出来。选项前后的空格也会被去掉。来源路径含有 `#`、`^`、`|`、`[`、`]` 时，引用改成代码片段，跳转仍用属性。
+- 撤销或重做卡片和连线时保持当前镜头。只改过镜头的撤销仍会恢复那次镜头。锁定的卡片不再被上下层穿过。白板暂停写入时，删除不会清掉选区，跳到卡片也不会移动镜头。
+- 卡片库先读排序后的前 200 块白板。还没读到的白板显示「引用位置未索引完」，可以用「查找其余白板」继续找。列表、表格和看板写出高亮的页码范围或音视频时间，跳转按钮写成「回到PDF 第 2–4 页」这样的句子。
+- 分类筛选增加「未分类」。列表、表格和看板都能只看没有匹配分类的卡片。没有结果时提示「没有符合条件的未分类卡片。」
+- 导出当前画面时，折叠的分支和分组画成白板上的短标题。连线沿用曲线、直线或折线，并带上箭头、虚线和标签。仍不包含图片、PDF 页面像素和手写笔迹，也不会上传。
+- 纸张纹理仍内嵌在 `styles.css`。白板格式仍是第 3 版。
+
+### English
+
+- If placing a highlight note fails to save the board, the unplaced note is moved to the trash. If the trash also fails, the card returns to the board and the error names the path that remains. Undo of a highlight that did save removes only the board reference.
+- A category stored as a number or boolean matches when its text is one of the options. Surrounding spaces are ignored. A source path containing `#`, `^`, `|`, `[`, or `]` is cited as a code span, and jump-back still uses the property.
+- Undo and redo of a card or link keep the live camera. An undo that only changed the camera still restores that camera. A locked card is no longer swapped through when raising or lowering another card. On a paused board, delete keeps the selection and jumping to a card does not move the camera.
+- The library still reads the first 200 boards in path order. Boards beyond that say 引用位置未索引完 until 查找其余白板 reads them. List, table, and kanban show a highlight's page range or media time, and the jump button is named for that place, such as 回到PDF 第 2–4 页.
+- The category filter can show only 未分类 cards in the list, table, and kanban. An empty result says 没有符合条件的未分类卡片。
+- Current-view export draws folded branches and groups as the short heading on the board. Links follow the curve, straight, or elbow route and include arrowheads, dashes, and labels. Images, PDF page pixels, and ink are still omitted, and the file is not uploaded.
+- The paper texture stays embedded in `styles.css`. The board format stays version 3.
+
 ## 1.3.49
 
 ### 高亮笔记、定位、分类与本地导出
