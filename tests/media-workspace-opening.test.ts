@@ -3,12 +3,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
-import {emptyBoard,History,parseBoard,type Board} from '../src/model';
+import {clone,emptyBoard,History,parseBoard,type Board} from '../src/model';
 import {isWorkspaceFile} from '../src/workspace';
 import {mediaCard,mediaClock,mediaKind,mediaTime} from '../src/media-source';
 import {mediaPlayerUrl} from '../src/media-notes';
 import {sha256} from '../src/portable-sha256';
-import {highlightMarkdown,placeHighlightNote} from '../src/highlight-note';
+import {discardHighlightRecovery,finishHighlightSave,highlightMarkdown,placeHighlightNote,rollbackUnsavedHighlight} from '../src/highlight-note';
 
 const source=readFileSync('src/main.ts','utf8');
 function method(start:string){const at=source.indexOf(start);assert.ok(at>=0,start);const rest=source.slice(at+start.length),end=/\n  (?:(?:private|public|protected|async|static)\s+)*(?:get\s+)?[A-Za-z_$][\w$]*\(/.exec(rest);assert.ok(end,`end: ${start}`);return source.slice(at,at+start.length+end.index);}
@@ -170,8 +170,8 @@ class BoardView {}
 class MarkdownView {constructor(public file?:TFile){}}
 function board(){
  let id=0,changes=0;const media=new TFile('media/clip #[1].mp4'),files=new Map<string,TFile>([[media.path,media]]),bodies=new Map<TFile,string>(),history=new History();
- const owner={board:{...emptyBoard(),version:3 as const,viewport:{x:33,y:44,zoom:.75}} as Board,blocked:false,refreshNativeEditing(){},change(fn:(board:Board)=>void){const before=structuredClone(this.board);fn(this.board);parseBoard(JSON.stringify(this.board));history.push(before);changes++;}};
- const deps={resolveSourceLink,mediaKind,isWorkspaceFile,mediaTime,mediaCard,mediaClock,mediaPlayerUrl,sha256,highlightMarkdown,placeHighlightNote,uid:()=>`new-${++id}`,VIEW:'thoughtspace-board',BoardView,MarkdownView};
+ const owner={board:{...emptyBoard(),version:3 as const,viewport:{x:33,y:44,zoom:.75}} as Board,blocked:false,history:{undoStack:[] as string[],push(){}},recoveryFile:undefined as {path:string}|undefined,refreshNativeEditing(){},async flush(){},change(fn:(board:Board)=>void){const before=structuredClone(this.board);fn(this.board);parseBoard(JSON.stringify(this.board));history.push(before);changes++;}};
+ const deps={resolveSourceLink,mediaKind,isWorkspaceFile,mediaTime,mediaCard,mediaClock,mediaPlayerUrl,sha256,highlightMarkdown,placeHighlightNote,finishHighlightSave,rollbackUnsavedHighlight,discardHighlightRecovery,clone,uid:()=>`new-${++id}`,VIEW:'thoughtspace-board',BoardView,MarkdownView};
  const View=new Function(...Object.keys(deps),transformSync(`class View{${method('  private refreshMediaReferences(')}\n${method('  async addWorkspaceMedia(')}\n${method('  private boardReferencesHighlight(')}\n${method('  private async discardUnplacedHighlight(')}\n${method('  private requireOwner(')}};return View`,{loader:'ts'}).code)(...Object.values(deps));
  const notes:string[]=[];
  const view=new View();Object.assign(view,{session:owner,closed:false,selected:new Set(['old']),selectedEdge:'old-edge',point:()=>({x:400,y:250}),updateSelection:()=>{},app:{vault:{getName:()=> 'vault',getAbstractFileByPath:(path:string)=>files.get(path),read:async(file:TFile)=>bodies.get(file)??''},workspace:{getLeavesOfType:()=>[]},fileManager:{trashFile:async(file:TFile)=>{files.delete(file.path);}}},plugin:{settings:{defaultCardWidth:320,defaultTextSize:18,defaultEdgeStyle:'curve',cardFolder:'Cards'},createUnique:async(_folder:string,title:string,_ext:string,body:string)=>{const note=new TFile(`Cards/${title}.md`);notes.push(body);files.set(note.path,note);bodies.set(note,body);return note;},mediaWorkspace:{identity:(file:TFile)=>file.path,playback:{get:()=>({time:8,rate:1,volume:1})}}}});
@@ -231,6 +231,11 @@ test('a failed board edit names the highlight note when deletion also fails',asy
  assert.equal(f.files.has(path),true);assert.equal(f.owner.board.nodes.length,0);
  f.view.app.vault.read=async(file:TFile)=>f.bodies.get(file)??'';f.view.app.fileManager.trashFile=async()=>{throw Error('回收站不可用');};
  await assert.rejects(f.view.addWorkspaceMedia(f.media,{id:'moment',time:3,text:'again',line:1}),/笔记仍保留在 Cards\/clip #\[1\] 0:03\.md[\s\S]*回收站不可用/);
+});
+test('a failed board save deletes the new highlight note instead of reporting success',async()=>{
+ const f=board(),path='Cards/clip #[1] 0:12.md';f.owner.flush=async()=>{f.owner.blocked=true;};
+ await assert.rejects(f.view.addWorkspaceMedia(f.media,{id:'moment',time:12,text:'later',line:1}),/白板未能保存，未放置的高亮笔记已删除/);
+ assert.equal(f.files.has(path),false);assert.equal(f.owner.board.nodes.length,0);
 });
 test('a highlight already used on another board is kept when this board edit fails',async()=>{
  const f=board(),path='Cards/clip #[1] 0:12.md';f.owner.change=()=>{throw Error('白板已暂停写入');};

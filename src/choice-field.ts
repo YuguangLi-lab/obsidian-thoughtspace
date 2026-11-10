@@ -15,7 +15,14 @@ export function cleanChoiceField(value:unknown):ChoiceField{
  }
  return {options:options.length?options:[...defaultChoiceOptions]};
 }
+function choiceText(value:unknown):string{
+ if(typeof value==='string')return value.trim();
+ if(typeof value==='number'&&Number.isFinite(value))return String(value);
+ if(typeof value==='boolean')return value?'true':'false';
+ return '';
+}
+/** Obsidian may parse an unquoted option as a number or boolean. Match the option text. */
 export function choiceValue(properties:Record<string,unknown>,field:ChoiceField):string{
- const value=properties[choiceKey];
- return typeof value==='string'&&field.options.includes(value)?value:'';
+ const text=choiceText(properties[choiceKey]);
+ return text&&field.options.includes(text)?text:'';
 }

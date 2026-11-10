@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {choiceKey,choiceValue,cleanChoiceField,defaultChoiceOptions} from '../src/choice-field';
-import {buildLibraryRecords,filterLibraryCards,emptyLibraryQuery} from '../src/card-property-views';
+import {buildLibraryRecords,filterLibraryCards,emptyLibraryQuery,libraryTable,uncategorizedChoice} from '../src/card-property-views';
 import {readProperties} from '../src/database';
 import {libraryIndexFiles} from '../src/card-library-model';
 import {firstSessionDismissed,firstSessionSteps,persistFirstSessionDismissal} from '../src/first-session';
@@ -10,7 +10,13 @@ test('the select field is one property with a short option list',()=>{
  const field=cleanChoiceField({options:[' 证据 ','证据','主张','']});
  assert.deepEqual(field.options,['证据','主张']);
  assert.equal(choiceValue({[choiceKey]:'证据'},field),'证据');
+ assert.equal(choiceValue({[choiceKey]:' 证据 '},field),'证据');
  assert.equal(choiceValue({[choiceKey]:'其他'},field),'');
+ const typed=cleanChoiceField({options:['1','true','主张']});
+ assert.equal(choiceValue({[choiceKey]:1,thoughtspace_status:'active'},typed),'1');
+ assert.equal(choiceValue({[choiceKey]:true},typed),'true');
+ assert.equal(choiceValue({[choiceKey]:false},typed),'');
+ assert.equal(choiceValue({[choiceKey]:1.5},cleanChoiceField({options:['1.5']})),'1.5');
  assert.deepEqual(cleanChoiceField(null).options,[...defaultChoiceOptions]);
 });
 
@@ -33,6 +39,7 @@ test('library filters use the property and can open a real card placement',()=>{
  const indexed=libraryIndexFiles(reversed);
  assert.equal(indexed.limited,true);assert.equal(indexed.files.length,200);assert.equal(indexed.files[0].path,'Boards/000.md');assert.equal(indexed.files.at(-1)?.path,'Boards/199.md');
  assert.equal(indexed.files.some(file=>file.path==='Boards/200.md'),false);
+ assert.deepEqual(indexed.omitted.map(file=>file.path),['Boards/200.md']);
  const active=buildLibraryRecords([
   {path:'Cards/C.md',title:'同时',tags:[],properties:{thoughtspace_status:'active',thoughtspace_priority:'high',thoughtspace_due:'2026-01-02',[choiceKey]:'证据'}},
   {path:'Cards/D.md',title:'无效',tags:[],properties:{thoughtspace_status:'active',thoughtspace_priority:'low',thoughtspace_due:'2026-02-02',[choiceKey]:'不是选项'}},
@@ -41,6 +48,22 @@ test('library filters use the property and can open a real card placement',()=>{
  assert.equal(active.find(record=>record.path==='Cards/D.md')?.status,'active');
  assert.equal(active.find(record=>record.path==='Cards/D.md')?.priority,'low');
  assert.equal(active.find(record=>record.path==='Cards/D.md')?.due,'2026-02-02');
+ const typed=cleanChoiceField({options:['证据','1','true']});
+ assert.ok(uncategorizedChoice.length>40);
+ assert.equal(cleanChoiceField({options:[uncategorizedChoice,typed.options[0]]}).options.includes(uncategorizedChoice),false);
+ const mixed=buildLibraryRecords([
+  {path:'Cards/A.md',title:'有',tags:['#城市'],properties:{[choiceKey]:'证据'}},
+  {path:'Cards/B.md',title:'空',tags:['#城市'],properties:{}},
+  {path:'Cards/C.md',title:'数字',tags:[],properties:{[choiceKey]:1}},
+  {path:'Cards/D.md',title:'假',tags:[],properties:{[choiceKey]:false}},
+  {path:'Cards/E.md',title:'过期',tags:[],properties:{[choiceKey]:'不是选项'}},
+ ],[],typed);
+ const open=filterLibraryCards(mixed,{...emptyLibraryQuery(),choice:uncategorizedChoice});
+ assert.deepEqual(open.map(record=>record.path).sort(),['Cards/B.md','Cards/D.md','Cards/E.md']);
+ assert.deepEqual(filterLibraryCards(mixed,{...emptyLibraryQuery(),choice:uncategorizedChoice,tag:'城市'}).map(record=>record.path),['Cards/B.md']);
+ assert.deepEqual(filterLibraryCards(mixed,{...emptyLibraryQuery(),choice:'1'}).map(record=>record.path),['Cards/C.md']);
+ assert.equal(libraryTable(open).columns.includes('分类'),false);
+ assert.equal(libraryTable(open,true).rows.every(row=>row.cells.includes('未分类')),true);
 });
 
 test('the first session can be dismissed without removing its explanation',async()=>{

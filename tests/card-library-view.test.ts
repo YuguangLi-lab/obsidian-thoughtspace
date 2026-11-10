@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {paintCardLibrary,type LibraryElement,type LibraryElementOptions} from '../src/card-library-view';
-import {buildLibraryRecords,emptyLibraryQuery,type LibraryViewQuery} from '../src/card-property-views';
+import {libraryModalHandlers,paintCardLibrary,type LibraryElement,type LibraryElementOptions} from '../src/card-library-view';
+import {buildLibraryRecords,emptyLibraryQuery,uncategorizedChoice,type LibraryViewQuery} from '../src/card-property-views';
 
 class El implements LibraryElement {
  children:El[]=[];text='';cls='';value='';disabled=false;textContent:string|null=null;onclick:((event:unknown)=>void)|null=null;onchange:((event:unknown)=>void)|null=null;attrs:Record<string,string>={};
@@ -78,4 +78,57 @@ test('several boards open the chosen card without splitting the path on a newlin
  menu.value=values[1];menu.onchange?.(undefined);
  assert.equal(opened[1].boardPath,'Boards/B "二".md');
  assert.equal(opened[1].nodeId,'two');
+});
+
+test('a highlight jump button names the page range',()=>{
+ const records=buildLibraryRecords([{path:'Cards/Shade.md',title:'林荫',tags:[],properties:{thoughtspace_highlight:'pdf',thoughtspace_source:'Papers/A.pdf',thoughtspace_page:2,thoughtspace_end_page:4}}],[]);
+ const root=new El(),opened:string[]=[];
+ paintCardLibrary(root,records,emptyLibraryQuery(),{setQuery(){},place(){},open(){},unlink(){},jump:path=>opened.push(path)});
+ labeled(root,'回到PDF 第 2–4 页')!.onclick?.(undefined);
+ assert.deepEqual(opened,['Cards/Shade.md']);
+});
+
+test('an incomplete index can search the remaining boards and still reports a deleted board',async()=>{
+ const records=buildLibraryRecords([{path:'Cards/Shade.md',title:'林荫',tags:[],properties:{}}],[],{options:[]},true);
+ const root=new El(),searched:string[]=[];
+ paintCardLibrary(root,records,emptyLibraryQuery(),{setQuery(){},place(){},open(){},unlink(){},searchUnindexed:async path=>{searched.push(path);}});
+ const card=root.all().find(el=>el.attrs['data-note-path']==='Cards/Shade.md')!;
+ assert.match(card.all().map(el=>el.text).join('\n'),/引用位置未索引完/);
+ labeled(card,'查找其余白板')!.onclick?.(undefined);
+ assert.deepEqual(searched,['Cards/Shade.md']);
+ const notices:string[]=[];
+ const handlers=libraryModalHandlers({place(){},open(){},unlink(){},choiceOptions:['主张'],locate:async()=>{throw Error('白板已移动或删除');},searchUnindexed:async()=>{}},()=>{},error=>notices.push(error instanceof Error?error.message:String(error)),()=>{});
+ assert.deepEqual(handlers.choiceOptions,['主张']);
+ handlers.locate!({boardPath:'Boards/Gone.md',boardTitle:'已删',nodeId:'missing'});
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.deepEqual(notices,['白板已移动或删除']);
+});
+
+test('uncategorized is a category filter in list, table, and kanban',()=>{
+ const records=buildLibraryRecords([
+  {path:'Cards/Shade.md',title:'林荫',tags:[],properties:{thoughtspace_choice:'证据',thoughtspace_status:'active'}},
+  {path:'Cards/Heat.md',title:'热岛',tags:[],properties:{thoughtspace_status:'inbox'}},
+ ],[],{options:['证据']});
+ const paint=(view:'list'|'table'|'kanban',choice:string)=>{
+  const root=new El();
+  paintCardLibrary(root,records,{...emptyLibraryQuery(),view,choice},{setQuery(){},place(){},open(){},unlink(){},choiceOptions:['证据']});
+  return root;
+ };
+ const list=paint('list','');
+ const menu=labeled(list,'分类')!;
+ assert.equal(menu.all().some(el=>el.text==='未分类'&&el.value===uncategorizedChoice),true);
+ assert.match(list.all().find(el=>el.attrs['data-note-path']==='Cards/Heat.md')!.all().find(el=>el.cls==='ts-library-excerpt')!.text,/未分类/);
+ assert.match(list.all().find(el=>el.attrs['data-note-path']==='Cards/Shade.md')!.all().find(el=>el.cls==='ts-library-excerpt')!.text,/证据/);
+ for(const view of ['list','table','kanban'] as const){
+  const root=paint(view,uncategorizedChoice);
+  assert.equal(root.all().some(el=>el.attrs['data-note-path']==='Cards/Shade.md'),false);
+  assert.equal(root.all().some(el=>el.attrs['data-note-path']==='Cards/Heat.md'),true);
+ }
+ const table=paint('table',uncategorizedChoice);
+ assert.equal(table.all().some(el=>el.text==='分类'),true);
+ assert.equal(table.all().find(el=>el.attrs['data-note-path']==='Cards/Heat.md')!.children.some(el=>el.text==='未分类'),true);
+ assert.match(paint('kanban',uncategorizedChoice).all().find(el=>el.cls==='ts-library-tags')!.text,/未分类/);
+ const empty=new El();
+ paintCardLibrary(empty,records.filter(record=>record.choice),{...emptyLibraryQuery(),choice:uncategorizedChoice},{setQuery(){},place(){},open(){},unlink(){},choiceOptions:['证据']});
+ assert.equal(empty.all().some(el=>el.text==='没有符合条件的未分类卡片。'),true);
 });

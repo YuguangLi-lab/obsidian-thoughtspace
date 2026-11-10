@@ -1,5 +1,6 @@
+import {clone} from './model';
 import {isRecord} from './value-guards';
-import {validMediaTime} from './media-source';
+import {mediaClock,validMediaTime} from './media-source';
 
 export const highlightKeys={kind:'thoughtspace_highlight',source:'thoughtspace_source',page:'thoughtspace_page',endPage:'thoughtspace_end_page',time:'thoughtspace_time'} as const;
 export type HighlightKind='pdf'|'audio'|'video';
@@ -8,11 +9,11 @@ export interface HighlightAnchor {kind:HighlightKind;source:string;page?:number;
 const vaultPath=(value:string)=>!!value&&value.length<=2048&&value===value.trim()&&!value.startsWith('/')&&!value.includes('\\')&&!value.split('/').some(part=>part===''||part==='.'||part==='..');
 function yaml(value:string){return JSON.stringify(value);}
 function pageOf(value:unknown):number|undefined{
- if(typeof value==='string'&&/^\d+$/.test(value))value=Number(value);
+ if(typeof value==='string'){const text=value.trim();if(!/^\d+(?:\.0+)?$/.test(text))return;value=Number(text);}
  return typeof value==='number'&&Number.isSafeInteger(value)&&value>=1?value:undefined;
 }
 function timeOf(value:unknown):number|undefined{
- if(typeof value==='string'&&/^\d+(?:\.\d+)?$/.test(value))value=Number(value);
+ if(typeof value==='string'){const text=value.trim();if(!/^\d+(?:\.\d+)?$/.test(text))return;value=Number(text);}
  return typeof value==='number'&&validMediaTime(value)?value:undefined;
 }
 
@@ -48,11 +49,18 @@ export function highlightMarkdown(anchor:HighlightAnchor,body:string,title:strin
   lines.push(`${highlightKeys.page}: ${page}`,`${highlightKeys.endPage}: ${end}`);
  }else if(typeof anchor.time!=='number'||!validMediaTime(anchor.time))throw Error('媒体时间无效');
  else lines.push(`${highlightKeys.time}: ${anchor.time}`);
- const linked=!/[[\]]/.test(anchor.source),sourceLink=linked?(anchor.kind==='pdf'?`[[${anchor.source}#page=${anchor.page||1}]]`:`[[${anchor.source}]]`):`\`${anchor.source.replace(/`/g,'')}\``;
- lines.push('---','',`# ${heading.slice(0,80)}`,'',quote,'',`来源：${sourceLink}`,'');
+ const linked=!/[#^[\]|]/.test(anchor.source),sourceLink=linked?(anchor.kind==='pdf'?`[[${anchor.source}#page=${anchor.page||1}]]`:`[[${anchor.source}]]`):`\`${anchor.source.replace(/`/g,'')}\``;
+ lines.push('---','',`# ${heading.slice(0,80)}`,'',quote,'',`来源：${sourceLink} · ${highlightLocation(anchor)}`,'');
  return lines.join('\n');
 }
 
+/** Where the highlight lives, in the same words as older PDF citations. */
+export function highlightLocation(anchor:HighlightAnchor):string{
+ if(anchor.kind==='pdf'){const page=anchor.page||1,end=anchor.endPage||page;return end>page?`PDF 第 ${page}–${end} 页`:`PDF 第 ${page} 页`;}
+ const clock=typeof anchor.time==='number'?mediaClock(anchor.time):'';
+ return `${anchor.kind==='audio'?'音频':'视频'} ${clock}`.trim();
+}
+export function highlightReturnLabel(anchor:HighlightAnchor):string{return `回到${highlightLocation(anchor)}`;}
 export function highlightJump(anchor:HighlightAnchor):{path:string;page?:number;time?:number}{
  return {path:anchor.source,page:anchor.page,time:anchor.time};
 }
@@ -70,4 +78,29 @@ export async function placeHighlightNote(path:string,place:()=>void,referenced:(
  const reason=failureText(cause??Error('白板没有留下这张高亮笔记的引用'));
  if(cleanup)throw Error(`高亮笔记未能放到白板，且笔记仍保留在 ${path}。${reason} ${failureText(cleanup)}`);
  throw Error(`${reason} 未放置的高亮笔记已删除。`);
+}
+/** After the note is on the board, wait for the save. A failed save must not be reported as success. */
+export async function finishHighlightSave(flush:()=>Promise<void>,saved:()=>boolean,rollback:()=>Promise<void>):Promise<void>{
+ await flush();
+ let ok=false;
+ try{ok=saved();}catch{ok=false;}
+ if(!ok)await rollback();
+}
+/** Drop the unsaved card, then delete the note. If deletion fails, put the card back and keep the note. */
+export async function rollbackUnsavedHighlight<T extends {nodes:{file?:string}[]}>(options:{board:T;before:T;history?:{undoStack:unknown[];push:(board:T)=>void};historyMark:number;notePath:string;restoreBoard:(board:T)=>void;remove:()=>Promise<void>}):Promise<never>{
+ const placed=clone(options.board);
+ options.restoreBoard(options.before);
+ const stack=options.history?.undoStack;
+ const popped=!!stack&&stack.length>options.historyMark;
+ if(popped)stack.pop();
+ try{await options.remove();}
+ catch(error){options.restoreBoard(placed);if(popped)options.history?.push(options.before);throw Error(`白板未能保存，且高亮笔记仍保留在 ${options.notePath}。${failureText(error)}`);}
+ throw Error('白板未能保存，未放置的高亮笔记已删除。');
+}
+/** A recovery draft written for this failed save would point at the note we are deleting. */
+export async function discardHighlightRecovery(notePath:string,recovery:{path:string}|undefined,previous:{path:string}|undefined,read:(path:string)=>Promise<string|undefined>,remove:(path:string)=>Promise<void>):Promise<void>{
+ if(!recovery||recovery===previous)return;
+ const raw=await read(recovery.path);
+ if(raw===undefined||!raw.includes(notePath))return;
+ await remove(recovery.path);
 }

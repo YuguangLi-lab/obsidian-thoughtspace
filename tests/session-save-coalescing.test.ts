@@ -50,6 +50,28 @@ test('coalesced save notifications preserve every content edit and real undo/red
  assert.equal(f.events.at(-1)?.kind,'status');assert.equal(f.events.at(-1)?.status,'已保存');
 });
 
+test('delete on a paused board does not clear the selection',()=>{
+ const start=source.indexOf('  private deleteSelection()');assert.ok(start>0);
+ const rest=source.slice(start+'  private deleteSelection()'.length),mark=/\n  (?:(?:private|public|protected|async|static)\s+)*(?:get\s+)?[A-Za-z_$][\w$]*\(/.exec(rest);assert.ok(mark);
+ const View=new Function(transformSync('class View{'+source.slice(start,start+'  private deleteSelection()'.length+mark.index)+'};return View',{loader:'ts'}).code)();
+ const view=new View();let changed=false;view.session={blocked:true};view.selected=new Set(['a']);view.selectedEdge='e';view.mutate=()=>{changed=true;};view.renderBoard=()=>{changed=true;};
+ view.deleteSelection();
+ assert.equal(changed,false);assert.deepEqual([...view.selected],['a']);assert.equal(view.selectedEdge,'e');
+});
+
+test('undo and redo of a card keep a camera move made after the edit',()=>{
+ const f=fixture(),s=f.session;
+ s.change((b:model.Board)=>{b.nodes.push({id:'a',kind:'text',text:'林荫',x:10,y:20,width:200,height:80,color:'sand'});});
+ s.board.viewport={x:80,y:-40,zoom:1.5};
+ s.undo();
+ assert.equal(s.board.nodes.length,0);
+ assert.deepEqual(s.board.viewport,{x:80,y:-40,zoom:1.5});
+ s.undo(true);
+ assert.equal(s.board.nodes.length,1);
+ assert.equal(s.board.nodes[0].x,10);
+ assert.deepEqual(s.board.viewport,{x:80,y:-40,zoom:1.5});
+});
+
 test('a conflict retains the latest recovery draft and terminal error notification without overwriting disk',async()=>{
  const f=fixture(),s=f.session;s.board.viewport.x=100;s.persist();await tick();
  s.board.viewport.x=200;s.persist();
