@@ -1,18 +1,22 @@
 import {propertyKeys,readProperties,statuses} from './database';
+import {choiceKey,choiceValue,type ChoiceField} from './choice-field';
+import {parseHighlight,type HighlightAnchor} from './highlight-note';
 import {libraryCardType,libraryTypeNames,type LibraryCardType} from './card-library-model';
 
 export interface LibrarySourceNote {path:string;title:string;tags:string[];properties:Record<string,unknown>}
-export interface LibraryBoardSource {path:string;title:string;files:string[]}
+export interface LibraryBoardSource {path:string;title:string;files:string[];placements?:readonly {id:string;file:string}[]}
 export interface LibraryBoardRef {path:string;title:string}
+export interface LibraryPlacement {boardPath:string;boardTitle:string;nodeId:string}
 export interface LibraryCardRecord {
  path:string;title:string;type:LibraryCardType;tags:string[];
- status:string;priority:string;due:string;
- custom:Record<string,string>;boards:LibraryBoardRef[];
+ status:string;priority:string;due:string;choice:string;
+ custom:Record<string,string>;boards:LibraryBoardRef[];placements:LibraryPlacement[];
+ highlight?:HighlightAnchor;
 }
 export type LibraryLayout='table'|'kanban'|'list';
-export interface LibraryViewQuery {type:''|LibraryCardType;tag:string;board:string;status:string;query:string;view:LibraryLayout}
-export const emptyLibraryQuery=():LibraryViewQuery=>({type:'',tag:'',board:'',status:'',query:'',view:'list'});
-const hiddenKeys=new Set(['position','tags','aliases','cssclasses','tag',...Object.values(propertyKeys)]);
+export interface LibraryViewQuery {type:''|LibraryCardType;tag:string;board:string;status:string;choice:string;query:string;view:LibraryLayout}
+export const emptyLibraryQuery=():LibraryViewQuery=>({type:'',tag:'',board:'',status:'',choice:'',query:'',view:'list'});
+const hiddenKeys=new Set(['position','tags','aliases','cssclasses','tag',choiceKey,...Object.values(propertyKeys)]);
 export function libraryTagKey(tag:string){return tag.trim().replace(/^#/,'').toLocaleLowerCase();}
 function displayValue(value:unknown):string{
  if(typeof value==='string')return value;
@@ -29,19 +33,25 @@ function customProperties(properties:Record<string,unknown>):Record<string,strin
  }
  return custom;
 }
-export function libraryRecord(note:LibrarySourceNote):LibraryCardRecord{
- const props=readProperties(note.properties);
- return {path:note.path,title:note.title,type:libraryCardType(note.path),tags:[...note.tags],status:props.status||'inbox',priority:props.priority,due:props.due,custom:customProperties(note.properties),boards:[]};
+export function libraryRecord(note:LibrarySourceNote,field:ChoiceField={options:[]}):LibraryCardRecord{
+ const props=readProperties(note.properties),highlight=parseHighlight(note.properties);
+ return {path:note.path,title:note.title,type:libraryCardType(note.path),tags:[...note.tags],status:props.status||'inbox',priority:props.priority,due:props.due,choice:field.options.length?choiceValue(note.properties,field):'',custom:customProperties(note.properties),boards:[],placements:[],...(highlight?{highlight}:{})};
 }
 /** Notes are the card library. Board entries only record where each file is referenced. */
-export function buildLibraryRecords(notes:readonly LibrarySourceNote[],boards:readonly LibraryBoardSource[]):LibraryCardRecord[]{
+export function buildLibraryRecords(notes:readonly LibrarySourceNote[],boards:readonly LibraryBoardSource[],field:ChoiceField={options:[]}):LibraryCardRecord[]{
  const byPath=new Map<string,LibraryCardRecord>();
- for(const note of notes){if(!note.path||byPath.has(note.path))continue;byPath.set(note.path,libraryRecord(note));}
+ const ensure=(file:string)=>{let record=byPath.get(file);if(!record){record={path:file,title:file.split('/').pop()?.replace(/\.[^.]+$/,'')||file,type:libraryCardType(file),tags:[],status:'inbox',priority:'',due:'',choice:'',custom:{},boards:[],placements:[]};byPath.set(file,record);}return record;};
+ for(const note of notes){if(!note.path||byPath.has(note.path))continue;byPath.set(note.path,libraryRecord(note,field));}
  for(const board of boards){
   for(const file of board.files){
-   let record=byPath.get(file);
-   if(!record){record={path:file,title:file.split('/').pop()?.replace(/\.[^.]+$/,'')||file,type:libraryCardType(file),tags:[],status:'inbox',priority:'',due:'',custom:{},boards:[]};byPath.set(file,record);}
+   const record=ensure(file);
    if(!record.boards.some(item=>item.path===board.path))record.boards.push({path:board.path,title:board.title||board.path});
+  }
+  for(const place of board.placements||[]){
+   if(!place.id||!place.file)continue;
+   const record=ensure(place.file);
+   if(!record.boards.some(item=>item.path===board.path))record.boards.push({path:board.path,title:board.title||board.path});
+   if(!record.placements.some(item=>item.boardPath===board.path&&item.nodeId===place.id))record.placements.push({boardPath:board.path,boardTitle:board.title||board.path,nodeId:place.id});
   }
  }
  for(const record of byPath.values())record.boards.sort((a,b)=>a.title.localeCompare(b.title)||a.path.localeCompare(b.path));
@@ -57,10 +67,11 @@ export function filterLibraryCards(records:readonly LibraryCardRecord[],query:Li
  return records.filter(record=>{
   if(query.type&&record.type!==query.type)return false;
   if(query.status&&record.status!==query.status)return false;
+  if(query.choice&&record.choice!==query.choice)return false;
   if(query.board&&!record.boards.some(board=>board.path===query.board))return false;
   if(tag&&!record.tags.some(item=>libraryTagKey(item)===tag||libraryTagKey(item).startsWith(tag+'/')))return false;
   if(!text)return true;
-  const haystack=[record.title,record.path,record.status,statuses[record.status]||'',record.priority,record.due,...record.tags,...record.boards.map(board=>`${board.title} ${board.path}`),...Object.entries(record.custom).flat()].join(' ').toLocaleLowerCase();
+  const haystack=[record.title,record.path,record.status,statuses[record.status]||'',record.priority,record.due,record.choice,...record.tags,...record.boards.map(board=>`${board.title} ${board.path}`),...Object.entries(record.custom).flat()].join(' ').toLocaleLowerCase();
   return text.split(/\s+/).every(word=>haystack.includes(word));
  });
 }
@@ -73,9 +84,9 @@ export function libraryKanban(records:readonly LibraryCardRecord[]):LibraryKanba
 }
 export interface LibraryTable {columns:string[];rows:{path:string;cells:string[]}[]}
 export function libraryTable(records:readonly LibraryCardRecord[]):LibraryTable{
- const custom=[...new Set(records.flatMap(record=>Object.keys(record.custom)))].sort();
- const columns=['笔记','类型','标签','状态','白板',...custom];
- const rows=records.map(record=>({path:record.path,cells:[record.title,libraryTypeNames[record.type],record.tags.join(' '),libraryStatusLabel(record.status),record.boards.map(board=>board.title).join('、')||'未放置',...custom.map(key=>record.custom[key]||'')]}));
+ const custom=[...new Set(records.flatMap(record=>Object.keys(record.custom)))].sort(),choices=records.some(record=>record.choice);
+ const columns=['笔记','类型','标签','状态',...(choices?['分类']:[]),'白板',...custom];
+ const rows=records.map(record=>({path:record.path,cells:[record.title,libraryTypeNames[record.type],record.tags.join(' '),libraryStatusLabel(record.status),...(choices?[record.choice||'未分类']:[]),record.boards.map(board=>board.title).join('、')||'未放置',...custom.map(key=>record.custom[key]||'')]}));
  return {columns,rows};
 }
 export function libraryList(records:readonly LibraryCardRecord[]):{path:string;title:string;detail:string}[]{

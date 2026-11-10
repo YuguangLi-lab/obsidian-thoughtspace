@@ -7,6 +7,8 @@ import {emptyBoard,History,parseBoard,type Board} from '../src/model';
 import {isWorkspaceFile} from '../src/workspace';
 import {mediaCard,mediaClock,mediaKind,mediaTime} from '../src/media-source';
 import {mediaPlayerUrl} from '../src/media-notes';
+import {sha256} from '../src/portable-sha256';
+import {highlightMarkdown} from '../src/highlight-note';
 
 const source=readFileSync('src/main.ts','utf8');
 function method(start:string){const at=source.indexOf(start);assert.ok(at>=0,start);const rest=source.slice(at+start.length),end=/\n  (?:(?:private|public|protected|async|static)\s+)*(?:get\s+)?[A-Za-z_$][\w$]*\(/.exec(rest);assert.ok(end,`end: ${start}`);return source.slice(at,at+start.length+end.index);}
@@ -167,15 +169,16 @@ for(const phase of ['setup','reveal']as const)test(`an online draft started duri
 function board(){
  let id=0,changes=0;const media=new TFile('media/clip #[1].mp4'),files=new Map([[media.path,media]]),history=new History();
  const owner={board:{...emptyBoard(),version:3 as const,viewport:{x:33,y:44,zoom:.75}} as Board,blocked:false,refreshNativeEditing(){},change(fn:(board:Board)=>void){const before=structuredClone(this.board);fn(this.board);parseBoard(JSON.stringify(this.board));history.push(before);changes++;}};
- const deps={resolveSourceLink,mediaKind,isWorkspaceFile,mediaTime,mediaCard,mediaClock,mediaPlayerUrl,uid:()=>`new-${++id}`};
+ const deps={resolveSourceLink,mediaKind,isWorkspaceFile,mediaTime,mediaCard,mediaClock,mediaPlayerUrl,sha256,highlightMarkdown,uid:()=>`new-${++id}`};
  const View=new Function(...Object.keys(deps),transformSync(`class View{${method('  private refreshMediaReferences(')}\n${method('  async addWorkspaceMedia(')}\n${method('  private requireOwner(')}};return View`,{loader:'ts'}).code)(...Object.values(deps));
- const view=new View();Object.assign(view,{session:owner,closed:false,selected:new Set(['old']),selectedEdge:'old-edge',point:()=>({x:400,y:250}),updateSelection:()=>{},app:{vault:{getName:()=> 'vault',getAbstractFileByPath:(path:string)=>files.get(path)}},plugin:{settings:{defaultCardWidth:320,defaultTextSize:18,defaultEdgeStyle:'curve'},mediaWorkspace:{identity:(file:TFile)=>file.path,playback:{get:()=>({time:8,rate:1,volume:1})}}}});
- return{view,owner,media,files,history,changes:()=>changes};
+ const notes:string[]=[];
+ const view=new View();Object.assign(view,{session:owner,closed:false,selected:new Set(['old']),selectedEdge:'old-edge',point:()=>({x:400,y:250}),updateSelection:()=>{},app:{vault:{getName:()=> 'vault',getAbstractFileByPath:(path:string)=>files.get(path)}},plugin:{settings:{defaultCardWidth:320,defaultTextSize:18,defaultEdgeStyle:'curve',cardFolder:'Cards'},createUnique:async(_folder:string,title:string,_ext:string,body:string)=>{notes.push(body);return new TFile(`Cards/${title}.md`);},mediaWorkspace:{identity:(file:TFile)=>file.path,playback:{get:()=>({time:8,rate:1,volume:1})}}}});
+ return{view,owner,media,files,history,notes,changes:()=>changes};
 }
 test('adding media with an excerpt is one undoable transaction without moving the camera',async()=>{
  const f=board(),before=structuredClone(f.owner.board),camera=f.owner.board.viewport;await f.view.addWorkspaceMedia(f.media,{id:'moment',time:12.125,text:'**note**',image:'![[frame.png]]',line:1});
  assert.equal(f.changes(),1);assert.equal(f.owner.board.viewport,camera);assert.deepEqual(camera,before.viewport);assert.equal(f.owner.board.nodes.length,2);assert.equal(f.owner.board.edges.length,1);
- assert.equal(f.owner.board.nodes[0].mediaStart,12.125);assert.match(f.owner.board.nodes[1].text!,/!\[\[frame.png\]\][\s\S]*\*\*note\*\*[\s\S]*thoughtspace-player/);assert.equal(f.view.selectedEdge,undefined);assert.deepEqual(f.history.undo(f.owner.board),before);
+ assert.equal(f.owner.board.nodes[0].mediaStart,12.125);assert.equal(f.owner.board.nodes[1].kind,'card');assert.equal(f.owner.board.nodes[1].text,undefined);assert.match(f.notes[0],/!\[\[frame.png\]\][\s\S]*\*\*note\*\*[\s\S]*thoughtspace-player/);assert.match(f.notes[0],/thoughtspace_highlight: video/);assert.equal(f.view.selectedEdge,undefined);assert.deepEqual(f.history.undo(f.owner.board),before);
 });
 test('a repeated media selection adds no card or undo item and clears stale edge selection',async()=>{
  const f=board();await f.view.addWorkspaceMedia(f.media);const id=f.owner.board.nodes[0].id;f.view.selectedEdge='old-edge';await f.view.addWorkspaceMedia(f.media);assert.equal(f.owner.board.nodes.length,1);assert.equal(f.changes(),1);assert.deepEqual([...f.view.selected],[id]);assert.equal(f.view.selectedEdge,undefined);
@@ -209,7 +212,7 @@ test('opening another media does not inherit the previous file focused or collap
 
 test('saved excerpt reference stores only a native embed and repeated insertion selects the same node',async()=>{
  const f=board(),moment={id:'saved',time:12,text:'should not be copied',image:'![[frame.png]]',line:1},reference='![[notes/media.md#^thoughtspace-media-saved]]';
- await f.view.addWorkspaceMedia(f.media,moment,reference);assert.equal(f.owner.board.nodes[1].text,reference);assert.equal(f.owner.board.nodes[1].text!.includes(moment.text),false);
+ await f.view.addWorkspaceMedia(f.media,moment,reference);assert.equal(f.owner.board.nodes[1].kind,'card');assert.equal(f.owner.board.nodes[1].text,undefined);assert.equal(f.notes[0].includes(reference),true);assert.equal(f.notes[0].includes(moment.text),false);
  const count=f.changes(),id=f.owner.board.nodes[1].id;await f.view.addWorkspaceMedia(f.media,moment,reference);assert.equal(f.changes(),count);assert.equal(f.owner.board.nodes.length,2);assert.deepEqual([...f.view.selected],[id]);
 });
 

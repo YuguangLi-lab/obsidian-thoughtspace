@@ -1,5 +1,25 @@
 # 更新记录
 
+## 1.3.49
+
+### 高亮笔记、定位、分类与本地导出
+
+- PDF 选区和视频时间戳会写成一篇 Markdown 笔记，再作为卡片引用放到白板上。同一篇高亮可以出现在多块白板。白板不再只保存摘录正文。笔记属性里记下 PDF 路径和页码，或视频路径和时间。命令「回到高亮来源」打开那一页或那个时间。
+- 卡片库列出这篇笔记出现在哪些白板。选择后会打开对应白板，并把那张卡片移进画面。
+- 在状态、优先级和截止日期之外，增加一个分类属性 `thoughtspace_choice`。默认选项是主张、证据、问题。值写在笔记的 Properties 里，可以在卡片库里筛选和修改。
+- 第一次打开时可以用「不再提示」关掉一段简短说明，介绍列表、表格和看板。原有教程仍在。
+- 可以把当前画面导出为本地 PNG 或 PDF。文件只画出可见卡片的标题和连线，不包含图片、PDF 页面和手写笔迹，也不会上传。
+- 纸张纹理仍内嵌在 `styles.css`。日历隔离规则不变。白板格式仍是第 3 版。
+
+### English
+
+- A PDF selection or video timestamp becomes a Markdown note and is placed on the board as a reference. The same highlight can appear on several boards. The board no longer keeps only the excerpt text. The note's Properties store the PDF path and page, or the video path and time. "回到高亮来源" opens that page or time.
+- The card library lists the whiteboards that contain a note and opens the matching board with that card in view.
+- One category property, `thoughtspace_choice`, sits beside status, priority, and due date. The default options are 主张, 证据, and 问题. The value is an Obsidian Property and can be filtered in the library.
+- The first session can be dismissed. It explains list, table, and kanban without replacing the existing guides.
+- The current view can be exported as a local PNG or PDF. The file draws titles and lines for visible cards. It does not include images, PDF pages, or handwriting, and it is not uploaded.
+- The paper texture stays embedded in `styles.css`. Calendar isolation guards are unchanged. The board format stays version 3.
+
 ## 1.3.48
 
 ### 卡片库引用与属性视图
