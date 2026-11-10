@@ -4455,9 +4455,11 @@ class BoardView extends FileView {
     const canvas=stage.ownerDocument.createElement('canvas');canvas.width=scene.width;canvas.height=scene.height;
     const context=canvas.getContext('2d');if(!context)throw Error('当前环境无法导出图像');
     context.fillStyle='#f8f5ef';context.fillRect(0,0,scene.width,scene.height);
-    context.strokeStyle='#c8c2b6';context.fillStyle='#2c2924';context.font='14px sans-serif';
-    for(const edge of scene.edges){context.beginPath();context.moveTo(edge.x1,edge.y1);context.lineTo(edge.x2,edge.y2);context.stroke();}
+    context.strokeStyle='#c8c2b6';context.fillStyle='#2c2924';context.font='14px sans-serif';context.lineWidth=2;
+    for(const edge of scene.edges){context.setLineDash(edge.dash||[]);context.stroke(new Path2D(edge.path));}
+    context.setLineDash([]);context.lineWidth=1;
     for(const node of scene.nodes){context.strokeRect(node.x,node.y,node.w,node.h);context.fillText(node.title,node.x+8,node.y+22);}
+    for(const edge of scene.edges)if(edge.label)context.fillText(edge.label,edge.labelX,edge.labelY);
     const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(Error('无法生成 PNG')),kind==='pdf'?'image/jpeg':'image/png',0.92));
     const bytes=new Uint8Array(await blob.arrayBuffer());
     const output=kind==='pdf'?jpegPagePdf(bytes,scene.width,scene.height):bytes;
