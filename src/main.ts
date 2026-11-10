@@ -510,7 +510,7 @@ class Session {
     const keys=Object.keys(left).filter(key=>left[key]!==undefined),other=Object.keys(right).filter(key=>right[key]!==undefined);
     return keys.length===other.length&&keys.every(key=>Object.prototype.hasOwnProperty.call(right,key)&&Session.sameState(left[key],right[key]));
   }
-  undo(redo = false) { this.refreshNativeEditing();if (this.blocked) return; const b = redo ? this.history.redo(this.board) : this.history.undo(this.board); if (b) { const previous=this.board;this.board = b;this.brainGraphRevision++;this.contentEpoch++;this.plugin?.boardEpochs?.set(this.file.path,this.contentEpoch);this.restoreRelationGeometry();this.holdRelationGeometry(previous,b,false);this.pruneRelationGeometry(); this.persist(); this.emit(); } }
+  undo(redo = false) { this.refreshNativeEditing();if (this.blocked) return; const live={...this.board.viewport}; const b = redo ? this.history.redo(this.board) : this.history.undo(this.board); if (b) { const restored=b.viewport;b.viewport={...live};if(Session.sameState(b,this.board))b.viewport=restored; const previous=this.board;this.board = b;this.brainGraphRevision++;this.contentEpoch++;this.plugin?.boardEpochs?.set(this.file.path,this.contentEpoch);this.restoreRelationGeometry();this.holdRelationGeometry(previous,b,false);this.pruneRelationGeometry(); this.persist(); this.emit(); } }
   private relationGeometryIdentity(node:Card){
     const path=node.paragraphQuote?.path||node.file,file=path?this.plugin.app?.vault.getAbstractFileByPath?.(path):undefined,stat=file&&'stat'in file?file.stat as {mtime:number;size:number;ctime?:number}:undefined;
     return{shape:relationGeometryShape(node),text:node.text,file,mtime:stat?.mtime,size:stat?.size,ctime:stat?.ctime};
@@ -6411,7 +6411,7 @@ class BoardView extends FileView {
     const body=this.inspector.createDiv(grid?'ts-choice-grid':'ts-choice-list');
     for(const choice of choices){const b=button(body,choice.label,'',()=>{this.inspectorChoiceState=undefined;return choice.run();},'ts-choice');b.setAttribute('aria-pressed',String(!!choice.checked));b.toggleClass('is-active',!!choice.checked);if(choice.swatch){b.addClass(`ts-color-${choice.swatch}`);b.createEl('i',{prepend:true});}}
   }
-  private deleteSelection() { this.mutate(b => { if (this.selectedEdge) b.edges = b.edges.filter(e => e.id !== this.selectedEdge); else removeNodes(b,new Set(b.nodes.filter(n=>this.selected.has(n.id)&&!n.locked).map(n=>n.id))); }); this.selected.clear(); this.selectedEdge = undefined; this.renderBoard(); }
+  private deleteSelection() { if(!this.session||this.session.blocked)return; this.mutate(b => { if (this.selectedEdge) b.edges = b.edges.filter(e => e.id !== this.selectedEdge); else removeNodes(b,new Set(b.nodes.filter(n=>this.selected.has(n.id)&&!n.locked).map(n=>n.id))); }); this.selected.clear(); this.selectedEdge = undefined; this.renderBoard(); }
   canReuseSelection(){return this.selected.size>0;}
   private reuseModal?:BoardReuseModal;
   async openReuse(){
