@@ -120,7 +120,7 @@ import {setBoardEdgeStyle,inheritNewEdgeStyle} from './model';
 import {BoardSearchSync,isSearchIndexPath,SEARCH_FOLDER,searchBoardPath,searchIndexSourcePath,searchIndexTarget} from './native-search';
 import {collectReferencedPaths} from './board-references';
 import {boardGraphStamp} from './sidebar-content';
-import {isLibraryCard,libraryFilesOnBoard,libraryIndexFiles,libraryPath,libraryPlacements,unlinkLibraryCards} from './card-library-model';
+import {isLibraryCard,libraryFilesOnBoard,libraryIndexFiles,libraryPath,libraryPlacements,librarySearchMessage,unlinkLibraryCards} from './card-library-model';
 import {discardHighlightRecovery,finishHighlightSave,highlightMarkdown,parseHighlight,placeHighlightNote,rollbackUnsavedHighlight} from './highlight-note';
 import {choiceKey} from './choice-field';
 import {assertExportable,boardExportScene,jpegPagePdf} from './board-export';
@@ -1530,29 +1530,44 @@ export default class ThoughtSpace extends Plugin {
     });
   }
   private async libraryBoardIndex(current:()=>boolean){
-    const indexed=libraryIndexFiles(this.app.vault.getFiles().filter(file=>isWorkspaceFile(file)&&isBoardFile(this.app,file))),limited=indexed.limited,boards:LibraryBoardSource[]=[];
+    const indexed=libraryIndexFiles(this.app.vault.getFiles().filter(file=>isWorkspaceFile(file)&&isBoardFile(this.app,file))),boards:LibraryBoardSource[]=[],pending=[...indexed.omitted];
     for(const file of indexed.files){
-      if(!current())return {boards,limited};
-      try{const board=await this.readBoard(file);if(!current())return {boards,limited};boards.push({path:file.path,title:file.basename,files:libraryFilesOnBoard(board.nodes),placements:libraryPlacements(board.nodes)});}catch{/* 读不出的白板不进入索引 */}
+      if(!current())return {boards,pending,limited:true};
+      try{const board=await this.readBoard(file);if(!current())return {boards,pending,limited:true};boards.push({path:file.path,title:file.basename,files:libraryFilesOnBoard(board.nodes),placements:libraryPlacements(board.nodes)});}catch{pending.push(file);}
     }
-    return {boards,limited};
+    return {boards,pending,limited:pending.length>0};
   }
   async openCardLibrary(view?:BoardView){
     const run=++this.cardLibraryRun,current=()=>run===this.cardLibraryRun;
-    let scanned:LibraryBoardSource[]=[],limited=false;
+    let scanned:LibraryBoardSource[]=[],pending:TFile[]=[],limited=false,searching=false,modal!:CardLibraryModal;
     const live=():LibraryBoardSource[]=>view?.session&&!view.closed&&view.file?[{path:view.file.path,title:view.file.basename,files:libraryFilesOnBoard(view.session.board.nodes),placements:libraryPlacements(view.session.board.nodes)}]:[];
-    const host={records:()=>buildLibraryRecords(this.libraryNoteSources(),mergeBoardSources(scanned,live()),this.settings.choiceField),get limitNote(){return limited?'白板较多，引用位置只索引前 200 块。':undefined;},choiceOptions:this.settings.choiceField.options,
+    const host={records:()=>buildLibraryRecords(this.libraryNoteSources(),mergeBoardSources(scanned,live()),this.settings.choiceField,limited),get limitNote(){return limited?'引用位置还不完整。可按卡片查找其余白板。':undefined;},choiceOptions:this.settings.choiceField.options,
       place:(path:string)=>{const target=this.app.workspace.getActiveViewOfType(BoardView)||view;if(!target||target.closed)throw Error('请先打开白板');const file=this.app.vault.getAbstractFileByPath(libraryPath(path));if(!(file instanceof TFile)||file.path!==path)throw Error('源笔记已移动或不存在');target.placeExistingCard(file);},
       open:(path:string)=>{const file=this.app.vault.getAbstractFileByPath(path);if(!(file instanceof TFile))throw Error('源笔记已移动或不存在');return this.openNoteInSidebar(file);},
       unlink:(path:string)=>{const target=this.app.workspace.getActiveViewOfType(BoardView)||view;if(!target||target.closed)throw Error('请先打开白板');target.unlinkLibraryPath(path);},
       locate:(placement:{boardPath:string;nodeId:string})=>this.revealLibraryCard(placement.boardPath,placement.nodeId),
+      searchUnindexed:async(notePath:string)=>{
+        if(searching)throw Error('正在查找其余白板');
+        if(!pending.length)throw Error('引用位置已经完整');
+        searching=true;
+        const batch=pending;pending=[];let found=false;const failed:TFile[]=[];
+        try{
+          for(const file of batch){
+            if(!current()||!modal.modalEl.isConnected){pending=[...failed,...batch.slice(batch.indexOf(file))];return;}
+            try{const board=await this.readBoard(file);if(!current()||!modal.modalEl.isConnected){pending=[...failed,...batch.slice(batch.indexOf(file))];return;}const source={path:file.path,title:file.basename,files:libraryFilesOnBoard(board.nodes),placements:libraryPlacements(board.nodes)};scanned=mergeBoardSources(scanned,[source]);if(source.files.includes(notePath)||source.placements.some(place=>place.file===notePath))found=true;}
+            catch{failed.push(file);}
+          }
+          pending=failed;limited=pending.length>0;modal.refresh();
+          const message=librarySearchMessage(found,failed.length);if(message)throw Error(message);
+        }finally{searching=false;}
+      },
       jump:(path:string)=>this.jumpHighlightNote(path),
       setStatus:(path:string,status:string)=>this.setLibraryStatus(path,status),
       setChoice:(path:string,value:string)=>this.setLibraryChoice(path,value)};
-    const modal=new CardLibraryModal(this.app,host);modal.open();
+    modal=new CardLibraryModal(this.app,host);modal.open();
     const indexed=await this.libraryBoardIndex(()=>current()&&modal.modalEl.isConnected);
     if(!current()||!modal.modalEl.isConnected)return;
-    scanned=indexed.boards;limited=indexed.limited;modal.refresh();
+    scanned=indexed.boards;pending=indexed.pending;limited=indexed.limited;modal.refresh();
     return modal;
   }
   private firstSession?:FirstSessionModal;
@@ -1560,7 +1575,7 @@ export default class ThoughtSpace extends Plugin {
   private async revealLibraryCard(boardPath:string,nodeId:string){
     const file=this.app.vault.getAbstractFileByPath(boardPath);if(!(file instanceof TFile)||!isBoardFile(this.app,file))throw Error('白板已移动或删除');
     await this.openBoard(file);
-    const view=this.app.workspace.getLeavesOfType(VIEW).map(leaf=>leaf.view).find(item=>item instanceof BoardView&&item.file===file) as BoardView|undefined;
+    const view=this.app.workspace.getLeavesOfType(VIEW).map(leaf=>leaf.view).find(item=>item instanceof BoardView&&item.file?.path===file.path) as BoardView|undefined;
     if(!view?.session)throw Error('白板尚未打开，请重试');
     if(!view.session.board.nodes.some(node=>node.id===nodeId))throw Error('这张卡片已从白板移除，笔记仍在库中');
     if(view.session.blocked)throw Error('白板已暂停写入，画面暂时不能移动到这张卡片');

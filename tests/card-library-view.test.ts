@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {paintCardLibrary,type LibraryElement,type LibraryElementOptions} from '../src/card-library-view';
+import {libraryModalHandlers,paintCardLibrary,type LibraryElement,type LibraryElementOptions} from '../src/card-library-view';
 import {buildLibraryRecords,emptyLibraryQuery,type LibraryViewQuery} from '../src/card-property-views';
 
 class El implements LibraryElement {
@@ -78,4 +78,20 @@ test('several boards open the chosen card without splitting the path on a newlin
  menu.value=values[1];menu.onchange?.(undefined);
  assert.equal(opened[1].boardPath,'Boards/B "二".md');
  assert.equal(opened[1].nodeId,'two');
+});
+
+test('an incomplete index can search the remaining boards and still reports a deleted board',async()=>{
+ const records=buildLibraryRecords([{path:'Cards/Shade.md',title:'林荫',tags:[],properties:{}}],[],{options:[]},true);
+ const root=new El(),searched:string[]=[];
+ paintCardLibrary(root,records,emptyLibraryQuery(),{setQuery(){},place(){},open(){},unlink(){},searchUnindexed:async path=>{searched.push(path);}});
+ const card=root.all().find(el=>el.attrs['data-note-path']==='Cards/Shade.md')!;
+ assert.match(card.all().map(el=>el.text).join('\n'),/引用位置未索引完/);
+ labeled(card,'查找其余白板')!.onclick?.(undefined);
+ assert.deepEqual(searched,['Cards/Shade.md']);
+ const notices:string[]=[];
+ const handlers=libraryModalHandlers({place(){},open(){},unlink(){},choiceOptions:['主张'],locate:async()=>{throw Error('白板已移动或删除');},searchUnindexed:async()=>{}},()=>{},error=>notices.push(error instanceof Error?error.message:String(error)),()=>{});
+ assert.deepEqual(handlers.choiceOptions,['主张']);
+ handlers.locate!({boardPath:'Boards/Gone.md',boardTitle:'已删',nodeId:'missing'});
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.deepEqual(notices,['白板已移动或删除']);
 });

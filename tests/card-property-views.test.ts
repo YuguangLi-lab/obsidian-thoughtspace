@@ -39,6 +39,13 @@ test('table, kanban and list filter by type, tag, status and whiteboard',()=>{
  assert.deepEqual(lanes.map(lane=>lane.id),['inbox','active','done']);
  assert.deepEqual(lanes.find(lane=>lane.id==='active')?.cards.map(card=>card.path),['Cards/Shade.md']);
  assert.match(libraryList(records).find(item=>item.path==='Cards/Heat.md')!.detail,/待整理/);
+ assert.match(libraryList(records).find(item=>item.path==='Cards/Heat.md')!.detail,/未放置在白板/);
+ const hidden=buildLibraryRecords([note('Cards/Heat.md')],[],{options:[]},true);
+ assert.match(libraryList(hidden)[0].detail,/引用位置未索引完/);
+ assert.equal(libraryList(hidden)[0].detail.includes('未放置'),false);
+ const late=buildLibraryRecords([note('Cards/Shade.md')],[{path:'Boards/Late.md',title:'远处',files:['Cards/Shade.md'],placements:[{id:'card',file:'Cards/Shade.md'}]}],{options:[]},true);
+ assert.match(libraryList(late).find(item=>item.path==='Cards/Shade.md')!.detail,/远处 · 其余白板未索引/);
+ assert.deepEqual(late.find(item=>item.path==='Cards/Shade.md')!.placements,[{boardPath:'Boards/Late.md',boardTitle:'远处',nodeId:'card'}]);
 });
 
 test('a live board replaces a stale index without dropping other boards',()=>{

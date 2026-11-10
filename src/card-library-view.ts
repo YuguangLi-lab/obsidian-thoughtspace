@@ -21,9 +21,16 @@ export interface LibraryViewHandlers {
  unlink(path:string):void;
  setStatus?(path:string,status:string):Promise<void>;
  locate?(placement:LibraryPlacement):void;
+ searchUnindexed?(path:string):Promise<void>;
  jump?(path:string):void;
  choiceOptions?:readonly string[];
  setChoice?(path:string,value:string):Promise<void>;
+}
+/** The modal must forward every library action. A rejected action stays visible to the caller. */
+export function libraryModalHandlers(host:Omit<LibraryViewHandlers,'setQuery'>,setQuery:(next:LibraryViewQuery)=>void,notice:(error:unknown)=>void,refresh:()=>void):LibraryViewHandlers{
+ const report=(run:()=>unknown)=>Promise.resolve(run()).then(()=>refresh()).catch(error=>{notice(error);refresh();});
+ const now=(run:()=>unknown)=>{try{run();refresh();}catch(error){notice(error);}};
+ return {setQuery,place:path=>now(()=>host.place(path)),open:path=>host.open(path),unlink:path=>now(()=>host.unlink(path)),setStatus:host.setStatus?(path,status)=>report(()=>host.setStatus!(path,status)):undefined,locate:host.locate?placement=>{void report(()=>host.locate!(placement));}:undefined,jump:host.jump?path=>{void report(()=>host.jump!(path));}:undefined,setChoice:host.setChoice?(path,value)=>report(()=>host.setChoice!(path,value)):undefined,choiceOptions:host.choiceOptions,searchUnindexed:host.searchUnindexed?path=>report(()=>host.searchUnindexed!(path)):undefined};
 }
 const layouts:readonly [LibraryLayout,string][]=[['list','列表'],['table','表格'],['kanban','看板']];
 const types:readonly [''|LibraryCardType,string][]=[['','全部类型'],['note','笔记'],['pdf','PDF'],['image','图片'],['audio','音频'],['video','视频']];
@@ -51,6 +58,7 @@ function actions(parent:LibraryElement,record:LibraryCardRecord,handlers:Library
   select(row,'分类 '+record.title,[['', '未分类'],...handlers.choiceOptions.map(option=>[option,option] as [string,string])],record.choice,value=>{void handlers.setChoice!(record.path,value);});
  }
  if(record.highlight&&handlers.jump)button(row,'回到来源',()=>handlers.jump!(record.path));
+ if(record.indexIncomplete&&handlers.searchUnindexed)button(row,'查找其余白板',()=>{void handlers.searchUnindexed!(record.path);});
  if(record.placements.length===1&&handlers.locate)button(row,'在白板中打开',()=>handlers.locate!(record.placements[0]));
  else if(record.placements.length>1&&handlers.locate){
   const labels=record.placements.map(place=>place.boardTitle),seen=new Map<string,number>();

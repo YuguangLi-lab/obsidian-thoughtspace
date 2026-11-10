@@ -38,6 +38,7 @@ test('library filters use the property and can open a real card placement',()=>{
  const indexed=libraryIndexFiles(reversed);
  assert.equal(indexed.limited,true);assert.equal(indexed.files.length,200);assert.equal(indexed.files[0].path,'Boards/000.md');assert.equal(indexed.files.at(-1)?.path,'Boards/199.md');
  assert.equal(indexed.files.some(file=>file.path==='Boards/200.md'),false);
+ assert.deepEqual(indexed.omitted.map(file=>file.path),['Boards/200.md']);
  const active=buildLibraryRecords([
   {path:'Cards/C.md',title:'同时',tags:[],properties:{thoughtspace_status:'active',thoughtspace_priority:'high',thoughtspace_due:'2026-01-02',[choiceKey]:'证据'}},
   {path:'Cards/D.md',title:'无效',tags:[],properties:{thoughtspace_status:'active',thoughtspace_priority:'low',thoughtspace_due:'2026-02-02',[choiceKey]:'不是选项'}},

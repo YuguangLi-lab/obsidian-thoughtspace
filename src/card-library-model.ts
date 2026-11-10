@@ -35,10 +35,15 @@ export function unlinkLibraryCards(board:Board,ids:ReadonlySet<string>):string[]
  return paths;
 }
 export const libraryIndexLimit=200;
-/** Stable order, then the first 200. A later board is omitted rather than an arbitrary vault order. */
-export function libraryIndexFiles<T extends {path:string}>(files:readonly T[],limit=libraryIndexLimit):{files:T[];limited:boolean}{
+/** Stable order, then the first 200. The rest stay listed so a later search can open them. */
+export function libraryIndexFiles<T extends {path:string}>(files:readonly T[],limit=libraryIndexLimit):{files:T[];omitted:T[];limited:boolean}{
  const sorted=[...files].sort((a,b)=>a.path.localeCompare(b.path)||0);
- return {files:sorted.slice(0,limit),limited:sorted.length>limit};
+ return {files:sorted.slice(0,limit),omitted:sorted.slice(limit),limited:sorted.length>limit};
+}
+/** What to tell the user after searching boards the first pass did not index. */
+export function librarySearchMessage(found:boolean,unread:number):string|undefined{
+ if(found)return;
+ return unread?`其余白板里没有找到这张卡片。还有 ${unread} 块白板未能读取。`:'其余白板里没有这张卡片';
 }
 export function libraryPlacements(nodes:readonly Pick<Card,'id'|'kind'|'file'>[]):{id:string;file:string}[]{
  const places:{id:string;file:string}[]=[];
