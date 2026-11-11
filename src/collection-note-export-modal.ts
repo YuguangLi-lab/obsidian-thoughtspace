@@ -59,7 +59,7 @@ export class CollectionNoteExportModal extends Modal {
  private invalidate(){this.epoch++;if(this.preview)this.host.discard(this.preview);this.preview=undefined;this.previewForm='';this.content?.empty();this.actions?.querySelector('[data-collection-export-action=confirm]')?.remove();this.message('');}
  private resetHeadings(){this.headings=[];this.headingPath='';this.heading?.empty();this.heading?.createEl('option',{value:'',text:'笔记末尾'});if(this.heading)this.heading.value='';}
  private formKey(){return JSON.stringify([this.mode?.value,this.path?.value.trim(),this.heading?.value]);}
- private message(text:string){this.status?.setText(text);}
+ private message(text:string,field?:'path'|'heading'){this.status?.setText(text);this.modalEl.querySelectorAll('.ts-field-error').forEach(node=>node.remove());const input=field==='path'?this.path:field==='heading'?this.heading:undefined;if(!field||!text||!input?.parentElement){this.path?.removeAttribute('aria-describedby');this.heading?.removeAttribute('aria-describedby');return;}const id=`ts-collection-export-error-${field}`;input.parentElement.createEl('p',{cls:'ts-field-error',text,attr:{id,role:'alert'}});input.setAttribute('aria-describedby',id);}
  private sync(){
   this.modalEl.querySelectorAll<HTMLInputElement|HTMLSelectElement|HTMLButtonElement>('input,select,button').forEach(control=>{
    const action=control.getAttribute('data-collection-export-action');
@@ -72,7 +72,7 @@ export class CollectionNoteExportModal extends Modal {
  private async choose(){
   if(this.busy||!this.current()||this.mode?.value!=='append')return;this.invalidate();const epoch=this.epoch,current=()=>this.current()&&epoch===this.epoch;this.busy=true;this.sync();let selected=false;
   try{const path=await this.host.pick(current);if(path&&current()){this.path!.value=path;this.resetHeadings();selected=true;}}
-  catch(error){if(current())this.message(String(error instanceof Error?error.message:error));}
+  catch(error){if(current())this.message(String(error instanceof Error?error.message:error),'path');}
   finally{this.busy=false;if(this.current())this.sync();}
   if(selected&&current()&&this.path?.value)await this.loadHeadings();
  }
@@ -82,13 +82,13 @@ export class CollectionNoteExportModal extends Modal {
    for(const item of items){const number=(occurrences.get(item.title)||0)+1;occurrences.set(item.title,number);const duplicate=items.some(other=>other!==item&&other.title===item.title);
     this.heading!.createEl('option',{value:`${item.offset}:${item.level}`,text:`${'　'.repeat(item.level-1)}${item.title}${duplicate?` · 同名标题 ${number}`:''}`});}
    this.message(items.length?'可选择标题下的末尾，或整个笔记末尾。':'没有标题，将追加到笔记末尾。');}
-  catch(error){if(current())this.message(error instanceof Error?error.message:String(error));}
+  catch(error){if(current())this.message(error instanceof Error?error.message:String(error),'path');}
   finally{this.busy=false;if(this.current())this.sync();}
  }
  private async prepare(){
   if(this.busy||this.uncertain||!this.current())return;this.invalidate();const epoch=this.epoch,form=this.formKey(),current=()=>this.current()&&epoch===this.epoch&&this.formKey()===form,path=this.path!.value.trim(),selected=this.heading?.value;
   const heading=this.mode?.value==='append'&&selected!==''?this.headings.find(item=>`${item.offset}:${item.level}`===selected):undefined;
-  if(this.mode?.value==='append'&&selected!==''&&(!heading||this.headingPath!==path)){this.message('目标或标题已变化，请重新读取标题。');return;}
+  if(this.mode?.value==='append'&&selected!==''&&(!heading||this.headingPath!==path)){this.message('目标或标题已变化，请重新读取标题。','heading');return;}
   const target:CollectionNoteTarget=this.mode?.value==='append'?{kind:'append',path,...(heading?{heading:{offset:heading.offset,level:heading.level}}:{})}:{kind:'new',path};
   this.busy=true;this.message('正在核对来源和目标…');this.sync();
   try{
@@ -97,7 +97,7 @@ export class CollectionNoteExportModal extends Modal {
    this.content!.createEl('p',{text:preview.heading?`位置：${preview.heading.title} 下的末尾`:'位置：笔记末尾'});
    this.content!.createEl('pre',{text:preview.markdown,attr:{tabindex:'0','aria-label':'将写入笔记的 Markdown'}});
    this.button(this.actions!,'确认写入','confirm',()=>{void this.commit(preview,epoch);}).addClass('mod-cta');this.message('确认后仅写入以上目标，来源记录保留。');
-  }catch(error){if(current())this.message(error instanceof Error?error.message:String(error));}
+  }catch(error){if(current())this.message(error instanceof Error?error.message:String(error),'path');}
   finally{this.busy=false;if(this.current())this.sync();}
  }
  private async commit(preview:CollectionNotePreview,epoch:number){
@@ -131,7 +131,7 @@ export class CollectionNoteExportModal extends Modal {
  }
  private async loadHistory(){
   if(!this.current())return;const container=this.historyEl!,epoch=++this.historyEpoch,current=()=>this.current()&&epoch===this.historyEpoch;
-  try{const history=await this.host.history();if(!current())return;container.empty();if(history.warning)container.createEl('p',{text:history.warning});if(!history.items.length)container.createEl('p',{text:'尚无沉淀记录。'});
+  try{const history=await this.host.history();if(!current())return;container.empty();if(history.warning)container.createEl('p',{text:history.warning});if(!history.items.length){const empty=container.createDiv('ts-export-empty');empty.createEl('p',{text:'尚无沉淀记录。先填写目标路径，再预览将写入的内容。'});this.button(empty,'填写目标路径','start',()=>this.path?.focus());}
    for(const item of history.items){const row=container.createDiv();if(item.receipt)this.renderReceipt(row,item.receipt);else if(item.journal){row.createEl('p',{text:`待核对 · ${item.journal.target.path}`});this.button(row,'核对保存状态','inspect',()=>{void this.inspect(item.journal!.operationId,row);});}else if(item.blocked)row.createEl('p',{text:item.blocked});}
    this.sync();
   }catch(error){if(current())container.setText(error instanceof Error?error.message:String(error));}

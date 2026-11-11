@@ -1,4 +1,5 @@
 .ts-handwriting-export-actions {display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end}
+.ts-handwriting-export-actions .mod-cta{order:1}
 .ts-handwriting-export-modal .ts-handwriting-export-button {min-width:44px;min-height:44px;height:auto;padding:10px 14px;border-radius:6px;white-space:normal;font-size:13px;line-height:1.35}
 .ts-handwriting-export-actions [data-ink-export-action=cancel] {margin-right:auto;background:transparent;box-shadow:none;color:var(--text-muted)}
 .ts-handwriting-export-modal .ts-handwriting-export-button:focus-visible {outline:2px solid var(--ts-accent,var(--interactive-accent));outline-offset:2px}

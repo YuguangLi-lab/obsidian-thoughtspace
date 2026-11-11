@@ -27,6 +27,7 @@ class El extends Events {
  empty(){for(const child of [...this.children])child.remove();this.text='';}
  setText(value:string){this.empty();this.text=value;}
  setAttribute(key:string,value:string){this.attrs[key]=value;if(key.startsWith('data-'))this.dataset[key.slice(5).replace(/-([a-z])/g,(_,letter:string)=>letter.toUpperCase())]=value;}
+ removeAttribute(key:string){delete this.attrs[key];if(key.startsWith('data-'))delete this.dataset[key.slice(5).replace(/-([a-z])/g,(_,letter:string)=>letter.toUpperCase())];}
  getAttribute(key:string){return this.attrs[key]??null;}
  addClass(...names:string[]){names.forEach(name=>this.classes.add(name));}
  all():El[]{return this.children.flatMap(child=>[child,...child.all()]);}
@@ -85,6 +86,29 @@ function fixture(){
   counts:()=>({closed,unwatched}),stop:()=>{active=false;invalidated();},inactive:()=>{active=false;}};
 }
 
+test('a rejected preview puts the error after the path field and keeps the primary action last',async()=>{
+ const f=fixture();f.modal.open();f.action('preview')!.click();f.prepares.at(-1)!.gate.reject(Error('目标路径不可用'));await tick();
+ const path=f.control('path'),label=path.parentElement!;
+ const error=label.children[label.children.indexOf(path)+1];
+ assert.equal(error?.classes.has('ts-field-error'),true);
+ assert.match(error.textContent,/目标路径不可用/);
+ assert.match(f.control('status').text,/目标路径不可用/);
+ f.control('path').value='Notes/Fresh.md';f.control('path').oninput?.();
+ assert.equal(label.querySelector('.ts-field-error'),undefined);
+ f.action('preview')!.click();f.prepares.at(-1)!.gate.resolve(preview(f.prepares.at(-1)!.target));await tick();
+ const actions=f.action('cancel')!.parentElement!;
+ assert.equal(actions.children.at(-1),f.action('confirm'));
+ assert.equal(f.action('confirm')!.classes.has('mod-cta'),true);
+ f.modal.close();
+});
+test('an empty export history explains the gap and offers the next step',async()=>{
+ const f=fixture();f.modal.open();const details=f.modal.contentEl.querySelector('details')!;details.open=true;details.emit('toggle');
+ f.histories[0].resolve({items:[]});await tick();
+ const empty=f.modal.modalEl.querySelector('.ts-export-empty');
+ assert.ok(empty);assert.match(empty.textContent,/尚无沉淀记录/);
+ assert.equal(empty.querySelector('[data-collection-export-action=start]')?.textContent.includes('填写目标路径'),true);
+ f.modal.close();
+});
 test('modal stays in owner window, shows literal Markdown and keeps footer outside scrollable content',async()=>{
  const f=fixture(),before=bindings;f.modal.open();assert.equal(f.modal.containerEl.ownerDocument,f.origin);assert.equal(f.modal.modalEl.dataset.accent,'amber');assert.equal(bindings,before+1);
  assert.equal(f.control('mode').value,'new');assert.equal(f.action('pick')!.hidden,true);assert.equal(f.action('cancel')!.parentElement!.parentElement,f.modal.modalEl);

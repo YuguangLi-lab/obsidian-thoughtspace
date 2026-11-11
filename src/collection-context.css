@@ -114,6 +114,10 @@
 .ts-collection-export-preview p{font-size:12px;line-height:1.8;color:var(--ts-c-muted);overflow-wrap:anywhere}
 .ts-collection-export-preview pre{max-width:100%;min-width:0;max-height:min(300px,35dvh);margin:12px 0 16px;padding:16px 18px;overflow:auto;overscroll-behavior:contain;white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid var(--ts-c-line);border-radius:var(--ts-c-control-radius);background:var(--ts-c-sheet);color:var(--ts-c-ink);font-family:var(--font-monospace);font-size:12px;line-height:1.8;tab-size:2}
 .ts-collection-export-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;flex:none;padding:14px 30px;border-top:1px solid var(--ts-c-line);background:var(--ts-c-sheet)}
+.ts-collection-export-actions>.mod-cta{order:1}
+.ts-collection-export-fields .ts-field-error{margin:0;color:var(--ts-e-danger,var(--text-error));font-size:var(--ts-e-meta-size,12px);line-height:var(--ts-e-meta-leading,1.4)}
+.ts-export-empty{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.ts-export-empty p{margin:0}
 .ts-collection-export-actions>[data-collection-export-action=cancel]{margin-left:auto;color:var(--ts-c-muted)}
 .modal.ts-ui-modal.ts-collection-note-export button.mod-cta{padding-left:18px;padding-right:18px;background:var(--ts-c-accent);color:var(--ts-c-on-accent);font-weight:500}
 .modal.ts-ui-modal.ts-collection-note-export button.mod-cta:is(:hover,:focus-visible):not(:disabled):not([aria-disabled=true]){background:var(--ts-c-accent-hover);color:var(--ts-c-on-accent)}
