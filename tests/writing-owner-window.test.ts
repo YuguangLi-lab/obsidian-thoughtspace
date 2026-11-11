@@ -14,7 +14,7 @@ function fixture(){
  const bind=(name:string)=>(el:any)=>{const id=el.ownerDocument.id;calls.push('bind '+name+' '+id);let stopped=false;late.push(()=>{if(!stopped)calls.push('callback '+name+' '+id);});return()=>{assert.equal(stopped,false,'each binder released once');stopped=true;calls.push('stop '+name+' '+id);};};
  const code='class View extends ItemView{'+source.slice(constructorStart,constructorEnd)+method('refreshOwnerBindings')+method('bindWritingChrome')+method('currentWritingSnapshot')+close+'};return View';
  const View=new Function('ItemView','bindMobileViewport','bindBoardHostInset','bindWritingModeFocus',transformSync(code,{loader:'ts'}).code)(ItemView,bind('viewport'),bind('inset'),bind('mode'));
- const view=new View(leaf,{});Object.assign(view,{closed:false,mode:'write',generation:0,revision:0,articleRun:0,status:{},manuscriptNative:native,manuscriptInput:input,entryInputs:[],pendingFields:new Map(),flushFields(){},disposeEditors(){calls.push('dispose on close');}});
+ const view=new View(leaf,{});Object.assign(view,{referenceScroll:{clear(){}},closed:false,mode:'write',generation:0,revision:0,articleRun:0,status:{},manuscriptNative:native,manuscriptInput:input,entryInputs:[],pendingFields:new Map(),flushFields(){},disposeEditors(){calls.push('dispose on close');}});
  const trigger={};view.bindWritingChrome(trigger);
  const move=(doc=docs[1])=>{root.ownerDocument=doc;for(const fn of callbacks)fn();};
  return{view,root,docs,calls,callbacks,late,native,input,leaf,trigger,move};

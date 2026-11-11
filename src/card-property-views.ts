@@ -66,7 +66,10 @@ export function mergeBoardSources(scanned:readonly LibraryBoardSource[],live:rea
  for(const board of live)byPath.set(board.path,{...board,files:[...board.files]});
  return [...byPath.values()];
 }
-export function filterLibraryCards(records:readonly LibraryCardRecord[],query:LibraryViewQuery):LibraryCardRecord[]{
+function librarySearchText(record:LibraryCardRecord):string{
+ return [record.title,record.path,record.status,statuses[record.status]||'',record.priority,record.due,record.choice,...record.tags,...record.boards.map(board=>`${board.title} ${board.path}`),...Object.entries(record.custom).flat()].join(' ').toLocaleLowerCase();
+}
+function filterWithSearchText(records:readonly LibraryCardRecord[],query:LibraryViewQuery,searchText:(record:LibraryCardRecord)=>string):LibraryCardRecord[]{
  const tag=libraryTagKey(query.tag),words=query.query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
  return records.filter(record=>{
   if(query.type&&record.type!==query.type)return false;
@@ -76,9 +79,32 @@ export function filterLibraryCards(records:readonly LibraryCardRecord[],query:Li
   if(query.board&&!record.boards.some(board=>board.path===query.board))return false;
   if(tag&&!record.tags.some(item=>libraryTagKey(item)===tag||libraryTagKey(item).startsWith(tag+'/')))return false;
   if(!words.length)return true;
-  const haystack=[record.title,record.path,record.status,statuses[record.status]||'',record.priority,record.due,record.choice,...record.tags,...record.boards.map(board=>`${board.title} ${board.path}`),...Object.entries(record.custom).flat()].join(' ').toLocaleLowerCase();
+  const haystack=searchText(record);
   return words.every(word=>haystack.includes(word));
  });
+}
+export function filterLibraryCards(records:readonly LibraryCardRecord[],query:LibraryViewQuery):LibraryCardRecord[]{
+ return filterWithSearchText(records,query,librarySearchText);
+}
+/** A mounted library owns this filter for one immutable records snapshot. */
+export function createLibraryCardFilter(records:readonly LibraryCardRecord[]){
+ const haystacks=new WeakMap<LibraryCardRecord,string>();
+ // Custom properties may be large. Bound retained search text, not search results.
+ let remainingCharacters=2_000_000;
+ const searchText=(record:LibraryCardRecord)=>{
+  const cached=haystacks.get(record);
+  if(cached!==undefined)return cached;
+  const text=librarySearchText(record);
+  if(text.length<=remainingCharacters){haystacks.set(record,text);remainingCharacters-=text.length;}
+  return text;
+ };
+ let lastKey:string|undefined,lastMatches:readonly LibraryCardRecord[]=[];
+ return (query:LibraryViewQuery)=>{
+  // Layout and selection do not affect which cards match.
+  const key=JSON.stringify([query.type,query.tag,query.board,query.status,query.choice,query.query]);
+  if(key!==lastKey){lastMatches=filterWithSearchText(records,query,searchText);lastKey=key;}
+  return lastMatches;
+ };
 }
 export function libraryStatusLabel(status:string){return statuses[status]||status||'未设置';}
 export interface LibraryKanbanColumn {id:string;label:string;cards:LibraryCardRecord[]}

@@ -28,16 +28,37 @@ function chain(rootAtOrigin=false){
 }
 
 for(const zeroArea of [false,true])test(`${zeroArea?'zero-area':'empty-space'} marquee frames never resolve unrelated folded branches`,t=>{
-  const f=chain();for(let i=0;i<120;i++)f.select({x:-50,y:-50,width:zeroArea?0:100+i/100,height:100});
+  const f=chain();f.view.session.contentEpoch=0;
+  for(let i=0;i<120;i++)f.select({x:-50,y:-50,width:zeroArea?0:100+i/100,height:100});
   t.diagnostic(`${zeroArea?'zero-area':'empty'}: ${JSON.stringify(f.counts)}`);
   assert.deepEqual(f.counts,{kind:0,from:0,to:0});assert.equal(f.stats.updates,0);assert.equal(f.view.selected.size,0);
 });
 
-test('a visible hit resolves current folds once without filtering an unused edge projection',t=>{
- const f=chain(true);for(let i=0;i<120;i++)f.select({x:-50,y:-50,width:100+i/100,height:100});
+test('120 visible marquee frames resolve the unchanged folded branch only once',t=>{
+ const f=chain(true);f.view.session.contentEpoch=0;
+ for(let i=0;i<120;i++)f.select({x:-50,y:-50,width:100+i/100,height:100});
  t.diagnostic(JSON.stringify(f.counts));
- assert.equal(f.counts.kind,1199*120);assert.equal(f.counts.from,1199*120*3);assert.equal(f.counts.to,1199*120*2);
+ assert.deepEqual(f.counts,{kind:1199,from:1199*3,to:1199*2});
  assert.deepEqual([...f.view.selected],['0']);assert.equal(f.stats.updates,1);
+ // A new drag receives a fresh visibility snapshot even at the same revision.
+ f.view.marquee={...f.view.marquee,folds:undefined};
+ f.select({x:-50,y:-50,width:100,height:100});
+ assert.equal(f.counts.kind,1199*2);
+});
+
+test('marquee visibility refreshes after a live fold edit, history replacement and session switch',()=>{
+ const f=fixture([node('outer',0,0,{kind:'section',width:600,height:400,sectionFolded:true}),node('child',95,90),node('fold-root',800,0,{branchFolded:true}),node('leaf',950,0)],
+  [{id:'branch',kind:'branch',from:'fold-root',to:'leaf',label:''}]);
+ const rect={x:-1,y:-1,width:1300,height:450};
+ const owner=f.view.session;owner.contentEpoch=5;
+ assert.deepEqual(f.select(rect),['outer','fold-root']);
+ f.board.nodes[0].sectionFolded=false;owner.contentEpoch++;
+ assert.deepEqual(f.select(rect),['outer','child','fold-root']);
+ // A failed transaction may replace the board at the same revision.
+ const replacement=structuredClone(f.board);replacement.nodes[0].sectionFolded=true;owner.board=replacement;
+ assert.deepEqual(f.select(rect),['outer','fold-root']);
+ f.view.session={board:replacement,contentEpoch:6};replacement.nodes[0].sectionFolded=false;
+ assert.deepEqual(f.select(rect),['outer','child','fold-root']);
 });
 
 test('folded frame display bounds, nested group branches and collapsed cards retain selection behavior',()=>{
@@ -85,7 +106,7 @@ test('10000 deterministic mixed-board rectangles match the previous projection-b
    if(i&&random()<.65)edges.push({id:'b'+i,from:String(integer(i)),to:String(i),kind:'branch',label:''});
    if(i&&random()<.3)edges.push({id:'r'+i,from:String(integer(i)),to:String(i),label:''});
   }
-  const f=fixture(nodes,edges),before=JSON.stringify(f.board);
+  const f=fixture(nodes,edges),before=JSON.stringify(f.board);f.view.session.contentEpoch=0;
   for(let index=0;index<20;index++){
    const rect={x:integer(1600)-500,y:integer(1600)-500,width:index===0?0:integer(1000),height:index===1?0:integer(1000)};
    assert.deepEqual(f.select(rect),[...boardTools.marqueeSelection(mindmap.visibleBranchBoard(f.board).nodes,rect)],`board ${sample}, rectangle ${index}`);

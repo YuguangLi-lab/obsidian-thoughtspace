@@ -101,6 +101,7 @@
 .ts-writing .ts-writing-reference-actions .is-icon{width:26px;min-width:26px;height:28px;padding:5px;}
 .ts-writing .ts-writing-reference-actions [aria-pressed="true"]{color:var(--writing-accent);background:color-mix(in srgb,var(--writing-accent) 8%,transparent);}
 .ts-writing-reference-body{overflow:auto;flex:1;min-height:0;padding:18px 20px 36px;scrollbar-width:thin;}
+.ts-writing .ts-writing-reference-body:focus-visible{outline:2px solid var(--ts-e-focus);outline-offset:-2px;}
 .ts-writing-reference-body .markdown-rendered>:first-child{margin-top:0;}
 .ts-writing-reference-body table{display:block;max-width:100%;overflow-x:auto;}
 .ts-writing-reference-body pre{max-width:100%;overflow-x:auto;}

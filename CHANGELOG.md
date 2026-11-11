@@ -1,5 +1,29 @@
 # 更新记录
 
+## 1.3.53
+
+### 卡片库、白板与写作交互优化
+
+- ThoughtSpace 左侧「卡片」页新增「打开卡片库」，Obsidian 左侧的 ThoughtSpace 图标菜单也将「卡片库」放在首项。
+- 卡片库看板按状态分区纵向排列。拉宽窗口时，每个状态下会自动增加卡片列；缩窄时会减少列数。可拖动窗口右下角调整宽高。
+- 卡片库勾选只更新状态变化的行，保留菜单、焦点和滚动位置。连续搜索时复用已准备的搜索文本，同一查询切换视图时复用筛选结果。
+- 修复修改状态或分类后看板暂时显示旧值的问题：写入成功后立即显示已保存的结果，不必关闭重开；原有文件冲突保护保留。
+- 卡片库索引最多并发读取 4 块白板，保持结果顺序并允许重试失败的读取。关闭或重新打开卡片库会停止旧扫描继续读取；查找其余白板时批量合并结果。
+- 白板框选在同一次拖动中复用折叠分支的可见性，选区位置实时更新。卡片上的连线端口只在交互状态变化时刷新键盘可达性。
+- 大白板缩略图合并绘制同样式的连线，减少首次打开时的 SVG 元素；移动或撤销后同步更新。
+- 写作参考记住各份材料的阅读位置，固定或取消固定时保留已显示的正文，材料搜索等待输入法组字完成。写作大纲、材料库和分组摘要共用当次刷新所需的数据，减少重复复制。
+
+### English
+
+- Open Card Library at the top of ThoughtSpace's Cards tab or from the first item in the ThoughtSpace ribbon menu.
+- Kanban stacks status sections vertically. Each section fits more card columns as the dialog widens and fewer as it narrows. Drag the bottom-right corner to resize the dialog.
+- Selecting cards updates only the changed rows and preserves the menu, focus, and scroll position. Consecutive searches reuse prepared search text, and switching views can reuse results for the same query.
+- Status and category changes now show the saved value while Obsidian's metadata index catches up, without reopening the library. Existing file-conflict protection remains in place.
+- Card Library reads up to four boards at a time while preserving result order and allowing failed reads to be retried. Closing or reopening the library stops the previous scan from starting further reads. Searching the remaining boards merges their results in batches.
+- Marquee selection reuses folded-branch visibility during a drag while updating the selection box live. Keyboard access to card connection ports is updated when the interaction state changes.
+- Large board thumbnails draw connections of the same style together, reducing the number of SVG elements needed on open. Thumbnails update after moves and undo.
+- Writing references remember the reading position for each source. Pinning and unpinning keep the displayed text in place, and material search waits for IME composition to finish. The outline, material list, and group summaries share data within each refresh to reduce copying.
+
 ## 1.3.52
 
 ### 白板和卡片库界面打磨

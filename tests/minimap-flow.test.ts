@@ -132,3 +132,32 @@ test('miniature short titles never split the full Markdown body and retain displ
   assert.equal(host.descendants('ts-map-title')[0].textContent,title.length>9?title.slice(0,8)+'…':title);
  }
 });
+
+test('a cold 1200-node miniature renders every connection with one SVG edge element',t=>{
+ const nodes=Array.from({length:1200},(_,i)=>card(String(i),{x:i%40*340,y:Math.floor(i/40)*220}));
+ const edges=nodes.slice(1).map((n,i)=>({id:'e'+i,from:String(i),to:n.id,label:''}));
+ const start=performance.now(),f=fixture(nodes,edges),edgeElements=f.host.descendants('ts-map-edge');
+ t.diagnostic(`1200 cards, 1199 connections: ${edgeElements.length} edge SVG elements, ${(performance.now()-start).toFixed(2)} ms in the test host`);
+ assert.equal(f.host.descendants('ts-map-node').length,1200);
+ assert.equal(edgeElements.length,1);
+ const [path]=edgeElements;assert.equal(path.tag,'path');assert.equal(path.getAttribute('fill'),'none');
+ const d=()=>path.getAttribute('d')||'';
+ const checkSegments=()=>{
+  const numbers=d().split(/[ ML]+/).filter(Boolean).map(Number),rects=f.host.descendants('ts-map-node').map(values);
+  assert.equal(numbers.length,edges.length*4);
+  for(let i=0;i<edges.length;i++){
+   const a=rects[i],b=rects[i+1];
+   [a.x+a.width/2,a.y+a.height/2,b.x+b.width/2,b.y+b.height/2].forEach((value,j)=>near(numbers[i*4+j],value));
+  }
+ };
+ checkSegments();
+ const original=d(),before=structuredClone(f.board),svg=f.svg();
+ f.board.nodes[100].x+=40;f.render();assert.equal(f.svg(),svg);assert.equal(f.host.descendants('ts-map-edge')[0],path);assert.notEqual(d(),original);
+ checkSegments();assert.deepEqual(f.writes.filter(write=>write.element===path).map(write=>write.name),['d']);
+ // Undo can replace the objects without changing IDs; all path geometry returns.
+ f.board.nodes=before.nodes;f.board.edges=before.edges;f.render();assert.equal(f.svg(),svg);assert.equal(d(),original);
+ f.writes.length=0;f.board.nodes[100].title='New title';f.render();f.camera();
+ assert.equal(f.writes.length,0,'unrelated edits and equal camera frames leave the path alone');
+ f.board.edges=f.board.edges.slice(0,1);f.render();
+ assert.notEqual(f.svg(),svg);assert.equal(f.host.descendants('ts-map-edge')[0].tag,'line');
+});

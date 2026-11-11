@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import {emptyBoard,clone} from '../src/model';
 import {writingItems,writingOrder,writingParts,writingName} from '../src/writing';
+import {writingListData} from '../src/writing-list';
 
 const source=readFileSync('src/writing-view.ts','utf8');
 function method(start:string,end='\n private '){const a=source.indexOf(start);assert.ok(a>=0,start);const b=source.indexOf(end,a+start.length);return source.slice(a,b<0?source.lastIndexOf('\n}'):b);}
@@ -27,7 +28,7 @@ class Element extends EventTarget {
 class Input extends EventTarget {value='baseline';selectionStart=2;selectionEnd=5;}
 function deferred(){let resolve!:()=>void;const promise=new Promise<void>(r=>resolve=r);return{promise,resolve};}
 
-const MaterialsView=viewClass(method(' private matching(')+method(' private renderMaterials('),{writingItems,writingOrder,writingParts,writingName,setIcon(){},icons:{text:'type'},kinds:{text:'文本'}});
+const MaterialsView=viewClass(method(' private matching(')+method(' private renderMaterials('),{writingListData,writingItems,writingOrder,writingParts,writingName,setIcon(){},icons:{text:'type'},kinds:{text:'文本'}});
 function materialsFixture(){
  const board=emptyBoard();board.nodes=Array.from({length:205},(_,i)=>({id:'m'+i,kind:'text',text:i===0?'needle':'material '+i,x:0,y:0,width:10,height:10,color:'sand'}));board.writing={title:'Draft',order:[],chapters:[{id:'chapter',title:'Chapter',body:'baseline'}]};
  const input=new Input(),root={ownerDocument:{activeElement:input}},pending=new Map([['chapterbody',()=>{throw Error('must not commit');}]]),actions=new Map<string,()=>void>();
@@ -36,8 +37,11 @@ function materialsFixture(){
 }
 test('actual search/filter/pagination handlers retain chapter identity, focus, selection, IME and pending edits',()=>{
  const f=materialsFixture(),input=f.input;input.value='章节组字尚未提交';
- const callback=source.slice(source.indexOf('  search.oninput='),source.indexOf('\n  const filters=',source.indexOf('  search.oninput=')));
- const search:any={value:'needle'};new Function('search',transformSync(callback,{loader:'ts'}).code).call(f.view,search);search.oninput();
+ const callback=source.slice(source.indexOf('  let composingSearch='),source.indexOf('\n  const filters=',source.indexOf('  let composingSearch=')));
+ const search=Object.assign(new EventTarget(),{value:'needle',oninput:(event?:Event)=>{void event;}});
+ new Function('search',transformSync(callback,{loader:'ts'}).code).call(f.view,search);
+ search.dispatchEvent(new Event('compositionstart'));search.oninput();assert.equal(f.list.children.length,0,'partial input must not repaint');
+ search.dispatchEvent(new Event('compositionend'));const row=f.list.children[0];search.oninput();assert.equal(f.list.children[0],row,'duplicate input following composition must not repaint');
  assert.equal(f.list.children.length,1);assert.equal(f.view.entryInputs[0],input);assert.equal(f.root.ownerDocument.activeElement,input);assert.equal(input.value,'章节组字尚未提交');assert.deepEqual([input.selectionStart,input.selectionEnd],[2,5]);assert.equal(f.view.composing,true);assert.equal(f.pending.size,1);
  const filterStart=source.indexOf('  const applyFilter='),filterEnd=source.indexOf('\n  for(const [key,label]',filterStart),type={value:''};
  const applyFilter=new Function('filterButtons','type',transformSync(source.slice(filterStart,filterEnd)+';return applyFilter',{loader:'ts'}).code).call(f.view,[],type);f.view.query='';applyFilter('all');assert.equal(f.list.children.length,101);f.actions.get('加载更多 · 106')!();assert.equal(f.view.limit,200);assert.equal(f.list.children.length,201);assert.equal(f.view.entryInputs[0],input);assert.equal(f.pending.size,1);

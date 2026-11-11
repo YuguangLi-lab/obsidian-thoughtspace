@@ -10,7 +10,7 @@ import {syncCardPortTabStops} from '../src/card-control-context';
 const source=readFileSync(process.env.BOARD_PORT_TOUCH_SOURCE||'src/main.ts','utf8');
 function take(from:string,to:string){const a=source.indexOf(from),b=source.indexOf(to,a);assert.ok(a>=0&&b>a,from);return source.slice(a,b);}
 const View=new Function('boardTouchTarget','act',transformSync('return class View{'+take('  private addPorts(','  private cancelConnection(')+take('  private pointerDown(','  private pointerMove(')+'}',{loader:'ts'}).code)(boardTouchTarget,(fn:()=>unknown)=>fn());
-const bindSync=new Function('root','syncCardPortTabStops',transformSync(take('    const syncPorts=()=>{','    this.syncPortTabStops=syncPorts;')+'return syncPorts;',{loader:'ts'}).code);
+const bindSync=new Function('root','syncCardPortTabStops',transformSync(take('    const syncPorts=','    this.syncPortTabStops=syncPorts;')+'return syncPorts;',{loader:'ts'}).code);
 function fixture(){
  const counts={connection:0,bodyConnection:0,capture:0,focus:0,prevented:0,stopped:0,resumed:0,updated:0,pointReads:0};
  const view=new View(),board={version:3,nodes:Array.from({length:80},(_,i)=>({id:'n'+i,kind:'text',text:'saved',x:i*190,y:180,width:160,height:100,color:'sand'})),edges:[],viewport:{x:0,y:0,zoom:.5}},doc:any={activeElement:null};

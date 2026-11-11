@@ -196,7 +196,7 @@ test('table selection stays with the pinned title and remains directly toggleabl
  const title=row.children.find(el=>el.cls.split(' ').includes('ts-library-title-cell'))!;
  const selection=labeled(title,'选择卡片：林荫')!;
  assert.equal(selection.attrs['aria-pressed'],'true');
- assert.equal(selection.text,'✓');
+ assert.equal(selection.textContent,'✓');
  selection.onclick?.(undefined);
  assert.deepEqual(query.selected,[]);
  assert.equal(labeled(root,'选择卡片：林荫')?.attrs['aria-pressed'],'false');
@@ -235,6 +235,50 @@ test('live search waits for Chinese IME composition and keeps the original field
  assert.equal(root.all().some(el=>el.attrs['data-note-path']==='Cards/Heat.md'),false);
 });
 
+test('searches and layout switches reuse one large library snapshot',()=>{
+ let normalized=0,recordsRead=0;
+ const sources=buildLibraryRecords(Array.from({length:1000},(_,i)=>({
+  path:`Cards/Observation-${i}.md`,title:`记录 ${i}`,tags:['#观察'],
+  properties:{观察批次:i===12?'资料甲':i===57?'资料乙':'其他'},
+ })),[]).map(record=>({...record,get priority(){normalized++;return record.priority;}}));
+ const snapshot=new Proxy(sources,{get(target,key,receiver){
+  if(typeof key==='string'&&/^\d+$/.test(key))recordsRead++;
+  return Reflect.get(target,key,receiver);
+ }});
+ const root=new El(),view=mountCardLibrary(root,{setQuery(next){view.update(snapshot,next);},place(){},open(){},unlink(){}});
+ view.update(snapshot,{...emptyLibraryQuery(),query:'资料甲'});
+ assert.equal(normalized,1000);
+ assert.ok(labeled(root,'打开源卡片：记录 12'));
+ const search=labeled(root,'搜索卡片库')!;
+ search.value='资料乙';search.emit('input');
+ assert.ok(labeled(root,'打开源卡片：记录 57'));
+ assert.equal(labeled(root,'打开源卡片：记录 12'),undefined);
+ assert.equal(normalized,1000,'each card assembles searchable fields once per snapshot');
+ recordsRead=0;
+ labeled(root,'表格')!.onclick?.(undefined);
+ assert.equal(recordsRead,0,'a layout change does not traverse the original snapshot');
+ assert.equal(normalized,1000);
+ assert.ok(labeled(root,'打开源卡片：记录 57'));
+});
+
+test('an index refresh during IME composition matches the new snapshot after commit',()=>{
+ const makeCards=(value:string,board:string)=>buildLibraryRecords([{path:'Cards/Observation.md',title:'记录',tags:['#观察'],properties:{观察批次:value}}],[{path:'Board.thoughtspace',title:board,files:['Cards/Observation.md']}]);
+ const root=new El(),submitted:string[]=[];
+ let snapshot=makeCards('旧备注','旧白板'),query={...emptyLibraryQuery(),query:'旧备注'};
+ const view=mountCardLibrary(root,{setQuery(next){query=next;submitted.push(query.query);view.update(snapshot,query);},place(){},open(){},unlink(){}});
+ view.update(snapshot,query);
+ assert.ok(labeled(root,'打开源卡片：记录'));
+ const search=labeled(root,'搜索卡片库')!;
+ search.emit('compositionstart');search.value='xin';search.emit('input',{isComposing:true});
+ snapshot=makeCards('新备注','新白板');view.update(snapshot,query);
+ assert.equal(labeled(root,'打开源卡片：记录'),undefined);
+ assert.equal(search.value,'xin');assert.deepEqual(submitted,[]);
+ search.value='新白板 新备注';search.emit('compositionend');search.emit('input');
+ assert.deepEqual(submitted,['新白板 新备注']);
+ assert.equal(labeled(root,'搜索卡片库'),search);
+ assert.ok(labeled(root,'打开源卡片：记录'));
+});
+
 test('row focus and scroll survive updates, with separate scroll positions for each view',()=>{
  const document:MockDocument={},cards=records(),root=new El(document);
  let current=emptyLibraryQuery();
@@ -245,8 +289,8 @@ test('row focus and scroll survive updates, with separate scroll positions for e
  const button=labeled(root,'选择卡片：林荫')!;
  button.focus();
  button.onclick?.(undefined);
- assert.notEqual(document.activeElement,button);
- assert.equal(document.activeElement,labeled(root,'选择卡片：林荫'));
+ assert.equal(document.activeElement,button);
+ assert.equal(labeled(root,'选择卡片：林荫'),button);
  assert.equal(results.scrollTop,120);
  const table=labeled(root,'表格')!;
  table.focus();
@@ -259,6 +303,60 @@ test('row focus and scroll survive updates, with separate scroll positions for e
  assert.equal(results.scrollLeft,0);
  table.onclick?.(undefined);
  assert.equal(results.scrollLeft,160);
+});
+
+test('selecting a card in a large filtered library does not rescan records or recreate result controls',()=>{
+ const cards=buildLibraryRecords(Array.from({length:1000},(_,i)=>({
+  path:`Cards/Observation-${i}.md`,title:`记录 ${i}`,tags:['#观察'],properties:{},
+ })),[]);
+ const document:MockDocument={};
+ let current:LibraryViewQuery={...emptyLibraryQuery(),tag:'观察',query:'记录'};
+ let scanned=0;
+ const tracked=new Proxy(cards,{
+  get(target,key,receiver){
+   if(typeof key==='string'&&/^\d+$/.test(key))scanned++;
+   return Reflect.get(target,key,receiver);
+  },
+ });
+ const mountRoot=new El(document);
+ const view=mountCardLibrary(mountRoot,{setQuery(next){current=next;view.update(tracked,next);},place(){},open(){},unlink(){}});
+ view.update(tracked,current);
+ const rows=mountRoot.all().filter(el=>el.attrs['data-note-path']);
+ assert.equal(rows.length,1000);
+ const pick=labeled(mountRoot,'选择卡片：记录 500')!,other=labeled(mountRoot,'选择卡片：记录 999')!;
+ const filterChip=labeled(mountRoot,'清除标签：#观察');
+ const panel=more(mountRoot,'记录 999'),trigger=labeled(mountRoot,'更多操作：记录 999')!;
+ const menuFocus=labeled(panel,'从白板移除引用')!;
+ menuFocus.focus();
+ scanned=0;
+ pick.onclick?.(undefined);
+ assert.equal(scanned,0);
+ assert.deepEqual(current.selected,['Cards/Observation-500.md']);
+ assert.equal(pick.attrs['aria-pressed'],'true');
+ assert.equal(pick.textContent,'✓');
+ assert.equal(other.attrs['aria-pressed'],'false');
+ assert.deepEqual(mountRoot.all().filter(el=>el.attrs['data-note-path']).map((row,index)=>row===rows[index]),Array(1000).fill(true));
+ assert.equal(labeled(mountRoot,'清除标签：#观察'),filterChip);
+ assert.equal(trigger.attrs['aria-expanded'],'true');
+ assert.equal(document.activeElement,menuFocus);
+ assert.equal(mountRoot.all().find(el=>el.cls==='ts-db-count')?.textContent,'1000 张卡片 · 已选 1');
+ pick.onclick?.(undefined);
+ assert.equal(scanned,0);
+ assert.equal(pick.attrs['aria-pressed'],'false');
+ assert.equal(pick.textContent,'');
+ assert.equal(mountRoot.all().find(el=>el.cls==='ts-db-count')?.textContent,'1000 张卡片');
+});
+
+test('replacing indexed records updates visible rows and retains selected state',()=>{
+ const initial=records(),root=new El(),query={...emptyLibraryQuery(),selected:['Cards/Shade.md']};
+ const view=mountCardLibrary(root,{setQuery(){},place(){},open(){},unlink(){}});
+ view.update(initial,query,{indexing:true});
+ const oldRow=labeled(root,'选择卡片：林荫');
+ const renamed=initial.map(record=>record.path==='Cards/Shade.md'?{...record,title:'林荫调查'}:record);
+ view.update(renamed,query);
+ assert.equal(oldRow?.isConnected,false);
+ assert.equal(labeled(root,'选择卡片：林荫调查')?.attrs['aria-pressed'],'true');
+ assert.equal(root.all().find(el=>el.cls==='ts-library-index-status')?.attrs.hidden,'');
 });
 
 test('active filters can be removed individually, or reset without losing view or selection',()=>{

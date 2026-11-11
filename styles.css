@@ -2405,6 +2405,7 @@ body {
 .ts-writing .ts-writing-reference-actions .is-icon{width:26px;min-width:26px;height:28px;padding:5px;}
 .ts-writing .ts-writing-reference-actions [aria-pressed="true"]{color:var(--writing-accent);background:color-mix(in srgb,var(--writing-accent) 8%,transparent);}
 .ts-writing-reference-body:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){overflow:auto;flex:1;min-height:0;padding:18px 20px 36px;scrollbar-width:thin;}
+.ts-writing .ts-writing-reference-body:focus-visible{outline:2px solid var(--ts-e-focus);outline-offset:-2px;}
 .ts-writing-reference-body .markdown-rendered>:first-child:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){margin-top:0;}
 .ts-writing-reference-body table:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){display:block;max-width:100%;overflow-x:auto;}
 .ts-writing-reference-body pre:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){max-width:100%;overflow-x:auto;}
@@ -12026,10 +12027,37 @@ body {
 
 /* BEGIN card-library-polish generated */
 /* The card library is separate from Bases and the older workspace database dialog. */
+.ts-root .ts-library-entry:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.ts-root .ts-library-entry .ts-library-browse:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 5px 10px;
+  font-weight: 600;
+}
+.ts-root .ts-library-entry-hint:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
 .ts-database-modal.ts-ui-modal.ts-card-library-modal:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
   width: min(1060px, calc(100vw - 24px));
   height: min(780px, calc(100dvh - 24px));
+  min-width: min(340px, calc(100vw - 24px));
+  min-height: min(360px, calc(100dvh - 24px));
   max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  resize: both;
+  overflow: hidden;
 }
 .ts-database-modal.ts-ui-modal .ts-card-library:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
   --ts-library-control: 34px;
@@ -12237,9 +12265,51 @@ body {
 }
 .ts-database-modal.ts-ui-modal .ts-card-library .ts-db-table .ts-library-title:not(:focus-visible):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ts-card-library .ts-library-table-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { width: 1%; }
-.ts-database-modal.ts-ui-modal .ts-card-library .ts-db-kanban:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { overflow: visible; min-width: max-content; height: auto; background: var(--ts-e-wash); padding: 9px; }
-.ts-database-modal.ts-ui-modal .ts-card-library .ts-db-lane:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { flex: 1 0 230px; min-width: 230px; width: min(250px, 70cqi); min-height: 120px; }
-.ts-database-modal.ts-ui-modal .ts-card-library .ts-db-lane > .ts-library-card:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { display: grid; gap: 7px; margin: 0 0 8px; padding: 9px; }
+/* Status groups stay in reading order; available width controls cards per row.
+   CSS owns resizing, so changing width never replaces focused/selected cards. */
+.ts-database-modal.ts-ui-modal .ts-card-library .ts-db-kanban:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  overflow: visible;
+  min-width: 0;
+  height: auto;
+  background: var(--ts-e-wash);
+  padding: 10px;
+}
+.ts-database-modal.ts-ui-modal .ts-card-library .ts-db-lane:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+  align-content: start;
+  align-items: stretch;
+  gap: 10px;
+  min-width: 0;
+  width: auto;
+  min-height: 60px;
+  padding: 10px;
+}
+.ts-card-library .ts-db-lane > .ts-db-lane-title:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 2px 0 4px;
+}
+.ts-database-modal.ts-ui-modal .ts-card-library .ts-db-lane > .ts-library-card:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 9px;
+  margin: 0;
+  padding: 11px;
+}
+.ts-card-library .ts-db-lane .ts-library-card-actions:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+.ts-card-library .ts-db-lane .ts-library-main-action:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
 .ts-card-library .ts-library-more-menu:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
   position: fixed;
   inset: var(--ts-library-menu-top, 8px) auto auto var(--ts-library-menu-left, 8px);
