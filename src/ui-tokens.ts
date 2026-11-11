@@ -10,7 +10,7 @@ const resolvedAppearance=(appearance:InterfaceStyleAppearance)=>({interfaceStyle
 function updateTokens(el:HTMLStyleElement,appearance:InterfaceStyleAppearance){
  const resolved=resolvedAppearance(appearance),{interfaceStyle,glassEffects}=resolved;
  const scale=['var(--ts-e-sheet)','var(--ts-e-paper)','var(--ts-e-wash)','var(--ts-e-wash)','var(--ts-e-line)','var(--ts-e-line)','var(--ts-e-edge)','var(--ts-e-edge)','var(--ts-e-editorial)','var(--ts-e-editorial)','var(--ts-e-muted)','var(--ts-e-ink)'];
- el.textContent=`:is(.ts-root,.ts-journal,.ts-settings,.ts-space-modal,.ts-ui-modal,.ts-native-header,.ts-writing,.ts-note-markdown-toolbar,.ts-media-workspace,.ts-online-workspace,.ts-materials-panel,.ts-materials-modal):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){${scale.map((value,index)=>`--ts-ui-${index+1}:${value};`).join('')}}\n${interfaceStyleRules(interfaceStyle,glassEffects,resolved.interfacePalette,resolved.interfaceMode,resolved.surfaceStyle,resolved.accent)}`;
+ el.textContent=`:is(.ts-root,.ts-journal,.ts-settings,.ts-space-modal,.ts-ui-modal,.ts-native-header,.ts-writing,.ts-note-markdown-toolbar,.ts-media-workspace,.ts-online-workspace,.ts-materials-panel,.ts-materials-modal,.ts-component-gallery):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){${scale.map((value,index)=>`--ts-ui-${index+1}:${value};`).join('')}}\n${interfaceStyleRules(interfaceStyle,glassEffects,resolved.interfacePalette,resolved.interfaceMode,resolved.surfaceStyle,resolved.accent)}`;
  el.dataset.interfaceStyle=interfaceStyle;el.dataset.glassEffects=String(glassEffects);el.dataset.interfacePalette=resolved.interfacePalette;el.dataset.interfaceMode=resolved.interfaceMode;
 }
 

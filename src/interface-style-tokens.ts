@@ -6,6 +6,7 @@ const roots = [
   '.ts-media-workspace', '.ts-online-workspace', '.ts-materials-panel',
   '.ts-materials-modal', '.ts-brain-shell', '.ts-handwriting',
   '.ts-local-relations', '.ts-collection-content', '.ts-ui-menu',
+  '.ts-component-gallery',
 ];
 const outsideCalendar = ':not(:where(.ts-calendar-plugin,.ts-calendar-plugin *))';
 // Obsidian can load styles.css after onload. Four owned classes deliberately beat
@@ -148,6 +149,8 @@ export function interfaceStyleRules(_style?: unknown, _glassEffects?: boolean,se
       rule(within(root, '.ts-materials-library,.ts-materials-tabs button[aria-selected=true]'), 'background:var(--ts-e-sheet);color:var(--ts-e-ink);');
   }
 
+  const gallery = owned('.ts-component-gallery');
+  css += rule(`${gallery}.theme-dark`, paint(dark, true)) + rule(`.theme-dark ${gallery}[data-theme=light]`, paint(light, false));
   css += `@media (prefers-reduced-motion: reduce){${allRoots}{--ts-e-motion:0ms;}}`;
   return css;
 }

@@ -1,0 +1,110 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {transformSync} from 'esbuild';
+import {cardFillHex} from '../src/model';
+
+const source = readFileSync('src/component-gallery-view.ts', 'utf8').replace(/^import[^\n]*\n/gm, '').replace(/\bexport /g, '');
+class El {
+  children: El[] = [];
+  parent?: El;
+  classes = new Set<string>();
+  attrs: Record<string, string> = {};
+  dataset: Record<string, string> = {};
+  style: Record<string, string> = {};
+  text = '';
+  disabled = false;
+  onclick: (() => void) | null = null;
+  ownerDocument: {body: El};
+  constructor(readonly tagName: string, doc: {body: El}) { this.ownerDocument = doc; }
+  get classList() { return {contains: (name: string) => this.classes.has(name)}; }
+  addClass(...names: string[]) { for (const name of names) this.classes.add(name); }
+  toggleClass(name: string, on?: boolean) { const enable = on ?? !this.classes.has(name); if (enable) this.classes.add(name); else this.classes.delete(name); }
+  setAttribute(key: string, value: string) { this.attrs[key] = value; if (key.startsWith('data-')) this.dataset[key.slice(5)] = value; }
+  getAttribute(key: string) { return this.attrs[key] ?? null; }
+  createEl(tag: string, options: {cls?: string; text?: string; attr?: Record<string, string>} = {}) {
+    const node = new El(tag, this.ownerDocument);
+    node.parent = this;
+    if (options.cls) node.addClass(...options.cls.split(' ').filter(Boolean));
+    node.text = options.text || '';
+    for (const [key, value] of Object.entries(options.attr || {})) node.setAttribute(key, value);
+    if (node.attrs.disabled != null) node.disabled = true;
+    this.children.push(node);
+    return node;
+  }
+  createDiv(options?: {cls?: string; text?: string; attr?: Record<string, string>} | string) { return this.createEl('div', typeof options === 'string' ? {cls: options} : options); }
+  empty() { this.children = []; }
+  matches(selector: string) {
+    if (selector.startsWith('[')) {
+      const match = /^\[([^=\]]+)(?:="([^"]*)")?\]$/.exec(selector);
+      if (!match) return false;
+      const value = this.getAttribute(match[1]);
+      return value !== null && (match[2] === undefined || value === match[2]);
+    }
+    const [tag, ...classes] = selector.split('.');
+    return (!tag || this.tagName === tag) && classes.every(name => this.classes.has(name));
+  }
+  querySelectorAll(selector: string): El[] { return this.children.flatMap(child => [...(child.matches(selector) ? [child] : []), ...child.querySelectorAll(selector)]); }
+  querySelector(selector: string) { return this.querySelectorAll(selector)[0]; }
+  click() { if (!this.disabled) this.onclick?.(); }
+}
+class ItemView {
+  contentEl: El;
+  constructor(public leaf: {contentEl: El}) { this.contentEl = leaf.contentEl; }
+  registerEvent() {}
+  registerDomEvent() {}
+}
+const loaded = new Function('ItemView', 'cardFillHex', transformSync(`${source}\nreturn {COMPONENT_GALLERY_VIEW_TYPE, COMPONENT_GALLERY_COMMAND_ID, ComponentGalleryView};`, {loader: 'ts'}).code)(ItemView, cardFillHex) as {
+  COMPONENT_GALLERY_VIEW_TYPE: string;
+  COMPONENT_GALLERY_COMMAND_ID: string;
+  ComponentGalleryView: new (leaf: {contentEl: El}) => {contentEl: El; onOpen: () => Promise<void>};
+};
+
+test('gallery command id is stable and not a daily-entry tool id', () => {
+  assert.equal(loaded.COMPONENT_GALLERY_COMMAND_ID, 'thoughtspace-open-component-gallery');
+  assert.equal(loaded.COMPONENT_GALLERY_VIEW_TYPE, 'thoughtspace-component-gallery');
+  assert.notEqual(loaded.COMPONENT_GALLERY_COMMAND_ID, 'open-tool-palette');
+  const main = readFileSync('src/main.ts', 'utf8');
+  assert.match(main, /id:\s*COMPONENT_GALLERY_COMMAND_ID/);
+  assert.match(main, /打开组件样板页/);
+  assert.match(main, /registerView\(COMPONENT_GALLERY_VIEW_TYPE/);
+  for (const file of ['src/tool-palette.ts', 'src/writing-view.ts', 'src/writing-format-toolbar.ts', 'src/settings-view.ts']) {
+    assert.doesNotMatch(readFileSync(file, 'utf8'), /thoughtspace-open-component-gallery|thoughtspace-component-gallery|打开组件样板页/);
+  }
+});
+
+test('gallery renders type, selected cards, controls, and theme and width toggles', async () => {
+  const doc = {body: new El('body', undefined as unknown as {body: El})};
+  doc.body.ownerDocument = doc;
+  const content = new El('div', doc);
+  const view = new loaded.ComponentGalleryView({contentEl: content});
+  await view.onOpen();
+  assert.ok(content.classes.has('ts-component-gallery'));
+  assert.equal(content.getAttribute('data-theme'), 'light');
+  assert.equal(content.getAttribute('data-width'), 'wide');
+  for (const selector of ['.ts-type-title', '.ts-type-body', '.ts-type-meta', 'button.ts-button', 'input', '.ts-outline-row', '[data-gallery-theme]', '[data-gallery-width]']) {
+    assert.ok(content.querySelector(selector), selector);
+  }
+  const selected = content.querySelectorAll('.ts-library-card.is-selected');
+  assert.ok(selected.length >= 2);
+  assert.ok(selected.some(card => card.style.background.includes(cardFillHex.green)));
+  assert.ok(selected.some(card => card.style.background.includes(cardFillHex.sand) && card.classes.has('is-focus-sample')));
+  assert.ok(content.querySelector('button.mod-cta[disabled]') || content.querySelectorAll('button.mod-cta').some(button => button.disabled));
+  assert.ok(content.querySelector('button.mod-cta.is-loading'));
+  assert.ok(content.querySelector('input.is-error.is-focus-sample'));
+  assert.ok(content.querySelector('.ts-field-error'));
+  assert.ok(content.querySelector('.ts-field-success, .ts-status-success') || content.querySelector('.ts-status-success') || content.querySelector('.ts-field-success'));
+  assert.ok(content.querySelector('.ts-sidebar-empty'));
+  assert.ok(content.querySelector('.ts-outline-row.is-selected.is-focus-sample'));
+  content.querySelector('[data-gallery-theme]')!.click();
+  assert.equal(content.getAttribute('data-theme'), 'dark');
+  assert.ok(content.classes.has('theme-dark'));
+  content.querySelector('[data-gallery-width]')!.click();
+  assert.equal(content.getAttribute('data-width'), 'narrow');
+  const css = readFileSync('src/component-gallery.css', 'utf8');
+  assert.match(css, /--ts-e-title-size/);
+  assert.match(css, /--ts-e-space-section/);
+  assert.match(css, /--ts-e-space-control/);
+  assert.doesNotMatch(css, /\.is-selected[^{]*\{[^}]*background\s*:/);
+  assert.doesNotMatch(css, /#[0-9a-f]{3,8}/i);
+});

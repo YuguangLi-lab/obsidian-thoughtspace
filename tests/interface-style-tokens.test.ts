@@ -83,7 +83,7 @@ test('selected material beats late legacy palette selectors without global impor
     const css = postcss.parse(interfaceStyleRules(style, true));
     css.walkDecls(/^--(?:ts-e|ts-ui|ts-c)-/, decl => {
       assert.equal(decl.important, undefined);
-      assert.match((decl.parent as Rule).selector, /\.ts-root\.ts-root\.ts-root\.ts-root/);
+      assert.match((decl.parent as Rule).selector, /\.ts-(?:root(?:\.ts-root){3}|component-gallery(?:\.ts-component-gallery){3})/);
     });
   }
 });

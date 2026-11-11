@@ -15,6 +15,7 @@ import {allWritingRecoveryEntries} from './writing-draft-recovery';
 import {openHandwritingPng,type HandwritingPngModal} from './handwriting-png-view';
 import {planCollectionReferenceRename} from './collection-placement-recovery';
 import {CollectionView,COLLECTION_VIEW_TYPE,type CollectionTarget,type CollectionRecord} from './collection-view';
+import {ComponentGalleryView,COMPONENT_GALLERY_COMMAND_ID,COMPONENT_GALLERY_VIEW_TYPE} from './component-gallery-view';
 import {CollectionWorkspace} from './collection-host';
 import {CollectionOpener,type CollectionPlacement} from './collection-opening';
 import {CollectionBackgroundControls} from './collection-background-view';
@@ -818,6 +819,7 @@ export default class ThoughtSpace extends Plugin {
     this.noteToolbar=new NoteMarkdownToolbars(this.app,()=>this.settings.noteMarkdownToolbar!==false,(name,source)=>this.createConceptLinkNote(name,source));this.addChild(this.noteToolbar);this.registerEditorExtension(this.noteToolbar.extension());
     this.addSettingTab(new ThoughtSpaceSettings(this.app, this));
     this.registerView(WRITING,leaf=>new WritingView(leaf,this));this.addCommand({id:'board-writing',name:'白板写作模式',callback:()=>act(()=>this.openWriting())});
+    this.registerView(COMPONENT_GALLERY_VIEW_TYPE,leaf=>new ComponentGalleryView(leaf));this.addCommand({id:COMPONENT_GALLERY_COMMAND_ID,name:'打开组件样板页',callback:()=>act(async()=>{const leaf=this.app.workspace.getLeaf('tab');await leaf.setViewState({type:COMPONENT_GALLERY_VIEW_TYPE,active:true});this.app.workspace.revealLeaf(leaf);})});
     this.registerView(LOCAL_RELATIONS_VIEW,leaf=>new LocalRelationsView(leaf,this.localRelationsHost(leaf)));
     this.addCommand({id:'add-board-mindmap',name:'在白板添加脑图',checkCallback:checking=>{const view=this.app.workspace.getActiveViewOfType(BoardView);if(!view?.session||view.closed||view.session.blocked)return false;if(!checking)act(()=>view.addMindmap());return true;}});
     this.addCommand({id:'local-relations',name:'打开独立关系浏览',checkCallback:checking=>{const view=this.app.workspace.getActiveViewOfType(BoardView);if(!view?.session||view.closed||!view.session.board.nodes.some(supportsLocalRelations))return false;if(!checking)act(()=>this.openLocalRelations(view,view.localRelationSelectedId));return true;}});
