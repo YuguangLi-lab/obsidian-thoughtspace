@@ -120,8 +120,9 @@
 .ts-layout-planner .ts-layout-comparison button { height: 27px; min-height: 27px; padding: 3px 13px; border: 0; border-radius: 5px; box-shadow: none; background: transparent; color: var(--text-muted); font-size: 11px; }
 .ts-layout-planner .ts-layout-comparison button > span:first-child:not(:last-child) { display: none; }
 .ts-layout-planner .ts-layout-comparison button[aria-pressed=true] { background: var(--ts-layout-active); color: var(--ts-layout-accent); font-weight: 600; }
-.ts-layout-planner .ts-layout-preview-status { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 10px; white-space: nowrap; }
-.ts-layout-planner .ts-layout-preview-status::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--ts-layout-accent); opacity: .75; }
+.ts-layout-planner .ts-layout-preview-status { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 10px; text-align: end; }
+.ts-layout-planner .ts-layout-preview-status::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--ts-layout-accent); opacity: .75; flex: none; }
+.ts-layout-planner .ts-layout-preview-status.has-move-key::before { width: 8px; height: 8px; border: solid var(--ts-layout-accent); border-width: 2px 0 0 2px; border-radius: 1px 0 0 0; background: none; }
 .ts-layout-planner .ts-layout-surface { position: relative; display: flex; flex: 1; min-height: 190px; min-width: 0; }
 .ts-layout-planner .ts-layout-canvas { position: relative; display: flex; flex: 1; min-width: 0; min-height: 190px; padding: 0; overflow: hidden; touch-action: none; cursor: grab; border: 1px solid var(--ts-layout-line); border-radius: 12px; background: radial-gradient(color-mix(in srgb, var(--text-muted) 18%, transparent) .7px, transparent .7px) 0 0 / 20px 20px, var(--ts-layout-panel); color: var(--text-normal); box-shadow: 0 2px 6px rgb(0 0 0 / .025); }
 .ts-layout-planner .ts-layout-canvas.is-panning { cursor: grabbing !important; }
@@ -133,6 +134,7 @@
 .ts-layout-planner .ts-layout-connections.is-hidden { display: none; }
 .ts-layout-planner .ts-layout-frame { fill: var(--ts-layout-accent); fill-opacity: .035; stroke: var(--ts-layout-accent); stroke-opacity: .5; stroke-width: 1; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
 .ts-layout-planner .ts-layout-caption { fill: var(--text-muted); }
+.ts-layout-planner .ts-layout-moved { fill: none; stroke: var(--ts-layout-accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; pointer-events: none; }
 .ts-layout-planner .ts-layout-match { fill: none; stroke: var(--ts-layout-accent); stroke-width: 2.5; vector-effect: non-scaling-stroke; pointer-events: none; }
 .ts-layout-planner .ts-layout-preview-label { position: absolute; top: 12px; bottom: auto; left: 12px; padding: 4px 8px; border: 1px solid var(--ts-layout-line); border-radius: 5px; background: var(--ts-layout-panel); color: var(--text-muted); font-size: 10px; pointer-events: none; }
 .ts-layout-planner .ts-layout-navigation { position: absolute; right: 12px; bottom: 12px; display: flex; align-items: center; gap: 2px; padding: 4px; border: 1px solid var(--ts-layout-line); border-radius: 8px; background: var(--ts-layout-panel); box-shadow: 0 3px 10px rgb(0 0 0 / .05); }
@@ -150,9 +152,25 @@
 .ts-layout-planner .ts-layout-search-row input { flex: 1; min-width: 0; height: 28px; border: 0; box-shadow: none; background: transparent; font-size: 12px; }
 .ts-layout-planner .ts-layout-search-row button { flex: none; width: 26px; height: 26px; min-height: 26px; padding: 4px; border: 0; background: transparent; box-shadow: none; }
 .ts-layout-planner .ts-layout-search-status { overflow: hidden; padding: 5px 9px; border-top: 1px solid var(--ts-layout-line); color: var(--text-muted); font-size: 11px; white-space: nowrap; text-overflow: ellipsis; }
-.ts-layout-planner .ts-layout-empty { padding: 20px; color: var(--text-muted); font-size: 12px; line-height: 1.7; }
+.ts-layout-planner .has-layout-error { cursor: default; touch-action: auto; }
 .ts-layout-planner .has-layout-error > svg { opacity: .25; }
-.ts-layout-planner .has-layout-error .ts-layout-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; max-width: none; background: color-mix(in srgb, var(--background-primary) 85%, transparent); color: var(--text-normal); text-align: center; }
+.ts-layout-planner .ts-layout-surface:has(.has-layout-error) .ts-layout-navigation { display: none; }
+.ts-layout-planner .ts-layout-empty {
+  position: absolute; inset: 0; display: grid; place-items: center; overflow: auto;
+  padding: 16px; text-align: center; background: color-mix(in srgb, var(--ts-layout-panel) 87%, transparent);
+}
+.ts-layout-planner .ts-layout-empty-copy { display: grid; justify-items: center; gap: 8px; width: min(100%, 300px); }
+.ts-layout-planner .ts-layout-empty-title { font-size: 13px; font-weight: 600; color: var(--text-normal); overflow-wrap: anywhere; }
+.ts-layout-planner .ts-layout-empty-note { color: var(--text-muted); font-size: 11px; line-height: 1.55; }
+.ts-layout-planner .ts-layout-empty-action {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; max-width: 100%; min-height: 34px;
+  margin-top: 4px; padding-inline: 10px; border: 1px solid var(--ts-e-control-line); border-radius: 7px;
+  background: var(--ts-layout-panel); color: var(--text-normal); font-size: 12px;
+}
+.ts-layout-planner select.ts-layout-empty-action { padding-inline-end: 26px; }
+.ts-layout-planner button.ts-layout-empty-action > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ts-layout-planner button.ts-layout-empty-action > span:first-child { display: flex; flex: none; }
+.ts-layout-planner .ts-layout-empty-action svg { width: 14px; height: 14px; }
 
 /* Decision bar: the change summary sits immediately beside the action it informs. */
 .ts-layout-planner .ts-layout-footer { display: flex; flex: none; flex-wrap: nowrap; align-items: center; gap: 16px; padding: 13px 22px; border-top: 1px solid var(--ts-layout-line); background: var(--ts-layout-panel); }

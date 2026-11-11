@@ -7,13 +7,14 @@ import {installToolPalettes,revealToolPaletteControl} from '../src/tool-palette'
 type Listener={run:(event:any)=>void;capture:boolean};
 class Element{
  children:Element[]=[];parentElement:Element|null=null;attributes=new Map<string,string>();listeners=new Map<string,Listener[]>();
- className='';title='';hidden=false;disabled=false;value='';textContent='';private top=0;scrollHeight=900;clientHeight=300;clicks=0;focuses:unknown[]=[];scrolls:unknown[]=[];
+ className='';title='';open=false;hidden=false;disabled=false;value='';textContent='';private top=0;scrollHeight=900;clientHeight=300;clicks=0;focuses:unknown[]=[];scrolls:unknown[]=[];
  constructor(public ownerDocument:{activeElement:Element|null},public tagName='DIV'){}
  createEl(tag:string,options:any={}):Element{const element:Element=tag==='button'?new Button(this.ownerDocument):new Element(this.ownerDocument,tag.toUpperCase());element.className=options.cls||'';element.textContent=options.text||'';for(const[key,value]of Object.entries(options.attr||{}))element.setAttribute(key,String(value));this.append(element);return element;}
  createDiv(options:any={}):Element{return this.createEl('div',typeof options==='string'?{cls:options}:options);}
  createSpan(options:any={}):Element{return this.createEl('span',options);}
  setAttribute(key:string,value:string){this.attributes.set(key,value);if(key==='title')this.title=value;}
  getAttribute(key:string){return this.attributes.get(key)??null;}
+ removeAttribute(key:string){this.attributes.delete(key);}
  append(element:Element){element.remove();element.parentElement=this;this.children.push(element);}
  insertBefore(element:Element,before:Element){element.remove();element.parentElement=this;this.children.splice(this.children.indexOf(before),0,element);}
  remove(){if(this.parentElement)this.parentElement.children=this.parentElement.children.filter(element=>element!==this);this.parentElement=null;}
@@ -22,7 +23,7 @@ class Element{
  querySelectorAll(selector:string):Element[]{return this.children.flatMap(child=>[...(child.matches(selector)?[child]:[]),...child.querySelectorAll(selector)]);}
  closest(selector:string):Element|null{for(let element:Element|null=this;element;element=element.parentElement)if(element.matches(selector))return element;return null;}
  setText(text:string){this.textContent=text;}
- getClientRects(){for(let element:Element|null=this;element;element=element.parentElement)if(element.hidden)return[];return[{}];}
+ getClientRects(){for(let element:Element|null=this;element;element=element.parentElement)if(element.hidden||element!==this&&element.tagName==='DETAILS'&&!element.open)return[];return[{}];}
  get offsetWidth(){return this.getClientRects().length?28:0;}
  getBoundingClientRect(){return{left:0,top:0,right:0,bottom:0,width:0,height:0};}
  get scrollTop(){return this.top;}set scrollTop(value:number){this.top=Math.max(0,Math.min(this.scrollHeight-this.clientHeight,value));}
@@ -40,9 +41,9 @@ class Element{
 }
 class Button extends Element{constructor(doc:{activeElement:Element|null}){super(doc,'BUTTON');}}
 
-function fixture(options:{hiddenGroup?:boolean;integration?:boolean}={}){
+function fixture(options:{hiddenGroup?:boolean;integration?:boolean;details?:boolean}={}){
  const doc={activeElement:null as Element|null,defaultView:null,getElementById(){return null;},addEventListener(){},removeEventListener(){}},main=new Element(doc),panel=main.createDiv(),tools=panel.createDiv('ts-rail-actions'),rail=main.createDiv();let closed=0;let palettes:ReturnType<typeof installToolPalettes>|undefined;
- const group=(label:string)=>tools.createDiv({cls:'ts-tool-cluster',attr:{'aria-label':label}});
+ const group=(label:string)=>{const el=tools.createEl(options.details?'details':'div',{cls:'ts-tool-cluster',attr:{'aria-label':label}});el.open=true;return el;};
  const organize=group('组织内容'),mindmap=group('思维导图工具'),workspace=group('白板与历史');
  const button=(parent:Element,label:string,title=label)=>parent.createEl('button',{attr:{'aria-label':label,title}});
  const overview=button(organize,'分组总览','查看所有分组'),move=button(organize,'移入已有分组'),topic=button(mindmap,'子主题 · Tab'),pdf=button(workspace,'插入 PDF 卡片','从本地文件插入'),read=button(workspace,'阅读 PDF'),hidden=button(workspace,'隐藏 PDF 工具');hidden.hidden=true;
@@ -223,4 +224,19 @@ test('leaving the wide-panel empty state restores recent actions after their CSS
   assert.equal(f.empty.hidden,true);assert.equal(f.recentGroup().hidden,false);assert.equal(f.recent().length,1,restore);
   assert.equal(f.recent()[0].getAttribute('aria-label'),'插入 PDF 卡片');f.binding.dispose();
  }
+});
+
+test('search opens a matching folded tool group, makes the result actionable and restores folds',()=>{
+ const f=fixture({details:true});
+ f.mindmap.open=false;f.workspace.open=false;
+ f.search('子主题');assert.deepEqual(f.visible(),[f.topic]);assert.equal(f.mindmap.open,true);assert.equal(f.workspace.open,false);
+ f.key(f.input,'ArrowDown');assert.equal(f.doc.activeElement,f.topic);
+ f.key(f.topic,'ArrowUp');f.key(f.input,'Enter');assert.equal(f.topic.clicks,1);
+ f.search('pdf');assert.deepEqual(f.visible(),[f.pdf,f.read]);assert.equal(f.workspace.open,true);
+ f.clear.click();assert.equal(f.mindmap.open,false);assert.equal(f.workspace.open,false);assert.equal(f.organize.open,true);
+ f.search('pdf');f.binding.dispose();assert.equal(f.workspace.open,false);
+});
+test('choosing a folded category opens its tools and does not reopen unrelated groups',()=>{
+ const f=fixture({details:true});f.mindmap.open=false;f.workspace.open=false;
+ f.binding.setCategory(f.mindmap);assert.deepEqual(f.visible(),[f.topic]);assert.equal(f.workspace.open,false);f.binding.dispose();
 });

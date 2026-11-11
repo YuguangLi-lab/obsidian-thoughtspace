@@ -1,5 +1,23 @@
 # 更新记录
 
+## 1.3.52
+
+### 白板和卡片库界面打磨
+
+- 卡片库把搜索放在最前；筛选可以单项清除。点击标题打开源笔记，常用操作保持可见，其他操作收进行尾菜单。列表、表格和看板保留筛选与选择；表格横向滚动时固定标题列。首次使用提示改为紧凑弹窗。
+- 白板工具面板减少了占用空间，分组显示展开箭头。搜索会显示折叠分组里的命令，清空搜索会恢复原来的折叠状态。
+- 整理白板的前后预览共享同一视角，调整参数时保留当前对照视图。移动的对象更容易辨认，空预览会提示可选范围。
+- 写作大纲改为紧凑行，低频操作集中到行尾。写作正文沿用 Obsidian 的正文字号，保留原有的 Markdown 编辑与预览方式。
+- 延续 1.3.51 的暖白纸面和深色配色，白板格式保持第 3 版。
+
+### English
+
+- Card Library puts search first and makes active filters individually removable. Open the source from the title; one common action stays visible and the other actions move into a row menu. Filters and selection carry across list, table, and kanban. The table pins titles during horizontal scrolling, and the introductory dialog is smaller.
+- The board tool palette takes up less canvas and shows disclosure arrows. Search reveals matching tools in collapsed groups, then restores the previous folds when cleared.
+- Organize Board uses one camera for before and after and keeps the current comparison mode when options change. It highlights moved objects and helps users choose a scope when the preview is empty.
+- The writing outline uses compact rows with secondary actions in a trailing menu. The manuscript follows Obsidian's text size and keeps native Markdown editing and preview.
+- The warm paper and dark palette stay in place. The board format remains version 3.
+
 ## 1.3.51
 
 ### 暖白纸面与界面整理

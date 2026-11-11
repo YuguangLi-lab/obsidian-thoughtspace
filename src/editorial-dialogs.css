@@ -82,3 +82,10 @@
 .ts-ui-modal.ts-prompt-modal > .modal-content > .ts-external-media-actions > .setting-item-control {
  padding-inline:6px;padding-bottom:6px;
 }
+
+/* The introduction is a short read, so it should not inherit the full library workspace size. */
+.modal.ts-ui-modal.ts-library-welcome {width:min(520px,calc(100% - 24px));height:auto;}
+.ts-library-welcome-content {display:grid;gap:var(--ts-e-space-panel);line-height:1.6;}
+.ts-library-welcome-step h3 {margin:0 0 4px;color:var(--ts-e-ink);font-size:var(--font-ui-medium);font-weight:600;}
+.ts-library-welcome-step p {margin:0;color:var(--ts-e-muted);font-size:var(--font-ui-small);overflow-wrap:anywhere;}
+.ts-library-welcome-content .modal-button-container {margin-top:4px;}

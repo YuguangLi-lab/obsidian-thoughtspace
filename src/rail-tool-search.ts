@@ -39,12 +39,28 @@ export function installRailToolSearch(panel:HTMLElement,tools:HTMLElement,option
   }
   recent.hidden=!shortcuts.size;
  };
+ // Search borrows the disclosure state until the query is cleared. Open
+ // matching groups without moving the original action buttons or callbacks.
+ const searchOpen=new Map<HTMLDetailsElement,boolean>();
+ const disclosure=(element:HTMLElement)=>element.tagName==='DETAILS'?element as HTMLDetailsElement:undefined;
+ const restoreDisclosures=()=>{for(const [element,open]of searchOpen)element.open=open;searchOpen.clear();};
  const retainExternalVisibility=()=>{for(const item of [...entries,...groups])if(item.element.hidden!==item.appliedHidden)item.hidden=item.element.hidden;};
  const refresh=()=>{
   if(disposed)return;retainExternalVisibility();if(category&&!tools.contains(category))category=undefined;
   const tokens=normalize(input.value).split(/\s+/u).filter(Boolean),searching=tokens.length>0,section=searching?undefined:category;let count=0;
   for(const entry of entries){const hidden=entry.hidden||groups.some(group=>group.element===entry.group&&group.hidden)||!!section&&entry.group!==section||!tokens.every(token=>entry.label.includes(token));if(entry.element.hidden!==hidden)entry.element.hidden=hidden;entry.appliedHidden=hidden;if(!hidden&&tools.contains(entry.element))count++;}
-  for(const group of groups){const hidden=group.hidden||!entries.some(entry=>entry.group===group.element&&!entry.element.hidden&&tools.contains(entry.element));if(group.element.hidden!==hidden)group.element.hidden=hidden;group.appliedHidden=hidden;}
+  if(!searching)restoreDisclosures();
+  for(const group of groups){
+   const hidden=group.hidden||!entries.some(entry=>entry.group===group.element&&!entry.element.hidden&&tools.contains(entry.element));
+   if(group.element.hidden!==hidden)group.element.hidden=hidden;
+   group.appliedHidden=hidden;
+   const details=disclosure(group.element);
+   if(searching&&details&&!hidden){
+    if(!searchOpen.has(details))searchOpen.set(details,details.open);
+    details.open=true;
+   }
+  }
+  panel.setAttribute('data-tool-searching',String(searching));
   // The wide layout hides the actions while the empty state is visible. Restore
   // that ancestor before recent shortcuts inspect the originals' client rects.
   empty.hidden=count>0;renderRecent();
@@ -64,7 +80,9 @@ export function installRailToolSearch(panel:HTMLElement,tools:HTMLElement,option
  const setCategory=(section?:HTMLElement)=>{
   if(disposed||section&&!groups.some(group=>group.element===section&&tools.contains(section)))return;
   const focused=panel.ownerDocument.activeElement,focusedTool=!!focused&&tools.contains(focused);
-  category=section;input.value='';refresh();
+  category=section;input.value='';restoreDisclosures();
+  const details=section&&disclosure(section);if(details)details.open=true;
+  refresh();
   if(focusedTool&&focused&&(!tools.contains(focused)||!focused.getClientRects().length))focusSearch();
  };
  const onInput=()=>{if(!composing)refresh();},onStart=()=>{composing=true;},onEnd=()=>{composing=false;refresh();};
@@ -80,6 +98,6 @@ export function installRailToolSearch(panel:HTMLElement,tools:HTMLElement,option
  // Search is installed before the palette binding: resolve visible recent
  // shortcuts here, before palette capture restores the canvas for the action.
  input.addEventListener('input',onInput);input.addEventListener('compositionstart',onStart);input.addEventListener('compositionend',onEnd);clear.addEventListener('click',reset);panel.addEventListener('keydown',keys,true);panel.addEventListener('click',onClick,true);refresh();
- const binding={open:reset,setCategory,dispose:()=>{if(disposed)return;retainExternalVisibility();disposed=true;input.removeEventListener('input',onInput);input.removeEventListener('compositionstart',onStart);input.removeEventListener('compositionend',onEnd);clear.removeEventListener('click',reset);panel.removeEventListener('keydown',keys,true);panel.removeEventListener('click',onClick,true);header.remove();empty.remove();recent.remove();shortcuts.clear();history=[];for(const entry of entries)entry.element.hidden=entry.hidden;for(const group of groups)group.element.hidden=group.hidden;installedSearches.delete(panel);}};
+ const binding={open:reset,setCategory,dispose:()=>{if(disposed)return;retainExternalVisibility();disposed=true;restoreDisclosures();panel.removeAttribute('data-tool-searching');input.removeEventListener('input',onInput);input.removeEventListener('compositionstart',onStart);input.removeEventListener('compositionend',onEnd);clear.removeEventListener('click',reset);panel.removeEventListener('keydown',keys,true);panel.removeEventListener('click',onClick,true);header.remove();empty.remove();recent.remove();shortcuts.clear();history=[];for(const entry of entries)entry.element.hidden=entry.hidden;for(const group of groups)group.element.hidden=group.hidden;installedSearches.delete(panel);}};
  installedSearches.set(panel,{tools,binding});return binding;
 }

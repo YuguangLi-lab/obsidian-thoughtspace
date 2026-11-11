@@ -24,6 +24,7 @@ function connectedGroups(nodes:Card[],pairs:readonly string[]){
 export const layoutSignature=(nodes:Card[])=>JSON.stringify(nodes.map(n=>[n.id,n.kind,n.x,n.y,n.width,n.height,n.locked,n.color,n.review,readingTitle(n)]));
 const movementSignature=(units:ReturnType<typeof foldedMoveUnits>)=>JSON.stringify(units.map(unit=>[unit.root.id,unit.members.map(n=>[n.id,n.x,n.y,n.width,n.height,!!n.locked,!!n.branchFolded])]));
 export function layoutBounds(nodes:Card[]){const x=Math.min(...nodes.map(n=>n.x)),y=Math.min(...nodes.map(n=>n.y));return {x,y,width:Math.max(...nodes.map(n=>n.x+n.width))-x,height:Math.max(...nodes.map(n=>n.y+n.height))-y};}
+export class LayoutSelectionCountError extends Error{constructor(readonly count:number){super('请选择 2–1000 个未锁定的内容对象');}}
 export function planLayout(board:Board,ids:ReadonlySet<string>,options:LayoutOptions):LayoutPlan{return planLayoutDraft(board,ids,options);}
 /** Only the explicit frame scope may refit its own boundary; public selection
  * layouts must retain membership of every existing frame. */
@@ -34,7 +35,7 @@ function planLayoutDraft(board:Board,ids:ReadonlySet<string>,options:LayoutOptio
  const preserve=options.mode==='connections'&&options.preserveClusters===true,selected=board.nodes.filter(n=>ids.has(n.id)),units=preserve?clusterCompactionSource(board,ids).map(root=>({root,members:[root]})):foldedMoveUnits(board,ids),source=units.map(unit=>unit.root);
  const createSections=!!options.createSections&&sectionLayoutModes.has(options.mode);
  if(createSections){const frames=board.nodes.filter(n=>n.kind==='section');if(frames.length&&units.some(unit=>unit.members.some(n=>frames.some(frame=>sectionContains(frame,n)))))throw Error('自动分组仅适用于散卡，请先将内容移出原分组，或关闭生成分组框');}
- if(source.length<2||source.length>1000)throw Error('请选择 2–1000 个未锁定的内容对象');
+ if(source.length<2||source.length>1000)throw new LayoutSelectionCountError(source.length);
  // Keep sorting titles local to these draft objects; the source signature stays fresh.
  const nodes=source.map(n=>({...n})),titles=options.sort==='title'?new Map(nodes.map(n=>[n,readingTitle(n)])):undefined;
  nodes.sort(titles?(a,b)=>titles.get(a)!.localeCompare(titles.get(b)!)||a.id.localeCompare(b.id):(a,b)=>a.y-b.y||a.x-b.x||a.id.localeCompare(b.id));
@@ -167,7 +168,28 @@ export function resolveLayoutScope(board:Board,scope:LayoutScope,selection:Reado
  const items=content.filter(n=>framed?!framed.has(n.id):!sections.some(frame=>inside(frame,n)));
  return{ids:new Set(items.map(n=>n.id)),sectionId:undefined,label:scope==='visible'?'当前视野中的散卡':'白板全部散卡'};
 }
-export function layoutChanges(plan:LayoutPlan){const old=new Map(plan.originals.map(n=>[n.id,n]));return plan.items.filter(n=>{const before=old.get(n.id)!;return Math.abs(n.x-before.x)>.001||Math.abs(n.y-before.y)>.001;}).length;}
+/** Suggest expanded leaf frames when the current scope has too few loose items.
+ * The regular planner still validates every member and the proposed destination. */
+export function layoutGroupRecoveryChoices(board:Board):{scope:LayoutScope;title:string}[]{
+ const frames=board.nodes.filter(n=>n.kind==='section'&&!n.locked&&!n.sectionFolded);
+ if(!frames.length)return [];
+ const {hidden}=branchState(board),members=sectionMemberQuery(board.nodes),choices:{scope:LayoutScope;title:string}[]=[];
+ for(const frame of frames){
+  if(hidden.has(frame.id))continue;
+  const contents=members(frame);
+  if(contents.some(n=>n.kind==='section'||n.locked))continue;
+  const count=contents.reduce((n,card)=>n+Number(!hidden.has(card.id)),0);
+  if(count>=2&&count<=1000)choices.push({scope:`section:${frame.id}`,title:frame.title||'未命名分组'});
+ }
+ return choices;
+}
+
+export function layoutMovedIds(plan:Pick<LayoutPlan,'originals'|'items'>):Set<string>{
+ const old=new Map(plan.originals.map(n=>[n.id,n])),ids=new Set<string>();
+ for(const n of plan.items){const before=old.get(n.id);if(before&&(Math.abs(n.x-before.x)>.001||Math.abs(n.y-before.y)>.001))ids.add(n.id);}
+ return ids;
+}
+export function layoutChanges(plan:LayoutPlan){return layoutMovedIds(plan).size;}
 
 /** Frame resizing also counts as a change even when its members already align. */
 export function layoutHasChanges(plan:LayoutPlan){return !!plan.newSections?.length||layoutChanges(plan)>0||!!plan.section&&(['x','y','width','height'] as const).some(key=>Math.abs(plan.section!.original[key]-plan.section!.next[key])>.001);}
