@@ -99,6 +99,8 @@ export function mountCardLibrary(root:LibraryElement,handlers:LibraryViewHandler
  root.empty();
  let query=emptyLibraryQuery(),composing=false,optionRecords:readonly LibraryCardRecord[]|undefined,optionLabels:Record<FilterKey,Options>;
  let moreAnchor:LibraryElement|undefined;
+ let shownCount=0,renderedIndexing=false,selected=new Set<string>();
+ const selectionRows=new Map<string,{row:LibraryElement;control:LibraryElement;baseClass:string}>();
  const positions=new Map<LibraryLayout,{top:number;left:number}>();
  const header=root.createDiv('ts-library-header');
  const searchRow=header.createDiv('ts-library-search-row');
@@ -203,7 +205,37 @@ export function mountCardLibrary(root:LibraryElement,handlers:LibraryViewHandler
    chips.removeAttribute('hidden');
   }else chips.setAttribute('hidden','');
  }
+ function paintSummary(state:LibraryViewState){
+  const label=shownCount+' 张卡片'+(query.selected.length?' · 已选 '+query.selected.length:'');
+  if(count.textContent!==label)count.textContent=label;
+  const indexText=state.indexing?'正在索引白板引用…':state.limitNote??'';
+  if(indexStatus.textContent!==indexText){
+   indexStatus.textContent=indexText;
+   if(indexText)indexStatus.removeAttribute('hidden');
+   else indexStatus.setAttribute('hidden','');
+  }
+ }
+ function patchSelection(path:string,picked:boolean){
+  const item=selectionRows.get(path);
+  if(!item)return;
+  const {row,control,baseClass}=item;
+  row.setAttribute('class',picked?(baseClass?baseClass+' ':'')+'is-selected':baseClass);
+  control.setAttribute('class',picked?'ts-library-select ts-library-selected-mark':'ts-library-select');
+  control.setAttribute('aria-pressed',String(picked));
+  control.textContent=picked?'✓':'';
+ }
  function update(records:readonly LibraryCardRecord[],next:LibraryViewQuery,state:LibraryViewState={}){
+  const indexing=state.indexing===true,nextSelection=new Set(next.selected);
+  // A selection does not change the result set. Keep the live row, focus,
+  // scroll and filter controls, and only paint rows whose selection changed.
+  if(optionRecords===records&&renderedIndexing===indexing&&query.view===next.view&&query.query===next.query&&filterKeys.every(key=>query[key]===next[key])){
+   query={...next};
+   for(const path of selected)if(!nextSelection.has(path))patchSelection(path,false);
+   for(const path of nextSelection)if(!selected.has(path))patchSelection(path,true);
+   selected=nextSelection;
+   paintSummary(state);
+   return;
+  }
   const doc=surface.ownerDocument,active=doc?.activeElement as HTMLElement|undefined;
   // An asynchronous index refresh should restore the specific row control, not focus the modal.
   const menuAnchor=moreAnchor&&active&&popover.contains(active)?dom(moreAnchor):undefined;
@@ -211,22 +243,22 @@ export function mountCardLibrary(root:LibraryElement,handlers:LibraryViewHandler
   const contained=active&&dom(root).contains(active);
   const wasInResults=active&&surface.contains(active);
   if(doc)positions.set(query.view,{top:surface.scrollTop,left:surface.scrollLeft});
-  query=next;
+  query={...next};
+  selected=nextSelection;
+  renderedIndexing=indexing;
   closeMore();
   paintFilters(records);
   const shown=filterLibraryCards(records,query);
-  count.textContent=shown.length+' 张卡片'+(query.selected.length?' · 已选 '+query.selected.length:'');
-  const indexText=state.indexing?'正在索引白板引用…':state.limitNote??'';
-  indexStatus.textContent=indexText;
-  if(indexText)indexStatus.removeAttribute('hidden');
-  else indexStatus.setAttribute('hidden','');
+  shownCount=shown.length;
+  paintSummary(state);
+  selectionRows.clear();
   results.empty();
   results.setAttribute('data-library-view',query.view);
   if(!shown.length){
    const empty=results.createDiv({cls:'ts-sidebar-empty ts-library-empty'});
    empty.createDiv({text:query.choice===uncategorizedChoice?'没有符合条件的未分类卡片。':records.length?'没有匹配的卡片。':'还没有卡片。'});
    if(query.query||filterKeys.some(key=>query[key]))button(empty,'清除筛选',reset,'ts-library-filter-reset',{'data-library-focus':focusKey('filter','empty-reset')});
-  }else paintResults(shown,state.indexing===true);
+  }else paintResults(shown,indexing);
   if(doc){
    const position=positions.get(query.view);
    surface.scrollTop=position?.top??0;surface.scrollLeft=position?.left??0;
@@ -237,10 +269,8 @@ export function mountCardLibrary(root:LibraryElement,handlers:LibraryViewHandler
   }
  }
  function paintResults(shown:readonly LibraryCardRecord[],indexing:boolean){
-  const byPath=new Map(shown.map(record=>[record.path,record])),picked=new Set(query.selected);
-  const selectedCls=(path:string)=>picked.has(path)?' is-selected':'';
   const toggle=(path:string)=>{
-   const next=new Set(query.selected);
+   const next=new Set(selected);
    if(next.has(path))next.delete(path);else next.add(path);
    handlers.setQuery({...query,selected:[...next]});
   };
@@ -248,28 +278,34 @@ export function mountCardLibrary(root:LibraryElement,handlers:LibraryViewHandler
    const target=(event as {target?:{closest?:(selector:string)=>unknown}}|null)?.target;
    if(!target?.closest?.('button,select,input,textarea,a,summary,label'))toggle(path);
   };};
-  const selectCard=(parent:LibraryElement,record:LibraryCardRecord)=>button(parent,picked.has(record.path)?'✓':'',()=>toggle(record.path),'ts-library-select'+(picked.has(record.path)?' ts-library-selected-mark':''),{'aria-label':'选择卡片：'+record.title,'aria-pressed':String(picked.has(record.path)),'data-library-focus':focusKey(record.path,'select')});
+  const selectCard=(row:LibraryElement,parent:LibraryElement,record:LibraryCardRecord,baseClass:string)=>{
+   const {path,title}=record;
+   const control=button(parent,'',()=>toggle(path),'ts-library-select',{'aria-label':'选择卡片：'+title,'aria-pressed':'false','data-library-focus':focusKey(path,'select')});
+   selectionRows.set(path,{row,control,baseClass});
+   if(selected.has(path))patchSelection(path,true);
+  };
   const openCard=(parent:LibraryElement,record:LibraryCardRecord)=>button(parent,record.title,()=>{void handlers.open(record.path);},'ts-library-title',{'aria-label':'打开源卡片：'+record.title,title:record.title,'data-library-focus':focusKey(record.path,'open')});
   const category=(record:LibraryCardRecord)=>handlers.choiceOptions?.length?record.choice||'未分类':'';
   if(query.view==='table'){
+   const byPath=new Map(shown.map(record=>[record.path,record]));
    const table=libraryTable(shown,!!handlers.choiceOptions?.length,indexing);
    const grid=results.createEl('table',{cls:'ts-db-table'}),head=grid.createEl('thead').createEl('tr');
    for(const column of [...table.columns,'操作'])head.createEl('th',{text:column,attr:{scope:'col'}});
    const body=grid.createEl('tbody');
    for(const row of table.rows){
     const record=byPath.get(row.path)!;
-    const line=body.createEl('tr',{cls:selectedCls(row.path).trim(),attr:{'data-note-path':row.path}});bindSelect(line,row.path);
+    const line=body.createEl('tr',{attr:{'data-note-path':row.path}});bindSelect(line,row.path);
     const title=line.createEl('td',{cls:'ts-library-title-cell'}).createDiv('ts-library-title-group');
-    selectCard(title,record);openCard(title,record);
+    selectCard(line,title,record,'');openCard(title,record);
     for(const cell of row.cells.slice(1))line.createEl('td',{text:cell});
     recordActions(line.createEl('td',{cls:'ts-library-table-actions'}),record);
    }
    return;
   }
   const card=(parent:LibraryElement,record:LibraryCardRecord,kanban=false)=>{
-   const row=parent.createDiv({cls:'ts-library-card'+selectedCls(record.path),attr:{'data-note-path':record.path}});bindSelect(row,record.path);
+   const row=parent.createDiv({cls:'ts-library-card',attr:{'data-note-path':record.path}});bindSelect(row,record.path);
    const info=row.createDiv('ts-library-card-info'),title=info.createDiv('ts-library-title-group');
-   selectCard(title,record);openCard(title,record);
+   selectCard(row,title,record,'ts-library-card');openCard(title,record);
    const detail=info.createDiv(kanban?'ts-library-tags':'ts-library-excerpt');
    if(!kanban)detail.createSpan({cls:'ts-library-chip ts-library-status-chip',text:libraryStatusLabel(record.status),attr:{'data-status':record.status}});
    const choice=category(record);

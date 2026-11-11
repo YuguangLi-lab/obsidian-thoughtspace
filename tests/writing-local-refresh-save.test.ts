@@ -36,8 +36,11 @@ function materialsFixture(){
 }
 test('actual search/filter/pagination handlers retain chapter identity, focus, selection, IME and pending edits',()=>{
  const f=materialsFixture(),input=f.input;input.value='章节组字尚未提交';
- const callback=source.slice(source.indexOf('  search.oninput='),source.indexOf('\n  const filters=',source.indexOf('  search.oninput=')));
- const search:any={value:'needle'};new Function('search',transformSync(callback,{loader:'ts'}).code).call(f.view,search);search.oninput();
+ const callback=source.slice(source.indexOf('  let composingSearch='),source.indexOf('\n  const filters=',source.indexOf('  let composingSearch=')));
+ const search=Object.assign(new EventTarget(),{value:'needle',oninput:(event?:Event)=>{void event;}});
+ new Function('search',transformSync(callback,{loader:'ts'}).code).call(f.view,search);
+ search.dispatchEvent(new Event('compositionstart'));search.oninput();assert.equal(f.list.children.length,0,'partial input must not repaint');
+ search.dispatchEvent(new Event('compositionend'));const row=f.list.children[0];search.oninput();assert.equal(f.list.children[0],row,'duplicate input following composition must not repaint');
  assert.equal(f.list.children.length,1);assert.equal(f.view.entryInputs[0],input);assert.equal(f.root.ownerDocument.activeElement,input);assert.equal(input.value,'章节组字尚未提交');assert.deepEqual([input.selectionStart,input.selectionEnd],[2,5]);assert.equal(f.view.composing,true);assert.equal(f.pending.size,1);
  const filterStart=source.indexOf('  const applyFilter='),filterEnd=source.indexOf('\n  for(const [key,label]',filterStart),type={value:''};
  const applyFilter=new Function('filterButtons','type',transformSync(source.slice(filterStart,filterEnd)+';return applyFilter',{loader:'ts'}).code).call(f.view,[],type);f.view.query='';applyFilter('all');assert.equal(f.list.children.length,101);f.actions.get('加载更多 · 106')!();assert.equal(f.view.limit,200);assert.equal(f.list.children.length,201);assert.equal(f.view.entryInputs[0],input);assert.equal(f.pending.size,1);

@@ -9,6 +9,38 @@ export function restoreWritingReadingScroll(saved:{node:HTMLElement;top:number}[
  for(const entry of saved)if(entry.node.isConnected)entry.node.scrollTop=entry.top;
 }
 
+type ReferenceReading={id:string;node:HTMLElement;ready:boolean;pendingTop?:number};
+
+/** A reference keeps its position for this writing pane only. Waiting on the
+ * active render avoids clamping to zero while the body is empty or hidden. */
+export class WritingReferenceScroll {
+ private positions=new Map<string,number>();
+ private reading?:ReferenceReading;
+
+ capture(){
+  const reading=this.reading;
+  if(!reading?.ready||reading.pendingTop!==undefined||!reading.node.isConnected||!reading.node.clientHeight)return;
+  this.positions.delete(reading.id);
+  this.positions.set(reading.id,reading.node.scrollTop);
+  if(this.positions.size>32)this.positions.delete(this.positions.keys().next().value!);
+ }
+
+ attach(id:string,node:HTMLElement){
+  const reading:ReferenceReading={id,node,ready:false,pendingTop:this.positions.get(id)};this.reading=reading;
+  return ()=>{if(this.reading===reading){reading.ready=true;this.restore();}};
+ }
+
+ restore(){
+  const reading=this.reading;
+  if(!reading?.ready||reading.pendingTop===undefined||!reading.node.isConnected||!reading.node.clientHeight)return;
+  reading.node.scrollTop=reading.pendingTop;
+  reading.pendingTop=undefined;
+ }
+
+ detach(){this.capture();this.reading=undefined;}
+ clear(){this.reading=undefined;this.positions.clear();}
+}
+
 export function syncWritingPaneHeight(root:HTMLElement){
  const height=root.getBoundingClientRect().height,short=Number.isFinite(height)&&height>0&&height<=450;
  const value=String(short);if(root.dataset.writingShort!==value)root.dataset.writingShort=value;

@@ -3184,7 +3184,7 @@ class BoardView extends FileView {
   private selectionTool = false; private selectionButton?: HTMLButtonElement;
   private headerOverflowActions:{label:string;icon:string;run:()=>unknown;element:HTMLElement}[]=[];
   private sectionTool=false; private sectionButton?:HTMLButtonElement; private sectionHint?:HTMLElement;
-  private marquee?: {id:number;start:{x:number;y:number};base:Set<string>;baseEdge?:string;box:HTMLElement;section?:boolean;rect?:SectionRect;};
+  private marquee?: {id:number;start:{x:number;y:number};base:Set<string>;baseEdge?:string;box:HTMLElement;section?:boolean;rect?:SectionRect;folds?:{owner:Session;board:Board;epoch:number;hidden:ReadonlySet<string>};};
   private rightMarquee?:{id:number;x:number;y:number;start:{x:number;y:number};event:PointerEvent;menu?:MouseEvent;owner:Session;moved:boolean;crossedThreshold?:boolean;additive:boolean;action:'pan'|'select';viewport:Board['viewport']};
   private suppressBoardContext=false;
   private suppressMiddlePaste=false;
@@ -6858,7 +6858,15 @@ class BoardView extends FileView {
     if (m && m.id === e.pointerId && this.session) {
       const rect = selectionRect(m.start,this.point(e.clientX,e.clientY));Object.assign(m.box.style,{left:`${rect.x}px`,top:`${rect.y}px`,width:`${rect.width}px`,height:`${rect.height}px`});
       if(m.section){m.rect=rect;return;}
-      const hits=visibleMarqueeSelection(this.session.board,rect),next=new Set(m.box.dataset.additive==='true'?m.base:[]);
+      const owner=this.session,board=owner.board,epoch=owner.contentEpoch;
+      const hits=visibleMarqueeSelection(board,rect,()=>{
+        // A fold can cover thousands of descendants. Resolve it only on the
+        // first actual hit per gesture/revision; geometry is still read live.
+        const cached=m.folds;if(cached?.owner===owner&&cached.board===board&&cached.epoch===epoch)return cached.hidden;
+        const hidden=branchState(board).hidden;
+        if(Number.isSafeInteger(epoch))m.folds={owner,board,epoch,hidden};
+        return hidden;
+      }),next=new Set(m.box.dataset.additive==='true'?m.base:[]);
       // Match the active object/relationship scope without discarding Shift's explicit base.
       for(const id of hits)if((!this.filterMatches||this.filterMatches.has(id))&&(!this.relatedFocus||this.relatedFocus.has(id)))next.add(id);
       // The rectangle still moves every frame; selection UI only changes with membership.
