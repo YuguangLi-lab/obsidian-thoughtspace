@@ -14,7 +14,7 @@ export interface WritingState {
 }
 const isWritingUnit=(n:Card)=>n.kind==='section'||n.kind==='card'||n.kind==='text'||n.kind==='image';
 export function writingUnits(board:Board){return readingOrder(board.nodes.filter(isWritingUnit));}
-export function writingChapterNode(chapter:WritingChapter):Card{return {id:chapter.id,kind:'text',text:chapter.body,title:chapter.title,topic:true,x:0,y:0,width:240,height:100,color:'sand'};}
+export function writingChapterNode(chapter:WritingChapter):Card{return {id:chapter.id,kind:'text',text:chapter.body,title:chapter.title,topic:true,x:0,y:0,width:240,height:100,color:'slate'};}
 export function writingItems(board:Board){return [...writingUnits(board),...(board.writing?.chapters||[]).map(writingChapterNode)];}
 export function writingOrder(board:Board){const ids=new Set(board.nodes.filter(isWritingUnit).map(n=>n.id));for(const chapter of board.writing?.chapters||[])ids.add(chapter.id);return (board.writing?.order||[]).filter(id=>ids.has(id));}
 export function moveWriting(order:string[],id:string,index:number){const next=order.filter(value=>value!==id);const before=order.indexOf(id);if(before>=0&&before<index)index--;next.splice(Math.max(0,Math.min(index,next.length)),0,id);return next;}

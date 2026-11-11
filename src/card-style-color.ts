@@ -5,7 +5,7 @@ const headingTones:Record<Card['color'],string>={sand:'#8d762f',blue:'#537d99',g
 /** Choose readable title ink without querying layout or theme styles while panning. */
 export function cardHeadingColors(node:Pick<Card,'color'|'fillColor'>):{color:string;ink:string}{
  const fill=node.fillColor&&node.fillColor!=='none'?node.fillColor:node.color;
- const color=/^#[0-9a-f]{6}$/i.test(fill)?fill:headingTones[fill as Card['color']]||headingTones.sand;
+ const color=/^#[0-9a-f]{6}$/i.test(fill)?fill:headingTones[fill as Card['color']]||headingTones.slate;
  const channels=[1,3,5].map(at=>parseInt(color.slice(at,at+2),16)/255).map(c=>c<=.04045?c/12.92:((c+.055)/1.055)**2.4);
  const luminance=.2126*channels[0]+.7152*channels[1]+.0722*channels[2];
  return {color,ink:(luminance+.05)/.05>=1.05/(luminance+.05)?'#000000':'#ffffff'};

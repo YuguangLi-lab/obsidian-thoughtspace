@@ -15,11 +15,11 @@ const allRoots = `:is(${roots.map(owned).join(',')})`;
 const within = (root: string, descendants: string) => `${owned(root)} :is(${descendants})${outsideCalendar}`;
 const rule = (selector: string, declarations: string) => `${selector}{${declarations}}`;
 
-// The original Paper finish, unchanged from 0.97.0 (d55a251) through 1.3.36
-// (6e92b93). Steps 7–10 are the original Radix sage / sageDark values. This is
-// independent of the canvas paper preset/texture and does not add paper noise.
+// Warm white #f8f5ef, the same pigment as the default paper. Later steps stay
+// on that hue instead of the old cream. Steps 7–10 stay the Radix sage grays.
+// This is independent of the canvas paper preset and does not add paper noise.
 const paperLight = [
-  '#fffdf8', '#f6f4ee', '#eeece4', '#e6e4dc', '#dedcd3', '#d3d1c7',
+  '#f8f5ef', '#f0eee8', '#e9e6e0', '#e0ddd8', '#d4d2cc', '#c4c3be',
   '#cbcfcd', '#b8bcba', '#868e8b', '#7c8481', '#67675f', '#272a25',
 ];
 const paperDark = [

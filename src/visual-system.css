@@ -1,8 +1,8 @@
 /* Editorial materials. These private tokens never replace Obsidian's host or
    document variables. Components opt their chrome into the shared palette. */
 :is(.ts-root,.ts-journal,.ts-ui-modal,.ts-space-modal,.ts-settings,.ts-native-header,.ts-writing,.ts-note-markdown-toolbar,.ts-media-workspace,.ts-online-workspace,.ts-materials-panel,.ts-materials-modal,.ts-brain-shell,.ts-handwriting,.ts-local-relations,.ts-collection-content) {
- --ts-e-paper:#f5f1e8;--ts-e-sheet:#fffdf7;--ts-e-ink:#342e28;
- --ts-e-muted:#6c6055;--ts-e-line:#ddd4c5;--ts-e-wash:#ece5d8;
+ --ts-e-paper:#f0eee8;--ts-e-sheet:#f8f5ef;--ts-e-ink:#342e28;
+ --ts-e-muted:#6c6055;--ts-e-line:#d4d2cc;--ts-e-wash:#e9e6e0;
  --ts-e-editorial:#a24b32;--ts-e-edge:#938574;
  --ts-e-serif:"Songti SC","STSong","Noto Serif CJK SC","Iowan Old Style","Palatino Linotype",serif;
  --ts-e-shadow:0 2px 8px #4e351c08,0 16px 40px #4e351c0c;

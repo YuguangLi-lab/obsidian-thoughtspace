@@ -894,7 +894,7 @@ body {
 .ts-root .ts-review-badge:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){position:absolute;right:8px;top:-10px;z-index:3;padding:2px 7px;border:1px solid var(--ts-ui-6);border-radius:5px;background:var(--ts-ui-1);color:var(--ts-accent);font-size:10px;line-height:1.5;pointer-events:none;box-shadow:0 1px 3px #0000000a;}
 .ts-node-summary .ts-review-badge:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){font-size:9px;right:3px;top:-9px;}
 /* Warm, solid paper is opt-in and leaves user fonts and object colors intact. */
-.theme-light :is(.ts-root,.ts-journal,.ts-ui-modal)[data-surface=paper]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){--ts-ui-1:#fffdf8;--ts-ui-2:#f6f4ee;--ts-ui-3:#eeece4;--ts-ui-4:#e6e4dc;--ts-ui-5:#dedcd3;--ts-ui-6:#d3d1c7;--ts-ui-11:#67675f;--ts-ui-12:#272a25;}
+.theme-light :is(.ts-root,.ts-journal,.ts-ui-modal)[data-surface=paper]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){--ts-ui-1:#f8f5ef;--ts-ui-2:#f0eee8;--ts-ui-3:#e9e6e0;--ts-ui-4:#e0ddd8;--ts-ui-5:#d4d2cc;--ts-ui-6:#c4c3be;--ts-ui-11:#67675f;--ts-ui-12:#272a25;}
 .theme-dark :is(.ts-root,.ts-journal,.ts-ui-modal)[data-surface=paper]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){--ts-ui-1:#20211e;--ts-ui-2:#252620;--ts-ui-3:#2c2d27;--ts-ui-4:#34352e;--ts-ui-5:#3c3e35;--ts-ui-6:#4c4e43;--ts-ui-11:#b9bcaf;--ts-ui-12:#e9ebdf;}
 :is(.ts-root,.ts-journal,.ts-ui-modal)[data-surface=paper] :is(.ts-commandbar,.ts-inspector,.ts-minimap,.ts-calendar):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){backdrop-filter:none!important;background:var(--ts-ui-1)!important;box-shadow:0 1px 3px #00000009!important;}
 .ts-ui-modal[data-surface=paper]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){background:var(--ts-ui-1);}
@@ -2890,8 +2890,8 @@ body {
 /* Editorial materials. These private tokens never replace Obsidian's host or
    document variables. Components opt their chrome into the shared palette. */
 :is(.ts-root,.ts-journal,.ts-ui-modal,.ts-space-modal,.ts-settings,.ts-native-header,.ts-writing,.ts-note-markdown-toolbar,.ts-media-workspace,.ts-online-workspace,.ts-materials-panel,.ts-materials-modal,.ts-brain-shell,.ts-handwriting,.ts-local-relations,.ts-collection-content):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
- --ts-e-paper:#f5f1e8;--ts-e-sheet:#fffdf7;--ts-e-ink:#342e28;
- --ts-e-muted:#6c6055;--ts-e-line:#ddd4c5;--ts-e-wash:#ece5d8;
+ --ts-e-paper:#f0eee8;--ts-e-sheet:#f8f5ef;--ts-e-ink:#342e28;
+ --ts-e-muted:#6c6055;--ts-e-line:#d4d2cc;--ts-e-wash:#e9e6e0;
  --ts-e-editorial:#a24b32;--ts-e-edge:#938574;
  --ts-e-serif:"Songti SC","STSong","Noto Serif CJK SC","Iowan Old Style","Palatino Linotype",serif;
  --ts-e-shadow:0 2px 8px #4e351c08,0 16px 40px #4e351c0c;
@@ -10730,7 +10730,7 @@ body {
 .ts-handwriting-summary:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { grid-column:2; display:flex; align-items:center; justify-content:center; gap:8px; min-width:0; color:var(--text-muted); font-size:12px; white-space:nowrap; }
 .ts-handwriting-current-tool:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { color:var(--text-normal); font-weight:600; }
 .ts-handwriting-pen-summary:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { overflow:hidden; text-overflow:ellipsis; font-variant-numeric:tabular-nums; }
-.ts-handwriting-pen-preview:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { position:relative; flex:0 0 28px; width:28px; height:20px; border-radius:3px; background:#f4f1e9; box-shadow:inset 0 0 0 1px #8883; }
+.ts-handwriting-pen-preview:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { position:relative; flex:0 0 28px; width:28px; height:20px; border-radius:3px; background:#f8f5ef; box-shadow:inset 0 0 0 1px #8883; }
 .ts-handwriting-pen-preview:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::after { content:""; position:absolute; top:50%; left:5px; right:5px; height:var(--ink-width,3px); transform:translateY(-50%); border-radius:8px; background:var(--ink-color,#222222); }
 .ts-handwriting .ts-handwriting-color { position:relative; flex-direction:column; gap:7px; min-width:44px; width:44px; padding:8px 0 6px; }
 .ts-handwriting-color:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::before { content:""; width:22px; height:22px; border-radius:50%; background:var(--ink-color); box-shadow:0 0 0 1px #8886; }
@@ -10756,8 +10756,8 @@ body {
 .ts-handwriting-selection-actions[hidden]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { display:none; }
 .ts-handwriting-selection-actions .ts-handwriting-button:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { flex:0 0 auto; color:var(--text-normal); min-width:44px; min-height:44px; }
 .ts-handwriting-selection-actions [data-ink-action=remove-nearby-selection]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { color:var(--text-error); }
-.ts-handwriting-stage:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { position:relative; flex:1 1 auto; min-height:160px; overflow:hidden; outline:none; touch-action:none; user-select:none; -webkit-user-select:none; background-color:#fcfbf7; background-image:radial-gradient(#8c887c30 .6px,transparent .6px); background-size:var(--ink-grid-step,24px) var(--ink-grid-step,24px); }
-.theme-dark .ts-handwriting-stage:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { background-color:#f4f1e9; }
+.ts-handwriting-stage:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { position:relative; flex:1 1 auto; min-height:160px; overflow:hidden; outline:none; touch-action:none; user-select:none; -webkit-user-select:none; background-color:#f8f5ef; background-image:radial-gradient(#8c887c30 .6px,transparent .6px); background-size:var(--ink-grid-step,24px) var(--ink-grid-step,24px); }
+.theme-dark .ts-handwriting-stage:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { background-color:#f8f5ef; }
 .ts-handwriting-stage:focus-visible:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { outline:2px solid var(--ts-accent,var(--interactive-accent)); outline-offset:-3px; }
 .ts-handwriting-stage[data-tool=pen]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { cursor:crosshair; }
 .ts-handwriting-stage[data-tool=eraser]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { cursor:crosshair; }
@@ -11204,15 +11204,15 @@ body {
  --ts-c-accent:var(--ts-accent);--ts-c-accent-hover:color-mix(in srgb,var(--ts-c-accent) 90%,var(--ts-collection-accent-shade));
  --ts-c-on-accent:var(--ts-collection-on-accent);--ts-c-radius:6px;--ts-c-control-radius:5px;
  --ts-c-column:800px;
- --ts-c-paper-texture:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.76' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 .46 0 0 0 0 .40 0 0 0 0 .31 0 0 0 .028 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)'/%3E%3C/svg%3E")
+ --ts-c-paper-texture:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.76' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 .47 0 0 0 0 .46 0 0 0 0 .44 0 0 0 .028 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)'/%3E%3C/svg%3E")
 }
 /* Collection owns its background independently of authored canvas colors.
    The default light surface stays warm white; custom pigments and theme-safe
    text palettes arrive from its separately saved background preferences. */
 .theme-light .ts-collection{
- --ts-c-paper:var(--ts-c-light-paper,#fffdf8);--ts-c-sheet:var(--ts-c-light-sheet,#fffefa);--ts-c-wash:var(--ts-c-light-wash,#f8f5ee);
+ --ts-c-paper:var(--ts-c-light-paper,#f8f5ef);--ts-c-sheet:var(--ts-c-light-sheet,#f8f5ef);--ts-c-wash:var(--ts-c-light-wash,#e9e6e0);
  --ts-c-ink:var(--ts-c-light-ink,#302d27);--ts-c-muted:var(--ts-c-light-muted,#6d685f);--ts-c-faint:var(--ts-c-muted);--ts-c-editorial:var(--ts-c-muted);
- --ts-c-line:var(--ts-c-light-line,#e6e0d5);--ts-c-nav:var(--ts-c-light-nav,color-mix(in srgb,var(--ts-c-sheet) 30%,var(--ts-c-paper)));
+ --ts-c-line:var(--ts-c-light-line,#d4d2cc);--ts-c-nav:var(--ts-c-light-nav,color-mix(in srgb,var(--ts-c-sheet) 30%,var(--ts-c-paper)));
  --ts-c-accent:var(--ts-c-light-accent,var(--ts-accent));--ts-c-on-accent:var(--ts-c-light-on-accent,var(--ts-collection-on-accent));
  --ts-c-pattern-ink:var(--ts-c-light-pattern-ink,var(--ts-c-line));
 }

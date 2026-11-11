@@ -2956,12 +2956,12 @@ export default class ThoughtSpace extends Plugin {
       ['建立阅读清单', '把待读资料和已经完成的工作放进同一份项目记录。', 'done', 'low'],
     ] as const;
     const cols = ['inbox','active','done'], labels = ['待整理','进行中','已完成'];
-    cols.forEach((_,i) => b.nodes.push({id:uid(),kind:'section',title:labels[i],x:70+i*370,y:45,width:345,height:685,color: ['sand','blue','green'][i] as Card['color']}));
+    cols.forEach((_,i) => b.nodes.push({id:uid(),kind:'section',title:labels[i],x:70+i*370,y:45,width:345,height:685,color: ['slate','blue','green'][i] as Card['color']}));
     const files:TFile[]=[];
     for (const [i, [title, content, status, priority]] of specs.entries()) {
       const date = new Date(); date.setDate(date.getDate() + (status === 'done' ? -1 : i + 1));
       const f = await this.createUnique(folder,title,'md',`---\ntags: [示例/项目进度]\nthoughtspace_status: ${status}\nthoughtspace_priority: ${priority}\nthoughtspace_due: ${localDay(date)}\n---\n# ${title}\n\n${content}\n`); files.push(f);
-      b.nodes.push(applyDefaultCardStyle({id:uid(),kind:'card',transparent:true,file:f.path,x:88+cols.indexOf(status)*370,y:105+(i%2)*300,width:310,height:245,color:status==='done'?'green':status==='active'?'blue':'sand'},this.settings.defaultCardStyle));
+      b.nodes.push(applyDefaultCardStyle({id:uid(),kind:'card',transparent:true,file:f.path,x:88+cols.indexOf(status)*370,y:105+(i%2)*300,width:310,height:245,color:status==='done'?'green':status==='active'?'blue':'slate'},this.settings.defaultCardStyle));
     }
     await this.app.vault.append(files[2],`\n前置问题：[[${files[4].path}|明确研究问题]]\n`);
     await this.app.vault.append(files[0],`\n材料来源：[[${files[2].path}|收集核心文献]]\n`);
@@ -2970,7 +2970,7 @@ export default class ThoughtSpace extends Plugin {
   }
   async demo() {
     const specs = [
-      ['从问题开始', '# 从问题开始\n\n把一个宽泛主题，变成一个可以回答的问题。\n\n> 什么证据会改变我的判断？\n\n#研究/问题\n', 'sand', 80, 115],
+      ['从问题开始', '# 从问题开始\n\n把一个宽泛主题，变成一个可以回答的问题。\n\n> 什么证据会改变我的判断？\n\n#研究/问题\n', 'slate', 80, 115],
       ['收集与阅读', '# 收集与阅读\n\n一张卡片只保留一个核心想法。把来源、摘录和自己的解释放在一起。\n\n- [ ] 加入一篇待读文献\n- [ ] 记录来源与关键结论\n\n#研究/阅读\n', 'blue', 440, 115],
       ['让观点发生联系', '# 让观点发生联系\n\n点击工具栏的「连线」，依次选择两张卡片。\n\n为箭头添加标签：支持、反驳、引出问题。\n\n#研究/思考\n', 'green', 800, 115],
       ['整理成自己的解释', '# 整理成自己的解释\n\n移动卡片，在空间里组织证据。\n\n- [ ] 写下当前解释\n- [ ] 找到一条反例\n\n#研究/写作\n', 'purple', 440, 490],
@@ -2983,7 +2983,7 @@ export default class ThoughtSpace extends Plugin {
     await this.openBoard(await this.createUnique(`${ROOT}/白板`, '开始你的思维地图', EXT, JSON.stringify(b, null, 2)), true);
   }
   async nestedDemo() {
-    const note = async (title: string, text: string, x: number, color: Card['color'] = 'sand'): Promise<Card> => {
+    const note = async (title: string, text: string, x: number, color: Card['color'] = 'slate'): Promise<Card> => {
       const f = await this.createUnique(this.settings.cardFolder, title, 'md', `# ${title}\n\n${text}`);
       return applyDefaultCardStyle({ id: uid(), kind:'card',transparent:true, file: f.path, x, y: 45, width: 315, height: 265, color },this.settings.defaultCardStyle);
     };
@@ -2999,7 +2999,7 @@ export default class ThoughtSpace extends Plugin {
     ], ['可复核']);
     const evidence = await save('文献与证据', [
       await note('收集值得追问的材料', '每张卡片只记录一个观点。\n\n- [ ] 补充原始来源\n- [ ] 摘录关键证据\n\n#研究/阅读\n', 30, 'blue'),
-      await note('区分事实与解释', '哪些是观察到的事实，哪些是作者的推论？\n\n> 反例同样值得保留。\n\n#研究/证据\n', 425, 'sand'), portal(methods, 820)
+      await note('区分事实与解释', '哪些是观察到的事实，哪些是作者的推论？\n\n> 反例同样值得保留。\n\n#研究/证据\n', 425, 'slate'), portal(methods, 820)
     ], ['核对', '追溯方法']);
     const writing = await save('写作与输出', [
       await note('写出自己的解释', '把有关联的卡片组合成一段完整的论证。\n\n- [ ] 写出核心判断\n- [ ] 标明支持与反对的证据\n\n#研究/写作\n', 30, 'purple'),
@@ -3250,7 +3250,7 @@ class BoardView extends FileView {
     const color=controls.createEl('select',{attr:{'aria-label':'对象颜色'}});color.createEl('option',{value:'',text:'全部颜色'});for(const value of colors)color.createEl('option',{value,text:colorNames[value]});color.value=draft.color;color.onchange=()=>draft.color=color.value;
     button(m.contentEl,'应用筛选','filter',()=>{this.requireOwner(owner);this.objectFilter=draft;this.renderBoard();m.close();});button(m.contentEl,'清除筛选','x',()=>{this.requireOwner(owner);this.objectFilter={kind:'',color:'',query:''};this.renderBoard();m.close();});m.open();}
   private updateObjectFilter(){if(!this.session)return;const active=Object.values(this.objectFilter).some(Boolean);this.filterMatches=active?filterObjects(this.session.board.nodes,this.objectFilter):undefined;this.filterBadge?.toggleClass('is-visible',active);if(this.filterBadge){this.filterBadge.empty();if(active){this.filterBadge.createSpan({text:`匹配 ${this.filterMatches!.size} / ${this.session.board.nodes.length}`});button(this.filterBadge,'选择匹配','check-check',()=>{this.selected=new Set(this.filterMatches);this.contextOpen=false;this.updateSelection();});button(this.filterBadge,'清除对象筛选','x',()=>{this.objectFilter={kind:'',color:'',query:''};this.renderBoard();});}}for(const[id,el]of this.positions)el.toggleClass('is-filtered-out',!!this.filterMatches&&!this.filterMatches.has(id));}
-  pasteTexts(text:string,split=true){const owner=this.requireOwner(),position=this.point(),lines=split?textBatch(text):[text];if(!text.trim())return;if(text.length>100000)throw Error('一次最多粘贴 100,000 个字符');const nodes=lines.map((text,i)=>{const n:Card={id:uid(),kind:'text',text,x:position.x,y:position.y,width:240,height:60,color:'sand',fontSize:this.plugin.settings.defaultTextSize};fitTextNode(n,this.contentEl);return n;});let y=position.y;for(const n of nodes){n.y=y;y+=n.height+24;}owner.change(b=>{b.version=3;b.nodes.push(...nodes);});this.selected=new Set(nodes.map(n=>n.id));this.updateSelection();}
+  pasteTexts(text:string,split=true){const owner=this.requireOwner(),position=this.point(),lines=split?textBatch(text):[text];if(!text.trim())return;if(text.length>100000)throw Error('一次最多粘贴 100,000 个字符');const nodes=lines.map((text,i)=>{const n:Card={id:uid(),kind:'text',text,x:position.x,y:position.y,width:240,height:60,color:'slate',fontSize:this.plugin.settings.defaultTextSize};fitTextNode(n,this.contentEl);return n;});let y=position.y;for(const n of nodes){n.y=y;y+=n.height+24;}owner.change(b=>{b.version=3;b.nodes.push(...nodes);});this.selected=new Set(nodes.map(n=>n.id));this.updateSelection();}
   private pdfQuotePrompt(initial=''){
     const owner=this.requireOwner();
     const plan=(text:string,source:string)=>{this.requireOwner(owner);if(source&&!(this.app.vault.getAbstractFileByPath(source) instanceof TFile&&/\.md$/i.test(source)))throw Error('来源笔记不存在，请填写完整的仓库内 Markdown 路径');const files=this.app.vault.getFiles().map(file=>file.path);return planPdfQuote(text,source,(path,context)=>resolvePdfQuotePath(path,context,files,(value,from)=>this.app.metadataCache.getFirstLinkpathDest(value,from)?.path));};
@@ -3259,7 +3259,7 @@ class BoardView extends FileView {
   private importPdfQuote(plan:PdfQuotePlan){
     const owner=this.requireOwner(),existing=owner.board.nodes.find(node=>node.kind==='text'&&samePdfQuote(node,plan));
     if(existing){this.selected=new Set([existing.id]);this.updateSelection();this.focusSelection();new Notice('这条摘录已在白板中，已定位到原卡片');return;}
-    const position=this.point(),node:Card={id:uid(),kind:'text',text:plan.text,pdfQuote:plan.origin,textAutoHeight:true,x:position.x,y:position.y,width:320,height:180,color:'sand',fontSize:this.plugin.settings.defaultTextSize};fitTextNode(node,this.contentEl);
+    const position=this.point(),node:Card={id:uid(),kind:'text',text:plan.text,pdfQuote:plan.origin,textAutoHeight:true,x:position.x,y:position.y,width:320,height:180,color:'slate',fontSize:this.plugin.settings.defaultTextSize};fitTextNode(node,this.contentEl);
     owner.change(board=>{board.version=3;board.nodes.push(node);});this.selected=new Set([node.id]);this.updateSelection();
   }
   private textBatchPrompt(){const owner=this.session;new TextModal(this.app,'逐行创建文本框','',text=>{this.requireOwner(owner);this.pasteTexts(text);}).open();}
@@ -3306,7 +3306,7 @@ class BoardView extends FileView {
     await finishHighlightSave(()=>owner.flush(),()=>!owner.blocked&&owner.board.nodes.some(item=>item.file===note.path),()=>rollbackUnsavedHighlight({board:owner.board,before,history:owner.history,historyMark,notePath:note.path,restoreBoard:board=>{owner.board=board;},remove:async()=>{await this.discardUnplacedHighlight(note,markdown);await discardHighlightRecovery(note.path,owner.recoveryFile,previousRecovery,async path=>{const file=this.app.vault.getAbstractFileByPath(path);return file instanceof TFile?this.app.vault.read(file):undefined;},async path=>{const file=this.app.vault.getAbstractFileByPath(path);if(!(file instanceof TFile))return;await this.app.fileManager.trashFile(file);if(this.app.vault.getAbstractFileByPath(path)===file)throw Error(`恢复草稿仍引用已删除的高亮笔记：${path}`);});}}));
     this.selected=new Set([node.id]);this.contextOpen=false;this.renderBoard();await owner.flush();return{ids:[node.id],files:[note.path],boardPath:owner.file.path};
   }
-  private async placeExcerptTexts(texts:string[],position:{x:number;y:number},owner:Session,color:Card['color']='sand'):Promise<MaterialImportResult>{
+  private async placeExcerptTexts(texts:string[],position:{x:number;y:number},owner:Session,color:Card['color']='slate'):Promise<MaterialImportResult>{
     this.requireOwner(owner);let y=position.y;const nodes=texts.map(text=>{const n:Card={id:uid(),kind:'text',text,x:position.x,y,width:240,height:60,color,fontSize:this.plugin.settings.defaultTextSize,autoSize:true,review:'later'};fitTextNode(n,this.contentEl);y+=n.height+24;return n;});
     owner.change(b=>{b.version=3;b.nodes.push(...nodes);});this.selected=new Set(nodes.map(n=>n.id));this.contextOpen=false;this.updateSelection();this.renderBoard();await owner.flush();return{ids:nodes.map(n=>n.id),files:[],boardPath:owner.file.path};
   }
@@ -3327,7 +3327,7 @@ class BoardView extends FileView {
       for(const [i,f]of documents.entries()){
         validateSource();
         const file=await this.plugin.createUnique(this.plugin.settings.cardFolder,`${source.basename} · ${f.title}`, 'md',f.body);created.push(file);
-        nodes.push(applyDefaultCardStyle({id:uid(),kind:'card',transparent:true,file:file.path,x:point.x+(i%3)*(width+32),y:point.y+Math.floor(i/3)*310,width,height:270,color:f.kind==='quote'?'purple':f.kind==='task'?'sand':'green',review:'later'},this.plugin.settings.defaultCardStyle));
+        nodes.push(applyDefaultCardStyle({id:uid(),kind:'card',transparent:true,file:file.path,x:point.x+(i%3)*(width+32),y:point.y+Math.floor(i/3)*310,width,height:270,color:f.kind==='quote'?'purple':f.kind==='task'?'slate':'green',review:'later'},this.plugin.settings.defaultCardStyle));
       }
       validateSource();if((await this.app.vault.read(source)).replace(/\r\n?/g,'\n')!==raw.replace(/\r\n?/g,'\n'))throw Error('原文在导入期间发生变化');validateSource();
       owner!.change(b=>{b.version=3;if(group){const previous=existingGroup&&b.nodes.find(n=>n.id===existingGroup.id);if(existingGroup&&(!previous||previous.locked))throw Error('分组已变化，请刷新后继续');const frame=sectionBounds([...(previous?b.nodes.filter(n=>contained(previous,n)):[]),...nodes])!;if(previous){Object.assign(previous,frame);groupId=previous.id;}else{groupId=uid();b.nodes.push({id:groupId,kind:'section',title:`${source.basename} · 摘录`,color:'green',...frame});}}b.nodes.push(...nodes);
@@ -4323,7 +4323,7 @@ class BoardView extends FileView {
       if(i&&i%3===0){rowY+=rowHeight+32;rowHeight=0;columnX=position.x-width/2;}
       const id=uid();if(!id||used.has(id))throw Error('对象标识冲突，请重试');used.add(id);
       const size=sizes.get(path)||{width,height:width*.75};
-      const node:Card=mediaKind(path)?mediaCard(id,path,columnX+width/2,rowY+70,width,start):isPdfFile(path)?{...pdfCard(id,path,columnX+width/2,rowY+70,width),pdfPage:pdfPage(page)}:isImage(path)?{id,kind:'image',file:path,x:columnX,y:rowY,...size,color:'blue'}:{id,kind:'card',transparent:true,file:path,x:columnX,y:rowY,width,height:270,color:'sand',autoFit:true,preferredWidth:width};
+      const node:Card=mediaKind(path)?mediaCard(id,path,columnX+width/2,rowY+70,width,start):isPdfFile(path)?{...pdfCard(id,path,columnX+width/2,rowY+70,width),pdfPage:pdfPage(page)}:isImage(path)?{id,kind:'image',file:path,x:columnX,y:rowY,...size,color:'blue'}:{id,kind:'card',transparent:true,file:path,x:columnX,y:rowY,width,height:270,color:'slate',autoFit:true,preferredWidth:width};
       applyDefaultCardStyle(node,this.plugin.settings.defaultCardStyle);
       columnX+=node.width+32;rowHeight=Math.max(rowHeight,node.height);nodes.push(node);
     }
@@ -4413,7 +4413,7 @@ class BoardView extends FileView {
     if(mediaKind(file.path)){const id=uid();this.selected=new Set([id]);this.selectedEdge=undefined;this.mutate(b=>{b.version=3;b.nodes.push(mediaCard(id,file.path,position.x,position.y,this.plugin.settings.defaultCardWidth));});return;}
     if(file.extension!=='md')throw Error('仅支持 Markdown、PDF、音频或视频卡片');
     const id = uid(); this.selected = new Set([id]); this.selectedEdge = undefined;
-    this.mutate(b => b.nodes.push(applyDefaultCardStyle({ id, kind:'card',library:true,transparent:true, file: file.path, x: position.x - this.plugin.settings.defaultCardWidth/2, y: position.y - 70, width: this.plugin.settings.defaultCardWidth, height: 270, color: 'sand', autoFit:true,preferredWidth:this.plugin.settings.defaultCardWidth },this.plugin.settings.defaultCardStyle)));
+    this.mutate(b => b.nodes.push(applyDefaultCardStyle({ id, kind:'card',library:true,transparent:true, file: file.path, x: position.x - this.plugin.settings.defaultCardWidth/2, y: position.y - 70, width: this.plugin.settings.defaultCardWidth, height: 270, color: 'slate', autoFit:true,preferredWidth:this.plugin.settings.defaultCardWidth },this.plugin.settings.defaultCardStyle)));
   }
   placeExistingCard(file?:TFile){if(file)this.addFile(file);else void this.insertExistingNote();}
   canUnlinkLibrarySelection(){return !!this.session&&!this.closed&&!this.session.blocked&&this.session.board.nodes.some(node=>this.selected.has(node.id)&&isLibraryCard(node)&&!node.locked);}
@@ -4523,12 +4523,12 @@ class BoardView extends FileView {
     }finally{this.blankTextCreating=false;}
   }
   async newText(position=this.point(),topic=false){const owner=this.requireOwner();if(this.inline&&!await this.inline.commit())return;this.requireOwner(owner);
-    const id=uid();owner.change(b=>{b.version=3;if(topic)b.mode='mindmap';const node:Card={id,kind:'text',text:topic?'中心主题':'',topic,...(topic?{mindmapRules:{layout:b.mindmapLayout||'right',density:b.mindmapDensity||'standard',automatic:true} as NonNullable<Card['mindmapRules']>}:{}),x:position.x-40,y:position.y-30,width:topic?80:280,height:topic?60:140,color:topic?'green':'sand',fontSize:this.plugin.settings.defaultTextSize,autoSize:true};if(topic)fitTextNode(node,this.contentEl);b.nodes.push(node);});this.selected=new Set([id]);this.selectedEdge=undefined;this.contextOpen=false;this.updateSelection();await this.startInlineEdit(id,topic,true);
+    const id=uid();owner.change(b=>{b.version=3;if(topic)b.mode='mindmap';const node:Card={id,kind:'text',text:topic?'中心主题':'',topic,...(topic?{mindmapRules:{layout:b.mindmapLayout||'right',density:b.mindmapDensity||'standard',automatic:true} as NonNullable<Card['mindmapRules']>}:{}),x:position.x-40,y:position.y-30,width:topic?80:280,height:topic?60:140,color:topic?'green':'slate',fontSize:this.plugin.settings.defaultTextSize,autoSize:true};if(topic)fitTextNode(node,this.contentEl);b.nodes.push(node);});this.selected=new Set([id]);this.selectedEdge=undefined;this.contextOpen=false;this.updateSelection();await this.startInlineEdit(id,topic,true);
   }
   async newTable(position=this.point()){
     const owner=this.requireOwner();if(this.inline&&!await this.inline.commit())return;this.requireOwner(owner);
     const template=markdownEdit('',0,0,'table'),id=uid();
-    owner.change(b=>{b.version=3;b.nodes.push({id,kind:'text',text:template.text,transparent:true,x:position.x-40,y:position.y-30,width:520,height:180,textMaxWidth:720,color:'sand',fontSize:this.plugin.settings.defaultTextSize,autoSize:true});});
+    owner.change(b=>{b.version=3;b.nodes.push({id,kind:'text',text:template.text,transparent:true,x:position.x-40,y:position.y-30,width:520,height:180,textMaxWidth:720,color:'slate',fontSize:this.plugin.settings.defaultTextSize,autoSize:true});});
     this.selected=new Set([id]);this.selectedEdge=undefined;this.contextOpen=false;this.updateSelection();await this.startInlineEdit(id,false,true);
     if(this.session===owner&&this.inlineId===id)this.inline?.input.setSelectionRange(template.start,template.end);
   }
@@ -4542,7 +4542,7 @@ class BoardView extends FileView {
         if(inserted&&(!current||current.kind!=='text'||current.webUrl||current.locked||current.text!==savedText))throw Error('图表已变化或锁定，请重新打开编辑');
         if(!inserted||text!==savedText)owner.change(b=>{
           if(inserted)b.nodes.find(n=>n.id===id)!.text=text;
-          else{b.version=3;b.nodes.push({id,kind:'text',title:'Mermaid 图表',text,x:position.x-210,y:position.y-150,width:420,height:300,color:'sand',fontSize:this.plugin.settings.defaultTextSize,autoSize:false,textAutoHeight:false});}
+          else{b.version=3;b.nodes.push({id,kind:'text',title:'Mermaid 图表',text,x:position.x-210,y:position.y-150,width:420,height:300,color:'slate',fontSize:this.plugin.settings.defaultTextSize,autoSize:false,textAutoHeight:false});}
         });
         inserted=true;savedText=text;this.selected=new Set([id]);this.selectedEdge=undefined;this.contextOpen=false;this.updateSelection();
         await owner.flush();if(owner.blocked)throw Error('图表已保留在恢复草稿中，请先处理白板保存冲突');
@@ -5871,7 +5871,7 @@ class BoardView extends FileView {
     if(this.inline&&!await this.inline.commit())return;this.requireOwner(owner);
     if(!owner.board.nodes.some(n=>n.id===from))throw Error('起点已不存在');
     if(file&&this.app.vault.getAbstractFileByPath(file.path)!==file)throw Error('来源文件已改变，请重新选择');
-    const node:Card={id:uid(),kind:file?(isPdfFile(file.path)?'pdf':'card'):'text',...(file?{file:file.path,...(isPdfFile(file.path)?{pdfPage:1}:{})}:{text}),x:point.x,y:point.y,width:file?320:280,height:file?260:140,color:'sand',fontSize:this.plugin.settings.defaultTextSize,autoSize:false};
+    const node:Card={id:uid(),kind:file?(isPdfFile(file.path)?'pdf':'card'):'text',...(file?{file:file.path,...(isPdfFile(file.path)?{pdfPage:1}:{})}:{text}),x:point.x,y:point.y,width:file?320:280,height:file?260:140,color:'slate',fontSize:this.plugin.settings.defaultTextSize,autoSize:false};
     owner.change(b=>{b.version=3;b.nodes.push(node);b.edges.push({id:uid(),from,to:node.id,label:'',fromSide:side,style:this.plugin.settings.defaultEdgeStyle,direction:this.plugin.settings.defaultEdgeDirection});});
     this.selected=new Set([node.id]);this.updateSelection();if(!file)await this.startInlineEdit(node.id,false,true);
   }
@@ -6375,7 +6375,7 @@ class BoardView extends FileView {
     if(cards.length){fieldGroup('卡片外观');const values=cards.map(n=>n.fillColor||'none'),custom=values.find(c=>c.startsWith('#'));
       if(cards.some(n=>!supportsCardStyle(n)))select('卡片样式',{solid:'默认',transparent:'透明'},cards.map(n=>n.transparent?'transparent':'solid'),(b,value)=>b.nodes.filter(n=>ids.has(n.id)&&(n.kind==='card'||n.kind==='text')&&!n.locked).forEach(n=>{if(supportsCardStyle(n))applyCardStyle(n,value as CardStyleChoice);else if(value==='transparent')n.transparent=true;else delete n.transparent;}));
       select('卡片颜色',{none:'默认底色',...colorNames,...Object.fromEntries(values.filter(value=>value.startsWith('#')).map(value=>[value,'自定义 '+value]))},values,(b,value)=>b.nodes.filter(n=>ids.has(n.id)&&(n.kind==='card'||n.kind==='text')&&!n.locked).forEach(n=>{delete n.transparent;n.fillColor=value as Card['fillColor'];}));
-      const wrap=fieldHost.createEl('label',{cls:'ts-format-field ts-fill-custom',attr:{title:'自定义卡片颜色'}});wrap.createSpan({text:'自定'});const color=wrap.createEl('input',{type:'color',attr:{'aria-label':'自定义卡片颜色',title:'选择任意卡片背景色'}});color.value=custom||cardFillHex[(values[0]==='none'?'sand':values[0]) as Card['color']]||'#e8d8a8';color.disabled=owner.blocked||nodes.some(n=>n.locked);color.onchange=()=>act(()=>{if(!color.isConnected||color.disabled||this.inline?.snapshot().busy)return;this.requireOwner(owner);const value=color.value;if(!validCardFill(value)||!value.startsWith('#')||!current()||owner.board.nodes.some(n=>ids.has(n.id)&&n.locked))return;owner.change(b=>{b.version=3;for(const n of b.nodes)if(ids.has(n.id)&&(n.kind==='card'||n.kind==='text')&&!n.locked){delete n.transparent;n.fillColor=value;}});});
+      const wrap=fieldHost.createEl('label',{cls:'ts-format-field ts-fill-custom',attr:{title:'自定义卡片颜色'}});wrap.createSpan({text:'自定'});const color=wrap.createEl('input',{type:'color',attr:{'aria-label':'自定义卡片颜色',title:'选择任意卡片背景色'}});color.value=custom||cardFillHex[(values[0]==='none'?'slate':values[0]) as Card['color']]||'#bdc8d2';color.disabled=owner.blocked||nodes.some(n=>n.locked);color.onchange=()=>act(()=>{if(!color.isConnected||color.disabled||this.inline?.snapshot().busy)return;this.requireOwner(owner);const value=color.value;if(!validCardFill(value)||!value.startsWith('#')||!current()||owner.board.nodes.some(n=>ids.has(n.id)&&n.locked))return;owner.change(b=>{b.version=3;for(const n of b.nodes)if(ids.has(n.id)&&(n.kind==='card'||n.kind==='text')&&!n.locked){delete n.transparent;n.fillColor=value;}});});
     }
     const sections=nodes.filter(n=>n.kind==='section');
     if(sections.length){

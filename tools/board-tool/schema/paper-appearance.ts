@@ -2,15 +2,15 @@ import {isRecord,isFiniteNumber} from './value-guards';
 
 /** Shared preset names and pigments for the board, settings and visual previews. */
 export const paperPresets={
- cream:{name:'米黄纸',color:'#f3e9d4'},
+ cream:{name:'暖白纸',color:'#f8f5ef'},
  white:{name:'纯白纸',color:'#ffffff'},
  ivory:{name:'象牙白',color:'#f7f2e7'},
  kraft:{name:'牛皮纸',color:'#d6ba8f'},
  recycled:{name:'再生纸',color:'#dedbd1'},
- custom:{name:'自定义',color:'#f3e9d4'},
+ custom:{name:'自定义',color:'#f8f5ef'},
 } as const;
 export interface PaperPreferences {paperPreset:keyof typeof paperPresets;paperColor:string;paperTexture:number}
-export const defaultPaperPreferences:PaperPreferences={paperPreset:'cream',paperColor:'#f3e9d4',paperTexture:55};
+export const defaultPaperPreferences:PaperPreferences={paperPreset:'cream',paperColor:'#f8f5ef',paperTexture:55};
 /** Never pass persisted colors or arbitrary properties straight to CSS. */
 export function cleanPaperPreferences(raw:unknown):PaperPreferences{
  const saved=isRecord(raw)?raw:{};

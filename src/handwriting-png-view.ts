@@ -24,7 +24,7 @@ export class HandwritingPngModal extends Modal {
   const context=canvas.getContext('2d');if(!context){canvas.remove();throw Error('当前环境不支持 PNG 绘制，原笔迹保留');}
   const image=doc.body.createEl('img');image.hidden=true;const url=URL.createObjectURL(new Blob([svg.source],{type:'image/svg+xml'}));
   try{await new Promise<void>((resolve,reject)=>{const timer=doc.defaultView!.setTimeout(()=>reject(Error('PNG 图像解码超时')),30000);const end=(error?:Error)=>{doc.defaultView!.clearTimeout(timer);error?reject(error):resolve();};image.onload=()=>end();image.onerror=()=>end(Error('PNG 图像解码失败'));image.src=url;});
-   if(!current())throw Error('PNG 导出已取消');if(this.background==='paper'){context.fillStyle='#fffdf8';context.fillRect(0,0,size.width,size.height);}context.drawImage(image,0,0,size.width,size.height);
+   if(!current())throw Error('PNG 导出已取消');if(this.background==='paper'){context.fillStyle='#f8f5ef';context.fillRect(0,0,size.width,size.height);}context.drawImage(image,0,0,size.width,size.height);
    const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(Error('PNG 编码失败')),'image/png'));const bytes=new Uint8Array(await blob.arrayBuffer());assertPngBytes(bytes);return bytes;
   }finally{image.onload=null;image.onerror=null;image.src='';URL.revokeObjectURL(url);canvas.width=0;canvas.height=0;image.remove();canvas.remove();}
  }

@@ -5,7 +5,7 @@ import {bindBoardModalViewport} from './board-modal-viewport';
 
 export interface PaperSettingsHost {stamp?:()=>string;language?:'zh-CN'|'en';preferences:()=>PaperPreferences;save:(preferences:PaperPreferences)=>Promise<void>;}
 const paperPresetEnglish:Record<PaperPreferences['paperPreset'],string>={cream:'Warm white paper',white:'White paper',ivory:'Ivory paper',kraft:'Kraft paper',recycled:'Recycled paper',custom:'Custom'};
-const previewInk=(color:string)=>{const channels=[1,3,5].map(at=>parseInt(color.slice(at,at+2),16)/255).map(value=>value<=.04045?value/12.92:Math.pow((value+.055)/1.055,2.4));return channels[0]*.2126+channels[1]*.7152+channels[2]*.0722>.179?'#403b32':'#f4f0e6';};
+const previewInk=(color:string)=>{const channels=[1,3,5].map(at=>parseInt(color.slice(at,at+2),16)/255).map(value=>value<=.04045?value/12.92:Math.pow((value+.055)/1.055,2.4));return channels[0]*.2126+channels[1]*.7152+channels[2]*.0722>.179?'#403b32':'#f8f5ef';};
 /** Changes stay in this dialog until Apply; native Modal selection state is untouched. */
 export class PaperSettingsModal extends Modal {
  private viewport?:()=>void;

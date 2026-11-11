@@ -25,9 +25,9 @@ function contrast(a: string, b: string): number {
   return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 }
 
-test('paper preserves all twelve historical light and dark steps, host type and solid material', () => {
+test('paper uses the warm-white ramp and keeps the dark steps, host type and solid material', () => {
   const expected = [
-    ['#fffdf8','#f6f4ee','#eeece4','#e6e4dc','#dedcd3','#d3d1c7','#cbcfcd','#b8bcba','#868e8b','#7c8481','#67675f','#272a25'],
+    ['#f8f5ef','#f0eee8','#e9e6e0','#e0ddd8','#d4d2cc','#c4c3be','#cbcfcd','#b8bcba','#868e8b','#7c8481','#67675f','#272a25'],
     ['#20211e','#252620','#2c2d27','#34352e','#3c3e35','#4c4e43','#444947','#5b625f','#63706b','#717d79','#b9bcaf','#e9ebdf'],
   ];
   for (const [index, scale] of expected.entries()) {

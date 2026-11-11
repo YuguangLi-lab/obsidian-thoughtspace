@@ -9,7 +9,7 @@ test('old or missing collection settings default to independent warm-white paper
  const old={canvasBackground:'grid',paperPreset:'custom',paperColor:'#123456',paperTexture:83,backgroundImagePath:'assets/board.png'};
  const before=JSON.stringify(old),loaded=cleanPluginSettings(old);
  assert.deepEqual(loaded.collectionBackground,defaultCollectionBackground);assert.equal(loaded.canvasBackground,'grid');assert.equal(loaded.paperColor,'#123456');assert.equal(JSON.stringify(old),before);
- assert.equal(collectionBackgroundPalette(undefined).paper,'#fffdf8');
+ assert.equal(collectionBackgroundPalette(undefined).paper,'#f8f5ef');
 });
 test('collection background survives serialization without altering board preferences',()=>{
  const input={canvasBackground:'dots',paperColor:'#abcdef',collectionBackground:{canvasBackground:'paper',paperPreset:'custom',paperColor:'#e3f0f4',paperTexture:64}};
@@ -18,7 +18,7 @@ test('collection background survives serialization without altering board prefer
 });
 test('invalid colors, texture, modes and external image paths cannot enter CSS',()=>{
  const value=cleanCollectionBackground({canvasBackground:'url(x)',paperColor:'red;display:none',paperPreset:'unknown',paperTexture:Infinity,backgroundImagePath:'https://example.com/private.png'});
- assert.equal(value.paperColor,'#fffdf8');assert.equal(value.paperPreset,'custom');assert.equal(value.canvasBackground,'paper');assert.equal(value.backgroundImagePath,'');assert.equal(value.paperTexture,35);
+ assert.equal(value.paperColor,'#f8f5ef');assert.equal(value.paperPreset,'custom');assert.equal(value.canvasBackground,'paper');assert.equal(value.backgroundImagePath,'');assert.equal(value.paperTexture,35);
  assert.equal(collectionBackgroundStyles(value,'forest','https://example.com/ignored.png')['--ts-c-background-image'],'none');
  for(const path of ['../secret.png','/tmp/private.png','file:///tmp/a.png'])assert.equal(cleanCollectionBackground({backgroundImagePath:path}).backgroundImagePath,'');
 });
