@@ -96,9 +96,10 @@ export function paintCardLibrary(root:LibraryElement,records:readonly LibraryCar
   for(const column of table.columns)head.createEl('th',{text:column});
   for(const row of table.rows){
    const line=grid.createEl('tr',{cls:selectedCls(row.path).trim(),attr:{'data-note-path':row.path}});bindSelect(line,row.path);
-   row.cells.forEach((cell,index)=>{const title=index===0,td=line.createEl('td',title?{text:cell,cls:'ts-library-title-cell',attr:{title:cell,tabindex:'0','aria-label':cell}}:{text:cell});if(title&&picked(row.path))mark(td);});
+   row.cells.forEach((cell,index)=>{const title=index===0;line.createEl('td',title?{text:cell,cls:'ts-library-title-cell',attr:{title:cell,tabindex:'0','aria-label':cell}}:{text:cell});});
    const tools=line.createEl('td');
    actions(tools,shown.find(record=>record.path===row.path)!,handlers);
+   if(picked(row.path))mark(tools);
   }
   return;
  }

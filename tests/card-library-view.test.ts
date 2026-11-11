@@ -172,3 +172,29 @@ test('a truncated table title stays available on hover and keyboard focus',()=>{
  assert.match(css,/\.ts-database \.ts-db-table \.ts-library-title-cell\{[^}]*text-overflow:ellipsis/);
  assert.match(css,/\.ts-database \.ts-db-table \.ts-library-title-cell:focus\{[^}]*white-space:normal/);
 });
+
+test('table selection outline and mark are painted on cells and are not clipped by the title ellipsis',()=>{
+ const cards=records(),root=new El();
+ paintCardLibrary(root,cards,{...emptyLibraryQuery(),view:'table',selected:['Cards/Shade.md']},{setQuery(){},place(){},open(){},unlink(){}});
+ const row=root.all().find(el=>el.attrs['data-note-path']==='Cards/Shade.md')!;
+ const title=row.children.find(el=>el.cls.split(' ').includes('ts-library-title-cell'))!;
+ const hosts=row.children.filter(el=>el.children.some(child=>child.cls.split(' ').includes('ts-library-selected-mark')));
+ assert.equal(title.children.some(el=>el.cls.split(' ').includes('ts-library-selected-mark')),false);
+ assert.equal(hosts.length,1);
+ assert.notEqual(hosts[0],title);
+ const css=readFileSync('src/workflow.css','utf8');
+ assert.match(css,/\.ts-db-table tr\.is-selected>td\{[^}]*background:transparent[^}]*box-shadow:[^;]*var\(--ts-e-selected\)/);
+ assert.match(css,/\.ts-db-table tr\.is-selected>td:first-child\{[^}]*box-shadow:[^;]*var\(--ts-e-selected\)/);
+ assert.match(css,/\.ts-db-table tr\.is-selected>td:last-child\{[^}]*overflow:visible[^}]*position:relative/);
+ assert.match(css,/\.ts-database \.ts-db-table \.ts-library-title-cell\{[^}]*overflow:hidden/);
+});
+
+test('card library kanban lays out as flex columns on a wash board with paper lanes',()=>{
+ const css=readFileSync('src/workflow.css','utf8');
+ const board=css.match(/\.ts-db-kanban\{[^}]*\}/)?.[0]??'';
+ const lane=css.match(/\.ts-db-lane\{[^}]*\}/)?.[0]??'';
+ assert.match(board,/display:flex/);
+ assert.match(board,/background:var\(--ts-e-wash\)/);
+ assert.match(lane,/flex:1 0 270px/);
+ assert.match(lane,/background:var\(--ts-e-paper\)/);
+});
