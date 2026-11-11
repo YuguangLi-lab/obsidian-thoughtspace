@@ -1,7 +1,7 @@
 import {libraryTypeNames,type LibraryCardType} from './card-library-model';
 import {statuses} from './database';
 import {highlightLocation,highlightReturnLabel} from './highlight-note';
-import {emptyLibraryQuery,filterLibraryCards,libraryBoardChoices,libraryKanban,libraryStatusLabel,libraryTable,libraryTagChoices,uncategorizedChoice,type LibraryCardRecord,type LibraryLayout,type LibraryPlacement,type LibraryViewQuery} from './card-property-views';
+import {createLibraryCardFilter,emptyLibraryQuery,libraryBoardChoices,libraryKanban,libraryStatusLabel,libraryTable,libraryTagChoices,uncategorizedChoice,type LibraryCardRecord,type LibraryLayout,type LibraryPlacement,type LibraryViewQuery} from './card-property-views';
 
 export interface LibraryElementOptions {text?:string;cls?:string;value?:string;attr?:Record<string,string>}
 export interface LibraryElement {
@@ -98,7 +98,7 @@ function moreActions(panel:LibraryElement,record:LibraryCardRecord,handlers:Libr
 export function mountCardLibrary(root:LibraryElement,handlers:LibraryViewHandlers){
  root.empty();
  let query=emptyLibraryQuery(),composing=false,optionRecords:readonly LibraryCardRecord[]|undefined,optionLabels:Record<FilterKey,Options>;
- let moreAnchor:LibraryElement|undefined;
+ let filterCards=createLibraryCardFilter([]),moreAnchor:LibraryElement|undefined;
  let shownCount=0,renderedIndexing=false,selected=new Set<string>();
  const selectionRows=new Map<string,{row:LibraryElement;control:LibraryElement;baseClass:string}>();
  const positions=new Map<LibraryLayout,{top:number;left:number}>();
@@ -187,7 +187,7 @@ export function mountCardLibrary(root:LibraryElement,handlers:LibraryViewHandler
    control.setAttribute('aria-pressed',String(active));
   }
   if(optionRecords!==records){
-   optionRecords=records;
+   optionRecords=records;filterCards=createLibraryCardFilter(records);
    optionLabels={type:types,tag:[['','全部标签'],...libraryTagChoices(records).map(tag=>[tag,'#'+tag] as const)],board:[['','全部白板'],...libraryBoardChoices(records).map(board=>[board.path,board.title] as const)],status:[['','全部状态'],...Object.entries(statuses)],choice:[['','全部分类'],[uncategorizedChoice,'未分类'],...(handlers.choiceOptions??[]).map(option=>[option,option] as const)]};
    for(const [key,control] of filterOptions)setOptions(control,optionLabels[key],query[key]);
   }
@@ -248,7 +248,7 @@ export function mountCardLibrary(root:LibraryElement,handlers:LibraryViewHandler
   renderedIndexing=indexing;
   closeMore();
   paintFilters(records);
-  const shown=filterLibraryCards(records,query);
+  const shown=filterCards(query);
   shownCount=shown.length;
   paintSummary(state);
   selectionRows.clear();

@@ -4,13 +4,16 @@ import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import {syncCardPortTabStops} from '../src/card-control-context';
 
-const source=readFileSync('src/main.ts','utf8'),start=source.indexOf('    const syncPorts=()=>{'),end=source.indexOf('    this.syncPortTabStops=syncPorts;',start);
+const source=readFileSync('src/main.ts','utf8'),start=source.indexOf('    const syncPorts='),end=source.indexOf('    this.syncPortTabStops=syncPorts;',start);
 assert.ok(start>0&&end>start);
 const bind=new Function('root','syncCardPortTabStops',transformSync(source.slice(start,end)+'return syncPorts;',{loader:'ts'}).code);
 function fixture(){
  const root={ownerDocument:{activeElement:null as any}},view:any={selected:new Set(['node10']),selectedEdge:undefined,mode:'select',session:{board:{edges:[{id:'edge',from:'node12',to:'node18'}]}},positions:new Map()};
- for(let i=0;i<80;i++){const ports=Array.from({length:4},()=>({tabIndex:0})),card={ports,querySelectorAll:()=>ports,contains:(el:any)=>ports.includes(el)};view.positions.set('node'+i,card);}
- return{root,view,sync:bind.call(view,root,syncCardPortTabStops),eligible:()=>[...view.positions].filter(([,card]:any)=>card.ports.some((port:any)=>port.tabIndex===0)).map(([id]:any)=>id)};
+ const work={portQueries:0,edgeVisits:0};
+ view.session.board.edges[0]={get id(){work.edgeVisits++;return 'edge';},from:'node12',to:'node18'};
+ const makeCard=()=>{const ports=Array.from({length:4},()=>({tabIndex:0}));return{ports,querySelectorAll(){work.portQueries++;return ports;},contains:(el:any)=>ports.includes(el)};};
+ for(let i=0;i<80;i++)view.positions.set('node'+i,makeCard());
+ return{root,view,work,makeCard,sync:bind.call(view,root,syncCardPortTabStops),eligible:()=>[...view.positions].filter(([,card]:any)=>card.ports.some((port:any)=>port.tabIndex===0)).map(([id]:any)=>id)};
 }
 test('80 mounted cards expose only selected ports in normal keyboard navigation',()=>{
  const f=fixture();f.sync();assert.deepEqual(f.eligible(),['node10']);assert.equal([...f.view.positions.values()].flatMap((card:any)=>card.ports).filter((port:any)=>port.tabIndex===0).length,4);
@@ -23,4 +26,19 @@ test('explicit connect mode preserves every original target, then normal navigat
 });
 test('a selected edge retains both endpoint keyboard routes, and clearing it removes unrelated ports',()=>{
  const f=fixture();f.view.selected.clear();f.view.selectedEdge='edge';f.sync();assert.deepEqual(f.eligible(),['node12','node18']);f.view.selectedEdge=undefined;f.sync();assert.deepEqual(f.eligible(),[]);
+});
+test('repeated focus and camera syncs query only cards whose keyboard eligibility changes',()=>{
+ const f=fixture();f.sync();f.work.portQueries=0;f.work.edgeVisits=0;
+ for(let i=0;i<120;i++)f.sync();
+ f.view.selected=new Set(['node20']);f.sync();
+ f.root.ownerDocument.activeElement=f.view.positions.get('node30').ports[0];f.sync();
+ f.root.ownerDocument.activeElement=null;f.sync();
+ assert.deepEqual(f.eligible(),['node20']);
+ assert.deepEqual(f.work,{portQueries:4,edgeVisits:0});
+});
+test('remounting a card with the same ID synchronizes the replacement ports',()=>{
+ const f=fixture();f.sync();const replacement=f.makeCard();
+ f.view.positions.set('node19',replacement);f.sync();
+ assert.deepEqual(replacement.ports.map(port=>port.tabIndex),[-1,-1,-1,-1]);
+ f.view.selected=new Set(['node19']);f.sync();assert.deepEqual(f.eligible(),['node19']);
 });

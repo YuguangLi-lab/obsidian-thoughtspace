@@ -6,7 +6,7 @@ import {syncCardPortTabStops} from '../src/card-control-context';
 
 const main=readFileSync(process.env.BOARD_SEARCH_MAIN_SOURCE||'src/main.ts','utf8'),search=readFileSync(process.env.BOARD_SEARCH_MODAL_SOURCE||'src/board-search-view.ts','utf8');
 function take(source:string,from:string,to:string){const a=source.indexOf(from),b=source.indexOf(to,a);assert.ok(a>=0&&b>a,from);return source.slice(a,b);}
-const sync=new Function('root','syncCardPortTabStops',transformSync(take(main,'    const syncPorts=()=>{','    this.syncPortTabStops=syncPorts;')+'return syncPorts;',{loader:'ts'}).code);
+const sync=new Function('root','syncCardPortTabStops',transformSync(take(main,'    const syncPorts=','    this.syncPortTabStops=syncPorts;')+'return syncPorts;',{loader:'ts'}).code);
 function fixture(){
  const calls:string[]=[],doc:any={body:{name:'body'},focused:true,hasFocus(){return this.focused;}},board={nodes:[{id:'old'},{id:'next'}],edges:[],viewport:{x:0,y:0,zoom:.5}},file={path:'owned.md',basename:'owned'},owner={file,board,blocked:false};
  let view:any,afterClose:()=>void=()=>{};

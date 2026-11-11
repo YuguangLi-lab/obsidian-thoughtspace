@@ -540,6 +540,12 @@ In an ordinary board's full search dialog, combine keywords, type, group, color 
 
 Native search integration creates Markdown indexes under `ThoughtSpace/白板搜索/`. They cover board text, card titles, group names, and connection labels; location links return to the board. Linked notes are searchable through their original files. PDF indexing covers filenames and page numbers, not full text or OCR. **白板原生搜索** in settings can stop index updates; existing indexes remain. Use **重建白板原生搜索索引** if you need to regenerate them.
 
+### Browse Card Library
+
+Open **卡片 → 打开卡片库** (Cards → Open Card Library) in the ThoughtSpace sidebar, or choose **卡片库** (Card Library) from the **ThoughtSpace** icon in Obsidian's left ribbon. You can also run **浏览卡片库** (Browse Card Library) from the command palette.
+
+Switch to **看板** (Kanban) to see cards grouped by status in vertically stacked sections. Drag the bottom-right corner of the dialog to resize it. Wider sections fit more cards in each row, and narrow sections can show a single column. Search, filters, and selection carry across the list, table, and kanban views.
+
 ### Use properties, a table, a kanban, or Bases
 
 1. Run **打开卡片资料库与看板**, or use the **ThoughtSpace 资料库** ribbon icon.

@@ -235,6 +235,50 @@ test('live search waits for Chinese IME composition and keeps the original field
  assert.equal(root.all().some(el=>el.attrs['data-note-path']==='Cards/Heat.md'),false);
 });
 
+test('searches and layout switches reuse one large library snapshot',()=>{
+ let normalized=0,recordsRead=0;
+ const sources=buildLibraryRecords(Array.from({length:1000},(_,i)=>({
+  path:`Cards/Observation-${i}.md`,title:`记录 ${i}`,tags:['#观察'],
+  properties:{观察批次:i===12?'资料甲':i===57?'资料乙':'其他'},
+ })),[]).map(record=>({...record,get priority(){normalized++;return record.priority;}}));
+ const snapshot=new Proxy(sources,{get(target,key,receiver){
+  if(typeof key==='string'&&/^\d+$/.test(key))recordsRead++;
+  return Reflect.get(target,key,receiver);
+ }});
+ const root=new El(),view=mountCardLibrary(root,{setQuery(next){view.update(snapshot,next);},place(){},open(){},unlink(){}});
+ view.update(snapshot,{...emptyLibraryQuery(),query:'资料甲'});
+ assert.equal(normalized,1000);
+ assert.ok(labeled(root,'打开源卡片：记录 12'));
+ const search=labeled(root,'搜索卡片库')!;
+ search.value='资料乙';search.emit('input');
+ assert.ok(labeled(root,'打开源卡片：记录 57'));
+ assert.equal(labeled(root,'打开源卡片：记录 12'),undefined);
+ assert.equal(normalized,1000,'each card assembles searchable fields once per snapshot');
+ recordsRead=0;
+ labeled(root,'表格')!.onclick?.(undefined);
+ assert.equal(recordsRead,0,'a layout change does not traverse the original snapshot');
+ assert.equal(normalized,1000);
+ assert.ok(labeled(root,'打开源卡片：记录 57'));
+});
+
+test('an index refresh during IME composition matches the new snapshot after commit',()=>{
+ const makeCards=(value:string,board:string)=>buildLibraryRecords([{path:'Cards/Observation.md',title:'记录',tags:['#观察'],properties:{观察批次:value}}],[{path:'Board.thoughtspace',title:board,files:['Cards/Observation.md']}]);
+ const root=new El(),submitted:string[]=[];
+ let snapshot=makeCards('旧备注','旧白板'),query={...emptyLibraryQuery(),query:'旧备注'};
+ const view=mountCardLibrary(root,{setQuery(next){query=next;submitted.push(query.query);view.update(snapshot,query);},place(){},open(){},unlink(){}});
+ view.update(snapshot,query);
+ assert.ok(labeled(root,'打开源卡片：记录'));
+ const search=labeled(root,'搜索卡片库')!;
+ search.emit('compositionstart');search.value='xin';search.emit('input',{isComposing:true});
+ snapshot=makeCards('新备注','新白板');view.update(snapshot,query);
+ assert.equal(labeled(root,'打开源卡片：记录'),undefined);
+ assert.equal(search.value,'xin');assert.deepEqual(submitted,[]);
+ search.value='新白板 新备注';search.emit('compositionend');search.emit('input');
+ assert.deepEqual(submitted,['新白板 新备注']);
+ assert.equal(labeled(root,'搜索卡片库'),search);
+ assert.ok(labeled(root,'打开源卡片：记录'));
+});
+
 test('row focus and scroll survive updates, with separate scroll positions for each view',()=>{
  const document:MockDocument={},cards=records(),root=new El(document);
  let current=emptyLibraryQuery();
