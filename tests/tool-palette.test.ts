@@ -270,4 +270,6 @@ test('tool search, category titles, and list rows share one alignment line',()=>
  assert.match(css,/\.ts-tool-cluster::before[^{]*\{[^}]*font-weight:\s*var\(--ts-e-title-weight\)/);
  assert.match(css,/\.ts-tools-palette \.ts-rail-actions \.ts-button > span:last-child[^{]*\{[^}]*text-overflow:\s*ellipsis/);
  assert.match(css,/\.ts-tool-cluster > summary[^{]*\{[^}]*font-weight:\s*var\(--ts-e-title-weight\)/);
+ assert.match(css,/details\.ts-tool-cluster > \.ts-button\s*\{[^}]*width:\s*100%[^}]*min-width:\s*0/);
+ assert.doesNotMatch(css,/\.ts-insert-palette[^{]*details\.ts-tool-cluster > \.ts-button[^{]*\{[^}]*width:\s*100%/);
 });

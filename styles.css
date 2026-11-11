@@ -5105,6 +5105,13 @@ body {
 .ts-root .ts-tools-palette .ts-rail-actions .ts-button:hover:not(:disabled):not([aria-disabled=true]):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { background: var(--ts-design-hover) !important; }
 .ts-root .ts-rail-popover .ts-rail-actions .ts-button:is(:focus-visible,.is-current,.is-active,[aria-pressed=true]):not(:disabled):not([aria-disabled=true]):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { background: var(--ts-board-active) !important; color: var(--ts-e-ink); }
 .ts-root .ts-tools-palette .ts-rail-actions .ts-button:is(:hover,:focus-visible,.is-active,[aria-pressed=true]):not(:disabled):not([aria-disabled=true]) > span:first-child:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { color: var(--ts-accent); }
+/* Chrome wraps <details> contents in an anonymous box, so grid columns do not stretch each tool button. */
+.ts-root .ts-tools-palette .ts-rail-actions details.ts-tool-cluster > .ts-button:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
 .ts-root .ts-rail-popover :is(button,input):focus-visible:not(:disabled):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { outline: 2px solid var(--ts-accent); outline-offset: -2px; }
 /* Legacy shared button hover rules are still present earlier in the cascade.
    Unavailable commands keep their neutral paint even under a real pointer. */
