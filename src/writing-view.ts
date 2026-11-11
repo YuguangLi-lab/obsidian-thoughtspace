@@ -11,6 +11,7 @@ import {imageMarkdown,remoteImageUrl} from './image-host';
 import {Component,ItemView,MarkdownRenderer,Menu,Notice,Scope,TFile,WorkspaceLeaf,parseLinktext,setIcon} from 'obsidian';
 import {Board,Card,clone} from './model';
 import {WritingState,WritingOption,moveWriting,writingItems,writingOrder,writingParts,writingName,writingMarkdown,writingPartMarkdown,writingSignature,writingWordCount} from './writing';
+import {writingListData} from './writing-list';
 import {rebaseFragment,excerptNoteMarkdown,selectionFragment,pdfLiteralText} from './materials';
 import {assertNativeNoteUnchanged,readCurrentNativeNote} from './native-note-state';
 import {writingFormatToolbar} from './writing-format-toolbar';
@@ -380,10 +381,9 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
    this.runAction(()=>{this.moveOutlineEntry(id,direction);this.outlineEntryControl(id,control)?.focus();});
   };
  }
- private matching() {
-  const board=this.owner!.board,used=new Set(writingParts(board).map(p=>p.node.id));
-  const chapters=new Set(this.state().chapters?.map(c=>c.id));
-  return writingItems(board).filter(n=>(this.filter==='all'||this.filter==='unused'&&!used.has(n.id)||this.filter===n.kind||this.filter==='chapter'&&chapters.has(n.id))&&(writingName(n)+' '+(n.text||'')).toLocaleLowerCase().includes(this.query.toLocaleLowerCase()));
+ private matching(data=writingListData(this.owner!.board)) {
+  const {items,used,chapters}=data,query=this.query.toLocaleLowerCase();
+  return items.filter(n=>(this.filter==='all'||this.filter==='unused'&&!used.has(n.id)||this.filter===n.kind||this.filter==='chapter'&&chapters.has(n.id))&&(writingName(n)+' '+(n.text||'')).toLocaleLowerCase().includes(query));
  }
  private addVisible(){const board=this.ensure().board,ids=this.matching().map(n=>n.id);if(!ids.length)return;const included=new Set(writingParts(board).map(p=>p.node.id)),baseline=this.state().assemblyStamp===writingAssemblyStamp(board)&&writingParts(board,ids).every(p=>!included.has(p.node.id));this.update(s=>{s.order=[...new Set([...writingOrder(this.ensure().board),...ids])];for(const id of ids)if(s.options?.[id]?.excluded)s.options={...s.options,[id]:{...s.options[id],excluded:false}};});if(this.mode==='write')void this.insertMaterial(ids,baseline).catch(e=>new Notice(String(e)));}
  private add(id:string,index:number,include=false){const board=this.ensure().board,included=new Set(writingParts(board).map(p=>p.node.id)),baseline=this.state().assemblyStamp===writingAssemblyStamp(board)&&index>=writingOrder(board).length&&writingParts(board,[id]).every(p=>!included.has(p.node.id));if(!writingItems(this.ensure().board).some(n=>n.id===id))throw Error('材料已移除');this.update(s=>{s.order=moveWriting(writingOrder(this.ensure().board),id,index);if(include&&s.options?.[id]?.excluded)s.options={...s.options,[id]:{...s.options[id],excluded:false}};});if(include&&this.mode==='write')void this.insertMaterial([id],baseline).catch(e=>new Notice(String(e)));}
@@ -399,11 +399,11 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   el.ondrop=e=>{if(!this.dragged)return;e.preventDefault();e.stopPropagation();const id=this.dragged;this.dragged=undefined;const after=e.clientY>el.getBoundingClientRect().top+el.getBoundingClientRect().height/2;this.add(id,index+(after?1:0));};
  }
  /** Search/filter/pagination only own the library list. Never commit or replace article inputs here. */
- private renderMaterials(){
+ private renderMaterials(data?:ReturnType<typeof writingListData>){
   if(!this.owner||!this.list)return;
-  const board=this.owner.board,order=writingOrder(board),used=new Set(writingParts(board).map(p=>p.node.id));
+  data??=writingListData(this.owner.board);const board=this.owner.board,{order,used,chapters}=data;
   const scrollTop=this.list.scrollTop;this.list.empty();
-  const matches=this.matching(),chapters=new Set(this.state().chapters?.map(chapter=>chapter.id));
+  const matches=this.matching(data);
   if(board.nodes.some(n=>n.kind==='mindmap'))this.list.createDiv({cls:'ts-writing-small-empty',text:'脑图用于组织白板关系；写作时请选择其中的原笔记材料。'});
   let previousGroup='';
   for(const n of matches.slice(0,this.limit)){
@@ -411,7 +411,7 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
    const row=this.list.createDiv({cls:'ts-writing-material',attr:{'data-writing-node':n.id}});if(group!==previousGroup)row.toggleClass('is-group-start',true);previousGroup=group;this.dragRow(row,n.id);row.toggleClass('is-current-reference',this.state().referenceId===n.id);
    setIcon(row.createDiv('ts-writing-material-icon'),icons[n.kind]);
    const name=this.action(row,writingName(n).replace(/[*`]/g,''),()=>this.showReference(n.id),undefined,false,'ts-writing-name');
-   name.createEl('small',{text:this.state().chapters?.some(c=>c.id===n.id)?'自建章节':kinds[n.kind]+(n.kind==='section'?' · '+Math.max(0,writingParts(board,[n.id]).length-1)+' 项':'')});
+   name.createEl('small',{text:chapters.has(n.id)?'自建章节':kinds[n.kind]+(n.kind==='section'?' · '+data.group(n.id).included+' 项':'')});
    const included=this.mode!=='write'&&used.has(n.id);const add=this.action(row,included?'已纳入文章':this.mode==='write'?'插入正文':'加入文章',()=>this.add(n.id,order.length,true),included?'check':'plus',true);add.disabled=included;row.toggleClass('is-used',included);
   }
   if(matches.length>this.limit)this.action(this.list,'加载更多 · '+(matches.length-this.limit),()=>{this.limit+=100;this.renderMaterials();},'chevrons-down');
@@ -420,12 +420,12 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
  }
  private renderLists(){
   if(!this.owner||!this.list||this.composing)return;this.flushFields();
-  const board=this.owner.board,order=writingOrder(board),nodes=new Map(writingItems(board).map(n=>[n.id,n])),parts=writingParts(board);
+  const board=this.owner.board,data=writingListData(board),{order,byId:nodes,parts,chapters}=data,ordered=new Set(order);
   const focused=this.contentEl.ownerDocument.activeElement;if(focused!==this.titleInput)this.titleInput.value=this.state().title;this.fitTitle();
-  this.entryInputs=[];this.entryDrafts.clear();this.entryToolbars.forEach(dispose=>dispose());this.entryToolbars=[];this.entryEditors.forEach(editor=>editor.dispose());this.entryEditors=[];this.outline.empty();this.renderMaterials();
+  this.entryInputs=[];this.entryDrafts.clear();this.entryToolbars.forEach(dispose=>dispose());this.entryToolbars=[];this.entryEditors.forEach(editor=>editor.dispose());this.entryEditors=[];this.outline.empty();this.renderMaterials(data);
   order.forEach((id,index)=>{
    const n=nodes.get(id);if(!n)return;
-   const option=board.writing?.options?.[id],chapter=board.writing?.chapters?.find(c=>c.id===id),name=option?.title||writingName(n);
+   const option=board.writing?.options?.[id],chapter=chapters.get(id),name=option?.title||writingName(n);
    const row=this.outline.createDiv({cls:'ts-writing-entry',attr:{'data-writing-node':id}});row.toggleClass('is-excluded',!!option?.excluded);row.toggleClass('is-selected',this.selected===id);this.dragRow(row,id,index);
    const top=row.createDiv('ts-writing-entry-top');top.createSpan({cls:'ts-writing-number',text:String(index+1).padStart(2,'0')});
    const main=this.action(top,name,()=>{
@@ -434,19 +434,18 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
     if(keepFocus)this.outlineEntryControl(id,'name')?.focus({preventScroll:true});
    },undefined,false,'ts-writing-entry-name');
    main.setAttribute('aria-expanded',String(this.selected===id));
-   main.createEl('small',{text:chapter?'自建章节':n.kind==='section'?'分组章节 · '+Math.max(0,writingParts(board,[id]).length-1)+' 份材料':kinds[n.kind]+(option?.excluded?' · 暂不纳入正文':'')});
+   main.createEl('small',{text:chapter?'自建章节':n.kind==='section'?'分组章节 · '+data.group(id).included+' 份材料':kinds[n.kind]+(option?.excluded?' · 暂不纳入正文':'')});
    const more=this.action(top,'章节操作：'+name,()=>this.openOutlineEntryMenu(more,id),'ellipsis',true,'ts-writing-entry-more');
    more.setAttribute('aria-haspopup','menu');more.setAttribute('aria-expanded','false');
    this.bindOutlineEntryKeys(main,id,'name');this.bindOutlineEntryKeys(more,id,'more');
    if(n.kind==='section'){
-    const unfiltered=clone(board);if(unfiltered.writing)unfiltered.writing.options=undefined;
-    const children=writingParts(unfiltered,[id]).slice(1),summary=row.createDiv('ts-writing-children');
+    const children=data.group(id).children,summary=row.createDiv('ts-writing-children');
     for(const child of children.slice(0,this.expandedGroups.has(id)?children.length:4)){
-     const button=this.action(summary,board.writing?.options?.[child.node.id]?.title||writingName(child.node),()=>{this.selected=this.selected===child.node.id?undefined:child.node.id;this.renderLists();},undefined,false,'ts-writing-child');
-     button.toggleClass('is-excluded',!!board.writing?.options?.[child.node.id]?.excluded);button.toggleClass('is-active',this.selected===child.node.id);
+     const button=this.action(summary,board.writing?.options?.[child.id]?.title||writingName(child),()=>{this.selected=this.selected===child.id?undefined:child.id;this.renderLists();},undefined,false,'ts-writing-child');
+     button.toggleClass('is-excluded',!!board.writing?.options?.[child.id]?.excluded);button.toggleClass('is-active',this.selected===child.id);
     }
     if(children.length>4)this.action(summary,this.expandedGroups.has(id)?'收起':'＋'+(children.length-4),()=>{this.expandedGroups.has(id)?this.expandedGroups.delete(id):this.expandedGroups.add(id);this.renderLists();});
-    const selectedChild=children.find(p=>p.node.id===this.selected);if(selectedChild&&!order.includes(selectedChild.node.id))this.renderEntryEditor(row,selectedChild.node,false);
+    const selectedChild=children.find(child=>child.id===this.selected);if(selectedChild&&!ordered.has(selectedChild.id))this.renderEntryEditor(row,selectedChild,false);
    }else if(chapter?.body||n.text&&writingName(n)!==n.text)row.createDiv({cls:'ts-writing-snippet',text:(chapter?.body||n.text||'').replace(/[#*`>]/g,'').slice(0,140)});
    if(this.selected===id)this.renderEntryEditor(row,n,chapter!==undefined);
    else if(option?.note)row.createDiv({cls:'ts-writing-note-preview',text:option.note.slice(0,100)});

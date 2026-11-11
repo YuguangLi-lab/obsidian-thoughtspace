@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import {emptyBoard,clone} from '../src/model';
 import {writingItems,writingOrder,writingParts,writingName} from '../src/writing';
+import {writingListData} from '../src/writing-list';
 
 const source=readFileSync('src/writing-view.ts','utf8');
 function method(start:string,end='\n private '){const a=source.indexOf(start);assert.ok(a>=0,start);const b=source.indexOf(end,a+start.length);return source.slice(a,b<0?source.lastIndexOf('\n}'):b);}
@@ -27,7 +28,7 @@ class Element extends EventTarget {
 class Input extends EventTarget {value='baseline';selectionStart=2;selectionEnd=5;}
 function deferred(){let resolve!:()=>void;const promise=new Promise<void>(r=>resolve=r);return{promise,resolve};}
 
-const MaterialsView=viewClass(method(' private matching(')+method(' private renderMaterials('),{writingItems,writingOrder,writingParts,writingName,setIcon(){},icons:{text:'type'},kinds:{text:'文本'}});
+const MaterialsView=viewClass(method(' private matching(')+method(' private renderMaterials('),{writingListData,writingItems,writingOrder,writingParts,writingName,setIcon(){},icons:{text:'type'},kinds:{text:'文本'}});
 function materialsFixture(){
  const board=emptyBoard();board.nodes=Array.from({length:205},(_,i)=>({id:'m'+i,kind:'text',text:i===0?'needle':'material '+i,x:0,y:0,width:10,height:10,color:'sand'}));board.writing={title:'Draft',order:[],chapters:[{id:'chapter',title:'Chapter',body:'baseline'}]};
  const input=new Input(),root={ownerDocument:{activeElement:input}},pending=new Map([['chapterbody',()=>{throw Error('must not commit');}]]),actions=new Map<string,()=>void>();

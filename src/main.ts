@@ -122,6 +122,7 @@ import {BoardSearchSync,isSearchIndexPath,SEARCH_FOLDER,searchBoardPath,searchIn
 import {collectReferencedPaths} from './board-references';
 import {boardGraphStamp} from './sidebar-content';
 import {isLibraryCard,libraryFilesOnBoard,libraryIndexFiles,libraryPath,libraryPlacements,librarySearchMessage,unlinkLibraryCards} from './card-library-model';
+import {createLibraryBoardReader} from './card-library-index';
 import {discardHighlightRecovery,finishHighlightSave,highlightMarkdown,parseHighlight,placeHighlightNote,rollbackUnsavedHighlight} from './highlight-note';
 import {choiceKey} from './choice-field';
 import {assertExportable,boardExportScene,jpegPagePdf} from './board-export';
@@ -1531,17 +1532,19 @@ export default class ThoughtSpace extends Plugin {
       return {path:file.path,title:file.basename,tags:getAllTags(cache||{})||[],properties};
     });
   }
+  private readonly readLibraryBoardSources=createLibraryBoardReader<TFile>(async file=>{
+    const board=await this.readBoard(file);
+    return {path:file.path,title:file.basename,files:libraryFilesOnBoard(board.nodes),placements:libraryPlacements(board.nodes)};
+  });
   private async libraryBoardIndex(current:()=>boolean){
-    const indexed=libraryIndexFiles(this.app.vault.getFiles().filter(file=>isWorkspaceFile(file)&&isBoardFile(this.app,file))),boards:LibraryBoardSource[]=[],pending=[...indexed.omitted];
-    for(const file of indexed.files){
-      if(!current())return {boards,pending,limited:true};
-      try{const board=await this.readBoard(file);if(!current())return {boards,pending,limited:true};boards.push({path:file.path,title:file.basename,files:libraryFilesOnBoard(board.nodes),placements:libraryPlacements(board.nodes)});}catch{pending.push(file);}
-    }
-    return {boards,pending,limited:pending.length>0};
+    const indexed=libraryIndexFiles(this.app.vault.getFiles().filter(file=>isWorkspaceFile(file)&&isBoardFile(this.app,file)));
+    const result=await this.readLibraryBoardSources(indexed.files,current);
+    if(result)return {boards:result.boards,pending:[...indexed.omitted,...result.failed]};
   }
   async openCardLibrary(view?:BoardView){
-    const run=++this.cardLibraryRun,current=()=>run===this.cardLibraryRun;
+    const run=++this.cardLibraryRun;
     let scanned:LibraryBoardSource[]=[],pending:TFile[]=[],limited=false,indexing=true,searching=false,modal!:CardLibraryModal;
+    const current=()=>run===this.cardLibraryRun&&modal.modalEl.isConnected;
     const live=():LibraryBoardSource[]=>view?.session&&!view.closed&&view.file?[{path:view.file.path,title:view.file.basename,files:libraryFilesOnBoard(view.session.board.nodes),placements:libraryPlacements(view.session.board.nodes)}]:[];
     const host={records:()=>buildLibraryRecords(this.libraryNoteSources(),mergeBoardSources(scanned,live()),this.settings.choiceField,limited),get indexing(){return indexing;},get limitNote(){return limited?'引用位置还不完整。可按卡片查找其余白板。':undefined;},choiceOptions:this.settings.choiceField.options,
       place:(path:string)=>{const target=this.app.workspace.getActiveViewOfType(BoardView)||view;if(!target||target.closed)throw Error('请先打开白板');const file=this.app.vault.getAbstractFileByPath(libraryPath(path));if(!(file instanceof TFile)||file.path!==path)throw Error('源笔记已移动或不存在');target.placeExistingCard(file);},
@@ -1552,24 +1555,22 @@ export default class ThoughtSpace extends Plugin {
         if(searching)throw Error('正在查找其余白板');
         if(!pending.length)throw Error('引用位置已经完整');
         searching=true;
-        const batch=pending;pending=[];let found=false;const failed:TFile[]=[];
         try{
-          for(const file of batch){
-            if(!current()||!modal.modalEl.isConnected){pending=[...failed,...batch.slice(batch.indexOf(file))];return;}
-            try{const board=await this.readBoard(file);if(!current()||!modal.modalEl.isConnected){pending=[...failed,...batch.slice(batch.indexOf(file))];return;}const source={path:file.path,title:file.basename,files:libraryFilesOnBoard(board.nodes),placements:libraryPlacements(board.nodes)};scanned=mergeBoardSources(scanned,[source]);if(source.files.includes(notePath)||source.placements.some(place=>place.file===notePath))found=true;}
-            catch{failed.push(file);}
-          }
-          pending=failed;limited=pending.length>0;modal.refresh();
-          const message=librarySearchMessage(found,failed.length);if(message)throw Error(message);
+          const result=await this.readLibraryBoardSources(pending,current);
+          if(!result||!current())return;
+          scanned=mergeBoardSources(scanned,result.boards);
+          pending=result.failed;limited=pending.length>0;
+          const found=result.boards.some(source=>source.files.includes(notePath)||source.placements?.some(place=>place.file===notePath));
+          const message=librarySearchMessage(found,pending.length);if(message)throw Error(message);
         }finally{searching=false;}
       },
       jump:(path:string)=>this.jumpHighlightNote(path),
       setStatus:(path:string,status:string)=>this.setLibraryStatus(path,status),
       setChoice:(path:string,value:string)=>this.setLibraryChoice(path,value)};
     modal=new CardLibraryModal(this.app,host);modal.open();
-    const indexed=await this.libraryBoardIndex(()=>current()&&modal.modalEl.isConnected);
-    if(!current()||!modal.modalEl.isConnected)return;
-    scanned=indexed.boards;pending=indexed.pending;limited=indexed.limited;indexing=false;modal.refresh();
+    const indexed=await this.libraryBoardIndex(current);
+    if(!indexed||!current())return;
+    scanned=indexed.boards;pending=indexed.pending;limited=pending.length>0;indexing=false;modal.refresh();
     return modal;
   }
   private firstSession?:FirstSessionModal;
@@ -4223,7 +4224,17 @@ class BoardView extends FileView {
     const w=right-left,h=bottom-top;
     let z = Math.min((width - 24) / w, (height - 24) / h), ox = (width - w * z) / 2 - left * z, oy = (height - h * z) / 2 - top * z;
     const rects=new Map<string,SVGRectElement>(),lines=new Map<string,SVGLineElement>(),geometry=new Map<string,number[]>();
-    for (const edge of board.edges) {
+    // Minimap connections have one paint style and no per-edge interaction.
+    // Keep all their segments, but avoid thousands of SVG nodes on a large open.
+    const edgeSegments=(edges:Board['edges'],index:ReadonlyMap<string,Card>)=>{
+      let path='';for(const {from,to} of edges){
+        const a=index.get(from),b=index.get(to);if(!a||!b)continue;
+        path+=`M ${(a.x+a.width/2)*z+ox} ${(a.y+a.height/2)*z+oy} L ${(b.x+b.width/2)*z+ox} ${(b.y+b.height/2)*z+oy} `;
+      }
+      return path;
+    };
+    const edgePath=interactive&&board.edges.length>=256?map.createSvg('path',{cls:'ts-map-edge',attr:{fill:'none',d:edgeSegments(board.edges,byId)}}):undefined;
+    if(!edgePath)for (const edge of board.edges) {
       const a = byId.get(edge.from), b = byId.get(edge.to); if (!a || !b) continue;
       const line=map.createSvg('line', { cls: 'ts-map-edge', attr: { x1: (a.x + a.width / 2) * z + ox, y1: (a.y + a.height / 2) * z + oy, x2: (b.x + b.width / 2) * z + ox, y2: (b.y + b.height / 2) * z + oy } });lines.set(edge.id,line);
     }
@@ -4246,7 +4257,8 @@ class BoardView extends FileView {
         const w=right-left,h=bottom-top,nz=Math.min((width-24)/w,(height-24)/h),nx=(width-w*nz)/2-left*nz,ny=(height-h*nz)/2-top*nz,transformChanged=nz!==z||nx!==ox||ny!==oy;z=nz;ox=nx;oy=ny;
         const update=(el:SVGElement,attrs:Record<string,number>)=>{for(const [key,value]of Object.entries(attrs)){const text=String(value);if(el.getAttribute(key)!==text)el.setAttribute(key,text);}};
         for(const n of next.nodes){const old=geometry.get(n.id)!;if(!transformChanged&&old[0]===n.x&&old[1]===n.y&&old[2]===n.width&&old[3]===n.height)continue;update(rects.get(n.id)!,{x:n.x*z+ox,y:n.y*z+oy,width:n.width*z,height:n.height*z});geometry.set(n.id,[n.x,n.y,n.width,n.height]);}
-        for(const e of next.edges){const a=index.get(e.from),b=index.get(e.to),line=lines.get(e.id);if(a&&b&&line)update(line,{x1:(a.x+a.width/2)*z+ox,y1:(a.y+a.height/2)*z+oy,x2:(b.x+b.width/2)*z+ox,y2:(b.y+b.height/2)*z+oy});}
+        if(edgePath){const path=edgeSegments(next.edges,index);if(edgePath.getAttribute('d')!==path)edgePath.setAttribute('d',path);}
+        else for(const e of next.edges){const a=index.get(e.from),b=index.get(e.to),line=lines.get(e.id);if(a&&b&&line)update(line,{x1:(a.x+a.width/2)*z+ox,y1:(a.y+a.height/2)*z+oy,x2:(b.x+b.width/2)*z+ox,y2:(b.y+b.height/2)*z+oy});}
         return true;
       };
       const v = board.viewport;
