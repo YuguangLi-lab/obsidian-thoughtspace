@@ -18,7 +18,7 @@ import {DraftInput,NativeMarkdownDraft} from './native-markdown-editor';
 import {themePluginMenu,themeSurface} from './ui-tokens';
 import {bindMobileViewport} from './mobile-viewport';
 import {bindBoardHostInset} from './board-chrome';
-import {bindWritingModeFocus,syncWritingPaneHeight} from './writing-chrome';
+import {bindWritingModeFocus,captureWritingReadingScroll,restoreWritingReadingScroll,syncWritingPaneHeight} from './writing-chrome';
 import {rememberWritingRecovery,writingRecoveryEntries,discardWritingRecovery} from './writing-draft-recovery';
 export const WRITING='thoughtspace-writing';
 interface WritingSession {board:Board;file:TFile;blocked:boolean;status?:string;saveFeedback?:{state:string;text:string;detail?:string};retryWritingSave?:(expected:string,current:()=>boolean)=>Promise<void>;listeners:Set<(kind:SessionUpdate)=>void>;change:(f:(b:Board)=>void,before?:Board,allowLocked?:boolean,recordHistory?:boolean)=>void;flush:()=>Promise<void>}
@@ -279,12 +279,12 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
  private closeDock(){this.dockOpen=false;this.compactDockRequested=false;this.syncDock();this.app.workspace.requestSaveLayout();}
  private toggleDock(){const open=this.dock.hidden;this.dockOpen=open;this.compactDockRequested=open&&this.contentEl.clientWidth<=900;this.syncDock();this.app.workspace.requestSaveLayout();}
  private syncDock(){
-  if(!this.dock)return;const compact=this.contentEl.clientWidth<=900,visible=this.dockOpen&&(!compact||this.compactDockRequested);
+  if(!this.dock)return;const reading=captureWritingReadingScroll(this.contentEl);const compact=this.contentEl.clientWidth<=900,visible=this.dockOpen&&(!compact||this.compactDockRequested);
   this.contentEl.style.setProperty('--writing-dock-width',this.dockWidth+'px');if(this.dockResize)this.dockResize.hidden=!visible||compact;
   this.dock.hidden=!visible;this.contentEl.dataset.dockVisible=String(visible);this.contentEl.dataset.compact=String(compact);this.contentEl.toggleClass('is-focus',!visible);
   this.dock.querySelector<HTMLElement>('.ts-writing-source')!.hidden=this.resourceMode!=='library';this.dock.querySelector<HTMLElement>('.ts-writing-reference')!.hidden=this.resourceMode!=='reference';
   this.dock.querySelectorAll<HTMLButtonElement>('[data-resource-mode]').forEach(b=>{b.toggleClass('is-active',b.dataset.resourceMode===this.resourceMode);b.setAttribute('aria-pressed',String(b.dataset.resourceMode===this.resourceMode));});
-  const toggle=this.contentEl.querySelector<HTMLButtonElement>('.ts-writing-dock-toggle');toggle?.setAttribute('aria-expanded',String(visible));toggle?.toggleClass('is-active',visible);if(toggle)toggle.title=visible?'收起参考资料，专注写作':'打开参考资料';this.fitTitle();
+  const toggle=this.contentEl.querySelector<HTMLButtonElement>('.ts-writing-dock-toggle');toggle?.setAttribute('aria-expanded',String(visible));toggle?.toggleClass('is-active',visible);if(toggle)toggle.title=visible?'收起参考资料，专注写作':'打开参考资料';this.fitTitle();restoreWritingReadingScroll(reading);
  }
  private setResourceMode(mode:'library'|'reference'){this.flushFields();this.resourceMode=mode;this.dockOpen=true;this.compactDockRequested=this.contentEl.clientWidth<=900;this.syncDock();}
  private syncModeTrigger(){const trigger=this.contentEl.querySelector<HTMLButtonElement>('.ts-writing-mode-menu'),label={write:'写作',outline:'编排',preview:'预览'}[this.mode];if(trigger){trigger.querySelector('span:not(.ts-writing-icon)')?.setText(label);trigger.title='写作模式 · 当前：'+label;trigger.dataset.currentMode=this.mode;}}
@@ -334,7 +334,7 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   menu.addSeparator();menu.addItem(item=>item.setTitle('从编排重建正文（先另存当前正文）').setIcon('files').onClick(()=>this.runAction(()=>this.rebuildManuscript())));
   if(event.detail>0)menu.showAtMouseEvent(event);else{const rect=trigger.getBoundingClientRect();menu.showAtPosition({x:rect.left,y:rect.bottom},trigger.ownerDocument);}
  }
- private setArticleMode(mode:'write'|'outline'|'preview'){if(this.composing){new Notice('请先完成当前输入，再切换写作模式');return;}this.flushFields();this.mode=mode;this.outline.hidden=mode!=='outline';this.paper.hidden=mode!=='preview';this.manuscriptHost.hidden=mode!=='write';this.contentEl.dataset.writingMode=mode;this.syncModeTrigger();this.contentEl.querySelectorAll<HTMLButtonElement>('[data-article-mode]').forEach(button=>{button.toggleClass('is-active',button.dataset.articleMode===mode);button.setAttribute('aria-pressed',String(button.dataset.articleMode===mode));});this.renderLists();if(mode==='preview')void this.refreshArticle();if(mode==='write')void this.openManuscript();}
+ private setArticleMode(mode:'write'|'outline'|'preview'){if(this.composing){new Notice('请先完成当前输入，再切换写作模式');return;}const reading=captureWritingReadingScroll(this.contentEl);this.flushFields();this.mode=mode;this.outline.hidden=mode!=='outline';this.paper.hidden=mode!=='preview';this.manuscriptHost.hidden=mode!=='write';this.contentEl.dataset.writingMode=mode;this.syncModeTrigger();this.contentEl.querySelectorAll<HTMLButtonElement>('[data-article-mode]').forEach(button=>{button.toggleClass('is-active',button.dataset.articleMode===mode);button.setAttribute('aria-pressed',String(button.dataset.articleMode===mode));});this.renderLists();restoreWritingReadingScroll(reading);if(mode==='preview')void this.refreshArticle();if(mode==='write')void this.openManuscript();}
  private matching() {
   const board=this.owner!.board,used=new Set(writingParts(board).map(p=>p.node.id));
   const chapters=new Set(this.state().chapters?.map(c=>c.id));
@@ -358,10 +358,12 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   if(!this.owner||!this.list)return;
   const board=this.owner.board,order=writingOrder(board),used=new Set(writingParts(board).map(p=>p.node.id));
   this.list.empty();
-  const matches=this.matching();
+  const matches=this.matching(),chapters=new Set(this.state().chapters?.map(chapter=>chapter.id));
   if(board.nodes.some(n=>n.kind==='mindmap'))this.list.createDiv({cls:'ts-writing-small-empty',text:'脑图用于组织白板关系；写作时请选择其中的原笔记材料。'});
+  let previousGroup='';
   for(const n of matches.slice(0,this.limit)){
-   const row=this.list.createDiv({cls:'ts-writing-material',attr:{'data-writing-node':n.id}});this.dragRow(row,n.id);row.toggleClass('is-current-reference',this.state().referenceId===n.id);
+   const group=chapters.has(n.id)?'chapter':n.kind;
+   const row=this.list.createDiv({cls:'ts-writing-material',attr:{'data-writing-node':n.id}});if(group!==previousGroup)row.toggleClass('is-group-start',true);previousGroup=group;this.dragRow(row,n.id);row.toggleClass('is-current-reference',this.state().referenceId===n.id);
    setIcon(row.createDiv('ts-writing-material-icon'),icons[n.kind]);
    const name=this.action(row,writingName(n).replace(/[*`]/g,''),()=>this.showReference(n.id),undefined,false,'ts-writing-name');
    name.createEl('small',{text:this.state().chapters?.some(c=>c.id===n.id)?'自建章节':kinds[n.kind]+(n.kind==='section'?' · '+Math.max(0,writingParts(board,[n.id]).length-1)+' 项':'')});

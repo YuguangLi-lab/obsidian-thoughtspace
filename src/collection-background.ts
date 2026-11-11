@@ -3,7 +3,7 @@ import {paperBaseColor,paperPresets} from './paper-appearance';
 import {isRecord,isFiniteNumber,isOneOf} from './value-guards';
 
 /** Collection never inherits a board's pigment, texture or saved image. */
-export const defaultCollectionBackground:Readonly<BoardBackground>={canvasBackground:'paper',paperPreset:'custom',paperColor:'#fffdf8',paperTexture:35,backgroundImagePath:'',backgroundImageFit:'cover',backgroundImageOpacity:70};
+export const defaultCollectionBackground:Readonly<BoardBackground>={canvasBackground:'paper',paperPreset:'custom',paperColor:'#f8f5ef',paperTexture:35,backgroundImagePath:'',backgroundImageFit:'cover',backgroundImageOpacity:70};
 export function cleanCollectionBackground(raw:unknown):BoardBackground{
  const value=isRecord(raw)?raw:{},fallback=defaultCollectionBackground;
  return cleanBoardBackground({...fallback,...value,
@@ -21,7 +21,7 @@ const luminance=(color:string)=>rgb(color).map(v=>v/255).map(v=>v<=.04045?v/12.9
 export function collectionColorContrast(a:string,b:string){const x=luminance(a),y=luminance(b);return(Math.max(x,y)+.05)/(Math.min(x,y)+.05);}
 const strongInk=(paper:string)=>collectionColorContrast('#000000',paper)>collectionColorContrast('#ffffff',paper)?'#000000':'#ffffff';
 export function collectionBackgroundPalette(raw:unknown,accent='forest',dark=false){
- const value=cleanCollectionBackground(raw),base=value.canvasBackground==='image'?'#fffdf8':paperBaseColor(value);
+ const value=cleanCollectionBackground(raw),base=value.canvasBackground==='image'?'#f8f5ef':paperBaseColor(value);
  const paper=dark?blend('#171918',base,.16):base,strong=strongInk(paper);
  const preferred=dark?'#e9ebdf':'#302d27',ink=collectionColorContrast(preferred,paper)>=7?preferred:strong;
  const mutedCandidate=dark?'#b9bcaf':'#6d685f',muted=collectionColorContrast(mutedCandidate,paper)>=(value.canvasBackground==='image'?7:4.8)?mutedCandidate:ink;

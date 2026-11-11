@@ -86,10 +86,10 @@ test('accent text remains readable on control washes for every default light and
    for(const ink of inks)for(const wash of washes){
     const foreground=rgb(ink);
     let background:number[];
-    if(wash==='var(--ts-e-wash)')background=rgb(dark?'#342e26':'#ece5d8');
+    if(wash==='var(--ts-e-wash)')background=rgb(dark?'#35363b':'#f0eee8');
     else {
      const amount=Number(wash.match(/var\(--ts-accent(?:,\s*var\(--interactive-accent\))?\)\s+(\d+)%/)?.[1]);assert.ok(Number.isFinite(amount)&&amount>0,wash);
-     const base=rgb(wash.includes('--ts-e-sheet')?(dark?'#2d2822':'#fffdf7'):(dark?'#1e1e1e':'#ffffff'));
+     const base=rgb(wash.includes('--ts-e-sheet')?(dark?'#18191b':'#f8f5ef'):(dark?'#1e1e1e':'#ffffff'));
      background=foreground.map((v,i)=>v*amount/100+base[i]*(1-amount/100));
     }
     const a=luminance(foreground),b=luminance(background),contrast=(Math.max(a,b)+.05)/(Math.min(a,b)+.05);

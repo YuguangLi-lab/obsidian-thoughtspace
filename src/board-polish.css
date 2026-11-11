@@ -67,7 +67,7 @@
   background-size: 384px 384px;
   background-position: 0 0;
   background-repeat: repeat;
-  opacity: clamp(0, var(--ts-paper-texture, .55), 1);
+  opacity: calc(clamp(0, var(--ts-paper-texture, .55), 1) * var(--ts-e-grain-opacity, 1));
 }
 .ts-root[data-background=paper] .ts-stage > .ts-world { z-index: 1; }
 .ts-root .ts-stage > .ts-world { will-change: transform; }
@@ -624,7 +624,7 @@
 }
 @media (prefers-contrast: more) {
   .ts-root .ts-main { --ts-board-line: var(--text-muted); }
-  .ts-root .ts-node.is-selected { outline-width: 2px; }
+  .ts-root .ts-node.is-selected { box-shadow: 0 0 0 2px var(--ts-e-selected); }
 }
 
 /* Transparent cards stay transparent in the minimap in both themes. */

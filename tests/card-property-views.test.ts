@@ -54,6 +54,16 @@ test('table, kanban and list filter by type, tag, status and whiteboard',()=>{
  assert.deepEqual(late.find(item=>item.path==='Cards/Shade.md')!.placements,[{boardPath:'Boards/Late.md',boardTitle:'远处',nodeId:'card'}]);
 });
 
+test('a saved selection does not change which cards match the filters',()=>{
+ assert.deepEqual(emptyLibraryQuery().selected,[]);
+ const records=buildLibraryRecords([
+  note('Cards/Shade.md',{tags:['#城市'],properties:{topic:'林荫'}}),
+  note('Cards/Heat.md',{tags:['#证据']}),
+ ],[]);
+ const matched=filterLibraryCards(records,query({query:'林'})).map(record=>record.path);
+ assert.deepEqual(filterLibraryCards(records,query({query:'林',selected:['Cards/Heat.md']})).map(record=>record.path),matched);
+ assert.deepEqual(matched,['Cards/Shade.md']);
+});
 test('a live board replaces a stale index without dropping other boards',()=>{
  const merged=mergeBoardSources([{path:'Boards/A.md',title:'旧',files:['Cards/Old.md']},{path:'Boards/B.md',title:'乙',files:['Cards/B.md']}],[{path:'Boards/A.md',title:'甲',files:['Cards/New.md']}]);
  assert.deepEqual(merged.find(board=>board.path==='Boards/A.md')?.files,['Cards/New.md']);

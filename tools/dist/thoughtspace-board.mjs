@@ -3190,14 +3190,14 @@ function cleanBackgroundImagePreferences(raw) {
 
 // tools/board-tool/schema/paper-appearance.ts
 var paperPresets = {
-  cream: { name: "\u7C73\u9EC4\u7EB8", color: "#f3e9d4" },
+  cream: { name: "\u6696\u767D\u7EB8", color: "#f8f5ef" },
   white: { name: "\u7EAF\u767D\u7EB8", color: "#ffffff" },
   ivory: { name: "\u8C61\u7259\u767D", color: "#f7f2e7" },
   kraft: { name: "\u725B\u76AE\u7EB8", color: "#d6ba8f" },
   recycled: { name: "\u518D\u751F\u7EB8", color: "#dedbd1" },
-  custom: { name: "\u81EA\u5B9A\u4E49", color: "#f3e9d4" }
+  custom: { name: "\u81EA\u5B9A\u4E49", color: "#f8f5ef" }
 };
-var defaultPaperPreferences = { paperPreset: "cream", paperColor: "#f3e9d4", paperTexture: 55 };
+var defaultPaperPreferences = { paperPreset: "cream", paperColor: "#f8f5ef", paperTexture: 55 };
 function cleanPaperPreferences(raw) {
   const saved = isRecord(raw) ? raw : {};
   return {

@@ -1,5 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {transformSync} from 'esbuild';
 import {installToolPalettes,focusToolSection} from '../src/tool-palette';
 
 type Listener={run:(event:any)=>void;capture:boolean};
@@ -220,4 +222,54 @@ test('ordinary action closure leaves foreign focus alone even before focusout se
 });
 test('action return targets must remain visible, connected, same-document and focused-owner',()=>{
  for(const kind of ['hidden','detached','adopted','document-blur']){const f=fixture();f.triggerA.click();if(kind==='hidden')f.triggerA.hidden=true;else if(kind==='detached')f.triggerA.isConnected=false;else if(kind==='adopted')f.triggerA.ownerDocument=new Doc();else(f.doc as any).hasFocus=()=>false;f.buttons[0].click();assert.equal(f.triggerA.focuses.length,0,kind);f.binding.dispose();}
+});
+
+test('a long tool list keeps the search input outside the scrolling list',()=>{
+ const doc={activeElement:null as unknown,getElementById(){return null;}};
+ class Node{
+  children:Node[]=[];parent:Node|null=null;className='';hidden=false;title='';text='';value='';tag:string;attrs=new Map<string,string>();
+  constructor(tag='div'){this.tag=tag.toUpperCase();}
+  createEl(tag:string,options:any={}){const node=new Node(tag);node.className=options.cls||'';node.text=options.text||'';if(options.type)node.attrs.set('type',options.type);for(const[key,value]of Object.entries(options.attr||{}))node.setAttribute(key,String(value));this.append(node);return node;}
+  createDiv(options:any={}){return this.createEl('div',typeof options==='string'?{cls:options}:options);}
+  createSpan(options:any={}){return this.createEl('span',options);}
+  setAttribute(key:string,value:string){this.attrs.set(key,value);if(key==='title')this.title=value;}
+  getAttribute(key:string){return this.attrs.get(key)??null;}
+  append(node:Node){node.remove();node.parent=this;this.children.push(node);}
+  insertBefore(node:Node,before:Node){node.remove();node.parent=this;this.children.splice(Math.max(0,this.children.indexOf(before)),0,node);}
+  remove(){this.parent?.children.splice(this.parent.children.indexOf(this),1);this.parent=null;}
+  contains(node:Node|null):boolean{return !!node&&(node===this||this.children.some(child=>child.contains(node)));}
+  matches(selector:string){if(selector.startsWith('.'))return this.className.split(' ').includes(selector.slice(1));return this.tag===selector.toUpperCase()||this.tag==='BUTTON'&&selector.startsWith('button');}
+  querySelectorAll(selector:string):Node[]{return this.children.flatMap(child=>[...(child.matches(selector)?[child]:[]),...child.querySelectorAll(selector)]);}
+  closest(selector:string):Node|null{for(let node:Node|null=this;node;node=node.parent)if(node.matches(selector))return node;return null;}
+  setText(text:string){this.text=text;}
+  get textContent(): string { return this.text + this.children.map(child => child.textContent).join(''); }
+  getClientRects(){return this.hidden?[]:[{}];}
+  addEventListener(){}removeEventListener(){}
+  focus(){doc.activeElement=this;}
+  scrollTop=0;scrollHeight=4000;clientHeight=240;
+ }
+ const panel=new Node(),tools=panel.createDiv('ts-rail-actions');
+ for(let i=0;i<40;i++){const group=i%8===0?tools.createDiv({cls:'ts-tool-cluster',attr:{'aria-label':`分类 ${i/8}`}}):tools.querySelectorAll('.ts-tool-cluster').at(-1)!;const label=`很长的白板工具名称 ${i} · 需要在悬停和键盘焦点下读完`;group.createEl('button',{attr:{'aria-label':label}});}
+ const module={exports:{} as {installRailToolSearch:(panel:Node,tools:Node)=>void}};
+ new Function('require','module','exports',transformSync(readFileSync('src/rail-tool-search.ts','utf8'),{loader:'ts',format:'cjs'}).code)((name:string)=>name==='obsidian'?{setIcon(){}}:{},module,module.exports);
+ module.exports.installRailToolSearch(panel,tools);
+ tools.scrollTop=2400;
+ const input=panel.querySelectorAll('input')[0];
+ assert.ok(input,'search input remains after the list scrolls');
+ assert.equal(tools.contains(input),false,'search lives outside the scrolling tool list');
+ const untitled=tools.querySelectorAll('button').find(button=>button.getAttribute('aria-label')?.startsWith('很长的白板工具'));
+ assert.equal(untitled?.getAttribute('title'),untitled?.getAttribute('aria-label'));
+});
+
+test('tool search, category titles, and list rows share one alignment line',()=>{
+ const css=readFileSync('src/interaction-chrome.css','utf8');
+ assert.match(css,/--ts-palette-align:\s*var\(--ts-e-space-panel\)/);
+ for(const selector of ['.ts-rail-search','.ts-tool-cluster::before','.ts-rail-actions .ts-button'])assert.match(css,new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}[^{]*\\{[^}]*padding-inline-start:\\s*var\\(--ts-palette-align\\)`));
+ assert.match(css,/\.ts-tool-cluster\s*\{[^}]*gap:\s*var\(--ts-e-space-control\)/);
+ assert.match(css,/\.ts-tool-cluster \+ \.ts-tool-cluster[^{]*\{[^}]*margin-top:\s*var\(--ts-e-space-section\)/);
+ assert.match(css,/\.ts-tool-cluster::before[^{]*\{[^}]*font-weight:\s*var\(--ts-e-title-weight\)/);
+ assert.match(css,/\.ts-tools-palette \.ts-rail-actions \.ts-button > span:last-child[^{]*\{[^}]*text-overflow:\s*ellipsis/);
+ assert.match(css,/\.ts-tool-cluster > summary[^{]*\{[^}]*font-weight:\s*var\(--ts-e-title-weight\)/);
+ assert.match(css,/details\.ts-tool-cluster > \.ts-button\s*\{[^}]*width:\s*100%[^}]*min-width:\s*0/);
+ assert.doesNotMatch(css,/\.ts-insert-palette[^{]*details\.ts-tool-cluster > \.ts-button[^{]*\{[^}]*width:\s*100%/);
 });

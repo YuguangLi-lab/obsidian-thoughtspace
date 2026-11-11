@@ -25,17 +25,23 @@ function contrast(a: string, b: string): number {
   return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 }
 
-test('paper preserves all twelve historical light and dark steps, host type and solid material', () => {
+test('paper uses the warm-white ramp and keeps the dark steps, host type and solid material', () => {
   const expected = [
-    ['#fffdf8','#f6f4ee','#eeece4','#e6e4dc','#dedcd3','#d3d1c7','#cbcfcd','#b8bcba','#868e8b','#7c8481','#67675f','#272a25'],
-    ['#20211e','#252620','#2c2d27','#34352e','#3c3e35','#4c4e43','#444947','#5b625f','#63706b','#717d79','#b9bcaf','#e9ebdf'],
+    ['#f8f5ef','#f8f5ef','#f0eee8','#e9e6e0','#d4d2cc','#c4c3be','#cbcfcd','#b8bcba','#868e8b','#7c8481','#67675f','#272a25'],
+    ['#18191b','#222326','#35363b','#3c3d43','#4a4b52','#585960','#6a6b73','#7c7d85','#8e8f97','#94959d','#9a9ba3','#ececee'],
   ];
   for (const [index, scale] of expected.entries()) {
     const values = palette('paper', Boolean(index));
     assert.deepEqual(Array.from({ length: 12 }, (_, i) => values[`--ts-ui-${i + 1}`]), scale);
-    assert.equal(values['--ts-e-shadow'], '0 1px 3px #00000009');
+    if(index===0)assert.equal(values['--ts-e-shadow'], '0 1px 3px #00000009');
+    else{assert.notEqual(values['--ts-e-overlay'],values['--ts-e-paper']);assert.match(values['--ts-e-shadow'],/#000000[0-9a-f]{2}/i);assert.notEqual(values['--ts-e-shadow'],'0 1px 3px #00000009');}
   }
-  assert.equal(palette('paper')['--ts-e-serif'], 'var(--font-interface)');
+  const light=palette('paper',false);
+  assert.equal(light['--ts-e-paper'],'#f8f5ef');
+  assert.equal(light['--ts-e-sheet'],'#f8f5ef');
+  assert.equal(light['--ts-e-wash'],'#f0eee8');
+  for(const banned of ['#f3e9d4','#fffdf8','#f6f4ee','#eeece4'])for(const token of ['--ts-e-paper','--ts-e-sheet','--ts-e-wash'])assert.notEqual(light[token],banned,token);
+  assert.equal(light['--ts-e-serif'], 'var(--font-interface)');
   const css = interfaceStyleRules('paper', true);
   assert.match(css, /background:var\(--ts-e-sheet\)!important/);
   assert.doesNotMatch(css, /blur\(|url\(|--ts-paper-/);
@@ -77,15 +83,69 @@ test('selected material beats late legacy palette selectors without global impor
     const css = postcss.parse(interfaceStyleRules(style, true));
     css.walkDecls(/^--(?:ts-e|ts-ui|ts-c)-/, decl => {
       assert.equal(decl.important, undefined);
-      assert.match((decl.parent as Rule).selector, /\.ts-root\.ts-root\.ts-root\.ts-root/);
+      assert.match((decl.parent as Rule).selector, /\.ts-(?:root(?:\.ts-root){3}|component-gallery(?:\.ts-component-gallery){3})/);
     });
   }
+});
+
+test('purpose tokens expose page, panel, overlay, body ink, control line and motion', () => {
+  for (const dark of [false, true]) {
+    const values = palette('paper', dark);
+    for (const key of [
+      '--ts-e-paper', '--ts-e-sheet', '--ts-e-overlay', '--ts-e-body',
+      '--ts-e-control-line', '--ts-e-focus', '--ts-e-selected', '--ts-e-success',
+      '--ts-e-title-size', '--ts-e-body-size', '--ts-e-meta-size',
+      '--ts-e-space-icon', '--ts-e-space-control', '--ts-e-space-panel', '--ts-e-space-section',
+      '--ts-e-radius-sm', '--ts-e-radius', '--ts-e-radius-lg',
+      '--ts-e-motion', '--ts-e-ease', '--ts-e-grain-opacity',
+    ]) assert.ok(values[key], `${dark ? 'dark' : 'light'} missing ${key}`);
+    assert.equal(values['--ts-e-radius-sm'], '4px');
+    assert.equal(values['--ts-e-radius'], '8px');
+    assert.equal(values['--ts-e-radius-lg'], '12px');
+    assert.equal(values['--ts-e-motion'], '200ms');
+    assert.equal(values['--ts-e-ease'], 'ease-in-out');
+    if (!dark) assert.equal(values['--ts-e-paper'], '#f8f5ef');
+    else {
+      assert.equal(values['--ts-e-paper'], '#222326');
+      assert.equal(values['--ts-e-sheet'], '#18191b');
+      assert.equal(values['--ts-e-overlay'], '#323339');
+      assert.notEqual(values['--ts-e-overlay'], values['--ts-e-paper']);
+      assert.equal(values['--ts-e-body'], '#c6c7cc');
+      assert.equal(values['--ts-e-control-line'], '#b3b4bb');
+      assert.equal(values['--ts-e-disabled'], '#787a82');
+      assert.equal(values['--ts-e-focus'], '#8bbaf0');
+      assert.equal(values['--ts-e-selected'], '#93c8b4');
+      assert.equal(values['--ts-e-success'], '#7ec8a3');
+      for (const stale of ['#20211e', '#252620', '#2c2d27', '#24211d', '#2d2822']) {
+        assert.ok(!Object.values(values).includes(stale), stale);
+      }
+    }
+    assert.notEqual(values['--ts-e-selected'], values['--ts-e-success']);
+    for (const text of ['ink', 'body', 'muted']) {
+      for (const surface of ['paper', 'sheet', 'overlay']) {
+        assert.ok(
+          contrast(values[`--ts-e-${text}`], values[`--ts-e-${surface}`]) >= 4.5,
+          `${text}/${surface}`,
+        );
+      }
+    }
+    for (const line of ['control-line', 'focus', 'selected']) {
+      assert.ok(contrast(values[`--ts-e-${line}`], values['--ts-e-sheet']) >= 3, line);
+    }
+  }
+});
+
+test('reduced-motion zeroes the duration token inside plugin roots', () => {
+  const css = interfaceStyleRules('paper', false);
+  assert.match(css, /prefers-reduced-motion:\s*reduce/);
+  assert.match(css, /--ts-e-motion:\s*0ms/);
 });
 
 test('paper retains AA text contrast on sheet, page and wash surfaces for all legacy settings', () => {
   for (const style of styles) for (const dark of [false, true]) {
     const values = palette(style, dark);
-    for (const text of ['ink', 'muted', 'editorial']) for (const surface of ['sheet', 'paper', 'wash']) {
+    const surfaces=dark?['sheet','paper','overlay']:['sheet','paper','wash'];
+    for (const text of ['ink', 'muted', 'editorial']) for (const surface of surfaces) {
       const ratio = contrast(values[`--ts-e-${text}`], values[`--ts-e-${surface}`]);
       assert.ok(ratio >= 4.5, `${style}/${dark ? 'dark' : 'light'} ${text}/${surface}: ${ratio.toFixed(2)}`);
     }
@@ -94,7 +154,9 @@ test('paper retains AA text contrast on sheet, page and wash surfaces for all le
 
 // Rendering paper chrome must not reactivate the old !important stage fill.
 test('the interface finish leaves authored canvas paper and image backgrounds in control',()=>{
-  const css=postcss.parse(readFileSync('styles.css','utf8'));
+  const text=readFileSync('styles.css','utf8');
+  for (const stale of ['#20211e','#252620','#2c2d27','#24211d','#2d2822','#342e26']) assert.doesNotMatch(text, new RegExp(stale, 'i'));
+  const css=postcss.parse(text);
   css.walkDecls(/^background(?:-color)?$/,decl=>{
     const selector=(decl.parent as Rule).selector;
     if(selector.includes('[data-surface=paper]')&&/\.ts-(?:stage|brain-stage|handwriting-stage)\b/.test(selector))assert.ok(!decl.important,selector);

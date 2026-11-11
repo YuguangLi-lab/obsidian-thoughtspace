@@ -69,7 +69,7 @@ export function markdownToolbar(host:HTMLElement,editor:MarkdownToolbarEditor,di
  for(const background of [false,true]){
   const label=background?'选中文字背景色':'选中文字颜色',wrap=colors.createEl('label',{cls:'ts-md-color',attr:{title:label}});
   setIcon(wrap.createSpan(),background?'paint-bucket':'a-large-small');
-  const input=wrap.createEl('input',{type:'color',attr:{'aria-label':label,title:label}});input.value=background?'#fff1a8':'#3478c6';wrap.style.setProperty('--ts-md-color',input.value);
+  const input=wrap.createEl('input',{type:'color',attr:{'aria-label':label,title:label}});input.value=background?'#d7e3ea':'#3478c6';wrap.style.setProperty('--ts-md-color',input.value);
   input.onchange=()=>{
    if(disposed||!row.isConnected||input.disabled)return;
    const state=readState();if(state.busy||state.disabledReason||state.start===state.end){update();return;}

@@ -17,7 +17,7 @@ export function libraryPath(value:string):string{
 export function placeExistingCard(board:Board,path:string,position:{x:number;y:number},id:string,width=320):Card{
  const file=libraryPath(path);
  if(!id.trim()||![position.x,position.y,width].every(Number.isFinite)||width<80)throw Error('卡片位置无效');
- const node:Card={id,kind:'card',library:true,file,transparent:true,x:position.x-width/2,y:position.y-70,width,height:270,color:'sand',autoFit:true,preferredWidth:width};
+ const node:Card={id,kind:'card',library:true,file,transparent:true,x:position.x-width/2,y:position.y-70,width,height:270,color:'slate',autoFit:true,preferredWidth:width};
  board.nodes.push(node);
  if(board.version<3)board.version=3;
  return node;

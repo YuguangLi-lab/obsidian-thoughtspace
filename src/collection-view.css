@@ -14,15 +14,15 @@
  --ts-c-accent:var(--ts-accent);--ts-c-accent-hover:color-mix(in srgb,var(--ts-c-accent) 90%,var(--ts-collection-accent-shade));
  --ts-c-on-accent:var(--ts-collection-on-accent);--ts-c-radius:6px;--ts-c-control-radius:5px;
  --ts-c-column:800px;
- --ts-c-paper-texture:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.76' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 .46 0 0 0 0 .40 0 0 0 0 .31 0 0 0 .028 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)'/%3E%3C/svg%3E")
+ --ts-c-paper-texture:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.76' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 .47 0 0 0 0 .46 0 0 0 0 .44 0 0 0 .028 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)'/%3E%3C/svg%3E")
 }
 /* Collection owns its background independently of authored canvas colors.
    The default light surface stays warm white; custom pigments and theme-safe
    text palettes arrive from its separately saved background preferences. */
 .theme-light .ts-collection{
- --ts-c-paper:var(--ts-c-light-paper,#fffdf8);--ts-c-sheet:var(--ts-c-light-sheet,#fffefa);--ts-c-wash:var(--ts-c-light-wash,#f8f5ee);
+ --ts-c-paper:var(--ts-c-light-paper,#f8f5ef);--ts-c-sheet:var(--ts-c-light-sheet,#f8f5ef);--ts-c-wash:var(--ts-c-light-wash,#e9e6e0);
  --ts-c-ink:var(--ts-c-light-ink,#302d27);--ts-c-muted:var(--ts-c-light-muted,#6d685f);--ts-c-faint:var(--ts-c-muted);--ts-c-editorial:var(--ts-c-muted);
- --ts-c-line:var(--ts-c-light-line,#e6e0d5);--ts-c-nav:var(--ts-c-light-nav,color-mix(in srgb,var(--ts-c-sheet) 30%,var(--ts-c-paper)));
+ --ts-c-line:var(--ts-c-light-line,#d4d2cc);--ts-c-nav:var(--ts-c-light-nav,color-mix(in srgb,var(--ts-c-sheet) 30%,var(--ts-c-paper)));
  --ts-c-accent:var(--ts-c-light-accent,var(--ts-accent));--ts-c-on-accent:var(--ts-c-light-on-accent,var(--ts-collection-on-accent));
  --ts-c-pattern-ink:var(--ts-c-light-pattern-ink,var(--ts-c-line));
 }

@@ -233,9 +233,9 @@
       "path": "schema/paper-appearance.ts",
       "upstreamPath": "src/paper-appearance.ts",
       "originalSHA256": "97aa08b96bdfd525ed93cf8d27843727480add8e800991cc769a622a623d9256",
-      "deliveredSHA256": "97aa08b96bdfd525ed93cf8d27843727480add8e800991cc769a622a623d9256",
-      "identicalToPublicBeta2": true,
-      "transformation": "exact copy"
+      "deliveredSHA256": "87191ab8bcb50be310f628b9e19dfc65e97e7a2c28370fb4c76349033766a617",
+      "identicalToPublicBeta2": false,
+      "transformation": "warm-white default aligned with src/paper-appearance.ts"
     },
     {
       "path": "schema/paragraph-card.ts",

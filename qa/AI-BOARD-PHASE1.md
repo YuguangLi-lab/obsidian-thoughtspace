@@ -4,7 +4,7 @@
 
 ## 解析器来源
 
-基于公共main `08e911fb7bb1b96794bf232c356eeab07fbd5d7c` 建立独立整合。工具的43个schema依赖模块中40个与这个公共beta.2字节一致；差异仅为Board模型、文档读取器和脑图阅读位置验证。它们来自第一期已测格式基线，放在工具自己的schema目录；阅读位置仅保留类型与校验，未纳入未公开的位置操作/UI。机器可读哈希见 [schema清单](../tools/board-tool/SCHEMA-SNAPSHOT.json)。这是一份格式快照，不是稳定SDK。
+基于公共main `08e911fb7bb1b96794bf232c356eeab07fbd5d7c` 建立独立整合。工具的43个schema依赖模块中39个与这个公共beta.2字节一致；纸张默认色已改为暖白，其余差异为Board模型、文档读取器和脑图阅读位置验证。它们来自第一期已测格式基线，放在工具自己的schema目录；阅读位置仅保留类型与校验，未纳入未公开的位置操作/UI。机器可读哈希见 [schema清单](../tools/board-tool/SCHEMA-SNAPSHOT.json)。这是一份格式快照，不是稳定SDK。
 
 ## 检查层次
 

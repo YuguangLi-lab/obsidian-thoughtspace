@@ -12,7 +12,7 @@
 
 | 预设 | 来源与参考内容 | 许可 | 适配 |
 | --- | --- | --- | --- |
-| 暖白纸张 | 项目原始 12 级纸张明暗色阶 | 本项目 | 默认保留历史纸张层次 |
+| 暖白纸张 | 浅色页面底锁定为 `#f8f5ef`，面板与页面同色，洗色用同色相的 `#f0eee8` | 本项目 | 默认暖白，不再使用旧奶油色阶 |
 | 中性白灰 | [Primer Primitives](https://github.com/primer/primitives)，base/color/light 与 dark JSON5 | MIT，GitHub Inc. | 中性白灰底色，按钮/边线独立映射 |
 | 北境蓝灰 | [Nord](https://github.com/nordtheme/nord)，src/nord.scss 的 Polar Night、Snow Storm、Frost | MIT，Sven Greb | 浅色操作色加深；边线为插件布局适配 |
 | 柔雾紫灰 | [Catppuccin Palette](https://github.com/catppuccin/palette)，palette.json 1.8.0 的 Latte/Mocha | MIT，Catppuccin | 基底、文本、表面和紫色操作色映射 |

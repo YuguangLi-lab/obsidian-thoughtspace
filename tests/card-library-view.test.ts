@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {libraryModalHandlers,paintCardLibrary,type LibraryElement,type LibraryElementOptions} from '../src/card-library-view';
 import {buildLibraryRecords,emptyLibraryQuery,uncategorizedChoice,type LibraryViewQuery} from '../src/card-property-views';
 
@@ -131,4 +132,69 @@ test('uncategorized is a category filter in list, table, and kanban',()=>{
  const empty=new El();
  paintCardLibrary(empty,records.filter(record=>record.choice),{...emptyLibraryQuery(),choice:uncategorizedChoice},{setQuery(){},place(){},open(){},unlink(){},choiceOptions:['证据']});
  assert.equal(empty.all().some(el=>el.text==='没有符合条件的未分类卡片。'),true);
+});
+
+test('switching list, table, and kanban keeps the query, filters, and selected ids',()=>{
+ const cards=records(),root=new El();
+ let current:LibraryViewQuery={...emptyLibraryQuery(),query:'林荫',type:'note',tag:'城市',board:'Boards/Field.md',status:'active',selected:['Cards/Shade.md']};
+ const render=(next:LibraryViewQuery)=>{current=next;paintCardLibrary(root,cards,next,{setQuery:render,place(){},open(){},unlink(){}});};
+ render(current);
+ for(const label of ['表格','看板','列表']){
+  labeled(root,label)!.onclick?.(undefined);
+  assert.equal(current.query,'林荫');
+  assert.equal(current.type,'note');
+  assert.equal(current.tag,'城市');
+  assert.equal(current.board,'Boards/Field.md');
+  assert.equal(current.status,'active');
+  assert.deepEqual(current.selected,['Cards/Shade.md']);
+  const row=root.all().find(el=>el.attrs['data-note-path']==='Cards/Shade.md')!;
+  assert.match(row.cls,/\bis-selected\b/);
+  assert.equal((row.attrs.style||'').includes('background'),false);
+  assert.equal(row.all().some(el=>el.cls.split(' ').includes('ts-library-selected-mark')),true);
+ }
+ const css=readFileSync('src/workflow.css','utf8');
+ assert.match(css,/\.ts-database :is\(\.ts-library-card,\.ts-db-table tr\)\.is-selected\{[^}]*background:transparent/);
+ assert.match(css,/\.ts-database \.ts-library-title\{[^}]*font-size:var\(--ts-e-title-size\)/);
+ assert.match(css,/\.ts-database \.ts-library-excerpt\{[^}]*font-size:var\(--ts-e-body-size\)/);
+ assert.match(css,/\.ts-database \.ts-library-tags\{[^}]*font-size:var\(--ts-e-meta-size\)/);
+});
+
+test('a truncated table title stays available on hover and keyboard focus',()=>{
+ const title='林荫降低路面温度并且这条标题需要在表格里保持可检索的全文';
+ const cards=buildLibraryRecords([{path:'Cards/Shade.md',title,tags:[],properties:{}}],[]);
+ const root=new El();
+ paintCardLibrary(root,cards,{...emptyLibraryQuery(),view:'table'},{setQuery(){},place(){},open(){},unlink(){}});
+ const cell=root.all().find(el=>el.cls.split(' ').includes('ts-library-title-cell'))!;
+ assert.equal(cell.attrs.title,title);
+ assert.equal(cell.attrs.tabindex,'0');
+ assert.equal(cell.attrs['aria-label'],title);
+ const css=readFileSync('src/workflow.css','utf8');
+ assert.match(css,/\.ts-database \.ts-db-table \.ts-library-title-cell\{[^}]*text-overflow:ellipsis/);
+ assert.match(css,/\.ts-database \.ts-db-table \.ts-library-title-cell:focus\{[^}]*white-space:normal/);
+});
+
+test('table selection outline and mark are painted on cells and are not clipped by the title ellipsis',()=>{
+ const cards=records(),root=new El();
+ paintCardLibrary(root,cards,{...emptyLibraryQuery(),view:'table',selected:['Cards/Shade.md']},{setQuery(){},place(){},open(){},unlink(){}});
+ const row=root.all().find(el=>el.attrs['data-note-path']==='Cards/Shade.md')!;
+ const title=row.children.find(el=>el.cls.split(' ').includes('ts-library-title-cell'))!;
+ const hosts=row.children.filter(el=>el.children.some(child=>child.cls.split(' ').includes('ts-library-selected-mark')));
+ assert.equal(title.children.some(el=>el.cls.split(' ').includes('ts-library-selected-mark')),false);
+ assert.equal(hosts.length,1);
+ assert.notEqual(hosts[0],title);
+ const css=readFileSync('src/workflow.css','utf8');
+ assert.match(css,/\.ts-db-table tr\.is-selected>td\{[^}]*background:transparent[^}]*box-shadow:[^;]*var\(--ts-e-selected\)/);
+ assert.match(css,/\.ts-db-table tr\.is-selected>td:first-child\{[^}]*box-shadow:[^;]*var\(--ts-e-selected\)/);
+ assert.match(css,/\.ts-db-table tr\.is-selected>td:last-child\{[^}]*overflow:visible[^}]*position:relative/);
+ assert.match(css,/\.ts-database \.ts-db-table \.ts-library-title-cell\{[^}]*overflow:hidden/);
+});
+
+test('card library kanban lays out as flex columns on a wash board with paper lanes',()=>{
+ const css=readFileSync('src/workflow.css','utf8');
+ const board=css.match(/\.ts-db-kanban\{[^}]*\}/)?.[0]??'';
+ const lane=css.match(/\.ts-db-lane\{[^}]*\}/)?.[0]??'';
+ assert.match(board,/display:flex/);
+ assert.match(board,/background:var\(--ts-e-wash\)/);
+ assert.match(lane,/flex:1 0 270px/);
+ assert.match(lane,/background:var\(--ts-e-paper\)/);
 });

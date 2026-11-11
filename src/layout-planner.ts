@@ -171,3 +171,17 @@ export function layoutChanges(plan:LayoutPlan){const old=new Map(plan.originals.
 
 /** Frame resizing also counts as a change even when its members already align. */
 export function layoutHasChanges(plan:LayoutPlan){return !!plan.newSections?.length||layoutChanges(plan)>0||!!plan.section&&(['x','y','width','height'] as const).some(key=>Math.abs(plan.section!.original[key]-plan.section!.next[key])>.001);}
+
+/** Count only advanced choices that differ from the studio defaults. */
+export function layoutAdvancedSummary(options:{sort:'position'|'title';anchor:'corner'|'center'}){
+ const active=Number(options.sort!=='position')+Number(options.anchor!=='center');
+ return active?`更多选项 · ${active}`:'更多选项';
+}
+
+/** Entering a narrow container closes advanced options once. Reopening them in that visit sticks. */
+export function nextLayoutAdvancedOpen(state:{narrow:boolean;userOpened:boolean;open:boolean},narrow:boolean,userOpen?:boolean){
+ if(userOpen!==undefined)return{narrow,userOpened:narrow&&userOpen?true:state.userOpened&&narrow,open:userOpen};
+ if(!narrow)return{narrow:false,userOpened:false,open:state.open};
+ if(!state.narrow&&!state.userOpened)return{narrow:true,userOpened:false,open:false};
+ return{narrow:true,userOpened:state.userOpened,open:state.open};
+}

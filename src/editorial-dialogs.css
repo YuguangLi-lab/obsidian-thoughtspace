@@ -1,28 +1,34 @@
 /* Shared dialog chrome. Authored Markdown, CM6 and PDF descendants are excluded
    from control rules; each workflow keeps its own viewport and lifecycle. */
 .modal.ts-ui-modal:where(:not(.ts-space-hub)) {
- color:var(--ts-e-ink);background:var(--ts-e-sheet)!important;
- border-color:var(--ts-e-line)!important;border-radius:12px!important;
- box-shadow:var(--ts-e-shadow)!important;
+ color:var(--ts-e-ink);background:var(--ts-e-overlay)!important;
+ border-color:var(--ts-e-line)!important;border-radius:var(--ts-e-radius-lg)!important;
+ box-shadow:var(--ts-e-shadow)!important;padding:var(--ts-e-space-panel);
 }
 :where(.ts-ui-modal) .modal-title {
  font-family:var(--ts-e-serif);font-size:26px;font-weight:600;
  line-height:1.45;letter-spacing:0;overflow-wrap:anywhere;
 }
 :where(.ts-ui-modal) .modal-header {padding-bottom:18px;border-bottom:1px solid var(--ts-e-line);margin-bottom:18px}
-.ts-ui-modal :is(.modal-close-button,.modal-header-button) {color:var(--ts-e-muted);border-radius:5px}
+.ts-ui-modal :is(.modal-close-button,.modal-header-button) {color:var(--ts-e-muted);border-radius:var(--ts-e-radius-sm)}
 .ts-ui-modal .modal-content>h2 {font-family:var(--ts-e-serif);letter-spacing:0;color:var(--ts-e-ink)}
 .ts-ui-modal :is(.setting-item-name,.setting-item-description,.ts-muted) {color:var(--ts-e-muted);line-height:1.7;letter-spacing:0}
 .ts-ui-modal .setting-item-name {color:var(--ts-e-ink)}
-.ts-ui-modal :is(input,select,textarea):where(:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color])):not(:where(.markdown-rendered *, .markdown-preview-view *, .markdown-source-view *, .cm-editor *, .pdf-container *, .pdf-viewer *)) {
+:is(.ts-ui-modal,.ts-component-gallery) :is(input,select,textarea):where(:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color])):not(:where(.markdown-rendered *, .markdown-preview-view *, .markdown-source-view *, .cm-editor *, .pdf-container *, .pdf-viewer *)) {
  /* Preserve the host's native select arrow placement, scale and repeat rules. */
- color:var(--ts-e-ink);background-color:var(--ts-e-paper);border-color:var(--ts-e-edge);border-radius:5px;box-shadow:none;
+ color:var(--ts-e-ink);background-color:var(--ts-e-paper);border-color:var(--ts-e-control-line);border-radius:var(--ts-e-radius-sm);box-shadow:none;
+ transition:border-color var(--ts-e-motion) var(--ts-e-ease),outline-color var(--ts-e-motion) var(--ts-e-ease);
 }
-.ts-ui-modal :is(input,select,textarea):focus-visible:not(:where(.markdown-rendered *, .markdown-preview-view *, .markdown-source-view *, .cm-editor *, .pdf-container *, .pdf-viewer *)) {outline:2px solid var(--ts-accent);outline-offset:-2px;box-shadow:none}
-.ts-ui-modal :is(input,textarea):not(:where(.markdown-rendered *, .markdown-preview-view *, .markdown-source-view *, .cm-editor *, .pdf-container *, .pdf-viewer *))::placeholder {color:var(--ts-e-muted);opacity:1}
+:is(.ts-ui-modal,.ts-component-gallery) :is(input,select,textarea):focus-visible:not(:where(.markdown-rendered *, .markdown-preview-view *, .markdown-source-view *, .cm-editor *, .pdf-container *, .pdf-viewer *)) {outline:2px solid var(--ts-e-focus);outline-offset:2px;}
+:is(.ts-ui-modal,.ts-component-gallery) :is(input,textarea).is-error:not(:where(.markdown-rendered *, .markdown-preview-view *, .markdown-source-view *, .cm-editor *, .pdf-container *, .pdf-viewer *)) {border-color:var(--ts-e-danger)}
+:is(.ts-ui-modal,.ts-component-gallery) :is(input,textarea).is-error:focus-visible:not(:where(.markdown-rendered *, .markdown-preview-view *, .markdown-source-view *, .cm-editor *, .pdf-container *, .pdf-viewer *)) {outline:2px solid var(--ts-e-focus);outline-offset:2px;border-color:var(--ts-e-danger)}
+:is(.ts-ui-modal,.ts-component-gallery) :is(input,textarea):not(:where(.markdown-rendered *, .markdown-preview-view *, .markdown-source-view *, .cm-editor *, .pdf-container *, .pdf-viewer *))::placeholder {color:var(--ts-e-muted);opacity:1}
 .ts-ui-modal :is(button,summary):active:not(:disabled):not([aria-disabled=true]):not(:where(.markdown-rendered *, .markdown-preview-view *, .markdown-source-view *, .cm-editor *, .pdf-container *, .pdf-viewer *)) {box-shadow:inset 0 0 0 1px var(--ts-e-edge)}
 .ts-ui-modal .modal-button-container {gap:8px;flex-wrap:wrap;padding-top:16px;border-top:1px solid var(--ts-e-line)}
-.ts-ui-modal .modal-button-container button {min-height:36px;height:auto;padding:8px 16px;border-radius:5px;box-shadow:none}
+.ts-ui-modal .modal-button-container button {min-height:36px;height:auto;padding:8px 16px;border-radius:var(--ts-e-radius);box-shadow:none;transition:background-color var(--ts-e-motion) var(--ts-e-ease),color var(--ts-e-motion) var(--ts-e-ease),border-color var(--ts-e-motion) var(--ts-e-ease)}
+.ts-ui-modal .modal-button-container button:hover:not(:disabled):not([aria-disabled=true]):not(.mod-cta) {background:var(--ts-e-wash)}
+.ts-ui-modal .modal-button-container button:active:not(:disabled):not([aria-disabled=true]) {box-shadow:inset 0 0 0 1px var(--ts-e-control-line)}
+.ts-ui-modal .modal-button-container button:is(:disabled,[aria-disabled=true]) {color:var(--ts-e-disabled)}
 .ts-ui-modal .modal-button-container .mod-cta {font-weight:600}
 .ts-form-prompt .modal-content {display:flex;flex-direction:column;gap:16px}
 .ts-prompt-field {display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--ts-e-muted)}
@@ -31,6 +37,10 @@
 .ts-form-prompt .mod-cta {float:none}
 .ts-prompt-status {font-size:13px;line-height:1.65;overflow-wrap:anywhere;color:var(--ts-e-muted)}
 .ts-prompt-status:empty {display:none}
+.ts-prompt-field .ts-field-error {display:flex;align-items:flex-start;gap:var(--ts-e-space-icon);margin-top:4px;color:var(--ts-e-danger);font-size:var(--ts-e-meta-size);line-height:var(--ts-e-meta-leading)}
+.ts-prompt-field .ts-field-error::before {content:"!";flex:none;display:grid;place-items:center;width:1.15em;height:1.15em;margin-top:.12em;border:1px solid var(--ts-e-danger);border-radius:999px;color:var(--ts-e-danger);font-size:.85em;font-weight:700;line-height:1}
+.ts-field-success,.ts-status-success {display:flex;align-items:flex-start;gap:var(--ts-e-space-icon);color:var(--ts-e-success);font-size:var(--ts-e-meta-size);line-height:var(--ts-e-meta-leading)}
+.ts-field-success::before,.ts-status-success::before {content:"✓";flex:none;color:var(--ts-e-success);font-weight:700;line-height:1}
 .ts-board-creation-modal .ts-board-creation-purpose {border-inline-start:2px solid var(--ts-e-editorial);padding-inline-start:12px;margin-block:8px 24px}
 .ts-board-creation-modal .ts-board-creation-name {font-size:13px;gap:10px}
 .ts-board-creation-modal .ts-board-creation-format>summary {color:var(--ts-e-muted)}

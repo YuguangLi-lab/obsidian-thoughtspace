@@ -1,7 +1,7 @@
 import {themePluginMenu} from '../src/ui-tokens';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {bindWritingModeFocus,syncWritingPaneHeight} from '../src/writing-chrome';
+import {bindWritingModeFocus,captureWritingReadingScroll,restoreWritingReadingScroll,syncWritingPaneHeight} from '../src/writing-chrome';
 import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 
@@ -105,6 +105,18 @@ test('short chrome follows actual pane height instead of window width or height'
 });
 test('short resize keeps editor focus and releases only its layout attribute',()=>{
  const f=fixture();assert.equal(f.root.dataset.writingShort,'false');f.editor.focus();f.root.height=340;f.resize();assert.equal(f.root.dataset.writingShort,'true');assert.equal(f.doc.activeElement,f.editor);f.root.height=700;f.resize();assert.equal(f.root.dataset.writingShort,'false');assert.equal(f.doc.activeElement,f.editor);f.dispose();assert.equal(f.root.dataset.writingShort,undefined);
+});
+test('opening the materials library keeps the reading scroll position',()=>{
+ const source=readFileSync('src/writing-view.ts','utf8');
+ const method=(name:string)=>{const start=source.indexOf(' private '+name+'(');return source.slice(start,source.indexOf('\n private ',start+1));};
+ const reading={scrollTop:480,isConnected:true},editor={scrollTop:240,isConnected:true};
+ const sourcePane={hidden:true},referencePane={hidden:false};
+ const View=new Function('captureWritingReadingScroll','restoreWritingReadingScroll',transformSync('class View{'+method('setResourceMode')+method('syncDock')+'};return View',{loader:'ts'}).code)(captureWritingReadingScroll,restoreWritingReadingScroll);
+ const view=new View();
+ Object.assign(view,{resourceMode:'reference',dockOpen:false,compactDockRequested:false,dockWidth:320,dockResize:{hidden:false},flushFields(){},fitTitle(){reading.scrollTop=0;editor.scrollTop=0;},dock:{hidden:true,querySelector:(selector:string)=>selector.includes('reference')?referencePane:sourcePane,querySelectorAll:()=>[]},contentEl:{clientWidth:1280,dataset:{},style:{setProperty(){}},toggleClass(){},querySelector:()=>null,querySelectorAll:(selector:string)=>[selector.includes('article-scroll')?reading:undefined,selector.includes('cm-scroller')?editor:undefined].filter(Boolean)}});
+ view.setResourceMode('library');
+ assert.equal(view.resourceMode,'library');assert.equal(view.dock.hidden,false);assert.equal(sourcePane.hidden,false);assert.equal(referencePane.hidden,true);
+ assert.equal(reading.scrollTop,480);assert.equal(editor.scrollTop,240);
 });
 test('host onResize refreshes the actual pane before native measure and ignores closed views',()=>{
  const source=readFileSync('src/writing-view.ts','utf8'),start=source.indexOf(' onResize(){'),end=source.indexOf('\n private ',start),calls:string[]=[];

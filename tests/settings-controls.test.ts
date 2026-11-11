@@ -62,6 +62,17 @@ function settingsPage(page:'general'|'board',language:'zh-CN'|'en'){
 }
 
 const allRows=(el:Element):Setting[]=>[...el.rows,...el.children.flatMap(allRows)];
+test('settings sections and export actions keep a stable editorial arrangement',()=>{
+ const settingsCss=readFileSync('src/settings.css','utf8');
+ const paperCss=readFileSync('src/paper-settings.css','utf8');
+ const handwritingCss=readFileSync('src/handwriting-export.css','utf8');
+ const collectionCss=readFileSync('src/collection-context.css','utf8');
+ assert.match(settingsCss,/\.ts-settings-v2 \.ts-board-preferences \.ts-settings-section\{[^}]*margin-block-start:\s*var\(--ts-e-space-section\)/);
+ assert.match(settingsCss,/\.ts-settings-v2 \.setting-item-info\{[^}]*flex-direction:\s*column/);
+ assert.match(paperCss,/\.ts-paper-settings-footer \.mod-cta\{[^}]*margin-inline-start:\s*auto/);
+ assert.match(handwritingCss,/\.ts-handwriting-export-actions \.mod-cta\{[^}]*order:\s*1/);
+ assert.match(collectionCss,/\.ts-collection-export-actions>\.mod-cta\{[^}]*order:\s*1/);
+});
 test('legacy settings rows retain six native palette options without a gallery or new material controls',()=>{
  for(const language of ['zh-CN','en'] as const){
   const {el}=settingsPage('general',language),interactive=allRows(el).filter(item=>item.dropdown||item.toggle||item.buttons.length);

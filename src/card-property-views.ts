@@ -16,8 +16,8 @@ export interface LibraryCardRecord {
  indexIncomplete?:true;
 }
 export type LibraryLayout='table'|'kanban'|'list';
-export interface LibraryViewQuery {type:''|LibraryCardType;tag:string;board:string;status:string;choice:string;query:string;view:LibraryLayout}
-export const emptyLibraryQuery=():LibraryViewQuery=>({type:'',tag:'',board:'',status:'',choice:'',query:'',view:'list'});
+export interface LibraryViewQuery {type:''|LibraryCardType;tag:string;board:string;status:string;choice:string;query:string;view:LibraryLayout;selected:readonly string[]}
+export const emptyLibraryQuery=():LibraryViewQuery=>({type:'',tag:'',board:'',status:'',choice:'',query:'',view:'list',selected:[]});
 /** Longer than a saved option, so this filter cannot collide with a real thoughtspace_choice value. */
 export const uncategorizedChoice='thoughtspace-library-filter:only-uncategorized';
 const hiddenKeys=new Set(['position','tags','aliases','cssclasses','tag',choiceKey,...Object.values(propertyKeys)]);

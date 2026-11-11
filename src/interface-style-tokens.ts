@@ -6,6 +6,7 @@ const roots = [
   '.ts-media-workspace', '.ts-online-workspace', '.ts-materials-panel',
   '.ts-materials-modal', '.ts-brain-shell', '.ts-handwriting',
   '.ts-local-relations', '.ts-collection-content', '.ts-ui-menu',
+  '.ts-component-gallery',
 ];
 const outsideCalendar = ':not(:where(.ts-calendar-plugin,.ts-calendar-plugin *))';
 // Obsidian can load styles.css after onload. Four owned classes deliberately beat
@@ -15,16 +16,16 @@ const allRoots = `:is(${roots.map(owned).join(',')})`;
 const within = (root: string, descendants: string) => `${owned(root)} :is(${descendants})${outsideCalendar}`;
 const rule = (selector: string, declarations: string) => `${selector}{${declarations}}`;
 
-// The original Paper finish, unchanged from 0.97.0 (d55a251) through 1.3.36
-// (6e92b93). Steps 7–10 are the original Radix sage / sageDark values. This is
-// independent of the canvas paper preset/texture and does not add paper noise.
+// Warm white #f8f5ef, the same pigment as the default paper. Later steps stay
+// on that hue instead of the old cream. Steps 7–10 stay the Radix sage grays.
+// This is independent of the canvas paper preset and does not add paper noise.
 const paperLight = [
-  '#fffdf8', '#f6f4ee', '#eeece4', '#e6e4dc', '#dedcd3', '#d3d1c7',
+  '#f8f5ef', '#f8f5ef', '#f0eee8', '#e9e6e0', '#d4d2cc', '#c4c3be',
   '#cbcfcd', '#b8bcba', '#868e8b', '#7c8481', '#67675f', '#272a25',
 ];
 const paperDark = [
-  '#20211e', '#252620', '#2c2d27', '#34352e', '#3c3e35', '#4c4e43',
-  '#444947', '#5b625f', '#63706b', '#717d79', '#b9bcaf', '#e9ebdf',
+  '#18191b', '#222326', '#35363b', '#3c3d43', '#4a4b52', '#585960',
+  '#6a6b73', '#7c7d85', '#8e8f97', '#94959d', '#9a9ba3', '#ececee',
 ];
 
 interface Palette {
@@ -64,12 +65,14 @@ export function interfaceStyleRules(_style?: unknown, _glassEffects?: boolean,se
   const id=cleanInterfacePalette(selected),scheme=cleanInterfaceMode(mode),colors=interfacePalettes[id];
   const light={...(id==='paper'?paperPalette(paperLight):colors.light),accent:colors.light.accent};
   const dark={...(id==='paper'?paperPalette(paperDark):colors.dark),accent:colors.dark.accent};
-  // Retain the verified 1.3.41 material and geometry; presets change pigment only.
-  light.shadow=dark.shadow='0 1px 3px #00000009';
+  // Light elevation stays quiet. Dark dialogs need a visible lift off charcoal.
+  light.shadow='0 1px 3px #00000009';
+  dark.shadow='0 2px 8px #00000033, 0 16px 40px #00000044';
   const font = 'var(--font-interface)';
   const radius = '8px';
+  const purposeShape = `--ts-e-title-size:1.25em;--ts-e-title-weight:600;--ts-e-title-leading:1.3;--ts-e-body-size:1em;--ts-e-body-weight:400;--ts-e-body-leading:1.55;--ts-e-meta-size:0.8125em;--ts-e-meta-weight:400;--ts-e-meta-leading:1.4;--ts-e-space-icon:6px;--ts-e-space-control:10px;--ts-e-space-panel:16px;--ts-e-space-section:28px;--ts-e-radius-sm:4px;--ts-e-radius:${radius};--ts-e-radius-lg:12px;--ts-e-control-radius:var(--ts-e-radius-sm);--ts-e-motion:200ms;--ts-e-ease:ease-in-out;`;
   const shared = `
-    --ts-e-serif:${font};--ts-e-radius:${radius};--ts-e-control-radius:5px;
+    --ts-e-serif:${font};${purposeShape}
     --ts-design-line:var(--ts-e-line);--ts-design-panel:var(--ts-e-sheet);
     --ts-design-wash:color-mix(in srgb,var(--ts-accent,var(--interactive-accent)) 6%,var(--ts-e-sheet));
     --ts-design-hover:var(--ts-design-wash);--ts-design-overlay-shadow:var(--ts-e-shadow);
@@ -82,12 +85,15 @@ export function interfaceStyleRules(_style?: unknown, _glassEffects?: boolean,se
   `;
   const paint=(value:Palette&{accent:string},isDark:boolean)=>{
     const custom=accent==='blue'?(isDark?'#8bbaf0':'#245a8b'):accent==='amber'?(isDark?'#e4bd75':'#805417'):accent==='rose'?(isDark?'#e8a6bc':'#9b4265'):accent==='palette'?value.accent:(isDark?'#93c8b4':'#356859');
-    return paletteRules(value,id==='paper'?(isDark?paperDark:paperLight):undefined)+`--ts-accent:${custom};--ts-palette-accent:${value.accent};--ts-e-on-accent:${isDark?value.paper:value.sheet};--ts-e-danger:${isDark?'#ffb4b4':'#9e2634'};--ts-e-warning:${isDark?'#edc78a':'#805417'};color-scheme:${isDark?'dark':'light'};`;
+    const surfaces=isDark
+      ?`--ts-e-overlay:#323339;--ts-e-body:#c6c7cc;--ts-e-control-line:#b3b4bb;--ts-e-focus:#8bbaf0;--ts-e-selected:#93c8b4;--ts-e-success:#7ec8a3;--ts-e-disabled:#787a82;--ts-e-grain-opacity:.4;`
+      :`--ts-e-overlay:#fcf9f3;--ts-e-body:#3c4038;--ts-e-control-line:#5c615c;--ts-e-focus:#245a8b;--ts-e-selected:#356859;--ts-e-success:#1f6b45;--ts-e-disabled:#8d928c;--ts-e-grain-opacity:1;`;
+    return paletteRules(value,id==='paper'?(isDark?paperDark:paperLight):undefined)+surfaces+purposeShape+`--ts-accent:${custom};--ts-palette-accent:${value.accent};--ts-e-on-accent:${isDark?value.paper:value.sheet};--ts-e-danger:${isDark?'#ffb4b4':'#9e2634'};--ts-e-warning:${isDark?'#edc78a':'#805417'};color-scheme:${isDark?'dark':'light'};`;
   };
   let css=rule(allRoots,shared+paint(scheme==='dark'?dark:light,scheme==='dark'));
   if(scheme==='auto')css+=rule(`.theme-dark ${allRoots}`,paint(dark,true));
   const nativeChrome=roots.filter(root=>!['.ts-root','.ts-brain-shell','.ts-handwriting','.ts-collection-content'].includes(root)).map(owned).join(',');
-  css+=rule(nativeChrome,'--background-primary:var(--ts-e-sheet);--background-secondary:var(--ts-e-paper);--background-modifier-border:var(--ts-e-line);--text-normal:var(--ts-e-ink);--text-muted:var(--ts-e-muted);--text-faint:var(--ts-e-muted);--icon-color:var(--ts-e-muted);--icon-color-hover:var(--ts-e-ink);--interactive-normal:var(--ts-e-sheet);--interactive-hover:var(--ts-e-wash);--interactive-accent:var(--ts-accent);--text-on-accent:var(--ts-e-on-accent);--text-error:var(--ts-e-danger);--text-warning:var(--ts-e-warning);');
+  css+=rule(nativeChrome,'--background-primary:var(--ts-e-sheet);--background-secondary:var(--ts-e-paper);--background-modifier-border:var(--ts-e-line);--text-normal:var(--ts-e-body);--text-muted:var(--ts-e-muted);--text-faint:var(--ts-e-muted);--icon-color:var(--ts-e-muted);--icon-color-hover:var(--ts-e-ink);--interactive-normal:var(--ts-e-sheet);--interactive-hover:var(--ts-e-wash);--interactive-accent:var(--ts-accent);--text-on-accent:var(--ts-e-on-accent);--text-error:var(--ts-e-danger);--text-warning:var(--ts-e-warning);');
   for(const root of ['.ts-root','.ts-ui-modal','.ts-settings','.ts-writing','.ts-materials-modal','.ts-materials-panel','.ts-media-workspace','.ts-online-workspace','.ts-note-markdown-toolbar'])css+=rule(within(root,'.ts-button.ts-primary,.ts-button.mod-cta,.ts-writing-button.mod-cta'),'background:var(--ts-accent)!important;color:var(--ts-e-on-accent)!important;');
   // The marker is attached only to menus created by ThoughtSpace. Native menus
   // and another plugin's .menu are intentionally outside this layer.
@@ -107,7 +113,7 @@ export function interfaceStyleRules(_style?: unknown, _glassEffects?: boolean,se
   // Only named plugin chrome. In particular, there are no Markdown/editor,
   // node, media player, ink stage, canvas background or native-menu selectors.
   const boardChrome=within('.ts-root','.ts-commandbar,.ts-inspector,.ts-minimap,.ts-calendar,.ts-tour-bar,.ts-board-rail,.ts-rail-popover,.ts-footer .ts-view-dock,.ts-canvas-settings-panel');
-  css+=rule(boardChrome,'--text-normal:var(--ts-e-ink);--text-muted:var(--ts-e-muted);--text-faint:var(--ts-e-muted);--icon-color:var(--ts-e-muted);--background-primary:var(--ts-e-sheet);--background-secondary:var(--ts-e-paper);--background-modifier-border:var(--ts-e-line);--background-modifier-hover:var(--ts-e-wash);--text-on-accent:var(--ts-e-on-accent);color:var(--ts-e-ink);');
+  css+=rule(boardChrome,'--text-normal:var(--ts-e-body);--text-muted:var(--ts-e-muted);--text-faint:var(--ts-e-muted);--icon-color:var(--ts-e-muted);--background-primary:var(--ts-e-sheet);--background-secondary:var(--ts-e-paper);--background-modifier-border:var(--ts-e-line);--background-modifier-hover:var(--ts-e-wash);--text-on-accent:var(--ts-e-on-accent);color:var(--ts-e-ink);');
   const sheetChrome = [
     boardChrome,
     within('.ts-writing', '.ts-writing-header,.ts-writing-formatbar,.ts-writing-dock-head,.ts-writing-reference-heading,.ts-writing-panel-head,.ts-writing-transition'),
@@ -115,7 +121,7 @@ export function interfaceStyleRules(_style?: unknown, _glassEffects?: boolean,se
     within('.ts-online-workspace', '.ts-online-workspace__header,.ts-online-workspace__composer-actions'),
     within('.ts-handwriting', '.ts-handwriting-toolbar,.ts-handwriting-footer,.ts-handwriting-popover,.ts-handwriting-selection-actions'),
     owned('.ts-native-header'), owned('.ts-note-markdown-toolbar'),
-    owned('.ts-ui-modal'), owned('.ts-space-modal'), owned('.ts-materials-modal'),
+    owned('.ts-space-modal'), owned('.ts-materials-modal'),
     owned('.ts-ui-menu'),
   ].join(',');
   // Legacy paper/soft surfaces already use !important; limit its replacement
@@ -143,5 +149,8 @@ export function interfaceStyleRules(_style?: unknown, _glassEffects?: boolean,se
       rule(within(root, '.ts-materials-library,.ts-materials-tabs button[aria-selected=true]'), 'background:var(--ts-e-sheet);color:var(--ts-e-ink);');
   }
 
+  const gallery = owned('.ts-component-gallery');
+  css += rule(`${gallery}.theme-dark`, paint(dark, true)) + rule(`${gallery}[data-theme=light]`, paint(light, false));
+  css += `@media (prefers-reduced-motion: reduce){${allRoots}{--ts-e-motion:0ms;}}`;
   return css;
 }

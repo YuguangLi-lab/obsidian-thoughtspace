@@ -16,7 +16,11 @@ export function installRailToolSearch(panel:HTMLElement,tools:HTMLElement,option
  const empty=panel.createDiv({cls:'ts-rail-empty',text:'没有匹配的工具，试试“分组”“PDF”或“整理”。'});empty.hidden=true;
  const normalize=(value:string)=>value.normalize('NFKC').toLocaleLowerCase().trim();
  const groups=Array.from(tools.querySelectorAll<HTMLElement>('.ts-tool-cluster')).map(element=>({element,hidden:element.hidden,appliedHidden:element.hidden}));
- const entries=Array.from(tools.querySelectorAll<HTMLButtonElement>('button')).map(element=>({element,hidden:element.hidden,appliedHidden:element.hidden,group:element.closest<HTMLElement>('.ts-tool-cluster'),label:normalize([element.getAttribute('aria-label'),element.title,element.closest('.ts-tool-cluster')?.getAttribute('aria-label')].filter(Boolean).join(' '))}));
+ const entries=Array.from(tools.querySelectorAll<HTMLButtonElement>('button')).filter(element=>!element.classList?.contains('ts-tool-cluster-toggle')).map(element=>{
+  const name=element.getAttribute('aria-label')||element.textContent?.trim()||'';
+  if(name&&!element.getAttribute('title'))element.setAttribute('title',name);
+  return {element,hidden:element.hidden,appliedHidden:element.hidden,group:element.closest<HTMLElement>('.ts-tool-cluster'),label:normalize([element.getAttribute('aria-label'),element.getAttribute('title'),element.closest('.ts-tool-cluster')?.getAttribute('aria-label')].filter(Boolean).join(' '))};
+ });
  // Recent shortcuts are local to this panel; the original buttons remain the source of actions and state.
  const recent=tools.createDiv({cls:'ts-rail-recent',attr:{role:'group','aria-label':'最近使用'}});tools.insertBefore(recent,tools.children[0]);
  recent.createDiv({cls:'ts-rail-recent-title',text:'最近使用'});const recentActions=recent.createDiv('ts-rail-recent-actions');
@@ -44,7 +48,7 @@ export function installRailToolSearch(panel:HTMLElement,tools:HTMLElement,option
   // The wide layout hides the actions while the empty state is visible. Restore
   // that ancestor before recent shortcuts inspect the originals' client rects.
   empty.hidden=count>0;renderRecent();
-  clear.hidden=!input.value;const label=tokens.length?`${count} 项工具 · ↑↓ 选择 · Enter 执行`:'↑↓ 选择 · Enter 执行';if(status.textContent!==label)status.setText(label);tools.scrollTop=0;
+  clear.hidden=!input.value;const scope=section?.getAttribute('aria-label');const summary=scope?` · ${scope}`:'';const label=tokens.length?`${count} 项工具${summary} · ↑↓ 选择 · Enter 执行`:`↑↓ 选择 · Enter 执行${summary}`;if(status.textContent!==label)status.setText(label);tools.scrollTop=0;
   if(!notified||category!==lastCategory||searching!==lastSearching){notified=true;lastCategory=category;lastSearching=searching;options.onCategoryChange?.(category,searching);}
  };
  const visible=()=>Array.from(tools.querySelectorAll<HTMLButtonElement>('button')).filter(eligible);

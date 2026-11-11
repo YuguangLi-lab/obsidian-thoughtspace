@@ -15,7 +15,7 @@ export function planCaptureReferences(board:Board,paths:readonly string[],groupI
  }else for(const node of draft.nodes)x=Math.max(x,node.x+node.width+48);
  for(const [index,path]of fresh.entries()){
   const id=newId();if(!id||draft.nodes.some(node=>node.id===id))throw Error('卡片标识冲突，请重试');
-  const node:Card={id,kind:'card',file:path,x:group?x:x+(index%3)*(width+32),y:group?y+index*344:Math.floor(index/3)*344,width,height:320,color:'sand',transparent:true};
+  const node:Card={id,kind:'card',file:path,x:group?x:x+(index%3)*(width+32),y:group?y+index*344:Math.floor(index/3)*344,width,height:320,color:'slate',transparent:true};
   draft.nodes.push(node);ids.push(id);
  }
  if(ids.length)draft.version=3;return{board:draft,ids};

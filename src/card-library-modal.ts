@@ -1,6 +1,7 @@
 import {Modal,Notice,type App} from 'obsidian';
 import {libraryModalHandlers,paintCardLibrary,type LibraryViewHandlers} from './card-library-view';
 import {emptyLibraryQuery,type LibraryCardRecord,type LibraryViewQuery} from './card-property-views';
+import {themeSurface} from './ui-tokens';
 
 export interface CardLibraryHost extends Omit<LibraryViewHandlers,'setQuery'> {
  records():readonly LibraryCardRecord[];
@@ -12,6 +13,7 @@ export class CardLibraryModal extends Modal {
  constructor(app:App,private host:CardLibraryHost){super(app);}
  onOpen(){
   this.modalEl.addClass('ts-database-modal');
+  themeSurface(this.modalEl);
   this.titleEl.setText('卡片库');
   this.contentEl.addClass('ts-database');
   this.refresh();

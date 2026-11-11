@@ -86,15 +86,20 @@ export function paintCardLibrary(root:LibraryElement,records:readonly LibraryCar
  const results=root.createDiv({cls:'ts-db-results',attr:{'data-library-view':query.view}});
  if(!shown.length){results.createDiv({cls:'ts-sidebar-empty',text:query.choice===uncategorizedChoice?'没有符合条件的未分类卡片。':'没有匹配的卡片。'});return;}
  const category=(record:LibraryCardRecord)=>handlers.choiceOptions?.length?record.choice||'未分类':'';
+ const picked=(path:string)=>(query.selected||[]).includes(path);
+ const selectedCls=(path:string)=>picked(path)?' is-selected':'';
+ const mark=(parent:LibraryElement)=>{if(parent)parent.createEl('span',{cls:'ts-library-selected-mark',text:'✓',attr:{'aria-hidden':'true'}});};
+ const bindSelect=(el:LibraryElement,path:string)=>{el.onclick=event=>{const target=(event as {target?:{closest?:(selector:string)=>unknown}}|null)?.target;if(target?.closest?.('button,select,input,textarea,a'))return;const next=new Set(query.selected||[]);if(next.has(path))next.delete(path);else next.add(path);handlers.setQuery({...query,selected:[...next]});};};
  if(query.view==='table'){
   const table=libraryTable(shown,!!handlers.choiceOptions?.length),grid=results.createEl('table',{cls:'ts-db-table'});
   const head=grid.createEl('tr');
   for(const column of table.columns)head.createEl('th',{text:column});
   for(const row of table.rows){
-   const line=grid.createEl('tr',{attr:{'data-note-path':row.path}});
-   for(const cell of row.cells)line.createEl('td',{text:cell});
+   const line=grid.createEl('tr',{cls:selectedCls(row.path).trim(),attr:{'data-note-path':row.path}});bindSelect(line,row.path);
+   row.cells.forEach((cell,index)=>{const title=index===0;line.createEl('td',title?{text:cell,cls:'ts-library-title-cell',attr:{title:cell,tabindex:'0','aria-label':cell}}:{text:cell});});
    const tools=line.createEl('td');
    actions(tools,shown.find(record=>record.path===row.path)!,handlers);
+   if(picked(row.path))mark(tools);
   }
   return;
  }
@@ -104,9 +109,10 @@ export function paintCardLibrary(root:LibraryElement,records:readonly LibraryCar
    const lane=board.createDiv({cls:'ts-db-lane',attr:{'data-status':column.id}});
    lane.createDiv({cls:'ts-db-lane-title',text:`${column.label} · ${column.cards.length}`});
    for(const card of column.cards){
-    const item=lane.createDiv({cls:'ts-library-card',attr:{'data-note-path':card.path}});
+    const item=lane.createDiv({cls:'ts-library-card'+selectedCls(card.path),attr:{'data-note-path':card.path}});bindSelect(item,card.path);
     item.createDiv({cls:'ts-library-title',text:card.title});
     item.createDiv({cls:'ts-library-tags',text:[libraryTypeNames[card.type],category(card),card.highlight?highlightLocation(card.highlight):'',...card.tags].filter(Boolean).join(' ')});
+    if(picked(card.path))mark(item);
     actions(item,card,handlers);
    }
   }
@@ -114,10 +120,11 @@ export function paintCardLibrary(root:LibraryElement,records:readonly LibraryCar
  }
  for(const item of libraryList(shown)){
   const record=shown.find(entry=>entry.path===item.path)!;
-  const card=results.createDiv({cls:'ts-library-card',attr:{'data-note-path':item.path}});
+  const card=results.createDiv({cls:'ts-library-card'+selectedCls(item.path),attr:{'data-note-path':item.path}});bindSelect(card,item.path);
   card.createDiv({cls:'ts-library-title',text:item.title});
   card.createDiv({cls:'ts-library-excerpt',text:[item.detail,category(record)].filter(Boolean).join(' · ')});
   if(Object.keys(record.custom).length)card.createDiv({cls:'ts-library-path',text:Object.entries(record.custom).map(([key,value])=>`${key}：${value}`).join('  ')});
+  if(picked(item.path))mark(card);
   actions(card,record,handlers);
  }
 }
