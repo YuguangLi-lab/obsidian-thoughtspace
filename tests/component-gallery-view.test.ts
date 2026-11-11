@@ -139,4 +139,35 @@ test('gallery renders type, selected cards, controls, and theme and width toggle
   assert.doesNotMatch(visual, /ts-component-gallery\) :is\(\.ts-button,button\.mod-cta,button\.ts-primary\):is\(\.is-loading/);
   assert.match(css, /\.ts-gallery-dialog\s*\{[^}]*max-width:\s*420px/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
+  const paper = content.querySelector('[data-fill="paper"]');
+  const green = content.querySelector('[data-fill="green"]');
+  const sand = content.querySelector('[data-fill="sand"]');
+  assert.ok(paper && green && sand);
+  assert.match(css, /--ts-gallery-on-fill:\s*black/);
+  assert.match(css, /\[data-fill=green\] :is\(\.ts-type-body, \.ts-type-meta\)/);
+  assert.doesNotMatch(css, /\[data-fill=(?:green|sand)\][\s\S]{0,180}var\(--ts-e-(?:body|muted|ink)\)/);
+  const onFill = '#000000';
+  const mix = (hex: string, into: string, percent: number) => {
+    const channel = (h: string, at: number) => Number.parseInt(h.slice(at, at + 2), 16);
+    return '#' + [1, 3, 5].map(at => Math.round(channel(hex, at) * percent / 100 + channel(into, at) * (1 - percent / 100)).toString(16).padStart(2, '0')).join('');
+  };
+  const luminance = (hex: string) => [1, 3, 5].map(at => Number.parseInt(hex.slice(at, at + 2), 16) / 255).map(v => v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4).reduce((n, v, i) => n + v * [0.2126, 0.7152, 0.0722][i], 0);
+  const ratio = (fg: string, bg: string) => {
+    const a = luminance(fg), b = luminance(bg);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  };
+  const built = readFileSync('styles.css', 'utf8');
+  const dark = built.slice(built.indexOf('.theme-dark {'));
+  const mixed = (name: string) => {
+    const found = dark.match(new RegExp(`--ts-fill-${name}:color-mix\\(in srgb,(#[0-9a-f]{6}) (\\d+)%,(#[0-9a-f]{6})\\)`, 'i'));
+    assert.ok(found, name);
+    return mix(found[1], found[3], Number(found[2]));
+  };
+  for (const [name, light] of [['green', cardFillHex.green], ['sand', cardFillHex.sand]] as const) {
+    for (const fill of [light, mixed(name)]) {
+      const measured = ratio(onFill, fill);
+      assert.ok(measured >= 4.5, `${name} ${fill} ${measured.toFixed(2)}`);
+    }
+  }
+  for (const pale of ['#c6c7cc', '#9a9ba3', '#ececee']) assert.ok(ratio(pale, mixed('green')) < 4.5);
 });

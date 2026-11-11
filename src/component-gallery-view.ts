@@ -39,9 +39,9 @@ export class ComponentGalleryView extends ItemView {
 
     const cards = this.group(root, '卡片', '选中只加轮廓和中性色小勾，不改卡片填色。');
     const cardRow = cards.createDiv({cls: 'ts-gallery-cards'});
-    this.card(cardRow, '默认纸色', 'var(--ts-e-paper)', false);
-    this.card(cardRow, '绿色卡片', `var(--ts-fill-green, ${cardFillHex.green})`, true);
-    this.card(cardRow, '米黄卡片', `var(--ts-fill-sand, ${cardFillHex.sand})`, true, true);
+    this.card(cardRow, '默认纸色', 'var(--ts-e-paper)', 'paper', false);
+    this.card(cardRow, '绿色卡片', `var(--ts-fill-green, ${cardFillHex.green})`, 'green', true);
+    this.card(cardRow, '米黄卡片', `var(--ts-fill-sand, ${cardFillHex.sand})`, 'sand', true, true);
 
     const buttons = this.group(root, '按钮', '焦点只加环，不改边框颜色。');
     const row = buttons.createDiv({cls: 'ts-gallery-row'});
@@ -100,8 +100,8 @@ export class ComponentGalleryView extends ItemView {
     group.createEl('p', {cls: 'ts-gallery-caption ts-type-meta', text: caption});
     return group;
   }
-  private card(parent: HTMLElement, label: string, fill: string, selected: boolean, focus = false) {
-    const card = parent.createDiv({cls: `ts-node ts-library-card ts-gallery-card${selected ? ' is-selected' : ''}${focus ? ' is-focus-sample' : ''}`, attr: focus ? {tabindex: '0'} : {}});
+  private card(parent: HTMLElement, label: string, fill: string, tone: 'paper' | 'green' | 'sand', selected: boolean, focus = false) {
+    const card = parent.createDiv({cls: `ts-node ts-library-card ts-gallery-card${selected ? ' is-selected' : ''}${focus ? ' is-focus-sample' : ''}`, attr: {...(focus ? {tabindex: '0'} : {}), 'data-fill': tone}});
     card.style.background = fill;
     card.createDiv({cls: 'ts-type-body', text: label});
     card.createDiv({cls: 'ts-type-meta', text: selected ? (focus ? '焦点环与小勾同时在' : '轮廓 + 角标，填色保留') : '未选中'});

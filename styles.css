@@ -11740,6 +11740,9 @@ body {
    gallery control scale: the space tokens are 6, 10, 16 and 28, none of which
    is the requested button padding, height, or spinner gap. */
 .ts-component-gallery:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  /* Dark color-mix fills stay mid-light. White is under 4.5:1 on them, and the
+     shared --ts-tone-* inks are under 4.5:1 on the light swatches too. */
+  --ts-gallery-on-fill: black;
   box-sizing: border-box;
   height: 100%;
   margin-inline: auto;
@@ -11801,6 +11804,13 @@ body {
   font-size: var(--ts-e-body-size);
   font-weight: var(--ts-e-body-weight);
   line-height: var(--ts-e-body-leading);
+}
+.ts-component-gallery .ts-gallery-card .ts-type-body:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { font-weight: var(--ts-e-title-weight); }
+.ts-component-gallery .ts-gallery-card[data-fill=green]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),
+.ts-component-gallery .ts-gallery-card[data-fill=sand]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),
+.ts-component-gallery .ts-gallery-card[data-fill=green] :is(.ts-type-body, .ts-type-meta):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),
+.ts-component-gallery .ts-gallery-card[data-fill=sand] :is(.ts-type-body, .ts-type-meta):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  color: var(--ts-gallery-on-fill);
 }
 .ts-component-gallery .ts-gallery-cards:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
   display: flex;
