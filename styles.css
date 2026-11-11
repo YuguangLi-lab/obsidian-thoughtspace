@@ -2338,7 +2338,7 @@ body {
 .ts-writing-article-scroll:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){overflow:auto;flex:1;min-height:0;padding:48px clamp(24px,5cqw,76px) 72px;}
 .ts-writing-article-head:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),.ts-writing-outline:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),.ts-writing-paper:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){background:transparent;border:0;border-radius:0;padding:0;box-shadow:none;}
 .ts-writing-eyebrow:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){font-size:10px;line-height:1.7;letter-spacing:.14em;color:var(--text-faint);margin-bottom:14px;}
-.ts-writing .ts-writing-article-head>textarea{display:block;width:100%;height:auto;padding:0;border:0;border-radius:0;box-shadow:none!important;background:transparent!important;font-size:clamp(24px,3cqw,36px);font-weight:700;line-height:1.5;letter-spacing:-.03em;color:var(--text-normal);resize:none;overflow:hidden;}
+.ts-writing .ts-writing-article-head>textarea{display:block;width:100%;height:auto;padding:0;border:0;border-radius:0;box-shadow:none!important;background:transparent!important;font-size:clamp(24px,3cqw,36px);font-weight:700;line-height:1.5;letter-spacing:-.03em;color:var(--text-normal);resize:none;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere;}
 .ts-writing-totals:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){font-size:11px;line-height:1.8;color:var(--text-faint);padding:14px 0 26px;border-bottom:1px solid var(--writing-line);margin-bottom:12px;}
 .ts-writing-outline:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){min-height:260px;}
 .ts-writing-entry:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){position:relative;margin:10px 0;border:1px solid color-mix(in srgb,var(--writing-line) 70%,transparent);border-radius:10px;background:transparent;box-shadow:none;cursor:grab;}
@@ -2396,7 +2396,7 @@ body {
 .ts-writing-reference-content .markdown-rendered:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){font-size:13px;line-height:1.85;}.ts-writing-reference-content img:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){max-width:100%;}
 .ts-writing-reference-content .markdown-rendered h1:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){font-size:21px;}.ts-writing-reference-content .markdown-rendered h2:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){font-size:17px;}.ts-writing-reference-content .markdown-rendered h3:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){font-size:15px;}
 .ts-writing-reference-empty:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {padding:24px 16px;color:var(--text-muted);}.ts-writing-reference-empty svg:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){width:28px;height:28px;stroke-width:1.2;}.ts-writing-reference-empty h4:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){font-size:15px;color:var(--text-muted);margin:16px 0 10px;}.ts-writing-reference-empty p:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){font-size:12px;line-height:1.9;}
-.ts-writing-paper:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){background:transparent;border:0;border-radius:0;max-width:720px;margin:0 auto;padding:0 0 40px;box-shadow:none;}
+.ts-writing-paper:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){background:transparent;border:0;border-radius:0;max-width:40rem;margin:0 auto;padding:0 0 40px;box-shadow:none;}
 .ts-writing-preview-summary:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:10px;color:var(--text-faint);border-bottom:1px solid var(--writing-line);padding-bottom:12px;margin-bottom:26px;}
 .ts-writing-preview-body:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){font-size:16px;line-height:2;overflow-wrap:anywhere;}.ts-writing-preview-body h1:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){font-size:26px;line-height:1.5;}.ts-writing-preview-body h2:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){font-size:21px;}.ts-writing-preview-body h3:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){font-size:17px;}.ts-writing-preview-body img:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){max-width:100%;}
 .ts-writing-small-empty:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){padding:24px 10px;font-size:12px;color:var(--text-muted);line-height:1.8;text-align:center;}
@@ -2423,10 +2423,10 @@ body {
 .ts-writing[data-writing-mode="write"] .ts-writing-article-scroll{padding:0;overflow:hidden;}
 .ts-writing-manuscript:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){height:100%;min-height:0;overflow:hidden;}
 .ts-writing-manuscript>.ts-inline-native:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),.ts-writing-manuscript .markdown-source-view:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),.ts-writing-manuscript .cm-editor:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){height:100%;min-height:0;}
-.ts-writing .ts-inline-native{--file-line-width:780px;--file-margins:40px 44px;--metadata-display-editing:none;}
+.ts-writing .ts-inline-native{--file-line-width:40rem;--file-margins:40px 44px;--metadata-display-editing:none;}
 .ts-writing-manuscript .cm-scroller:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){overflow:auto;scrollbar-width:thin;padding:26px clamp(24px,4cqw,64px) 32px!important;}
 .ts-writing-manuscript .cm-content:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){font-size:16px;line-height:1.75;}
-.ts-writing-manuscript .cm-sizer:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){min-width:0!important;width:100%;max-width:720px;margin:0 auto!important;padding-bottom:80px!important;}
+.ts-writing-manuscript .cm-sizer:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){min-width:0!important;width:100%;max-width:40rem;margin:0 auto!important;padding-bottom:80px!important;}
 .ts-writing-entry-markdown:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){height:240px;min-height:160px;max-height:600px;resize:vertical;overflow:hidden;border-top:1px solid var(--writing-line);margin-top:8px;}
 .ts-writing-entry-markdown>.ts-inline-native:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),.ts-writing-entry-markdown .markdown-source-view:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),.ts-writing-entry-markdown .cm-editor:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){height:100%;}
 .ts-writing-entry-markdown .ts-inline-native:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){--file-margins:16px 0;--file-line-width:100%;}
@@ -2585,9 +2585,10 @@ body {
 .ts-writing[data-writing-mode] .ts-writing-filters .is-active {color:var(--ts-e-editorial);background:var(--ts-e-wash);}
 .ts-writing[data-writing-mode] .ts-writing-filters select {min-height:32px;height:auto;padding-inline:8px;color:var(--ts-e-muted);font-size:12px;}
 .ts-writing[data-writing-mode] .ts-writing-list {padding:0 8px 16px;}
-.ts-writing[data-writing-mode] .ts-writing-material {gap:8px;margin:2px 0;padding:10px 8px;border-radius:5px;}
+.ts-writing[data-writing-mode] .ts-writing-material {gap:8px;margin:0;padding:10px 8px;border:0;border-bottom:1px solid var(--ts-e-line);border-radius:0;box-shadow:none;}
+.ts-writing[data-writing-mode] .ts-writing-material.is-group-start ~ .ts-writing-material.is-group-start {margin-top:var(--ts-e-space-section);}
 .ts-writing[data-writing-mode] .ts-writing-material:hover {background:var(--ts-e-wash);}
-.ts-writing[data-writing-mode] .ts-writing-material.is-current-reference {background:var(--ts-e-wash);box-shadow:inset 3px 0 var(--ts-e-editorial);}
+.ts-writing[data-writing-mode] .ts-writing-material.is-current-reference {background:var(--ts-e-wash);box-shadow:none;}
 .ts-writing[data-writing-mode] .ts-writing-material-icon {width:28px;height:28px;border-radius:0;background:transparent;color:var(--ts-e-editorial);}
 .ts-writing[data-writing-mode] .ts-writing-material .ts-writing-name {min-height:34px;padding:0;gap:4px;background:transparent;color:var(--ts-e-ink);font-size:13px;line-height:1.65;}
 .ts-writing[data-writing-mode] .ts-writing-name small,.ts-writing[data-writing-mode] .ts-writing-panel-foot {color:var(--ts-e-muted);font-size:12px;line-height:1.7;}
@@ -2609,7 +2610,10 @@ body {
 .ts-writing[data-writing-mode] .ts-writing-nav-jump.is-current {color:var(--ts-e-editorial);background:var(--ts-e-wash);}
 .ts-writing[data-writing-mode] .ts-writing-assembly {color:var(--ts-e-muted);font-size:12px;line-height:1.75;}
 .ts-writing[data-writing-mode] .ts-writing-eyebrow {font-size:11px;line-height:1.6;letter-spacing:.04em;}
-.ts-writing[data-writing-mode] .ts-writing-article-head>textarea {font-family:var(--ts-e-serif);font-weight:600;letter-spacing:0;line-height:1.55;}
+.ts-writing[data-writing-mode] .ts-writing-article-head {width:min(100%,40rem);max-width:40rem;margin-inline:auto;}
+.ts-writing[data-writing-mode] .ts-writing-paper {max-width:40rem;margin-inline:auto;}
+.ts-writing[data-writing-mode] .ts-writing-manuscript .cm-sizer {max-width:40rem;margin-inline:auto;}
+.ts-writing[data-writing-mode] .ts-writing-article-head>textarea {font-family:var(--ts-e-serif);font-weight:600;letter-spacing:0;line-height:1.55;white-space:pre-wrap;}
 .ts-writing[data-writing-mode] .ts-writing-totals {font-size:12px;line-height:1.75;}
 .ts-writing[data-writing-mode] .ts-writing-entry {border:1px solid var(--ts-e-line);border-radius:6px;background:var(--ts-e-sheet);}
 .ts-writing[data-writing-mode] .ts-writing-entry:hover {background:var(--ts-e-paper);}

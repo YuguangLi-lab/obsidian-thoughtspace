@@ -21,3 +21,16 @@ test('only duplicate assembly button is hidden; status text, directory and edito
 test('tight240px control still has a same-specificity short-pane44px override',()=>{
  let found=false;css.walkRules(r=>{if(r.selector.includes(compact+' .ts-writing-header-actions>.ts-writing-mode-menu')&&r.parent?.type==='atrule'&&(r.parent as postcss.AtRule).params==='ts-writing (max-width:240px)'){assert.equal(value(r,'width'),'44px');assert.equal(value(r,'min-width'),'44px');found=true;}});assert.equal(found,true);
 });
+test('writing body and title stay centered at a 40rem measure and the article title wraps',()=>{
+ for(const selector of ['.ts-writing[data-writing-mode] .ts-writing-article-head','.ts-writing[data-writing-mode] .ts-writing-paper','.ts-writing[data-writing-mode] .ts-writing-manuscript .cm-sizer']){
+  const block=rule(selector);assert.equal(value(block,'max-width'),'40rem');assert.match(value(block,'margin-inline')||value(block,'margin'),/auto/);
+ }
+ const title=rule('.ts-writing[data-writing-mode] .ts-writing-article-head>textarea');
+ assert.notEqual(value(title,'white-space'),'nowrap');assert.match(value(title,'white-space'),/pre-wrap|normal/);
+});
+test('materials list uses line dividers and section gaps instead of stacked shadows',()=>{
+ const material=rule('.ts-writing[data-writing-mode] .ts-writing-material');
+ assert.match(value(material,'border-bottom'),/var\(--ts-e-line\)/);assert.equal(value(material,'box-shadow'),'none');
+ const group=rule('.ts-writing[data-writing-mode] .ts-writing-material.is-group-start ~ .ts-writing-material.is-group-start');
+ assert.equal(value(group,'margin-top'),'var(--ts-e-space-section)');
+});

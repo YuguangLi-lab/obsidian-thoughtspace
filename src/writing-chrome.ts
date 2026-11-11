@@ -1,5 +1,14 @@
 /** Use this pane's actual height, including native pop-outs and split panes.
  * Only chrome responds; the native editor and its selection are not rebuilt. */
+/** Remember the reading panes before a dock or toolbar layout change. */
+export function captureWritingReadingScroll(root:ParentNode){
+ if(typeof root.querySelectorAll!=='function')return [];
+ return Array.from(root.querySelectorAll<HTMLElement>('.ts-writing-article-scroll, .ts-writing-manuscript .cm-scroller'),node=>({node,top:node.scrollTop}));
+}
+export function restoreWritingReadingScroll(saved:{node:HTMLElement;top:number}[]){
+ for(const entry of saved)if(entry.node.isConnected)entry.node.scrollTop=entry.top;
+}
+
 export function syncWritingPaneHeight(root:HTMLElement){
  const height=root.getBoundingClientRect().height,short=Number.isFinite(height)&&height>0&&height<=450;
  const value=String(short);if(root.dataset.writingShort!==value)root.dataset.writingShort=value;
