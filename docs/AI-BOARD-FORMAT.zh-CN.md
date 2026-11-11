@@ -209,7 +209,7 @@ v3 边可选：`style: curve|straight|elbow`、`direction: forward|both|none`、
 10份正式自制样例及机器可读清单位于 [examples/ai-board](../examples/ai-board/README.zh-CN.md)。生成时已用实际解析器、真实YAML解码器和文档替换路径检查；原生插件打开→Session保存→新进程重开属于另一个验证层，不能用格式解析成功替代，最终以独立QA记录为准。手机/平板模拟和桌面原生验证也不等于物理iOS/Android/Pencil验收。
 
 
-公开仓库包含上述独立 `tools/board-tool/schema/` 快照；它来自已测本地格式读取器，43个依赖模块中40个与公共beta.2完全相同。差异只有Board模型、文档读取器、阅读位置验证；阅读位置只保留格式校验，没有引入未公开的位置操作或插件UI。快照清单见 [SCHEMA-SNAPSHOT.json](../tools/board-tool/SCHEMA-SNAPSHOT.json)。公共插件 `src/`、版本、运行文件和Release保持原样。
+公开仓库包含上述独立 `tools/board-tool/schema/` 快照；它来自已测本地格式读取器，43个依赖模块中39个与公共beta.2完全相同。纸张默认色已改为暖白；其余差异是Board模型、文档读取器、阅读位置验证；阅读位置只保留格式校验，没有引入未公开的位置操作或插件UI。快照清单见 [SCHEMA-SNAPSHOT.json](../tools/board-tool/SCHEMA-SNAPSHOT.json)。公共插件 `src/`、版本、运行文件和Release保持原样。
 
 10份自制样例的既有实际插件打开、Session保存和新PID重开测试使用本地beta.5；它们的公开beta.2解析/包装往返另由 `npm run board-tool:verify` 检查。额外的命名阅读位置校验不表示beta.2已有相应操作入口。生成最小新板可省略这些可选字段。验收资格与限制见 [本期记录](../qa/AI-BOARD-PHASE1.md)。
 
