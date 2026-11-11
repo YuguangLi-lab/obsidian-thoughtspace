@@ -121,7 +121,7 @@ export function interfaceStyleRules(_style?: unknown, _glassEffects?: boolean,se
     within('.ts-online-workspace', '.ts-online-workspace__header,.ts-online-workspace__composer-actions'),
     within('.ts-handwriting', '.ts-handwriting-toolbar,.ts-handwriting-footer,.ts-handwriting-popover,.ts-handwriting-selection-actions'),
     owned('.ts-native-header'), owned('.ts-note-markdown-toolbar'),
-    owned('.ts-ui-modal'), owned('.ts-space-modal'), owned('.ts-materials-modal'),
+    owned('.ts-space-modal'), owned('.ts-materials-modal'),
     owned('.ts-ui-menu'),
   ].join(',');
   // Legacy paper/soft surfaces already use !important; limit its replacement

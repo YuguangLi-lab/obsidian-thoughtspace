@@ -36,7 +36,7 @@
 .ts-attachment-browser-intro,.ts-collection-export-intro{font-size:12px;line-height:1.8;color:var(--ts-c-muted);margin:0 0 24px;overflow-wrap:anywhere}
 .ts-attachment-browser-controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(110px,.35fr);gap:12px;min-width:0}
 .ts-attachment-browser-controls label{display:flex;flex-direction:column;gap:6px;min-width:0;font-size:12px;color:var(--ts-c-muted)}
-.ts-attachment-browser-controls input,.ts-attachment-browser-controls select{width:100%;min-width:0;min-height:44px;padding:8px 10px;font:inherit;color:var(--ts-c-ink);background:var(--ts-c-sheet);border:1px solid var(--ts-c-line);border-radius:var(--ts-c-control-radius)}
+.ts-attachment-browser-controls input,.ts-attachment-browser-controls select{width:100%;min-width:0;min-height:44px;padding:8px 10px;font:inherit;color:var(--ts-c-ink);background-color:var(--ts-c-sheet);border:1px solid var(--ts-c-line);border-radius:var(--ts-c-control-radius)}
 .ts-attachment-browser-controls input:focus,.ts-attachment-browser-controls select:focus{border-color:var(--ts-c-accent)}
 .ts-attachment-browser-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 12px;margin-top:14px;min-height:36px;font-size:12px;color:var(--ts-c-muted)}
 .ts-attachment-browser-status{font-size:12px;line-height:1.7;margin:6px 0;overflow-wrap:anywhere;color:var(--ts-c-muted)}
@@ -105,7 +105,7 @@
 .ts-collection-export-fields>label{display:flex;flex-direction:column;gap:7px;min-width:0;font-size:11px;line-height:1.6;color:var(--ts-c-muted)}
 .ts-collection-export-fields>label:first-child{grid-column:1/-1}
 .ts-collection-export-fields>small{grid-column:1/-1;font-size:11px;line-height:1.8;color:var(--ts-c-faint);overflow-wrap:anywhere}
-.ts-collection-export-fields input,.ts-collection-export-fields select{width:100%;min-width:0;min-height:44px;height:auto;padding:8px 10px;border:1px solid var(--ts-c-line);border-radius:var(--ts-c-control-radius);background:var(--ts-c-sheet);color:var(--ts-c-ink);font:inherit;font-size:13px;box-shadow:none}
+.ts-collection-export-fields input,.ts-collection-export-fields select{width:100%;min-width:0;min-height:44px;height:auto;padding:8px 10px;border:1px solid var(--ts-c-line);border-radius:var(--ts-c-control-radius);background-color:var(--ts-c-sheet);color:var(--ts-c-ink);font:inherit;font-size:13px;box-shadow:none}
 .ts-collection-export-fields:has([data-collection-export-action=pick][hidden])>label:nth-child(2){grid-column:1/-1}
 .ts-collection-note-export [data-collection-export-status]{margin:18px 0 12px;font-size:12px;line-height:1.8;color:var(--ts-c-muted);overflow-wrap:anywhere}
 .ts-collection-note-export [data-collection-export-status]:empty{display:none}
@@ -114,8 +114,10 @@
 .ts-collection-export-preview p{font-size:12px;line-height:1.8;color:var(--ts-c-muted);overflow-wrap:anywhere}
 .ts-collection-export-preview pre{max-width:100%;min-width:0;max-height:min(300px,35dvh);margin:12px 0 16px;padding:16px 18px;overflow:auto;overscroll-behavior:contain;white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid var(--ts-c-line);border-radius:var(--ts-c-control-radius);background:var(--ts-c-sheet);color:var(--ts-c-ink);font-family:var(--font-monospace);font-size:12px;line-height:1.8;tab-size:2}
 .ts-collection-export-actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;flex:none;padding:14px 30px;border-top:1px solid var(--ts-c-line);background:var(--ts-c-sheet)}
+.modal.ts-ui-modal.ts-collection-note-export>.ts-collection-export-actions{margin-inline:calc(var(--ts-e-space-panel) * -1);margin-bottom:calc(var(--ts-e-space-panel) * -1)}
 .ts-collection-export-actions>.mod-cta{order:1}
-.ts-collection-export-fields .ts-field-error{margin:0;color:var(--ts-e-danger,var(--text-error));font-size:var(--ts-e-meta-size,12px);line-height:var(--ts-e-meta-leading,1.4)}
+.ts-collection-export-fields .ts-field-error{display:flex;align-items:flex-start;gap:var(--ts-e-space-icon,6px);margin:0;color:var(--ts-e-danger,var(--text-error));font-size:max(13px,var(--ts-e-meta-size,12px));line-height:var(--ts-e-meta-leading,1.4)}
+.ts-collection-export-fields .ts-field-error::before{content:"!";flex:none;display:grid;place-items:center;width:1.15em;height:1.15em;margin-top:.12em;border:1px solid var(--ts-e-danger,var(--text-error));border-radius:999px;color:var(--ts-e-danger,var(--text-error));font-size:.85em;font-weight:700;line-height:1}
 .ts-export-empty{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
 .ts-export-empty p{margin:0}
 .ts-collection-export-actions>[data-collection-export-action=cancel]{margin-left:auto;color:var(--ts-c-muted)}
@@ -142,6 +144,6 @@
 @media(any-pointer:coarse){.ts-collection-export-fields input,.ts-collection-export-fields select{font-size:16px}}
 /* Shared legacy modal chrome carries stronger selectors than ordinary form
    rules. Limit this override to the two collection dialogs. */
-.modal.ts-ui-modal.ts-collection-content:is(.ts-collection-attachment-browser,.ts-collection-note-export) :is(input[type],select){min-height:44px;height:auto;border:1px solid var(--ts-c-line);border-radius:var(--ts-c-control-radius);background:var(--ts-c-sheet);color:var(--ts-c-ink);box-shadow:none}
+.modal.ts-ui-modal.ts-collection-content:is(.ts-collection-attachment-browser,.ts-collection-note-export) :is(input[type],select){min-height:44px;height:auto;border:1px solid var(--ts-c-line);border-radius:var(--ts-c-control-radius);background-color:var(--ts-c-sheet);color:var(--ts-c-ink);box-shadow:none}
 .modal.ts-ui-modal.ts-collection-content:is(.ts-collection-attachment-browser,.ts-collection-note-export) :is(input[type],select):focus{border-color:var(--ts-c-accent)}
 .modal.ts-collection-attachment-browser .modal-close-button,.modal.ts-collection-note-export .modal-close-button{display:flex;align-items:center;justify-content:center;width:44px;height:44px;min-width:44px;min-height:44px;color:var(--ts-c-muted)}
