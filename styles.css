@@ -3076,10 +3076,10 @@ body {
 .ts-component-gallery.theme-dark .ts-library-card.is-selected:not(:where(.ts-node *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::after,
 .theme-dark :is(.ts-root,.ts-ui-modal,.ts-writing,.ts-materials-panel,.ts-materials-modal,.ts-component-gallery) :is(.ts-outline-row,.ts-tree-row).is-selected:not(:where(.ts-node *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::before,
 .ts-component-gallery.theme-dark :is(.ts-outline-row,.ts-tree-row).is-selected:not(:where(.ts-node *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::before{background:var(--ts-e-sheet);color:var(--ts-e-ink);}
-:is(.ts-root,.ts-ui-modal,.ts-settings,.ts-writing,.ts-materials-panel,.ts-materials-modal,.ts-component-gallery) :is(.ts-button,button.mod-cta,button.ts-primary):is(.is-loading,[aria-busy=true]):not(:where(.markdown-rendered *, .cm-editor *, .pdf-container *, .pdf-viewer *, .ts-node *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){position:relative;}
-:is(.ts-root,.ts-ui-modal,.ts-settings,.ts-writing,.ts-materials-panel,.ts-materials-modal,.ts-component-gallery) :is(.ts-button,button.mod-cta,button.ts-primary):is(.is-loading,[aria-busy=true]):not(:where(.markdown-rendered *, .cm-editor *, .pdf-container *, .pdf-viewer *, .ts-node *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::after{content:"";position:absolute;inset-inline-start:8px;top:50%;width:12px;height:12px;margin-top:-6px;border:2px solid currentColor;border-inline-end-color:transparent;border-radius:999px;animation:ts-button-spin .7s linear infinite;pointer-events:none;}
+:is(.ts-root,.ts-ui-modal,.ts-settings,.ts-writing,.ts-materials-panel,.ts-materials-modal) :is(.ts-button,button.mod-cta,button.ts-primary):is(.is-loading,[aria-busy=true]):not(:where(.markdown-rendered *, .cm-editor *, .pdf-container *, .pdf-viewer *, .ts-node *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){position:relative;}
+:is(.ts-root,.ts-ui-modal,.ts-settings,.ts-writing,.ts-materials-panel,.ts-materials-modal) :is(.ts-button,button.mod-cta,button.ts-primary):is(.is-loading,[aria-busy=true]):not(:where(.markdown-rendered *, .cm-editor *, .pdf-container *, .pdf-viewer *, .ts-node *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::after{content:"";position:absolute;inset-inline-start:8px;top:50%;width:12px;height:12px;margin-top:-6px;border:2px solid currentColor;border-inline-end-color:transparent;border-radius:999px;animation:ts-button-spin .7s linear infinite;pointer-events:none;}
 @keyframes ts-button-spin{to{transform:rotate(360deg)}}
-@media(prefers-reduced-motion:reduce){:is(.ts-root,.ts-ui-modal,.ts-settings,.ts-writing,.ts-materials-panel,.ts-materials-modal,.ts-component-gallery) :is(.ts-button,button.mod-cta,button.ts-primary):is(.is-loading,[aria-busy=true]):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::after{animation:none;}}
+@media(prefers-reduced-motion:reduce){:is(.ts-root,.ts-ui-modal,.ts-settings,.ts-writing,.ts-materials-panel,.ts-materials-modal) :is(.ts-button,button.mod-cta,button.ts-primary):is(.is-loading,[aria-busy=true]):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::after{animation:none;}}
 .ts-root .ts-sidebar-empty:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){color:var(--ts-e-muted);padding:var(--ts-e-space-panel);}
 .ts-root .ts-sidebar-empty .ts-button:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){margin-top:var(--ts-e-space-control);}
 
@@ -11736,7 +11736,9 @@ body {
 /* END mermaid-card generated */
 
 /* BEGIN component-gallery generated */
-/* QA gallery. Every value comes from the shared purpose tokens. */
+/* QA gallery. Color comes from purpose tokens. 12px / 36px / 8px are the
+   gallery control scale: the space tokens are 6, 10, 16 and 28, none of which
+   is the requested button padding, height, or spinner gap. */
 .ts-component-gallery:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
   box-sizing: border-box;
   height: 100%;
@@ -11746,10 +11748,18 @@ body {
   background: var(--ts-e-sheet);
   color: var(--ts-e-body);
   font-family: var(--ts-e-serif);
+  border: 1px solid var(--ts-e-line);
 }
 .ts-component-gallery[data-width=narrow]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { width: min(280px, 100%); }
 .ts-component-gallery[data-width=wide]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { width: min(960px, 100%); }
-.ts-component-gallery .ts-gallery-toolbar:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),
+.ts-component-gallery .ts-gallery-toolbar:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ts-e-space-control);
+  align-items: center;
+  /* 28px is the section step, the nearest token to the 24px toolbar pause. */
+  margin-block-end: var(--ts-e-space-section);
+}
 .ts-component-gallery .ts-gallery-row:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
   display: flex;
   flex-wrap: wrap;
@@ -11762,7 +11772,8 @@ body {
   gap: var(--ts-e-space-control);
   margin-block-end: var(--ts-e-space-section);
 }
-.ts-component-gallery .ts-gallery-heading:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+.ts-component-gallery .ts-gallery-heading:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),
+.ts-component-gallery .ts-gallery-example-label:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
   margin: 0;
   color: var(--ts-e-ink);
   font-size: var(--ts-e-body-size);
@@ -11791,22 +11802,57 @@ body {
   font-weight: var(--ts-e-body-weight);
   line-height: var(--ts-e-body-leading);
 }
+.ts-component-gallery .ts-gallery-cards:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  display: flex;
+  gap: var(--ts-e-space-panel);
+}
+.ts-component-gallery[data-width=wide] .ts-gallery-cards:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: stretch;
+}
+.ts-component-gallery[data-width=narrow] .ts-gallery-cards:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  flex-direction: column;
+}
 .ts-component-gallery .ts-gallery-card:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
   position: relative;
-  width: min(220px, 100%);
+  box-sizing: border-box;
+  min-width: 0;
   min-height: 88px;
   padding: var(--ts-e-space-panel);
+  border: 1px solid var(--ts-e-line);
   border-radius: var(--ts-e-radius);
   color: var(--ts-e-ink);
 }
-.ts-component-gallery .ts-gallery-cards:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),
-.ts-component-gallery .ts-gallery-group > .ts-gallery-row:first-of-type:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { align-items: stretch; }
+.ts-component-gallery[data-width=wide] .ts-gallery-card:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { flex: 1 1 0; width: auto; }
+.ts-component-gallery[data-width=narrow] .ts-gallery-card:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { width: 100%; }
+.ts-component-gallery .ts-gallery-field-pair:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { display: flex; gap: var(--ts-e-space-panel); }
+.ts-component-gallery[data-width=wide] .ts-gallery-field-pair:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.ts-component-gallery[data-width=narrow] .ts-gallery-field-pair:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { flex-direction: column; }
+.ts-component-gallery .ts-gallery-example:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ts-e-space-control);
+  margin-block-start: var(--ts-e-space-section);
+}
 .ts-component-gallery :is(.ts-button, button.mod-cta, button.ts-primary):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  height: 36px;
+  min-height: 36px;
+  padding: 0 12px;
   border: 1px solid var(--ts-e-control-line);
   border-radius: var(--ts-e-radius);
   background: var(--ts-e-paper);
   color: var(--ts-e-ink);
 }
+.ts-component-gallery :is(button.mod-cta, button.ts-primary):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { min-width: 96px; }
 .ts-component-gallery :is(button.mod-cta, button.ts-primary):not(:disabled):not([aria-disabled=true]):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
   background: var(--ts-accent);
   color: var(--ts-e-on-accent);
@@ -11816,6 +11862,21 @@ body {
   color: var(--ts-e-disabled);
   background: var(--ts-e-wash);
   border-color: var(--ts-e-line);
+}
+.ts-component-gallery :is(.ts-button, button.mod-cta, button.ts-primary):is(.is-loading, [aria-busy=true]):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::before {
+  content: "";
+  position: static;
+  flex: 0 0 12px;
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: 999px;
+  animation: ts-button-spin .7s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ts-component-gallery :is(.ts-button, button.mod-cta, button.ts-primary):is(.is-loading, [aria-busy=true]):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::before { animation: none; }
 }
 .ts-component-gallery .is-hover-sample:not(.mod-cta):not(.ts-primary):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { background: var(--ts-e-wash); }
 .ts-component-gallery .is-focus-sample:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
@@ -11839,10 +11900,12 @@ body {
   border-bottom: 1px solid var(--ts-e-line);
   color: var(--ts-e-body);
 }
+.ts-component-gallery .ts-gallery-stage:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { display: flex; justify-content: flex-start; }
 .ts-component-gallery .ts-gallery-dialog:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
   display: flex;
   flex-direction: column;
   gap: var(--ts-e-space-control);
+  width: min(420px, 100%);
   max-width: 420px;
   padding: var(--ts-e-space-panel);
   background: var(--ts-e-overlay);

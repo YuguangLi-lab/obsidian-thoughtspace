@@ -38,9 +38,10 @@ export class ComponentGalleryView extends ItemView {
     type.createEl('p', {cls: 'ts-type-meta', text: '辅助信息 · 元数据'});
 
     const cards = this.group(root, '卡片', '选中只加轮廓和中性色小勾，不改卡片填色。');
-    this.card(cards, '默认纸色', 'var(--ts-e-paper)', false);
-    this.card(cards, '绿色卡片', `var(--ts-fill-green, ${cardFillHex.green})`, true);
-    this.card(cards, '米黄卡片', `var(--ts-fill-sand, ${cardFillHex.sand})`, true, true);
+    const cardRow = cards.createDiv({cls: 'ts-gallery-cards'});
+    this.card(cardRow, '默认纸色', 'var(--ts-e-paper)', false);
+    this.card(cardRow, '绿色卡片', `var(--ts-fill-green, ${cardFillHex.green})`, true);
+    this.card(cardRow, '米黄卡片', `var(--ts-fill-sand, ${cardFillHex.sand})`, true, true);
 
     const buttons = this.group(root, '按钮', '焦点只加环，不改边框颜色。');
     const row = buttons.createDiv({cls: 'ts-gallery-row'});
@@ -51,19 +52,23 @@ export class ComponentGalleryView extends ItemView {
     row.createEl('button', {cls: 'ts-button mod-cta ts-primary', text: '主按钮禁用', attr: {type: 'button', disabled: 'true'}});
     row.createEl('button', {cls: 'ts-button mod-cta ts-primary is-loading', text: '保存', attr: {type: 'button', 'aria-busy': 'true'}});
 
-    const fields = this.group(root, '输入', '错误用圆圈叹号，并留在字段旁边。');
-    const plain = fields.createDiv({cls: 'ts-prompt-field'});
+    const fields = this.group(root, '输入', '默认和焦点并排。错误与成功是分开的例子。');
+    const pair = fields.createDiv({cls: 'ts-gallery-field-pair'});
+    const plain = pair.createDiv({cls: 'ts-prompt-field'});
     plain.createEl('span', {cls: 'ts-type-meta', text: '默认'});
     plain.createEl('input', {attr: {type: 'text', value: '研究笔记标题', 'aria-label': '默认输入'}});
-    const focused = fields.createDiv({cls: 'ts-prompt-field'});
+    const focused = pair.createDiv({cls: 'ts-prompt-field'});
     focused.createEl('span', {cls: 'ts-type-meta', text: '焦点'});
     focused.createEl('input', {cls: 'is-focus-sample', attr: {type: 'text', value: '正在输入', 'aria-label': '焦点输入'}});
-    const invalid = fields.createDiv({cls: 'ts-prompt-field'});
+    const errorExample = fields.createDiv({cls: 'ts-gallery-example', attr: {'data-gallery-example': 'error'}});
+    errorExample.createEl('p', {cls: 'ts-gallery-example-label', text: '字段错误'});
+    const invalid = errorExample.createDiv({cls: 'ts-prompt-field'});
     invalid.createEl('span', {cls: 'ts-type-meta', text: '错误 + 焦点'});
     invalid.createEl('input', {cls: 'is-error is-focus-sample', attr: {type: 'text', value: '不能为空', 'aria-invalid': 'true', 'aria-label': '错误输入'}});
     invalid.createDiv({cls: 'ts-field-error', text: '请填写标题后再继续'});
-    const saved = fields.createDiv({cls: 'ts-prompt-field'});
-    saved.createDiv({cls: 'ts-field-success ts-status-success', text: '已保存到当前白板'});
+    const successExample = fields.createDiv({cls: 'ts-gallery-example', attr: {'data-gallery-example': 'success'}});
+    successExample.createEl('p', {cls: 'ts-gallery-example-label', text: '保存成功'});
+    successExample.createDiv({cls: 'ts-field-success ts-status-success', text: '已保存到当前白板'});
 
     const lists = this.group(root, '列表', '分隔线保留。选中勾在行尾，可与焦点同时出现。');
     lists.createDiv({cls: 'ts-outline-row', text: '默认 第二章提纲'});
@@ -77,8 +82,9 @@ export class ComponentGalleryView extends ItemView {
     placeholder.createDiv({text: '还没有卡片。把材料拖到这里，或新建一张。'});
     placeholder.createEl('button', {cls: 'ts-button', text: '新建卡片', attr: {type: 'button'}});
 
-    const dialogs = this.group(root, '弹窗', '浮层浅于面板，并使用更深的阴影。');
-    const dialog = dialogs.createDiv({cls: 'ts-gallery-dialog'});
+    const dialogs = this.group(root, '弹窗', '浮层浅于面板，并使用更深的阴影。宽度停在内容，不拉满整页。');
+    const stage = dialogs.createDiv({cls: 'ts-gallery-stage'});
+    const dialog = stage.createDiv({cls: 'ts-gallery-dialog'});
     dialog.createEl('h3', {cls: 'ts-type-title', text: '新建白板'});
     dialog.createEl('p', {cls: 'ts-type-meta', text: '浮层、大圆角、内距 16px。'});
     const name = dialog.createDiv({cls: 'ts-prompt-field'});

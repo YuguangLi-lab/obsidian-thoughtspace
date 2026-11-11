@@ -1,4 +1,6 @@
-/* QA gallery. Every value comes from the shared purpose tokens. */
+/* QA gallery. Color comes from purpose tokens. 12px / 36px / 8px are the
+   gallery control scale: the space tokens are 6, 10, 16 and 28, none of which
+   is the requested button padding, height, or spinner gap. */
 .ts-component-gallery {
   box-sizing: border-box;
   height: 100%;
@@ -8,10 +10,18 @@
   background: var(--ts-e-sheet);
   color: var(--ts-e-body);
   font-family: var(--ts-e-serif);
+  border: 1px solid var(--ts-e-line);
 }
 .ts-component-gallery[data-width=narrow] { width: min(280px, 100%); }
 .ts-component-gallery[data-width=wide] { width: min(960px, 100%); }
-.ts-component-gallery .ts-gallery-toolbar,
+.ts-component-gallery .ts-gallery-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ts-e-space-control);
+  align-items: center;
+  /* 28px is the section step, the nearest token to the 24px toolbar pause. */
+  margin-block-end: var(--ts-e-space-section);
+}
 .ts-component-gallery .ts-gallery-row {
   display: flex;
   flex-wrap: wrap;
@@ -24,7 +34,8 @@
   gap: var(--ts-e-space-control);
   margin-block-end: var(--ts-e-space-section);
 }
-.ts-component-gallery .ts-gallery-heading {
+.ts-component-gallery .ts-gallery-heading,
+.ts-component-gallery .ts-gallery-example-label {
   margin: 0;
   color: var(--ts-e-ink);
   font-size: var(--ts-e-body-size);
@@ -53,22 +64,57 @@
   font-weight: var(--ts-e-body-weight);
   line-height: var(--ts-e-body-leading);
 }
+.ts-component-gallery .ts-gallery-cards {
+  display: flex;
+  gap: var(--ts-e-space-panel);
+}
+.ts-component-gallery[data-width=wide] .ts-gallery-cards {
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: stretch;
+}
+.ts-component-gallery[data-width=narrow] .ts-gallery-cards {
+  flex-direction: column;
+}
 .ts-component-gallery .ts-gallery-card {
   position: relative;
-  width: min(220px, 100%);
+  box-sizing: border-box;
+  min-width: 0;
   min-height: 88px;
   padding: var(--ts-e-space-panel);
+  border: 1px solid var(--ts-e-line);
   border-radius: var(--ts-e-radius);
   color: var(--ts-e-ink);
 }
-.ts-component-gallery .ts-gallery-cards,
-.ts-component-gallery .ts-gallery-group > .ts-gallery-row:first-of-type { align-items: stretch; }
+.ts-component-gallery[data-width=wide] .ts-gallery-card { flex: 1 1 0; width: auto; }
+.ts-component-gallery[data-width=narrow] .ts-gallery-card { width: 100%; }
+.ts-component-gallery .ts-gallery-field-pair { display: flex; gap: var(--ts-e-space-panel); }
+.ts-component-gallery[data-width=wide] .ts-gallery-field-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.ts-component-gallery[data-width=narrow] .ts-gallery-field-pair { flex-direction: column; }
+.ts-component-gallery .ts-gallery-example {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ts-e-space-control);
+  margin-block-start: var(--ts-e-space-section);
+}
 .ts-component-gallery :is(.ts-button, button.mod-cta, button.ts-primary) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  height: 36px;
+  min-height: 36px;
+  padding: 0 12px;
   border: 1px solid var(--ts-e-control-line);
   border-radius: var(--ts-e-radius);
   background: var(--ts-e-paper);
   color: var(--ts-e-ink);
 }
+.ts-component-gallery :is(button.mod-cta, button.ts-primary) { min-width: 96px; }
 .ts-component-gallery :is(button.mod-cta, button.ts-primary):not(:disabled):not([aria-disabled=true]) {
   background: var(--ts-accent);
   color: var(--ts-e-on-accent);
@@ -78,6 +124,21 @@
   color: var(--ts-e-disabled);
   background: var(--ts-e-wash);
   border-color: var(--ts-e-line);
+}
+.ts-component-gallery :is(.ts-button, button.mod-cta, button.ts-primary):is(.is-loading, [aria-busy=true])::before {
+  content: "";
+  position: static;
+  flex: 0 0 12px;
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: 999px;
+  animation: ts-button-spin .7s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ts-component-gallery :is(.ts-button, button.mod-cta, button.ts-primary):is(.is-loading, [aria-busy=true])::before { animation: none; }
 }
 .ts-component-gallery .is-hover-sample:not(.mod-cta):not(.ts-primary) { background: var(--ts-e-wash); }
 .ts-component-gallery .is-focus-sample {
@@ -101,10 +162,12 @@
   border-bottom: 1px solid var(--ts-e-line);
   color: var(--ts-e-body);
 }
+.ts-component-gallery .ts-gallery-stage { display: flex; justify-content: flex-start; }
 .ts-component-gallery .ts-gallery-dialog {
   display: flex;
   flex-direction: column;
   gap: var(--ts-e-space-control);
+  width: min(420px, 100%);
   max-width: 420px;
   padding: var(--ts-e-space-panel);
   background: var(--ts-e-overlay);
