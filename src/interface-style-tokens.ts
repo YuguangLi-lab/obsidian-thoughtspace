@@ -23,8 +23,8 @@ const paperLight = [
   '#cbcfcd', '#b8bcba', '#868e8b', '#7c8481', '#67675f', '#272a25',
 ];
 const paperDark = [
-  '#20211e', '#252620', '#2c2d27', '#34352e', '#3c3e35', '#4c4e43',
-  '#444947', '#5b625f', '#63706b', '#717d79', '#b9bcaf', '#e9ebdf',
+  '#18191b', '#222326', '#35363b', '#3c3d43', '#4a4b52', '#585960',
+  '#6a6b73', '#7c7d85', '#8e8f97', '#94959d', '#9a9ba3', '#ececee',
 ];
 
 interface Palette {
@@ -64,8 +64,9 @@ export function interfaceStyleRules(_style?: unknown, _glassEffects?: boolean,se
   const id=cleanInterfacePalette(selected),scheme=cleanInterfaceMode(mode),colors=interfacePalettes[id];
   const light={...(id==='paper'?paperPalette(paperLight):colors.light),accent:colors.light.accent};
   const dark={...(id==='paper'?paperPalette(paperDark):colors.dark),accent:colors.dark.accent};
-  // Retain the verified 1.3.41 material and geometry; presets change pigment only.
-  light.shadow=dark.shadow='0 1px 3px #00000009';
+  // Light elevation stays quiet. Dark dialogs need a visible lift off charcoal.
+  light.shadow='0 1px 3px #00000009';
+  dark.shadow='0 2px 8px #00000033, 0 16px 40px #00000044';
   const font = 'var(--font-interface)';
   const radius = '8px';
   const purposeShape = `--ts-e-title-size:1.25em;--ts-e-title-weight:600;--ts-e-title-leading:1.3;--ts-e-body-size:1em;--ts-e-body-weight:400;--ts-e-body-leading:1.55;--ts-e-meta-size:0.8125em;--ts-e-meta-weight:400;--ts-e-meta-leading:1.4;--ts-e-space-icon:6px;--ts-e-space-control:10px;--ts-e-space-panel:16px;--ts-e-space-section:28px;--ts-e-radius-sm:4px;--ts-e-radius:${radius};--ts-e-radius-lg:12px;--ts-e-control-radius:var(--ts-e-radius-sm);--ts-e-motion:200ms;--ts-e-ease:ease-in-out;`;
@@ -84,7 +85,7 @@ export function interfaceStyleRules(_style?: unknown, _glassEffects?: boolean,se
   const paint=(value:Palette&{accent:string},isDark:boolean)=>{
     const custom=accent==='blue'?(isDark?'#8bbaf0':'#245a8b'):accent==='amber'?(isDark?'#e4bd75':'#805417'):accent==='rose'?(isDark?'#e8a6bc':'#9b4265'):accent==='palette'?value.accent:(isDark?'#93c8b4':'#356859');
     const surfaces=isDark
-      ?`--ts-e-overlay:#252620;--ts-e-body:#d4d7cb;--ts-e-control-line:#b9bcaf;--ts-e-focus:#8bbaf0;--ts-e-selected:#93c8b4;--ts-e-success:#7ec8a3;--ts-e-disabled:#717d79;--ts-e-grain-opacity:.4;`
+      ?`--ts-e-overlay:#323339;--ts-e-body:#c6c7cc;--ts-e-control-line:#b3b4bb;--ts-e-focus:#8bbaf0;--ts-e-selected:#93c8b4;--ts-e-success:#7ec8a3;--ts-e-disabled:#787a82;--ts-e-grain-opacity:.4;`
       :`--ts-e-overlay:#fcf9f3;--ts-e-body:#3c4038;--ts-e-control-line:#5c615c;--ts-e-focus:#245a8b;--ts-e-selected:#356859;--ts-e-success:#1f6b45;--ts-e-disabled:#8d928c;--ts-e-grain-opacity:1;`;
     return paletteRules(value,id==='paper'?(isDark?paperDark:paperLight):undefined)+surfaces+purposeShape+`--ts-accent:${custom};--ts-palette-accent:${value.accent};--ts-e-on-accent:${isDark?value.paper:value.sheet};--ts-e-danger:${isDark?'#ffb4b4':'#9e2634'};--ts-e-warning:${isDark?'#edc78a':'#805417'};color-scheme:${isDark?'dark':'light'};`;
   };

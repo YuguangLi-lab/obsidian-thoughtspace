@@ -895,7 +895,7 @@ body {
 .ts-node-summary .ts-review-badge:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){font-size:9px;right:3px;top:-9px;}
 /* Warm, solid paper is opt-in and leaves user fonts and object colors intact. */
 .theme-light :is(.ts-root,.ts-journal,.ts-ui-modal)[data-surface=paper]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){--ts-ui-1:#f8f5ef;--ts-ui-2:#f8f5ef;--ts-ui-3:#f0eee8;--ts-ui-4:#e9e6e0;--ts-ui-5:#d4d2cc;--ts-ui-6:#c4c3be;--ts-ui-11:#67675f;--ts-ui-12:#272a25;}
-.theme-dark :is(.ts-root,.ts-journal,.ts-ui-modal)[data-surface=paper]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){--ts-ui-1:#20211e;--ts-ui-2:#252620;--ts-ui-3:#2c2d27;--ts-ui-4:#34352e;--ts-ui-5:#3c3e35;--ts-ui-6:#4c4e43;--ts-ui-11:#b9bcaf;--ts-ui-12:#e9ebdf;}
+.theme-dark :is(.ts-root,.ts-journal,.ts-ui-modal)[data-surface=paper]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){--ts-ui-1:#18191b;--ts-ui-2:#222326;--ts-ui-3:#35363b;--ts-ui-4:#3c3d43;--ts-ui-5:#4a4b52;--ts-ui-6:#585960;--ts-ui-11:#9a9ba3;--ts-ui-12:#ececee;}
 :is(.ts-root,.ts-journal,.ts-ui-modal)[data-surface=paper] :is(.ts-commandbar,.ts-inspector,.ts-minimap,.ts-calendar):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){backdrop-filter:none!important;background:var(--ts-ui-1)!important;box-shadow:0 1px 3px #00000009!important;}
 .ts-ui-modal[data-surface=paper]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){background:var(--ts-ui-1);}
 /* Canvas backgrounds belong to their paper/image settings, not the interface finish. */
@@ -2898,10 +2898,12 @@ body {
  --ts-e-radius-sm:4px;--ts-e-radius:8px;--ts-e-radius-lg:12px;--ts-e-control-radius:var(--ts-e-radius-sm);
 }
 .theme-dark :is(.ts-root,.ts-journal,.ts-ui-modal,.ts-space-modal,.ts-settings,.ts-native-header,.ts-writing,.ts-note-markdown-toolbar,.ts-media-workspace,.ts-online-workspace,.ts-materials-panel,.ts-materials-modal,.ts-brain-shell,.ts-handwriting,.ts-local-relations,.ts-collection-content):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
- --ts-e-paper:#24211d;--ts-e-sheet:#2d2822;--ts-e-ink:#eee3d2;
- --ts-e-muted:#bcad99;--ts-e-line:#4a4034;--ts-e-wash:#342e26;
- --ts-e-editorial:#e0a081;--ts-e-edge:#968571;
- --ts-e-shadow:0 2px 8px #0003,0 16px 40px #0004;
+ --ts-e-paper:#222326;--ts-e-sheet:#18191b;--ts-e-ink:#ececee;
+ --ts-e-muted:#9a9ba3;--ts-e-line:#4a4b52;--ts-e-wash:#35363b;
+ --ts-e-editorial:#9a9ba3;--ts-e-edge:#8e8f97;--ts-e-overlay:#323339;
+ --ts-e-body:#c6c7cc;--ts-e-control-line:#b3b4bb;--ts-e-focus:#8bbaf0;
+ --ts-e-selected:#93c8b4;--ts-e-success:#7ec8a3;--ts-e-danger:#ffb4b4;--ts-e-disabled:#787a82;
+ --ts-e-shadow:0 2px 8px #00000033,0 16px 40px #00000044;
 }
 /* Shared chrome scale: never applied to note bodies, paper styles or format bars. */
 :is(.ts-root,.ts-journal,.ts-ui-modal,.ts-space-modal,.ts-settings,.ts-native-header,.ts-writing,.ts-note-markdown-toolbar,.ts-media-workspace,.ts-online-workspace,.ts-materials-panel,.ts-materials-modal):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){--ts-ui-control:32px;--ts-ui-gap:8px;--ts-ui-row-pad:8px;--ts-ui-panel-pad:12px;--ts-ui-radius:8px;--ts-ui-icon:16px;--ts-ui-secondary:11px;}
@@ -2941,11 +2943,11 @@ body {
 .ts-writing :is(.ts-writing-formatbar,.ts-writing-dock-head){background:var(--background-primary);border-bottom-color:var(--ts-design-line);}
 .ts-writing .ts-writing-dock-head{min-height:calc(var(--ts-ui-control) + var(--ts-ui-row-pad)*2);padding:var(--ts-ui-row-pad) 8px;gap:4px;}
 .ts-writing .ts-writing-dock-head .is-active{background:var(--ts-design-hover);box-shadow:none;}
-ts-writing .ts-writing-formatbar .ts-md-select:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){border-radius:var(--ts-e-radius-sm);border-color:var(--ts-e-control-line);}
+.ts-writing .ts-writing-formatbar .ts-md-select{border-radius:var(--ts-e-radius-sm);border-color:var(--ts-e-control-line);}
 .ts-writing .ts-writing-panel-head{min-height:var(--ts-ui-control);padding:var(--ts-ui-row-pad) var(--ts-ui-panel-pad);}
 .ts-writing .ts-writing-panel-head h3{font-size:12px;font-weight:600;color:var(--text-normal);}
-ts-writing .ts-writing-search:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){height:32px;margin:0 12px 8px;padding:0 8px;border:1px solid var(--ts-e-control-line);background:var(--ts-e-paper);border-radius:var(--ts-e-radius-sm);transition:border-color var(--ts-e-motion) var(--ts-e-ease),background-color var(--ts-e-motion) var(--ts-e-ease);}
-.ts-writing .ts-writing-search:focus-within{background:var(--ts-e-sheet);border-color:var(--ts-e-focus);outline:2px solid var(--ts-e-focus);outline-offset:1px;}
+.ts-writing .ts-writing-search{height:32px;margin:0 12px 8px;padding:0 8px;border:1px solid var(--ts-e-control-line);background:var(--ts-e-paper);border-radius:var(--ts-e-radius-sm);transition:background-color var(--ts-e-motion) var(--ts-e-ease),outline-color var(--ts-e-motion) var(--ts-e-ease);}
+.ts-writing .ts-writing-search:focus-within{background:var(--ts-e-sheet);outline:2px solid var(--ts-e-focus);outline-offset:2px;}
 .ts-writing .ts-writing-filters{gap:6px;padding:0 12px 8px;}
 .ts-writing .ts-writing-filters button{height:28px;font-size:12px;padding-inline:8px;}
 .ts-writing .ts-writing-filters select{height:28px;font-size:11px;}
@@ -2960,7 +2962,7 @@ ts-writing .ts-writing-search:not(:where(.ts-calendar-plugin, .ts-calendar-plugi
 .ts-writing .ts-writing-reference-tab.is-active{background:var(--ts-design-hover);border-color:transparent;}
 .ts-writing .ts-writing-reference-tab>.ts-writing-button:first-child{font-size:12px;}
 .ts-writing .ts-writing-entry{border-radius:8px;border-color:var(--ts-design-line);}
-.ts-writing .ts-writing-entry.is-selected{border-radius:var(--ts-e-radius);outline:1px solid var(--ts-e-selected);outline-offset:-1px;}
+.ts-writing .ts-writing-entry.is-selected{border-radius:var(--ts-e-radius);box-shadow:0 0 0 1px var(--ts-e-selected);}
 .ts-writing :is(.ts-writing-ref-label,.ts-writing-name small,.ts-writing-panel-foot,.ts-writing-reference-kind,.ts-writing-status-mode,.ts-writing-status-text,.ts-writing-preview-summary){font-size:var(--ts-ui-secondary,11px);color:var(--text-muted);}
 @container(max-width:450px){.ts-writing .ts-writing-header{padding-inline:8px;gap:2px 6px;}.ts-writing .ts-writing-filters{padding-inline:8px;gap:4px;}.ts-writing .ts-writing-filters button{padding-inline:6px;}}
 /* Shared secondary workspaces: settings, property views and reading materials. */
@@ -3058,8 +3060,24 @@ ts-writing .ts-writing-search:not(:where(.ts-calendar-plugin, .ts-calendar-plugi
 :is(.ts-root,.ts-ui-modal,.ts-settings,.ts-writing,.ts-materials-panel,.ts-materials-modal) .ts-button:active:not(:disabled):not([aria-disabled=true]):not(:where(.markdown-rendered *, .cm-editor *, .pdf-container *, .pdf-viewer *, .ts-node *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){box-shadow:inset 0 0 0 1px var(--ts-e-control-line);}
 :is(.ts-root,.ts-ui-modal,.ts-settings,.ts-writing,.ts-materials-panel,.ts-materials-modal) .ts-button:is(:disabled,[aria-disabled=true]):not(:where(.markdown-rendered *, .cm-editor *, .pdf-container *, .pdf-viewer *, .ts-node *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){color:var(--ts-e-disabled);}
 :is(.ts-root,.ts-ui-modal,.ts-writing,.ts-materials-panel,.ts-materials-modal) :is(.ts-library-card,.ts-outline-row,.ts-tree-row,.ts-writing-material):hover:not(:where(.ts-node *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){background:var(--ts-e-wash);transition:background-color var(--ts-e-motion) var(--ts-e-ease);}
-:is(.ts-root,.ts-ui-modal,.ts-writing,.ts-materials-panel,.ts-materials-modal) :is(.ts-library-card,.ts-outline-row,.ts-tree-row).is-selected:not(:where(.ts-node *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){outline:1px solid var(--ts-e-selected);outline-offset:-1px;}
-.ts-root .ts-node.is-selected:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){outline:1px solid var(--ts-e-selected);outline-offset:2px;}
+:is(.ts-root,.ts-ui-modal,.ts-writing,.ts-materials-panel,.ts-materials-modal) :is(.ts-library-card,.ts-outline-row,.ts-tree-row).is-selected:not(:where(.ts-node *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){position:relative;box-shadow:inset 0 0 0 1px var(--ts-e-selected);}
+.ts-root .ts-node.is-selected:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){box-shadow:0 1px 2px #00000008,0 5px 14px #00000006,0 0 0 1px var(--ts-e-selected);}
+.ts-root .ts-card.is-transparent.is-selected:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){box-shadow:0 0 0 1px var(--ts-e-selected)!important;}
+.ts-root .ts-node.is-selected:focus-visible:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),
+:is(.ts-root,.ts-ui-modal,.ts-writing,.ts-materials-panel,.ts-materials-modal) :is(.ts-library-card,.ts-outline-row,.ts-tree-row,.ts-writing-entry).is-selected:focus-visible:not(:where(.ts-node *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){outline:2px solid var(--ts-e-focus);outline-offset:2px;}
+.ts-root .ts-node.is-selected:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::after,
+:is(.ts-root,.ts-ui-modal,.ts-writing,.ts-materials-panel,.ts-materials-modal) .ts-library-card.is-selected:not(:where(.ts-node *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::after,
+:is(.ts-root,.ts-ui-modal,.ts-writing,.ts-materials-panel,.ts-materials-modal) :is(.ts-outline-row,.ts-tree-row).is-selected:not(:where(.ts-node *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::before{content:"✓";position:absolute;z-index:2;display:grid;place-items:center;width:16px;height:16px;border-radius:999px;background:var(--ts-e-paper);color:var(--ts-e-ink);font-size:11px;font-weight:700;line-height:1;pointer-events:none;}
+.ts-root .ts-node.is-selected:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::after,
+:is(.ts-root,.ts-ui-modal,.ts-writing,.ts-materials-panel,.ts-materials-modal) .ts-library-card.is-selected:not(:where(.ts-node *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::after{top:6px;right:6px;}
+:is(.ts-root,.ts-ui-modal,.ts-writing,.ts-materials-panel,.ts-materials-modal) :is(.ts-outline-row,.ts-tree-row).is-selected:not(:where(.ts-node *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::before{top:50%;inset-inline-end:8px;transform:translateY(-50%);}
+.theme-dark .ts-root .ts-node.is-selected:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::after,
+.theme-dark :is(.ts-root,.ts-ui-modal,.ts-writing,.ts-materials-panel,.ts-materials-modal) .ts-library-card.is-selected:not(:where(.ts-node *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::after,
+.theme-dark :is(.ts-root,.ts-ui-modal,.ts-writing,.ts-materials-panel,.ts-materials-modal) :is(.ts-outline-row,.ts-tree-row).is-selected:not(:where(.ts-node *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::before{background:var(--ts-e-sheet);color:var(--ts-e-ink);}
+:is(.ts-root,.ts-ui-modal,.ts-settings,.ts-writing,.ts-materials-panel,.ts-materials-modal) :is(.ts-button,button.mod-cta,button.ts-primary):is(.is-loading,[aria-busy=true]):not(:where(.markdown-rendered *, .cm-editor *, .pdf-container *, .pdf-viewer *, .ts-node *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){position:relative;}
+:is(.ts-root,.ts-ui-modal,.ts-settings,.ts-writing,.ts-materials-panel,.ts-materials-modal) :is(.ts-button,button.mod-cta,button.ts-primary):is(.is-loading,[aria-busy=true]):not(:where(.markdown-rendered *, .cm-editor *, .pdf-container *, .pdf-viewer *, .ts-node *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::after{content:"";position:absolute;inset-inline-start:8px;top:50%;width:12px;height:12px;margin-top:-6px;border:2px solid currentColor;border-inline-end-color:transparent;border-radius:999px;animation:ts-button-spin .7s linear infinite;pointer-events:none;}
+@keyframes ts-button-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){:is(.ts-root,.ts-ui-modal,.ts-settings,.ts-writing,.ts-materials-panel,.ts-materials-modal) :is(.ts-button,button.mod-cta,button.ts-primary):is(.is-loading,[aria-busy=true]):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::after{animation:none;}}
 .ts-root .ts-sidebar-empty:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){color:var(--ts-e-muted);padding:var(--ts-e-space-panel);}
 .ts-root .ts-sidebar-empty .ts-button:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){margin-top:var(--ts-e-space-control);}
 
@@ -4307,7 +4325,7 @@ ts-writing .ts-writing-search:not(:where(.ts-calendar-plugin, .ts-calendar-plugi
 }
 @media (prefers-contrast: more) {
   .ts-root .ts-main:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { --ts-board-line: var(--text-muted); }
-  .ts-root .ts-node.is-selected:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { outline-width: 2px; }
+  .ts-root .ts-node.is-selected:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { box-shadow: 0 0 0 2px var(--ts-e-selected); }
 }
 
 /* Transparent cards stay transparent in the minimap in both themes. */
@@ -11613,12 +11631,13 @@ ts-writing .ts-writing-search:not(:where(.ts-calendar-plugin, .ts-calendar-plugi
  color:var(--ts-e-ink);background-color:var(--ts-e-paper);border-color:var(--ts-e-control-line);border-radius:var(--ts-e-radius-sm);box-shadow:none;
  transition:border-color var(--ts-e-motion) var(--ts-e-ease),outline-color var(--ts-e-motion) var(--ts-e-ease);
 }
-.ts-ui-modal :is(input,select,textarea):focus-visible:not(:where(.markdown-rendered *, .markdown-preview-view *, .markdown-source-view *, .cm-editor *, .pdf-container *, .pdf-viewer *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {outline:2px solid var(--ts-e-focus);outline-offset:-2px;border-color:var(--ts-e-focus);box-shadow:none}
+.ts-ui-modal :is(input,select,textarea):focus-visible:not(:where(.markdown-rendered *, .markdown-preview-view *, .markdown-source-view *, .cm-editor *, .pdf-container *, .pdf-viewer *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {outline:2px solid var(--ts-e-focus);outline-offset:2px;}
 .ts-ui-modal :is(input,textarea).is-error:not(:where(.markdown-rendered *, .markdown-preview-view *, .markdown-source-view *, .cm-editor *, .pdf-container *, .pdf-viewer *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {border-color:var(--ts-e-danger)}
+.ts-ui-modal :is(input,textarea).is-error:focus-visible:not(:where(.markdown-rendered *, .markdown-preview-view *, .markdown-source-view *, .cm-editor *, .pdf-container *, .pdf-viewer *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {outline:2px solid var(--ts-e-focus);outline-offset:2px;border-color:var(--ts-e-danger)}
 .ts-ui-modal :is(input,textarea):not(:where(.markdown-rendered *, .markdown-preview-view *, .markdown-source-view *, .cm-editor *, .pdf-container *, .pdf-viewer *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::placeholder {color:var(--ts-e-muted);opacity:1}
 .ts-ui-modal :is(button,summary):active:not(:disabled):not([aria-disabled=true]):not(:where(.markdown-rendered *, .markdown-preview-view *, .markdown-source-view *, .cm-editor *, .pdf-container *, .pdf-viewer *)):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {box-shadow:inset 0 0 0 1px var(--ts-e-edge)}
 .ts-ui-modal .modal-button-container:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {gap:8px;flex-wrap:wrap;padding-top:16px;border-top:1px solid var(--ts-e-line)}
-ts-ui-modal .modal-button-container button {min-height:36px;height:auto;padding:8px 16px;border-radius:var(--ts-e-radius);box-shadow:none;transition:background-color var(--ts-e-motion) var(--ts-e-ease),color var(--ts-e-motion) var(--ts-e-ease),border-color var(--ts-e-motion) var(--ts-e-ease)}
+.ts-ui-modal .modal-button-container button:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {min-height:36px;height:auto;padding:8px 16px;border-radius:var(--ts-e-radius);box-shadow:none;transition:background-color var(--ts-e-motion) var(--ts-e-ease),color var(--ts-e-motion) var(--ts-e-ease),border-color var(--ts-e-motion) var(--ts-e-ease)}
 .ts-ui-modal .modal-button-container button:hover:not(:disabled):not([aria-disabled=true]):not(.mod-cta):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {background:var(--ts-e-wash)}
 .ts-ui-modal .modal-button-container button:active:not(:disabled):not([aria-disabled=true]):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {box-shadow:inset 0 0 0 1px var(--ts-e-control-line)}
 .ts-ui-modal .modal-button-container button:is(:disabled,[aria-disabled=true]):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {color:var(--ts-e-disabled)}
@@ -11628,10 +11647,12 @@ ts-ui-modal .modal-button-container button {min-height:36px;height:auto;padding:
 .ts-form-prompt .ts-prompt-field .ts-wide:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {margin:0;height:auto!important;min-height:40px;width:100%}
 .ts-form-prompt .modal-button-container:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {margin-top:0}
 .ts-form-prompt .mod-cta:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {float:none}
-ts-prompt-status {font-size:13px;line-height:1.65;overflow-wrap:anywhere;color:var(--ts-e-muted)}
+.ts-prompt-status:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {font-size:13px;line-height:1.65;overflow-wrap:anywhere;color:var(--ts-e-muted)}
 .ts-prompt-status:empty:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {display:none}
 .ts-prompt-field .ts-field-error:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {display:flex;align-items:flex-start;gap:var(--ts-e-space-icon);margin-top:4px;color:var(--ts-e-danger);font-size:var(--ts-e-meta-size);line-height:var(--ts-e-meta-leading)}
-.ts-prompt-field .ts-field-error:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::before {content:"";flex:none;width:1em;height:1em;margin-top:.15em;border:1px solid var(--ts-e-danger);border-radius:var(--ts-e-radius-sm)}
+.ts-prompt-field .ts-field-error:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::before {content:"!";flex:none;display:grid;place-items:center;width:1.15em;height:1.15em;margin-top:.12em;border:1px solid var(--ts-e-danger);border-radius:999px;color:var(--ts-e-danger);font-size:.85em;font-weight:700;line-height:1}
+.ts-field-success:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)),.ts-status-success:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {display:flex;align-items:flex-start;gap:var(--ts-e-space-icon);color:var(--ts-e-success);font-size:var(--ts-e-meta-size);line-height:var(--ts-e-meta-leading)}
+.ts-field-success:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::before,.ts-status-success:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::before {content:"✓";flex:none;color:var(--ts-e-success);font-weight:700;line-height:1}
 .ts-board-creation-modal .ts-board-creation-purpose:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {border-inline-start:2px solid var(--ts-e-editorial);padding-inline-start:12px;margin-block:8px 24px}
 .ts-board-creation-modal .ts-board-creation-name:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {font-size:13px;gap:10px}
 .ts-board-creation-modal .ts-board-creation-format>summary:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {color:var(--ts-e-muted)}

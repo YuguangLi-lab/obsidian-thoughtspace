@@ -624,7 +624,7 @@
 }
 @media (prefers-contrast: more) {
   .ts-root .ts-main { --ts-board-line: var(--text-muted); }
-  .ts-root .ts-node.is-selected { outline-width: 2px; }
+  .ts-root .ts-node.is-selected { box-shadow: 0 0 0 2px var(--ts-e-selected); }
 }
 
 /* Transparent cards stay transparent in the minimap in both themes. */

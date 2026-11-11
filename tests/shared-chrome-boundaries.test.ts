@@ -79,7 +79,7 @@ test('board elevation references shared tokens and chrome washes preserve accent
   const amount=Number(rule.value.match(/var\(--ts-accent,var\(--interactive-accent\)\) (\d+)%/)?.[1]);assert.ok(Number.isFinite(amount),rule.value);
   assert.ok(rule.value.includes('var(--ts-e-sheet)'),rule.value);
   for(const dark of [false,true])for(const palette of declarations(palettes,'--ts-accent').filter(palette=>palette.selector.startsWith(dark?'.theme-dark .ts-root':'.ts-root'))){
-   const ink=rgb(palette.value),base=rgb(dark?'#2d2822':'#f8f5ef'),wash=ink.map((value,index)=>value*amount/100+base[index]*(1-amount/100));const a=luminance(ink),b=luminance(wash),contrast=(Math.max(a,b)+.05)/(Math.min(a,b)+.05);
+   const ink=rgb(palette.value),base=rgb(dark?'#18191b':'#f8f5ef'),wash=ink.map((value,index)=>value*amount/100+base[index]*(1-amount/100));const a=luminance(ink),b=luminance(wash),contrast=(Math.max(a,b)+.05)/(Math.min(a,b)+.05);
    assert.ok(contrast>=4.5,`${property}/${palette.value}/${amount}% contrast ${contrast.toFixed(2)}`);
   }
  }
