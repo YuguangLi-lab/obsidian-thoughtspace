@@ -27,7 +27,7 @@ function contrast(a: string, b: string): number {
 
 test('paper uses the warm-white ramp and keeps the dark steps, host type and solid material', () => {
   const expected = [
-    ['#f8f5ef','#f0eee8','#e9e6e0','#e0ddd8','#d4d2cc','#c4c3be','#cbcfcd','#b8bcba','#868e8b','#7c8481','#67675f','#272a25'],
+    ['#f8f5ef','#f8f5ef','#f0eee8','#e9e6e0','#d4d2cc','#c4c3be','#cbcfcd','#b8bcba','#868e8b','#7c8481','#67675f','#272a25'],
     ['#20211e','#252620','#2c2d27','#34352e','#3c3e35','#4c4e43','#444947','#5b625f','#63706b','#717d79','#b9bcaf','#e9ebdf'],
   ];
   for (const [index, scale] of expected.entries()) {
@@ -35,7 +35,12 @@ test('paper uses the warm-white ramp and keeps the dark steps, host type and sol
     assert.deepEqual(Array.from({ length: 12 }, (_, i) => values[`--ts-ui-${i + 1}`]), scale);
     assert.equal(values['--ts-e-shadow'], '0 1px 3px #00000009');
   }
-  assert.equal(palette('paper')['--ts-e-serif'], 'var(--font-interface)');
+  const light=palette('paper',false);
+  assert.equal(light['--ts-e-paper'],'#f8f5ef');
+  assert.equal(light['--ts-e-sheet'],'#f8f5ef');
+  assert.equal(light['--ts-e-wash'],'#f0eee8');
+  for(const banned of ['#f3e9d4','#fffdf8','#f6f4ee','#eeece4'])for(const token of ['--ts-e-paper','--ts-e-sheet','--ts-e-wash'])assert.notEqual(light[token],banned,token);
+  assert.equal(light['--ts-e-serif'], 'var(--font-interface)');
   const css = interfaceStyleRules('paper', true);
   assert.match(css, /background:var\(--ts-e-sheet\)!important/);
   assert.doesNotMatch(css, /blur\(|url\(|--ts-paper-/);

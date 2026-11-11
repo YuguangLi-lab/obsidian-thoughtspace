@@ -19,7 +19,7 @@ const rule = (selector: string, declarations: string) => `${selector}{${declarat
 // on that hue instead of the old cream. Steps 7–10 stay the Radix sage grays.
 // This is independent of the canvas paper preset and does not add paper noise.
 const paperLight = [
-  '#f8f5ef', '#f0eee8', '#e9e6e0', '#e0ddd8', '#d4d2cc', '#c4c3be',
+  '#f8f5ef', '#f8f5ef', '#f0eee8', '#e9e6e0', '#d4d2cc', '#c4c3be',
   '#cbcfcd', '#b8bcba', '#868e8b', '#7c8481', '#67675f', '#272a25',
 ];
 const paperDark = [

@@ -894,7 +894,7 @@ body {
 .ts-root .ts-review-badge:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){position:absolute;right:8px;top:-10px;z-index:3;padding:2px 7px;border:1px solid var(--ts-ui-6);border-radius:5px;background:var(--ts-ui-1);color:var(--ts-accent);font-size:10px;line-height:1.5;pointer-events:none;box-shadow:0 1px 3px #0000000a;}
 .ts-node-summary .ts-review-badge:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){font-size:9px;right:3px;top:-9px;}
 /* Warm, solid paper is opt-in and leaves user fonts and object colors intact. */
-.theme-light :is(.ts-root,.ts-journal,.ts-ui-modal)[data-surface=paper]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){--ts-ui-1:#f8f5ef;--ts-ui-2:#f0eee8;--ts-ui-3:#e9e6e0;--ts-ui-4:#e0ddd8;--ts-ui-5:#d4d2cc;--ts-ui-6:#c4c3be;--ts-ui-11:#67675f;--ts-ui-12:#272a25;}
+.theme-light :is(.ts-root,.ts-journal,.ts-ui-modal)[data-surface=paper]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){--ts-ui-1:#f8f5ef;--ts-ui-2:#f8f5ef;--ts-ui-3:#f0eee8;--ts-ui-4:#e9e6e0;--ts-ui-5:#d4d2cc;--ts-ui-6:#c4c3be;--ts-ui-11:#67675f;--ts-ui-12:#272a25;}
 .theme-dark :is(.ts-root,.ts-journal,.ts-ui-modal)[data-surface=paper]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){--ts-ui-1:#20211e;--ts-ui-2:#252620;--ts-ui-3:#2c2d27;--ts-ui-4:#34352e;--ts-ui-5:#3c3e35;--ts-ui-6:#4c4e43;--ts-ui-11:#b9bcaf;--ts-ui-12:#e9ebdf;}
 :is(.ts-root,.ts-journal,.ts-ui-modal)[data-surface=paper] :is(.ts-commandbar,.ts-inspector,.ts-minimap,.ts-calendar):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){backdrop-filter:none!important;background:var(--ts-ui-1)!important;box-shadow:0 1px 3px #00000009!important;}
 .ts-ui-modal[data-surface=paper]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)){background:var(--ts-ui-1);}
@@ -2890,8 +2890,8 @@ body {
 /* Editorial materials. These private tokens never replace Obsidian's host or
    document variables. Components opt their chrome into the shared palette. */
 :is(.ts-root,.ts-journal,.ts-ui-modal,.ts-space-modal,.ts-settings,.ts-native-header,.ts-writing,.ts-note-markdown-toolbar,.ts-media-workspace,.ts-online-workspace,.ts-materials-panel,.ts-materials-modal,.ts-brain-shell,.ts-handwriting,.ts-local-relations,.ts-collection-content):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
- --ts-e-paper:#f0eee8;--ts-e-sheet:#f8f5ef;--ts-e-ink:#342e28;
- --ts-e-muted:#6c6055;--ts-e-line:#d4d2cc;--ts-e-wash:#e9e6e0;
+ --ts-e-paper:#f8f5ef;--ts-e-sheet:#f8f5ef;--ts-e-ink:#342e28;
+ --ts-e-muted:#6c6055;--ts-e-line:#d4d2cc;--ts-e-wash:#f0eee8;
  --ts-e-editorial:#a24b32;--ts-e-edge:#938574;
  --ts-e-serif:"Songti SC","STSong","Noto Serif CJK SC","Iowan Old Style","Palatino Linotype",serif;
  --ts-e-shadow:0 2px 8px #4e351c08,0 16px 40px #4e351c0c;
