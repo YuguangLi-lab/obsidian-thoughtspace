@@ -53,9 +53,7 @@ class SvgElement {
 test('uncolored preview cards use paper fill and line stroke', () => {
   const source = readFileSync('src/layout-planner-view.ts', 'utf8');
   const start = source.indexOf(' private draw(){'), end = source.indexOf('\n onClose(){', start);
-  const View = new Function('document', 'layoutBounds', 'layoutModes', 'previewConnection', 'readingTitle', transformSync(`const ns='http://www.w3.org/2000/svg';let layoutPreviewScene=0;class View{${source.slice(start, end)}}return View;`, {loader: 'ts'}).code)(
-    {createElementNS: (_ns: string, tag: string) => new SvgElement(tag)},
-    layoutBounds,
+  const View = new Function('layoutModes', 'previewConnection', 'readingTitle', transformSync(`const ns='http://www.w3.org/2000/svg';let layoutPreviewScene=0;class View{${source.slice(start, end)}}return View;`, {loader: 'ts'}).code)(
     {grid: '网格'},
     () => '',
     (node: Card) => node.text || node.id,
@@ -63,7 +61,7 @@ test('uncolored preview cards use paper fill and line stroke', () => {
   const plain = {id: 'plain', kind: 'text', text: '未着色', x: 10, y: 10, width: 120, height: 80} as Card;
   const sand = {...plain, id: 'sand', color: 'sand' as const};
   const view = new View();
-  Object.assign(view, {before: false, options: {mode: 'grid'}, previews: new Map(), host: {board: () => ({edges: []})}, plan: {items: [plain, sand], originals: [plain, sand], lanes: [], bounds: layoutBounds([plain, sand])}, mountPreview() {}});
+  Object.assign(view, {canvas:{doc:{createElementNS: (_ns: string, tag: string) => new SvgElement(tag)}}, moved:new Set(), before: false, options: {mode: 'grid'}, previews: new Map(), host: {board: () => ({edges: []})}, plan: {items: [plain, sand], originals: [plain, sand], lanes: [], bounds: layoutBounds([plain, sand])}, mountPreview() {}});
   view.draw();
   const rects = (view.svg as SvgElement).all().filter(element => element.tag === 'rect' && element.getAttribute('class')?.includes('ts-layout-object'));
   const uncolored = rects.find(element => element.getAttribute('fill') === 'var(--ts-e-paper)');

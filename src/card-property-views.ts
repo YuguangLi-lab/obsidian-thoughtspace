@@ -67,7 +67,7 @@ export function mergeBoardSources(scanned:readonly LibraryBoardSource[],live:rea
  return [...byPath.values()];
 }
 export function filterLibraryCards(records:readonly LibraryCardRecord[],query:LibraryViewQuery):LibraryCardRecord[]{
- const tag=libraryTagKey(query.tag),text=query.query.trim().toLocaleLowerCase();
+ const tag=libraryTagKey(query.tag),words=query.query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
  return records.filter(record=>{
   if(query.type&&record.type!==query.type)return false;
   if(query.status&&record.status!==query.status)return false;
@@ -75,9 +75,9 @@ export function filterLibraryCards(records:readonly LibraryCardRecord[],query:Li
   else if(query.choice&&record.choice!==query.choice)return false;
   if(query.board&&!record.boards.some(board=>board.path===query.board))return false;
   if(tag&&!record.tags.some(item=>libraryTagKey(item)===tag||libraryTagKey(item).startsWith(tag+'/')))return false;
-  if(!text)return true;
+  if(!words.length)return true;
   const haystack=[record.title,record.path,record.status,statuses[record.status]||'',record.priority,record.due,record.choice,...record.tags,...record.boards.map(board=>`${board.title} ${board.path}`),...Object.entries(record.custom).flat()].join(' ').toLocaleLowerCase();
-  return text.split(/\s+/).every(word=>haystack.includes(word));
+  return words.every(word=>haystack.includes(word));
  });
 }
 export function libraryStatusLabel(status:string){return statuses[status]||status||'未设置';}
@@ -88,10 +88,10 @@ export function libraryKanban(records:readonly LibraryCardRecord[]):LibraryKanba
  return [...known,...extra].map(id=>({id,label:libraryStatusLabel(id),cards:records.filter(record=>record.status===id)}));
 }
 export interface LibraryTable {columns:string[];rows:{path:string;cells:string[]}[]}
-export function libraryTable(records:readonly LibraryCardRecord[],showChoice=false):LibraryTable{
- const custom=[...new Set(records.flatMap(record=>Object.keys(record.custom)))].sort(),choices=showChoice||records.some(record=>record.choice);
- const columns=['笔记','类型','标签','状态',...(choices?['分类']:[]),...(records.some(record=>record.highlight)?['来源']:[]),'白板',...custom];
- const rows=records.map(record=>({path:record.path,cells:[record.title,libraryTypeNames[record.type],record.tags.join(' '),libraryStatusLabel(record.status),...(choices?[record.choice||'未分类']:[]),...(records.some(item=>item.highlight)?[record.highlight?highlightLocation(record.highlight):'']:[]),libraryBoardLabel(record,false),...custom.map(key=>record.custom[key]||'')]}));
+export function libraryTable(records:readonly LibraryCardRecord[],showChoice=false,indexing=false):LibraryTable{
+ const custom=[...new Set(records.flatMap(record=>Object.keys(record.custom)))].sort(),choices=showChoice||records.some(record=>record.choice),hasSource=records.some(record=>record.highlight);
+ const columns=['笔记','类型','标签','状态',...(choices?['分类']:[]),...(hasSource?['来源']:[]),'白板',...custom];
+ const rows=records.map(record=>({path:record.path,cells:[record.title,libraryTypeNames[record.type],record.tags.join(' '),libraryStatusLabel(record.status),...(choices?[record.choice||'未分类']:[]),...(hasSource?[record.highlight?highlightLocation(record.highlight):'']:[]),indexing&&!record.boards.length?'正在索引':libraryBoardLabel(record,false),...custom.map(key=>record.custom[key]||'')]}));
  return {columns,rows};
 }
 export function libraryList(records:readonly LibraryCardRecord[]):{path:string;title:string;detail:string}[]{

@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
 import {cardFillHex, emptyBoard, type Board} from '../src/model';
-import {layoutBounds, layoutModes,planLayout} from '../src/layout-planner';
-import {previewConnection} from '../src/layout-preview-geometry';
+import {layoutBounds,layoutModes,layoutMovedIds,planLayout} from '../src/layout-planner';
+import {comparisonPreviewBounds,previewConnection,previewMoveCorner,previewViewBox} from '../src/layout-preview-geometry';
 import {branchState, mindmapRoot} from '../src/mindmap';
 import {topicRows} from '../src/mindmap-editor';
 import {connectionPath} from '../src/connections';
@@ -28,6 +28,10 @@ class SvgElement {
 }
 class HtmlElement extends SvgElement {
   isShown() { return true; }
+  get doc(){return document;}
+  createDiv({cls,text}:{cls:string;text:string}){const item=new HtmlElement('div');item.setAttribute('class',cls);item.setText(text);this.appendChild(item);return item;}
+  toggleClass(cls:string,yes:boolean){this.setAttribute('class',yes?cls:'');}
+  setText(text:string){this.textContent=text;}
 }
 
 // Obsidian delegates pointerover to [aria-label], then its delayed tooltip calls
@@ -50,8 +54,8 @@ function accessibleTitle(svg: SvgElement) {
     return matches[0].textContent;
   }).join(' ');
 }
-function compileDraw(path: string, dependencies: Record<string, unknown>) {
-  const source = readFileSync(path, 'utf8'), start = source.indexOf(' private draw(){'), end = source.indexOf('\n onClose(){', start);
+function compileDraw(path: string, dependencies: Record<string, unknown>, startMarker=' private draw(){') {
+  const source = readFileSync(path, 'utf8'), start = source.indexOf(startMarker), end = source.indexOf('\n onClose(){', start);
   assert.ok(start > 0 && end > start, 'exercise the actual preview renderer');
   const code = `const ns='http://www.w3.org/2000/svg';let layoutPreviewScene=0,relationScene=0;class View{${source.slice(start, end)}}return View;`;
   return new Function(...Object.keys(dependencies), transformSync(code, {loader: 'ts'}).code)(...Object.values(dependencies));
@@ -77,7 +81,7 @@ test('layout previews retain names and hover safely before, after, cached and in
   const data = board(), titles: string[] = [];
   const create = () => {
     const view = new View(), canvas = new HtmlElement('div'); canvas.setAttribute('aria-label', '所选对象布局示意');
-    Object.assign(view, {before: false, options: {mode: 'grid'}, previews: new Map(), canvas, host: {board: () => data}, plan: {items: data.nodes, originals: data.nodes, lanes: [], bounds: layoutBounds(data.nodes)}, mountPreview() { canvas.replaceChildren(view.svg); }});
+    Object.assign(view, {before: false, options: {mode: 'grid'}, previews: new Map(), moved:new Set(), canvas, host: {board: () => data}, plan: {items: data.nodes, originals: data.nodes, lanes: [], bounds: layoutBounds(data.nodes)}, mountPreview() { canvas.replaceChildren(view.svg); }});
     return view;
   };
   const first = create();
@@ -114,5 +118,33 @@ test('mindmap previews retain original/new names without becoming native tooltip
 
 test('classified layout previews render the same named frame bounds that will be applied',()=>{
  const View=compileDraw('src/layout-planner-view.ts',{document,layoutBounds,layoutModes,previewConnection,readingTitle:(node:Board['nodes'][number])=>node.text||node.id}),data=board(),plan=planLayout(data,new Set(data.nodes.map(n=>n.id)),{mode:'color',columns:2,gap:8,sort:'position',anchor:'corner',createSections:true}),view=new View();
- Object.assign(view,{before:false,options:{mode:'color'},previews:new Map(),host:{board:()=>data},plan,mountPreview(){}});view.draw();const frames=(view.svg as SvgElement).all().filter(el=>el.getAttribute('class')==='ts-layout-frame');assert.equal(frames.length,plan.newSections!.length);for(const[i,frame]of frames.entries()){assert.equal(Number(frame.getAttribute('x')),plan.newSections![i].x);assert.equal(Number(frame.getAttribute('y')),plan.newSections![i].y);assert.equal(Number(frame.getAttribute('width')),plan.newSections![i].width);assert.equal(Number(frame.getAttribute('height')),plan.newSections![i].height);}const labels=(view.svg as SvgElement).all().filter(el=>el.tag==='text').map(el=>el.textContent);assert.ok(plan.newSections!.every(g=>labels.includes(g.title)));view.before=true;view.draw();assert.equal((view.svg as SvgElement).all().filter(el=>el.getAttribute('class')==='ts-layout-frame').length,0);
+ Object.assign(view,{before:false,options:{mode:'color'},previews:new Map(),moved:new Set(),canvas:new HtmlElement('div'),host:{board:()=>data},plan,mountPreview(){}});view.draw();const frames=(view.svg as SvgElement).all().filter(el=>el.getAttribute('class')==='ts-layout-frame');assert.equal(frames.length,plan.newSections!.length);for(const[i,frame]of frames.entries()){assert.equal(Number(frame.getAttribute('x')),plan.newSections![i].x);assert.equal(Number(frame.getAttribute('y')),plan.newSections![i].y);assert.equal(Number(frame.getAttribute('width')),plan.newSections![i].width);assert.equal(Number(frame.getAttribute('height')),plan.newSections![i].height);}const labels=(view.svg as SvgElement).all().filter(el=>el.tag==='text').map(el=>el.textContent);assert.ok(plan.newSections!.every(g=>labels.includes(g.title)));view.before=true;view.draw();assert.equal((view.svg as SvgElement).all().filter(el=>el.getAttribute('class')==='ts-layout-frame').length,0);
+});
+
+
+test('layout comparison shares one view box and annotates only moved destinations',()=>{
+ const View=compileDraw('src/layout-planner-view.ts',{
+  layoutModes,previewConnection,previewMoveCorner,previewViewBox,readingTitle:(node:Board['nodes'][number])=>node.text||node.id
+ },' private camera(){');
+ const data=board(),plan=planLayout(data,new Set(['a','b']),{mode:'alignLeft',columns:2,gap:40,sort:'position',anchor:'corner'});
+ const view=new View(),canvas=new HtmlElement('div'),moved=layoutMovedIds(plan);
+ assert.deepEqual([...moved],['b']);
+ Object.assign(view,{before:false,options:{mode:'alignLeft'},previews:new Map(),canvas,plan,moved,host:{board:()=>data},
+  compare:new HtmlElement('button'),afterCompare:new HtmlElement('button'),zoomLabel:new HtmlElement('button'),previewStatus:new HtmlElement('span'),
+  zoom:1.8,pan:{x:18,y:-11},base:comparisonPreviewBounds(plan.originals,plan.items),updateEdges(){},markMatch(){}
+ });
+ view.draw();
+ const after=view.svg as SvgElement,viewBox=after.getAttribute('viewBox');
+ const marker=(svg:SvgElement)=>svg.all().filter(el=>el.getAttribute('class')==='ts-layout-moved').map(el=>el.getAttribute('d'));
+ assert.deepEqual(marker(after),[previewMoveCorner(plan.items.find(item=>item.id==='b')!)]);
+ assert.equal(view.afterCompare.getAttribute('aria-pressed'),'true');
+ view.before=true;view.draw();
+ const original=view.svg as SvgElement;
+ assert.equal(original.getAttribute('viewBox'),viewBox);
+ assert.deepEqual(marker(original),[]);
+ assert.equal(view.compare.getAttribute('aria-pressed'),'true');
+ view.pan.x+=10;view.camera();
+ view.before=false;view.draw();
+ assert.equal(view.svg,after,'existing preview is reused');
+ assert.equal(after.getAttribute('viewBox'),original.getAttribute('viewBox'),'panning before stays in effect after');
 });

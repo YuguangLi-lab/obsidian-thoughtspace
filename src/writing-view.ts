@@ -288,11 +288,11 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
  }
  private setResourceMode(mode:'library'|'reference'){this.flushFields();this.resourceMode=mode;this.dockOpen=true;this.compactDockRequested=this.contentEl.clientWidth<=900;this.syncDock();}
  private syncModeTrigger(){const trigger=this.contentEl.querySelector<HTMLButtonElement>('.ts-writing-mode-menu'),label={write:'写作',outline:'编排',preview:'预览'}[this.mode];if(trigger){trigger.querySelector('span:not(.ts-writing-icon)')?.setText(label);trigger.title='写作模式 · 当前：'+label;trigger.dataset.currentMode=this.mode;}}
- private ownWritingMenu(menu:Menu,trigger:HTMLButtonElement){
+ private ownWritingMenu(menu:Menu,trigger:HTMLButtonElement,replacement?:()=>HTMLButtonElement|null){
   this.modeMenu?.hide();this.modeMenu=menu;const doc=trigger.ownerDocument,win=doc.defaultView??doc.win,owner=this.owner,generation=this.generation,menuOwner=this.writingMenuOwner={};let restoreFocus=false,hidden=false;
   const windows=win===window?[win]:[window,win];
   const current=()=>!this.closed&&this.owner===owner&&this.generation===generation&&this.writingMenuOwner===menuOwner&&this.contentEl.ownerDocument===doc&&trigger.ownerDocument===doc&&this.app.workspace.getActiveViewOfType<ItemView>(WritingView)===this&&this.leaf.view===this;
-  const focusOwner=()=>{if(!current()||this.modeMenu&&this.modeMenu!==menu)return;const target=trigger.isConnected&&trigger.getClientRects().length?trigger:this.contentEl.querySelector<HTMLButtonElement>(`.ts-writing-switch [data-article-mode="${this.mode}"]`);if(target?.isConnected&&target.getClientRects().length)target.focus();};
+  const focusOwner=()=>{if(!current()||this.modeMenu&&this.modeMenu!==menu)return;const target=trigger.isConnected&&trigger.getClientRects().length?trigger:replacement?replacement():this.contentEl.querySelector<HTMLButtonElement>(`.ts-writing-switch [data-article-mode="${this.mode}"]`);if(target?.isConnected&&target.getClientRects().length)target.focus();};
   const restore=()=>queueMicrotask(focusOwner);
   // Popout windows relay keys to the main window before later local capture
   // listeners. Observe both windows, but only events from this exact document.
@@ -335,6 +335,44 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   if(event.detail>0)menu.showAtMouseEvent(event);else{const rect=trigger.getBoundingClientRect();menu.showAtPosition({x:rect.left,y:rect.bottom},trigger.ownerDocument);}
  }
  private setArticleMode(mode:'write'|'outline'|'preview'){if(this.composing){new Notice('请先完成当前输入，再切换写作模式');return;}const reading=captureWritingReadingScroll(this.contentEl);this.flushFields();this.mode=mode;this.outline.hidden=mode!=='outline';this.paper.hidden=mode!=='preview';this.manuscriptHost.hidden=mode!=='write';this.contentEl.dataset.writingMode=mode;this.syncModeTrigger();this.contentEl.querySelectorAll<HTMLButtonElement>('[data-article-mode]').forEach(button=>{button.toggleClass('is-active',button.dataset.articleMode===mode);button.setAttribute('aria-pressed',String(button.dataset.articleMode===mode));});this.renderLists();restoreWritingReadingScroll(reading);if(mode==='preview')void this.refreshArticle();if(mode==='write')void this.openManuscript();}
+ /** Find the live control after an outline edit has replaced its old row. */
+ private outlineEntryControl(id:string,control:'name'|'more',neighbor=-1){
+  const rows=Array.from(this.outline.querySelectorAll<HTMLElement>(':scope > .ts-writing-entry'));
+  const row=rows.find(item=>item.dataset.writingNode===id)??(neighbor>=0?rows[Math.min(neighbor,rows.length-1)]:undefined);
+  return row?.querySelector<HTMLButtonElement>('.ts-writing-entry-'+control)??(neighbor>=0?this.outline.querySelector<HTMLButtonElement>('.ts-writing-add-chapter,.ts-writing-empty .ts-writing-button'):null);
+ }
+ private moveOutlineEntry(id:string,direction:-1|1){
+  if(this.composing)return;
+  const order=writingOrder(this.ensure().board),index=order.indexOf(id);
+  if(index<0||index+direction<0||index+direction>=order.length)return;
+  // add() uses an insertion slot in the order before removing the old row.
+  this.add(id,index+(direction<0?-1:2));
+ }
+ private openOutlineEntryMenu(trigger:HTMLButtonElement,id:string){
+  if(this.composing)return;
+  const order=writingOrder(this.ensure().board),index=order.indexOf(id);if(index<0)return;
+  const menu=themePluginMenu(new Menu()).setUseNativeMenu(false).setParentElement(this.contentEl),doc=trigger.ownerDocument;
+  const restore=this.ownWritingMenu(menu,trigger,()=>this.outlineEntryControl(id,'more',index));
+  const action=(label:string,icon:string,apply:()=>unknown,disabled=false)=>{
+   const title=(doc.win as Window&{createFragment:()=>DocumentFragment}).createFragment();title.createSpan({cls:'ts-writing-menu-label',text:label});
+   menu.addItem(item=>item.setTitle(title).setIcon(icon).setDisabled(disabled).onClick(()=>this.runAction(()=>{const result=apply();restore();return result;})));
+  };
+  action('打开参考','book-open',()=>this.showReference(id));
+  action('上移','chevron-up',()=>this.moveOutlineEntry(id,-1),index===0);
+  action('下移','chevron-down',()=>this.moveOutlineEntry(id,1),index===order.length-1);
+  menu.addSeparator();
+  action('从文章移除','x',()=>{if(!this.composing)this.update(state=>state.order=state.order.filter(value=>value!==id));});
+  const rect=trigger.getBoundingClientRect();menu.showAtPosition({x:rect.left,y:rect.bottom+4},doc);
+ }
+ private bindOutlineEntryKeys(button:HTMLButtonElement,id:string,control:'name'|'more'){
+  button.setAttribute('aria-keyshortcuts','Alt+ArrowUp Alt+ArrowDown');
+  button.onkeydown=event=>{
+   if(this.modeMenu||!event.altKey||event.shiftKey||event.metaKey||event.ctrlKey||event.isComposing||Reflect.get(event,'keyCode')===229||this.composing)return;
+   const direction=event.key==='ArrowUp'?-1:event.key==='ArrowDown'?1:0;if(!direction)return;
+   event.preventDefault();event.stopPropagation();
+   this.runAction(()=>{this.moveOutlineEntry(id,direction);this.outlineEntryControl(id,control)?.focus();});
+  };
+ }
  private matching() {
   const board=this.owner!.board,used=new Set(writingParts(board).map(p=>p.node.id));
   const chapters=new Set(this.state().chapters?.map(c=>c.id));
@@ -382,12 +420,16 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
    const option=board.writing?.options?.[id],chapter=board.writing?.chapters?.find(c=>c.id===id),name=option?.title||writingName(n);
    const row=this.outline.createDiv({cls:'ts-writing-entry',attr:{'data-writing-node':id}});row.toggleClass('is-excluded',!!option?.excluded);row.toggleClass('is-selected',this.selected===id);this.dragRow(row,id,index);
    const top=row.createDiv('ts-writing-entry-top');top.createSpan({cls:'ts-writing-number',text:String(index+1).padStart(2,'0')});
-   const main=this.action(top,name,()=>{this.selected=this.selected===id?undefined:id;this.renderLists();},undefined,false,'ts-writing-entry-name');main.createEl('small',{text:chapter?'自建章节':n.kind==='section'?'分组章节 · '+Math.max(0,writingParts(board,[id]).length-1)+' 份材料':kinds[n.kind]+(option?.excluded?' · 暂不纳入正文':'')});
-   const controls=top.createDiv('ts-writing-entry-actions');
-   this.action(controls,'参考 '+name,()=>this.showReference(id),'book-open',true);
-   this.action(controls,'上移 '+name,()=>this.add(id,index-1),'chevron-up',true).disabled=index===0;
-   this.action(controls,'下移 '+name,()=>this.add(id,index+2),'chevron-down',true).disabled=index===order.length-1;
-   this.action(controls,'从文章移除 '+name,()=>this.update(s=>s.order=s.order.filter(x=>x!==id)),'x',true);
+   const main=this.action(top,name,()=>{
+    const keepFocus=main.ownerDocument.activeElement===main;
+    this.selected=this.selected===id?undefined:id;this.renderLists();
+    if(keepFocus)this.outlineEntryControl(id,'name')?.focus({preventScroll:true});
+   },undefined,false,'ts-writing-entry-name');
+   main.setAttribute('aria-expanded',String(this.selected===id));
+   main.createEl('small',{text:chapter?'自建章节':n.kind==='section'?'分组章节 · '+Math.max(0,writingParts(board,[id]).length-1)+' 份材料':kinds[n.kind]+(option?.excluded?' · 暂不纳入正文':'')});
+   const more=this.action(top,'章节操作：'+name,()=>this.openOutlineEntryMenu(more,id),'ellipsis',true,'ts-writing-entry-more');
+   more.setAttribute('aria-haspopup','menu');more.setAttribute('aria-expanded','false');
+   this.bindOutlineEntryKeys(main,id,'name');this.bindOutlineEntryKeys(more,id,'more');
    if(n.kind==='section'){
     const unfiltered=clone(board);if(unfiltered.writing)unfiltered.writing.options=undefined;
     const children=writingParts(unfiltered,[id]).slice(1),summary=row.createDiv('ts-writing-children');
@@ -478,7 +520,7 @@ export class WritingView<S extends WritingSession=WritingSession> extends ItemVi
   const left=this.status.createDiv('ts-writing-status-text');setIcon(left.createSpan(),this.owner.blocked?'triangle-alert':'cloud-check');left.createSpan({cls:'ts-writing-save-label',text:saveLabel});
   if(this.mode==='preview'&&this.previewSignature!==this.articleSignature())this.action(this.status,'更新预览',()=>this.refreshArticle(),'refresh-cw');
   if(this.mode==='outline'){this.action(this.status,'撤销编排',()=>this.undo(),'undo-2',true).disabled=!this.history.length;this.action(this.status,'重做编排',()=>this.undo(true),'redo-2',true).disabled=!this.future.length;}
-  this.status.createSpan({cls:'ts-writing-status-mode',text:this.mode==='write'?'Markdown · 实时预览':this.mode==='outline'?'拖动调整文章顺序':'Markdown · 阅读预览'});
+  this.status.createSpan({cls:'ts-writing-status-mode',text:this.mode==='write'?'Markdown · 实时预览':this.mode==='outline'?'拖动或 Alt + ↑/↓ 调整顺序':'Markdown · 阅读预览'});
   const open=this.contentEl.querySelector<HTMLButtonElement>('.ts-writing-open-draft');if(open)open.disabled=!this.state().draftPath;
  }
  private refreshWritingContext(){

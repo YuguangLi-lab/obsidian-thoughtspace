@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {bindWritingModeFocus,captureWritingReadingScroll,restoreWritingReadingScroll,syncWritingPaneHeight} from '../src/writing-chrome';
 import {readFileSync} from 'node:fs';
 import {transformSync} from 'esbuild';
+import {moveWriting,writingOrder} from '../src/writing';
 
 function fixture(){
  const listeners=new Map<string,Set<()=>void>>(),frames=new Map<number,()=>void>();let id=0,stopped=0;
@@ -45,7 +46,7 @@ function menuFixture(popup=false){
  const doc:any={defaultView:win,win,createDocumentFragment:fragment,activeElement:null};
  const trigger={ownerDocument:doc,isConnected:true,visible:true,getClientRects(){return this.visible?[{}]:[];},getBoundingClientRect:()=>({left:0,bottom:44}),setAttribute(){},focus(){focuses++;doc.activeElement=this;}};
  const method=(name:string)=>{const a=source.indexOf(' private '+name+'(');return source.slice(a,source.indexOf('\n private ',a+1));};
- const View=new Function('themePluginMenu','Menu','Scope','Notice','window',transformSync('class WritingView{'+method('runAction')+source.slice(start,end)+method('newChapter')+method('bindDockDismissal')+method('closeDock')+method('toggleDock')+'};return WritingView',{loader:'ts'}).code)(themePluginMenu,Menu,Scope,class{constructor(message:string){notices.push(message);}},mainWin),view=new View(),leaf={view};Object.assign(view,{leaf,app:{workspace:{activeLeaf:leaf,getActiveViewOfType(type:any){const view=this.activeLeaf?.view;return view instanceof type?view:null;}}},contentEl:{ownerDocument:doc,querySelector:()=>trigger},owner:{},generation:1,mode:'write',closed:false,history:[],future:[],state:()=>({}),setArticleMode(mode:string){this.mode=mode;}});view.openModeMenu();
+ const View=new Function('themePluginMenu','Menu','Scope','Notice','window','writingOrder',transformSync('class WritingView{'+method('runAction')+source.slice(start,end)+method('newChapter')+method('bindDockDismissal')+method('closeDock')+method('toggleDock')+method('outlineEntryControl')+method('moveOutlineEntry')+method('openOutlineEntryMenu')+method('bindOutlineEntryKeys')+'};return WritingView',{loader:'ts'}).code)(themePluginMenu,Menu,Scope,class{constructor(message:string){notices.push(message);}},mainWin,writingOrder),view=new View(),leaf={view};Object.assign(view,{leaf,app:{workspace:{activeLeaf:leaf,getActiveViewOfType(type:any){const view=this.activeLeaf?.view;return view instanceof type?view:null;}}},contentEl:{ownerDocument:doc,querySelector:()=>trigger},owner:{},generation:1,mode:'write',closed:false,history:[],future:[],state:()=>({}),setArticleMode(mode:string){this.mode=mode;}});view.openModeMenu();
  // Actual native callbacks finish with a microtask checkpoint before the
  // next listener. Menu.hide returns the menu, so the host keymap does not
  // preventDefault or stopPropagation; the workspace's bubble listener can
@@ -250,4 +251,49 @@ test('public active-view lookup keeps exact writing instance, leaf attachment an
   else f.view.leaf.view={};
   const event=relayEscape(f);assert.equal(event.original.prevented,false);assert.equal(event.original.stopped,false);f.flushTasks();assert.equal(f.focuses(),0);
  }
+});
+
+function outlineMenuFixture(order:string[]){
+ const f=menuFixture();f.menu.hide();f.flushTasks();
+ const board={nodes:order.map(id=>({id,kind:'text'})),writing:{order:[...order]}};
+ const button=(id:string,control:string)=>({
+  id,control,ownerDocument:f.doc,isConnected:true,
+  getClientRects(){return this.isConnected?[{}]:[];},getBoundingClientRect:()=>({left:100,bottom:200}),
+  setAttribute(){},focus(){f.doc.activeElement=this;},onkeydown:undefined as undefined|((event:any)=>void)
+ });
+ const addChapter=button('new','add');let rows:ReturnType<typeof row>[]=[];
+ function row(id:string){const more=button(id,'more'),name=button(id,'name');return{dataset:{writingNode:id},more,name,querySelector:(selector:string)=>selector.endsWith('more')?more:name};}
+ const rebuild=()=>{for(const item of rows){item.more.isConnected=false;item.name.isConnected=false;}rows=board.writing.order.map(row);};
+ rebuild();
+ const outline={querySelectorAll:()=>rows,querySelector:()=>addChapter};
+ Object.assign(f.view,{outline,ensure:()=>({board}),add:(id:string,index:number)=>{board.writing.order=moveWriting(board.writing.order,id,index);rebuild();},update:(apply:(state:typeof board.writing)=>void)=>{apply(board.writing);rebuild();}});
+ const open=(id:string)=>{const trigger=rows.find(item=>item.dataset.writingNode===id)!.more;f.view.openOutlineEntryMenu(trigger,id);return f.view.modeMenu;};
+ return{...f,board,open,control:(id:string,which:'name'|'more')=>rows.find(item=>item.dataset.writingNode===id)![which],addChapter};
+}
+
+test('outline menu moves adjacent rows and returns focus to the moved row after redraw',async()=>{
+ const f=outlineMenuFixture(['a','b','c']);
+ const menu=f.open('b');assert.equal(menu.items.find((item:any)=>item.title==='下移').disabled,false);
+ menu.hide();menu.items.find((item:any)=>item.title==='下移').click();await Promise.resolve();f.flushTasks();
+ assert.deepEqual(f.board.writing.order,['a','c','b']);assert.equal(f.doc.activeElement,f.control('b','more'));
+ const last=f.open('b');assert.equal(last.items.find((item:any)=>item.title==='下移').disabled,true);last.hide();f.flushTasks();
+});
+
+test('outline removal returns focus to the next chapter or add button',async()=>{
+ for(const order of [['a','b','c'],['b']]){
+  const f=outlineMenuFixture(order),menu=f.open('b');
+  menu.hide();menu.items.find((item:any)=>item.title==='从文章移除').click();await Promise.resolve();f.flushTasks();
+  assert.equal(f.board.writing.order.includes('b'),false);
+  assert.equal(f.doc.activeElement,order.length>1?f.control('c','more'):f.addChapter);
+ }
+});
+
+test('outline shortcut ignores composition and keeps title focus on the reordered row',()=>{
+ const f=outlineMenuFixture(['a','b','c']),title=f.control('b','name');let prevented=false;
+ f.view.bindOutlineEntryKeys(title,'b','name');
+ const event={altKey:true,key:'ArrowUp',preventDefault(){prevented=true;},stopPropagation(){}};
+ title.onkeydown!({...event,isComposing:true});title.onkeydown!({...event,keyCode:229});
+ assert.equal(prevented,false);assert.deepEqual(f.board.writing.order,['a','b','c']);
+ title.onkeydown!(event);
+ assert.equal(prevented,true);assert.deepEqual(f.board.writing.order,['b','a','c']);assert.equal(f.doc.activeElement,f.control('b','name'));
 });

@@ -1,6 +1,6 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';
 import {Board,Card} from '../src/model';
-import {planLayout,resolveLayoutScope,layoutChanges,applyLayout,LayoutOptions,planSectionLayout} from '../src/layout-planner';
+import {planLayout,resolveLayoutScope,layoutChanges,applyLayout,LayoutOptions,LayoutSelectionCountError,layoutGroupRecoveryChoices,planSectionLayout} from '../src/layout-planner';
 const n=(id:string,x:number,y:number,w=100,h=80):Card=>({id,kind:'text',text:id,x,y,width:w,height:h,color:'green'});
 const board=():Board=>({version:3,viewport:{x:0,y:0,zoom:1},nodes:[{...n('frame',0,0,500,500),kind:'section',title:'Topic'},n('inside',40,80),n('inside2',260,180),n('outside',600,0),n('partial',480,480),{...n('locked',900,300),locked:true}],edges:[]});
 const options:LayoutOptions={mode:'grid',columns:2,gap:40,sort:'position',anchor:'center'};
@@ -17,3 +17,20 @@ test('section alignment refits frame and keeps unrelated content',()=>{const b=b
 import {layoutHasChanges} from '../src/layout-planner';
 test('no-op layout has no write while changed node positions are detected',()=>{const b={...board(),nodes:[n('a',0,0),n('b',0,200)]},ids=new Set(['a','b']);assert.equal(layoutHasChanges(planLayout(b,ids,{...options,mode:'alignLeft'})),false);assert.equal(layoutHasChanges(planLayout(b,ids,{...options,mode:'row'})),true);});
 test('frame-only resizing still counts as an applicable layout change',()=>{const b={...board(),nodes:[{...n('frame',0,0,900,900),kind:'section' as const},n('a',30,60),n('b',30,200)]};const p=planSectionLayout(b,'frame',{...options,mode:'alignLeft'});assert.equal(layoutChanges(p),0);assert.equal(layoutHasChanges(p),true);});
+
+
+test('empty loose scope offers only expanded unlocked leaf groups with enough movable members',()=>{
+ const group=(id:string,x:number)=>({...n(id,x,0,500,500),kind:'section' as const,title:id});
+ const b:Board={...board(),nodes:[
+  group('阅读',0),n('a',40,70),n('b',200,180),
+  {...group('锁定组',600),locked:true},n('c',640,70),n('d',810,180),
+  {...group('折叠组',1200),sectionFolded:true},n('e',1240,70),n('f',1410,180),
+  group('含锁定卡',1800),{...n('g',1840,70),locked:true},n('h',2010,180),
+  group('只有一张',2400),n('i',2440,70),
+  group('外层',3000),{...group('子组',3030),width:440,height:400},n('j',3060,100),n('k',3200,240)
+ ]};
+ const before=structuredClone(b),scope=resolveLayoutScope(b,'loose',new Set());
+ assert.throws(()=>planLayout(b,scope.ids,options),(error:unknown)=>error instanceof LayoutSelectionCountError&&error.count===0);
+ assert.deepEqual(layoutGroupRecoveryChoices(b),[{scope:'section:阅读',title:'阅读'},{scope:'section:子组',title:'子组'}]);
+ assert.deepEqual(b,before,'preview recovery does not mutate the board');
+});

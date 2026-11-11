@@ -1,15 +1,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {libraryModalHandlers,paintCardLibrary,type LibraryElement,type LibraryElementOptions} from '../src/card-library-view';
+import {libraryModalHandlers,mountCardLibrary,paintCardLibrary,type LibraryElement,type LibraryElementOptions} from '../src/card-library-view';
 import {buildLibraryRecords,emptyLibraryQuery,uncategorizedChoice,type LibraryViewQuery} from '../src/card-property-views';
 
+type MockDocument={activeElement?:El};
 class El implements LibraryElement {
- children:El[]=[];text='';cls='';value='';disabled=false;textContent:string|null=null;onclick:((event:unknown)=>void)|null=null;onchange:((event:unknown)=>void)|null=null;attrs:Record<string,string>={};
- createEl(_tag:string,options:LibraryElementOptions={}){const child=new El();child.text=options.text||'';child.cls=options.cls||'';child.value=options.value||options.attr?.value||'';child.attrs={...(options.attr||{})};if(options.attr?.['data-note-path'])child.attrs['data-note-path']=options.attr['data-note-path'];if(options.attr?.['data-library-view'])child.attrs['data-library-view']=options.attr['data-library-view'];if(options.attr?.['data-status'])child.attrs['data-status']=options.attr['data-status'];this.children.push(child);return child;}
+ children:El[]=[];text='';tag='';cls='';value='';disabled=false;listeners=new Map<string,(event:Event)=>void>();textContent:string|null=null;onclick:((event:unknown)=>void)|null=null;onchange:((event:unknown)=>void)|null=null;attrs:Record<string,string>={};
+ parent?:El;scrollTop=0;scrollLeft=0;
+ constructor(readonly ownerDocument?:MockDocument){}
+ get isConnected():boolean{return this.tag===''||!!this.parent?.isConnected;}
+ get dataset(){return {libraryFocus:this.attrs['data-library-focus']};}
+ getAttribute(name:string){return this.attrs[name];}
+ contains(child:El){return this.all().includes(child);}
+ querySelectorAll(selector:string){return selector==='[data-library-focus]'?this.all().filter(el=>el.attrs['data-library-focus']):[];}
+ focus(){if(this.ownerDocument)this.ownerDocument.activeElement=this;}
+ createEl(_tag:string,options:LibraryElementOptions={}){const child=new El(this.ownerDocument);child.parent=this;child.tag=_tag;child.text=options.text||'';child.cls=options.cls||'';child.value=options.value||options.attr?.value||'';child.attrs={...(options.attr||{})};if(options.attr?.['data-note-path'])child.attrs['data-note-path']=options.attr['data-note-path'];if(options.attr?.['data-library-view'])child.attrs['data-library-view']=options.attr['data-library-view'];if(options.attr?.['data-status'])child.attrs['data-status']=options.attr['data-status'];this.children.push(child);return child;}
  createDiv(options:LibraryElementOptions|string={}){return this.createEl('div',typeof options==='string'?{cls:options}:options);}
  createSpan(options:LibraryElementOptions|string={}){return this.createEl('span',typeof options==='string'?{cls:options}:options);}
- empty(){this.children=[];}
+ setAttribute(name:string,value:string){this.attrs[name]=value;if(name==='class')this.cls=value;}
+ removeAttribute(name:string){delete this.attrs[name];}
+ addEventListener(type:string,listener:(event:Event)=>void){this.listeners.set(type,listener);}
+ emit(type:string,event:object={}){this.listeners.get(type)?.(event as Event);}
+ empty(){for(const child of this.children)child.parent=undefined;this.children=[];}
  all():El[]{return [this,...this.children.flatMap(child=>child.all())];}
 }
 const records=()=>buildLibraryRecords([
@@ -23,7 +36,8 @@ function paint(query:LibraryViewQuery=emptyLibraryQuery()){
  render(query);
  return {root,opened,placed,unlinked,statuses};
 }
-const labeled=(root:El,label:string)=>root.all().find(el=>el.attrs['aria-label']===label);
+const labeled=(root:El,label:string)=>root.all().find(el=>el.attrs['aria-label']===label)??root.all().find(el=>el.tag==='button'&&el.text===label);
+const more=(root:El,title:string)=>{labeled(root,'更多操作：'+title)!.onclick?.(undefined);return root.all().find(el=>el.cls==='ts-library-more-menu')!;};
 
 test('list, table and kanban show the same card without a copied body',()=>{
  for(const view of ['list','table','kanban'] as const){
@@ -42,9 +56,9 @@ test('filters and source actions do not delete the note',()=>{
  assert.equal(root.all().some(el=>el.attrs['data-note-path']==='Cards/Heat.md'),false);
  assert.equal(root.all().some(el=>el.attrs['data-note-path']==='Cards/Shade.md'),true);
  const card=root.all().find(el=>el.attrs['data-note-path']==='Cards/Shade.md')!;
- labeled(card,'打开源卡片')!.onclick?.(undefined);
+ labeled(card,'打开源卡片：林荫')!.onclick?.(undefined);
  labeled(card,'放置到当前白板')!.onclick?.(undefined);
- labeled(card,'从白板移除引用')!.onclick?.(undefined);
+ labeled(more(root,'林荫'),'从白板移除引用')!.onclick?.(undefined);
  assert.deepEqual(opened,['Cards/Shade.md']);
  assert.deepEqual(placed,['Cards/Shade.md']);
  assert.deepEqual(unlinked,['Cards/Shade.md']);
@@ -54,7 +68,8 @@ test('filters and source actions do not delete the note',()=>{
 test('status choices stay on the note path',()=>{
  const {root,statuses}=paint({...emptyLibraryQuery(),view:'kanban'});
  const card=root.all().find(el=>el.attrs['data-note-path']==='Cards/Shade.md')!;
- const status=card.all().find(el=>el.attrs['aria-label']==='状态 林荫')!;
+ assert.equal(labeled(card,'状态 林荫'),undefined);
+ const status=labeled(more(root,'林荫'),'状态 林荫')!;
  status.value='done';status.onchange?.(undefined);
  assert.deepEqual(statuses,['Cards/Shade.md:done']);
 });
@@ -68,10 +83,10 @@ test('several boards open the chosen card without splitting the path on a newlin
  ]);
  const root=new El(),opened:{boardPath:string;nodeId:string}[]=[];
  paintCardLibrary(root,records,emptyLibraryQuery(),{setQuery(){},place(){},open(){},unlink(){},locate:place=>opened.push(place)});
- const menu=labeled(root,'所在白板 林荫')!;
+ const menu=labeled(more(root,'林荫'),'所在白板 林荫')!;
  assert.equal(menu.all().some(el=>el.text==='选择白板'),true);
  assert.equal(menu.all().some(el=>el.text==='城市降温 · 1'),true);
- const values=menu.all().map(el=>el.value).filter(value=>value.startsWith('['));
+ const values=menu.all().filter(el=>el.tag==='option'&&el.value).map(el=>el.value);
  assert.equal(values.length,2);
  menu.value=values[0];menu.onchange?.(undefined);
  assert.deepEqual(opened,[{boardPath:'Boards/A.md',boardTitle:'城市降温',nodeId:'one'}]);
@@ -95,7 +110,7 @@ test('an incomplete index can search the remaining boards and still reports a de
  paintCardLibrary(root,records,emptyLibraryQuery(),{setQuery(){},place(){},open(){},unlink(){},searchUnindexed:async path=>{searched.push(path);}});
  const card=root.all().find(el=>el.attrs['data-note-path']==='Cards/Shade.md')!;
  assert.match(card.all().map(el=>el.text).join('\n'),/引用位置未索引完/);
- labeled(card,'查找其余白板')!.onclick?.(undefined);
+ labeled(more(root,'林荫'),'查找其余白板')!.onclick?.(undefined);
  assert.deepEqual(searched,['Cards/Shade.md']);
  const notices:string[]=[];
  const handlers=libraryModalHandlers({place(){},open(){},unlink(){},choiceOptions:['主张'],locate:async()=>{throw Error('白板已移动或删除');},searchUnindexed:async()=>{}},()=>{},error=>notices.push(error instanceof Error?error.message:String(error)),()=>{});
@@ -118,8 +133,8 @@ test('uncategorized is a category filter in list, table, and kanban',()=>{
  const list=paint('list','');
  const menu=labeled(list,'分类')!;
  assert.equal(menu.all().some(el=>el.text==='未分类'&&el.value===uncategorizedChoice),true);
- assert.match(list.all().find(el=>el.attrs['data-note-path']==='Cards/Heat.md')!.all().find(el=>el.cls==='ts-library-excerpt')!.text,/未分类/);
- assert.match(list.all().find(el=>el.attrs['data-note-path']==='Cards/Shade.md')!.all().find(el=>el.cls==='ts-library-excerpt')!.text,/证据/);
+ assert.match(list.all().find(el=>el.attrs['data-note-path']==='Cards/Heat.md')!.all().find(el=>el.cls==='ts-library-excerpt')!.all().map(el=>el.text).join(' '),/未分类/);
+ assert.match(list.all().find(el=>el.attrs['data-note-path']==='Cards/Shade.md')!.all().find(el=>el.cls==='ts-library-excerpt')!.all().map(el=>el.text).join(' '),/证据/);
  for(const view of ['list','table','kanban'] as const){
   const root=paint(view,uncategorizedChoice);
   assert.equal(root.all().some(el=>el.attrs['data-note-path']==='Cards/Shade.md'),false);
@@ -128,7 +143,7 @@ test('uncategorized is a category filter in list, table, and kanban',()=>{
  const table=paint('table',uncategorizedChoice);
  assert.equal(table.all().some(el=>el.text==='分类'),true);
  assert.equal(table.all().find(el=>el.attrs['data-note-path']==='Cards/Heat.md')!.children.some(el=>el.text==='未分类'),true);
- assert.match(paint('kanban',uncategorizedChoice).all().find(el=>el.cls==='ts-library-tags')!.text,/未分类/);
+ assert.match(paint('kanban',uncategorizedChoice).all().find(el=>el.cls==='ts-library-tags')!.all().map(el=>el.text).join(' '),/未分类/);
  const empty=new El();
  paintCardLibrary(empty,records.filter(record=>record.choice),{...emptyLibraryQuery(),choice:uncategorizedChoice},{setQuery(){},place(){},open(){},unlink(){},choiceOptions:['证据']});
  assert.equal(empty.all().some(el=>el.text==='没有符合条件的未分类卡片。'),true);
@@ -165,28 +180,107 @@ test('a truncated table title stays available on hover and keyboard focus',()=>{
  const root=new El();
  paintCardLibrary(root,cards,{...emptyLibraryQuery(),view:'table'},{setQuery(){},place(){},open(){},unlink(){}});
  const cell=root.all().find(el=>el.cls.split(' ').includes('ts-library-title-cell'))!;
- assert.equal(cell.attrs.title,title);
- assert.equal(cell.attrs.tabindex,'0');
- assert.equal(cell.attrs['aria-label'],title);
- const css=readFileSync('src/workflow.css','utf8');
- assert.match(css,/\.ts-database \.ts-db-table \.ts-library-title-cell\{[^}]*text-overflow:ellipsis/);
- assert.match(css,/\.ts-database \.ts-db-table \.ts-library-title-cell:focus\{[^}]*white-space:normal/);
+ const button=cell.all().find(el=>el.tag==='button'&&el.cls==='ts-library-title')!;
+ assert.equal(button.attrs.title,title);
+ assert.equal(button.attrs['aria-label'],'打开源卡片：'+title);
+ const css=readFileSync('src/card-library-polish.css','utf8');
+ assert.match(css,/\.ts-db-table \.ts-library-title:not\(:focus-visible\)\s*\{[^}]*text-overflow:\s*ellipsis/);
 });
 
-test('table selection outline and mark are painted on cells and are not clipped by the title ellipsis',()=>{
+test('table selection stays with the pinned title and remains directly toggleable',()=>{
  const cards=records(),root=new El();
- paintCardLibrary(root,cards,{...emptyLibraryQuery(),view:'table',selected:['Cards/Shade.md']},{setQuery(){},place(){},open(){},unlink(){}});
+ let query={...emptyLibraryQuery(),view:'table' as const,selected:['Cards/Shade.md'] as readonly string[]} as LibraryViewQuery;
+ const view=mountCardLibrary(root,{setQuery(next){query=next;view.update(cards,query);},place(){},open(){},unlink(){}});
+ view.update(cards,query);
  const row=root.all().find(el=>el.attrs['data-note-path']==='Cards/Shade.md')!;
  const title=row.children.find(el=>el.cls.split(' ').includes('ts-library-title-cell'))!;
- const hosts=row.children.filter(el=>el.children.some(child=>child.cls.split(' ').includes('ts-library-selected-mark')));
- assert.equal(title.children.some(el=>el.cls.split(' ').includes('ts-library-selected-mark')),false);
- assert.equal(hosts.length,1);
- assert.notEqual(hosts[0],title);
- const css=readFileSync('src/workflow.css','utf8');
- assert.match(css,/\.ts-db-table tr\.is-selected>td\{[^}]*background:transparent[^}]*box-shadow:[^;]*var\(--ts-e-selected\)/);
- assert.match(css,/\.ts-db-table tr\.is-selected>td:first-child\{[^}]*box-shadow:[^;]*var\(--ts-e-selected\)/);
- assert.match(css,/\.ts-db-table tr\.is-selected>td:last-child\{[^}]*overflow:visible[^}]*position:relative/);
- assert.match(css,/\.ts-database \.ts-db-table \.ts-library-title-cell\{[^}]*overflow:hidden/);
+ const selection=labeled(title,'选择卡片：林荫')!;
+ assert.equal(selection.attrs['aria-pressed'],'true');
+ assert.equal(selection.text,'✓');
+ selection.onclick?.(undefined);
+ assert.deepEqual(query.selected,[]);
+ assert.equal(labeled(root,'选择卡片：林荫')?.attrs['aria-pressed'],'false');
+ const css=readFileSync('src/card-library-polish.css','utf8');
+ assert.match(css,/\.ts-library-title-cell\s*\{[^}]*position:\s*sticky/);
+});
+
+test('dismissing row actions keeps the card library mounted and restores its trigger focus',()=>{
+ const document:MockDocument={},cards=records(),root=new El(document);
+ const view=mountCardLibrary(root,{setQuery(){},place(){},open(){},unlink(){}});
+ view.update(cards,emptyLibraryQuery());
+ const trigger=labeled(root,'更多操作：林荫')!,menu=more(root,'林荫');
+ labeled(menu,'从白板移除引用')!.focus();
+ assert.equal(trigger.attrs['aria-expanded'],'true');
+ assert.equal(view.dismissActions(),true);
+ assert.equal(trigger.attrs['aria-expanded'],'false');
+ assert.equal(menu.attrs.hidden,'');
+ assert.equal(document.activeElement,trigger);
+ assert.equal(view.dismissActions(),false);
+ assert.ok(labeled(root,'搜索卡片库'));
+});
+
+test('live search waits for Chinese IME composition and keeps the original field mounted',()=>{
+ const cards=records(),root=new El(),queries:string[]=[];
+ const view=mountCardLibrary(root,{setQuery(next){queries.push(next.query);view.update(cards,next);},place(){},open(){},unlink(){}});
+ view.update(cards,emptyLibraryQuery());
+ const search=labeled(root,'搜索卡片库')!;
+ search.emit('compositionstart');
+ search.value='lin';search.emit('input',{isComposing:true});
+ assert.deepEqual(queries,[]);
+ view.update(cards,emptyLibraryQuery(),{indexing:true});
+ assert.equal(search.value,'lin');
+ search.value='林荫';search.emit('compositionend');search.emit('input');
+ assert.deepEqual(queries,['林荫']);
+ assert.equal(labeled(root,'搜索卡片库'),search);
+ assert.equal(root.all().some(el=>el.attrs['data-note-path']==='Cards/Heat.md'),false);
+});
+
+test('row focus and scroll survive updates, with separate scroll positions for each view',()=>{
+ const document:MockDocument={},cards=records(),root=new El(document);
+ let current=emptyLibraryQuery();
+ const view=mountCardLibrary(root,{setQuery(next){current=next;view.update(cards,next);},place(){},open(){},unlink(){}});
+ view.update(cards,current);
+ const results=root.all().find(el=>el.attrs['data-library-view']==='list')!;
+ results.scrollTop=120;
+ const button=labeled(root,'选择卡片：林荫')!;
+ button.focus();
+ button.onclick?.(undefined);
+ assert.notEqual(document.activeElement,button);
+ assert.equal(document.activeElement,labeled(root,'选择卡片：林荫'));
+ assert.equal(results.scrollTop,120);
+ const table=labeled(root,'表格')!;
+ table.focus();
+ table.onclick?.(undefined);
+ assert.equal(document.activeElement,table);
+ assert.equal(results.scrollTop,0);
+ results.scrollLeft=160;
+ labeled(root,'列表')!.onclick?.(undefined);
+ assert.equal(results.scrollTop,120);
+ assert.equal(results.scrollLeft,0);
+ table.onclick?.(undefined);
+ assert.equal(results.scrollLeft,160);
+});
+
+test('active filters can be removed individually, or reset without losing view or selection',()=>{
+ const cards=records(),root=new El();
+ let query:LibraryViewQuery={...emptyLibraryQuery(),view:'kanban',type:'note',tag:'城市',query:'林荫',selected:['Cards/Shade.md']};
+ const view=mountCardLibrary(root,{setQuery(next){query=next;view.update(cards,query);},place(){},open(){},unlink(){}});
+ view.update(cards,query);
+ labeled(root,'清除标签：#城市')!.onclick?.(undefined);
+ assert.equal(query.tag,'');assert.equal(query.query,'林荫');assert.equal(query.type,'note');
+ labeled(root,'清除全部')!.onclick?.(undefined);
+ assert.deepEqual(query,{...emptyLibraryQuery(),view:'kanban',selected:['Cards/Shade.md']});
+ assert.equal(root.all().filter(el=>el.attrs['data-note-path']).length,2);
+});
+
+test('search without results offers reset and pending index status does not claim a card is unplaced',()=>{
+ const cards=records(),root=new El();
+ const view=mountCardLibrary(root,{setQuery(next){view.update(cards,next,{indexing:true});},place(){},open(){},unlink(){}});
+ view.update(cards,{...emptyLibraryQuery(),view:'table',query:'无匹配'},{indexing:true});
+ assert.equal(root.all().find(el=>el.cls==='ts-library-index-status')?.textContent,'正在索引白板引用…');
+ labeled(root,'清除筛选')!.onclick?.(undefined);
+ const row=root.all().find(el=>el.attrs['data-note-path']==='Cards/Heat.md')!;
+ assert.ok(row.children.some(cell=>cell.text==='正在索引'));
 });
 
 test('card library kanban lays out as flex columns on a wash board with paper lanes',()=>{

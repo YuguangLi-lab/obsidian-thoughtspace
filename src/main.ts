@@ -1541,9 +1541,9 @@ export default class ThoughtSpace extends Plugin {
   }
   async openCardLibrary(view?:BoardView){
     const run=++this.cardLibraryRun,current=()=>run===this.cardLibraryRun;
-    let scanned:LibraryBoardSource[]=[],pending:TFile[]=[],limited=false,searching=false,modal!:CardLibraryModal;
+    let scanned:LibraryBoardSource[]=[],pending:TFile[]=[],limited=false,indexing=true,searching=false,modal!:CardLibraryModal;
     const live=():LibraryBoardSource[]=>view?.session&&!view.closed&&view.file?[{path:view.file.path,title:view.file.basename,files:libraryFilesOnBoard(view.session.board.nodes),placements:libraryPlacements(view.session.board.nodes)}]:[];
-    const host={records:()=>buildLibraryRecords(this.libraryNoteSources(),mergeBoardSources(scanned,live()),this.settings.choiceField,limited),get limitNote(){return limited?'引用位置还不完整。可按卡片查找其余白板。':undefined;},choiceOptions:this.settings.choiceField.options,
+    const host={records:()=>buildLibraryRecords(this.libraryNoteSources(),mergeBoardSources(scanned,live()),this.settings.choiceField,limited),get indexing(){return indexing;},get limitNote(){return limited?'引用位置还不完整。可按卡片查找其余白板。':undefined;},choiceOptions:this.settings.choiceField.options,
       place:(path:string)=>{const target=this.app.workspace.getActiveViewOfType(BoardView)||view;if(!target||target.closed)throw Error('请先打开白板');const file=this.app.vault.getAbstractFileByPath(libraryPath(path));if(!(file instanceof TFile)||file.path!==path)throw Error('源笔记已移动或不存在');target.placeExistingCard(file);},
       open:(path:string)=>{const file=this.app.vault.getAbstractFileByPath(path);if(!(file instanceof TFile))throw Error('源笔记已移动或不存在');return this.openNoteInSidebar(file);},
       unlink:(path:string)=>{const target=this.app.workspace.getActiveViewOfType(BoardView)||view;if(!target||target.closed)throw Error('请先打开白板');target.unlinkLibraryPath(path);},
@@ -1569,7 +1569,7 @@ export default class ThoughtSpace extends Plugin {
     modal=new CardLibraryModal(this.app,host);modal.open();
     const indexed=await this.libraryBoardIndex(()=>current()&&modal.modalEl.isConnected);
     if(!current()||!modal.modalEl.isConnected)return;
-    scanned=indexed.boards;pending=indexed.pending;limited=indexed.limited;modal.refresh();
+    scanned=indexed.boards;pending=indexed.pending;limited=indexed.limited;indexing=false;modal.refresh();
     return modal;
   }
   private firstSession?:FirstSessionModal;
@@ -3792,7 +3792,7 @@ class BoardView extends FileView {
     const panel=main.createDiv({cls:'ts-rail-popover ts-tools-palette',attr:{role:'dialog','aria-label':'更多白板工具'}});panel.hidden=true;
     const toolsHead=panel.createDiv('ts-palette-heading');const toolsTitle=toolsHead.createDiv('ts-palette-title');toolsTitle.createEl('strong',{text:'白板工具'});
     const toolbar=panel.createDiv('ts-rail-actions');
-    const cluster=(parent:HTMLElement,label:string)=>{if(parent!==toolbar)return parent.createDiv({cls:'ts-tool-cluster',attr:{role:'group','aria-label':label}});const group=parent.createEl('details',{cls:'ts-tool-cluster',attr:{role:'group','aria-label':label,open:'true'}});group.createEl('summary',{cls:'ts-tool-cluster-title',text:label});return group;};
+    const cluster=(parent:HTMLElement,label:string)=>{if(parent!==toolbar)return parent.createDiv({cls:'ts-tool-cluster',attr:{role:'group','aria-label':label}});const group=parent.createEl('details',{cls:'ts-tool-cluster',attr:{role:'group','aria-label':label,open:'true'}});const summary=group.createEl('summary',{cls:'ts-tool-cluster-title'});setIcon(summary.createSpan({cls:'ts-tool-disclosure-icon',attr:{'aria-hidden':'true'}}),'chevron-right');summary.createSpan({text:label});return group;};
     const organize=cluster(toolbar,'组织与整理'),workspace=cluster(toolbar,'阅读与工作区');
     this.selectionButton=button(interactionRail,'框选','scan',()=>this.toggleSelectionTool());this.selectionButton.title='开启后左键框选 · Shift 累加 · 空格加左键平移 · 鼠标操作可在设置中修改';
     this.connectButton=button(interactionRail,'连线','move-up-right',()=>this.toggleConnectionTool(),'ts-rail-secondary');
