@@ -3737,7 +3737,7 @@ body {
   background-size: 384px 384px;
   background-position: 0 0;
   background-repeat: repeat;
-  opacity: clamp(0, var(--ts-paper-texture, .55), 1);
+  opacity: calc(clamp(0, var(--ts-paper-texture, .55), 1) * var(--ts-e-grain-opacity, 1));
 }
 .ts-root[data-background=paper] .ts-stage > .ts-world:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { z-index: 1; }
 .ts-root .ts-stage > .ts-world:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { will-change: transform; }

@@ -87,6 +87,44 @@ test('selected material beats late legacy palette selectors without global impor
   }
 });
 
+test('purpose tokens expose page, panel, overlay, body ink, control line and motion', () => {
+  for (const dark of [false, true]) {
+    const values = palette('paper', dark);
+    for (const key of [
+      '--ts-e-paper', '--ts-e-sheet', '--ts-e-overlay', '--ts-e-body',
+      '--ts-e-control-line', '--ts-e-focus', '--ts-e-selected', '--ts-e-success',
+      '--ts-e-title-size', '--ts-e-body-size', '--ts-e-meta-size',
+      '--ts-e-space-icon', '--ts-e-space-control', '--ts-e-space-panel', '--ts-e-space-section',
+      '--ts-e-radius-sm', '--ts-e-radius', '--ts-e-radius-lg',
+      '--ts-e-motion', '--ts-e-ease', '--ts-e-grain-opacity',
+    ]) assert.ok(values[key], `${dark ? 'dark' : 'light'} missing ${key}`);
+    assert.equal(values['--ts-e-radius-sm'], '4px');
+    assert.equal(values['--ts-e-radius'], '8px');
+    assert.equal(values['--ts-e-radius-lg'], '12px');
+    assert.equal(values['--ts-e-motion'], '200ms');
+    assert.equal(values['--ts-e-ease'], 'ease-in-out');
+    if (!dark) assert.equal(values['--ts-e-paper'], '#f8f5ef');
+    assert.notEqual(values['--ts-e-selected'], values['--ts-e-success']);
+    for (const text of ['ink', 'body', 'muted']) {
+      for (const surface of ['paper', 'sheet', 'overlay']) {
+        assert.ok(
+          contrast(values[`--ts-e-${text}`], values[`--ts-e-${surface}`]) >= 4.5,
+          `${text}/${surface}`,
+        );
+      }
+    }
+    for (const line of ['control-line', 'focus', 'selected']) {
+      assert.ok(contrast(values[`--ts-e-${line}`], values['--ts-e-sheet']) >= 3, line);
+    }
+  }
+});
+
+test('reduced-motion zeroes the duration token inside plugin roots', () => {
+  const css = interfaceStyleRules('paper', false);
+  assert.match(css, /prefers-reduced-motion:\s*reduce/);
+  assert.match(css, /--ts-e-motion:\s*0ms/);
+});
+
 test('paper retains AA text contrast on sheet, page and wash surfaces for all legacy settings', () => {
   for (const style of styles) for (const dark of [false, true]) {
     const values = palette(style, dark);

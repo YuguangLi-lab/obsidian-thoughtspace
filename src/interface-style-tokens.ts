@@ -68,8 +68,9 @@ export function interfaceStyleRules(_style?: unknown, _glassEffects?: boolean,se
   light.shadow=dark.shadow='0 1px 3px #00000009';
   const font = 'var(--font-interface)';
   const radius = '8px';
+  const purposeShape = `--ts-e-title-size:1.25em;--ts-e-title-weight:600;--ts-e-title-leading:1.3;--ts-e-body-size:1em;--ts-e-body-weight:400;--ts-e-body-leading:1.55;--ts-e-meta-size:0.8125em;--ts-e-meta-weight:400;--ts-e-meta-leading:1.4;--ts-e-space-icon:6px;--ts-e-space-control:10px;--ts-e-space-panel:16px;--ts-e-space-section:28px;--ts-e-radius-sm:4px;--ts-e-radius:${radius};--ts-e-radius-lg:12px;--ts-e-control-radius:var(--ts-e-radius-sm);--ts-e-motion:200ms;--ts-e-ease:ease-in-out;`;
   const shared = `
-    --ts-e-serif:${font};--ts-e-radius:${radius};--ts-e-control-radius:5px;
+    --ts-e-serif:${font};${purposeShape}
     --ts-design-line:var(--ts-e-line);--ts-design-panel:var(--ts-e-sheet);
     --ts-design-wash:color-mix(in srgb,var(--ts-accent,var(--interactive-accent)) 6%,var(--ts-e-sheet));
     --ts-design-hover:var(--ts-design-wash);--ts-design-overlay-shadow:var(--ts-e-shadow);
@@ -82,12 +83,15 @@ export function interfaceStyleRules(_style?: unknown, _glassEffects?: boolean,se
   `;
   const paint=(value:Palette&{accent:string},isDark:boolean)=>{
     const custom=accent==='blue'?(isDark?'#8bbaf0':'#245a8b'):accent==='amber'?(isDark?'#e4bd75':'#805417'):accent==='rose'?(isDark?'#e8a6bc':'#9b4265'):accent==='palette'?value.accent:(isDark?'#93c8b4':'#356859');
-    return paletteRules(value,id==='paper'?(isDark?paperDark:paperLight):undefined)+`--ts-accent:${custom};--ts-palette-accent:${value.accent};--ts-e-on-accent:${isDark?value.paper:value.sheet};--ts-e-danger:${isDark?'#ffb4b4':'#9e2634'};--ts-e-warning:${isDark?'#edc78a':'#805417'};color-scheme:${isDark?'dark':'light'};`;
+    const surfaces=isDark
+      ?`--ts-e-overlay:#252620;--ts-e-body:#d4d7cb;--ts-e-control-line:#b9bcaf;--ts-e-focus:#8bbaf0;--ts-e-selected:#93c8b4;--ts-e-success:#7ec8a3;--ts-e-disabled:#717d79;--ts-e-grain-opacity:.4;`
+      :`--ts-e-overlay:#fcf9f3;--ts-e-body:#3c4038;--ts-e-control-line:#5c615c;--ts-e-focus:#245a8b;--ts-e-selected:#356859;--ts-e-success:#1f6b45;--ts-e-disabled:#8d928c;--ts-e-grain-opacity:1;`;
+    return paletteRules(value,id==='paper'?(isDark?paperDark:paperLight):undefined)+surfaces+purposeShape+`--ts-accent:${custom};--ts-palette-accent:${value.accent};--ts-e-on-accent:${isDark?value.paper:value.sheet};--ts-e-danger:${isDark?'#ffb4b4':'#9e2634'};--ts-e-warning:${isDark?'#edc78a':'#805417'};color-scheme:${isDark?'dark':'light'};`;
   };
   let css=rule(allRoots,shared+paint(scheme==='dark'?dark:light,scheme==='dark'));
   if(scheme==='auto')css+=rule(`.theme-dark ${allRoots}`,paint(dark,true));
   const nativeChrome=roots.filter(root=>!['.ts-root','.ts-brain-shell','.ts-handwriting','.ts-collection-content'].includes(root)).map(owned).join(',');
-  css+=rule(nativeChrome,'--background-primary:var(--ts-e-sheet);--background-secondary:var(--ts-e-paper);--background-modifier-border:var(--ts-e-line);--text-normal:var(--ts-e-ink);--text-muted:var(--ts-e-muted);--text-faint:var(--ts-e-muted);--icon-color:var(--ts-e-muted);--icon-color-hover:var(--ts-e-ink);--interactive-normal:var(--ts-e-sheet);--interactive-hover:var(--ts-e-wash);--interactive-accent:var(--ts-accent);--text-on-accent:var(--ts-e-on-accent);--text-error:var(--ts-e-danger);--text-warning:var(--ts-e-warning);');
+  css+=rule(nativeChrome,'--background-primary:var(--ts-e-sheet);--background-secondary:var(--ts-e-paper);--background-modifier-border:var(--ts-e-line);--text-normal:var(--ts-e-body);--text-muted:var(--ts-e-muted);--text-faint:var(--ts-e-muted);--icon-color:var(--ts-e-muted);--icon-color-hover:var(--ts-e-ink);--interactive-normal:var(--ts-e-sheet);--interactive-hover:var(--ts-e-wash);--interactive-accent:var(--ts-accent);--text-on-accent:var(--ts-e-on-accent);--text-error:var(--ts-e-danger);--text-warning:var(--ts-e-warning);');
   for(const root of ['.ts-root','.ts-ui-modal','.ts-settings','.ts-writing','.ts-materials-modal','.ts-materials-panel','.ts-media-workspace','.ts-online-workspace','.ts-note-markdown-toolbar'])css+=rule(within(root,'.ts-button.ts-primary,.ts-button.mod-cta,.ts-writing-button.mod-cta'),'background:var(--ts-accent)!important;color:var(--ts-e-on-accent)!important;');
   // The marker is attached only to menus created by ThoughtSpace. Native menus
   // and another plugin's .menu are intentionally outside this layer.
@@ -107,7 +111,7 @@ export function interfaceStyleRules(_style?: unknown, _glassEffects?: boolean,se
   // Only named plugin chrome. In particular, there are no Markdown/editor,
   // node, media player, ink stage, canvas background or native-menu selectors.
   const boardChrome=within('.ts-root','.ts-commandbar,.ts-inspector,.ts-minimap,.ts-calendar,.ts-tour-bar,.ts-board-rail,.ts-rail-popover,.ts-footer .ts-view-dock,.ts-canvas-settings-panel');
-  css+=rule(boardChrome,'--text-normal:var(--ts-e-ink);--text-muted:var(--ts-e-muted);--text-faint:var(--ts-e-muted);--icon-color:var(--ts-e-muted);--background-primary:var(--ts-e-sheet);--background-secondary:var(--ts-e-paper);--background-modifier-border:var(--ts-e-line);--background-modifier-hover:var(--ts-e-wash);--text-on-accent:var(--ts-e-on-accent);color:var(--ts-e-ink);');
+  css+=rule(boardChrome,'--text-normal:var(--ts-e-body);--text-muted:var(--ts-e-muted);--text-faint:var(--ts-e-muted);--icon-color:var(--ts-e-muted);--background-primary:var(--ts-e-sheet);--background-secondary:var(--ts-e-paper);--background-modifier-border:var(--ts-e-line);--background-modifier-hover:var(--ts-e-wash);--text-on-accent:var(--ts-e-on-accent);color:var(--ts-e-ink);');
   const sheetChrome = [
     boardChrome,
     within('.ts-writing', '.ts-writing-header,.ts-writing-formatbar,.ts-writing-dock-head,.ts-writing-reference-heading,.ts-writing-panel-head,.ts-writing-transition'),
@@ -143,5 +147,6 @@ export function interfaceStyleRules(_style?: unknown, _glassEffects?: boolean,se
       rule(within(root, '.ts-materials-library,.ts-materials-tabs button[aria-selected=true]'), 'background:var(--ts-e-sheet);color:var(--ts-e-ink);');
   }
 
+  css += `@media (prefers-reduced-motion: reduce){${allRoots}{--ts-e-motion:0ms;}}`;
   return css;
 }
