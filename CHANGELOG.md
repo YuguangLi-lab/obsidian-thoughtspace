@@ -1,5 +1,23 @@
 # 更新记录
 
+## 1.3.51
+
+### 暖白纸面与界面整理
+
+- 默认纸色和界面底色统一为暖白 `#f8f5ef`。深色改为低饱和炭灰：面板 `#18191b`，页面 `#222326`，对话框浮层 `#323339`，浮层比页面更亮。旧的米黄底不再作为默认界面。
+- 工具面板、整理白板、写作预览、卡片库、设置和导出对话框按同一套间距和层级整理。写作正文居中，行宽约 40rem。卡片库在列表、表格和看板之间切换时保留筛选和选中；表格选中画在单元格上，卡片自己的填色还在。
+- 设置按区块排列，标签、说明、控件顺序一致。纸色写错和导出失败的提示跟在对应字段后面，并带圆圈感叹号。空的导出记录会说明下一步。
+- 增加界面对比度、旧黄底色、对话框浮层和日历隔离的自动检查。
+- 纸张纹理仍内嵌在 `styles.css`。日历隔离规则不变。白板格式仍是第 3 版。
+
+### English
+
+- Default paper and chrome use warm white `#f8f5ef`. The dark theme is a low-saturation charcoal: panel `#18191b`, page `#222326`, and dialog overlay `#323339`, with the overlay lighter than the page. The old yellow surfaces are no longer the default chrome.
+- The tool panel, organize board, writing preview, card library, settings, and export dialogs share one spacing and hierarchy. Writing is centered at about 40rem. The library keeps filters and selection across list, table, and kanban. Table selection is painted on the cells, and a card keeps its own fill.
+- Settings are grouped, with the label, the description, then the control. An invalid paper color and a failed export sit next to their fields, with a circled exclamation. An empty export history explains the next step.
+- Automated checks cover contrast, the old yellow surfaces, the dialog overlay, and calendar isolation.
+- The paper texture stays embedded in `styles.css`. Calendar isolation is unchanged. The board format stays version 3.
+
 ## 1.3.50
 
 ### 高亮保存、卡片库筛选与画面导出
