@@ -150,7 +150,7 @@ export function interfaceStyleRules(_style?: unknown, _glassEffects?: boolean,se
   }
 
   const gallery = owned('.ts-component-gallery');
-  css += rule(`${gallery}.theme-dark`, paint(dark, true)) + rule(`.theme-dark ${gallery}[data-theme=light]`, paint(light, false));
+  css += rule(`${gallery}.theme-dark`, paint(dark, true)) + rule(`${gallery}[data-theme=light]`, paint(light, false));
   css += `@media (prefers-reduced-motion: reduce){${allRoots}{--ts-e-motion:0ms;}}`;
   return css;
 }
