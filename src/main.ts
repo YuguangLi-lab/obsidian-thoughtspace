@@ -3792,7 +3792,7 @@ class BoardView extends FileView {
     const panel=main.createDiv({cls:'ts-rail-popover ts-tools-palette',attr:{role:'dialog','aria-label':'更多白板工具'}});panel.hidden=true;
     const toolsHead=panel.createDiv('ts-palette-heading');const toolsTitle=toolsHead.createDiv('ts-palette-title');toolsTitle.createEl('strong',{text:'白板工具'});
     const toolbar=panel.createDiv('ts-rail-actions');
-    const cluster=(parent:HTMLElement,label:string)=>parent.createDiv({cls:'ts-tool-cluster',attr:{role:'group','aria-label':label}});
+    const cluster=(parent:HTMLElement,label:string)=>{if(parent!==toolbar)return parent.createDiv({cls:'ts-tool-cluster',attr:{role:'group','aria-label':label}});const group=parent.createEl('details',{cls:'ts-tool-cluster',attr:{role:'group','aria-label':label,open:'true'}});group.createEl('summary',{cls:'ts-tool-cluster-title',text:label});return group;};
     const organize=cluster(toolbar,'组织与整理'),workspace=cluster(toolbar,'阅读与工作区');
     this.selectionButton=button(interactionRail,'框选','scan',()=>this.toggleSelectionTool());this.selectionButton.title='开启后左键框选 · Shift 累加 · 空格加左键平移 · 鼠标操作可在设置中修改';
     this.connectButton=button(interactionRail,'连线','move-up-right',()=>this.toggleConnectionTool(),'ts-rail-secondary');
