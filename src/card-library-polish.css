@@ -171,6 +171,8 @@
   font-size: 12px;
 }
 .ts-card-library button.ts-library-select[aria-pressed=true] { background: var(--ts-e-paper); border-color: var(--ts-e-selected); }
+/* The checkbox is the only selection mark. The shared corner tick stays for other surfaces. */
+.ts-database-modal.ts-ui-modal .ts-card-library .ts-library-card.is-selected::after { content: none; }
 .ts-database-modal.ts-ui-modal .ts-card-library :is(.ts-library-excerpt,.ts-library-tags) {
   display: flex;
   flex-wrap: wrap;
