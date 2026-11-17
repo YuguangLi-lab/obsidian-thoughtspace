@@ -12199,6 +12199,8 @@ body {
   font-size: 12px;
 }
 .ts-card-library button.ts-library-select[aria-pressed=true]:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) { background: var(--ts-e-paper); border-color: var(--ts-e-selected); }
+/* The checkbox is the only selection mark. The shared corner tick stays for other surfaces. */
+.ts-database-modal.ts-ui-modal .ts-card-library .ts-library-card.is-selected:not(:where(.ts-calendar-plugin, .ts-calendar-plugin *))::after { content: none; }
 .ts-database-modal.ts-ui-modal .ts-card-library :is(.ts-library-excerpt,.ts-library-tags):not(:where(.ts-calendar-plugin, .ts-calendar-plugin *)) {
   display: flex;
   flex-wrap: wrap;
