@@ -142,8 +142,18 @@
 
 .ts-root :is(.ts-text-markdown,.ts-card-preview,.ts-inline-native) table { border-collapse:collapse; border-spacing:0; }
 .ts-root :is(.ts-text-markdown,.ts-card-preview,.ts-inline-native) :is(th,td) {
-  border:1px solid color-mix(in srgb,var(--text-muted) 38%,var(--background-modifier-border))!important;
+  padding:.42em .72em;
+  border:1px solid color-mix(in srgb,var(--text-muted) 18%,var(--background-modifier-border))!important;
   box-shadow:none!important;
+}
+.ts-root .ts-card-preview th {
+  color:color-mix(in srgb,var(--text-normal) 78%,var(--text-muted));
+  font-size:.88em;
+  font-weight:600;
+  letter-spacing:.01em;
+}
+.ts-root .ts-card-preview td {
+  font-variant-numeric:tabular-nums;
 }
 
 /* A table card is just its grid, even while selected or editing. Keep the

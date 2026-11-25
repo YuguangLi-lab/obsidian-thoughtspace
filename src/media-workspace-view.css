@@ -1,14 +1,14 @@
 /* The leaf sets the frame; the viewer, editor and timeline each own their scroll. */
 .workspace-leaf-content[data-type="thoughtspace-media-player"] .view-content.ts-media-workspace {
-  --ts-mw-line: color-mix(in srgb, var(--background-modifier-border) 70%, transparent);
-  --ts-mw-soft: color-mix(in srgb, var(--background-secondary) 65%, var(--background-primary));
-  --ts-mw-accent-soft: color-mix(in srgb, var(--ts-accent) 6%, var(--background-primary));
+  --ts-mw-line: var(--ts-e-line, color-mix(in srgb, var(--background-modifier-border) 70%, transparent));
+  --ts-mw-soft: var(--ts-e-wash, color-mix(in srgb, var(--background-secondary) 65%, var(--background-primary)));
+  --ts-mw-accent-soft: color-mix(in srgb, var(--ts-accent) 7%, var(--ts-e-sheet, var(--background-primary)));
   --ts-mw-radius: 12px;
-  --ts-mw-page: color-mix(in srgb,var(--background-secondary) 45%,var(--background-primary));
+  --ts-mw-page: var(--ts-e-paper, color-mix(in srgb,var(--background-secondary) 45%,var(--background-primary)));
   --ts-mw-shadow: 0 1px 3px rgb(0 0 0 / 3%);
   display: flex; flex-direction: column; flex: 1 1 0;
   width: 100%; height: 100%; min-width: 0; min-height: 0; padding: 0; overflow: hidden;
-  color: var(--text-normal); background: var(--background-primary); font-family: var(--font-interface);
+  color: var(--ts-e-ink, var(--text-normal)); background: var(--ts-e-sheet, var(--background-primary)); font-family: var(--font-interface);
   container: ts-media / size;
 }
 /* Obsidian themes may float their status bar over the bottom-right leaf. */
@@ -19,7 +19,7 @@
 .ts-media-workspace [hidden] {display: none!important;}
 
 /* Filename first, with a small set of always visible actions. */
-.ts-media-workspace__header {display:flex; align-items:center;gap:8px; flex:none; min-width:0;min-height:48px;padding:6px 16px; border-bottom:1px solid var(--ts-mw-line); background:var(--background-primary);}
+.ts-media-workspace__header {display:flex; align-items:center;gap:8px; flex:none; min-width:0;min-height:48px;padding:6px 16px; border-bottom:1px solid var(--ts-mw-line); background:var(--ts-e-sheet,var(--background-primary));}
 .ts-media-workspace__identity {display: flex; align-items: center; gap: 10px; flex: 1 1 auto; min-width: 0;}
 .ts-media-workspace__mark {display:none;}
 .ts-media-workspace__eyebrow {color:var(--text-muted); font-size:12px; font-weight:500;}
@@ -51,7 +51,7 @@
 /* The viewer occupies the left column; writing and the timeline share the right. */
 .ts-media-workspace__layout {display:grid; grid-template-columns:minmax(0,1fr) minmax(280px,calc(100% - var(--ts-mw-viewer,56%))); grid-template-rows:minmax(260px,var(--ts-mw-composer,40%)) minmax(200px,1fr); grid-template-areas:"viewer composer" "viewer timeline"; flex:1 1 0; gap:12px 16px; min-width:0; min-height:0; padding:14px; overflow:hidden; background:var(--ts-mw-page);}
 .ts-media-workspace__main {display:flex; flex-direction:column; grid-area:viewer; min-width:0; min-height:0; padding:0; overflow:hidden; container:ts-media-viewer / size;}
-.ts-media-workspace__file-kind {flex:none; padding:3px 5px; border:0; border-radius:4px; color:var(--text-muted); background:var(--ts-mw-soft); font-family:var(--font-interface); font-size:9px; font-weight:500; letter-spacing:.04em; line-height:1;}
+.ts-media-workspace__file-kind {flex:none; padding:3px 6px; border:0; border-radius:4px; color:var(--text-muted); background:var(--ts-mw-soft); font-family:var(--font-interface); font-size:11px; font-weight:600; letter-spacing:.03em; line-height:1.1;}
 .ts-media-workspace__player {display: flex; flex-direction: column; width: 100%; height: 100%; min-width: 0; min-height: 0;}
 .ts-media-workspace__player .ts-av-player {width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden; border: 1px solid var(--ts-mw-line); border-radius: var(--ts-mw-radius); background: var(--background-primary); box-shadow: var(--ts-mw-shadow);}
 .ts-media-workspace__player .ts-media-card__title {display: none;}
@@ -69,7 +69,7 @@
 .ts-media-workspace__panel-switcher {display: none;}
 
 /* Only the editor scrolls: the draft time and save actions stay in place. */
-.ts-media-workspace__composer {display:flex; flex-direction:column; grid-area:composer; min-width:0; min-height:0; gap:8px; padding:14px 16px 10px; overflow:hidden;border:0;border-radius:0; background:var(--background-primary);}
+.ts-media-workspace__composer {display:flex; flex-direction:column; grid-area:composer; min-width:0; min-height:0; gap:8px; padding:14px 16px 10px; overflow:hidden;border:0;border-radius:0; background:var(--ts-e-sheet,var(--background-primary));}
 .ts-media-workspace__draft-tools {display:flex;flex-direction:column;flex:none;min-width:0;gap:inherit;}
 .ts-media-workspace__composer-heading, .ts-media-workspace__records-heading {display: flex; align-items: center; gap: 8px; flex: none; min-width: 0;}
 .ts-media-workspace__section-title {display: flex; align-items: center; gap: 7px; flex: 1 1 auto; min-width: 0; font-size: 13px; letter-spacing: -.01em;}
@@ -91,10 +91,10 @@
 .ts-media-workspace__image-label {min-width:0; overflow-wrap:anywhere; color:var(--text-muted); font-size:10px; line-height:1.5;}
 
 /* Timeline controls and pagination never scroll with the entries. */
-.ts-media-workspace__desk {display: flex; flex-direction: column; grid-area: timeline; min-width: 0; min-height: 0; overflow: hidden; border: 1px solid var(--ts-mw-line); border-radius: var(--ts-mw-radius); background: var(--background-primary); box-shadow: var(--ts-mw-shadow); container: ts-media-desk / inline-size;}
+.ts-media-workspace__desk {display: flex; flex-direction: column; grid-area: timeline; min-width: 0; min-height: 0; overflow: hidden; border: 1px solid var(--ts-mw-line); border-radius: var(--ts-mw-radius); background: var(--ts-e-sheet,var(--background-primary)); box-shadow: var(--ts-mw-shadow); container: ts-media-desk / inline-size;}
 .ts-media-workspace__records {display:grid; grid-template-columns:minmax(0,1fr) auto; grid-template-rows:auto auto auto minmax(0,1fr) auto; grid-template-areas:"heading heading" "search search" "filters tools" "timeline timeline" "pagination pagination"; flex:1 1 0; min-width:0; min-height:0; gap:10px; padding:14px 14px 8px; overflow:hidden;}
 .ts-media-workspace__records-heading {grid-area: heading;}
-.ts-media-workspace__timeline-count {display: inline-flex; justify-content: center; align-items: center; min-width: 22px; padding: 2px 5px; border-radius: 5px; color: var(--text-muted); background: var(--ts-mw-page); font-size: 10px; font-weight: 500; font-variant-numeric: tabular-nums;}
+.ts-media-workspace__timeline-count {display: inline-flex; justify-content: center; align-items: center; min-width: 22px; padding: 2px 6px; border-radius: 5px; color: var(--text-muted); background: var(--ts-mw-page); font-size: 11px; font-weight: 500; font-variant-numeric: tabular-nums;}
 .ts-media-workspace__search-row {display: flex; align-items: center; gap: 7px; grid-area: search; min-width: 0; padding: 0 5px 0 10px; border: 1px solid var(--ts-mw-line); border-radius: 8px; background: var(--ts-mw-page);}
 .ts-media-workspace__search-row > span {display: flex; flex: none; color: var(--text-faint);}
 .ts-media-workspace__search-row svg {width: 13px; height: 13px;}
@@ -121,7 +121,7 @@
 .ts-media-workspace__moment[data-current="true"] {background: var(--ts-mw-accent-soft);}
 .ts-media-workspace__moment[data-current="true"]::after {background: var(--ts-accent); box-shadow: 0 0 0 2px var(--ts-mw-accent-soft);}
 .ts-media-workspace__moment-rail {display:flex; align-items:flex-start; grid-column:1; grid-row:1; padding-top:3px;}
-.ts-media-workspace .ts-media-workspace__moment-time {min-width: 0; min-height: 24px; padding: 3px 0; gap: 4px; border: 0; background: transparent; color: var(--ts-accent); font-family: var(--font-monospace); font-size: 11px; font-variant-numeric: tabular-nums;}
+.ts-media-workspace .ts-media-workspace__moment-time {display: inline-flex; align-items: center; min-width: 0; min-height: 24px; padding: 2px 7px; gap: 4px; border: 1px solid color-mix(in srgb, var(--ts-accent) 24%, var(--ts-mw-line)); border-radius: 5px; background: var(--ts-e-sheet, var(--background-primary)); color: var(--ts-accent); font-family: var(--font-monospace); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; cursor: pointer;}
 .ts-media-workspace__moment-time svg {width: 11px; height: 11px;}
 .ts-media-workspace__moment-body {display:flex; flex-direction:column; grid-column:2; grid-row:1; min-width:0; padding-top:3px;}
 .ts-media-workspace__moment-text {display:-webkit-box; order:0; min-width:0; overflow:hidden; overflow-wrap:anywhere; white-space:pre-wrap; -webkit-line-clamp:5; -webkit-box-orient:vertical; font-family:var(--font-text); font-size:13px; line-height:1.8;}
@@ -396,7 +396,7 @@
 @container ts-media (max-width:760px) {.ts-media-workspace__composer-divider {display:none;}}
 
 /* Put state in the source header, reclaiming the standalone status row. */
-.ts-media-workspace__identity {flex:0 1 auto; max-width:45%;}
+.ts-media-workspace__identity {flex:1 1 auto; min-width:0;}
 .ts-media-workspace__header-actions {order:2; margin-left:auto;}
 .ts-media-workspace__message-area {display:flex;align-items:flex-start;gap:8px; flex:1 1 0; min-width:0; order:1;}
 .ts-media-workspace__message-area .ts-media-workspace__status {flex:1 1 0; min-width:0; padding:0;max-height:4.5em;white-space:normal;overflow:auto;text-overflow:clip; line-height:1.5; font-size:12px;}
@@ -433,7 +433,7 @@
 .ts-media-workspace .ts-media-workspace__title {font-family:var(--ts-e-serif);font-size:20px;font-weight:600;line-height:1.45;letter-spacing:0;color:var(--ts-e-ink);}
 .ts-media-workspace .ts-media-workspace__eyebrow {color:var(--ts-e-muted);font-size:11px;letter-spacing:.06em;line-height:1.6;}
 .ts-media-workspace .ts-media-workspace__source {color:var(--ts-e-muted);font-size:12px;line-height:1.5;opacity:1;}
-.ts-media-workspace .ts-media-workspace__file-kind {padding:4px 6px;border:1px solid var(--ts-e-line);border-radius:3px;background:transparent;color:var(--ts-e-muted);font-size:10px;line-height:1.3;}
+.ts-media-workspace .ts-media-workspace__file-kind {padding:4px 6px;border:1px solid var(--ts-e-line);border-radius:3px;background:transparent;color:var(--ts-e-muted);font-size:11px;line-height:1.3;}
 .ts-media-workspace .ts-media-workspace__action {min-height:34px;padding:6px 9px;border-radius:5px;color:var(--ts-e-muted);font-size:12px;line-height:1.5;}
 .ts-media-workspace .ts-media-workspace__action:not(:disabled):hover {background:var(--ts-e-wash);color:var(--ts-e-ink);}
 .ts-media-workspace .ts-media-workspace__action:not(:disabled):active {background:var(--ts-e-line);color:var(--ts-e-ink);}

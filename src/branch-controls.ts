@@ -32,6 +32,7 @@ export function renderBranchControls(host:HTMLElement,options:BranchControlsOpti
  const label=established?(folded?`展开下一层 · ${count} 个子节点`:`折叠子节点 · ${count} 个子节点`):'设为子节点并折叠 · 可撤销';
  const toggle=control(`ts-branch-toggle${established?'':' ts-branch-setup'}`,label,established?(folded?'plus':'minus'):'git-branch',()=>options.onToggle());
  if(established)toggle.setAttribute('aria-expanded',String(!folded));
+ else toggle.setAttribute('data-candidates',String(candidates));
  if(group)toggle.createSpan({cls:'ts-branch-label',text:'子节点',attr:{'aria-hidden':'true'}});
  toggle.createSpan({cls:'ts-branch-count',text:String(established?count:candidates),attr:{'aria-hidden':'true'}});
  if(established){

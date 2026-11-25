@@ -1,5 +1,21 @@
 # 更新记录
 
+## 1.3.54
+
+### 全界面纸感视觉精修、对比度升级与启动减负
+
+- **全工作台亮/暗双主题视觉精修**：统一白板画布、悬浮格式栏、左侧导航坞、卡片资料库、知识空间总览（Space Hub）、长文写作台、深度阅读台、灵感收集流与热力图、设置中心、智能排列工作台、音视频精读、纸张定制、白板深度检索、模板库、导图工作室与空间书签的层级秩序与留白节奏；移除多余的嵌套边框与单侧色条，统一为完整周界细环与克制短分割线。
+- **六种卡片材质与画布可读性提升**：修复暗色模式下便签贴（`sticky`）底色与表格表头的对比度，柔化书摘笺（`paper`）双线框浓度，精修索引卡（`index`）书脊渐变与卡片内引文（`blockquote`）竖线；大幅提升画布连线标签（`>7:1`）与底栏摘要的明暗对比度，默认折叠与正文首行 H1 重复的卡片外壳标题，并新增悬停显现细微滚动条与长卡渐隐阅读遮罩。
+- **全域 Retina 字号基线与双语支持**：将各面板过小的徽章、快捷键、刻度与元数据字号统一提升至清晰可读的高分屏基线（`≥11px–12px`），优化知识空间总览与深度阅读台中文标题断行；卡片库与设置面板补齐中英双语界面支持。
+- **样式架构重构与冷启动减负**：抽取独立样式源并改为构建期单次编译与压缩，`styles.css` 体积从 `1.62 MB` 降至 `998 KB`（缩减 `38.5%`）；以 `624 B` 纯中性矢量 SVG 分形纸纹替代 `122 KB` 位图噪点，并将启动期工作台恢复与迁移改为非阻塞延迟执行。白板数据格式保持第 3 版不变。
+
+### English
+
+- **Comprehensive Editorial UI Polish (Light & Dark)**: Unified visual hierarchy, spacing, and quiet chrome across the Whiteboard Canvas, Floating Formatbar, Sidebar Dock, Card Library, Space Hub, Writing Studio, Reading Desk, Collection Feed & Activity Heatmap, Settings, Layout Planner, Media Study, Paper Settings, Board Search, Templates, Mindmap Studio, and Saved Views—eliminating nested card boxes and single-side accent stripes in favor of crisp perimeter rings and hairline dividers.
+- **Six Card Styles & WCAG AA Contrast**: Improved dark-mode sticky-note and Markdown table-header contrast, softened paper-card double rules, refined index-card spines and editorial blockquotes, boosted canvas edge-label and status-dock legibility to WCAG AA+, and added automatic duplicate-H1 card title compaction, hover-reveal thin scrollbars, and overflow reading fades.
+- **Retina Typography Floor & Bilingual UI**: Raised undersized badges, shortcut hints, scale labels, and metadata rows across all dialogs to a crisp high-DPI floor (`≥11px–12px`), improved CJK line-breaking in Space Hub and Reading Desk, and added English/Chinese UI localization for Card Library and Settings.
+- **CSS Pipeline & Startup Performance**: Extracted modular base styles into a single-pass minified build (`styles.css` reduced by `38.5%` from `1.62 MB` to `998 KB`), replaced the `122 KB` bitmap grain with a `624 B` neutral SVG `<feTurbulence>` filter, and deferred startup workspace restoration off the critical load path. Board format remains version 3.
+
 ## 1.3.53
 
 ### 卡片库、白板与写作交互优化

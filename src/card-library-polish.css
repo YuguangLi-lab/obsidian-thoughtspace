@@ -31,6 +31,12 @@
   resize: both;
   overflow: hidden;
 }
+.ts-database-modal.ts-ui-modal.ts-card-library-modal .modal-title {
+  font-family: var(--ts-e-serif);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -.015em;
+}
 .ts-database-modal.ts-ui-modal .ts-card-library {
   --ts-library-control: 34px;
   display: flex;
@@ -45,10 +51,33 @@
   flex: 1 1 180px;
   min-width: 0;
   width: 100%;
-  min-height: var(--ts-library-control);
+  min-height: 36px;
+  padding-inline: 12px;
+  border-radius: 8px !important;
+  border-color: var(--ts-e-line) !important;
+  appearance: none;
+  -webkit-appearance: none;
 }
-.ts-database-modal.ts-ui-modal .ts-card-library .ts-db-tabs { flex: 0 0 auto; padding: 2px; gap: 3px; }
-.ts-database-modal.ts-ui-modal .ts-card-library .ts-db-tabs button { min-height: 30px; padding: 4px 10px !important; }
+.ts-database-modal.ts-ui-modal .ts-card-library .ts-db-tabs {
+  flex: 0 0 auto;
+  padding: 3px;
+  gap: 3px;
+  border: 1px solid color-mix(in srgb, var(--ts-e-line) 75%, transparent);
+  border-radius: 8px;
+  background: var(--ts-e-wash);
+}
+.ts-database-modal.ts-ui-modal .ts-card-library .ts-db-tabs button {
+  min-height: 30px;
+  padding: 4px 12px !important;
+  border-radius: 6px !important;
+  color: color-mix(in srgb, var(--ts-e-ink) 74%, var(--ts-e-muted));
+}
+.ts-database-modal.ts-ui-modal .ts-card-library .ts-db-tabs button.is-active {
+  border-color: transparent !important;
+  background: var(--ts-e-sheet) !important;
+  color: var(--ts-accent) !important;
+  box-shadow: 0 1px 3px rgb(0 0 0 / .08) !important;
+}
 .ts-card-library .ts-library-filters-summary {
   display: inline-flex;
   align-items: center;
@@ -105,10 +134,11 @@
   justify-content: space-between;
   gap: 3px 10px;
   min-height: 19px;
+  padding-inline: 2px;
   font-size: var(--ts-e-meta-size);
   color: var(--ts-e-muted);
 }
-.ts-card-library .ts-library-summary-line .ts-db-count { text-align: start; }
+.ts-card-library .ts-library-summary-line .ts-db-count { margin-inline: 0; text-align: start; }
 .ts-database-modal.ts-ui-modal .ts-card-library .ts-library-results {
   flex: 1 1 auto;
   min-height: 50px;
@@ -116,7 +146,7 @@
   overflow: auto;
   scrollbar-gutter: stable;
   overscroll-behavior: contain;
-  background: var(--ts-e-sheet);
+  background: transparent;
   border-radius: 8px;
 }
 .ts-card-library .ts-library-empty { display: grid; justify-items: center; gap: 10px; padding: 28px 12px; }
@@ -128,6 +158,10 @@
   min-width: 0;
   padding: 10px 12px;
   border-bottom: 1px solid var(--ts-e-line);
+}
+.ts-card-library .ts-library-results > .ts-library-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 72px;
 }
 .ts-card-library .ts-library-results > .ts-library-card:last-child { border-bottom-color: transparent; }
 .ts-card-library .ts-library-card-info { flex: 1 1 auto; min-width: 0; }
@@ -153,7 +187,7 @@
 }
 .ts-database-modal.ts-ui-modal .ts-card-library button.ts-library-title:hover { text-decoration: underline; text-underline-offset: .17em; }
 .ts-database-modal.ts-ui-modal .ts-card-library button.ts-library-select {
-  position: static;
+  position: relative;
   display: grid;
   flex: 0 0 18px;
   place-items: center;
@@ -170,26 +204,47 @@
   pointer-events: auto;
   font-size: 12px;
 }
-.ts-card-library button.ts-library-select[aria-pressed=true] { background: var(--ts-e-paper); border-color: var(--ts-e-selected); }
+.ts-database-modal.ts-ui-modal .ts-card-library button.ts-library-select::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
+.ts-card-library button.ts-library-select[aria-pressed=true] { background: var(--ts-accent, var(--ts-e-selected)); border-color: var(--ts-accent, var(--ts-e-selected)); color: var(--ts-selected-ink, #ffffff); font-size: 11px; font-weight: 700; }
+.ts-card-library .ts-library-card:has(.ts-library-select) > .ts-library-selected-mark { display: none; }
 .ts-database-modal.ts-ui-modal .ts-card-library :is(.ts-library-excerpt,.ts-library-tags) {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 3px 6px;
-  margin: 4px 0 0 25px;
+  gap: 5px 6px;
+  margin: 6px 0 0 25px;
   color: var(--ts-e-muted);
   font-size: var(--ts-e-meta-size);
-  line-height: 1.45;
+  line-height: 1.55;
 }
 .ts-card-library .ts-library-chip {
   min-width: 0;
-  padding: 1px 6px;
-  border-radius: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
   background: var(--ts-e-wash);
   color: var(--ts-e-ink);
   overflow-wrap: anywhere;
 }
+.ts-card-library button.ts-library-chip.is-interactive {
+  height: auto;
+  min-height: 22px;
+  border: 1px solid transparent;
+  font: inherit;
+  line-height: 1.4;
+  box-shadow: none;
+  cursor: pointer;
+}
+.ts-card-library button.ts-library-chip.is-interactive:is(:hover,[aria-expanded=true]) {
+  border-color: var(--ts-e-control-line);
+  background: var(--ts-e-paper);
+}
 .ts-card-library .ts-library-status-chip { font-weight: 600; }
+.ts-card-library .ts-library-status-chip[data-status=active] { color: var(--ts-accent, var(--ts-e-ink)); }
+.ts-card-library .ts-library-status-chip[data-status=done] { color: var(--ts-e-success, var(--ts-e-muted)); }
 .ts-card-library .ts-library-card-meta-text { min-width: 0; overflow-wrap: anywhere; }
 .ts-card-library .ts-library-path { margin: 3px 0 0 25px; overflow-wrap: anywhere; }
 .ts-card-library .ts-library-card-actions { display: flex; flex: 0 0 auto; align-items: center; justify-content: flex-end; gap: 3px; }
@@ -241,13 +296,16 @@
    CSS owns resizing, so changing width never replaces focused/selected cards. */
 .ts-database-modal.ts-ui-modal .ts-card-library .ts-db-kanban {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 248px), 1fr));
+  align-items: stretch;
   gap: 14px;
   overflow: visible;
   min-width: 0;
+  min-height: 100%;
   height: auto;
-  background: var(--ts-e-wash);
-  padding: 10px;
+  box-sizing: border-box;
+  background: transparent;
+  padding: 4px 2px 14px;
 }
 .ts-database-modal.ts-ui-modal .ts-card-library .ts-db-lane {
   display: grid;
@@ -258,24 +316,95 @@
   min-width: 0;
   width: auto;
   min-height: 60px;
-  padding: 10px;
+  padding: 12px;
+  border: 0;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ts-e-wash) 52%, transparent);
 }
 .ts-card-library .ts-db-lane > .ts-db-lane-title {
   grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 7px;
   margin: 0;
   padding: 2px 0 4px;
+}
+.ts-card-library .ts-db-lane-dot {
+  flex: 0 0 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--ts-e-muted);
+}
+.ts-card-library .ts-db-lane-dot[data-status=active] { background: var(--ts-accent, var(--ts-e-editorial)); }
+.ts-card-library .ts-db-lane-dot[data-status=done] { background: var(--ts-e-success, #326756); }
+.ts-card-library .ts-db-lane-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: auto;
+  min-height: 26px;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: color-mix(in srgb, var(--ts-e-ink) 78%, var(--ts-e-muted));
+  font: inherit;
+  font-weight: 600;
+  box-shadow: none;
+  cursor: pointer;
+}
+.ts-card-library .ts-db-lane-toggle:hover { background: var(--ts-e-wash); color: var(--ts-e-ink); }
+.ts-card-library .ts-db-lane-toggle::after {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border: solid currentColor;
+  border-width: 0 1.5px 1.5px 0;
+  transform: translateY(-1px) rotate(45deg);
+}
+.ts-card-library .ts-db-lane.is-collapsed .ts-db-lane-toggle::after { transform: rotate(-45deg); }
+.ts-card-library .ts-db-lane.is-collapsed { min-height: 0; padding-block: 6px; }
+.ts-card-library .ts-db-lane.is-collapsed > .ts-library-card { display: none; }
+.ts-card-library .ts-db-lane[data-drop-target=true] {
+  outline: 2px dashed var(--ts-accent, var(--ts-e-focus));
+  outline-offset: -2px;
 }
 .ts-database-modal.ts-ui-modal .ts-card-library .ts-db-lane > .ts-library-card {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 9px;
+  gap: 10px;
   margin: 0;
-  padding: 11px;
+  padding: 14px 15px;
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .55), 0 1px 2px rgb(52 46 40 / .04), 0 4px 12px rgb(52 46 40 / .04);
+}
+.theme-dark .ts-database-modal.ts-ui-modal .ts-card-library .ts-db-lane > .ts-library-card {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .05), 0 2px 8px rgb(0 0 0 / .28);
+}
+.ts-database-modal.ts-ui-modal .ts-card-library .ts-db-lane > .ts-library-card :is(.ts-library-excerpt,.ts-library-tags,.ts-library-path) {
+  margin-inline-start: 0;
+}
+.ts-database-modal.ts-ui-modal .ts-card-library .ts-db-lane > .ts-library-card .ts-library-excerpt {
+  margin-top: 8px;
+  line-height: 1.65;
+}
+.ts-database-modal.ts-ui-modal .ts-card-library .ts-db-lane > .ts-library-card .ts-library-tags {
+  margin-top: 9px;
+}
+.ts-database-modal.ts-ui-modal .ts-card-library .ts-db-lane > .ts-library-card:hover:not(.is-selected) {
+  border-color: color-mix(in srgb, var(--ts-accent, var(--ts-e-edge)) 40%, var(--ts-e-line));
+  box-shadow: 0 4px 14px rgb(52 46 40 / .08);
+}
+.ts-database-modal.ts-ui-modal .ts-card-library .ts-db-lane > .ts-library-card.is-selected .ts-library-title {
+  padding-inline-end: 0;
 }
 .ts-card-library .ts-db-lane .ts-library-card-actions {
   flex-wrap: wrap;
   margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--ts-e-line) 55%, transparent);
 }
 .ts-card-library .ts-db-lane .ts-library-main-action {
   white-space: normal;
@@ -283,25 +412,42 @@
   min-width: 0;
 }
 .ts-card-library .ts-library-more-menu {
+  box-sizing: border-box;
   position: fixed;
   inset: var(--ts-library-menu-top, 8px) auto auto var(--ts-library-menu-left, 8px);
   width: min(245px, calc(100vw - 16px));
   max-height: min(360px, calc(100dvh - 16px));
   margin: 0;
-  padding: 9px;
+  padding: 10px;
   overflow: auto;
   color: var(--ts-e-ink);
   background: var(--ts-e-overlay);
   border: 1px solid var(--ts-e-line);
-  border-radius: 8px;
-  box-shadow: 0 8px 25px #0003;
+  border-radius: 10px;
+  box-shadow: var(--ts-e-shadow);
 }
 .ts-card-library .ts-library-more-menu:not([popover]) { position: static; width: 100%; max-height: min(180px, 25dvh); box-shadow: none; }
 .ts-card-library .ts-library-more-menu[hidden] { display: none; }
-.ts-card-library .ts-library-more-heading { margin: 0 0 6px; padding: 0 3px 6px; border-bottom: 1px solid var(--ts-e-line); font-size: var(--ts-e-meta-size); font-weight: 600; overflow-wrap: anywhere; }
-.ts-card-library .ts-library-more-actions { display: grid; gap: 4px; }
-.ts-card-library .ts-library-more-actions :is(button,select) { display: block; width: 100%; min-width: 0; min-height: 32px; text-align: start; }
-.ts-card-library .ts-library-more-actions .ts-library-unlink { margin-top: 3px; }
+.ts-card-library .ts-library-more-heading { margin: 0 0 6px; padding: 0 6px 6px; border-bottom: 1px solid var(--ts-e-line); color: var(--ts-e-muted); font-size: var(--ts-e-meta-size); font-weight: 600; overflow-wrap: anywhere; }
+.ts-card-library .ts-library-more-actions { display: grid; gap: 3px; }
+.ts-card-library .ts-library-more-actions :is(button,select) { display: flex; align-items: center; justify-content: flex-start; width: 100%; min-width: 0; min-height: 32px; padding: 5px 8px; border: 0; border-radius: 6px; background: transparent; box-shadow: none; color: var(--ts-e-ink); font-size: 12px; text-align: start; cursor: pointer; }
+.ts-card-library .ts-library-more-actions button:hover:not(:disabled) { background: var(--ts-e-wash); }
+.ts-card-library .ts-library-more-actions .ts-library-quick-option.is-active {
+  font-weight: 600;
+  color: var(--ts-accent, var(--ts-e-selected));
+  background: color-mix(in srgb, var(--ts-accent, var(--ts-e-selected)) 9%, var(--ts-e-overlay));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ts-accent, var(--ts-e-selected)) 26%, transparent);
+}
+.ts-card-library .ts-library-more-actions .ts-library-unlink {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--ts-e-line);
+  color: var(--ts-e-danger, var(--text-error));
+  background: transparent;
+}
+.ts-card-library .ts-library-more-actions .ts-library-unlink:hover {
+  background: color-mix(in srgb, var(--ts-e-danger, var(--text-error)) 10%, transparent);
+}
 @container ts-card-library (max-width: 440px) {
   .ts-card-library .ts-library-search-row { flex-wrap: wrap; gap: 5px; }
   .ts-card-library .ts-library-search-input { flex-basis: 100%; }

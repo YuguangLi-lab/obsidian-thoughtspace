@@ -22,7 +22,7 @@ export type SettingsCategory=keyof typeof settingsCategoryKeys;
 export type SettingsPreferenceKey=typeof settingsCategoryKeys[SettingsCategory][number];
 export type SettingsPreferencePatch=Partial<Pick<ThoughtSpacePreferences,SettingsPreferenceKey>>;
 
-const categoryDefaults={...defaultAppearance,...defaultBoardPreferences,noteMarkdownToolbar:true,boardSearchEnabled:true,compactDuplicateCardTitles:false} as const;
+const categoryDefaults={...defaultAppearance,...defaultBoardPreferences,noteMarkdownToolbar:true,boardSearchEnabled:true,compactDuplicateCardTitles:true} as const;
 export function settingsCategoryDefaults(category:SettingsCategory):SettingsPreferencePatch {
  const result:SettingsPreferencePatch={};
  for(const key of settingsCategoryKeys[category])Object.assign(result,{[key]:categoryDefaults[key]});

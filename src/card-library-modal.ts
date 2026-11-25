@@ -1,12 +1,15 @@
-import {Modal,Notice,Scope,type App} from 'obsidian';
+import {Modal,Notice,Scope,getLanguage,type App} from 'obsidian';
 import {libraryModalHandlers,mountCardLibrary,type LibraryElement,type LibraryViewHandlers} from './card-library-view';
 import {emptyLibraryQuery,type LibraryCardRecord,type LibraryViewQuery} from './card-property-views';
 import {themeSurface} from './ui-tokens';
+import {cardLibraryLabels,resolveUiLanguage} from './ui-i18n';
+import type {SettingsLanguagePreference} from './settings-preferences';
 
-export interface CardLibraryHost extends Omit<LibraryViewHandlers,'setQuery'> {
+export interface CardLibraryHost extends Omit<LibraryViewHandlers,'setQuery'|'language'> {
  records():readonly LibraryCardRecord[];
  indexing?:boolean;
  limitNote?:string;
+ language?:SettingsLanguagePreference;
 }
 /** Dedicated browser for the card library. Closing it does not delete notes. */
 export class CardLibraryModal extends Modal {
@@ -26,11 +29,12 @@ export class CardLibraryModal extends Modal {
   });
  }
  onOpen(){
+  const lang=resolveUiLanguage(this.host.language,typeof getLanguage==='function'?getLanguage():'zh-CN');
   this.modalEl.addClass('ts-database-modal','ts-card-library-modal');
   themeSurface(this.modalEl);
-  this.titleEl.setText('卡片库');
+  this.titleEl.setText(cardLibraryLabels(lang).modalTitle);
   this.contentEl.addClass('ts-database','ts-card-library');
-  this.view=mountCardLibrary(this.contentEl as unknown as LibraryElement,libraryModalHandlers(this.host,next=>{
+  this.view=mountCardLibrary(this.contentEl as unknown as LibraryElement,libraryModalHandlers({...this.host,language:lang},next=>{
    this.query=next;this.paint();
   },error=>{new Notice(error instanceof Error?error.message:String(error));},()=>{if(this.modalEl.isConnected)this.refresh();}));
   this.refresh();

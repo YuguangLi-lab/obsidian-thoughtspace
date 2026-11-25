@@ -26,14 +26,14 @@
  --ts-design-panel:var(--ts-e-sheet);
  --ts-design-wash:color-mix(in srgb,var(--ts-accent,var(--interactive-accent)) 6%,var(--ts-e-sheet));
  --ts-design-hover:color-mix(in srgb,var(--ts-accent,var(--interactive-accent)) 6%,var(--ts-e-sheet));
- --ts-design-shadow:0 1px 2px #4e351c08,0 4px 16px #4e351c09;
- --ts-design-overlay-shadow:var(--ts-e-shadow);
+ --ts-design-shadow:inset 0 1px 0 #ffffff8c,0 1px 2px #4e351c0a,0 6px 20px #4e351c0c;
+ --ts-design-overlay-shadow:inset 0 1px 0 #ffffff73,var(--ts-e-shadow);
  --ts-design-radius:8px;
  --ts-space-1:4px;--ts-space-2:8px;--ts-space-3:12px;--ts-space-4:16px;--ts-space-6:24px;--ts-space-8:32px;
  --ts-chrome-title:15px;--ts-chrome-label:12px;--ts-chrome-caption:11px;
  --ts-chrome-radius:8px;--ts-chrome-rule:1px solid var(--ts-design-line);
 }
-.theme-dark :is(.ts-root,.ts-journal,.ts-ui-modal,.ts-space-modal,.ts-settings,.ts-native-header,.ts-writing,.ts-note-markdown-toolbar,.ts-media-workspace,.ts-online-workspace,.ts-materials-panel,.ts-materials-modal){--ts-design-shadow:0 1px 2px #00000024,0 3px 10px #00000018;--ts-design-overlay-shadow:0 2px 8px #00000035,0 18px 48px #00000042;}
+.theme-dark :is(.ts-root,.ts-journal,.ts-ui-modal,.ts-space-modal,.ts-settings,.ts-native-header,.ts-writing,.ts-note-markdown-toolbar,.ts-media-workspace,.ts-online-workspace,.ts-materials-panel,.ts-materials-modal){--ts-design-shadow:inset 0 1px 0 #ffffff0d,0 1px 3px #0000002e,0 6px 18px #00000026;--ts-design-overlay-shadow:inset 0 1px 0 #ffffff0f,0 2px 10px #0000003d,0 20px 52px #0000004a;}
 /* Sidebar presentation is owned by sidebar.css. */
 /* Board chrome and selected-state rules live in board-polish.css. */
 .ts-native-header{border-bottom-color:var(--ts-design-line);}
@@ -66,7 +66,7 @@
 .ts-writing .ts-writing-material{margin:2px 0;padding:var(--ts-ui-row-pad) 8px;gap:var(--ts-ui-gap);border-radius:var(--ts-ui-radius);border-color:transparent;}
 .ts-writing .ts-writing-material:hover{border-color:transparent;background:var(--ts-e-wash);}
 .ts-writing .ts-writing-material-icon{height:28px;width:28px;border-radius:6px;background:transparent;color:var(--text-muted);}
-.ts-writing .ts-writing-material.is-current-reference{background:var(--ts-design-hover);border-color:transparent;box-shadow:inset 2px 0 var(--writing-accent);}
+.ts-writing .ts-writing-material.is-current-reference{background:var(--ts-design-hover);border-color:color-mix(in srgb,var(--writing-accent) 26%,var(--ts-design-line));box-shadow:none;}
 .ts-writing .ts-writing-reference-heading{padding:var(--ts-ui-panel-pad);gap:var(--ts-ui-gap);background:var(--background-primary);border-bottom-color:var(--ts-design-line);}
 .ts-writing .ts-writing-reference-tabs{padding:8px 8px 0;gap:4px;}
 .ts-writing .ts-writing-reference-tab{border-radius:6px;background:transparent;}
@@ -93,8 +93,10 @@
 
 /* Stable workspace feedback and shared module entry styling; native fonts are inherited. */
 .ts-native-header .view-actions{align-items:center;}
-.ts-native-header .ts-save-status{display:flex;flex:0 0 auto;min-width:64px;width:76px;max-width:168px;height:24px;padding:0 7px;background:var(--ts-design-wash);font-size:11px;overflow:hidden;white-space:nowrap;}
+.ts-native-header .ts-save-status{display:flex;flex:0 0 auto;min-width:64px;width:76px;max-width:168px;height:24px;padding:0 7px;background:var(--ts-design-wash);font-size:11px;overflow:hidden;white-space:nowrap;transition:width var(--ts-e-motion,160ms) var(--ts-e-ease,ease),opacity var(--ts-e-motion,160ms) var(--ts-e-ease,ease);}
 .ts-native-header .ts-save-status::before{flex:0 0 5px;}
+.ts-native-header .ts-save-status[data-state=saved]:not(.has-save-action){min-width:18px;width:18px;max-width:18px;padding:0;justify-content:center;background:transparent;font-size:0;}
+.ts-native-header .ts-save-status[data-state=saved]:not(.has-save-action)::before{width:6px;height:6px;flex-basis:6px;border-radius:999px;background:var(--ts-e-success,var(--ts-accent,#326756));opacity:.72;}
 .ts-native-header .ts-save-status[data-state=saving]::before{background:var(--text-muted);opacity:.7;}
 .ts-native-header .ts-save-status[data-state=error]{background:color-mix(in srgb,var(--text-error) 8%,var(--background-primary));}
 .ts-native-header .ts-header-action.ts-workflow-entry{background:var(--ts-design-wash);color:var(--text-normal);}

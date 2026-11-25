@@ -3,9 +3,9 @@
 .ts-root {
   --ts-object-line: var(--ts-e-line,var(--background-modifier-border));
   --ts-object-active: color-mix(in srgb, var(--ts-accent) 8%, var(--ts-e-sheet,var(--background-primary)));
-  --ts-object-shadow: 0 2px 8px #0000000d;
+  --ts-object-shadow: inset 0 1px 0 rgb(255 255 255 / .6), 0 2px 6px #342e2812, 0 8px 20px #342e2810;
 }
-.theme-dark .ts-root { --ts-object-shadow: 0 2px 8px #00000030; }
+.theme-dark .ts-root { --ts-object-shadow: inset 0 1px 0 rgb(255 255 255 / .06), 0 2px 8px #00000038, 0 10px 24px #00000036; }
 
 /* A single quiet outline follows the object without covering its document. */
 .ts-root .ts-node:is(.is-selected,.is-inline-editing) {
@@ -244,11 +244,14 @@
 .ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text:not(.is-table-card)).is-selected {
   outline:2px solid var(--ts-accent); outline-offset:2px; box-shadow:none;
 }
+.ts-root[data-selection-count="1"] .ts-main .ts-world > .ts-node:not(.is-locked).is-selected::after {
+  content:none;
+}
 .ts-root .ts-main .ts-world > .ts-node.ts-text.is-selected:not(.has-custom-border) {
   border-color:var(--background-modifier-border);
 }
 .ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text:not(.is-table-card)):not(.is-selected):not(.is-inline-editing):hover {
-  outline:1px solid var(--text-faint); outline-offset:2px;
+  outline:1.5px solid color-mix(in srgb,var(--ts-accent) 34%,var(--ts-e-line,var(--background-modifier-border))); outline-offset:2px;
 }
 .ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text:not(.is-table-card)).is-inline-editing {
   outline:2px dashed var(--ts-accent); outline-offset:2px; box-shadow:none;

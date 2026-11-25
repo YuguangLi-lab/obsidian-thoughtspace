@@ -22,8 +22,10 @@
  opacity:1; pointer-events:auto; cursor:pointer; touch-action:manipulation;
 }
 .ts-root .ts-branch-controls > .ts-branch-menu {
- width:26px; min-width:26px; padding:0; margin-left:2px;
- border-left:1px solid var(--ts-object-line,var(--background-modifier-border)); border-radius:0 5px 5px 0;
+ position:relative; width:26px; min-width:26px; padding:0; margin-inline-start:4px; border-radius:5px;
+}
+.ts-root .ts-branch-controls > .ts-branch-menu::before {
+ content:''; position:absolute; inset-inline-start:-3px; top:5px; bottom:5px; width:1px; background:var(--ts-object-line,var(--background-modifier-border)); pointer-events:none;
 }
 .ts-root .ts-branch-controls > .ts-branch-toggle > :is(.ts-branch-label,.ts-branch-count) { display:inline; }
 .ts-root .ts-branch-controls .ts-branch-icon { display:inline-flex; align-items:center; }
@@ -31,6 +33,7 @@
 .ts-root .ts-branch-controls .ts-branch-count { min-width:1ch; color:var(--text-normal); font-size:11px; line-height:1; font-variant-numeric:tabular-nums; }
 .ts-root .ts-branch-controls > .ts-branch-toggle[aria-expanded=false] { color:var(--ts-accent); background:var(--ts-object-active,var(--background-modifier-hover)); }
 .ts-root .ts-branch-controls > .ts-branch-setup { color:var(--text-muted); }
+.ts-root .ts-branch-controls > .ts-branch-setup[data-candidates="1"] > .ts-branch-count { display:none; }
 .ts-root .ts-branch-controls > button:is(:hover,:focus-visible):not(:disabled) { color:var(--ts-accent); background:var(--ts-object-active,var(--background-modifier-hover)); }
 .ts-root .ts-branch-controls > button:focus-visible { outline:2px solid var(--ts-accent,var(--interactive-accent)); outline-offset:1px; }
 .ts-root .ts-branch-controls > button:disabled { opacity:.4; cursor:not-allowed; }
@@ -54,8 +57,10 @@
    In-flow expanded-section controls keep their existing header presentation. */
 .ts-root .ts-main .ts-world > .ts-node:not(.ts-section:not(.is-compact-fold)) > .ts-branch-controls { opacity:0; pointer-events:none; }
 .ts-root .ts-main .ts-world > .ts-node:not(.ts-section:not(.is-compact-fold)) > .ts-branch-controls > button { pointer-events:none; }
-.ts-root .ts-main .ts-world > .ts-node:not(.ts-section:not(.is-compact-fold)):is(.is-selected,:focus-within) > .ts-branch-controls { opacity:1; pointer-events:auto; }
-.ts-root .ts-main .ts-world > .ts-node:not(.ts-section:not(.is-compact-fold)):is(.is-selected,:focus-within) > .ts-branch-controls > button { pointer-events:auto; }
+.ts-root .ts-main .ts-world > .ts-node:not(.ts-section:not(.is-compact-fold)):is(.is-selected,:focus-within) > .ts-branch-controls,
+.ts-root .ts-main .ts-world > .ts-node:not(.ts-section:not(.is-compact-fold)) > .ts-branch-controls:has(> .ts-branch-toggle[aria-expanded=false]) { opacity:1; pointer-events:auto; }
+.ts-root .ts-main .ts-world > .ts-node:not(.ts-section:not(.is-compact-fold)):is(.is-selected,:focus-within) > .ts-branch-controls > button,
+.ts-root .ts-main .ts-world > .ts-node:not(.ts-section:not(.is-compact-fold)) > .ts-branch-controls:has(> .ts-branch-toggle[aria-expanded=false]) > button { pointer-events:auto; }
 @media (hover:hover) {
  .ts-root .ts-main .ts-world > .ts-node:not(.ts-section:not(.is-compact-fold)):is(:hover,.is-control-hover) > .ts-branch-controls { opacity:1; pointer-events:auto; }
  .ts-root .ts-main .ts-world > .ts-node:not(.ts-section:not(.is-compact-fold)):is(:hover,.is-control-hover) > .ts-branch-controls > button { pointer-events:auto; }

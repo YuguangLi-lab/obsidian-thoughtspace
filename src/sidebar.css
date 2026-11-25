@@ -37,16 +37,18 @@
 .ts-root.ts-dock :is(button,.ts-library-card,select,input[type=checkbox]):focus-visible { outline: 2px solid var(--ts-nav-accent) !important; outline-offset: -2px !important; }
 .ts-root.ts-dock :is(.ts-icon-button,.ts-tree-add) { flex: 0 0 var(--ts-nav-icon-control); width: var(--ts-nav-icon-control); min-width: var(--ts-nav-icon-control); height: var(--ts-nav-icon-control); min-height: var(--ts-nav-icon-control); padding: 4px !important; }
 .ts-root.ts-dock .ts-dock-body { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
-.ts-root.ts-dock .ts-dock-launchpad { flex: none; padding: 20px var(--ts-nav-gutter) 14px; border-bottom: 1px solid var(--ts-nav-line); background: var(--ts-nav-surface); }
+.ts-root.ts-dock .ts-dock-launchpad { flex: none; padding: 18px var(--ts-nav-gutter) 14px; border-bottom: 1px solid var(--ts-nav-line); background: var(--ts-nav-surface); }
 .ts-root.ts-dock .ts-dock-quick { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; padding: 0; }
-.ts-root.ts-dock .ts-dock-quick > .ts-button { min-height: 40px; padding-inline: 12px !important; font-size: 13px !important; }
-.ts-root.ts-dock .ts-dock-quick > .ts-primary { justify-content: flex-start; font-weight: 600; color: var(--ts-nav-accent) !important; background: var(--ts-nav-active) !important; box-shadow: inset 0 0 0 1px color-mix(in srgb,var(--ts-nav-accent) 30%,var(--ts-nav-line)) !important; }
-.ts-root.ts-dock .ts-dock-create { flex-direction: row-reverse; }
-.ts-root.ts-dock .ts-dock-create[aria-expanded=true] { background: var(--ts-nav-hover) !important; box-shadow: inset 0 -2px var(--ts-nav-accent) !important; }
+.ts-root.ts-dock .ts-dock-quick > .ts-button { min-height: 38px; padding-inline: 12px !important; border-radius: 8px !important; font-size: 13px !important; }
+.ts-root.ts-dock .ts-dock-quick > .ts-primary { justify-content: flex-start; font-weight: 600; color: var(--ts-nav-accent) !important; background: var(--ts-nav-active) !important; box-shadow: inset 0 0 0 1px color-mix(in srgb,var(--ts-nav-accent) 28%,var(--ts-nav-line)) !important; }
+.ts-root.ts-dock .ts-dock-create { flex-direction: row-reverse; box-shadow: inset 0 0 0 1px var(--ts-nav-line) !important; background: var(--ts-nav-subtle) !important; }
+.ts-root.ts-dock .ts-dock-create[aria-expanded=true] { background: var(--ts-nav-hover) !important; box-shadow: inset 0 0 0 1px var(--ts-nav-accent) !important; color: var(--ts-nav-accent) !important; }
 .ts-root.ts-dock .ts-dock-create svg { width: 13px; height: 13px; }
 .ts-root.ts-dock .ts-dock-more { display: none; }
-.ts-root.ts-dock .ts-dock-shortcuts { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 4px; margin-top: 8px; padding: 0; }
-.ts-root.ts-dock .ts-dock-shortcuts > .ts-button { justify-content: flex-start; color: var(--ts-nav-muted) !important; }
+.ts-root.ts-dock .ts-dock-shortcuts { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; margin-top: 10px; padding: 0; }
+.ts-root.ts-dock .ts-dock-shortcuts > .ts-button { min-height: 34px; padding: 6px 9px !important; border-radius: 7px !important; justify-content: flex-start; color: var(--ts-nav-ink) !important; background: color-mix(in srgb, var(--ts-nav-subtle) 76%, transparent) !important; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ts-nav-line) 68%, transparent) !important; }
+.ts-root.ts-dock .ts-dock-shortcuts > .ts-button > span:first-child { color: var(--ts-nav-muted); }
+.ts-root.ts-dock .ts-dock-shortcuts > .ts-button:hover:not(:disabled) > span:first-child { color: var(--ts-nav-accent); }
 .ts-root.ts-dock .ts-dock-shortcuts > .ts-button > span:last-child { position: static; width: auto; height: auto; margin: 0; clip-path: none; overflow-wrap: anywhere; }
 .ts-root.ts-dock .ts-dock-host { display: flex; flex: 1; min-width: 0; min-height: 0; margin: 0; padding: 0; border: 0; overflow: hidden; background: transparent; box-shadow: none; }
 .ts-root.ts-dock .ts-sidebar { display: grid; flex: 1; grid-template: auto auto minmax(0,1fr) / minmax(0,1fr); width: 100%; min-width: 0; min-height: 0; padding: 0; overflow: hidden; background: transparent; }
@@ -54,25 +56,25 @@
 .ts-root.ts-dock .ts-sidebar > .ts-tabs > .ts-button { position: relative; flex-direction: row; justify-content: center; gap: 4px; padding: 6px 2px !important; color: var(--ts-nav-muted) !important; }
 .ts-root.ts-dock .ts-tabs > .ts-button::after { display: none; }
 .ts-root.ts-dock .ts-tabs > .ts-button.is-active { color: var(--ts-nav-accent) !important; font-weight: 600; }
-.ts-root.ts-dock .ts-tabs > .ts-button.is-active::before { content: ''; position: absolute; inset-inline: 8px; bottom: -6px; height: 2px; background: currentColor; pointer-events: none; }
+.ts-root.ts-dock .ts-tabs > .ts-button.is-active::before { content: ''; position: absolute; inset-inline: 8px; bottom: -7px; height: 2px; border-radius: 999px; background: currentColor; pointer-events: none; }
 .ts-root.ts-dock .ts-tabs > .ts-button > span:last-child { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .ts-root.ts-dock .ts-tabs .ts-button svg { width: 14px; height: 14px; }
-.ts-root.ts-dock .ts-sidebar-search { display: flex; align-items: center; min-width: 0; min-height: var(--ts-nav-control); margin: 14px var(--ts-nav-gutter) 10px; border: 1px solid var(--ts-nav-line); border-radius: 5px; background: var(--ts-nav-subtle); }
+.ts-root.ts-dock .ts-sidebar-search { display: flex; align-items: center; min-width: 0; min-height: var(--ts-nav-control); margin: 12px var(--ts-nav-gutter) 10px; border: 1px solid var(--ts-nav-line); border-radius: 8px; background: var(--ts-nav-subtle); transition: border-color 140ms ease, box-shadow 140ms ease; }
 .ts-root.ts-dock .ts-sidebar-search-icon { display: flex; flex: 0 0 15px; margin-inline-start: 10px; color: var(--ts-nav-muted); }
 .ts-root.ts-dock .ts-sidebar-search-icon svg { width: 15px; height: 15px; }
-.ts-root.ts-dock .ts-sidebar-search > .ts-search { flex: 1; width: 0; min-width: 0; height: var(--ts-nav-control); margin: 0; padding: 0 8px; border: 0; background: transparent; color: var(--ts-nav-ink); box-shadow: none; font-size: 13px; }
+.ts-root.ts-dock .ts-sidebar-search > .ts-search { flex: 1; width: 0; min-width: 0; height: var(--ts-nav-control); margin: 0; padding: 0 8px; border: 0 !important; background: transparent !important; appearance: none; -webkit-appearance: none; color: var(--ts-nav-ink); box-shadow: none !important; font-size: 13px; }
 .ts-root.ts-dock .ts-search::placeholder { color: var(--ts-nav-muted); opacity: 1; }
 .ts-root.ts-dock .ts-search::-webkit-search-cancel-button { display: none; }
-.ts-root.ts-dock .ts-sidebar-search:focus-within { border-color: var(--ts-nav-accent); outline: 1px solid var(--ts-nav-accent); outline-offset: 0; }
+.ts-root.ts-dock .ts-sidebar-search:focus-within { border-color: var(--ts-nav-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ts-nav-accent) 12%, transparent); }
 .ts-root.ts-dock .ts-sidebar-search > input:focus { outline: none; box-shadow: none; }
 .ts-root.ts-dock .ts-search-clear { margin-inline-end: 3px; }
 .ts-root.ts-dock .ts-library { min-width: 0; min-height: 0; padding: 0 var(--ts-nav-gutter) 18px; overflow: auto; overscroll-behavior: contain; scroll-padding-block: 8px; scrollbar-width: thin; }
 .ts-root.ts-dock .ts-board-browser-head { position: sticky; top: 0; z-index: 2; padding-bottom: 8px; background: var(--ts-nav-surface); }
-.ts-root.ts-dock :is(.ts-board-switch,.ts-task-filters) { display: grid; gap: 2px; min-height: 0; height: auto; margin: 0 0 8px; padding: 3px; border: 1px solid var(--ts-nav-line); border-radius: 5px; background: var(--ts-nav-subtle); box-shadow: none; }
+.ts-root.ts-dock :is(.ts-board-switch,.ts-task-filters) { display: grid; gap: 3px; min-height: 0; height: auto; margin: 0 0 8px; padding: 3px; border: 1px solid color-mix(in srgb, var(--ts-nav-line) 75%, transparent); border-radius: 8px; background: var(--ts-e-wash, var(--ts-nav-subtle)); box-shadow: none; }
 .ts-root.ts-dock .ts-board-switch { grid-template-columns: repeat(2,minmax(0,1fr)); }
 .ts-root.ts-dock .ts-task-filters { grid-template-columns: repeat(3,minmax(0,1fr)); }
-.ts-root.ts-dock :is(.ts-board-switch,.ts-task-filters) > .ts-button { gap: 5px; padding-inline: 4px !important; color: var(--ts-nav-muted) !important; }
-.ts-root.ts-dock :is(.ts-board-switch,.ts-task-filters) > .ts-button.is-active { color: var(--ts-nav-accent) !important; background: var(--ts-nav-active) !important; font-weight: 600; box-shadow: inset 0 -2px var(--ts-nav-accent) !important; }
+.ts-root.ts-dock :is(.ts-board-switch,.ts-task-filters) > .ts-button { min-height: 30px; gap: 5px; padding-inline: 6px !important; border-radius: 6px !important; color: color-mix(in srgb, var(--ts-nav-ink) 74%, var(--ts-nav-muted)) !important; }
+.ts-root.ts-dock :is(.ts-board-switch,.ts-task-filters) > .ts-button.is-active { color: var(--ts-nav-accent) !important; background: var(--ts-nav-subtle) !important; font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / .08) !important; }
 .ts-root.ts-dock .ts-board-switch > .ts-button::after { display: none; }
 .ts-root.ts-dock .ts-board-list-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 3px; height: auto; margin: 4px 0 0; padding: 0; border: 0; }
 .ts-root.ts-dock .ts-board-list-controls > select { flex: 1; width: 0; min-width: 64px; }
@@ -85,12 +87,11 @@
 .ts-root.ts-dock .ts-list-heading-actions { display: flex; flex-wrap: wrap; gap: 3px; margin-inline-start: auto; }
 .ts-root.ts-dock .ts-library-organize { font-size: 11px !important; color: var(--ts-nav-muted) !important; }
 .ts-root.ts-dock .ts-board-tree { display: flex; flex-direction: column; gap: 2px; padding-bottom: 8px; }
-.ts-root.ts-dock :is(.ts-tree-row,.ts-favorite-row,.ts-outline-row) { position: relative; display: flex; align-items: center; gap: 2px; min-width: 0; height: auto; min-height: var(--ts-nav-control); margin: 0; padding-block: 2px; border: 0; border-radius: 4px; background: transparent; box-shadow: none; }
-.ts-root.ts-dock .ts-tree-row { --ts-nav-tree-indent: min(calc(var(--ts-tree-depth,0) * 12px),60px); padding-inline-start: var(--ts-nav-tree-indent) !important; }
-.ts-root.ts-dock .ts-outline-row { --ts-nav-outline-indent: min(calc(var(--outline-depth,0) * 12px),48px); padding-inline-start: var(--ts-nav-outline-indent); }
+.ts-root.ts-dock :is(.ts-tree-row,.ts-favorite-row,.ts-outline-row) { position: relative; display: flex; align-items: center; gap: 2px; min-width: 0; height: auto; min-height: var(--ts-nav-control); margin: 0; padding-block: 2px; border: 0; border-radius: 6px; background: transparent; box-shadow: none; }
+.ts-root.ts-dock .ts-tree-row { --ts-nav-tree-indent: min(calc(var(--ts-tree-depth,0) * 12px),60px); padding-inline-start: var(--ts-nav-tree-indent) !important; padding-inline-end: 6px; }
+.ts-root.ts-dock .ts-outline-row { --ts-nav-outline-indent: min(calc(var(--outline-depth,0) * 12px),48px); padding-inline-start: var(--ts-nav-outline-indent); padding-inline-end: 6px; }
 .ts-root.ts-dock :is(.ts-tree-row,.ts-favorite-row,.ts-outline-row):hover { background: var(--ts-nav-hover); }
-.ts-root.ts-dock :is(.ts-tree-row.is-current,.ts-outline-row.is-selected) { background: var(--ts-nav-active); }
-.ts-root.ts-dock :is(.ts-tree-row.is-current,.ts-outline-row.is-selected)::after { content: ''; position: absolute; inset-inline-start: 0; top: 8px; bottom: 8px; width: 2px; background: var(--ts-nav-accent); pointer-events: none; }
+.ts-root.ts-dock :is(.ts-tree-row.is-current,.ts-outline-row.is-selected) { background: var(--ts-nav-active); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ts-nav-accent) 26%, transparent); }
 .ts-root.ts-dock :is(.ts-tree-title,.ts-outline-title) { flex: 1; justify-content: flex-start; padding-inline: 4px !important; }
 .ts-root.ts-dock :is(.ts-tree-title,.ts-outline-title) > span:last-child { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .ts-root.ts-dock :is(.ts-tree-row.is-current,.ts-outline-row.is-selected) > .ts-button { color: var(--ts-nav-accent) !important; font-weight: 600; }
@@ -101,20 +102,23 @@
 .ts-root.ts-dock :is(.ts-tree-count,.ts-outline-children-count) { flex: none; min-width: 18px; padding: 0 3px; color: var(--ts-nav-muted); background: transparent; font-size: 11px; text-align: center; font-variant-numeric: tabular-nums; }
 .ts-root.ts-dock :is(.ts-tree-help,.ts-library > .ts-muted) { margin: 10px 0 0; padding: 4px 0; color: var(--ts-nav-muted); font-size: 11px; line-height: 1.7; }
 .ts-root.ts-dock .ts-favorites { margin: 0; padding: 0; border: 0; }
-.ts-root.ts-dock .ts-library-card { min-width: 0; margin: 0; padding: 16px 4px; border: 0; border-bottom: 1px solid var(--ts-nav-line); border-radius: 0; background: transparent; box-shadow: none; }
+.ts-root.ts-dock .ts-library-card { min-width: 0; margin: 2px 0; padding: 12px 10px; border: 0; border-bottom: 1px solid color-mix(in srgb, var(--ts-nav-line) 65%, transparent); border-radius: 8px; background: transparent; box-shadow: none; }
 .ts-root.ts-dock .ts-library-card:is(:hover,:focus-within) { background: var(--ts-nav-subtle); box-shadow: none; }
+.ts-root.ts-dock .ts-library-card.is-selected { background: var(--ts-nav-active); border-bottom-color: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ts-nav-accent) 34%, var(--ts-nav-line)); }
+.ts-root.ts-dock .ts-library-card.is-selected::after { content: none !important; }
 .ts-root.ts-dock .ts-library-card-head { display: grid; grid-template-columns: 16px minmax(0,1fr) var(--ts-nav-icon-control) var(--ts-nav-icon-control); align-items: start; gap: 7px; min-width: 0; }
-.ts-root.ts-dock .ts-library-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; min-width: 0; padding-top: 2px; overflow: hidden; white-space: normal; overflow-wrap: anywhere; color: var(--ts-nav-ink); font-size: 14px; line-height: 1.6; font-weight: 600; }
+.ts-root.ts-dock .ts-library-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; min-width: 0; padding-top: 2px; overflow: hidden; white-space: normal; overflow-wrap: anywhere; color: var(--ts-nav-ink); font-size: 13.5px; line-height: 1.55; font-weight: 600; }
 .ts-root.ts-dock .ts-library-note-icon { display: flex; padding-top: 5px; color: var(--ts-nav-muted); }
 .ts-root.ts-dock .ts-library-note-icon svg { width: 15px; height: 15px; }
-.ts-root.ts-dock :is(.ts-library-preview,.ts-library-open) { opacity: 1; }
-.ts-root.ts-dock .ts-library-excerpt { margin-top: 8px; font: 13px/1.75 var(--font-text,var(--font-interface)); color: var(--ts-nav-muted); -webkit-line-clamp: 2; }
+.ts-root.ts-dock :is(.ts-library-preview,.ts-library-open) { opacity: .72; }
+.ts-root.ts-dock .ts-library-card:is(:hover,:focus-within,.is-selected) :is(.ts-library-preview,.ts-library-open) { opacity: 1; }
+.ts-root.ts-dock .ts-library-excerpt { margin-top: 8px; font: 12.5px/1.7 var(--font-text,var(--font-interface)); color: var(--ts-nav-muted); -webkit-line-clamp: 2; }
 .ts-root.ts-dock .ts-library-card-meta { display: flex; align-items: center; gap: 6px; min-width: 0; margin-top: 10px; padding: 0; border: 0; }
 .ts-root.ts-dock .ts-library-path { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--ts-nav-muted); font-size: 11px; }
 .ts-root.ts-dock .ts-library-tags { margin-top: 6px; color: var(--ts-nav-muted); font-size: 11px; overflow-wrap: anywhere; }
-.ts-root.ts-dock .ts-on-board { flex: none; padding: 0; background: transparent; color: var(--ts-nav-accent); font-size: 11px; }
+.ts-root.ts-dock .ts-on-board { flex: none; padding: 1px 7px; border-radius: 999px; background: var(--ts-nav-active); color: var(--ts-nav-accent); font-size: 11px; font-weight: 500; }
 .ts-root.ts-dock .ts-task-progress { gap: 6px; padding: 10px 4px 14px; color: var(--ts-nav-muted); font-size: 12px; }
-.ts-root.ts-dock .ts-task-progress progress { height: 4px; accent-color: var(--ts-nav-accent); }
+.ts-root.ts-dock .ts-task-progress progress { width: 100%; height: 5px; border-radius: 999px; overflow: hidden; accent-color: var(--ts-nav-accent); }
 .ts-root.ts-dock .ts-task-group { margin: 0; padding: 12px 0; border: 0; border-bottom: 1px solid var(--ts-nav-line); border-radius: 0; background: transparent; box-shadow: none; }
 .ts-root.ts-dock .ts-task-group > .ts-button { max-width: 100%; justify-content: flex-start; font-weight: 600; }
 .ts-root.ts-dock .ts-task-group > .ts-button > span:last-child { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

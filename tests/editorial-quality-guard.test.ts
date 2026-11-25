@@ -65,6 +65,8 @@ test('collection export footer reaches the dialog edges and selects keep their c
 
 test('one inlined paper grain keeps the shared opacity formula', () => {
   const css = readFileSync('styles.css', 'utf8');
-  assert.equal(css.split('data:image/png;base64,').length - 1, 1);
-  assert.equal(css.includes('opacity: calc(clamp(0, var(--ts-paper-texture, .55), 1) * var(--ts-e-grain-opacity, 1))'), true);
+  assert.equal(css.includes('data:image/png;base64,'), false);
+  assert.equal(css.split('--ts-paper-grain-image:').length - 1, 1);
+  assert.match(css, /--ts-paper-grain-image:\s*url\([^)]*feTurbulence/);
+  assert.match(css, /opacity:\s*calc\(clamp\(0,\s*var\(--ts-paper-texture,\s*\.55\),\s*1\)\s*\*\s*var\(--ts-e-grain-opacity,\s*1\)\)/);
 });

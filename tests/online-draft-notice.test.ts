@@ -6,7 +6,7 @@ import {OnlineDraftStore,type OnlineDraftStorage,type StoredOnlineDraft} from '.
 
 // Execute the actual onload notice callback with an in-memory store and notices.
 // No host windows, timers, filesystem writes or UI are created.
-const source=readFileSync('src/main.ts','utf8'),start=source.indexOf('    let onlineDraftNotice:'),end=source.indexOf('    await onlineDrafts.load();',start);
+const source=readFileSync('src/main.ts','utf8'),start=source.indexOf('    let onlineDraftNotice:'),end=source.indexOf('    this.register(()=>{void onlineDrafts.dispose()',start);
 assert.ok(start>=0&&end>start);
 const create=new Function('OnlineDraftStore','OnlineWorkspaceView','Notice','onlineDraftStorage',transformSync('function createNotice(){\n'+source.slice(start,end)+'\nreturn onlineDrafts;}',{loader:'ts',format:'cjs'}).code+'\nreturn createNotice.call(this);');
 function fixture(){

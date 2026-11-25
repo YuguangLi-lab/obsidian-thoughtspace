@@ -50,7 +50,7 @@
 .ts-template-modal .ts-template-card h3 {font-family:var(--ts-e-serif);font-size:23px;line-height:1.5;letter-spacing:0;margin:14px 0 8px;overflow-wrap:anywhere}
 .ts-template-modal :is(.ts-template-intro,.ts-template-card p) {color:var(--ts-e-muted)}
 .ts-template-modal .ts-template-preview {border-radius:0;padding:14px 0;background:transparent;border-top:1px solid var(--ts-e-line);gap:8px}
-.ts-template-modal .ts-template-preview span {font-size:12px;line-height:1.6;background:var(--ts-e-sheet);color:var(--ts-e-ink);border-color:var(--ts-e-line);padding:9px 6px;border-radius:3px;overflow-wrap:anywhere}
+.ts-template-modal .ts-template-preview span {font-size:12px;line-height:1.6;background:var(--ts-e-wash);color:var(--ts-e-ink);border:0;padding:8px 6px;border-radius:4px;overflow-wrap:anywhere}
 .ts-template-modal .ts-template-use {min-height:36px;color:var(--ts-accent)!important;border-top:1px solid var(--ts-e-line);border-radius:0!important;margin-top:8px}
 .ts-template-modal .ts-template-card:focus-within {border-color:var(--ts-accent)}
 @media(max-width:700px) {

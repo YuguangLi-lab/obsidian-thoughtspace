@@ -112,6 +112,7 @@ import {cleanPluginSettings,type ThoughtSpacePreferences} from './plugin-setting
 import {cleanBoardCreationPreferences,TemplateCreationIncompleteError,type BoardCreationPreferences,type BoardCreationFormat} from './board-creation';
 import {BoardCreationModal} from './board-creation-view';
 import {ThoughtSpaceSettings,settingsLanguage} from './settings-view';
+import {ribbonLabels} from './ui-i18n';
 import {hostPlugin,fileExplorer,hostSettings,workspaceLeafId,hostCommands} from './host-capabilities';
 import {parseLayoutSnapshot} from './layout-snapshot-data';
 import {isRecord,isUnknownArray} from './value-guards';
@@ -763,7 +764,6 @@ export default class ThoughtSpace extends Plugin {
       onPlay:()=>this.pauseOnlineBoardPlayers(),
       openFile:file=>isExternalMediaReference(file.path)?this.openMediaWorkspace(file,'tab'):this.app.workspace.getLeaf('tab').openFile(file)
     });
-    await this.mediaWorkspace.load();
     this.onlinePlatform=new OnlinePlatform(state=>{const started=state.available&&!state.paused&&(!this.onlineState?.available||this.onlineState.paused||this.onlineState.sourcePath!==state.sourcePath);this.onlineState=state;if(started)this.pauseOnlineBoardPlayers();for(const notify of this.onlineListeners)notify(state);});
     this.onlineMedia=new OnlineMediaService(this.app,(title,body)=>this.createUnique(normalizePath(this.settings.cardFolder+'/媒体笔记'),title,'md',body),()=>isDesktopRuntime()?this.yingjianVaultId():undefined);
     let onlineDraftStorage:IndexedOnlineDraftStorage;
@@ -779,7 +779,7 @@ export default class ThoughtSpace extends Plugin {
       onlineDraftNotice?.notice.hide();onlineDraftNotice={key,notice:new Notice('在线草稿本机暂存不可用或含无法读取的记录；原记录未删除。当前内容仍在内存；暂存成功前不开始新的笔记写入，可复制全文或导出截图后重试。',10000)};
     });
     this.register(()=>{onlineDraftNotice?.notice.hide();onlineDraftNotice=undefined;});
-    await onlineDrafts.load();this.register(()=>{void onlineDrafts.dispose().catch(()=>{});});
+    this.register(()=>{void onlineDrafts.dispose().catch(()=>{});});
     this.onlineWorkspaceHost={study:this.mediaStudy,drafts:onlineDrafts,playbackAvailable:()=>isDesktopRuntime(),openExternal:async input=>{const source=parseOnlineSource(input);if(!source)throw Error('在线视频链接无效');window.open(source.path,'_blank','noopener');},accent:()=>this.settings.accent,density:()=>this.settings.density,mount:(host,source)=>isDesktopRuntime()?this.onlinePlatform.mount(host,source):()=>{},pick:placement=>this.pickOnlineVideo(placement),open:(source,placement,time,note)=>this.openOnlineWorkspace(source,placement,time,note),state:()=>this.onlineState,subscribe:fn=>{this.onlineListeners.add(fn);return()=>this.onlineListeners.delete(fn);},command:(source,action,value)=>isDesktopRuntime()?this.onlinePlatform.command(source,action,value):Promise.reject(Error('移动端请在浏览器播放视频，并手动记录时间')),adopt:async(source,placement)=>{
       if(!isDesktopRuntime())throw Error('移动端请粘贴视频完整链接');
       for(const leaf of this.app.workspace.getLeavesOfType(ONLINE_WORKSPACE))if(leaf.view instanceof OnlineWorkspaceView&&!leaf.view.canMove())return;
@@ -789,10 +789,10 @@ export default class ThoughtSpace extends Plugin {
     this.register(()=>{for(const player of this.onlineBoardPlayers)player.dispose();this.onlineBoardPlayers.clear();this.onlinePlatform.dispose();this.onlineMedia.dispose();this.onlineListeners.clear();});
     this.addCommand({id:'open-online-video',name:'打开 B 站 / YouTube 在线视频',callback:()=>this.pickOnlineVideo('tab')});
     this.registerObsidianProtocolHandler('thoughtspace-online-player',params=>act(async()=>{const link=parseOnlinePlayerUrl(params);if(!link||link.vault!==this.app.vault.getName())throw Error('在线视频链接无效或属于其他仓库');await this.openOnlineWorkspace(link.source,'tab',link.time,link.note);}));
-    try{
-      if(isDesktopRuntime()){this.mediaDrafts=new MediaDraftStore(new IndexedMediaDraftStorage(window.indexedDB,`thoughtspace-media-drafts-v1:${this.yingjianVaultId()}`),()=>new Notice('本机媒体草稿暂存失败或记录无法读取，原始暂存未删除；请及时保存或复制文字。',10000));
-      await this.mediaDrafts.load();}
-    }catch{new Notice('无法读取本机媒体草稿暂存，请勿依赖跨重启恢复；已有暂存未删除。',10000);}
+    if(isDesktopRuntime()){
+      try{this.mediaDrafts=new MediaDraftStore(new IndexedMediaDraftStorage(window.indexedDB,`thoughtspace-media-drafts-v1:${this.yingjianVaultId()}`),()=>new Notice('本机媒体草稿暂存失败或记录无法读取，原始暂存未删除；请及时保存或复制文字。',10000));}
+      catch{new Notice('无法读取本机媒体草稿暂存，请勿依赖跨重启恢复；已有暂存未删除。',10000);}
+    }
     const recover=()=>{this.mediaRecovery?.close();if(this.mediaDrafts){this.mediaRecovery=new MediaDraftRecoveryModal(this.app,this.mediaDrafts,(draft,request)=>this.restoreMediaDraft(draft,request));this.mediaRecovery.open();}};
     this.addCommand({id:'recover-media-drafts',name:'恢复暂存的媒体摘录',callback:recover});
     let recoveryNotice:Notice|undefined,recoveryTimer:number|undefined;
@@ -805,7 +805,13 @@ export default class ThoughtSpace extends Plugin {
       button.onclick=()=>{recoveryNotice?.hide();recover();};recoveryNotice=new Notice(content,0);
     };
     const scheduleRecovery=()=>{if(recoveryNotice)return;if(recoveryTimer!==undefined)window.clearTimeout(recoveryTimer);recoveryTimer=window.setTimeout(()=>{recoveryTimer=undefined;showRecovery();},750);};
-    this.app.workspace.onLayoutReady(scheduleRecovery);this.registerEvent(this.app.workspace.on('layout-change',scheduleRecovery));
+    // Defer media playback JSON and IndexedDB draft warm-up until layout ready so plugin startup stays fast.
+    this.app.workspace.onLayoutReady(()=>{
+      void this.mediaWorkspace.load();
+      void onlineDrafts.load();
+      void (this.mediaDrafts?this.mediaDrafts.load().catch(()=>{new Notice('无法读取本机媒体草稿暂存，请勿依赖跨重启恢复；已有暂存未删除。',10000);}):Promise.resolve()).then(scheduleRecovery);
+    });
+    this.registerEvent(this.app.workspace.on('layout-change',scheduleRecovery));
     const unsubscribeRecovery=this.mediaDrafts?.subscribe(()=>{if(!this.mediaDrafts?.pending().length)recoveryNotice?.hide();});
     this.register(()=>{if(recoveryTimer!==undefined)window.clearTimeout(recoveryTimer);recoveryNotice?.hide();unsubscribeRecovery?.();});
     this.register(()=>{this.mediaRecovery?.close();void this.mediaDrafts?.dispose().catch(()=>new Notice('媒体草稿暂存失败，请勿关闭仍含草稿的窗口。',10000));});
@@ -826,7 +832,7 @@ export default class ThoughtSpace extends Plugin {
     this.addCommand({id:'add-board-mindmap',name:'在白板添加脑图',checkCallback:checking=>{const view=this.app.workspace.getActiveViewOfType(BoardView);if(!view?.session||view.closed||view.session.blocked)return false;if(!checking)act(()=>view.addMindmap());return true;}});
     this.addCommand({id:'local-relations',name:'打开独立关系浏览',checkCallback:checking=>{const view=this.app.workspace.getActiveViewOfType(BoardView);if(!view?.session||view.closed||!view.session.board.nodes.some(supportsLocalRelations))return false;if(!checking)act(()=>this.openLocalRelations(view,view.localRelationSelectedId));return true;}});
     this.registerView(MATERIALS,leaf=>new MaterialsView(leaf,this));this.register(()=>{this.materialDrag=undefined;});
-    this.addRibbonIcon('panels-top-left','ThoughtSpace',(event:MouseEvent)=>{const menu=new Menu();menu.addItem(i=>i.setTitle('卡片库').setIcon('library').onClick(()=>act(()=>this.openCardLibrary(this.app.workspace.getActiveViewOfType(BoardView)||this.currentBoard||undefined))));menu.addItem(i=>i.setTitle('音视频笔记').setIcon('clapperboard').onClick(()=>this.openMediaLibrary()));menu.addItem(i=>i.setTitle('笔记摘录').setIcon('notebook-pen').onClick(()=>act(()=>this.openExcerptNote())));menu.addItem(i=>i.setTitle('侧边栏').setIcon('network').onClick(()=>act(()=>this.ensureDock(true))));menu.addItem(i=>i.setTitle('整理白板').setIcon('layout-dashboard').onClick(()=>act(()=>this.openBoardOrganizer())));menu.addItem(i=>i.setTitle('资料库').setIcon('table-2').onClick(()=>act(()=>this.openDatabase(this.currentBoard))));menu.addItem(i=>i.setTitle('收集').setIcon('inbox').onClick(()=>act(()=>this.openCollection())));menu.showAtMouseEvent(event);});
+    this.addRibbonIcon('panels-top-left','ThoughtSpace',(event:MouseEvent)=>{const labels=ribbonLabels(settingsLanguage(this.settings)),menu=new Menu();menu.addItem(i=>i.setTitle(labels.cardLibrary).setIcon('library').onClick(()=>act(()=>this.openCardLibrary(this.app.workspace.getActiveViewOfType(BoardView)||this.currentBoard||undefined))));menu.addItem(i=>i.setTitle(labels.mediaNotes).setIcon('clapperboard').onClick(()=>this.openMediaLibrary()));menu.addItem(i=>i.setTitle(labels.excerptNote).setIcon('notebook-pen').onClick(()=>act(()=>this.openExcerptNote())));menu.addItem(i=>i.setTitle(labels.sidebar).setIcon('network').onClick(()=>act(()=>this.ensureDock(true))));menu.addItem(i=>i.setTitle(labels.organizeBoard).setIcon('layout-dashboard').onClick(()=>act(()=>this.openBoardOrganizer())));menu.addItem(i=>i.setTitle(labels.database).setIcon('table-2').onClick(()=>act(()=>this.openDatabase(this.currentBoard))));menu.addItem(i=>i.setTitle(labels.collection).setIcon('inbox').onClick(()=>act(()=>this.openCollection())));menu.showAtMouseEvent(event);});
     this.addCommand({id:'yingjian-video-notes',name:'打开音视频笔记',callback:()=>this.openMediaLibrary()});this.register(()=>{this.videoBridgeDisposed=true;});
     this.addCommand({id:'open-materials',name:'打开材料工作台',callback:()=>act(()=>this.openMaterialPanel())});
     this.installNativeSelectionDrag(document);
@@ -1561,7 +1567,7 @@ export default class ThoughtSpace extends Plugin {
       if(modal.modalEl.isConnected)writes.set(file,write);
     };
     const live=():LibraryBoardSource[]=>view?.session&&!view.closed&&view.file?[{path:view.file.path,title:view.file.basename,files:libraryFilesOnBoard(view.session.board.nodes),placements:libraryPlacements(view.session.board.nodes)}]:[];
-    const host={records:()=>buildLibraryRecords(this.libraryNoteSources(writes),mergeBoardSources(scanned,live()),this.settings.choiceField,limited),get indexing(){return indexing;},get limitNote(){return limited?'引用位置还不完整。可按卡片查找其余白板。':undefined;},choiceOptions:this.settings.choiceField.options,
+    const host={records:()=>buildLibraryRecords(this.libraryNoteSources(writes),mergeBoardSources(scanned,live()),this.settings.choiceField,limited),get indexing(){return indexing;},get limitNote(){return limited?'引用位置还不完整。可按卡片查找其余白板。':undefined;},choiceOptions:this.settings.choiceField.options,language:this.settings.settingsLanguage,
       place:(path:string)=>{const target=this.app.workspace.getActiveViewOfType(BoardView)||view;if(!target||target.closed)throw Error('请先打开白板');const file=this.app.vault.getAbstractFileByPath(libraryPath(path));if(!(file instanceof TFile)||file.path!==path)throw Error('源笔记已移动或不存在');target.placeExistingCard(file);},
       open:(path:string)=>{const file=this.app.vault.getAbstractFileByPath(path);if(!(file instanceof TFile))throw Error('源笔记已移动或不存在');return this.openNoteInSidebar(file);},
       unlink:(path:string)=>{const target=this.app.workspace.getActiveViewOfType(BoardView)||view;if(!target||target.closed)throw Error('请先打开白板');target.unlinkLibraryPath(path);},

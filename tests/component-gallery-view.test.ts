@@ -157,9 +157,11 @@ test('gallery renders type, selected cards, controls, and theme and width toggle
     return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
   };
   const built = readFileSync('styles.css', 'utf8');
-  const dark = built.slice(built.indexOf('.theme-dark {'));
+  const darkStart = built.search(/\.theme-dark\s*\{/);
+  assert.ok(darkStart >= 0);
+  const dark = built.slice(darkStart);
   const mixed = (name: string) => {
-    const found = dark.match(new RegExp(`--ts-fill-${name}:color-mix\\(in srgb,(#[0-9a-f]{6}) (\\d+)%,(#[0-9a-f]{6})\\)`, 'i'));
+    const found = dark.match(new RegExp(`--ts-fill-${name}:\\s*color-mix\\(in srgb,\\s*(#[0-9a-f]{6})\\s+(\\d+)%,\\s*(#[0-9a-f]{6})\\)`, 'i'));
     assert.ok(found, name);
     return mix(found[1], found[3], Number(found[2]));
   };

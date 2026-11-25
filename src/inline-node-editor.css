@@ -109,7 +109,7 @@
 .ts-root .ts-inline-editor[data-state=error] .ts-inline-editor-badge {color:var(--text-error);background:color-mix(in srgb,var(--text-error) 8%,var(--background-primary));}
 .ts-root .ts-inline-editor[data-state=error] .ts-inline-editor-badge::before {background:var(--text-error);}
 .ts-root .ts-inline-editor-bar button:disabled {opacity:.35;cursor:wait;}
-.ts-root .ts-inline-editor.has-error .ts-inline-editor-status {border-left:3px solid var(--text-error);line-height:1.7;background:color-mix(in srgb,var(--text-error) 3%,var(--background-primary));}
+.ts-root .ts-inline-editor.has-error .ts-inline-editor-status {border:1px solid color-mix(in srgb,var(--text-error) 42%,transparent);line-height:1.7;background:color-mix(in srgb,var(--text-error) 5%,var(--background-primary));}
 
 /* Focus guides are local to the active group; routine saves need no extra panel. */
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-md-group:focus-within {background:color-mix(in srgb,var(--ts-accent) 4%,transparent);}
@@ -216,8 +216,8 @@
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-md-group {border-radius:7px;}
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-md-button {border-radius:6px!important;}
 :is(.ts-root,.ts-note-markdown-toolbar) .ts-md-button[aria-pressed=true] {background:var(--ts-soft)!important;color:var(--ts-accent)!important;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ts-accent) 18%,transparent)!important;}
-.ts-root .ts-inline-editor-bar {border-color:var(--ts-work-line);border-radius:10px;background:var(--ts-work-raised);box-shadow:var(--ts-work-shadow);}
-.ts-note-markdown-toolbar {border-color:var(--ts-work-line);background:var(--ts-work-raised);}
+.ts-root .ts-inline-editor-bar {border-color:var(--ts-e-line,var(--ts-work-line));border-radius:10px;background:var(--ts-e-sheet,var(--ts-work-raised));box-shadow:var(--ts-design-shadow,var(--ts-work-shadow));}
+.ts-note-markdown-toolbar {border-color:var(--ts-e-line,var(--ts-work-line));background:var(--ts-e-sheet,var(--ts-work-raised));}
 
 /* Editing state stays quiet and legible; no geometry or animation on the card body. */
 .ts-root .ts-inline-editor-bar {gap:4px;padding:4px 5px 4px 8px;}

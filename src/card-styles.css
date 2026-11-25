@@ -66,7 +66,7 @@
 /* Paper keeps the normal content-first layout. The inner rule and clip paint
    only; custom outer border width/style/color and selection outlines still win. */
 .ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="paper"] {
-  --ts-paper-line:color-mix(in srgb,var(--text-normal) 58%,var(--ts-styled-surface,var(--background-primary)));
+  --ts-paper-line:color-mix(in srgb,var(--text-normal) 34%,var(--ts-styled-surface,var(--background-primary)));
   --ts-paper-clip:color-mix(in srgb,var(--text-muted) 75%,var(--ts-tone));
   border-radius:2px!important;
 }
@@ -110,15 +110,14 @@
 
 /* Index cards keep the accent at the edge, leaving the document itself quiet.
    Painted rules never change bounds, cover content or intercept pointer input. */
-.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="index"] {
-  border-radius:6px!important;
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="index"],
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="index"]:not(.is-compact-fold),
+.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="index"].is-compact-fold.has-card-fill:not(.is-transparent) {
+  border-radius:2px!important;
+  background:linear-gradient(90deg,var(--ts-card-heading-color,var(--ts-tone)) 0 3.5px,var(--ts-styled-surface,var(--background-primary)) 3.5px)!important;
 }
 .ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="index"].has-card-fill {
   --ts-styled-surface:color-mix(in srgb,var(--ts-card-fill) 12%,var(--background-primary));
-}
-.ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="index"]::before {
-  content:''; position:absolute; inset:0 auto 0 0; width:4px; z-index:1;
-  border-radius:5px 0 0 5px; background:var(--ts-card-heading-color,var(--ts-tone)); pointer-events:none;
 }
 .ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="index"] > .ts-node-header {
   display:flex; flex:none; min-width:0; margin:0 16px; padding:12px 0 10px!important;
@@ -135,7 +134,8 @@
   border-radius:2px 2px 6px 2px!important;
 }
 .theme-dark .ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="sticky"] {
-  --ts-styled-surface:color-mix(in srgb,var(--ts-card-heading-color,var(--ts-tone)) 24%,var(--background-primary));
+  --ts-styled-surface:color-mix(in srgb,var(--ts-card-heading-color,var(--ts-tone)) 13%,#1c1e22);
+  --ts-sticky-fold:color-mix(in srgb,var(--ts-card-heading-color,var(--ts-tone)) 36%,#2a2e35);
 }
 .ts-root .ts-main .ts-world > .ts-node:is(.ts-card,.ts-text)[data-card-style="sticky"]::before {
   content:''; position:absolute; top:0; right:0; width:14px; height:14px; z-index:1;
@@ -181,7 +181,7 @@
   border-style:dashed; background:repeating-linear-gradient(135deg,transparent 0 4px,color-mix(in srgb,var(--text-faint) 9%,transparent) 4px 5px);
 }
 .ts-root .ts-card-style-option[data-style="band"] > .ts-card-style-swatch {
-  padding-top:8px; padding-bottom:3px; background:linear-gradient(var(--ts-card-heading-color,var(--interactive-accent)) 0 5px,var(--background-primary) 5px);
+  padding-top:8px; padding-bottom:3px; background:linear-gradient(var(--ts-card-heading-color,var(--ts-accent,var(--interactive-accent))) 0 5px,var(--background-primary) 5px);
 }
 .ts-root .ts-card-style-option[data-style="paper"] > .ts-card-style-swatch { border-color:var(--text-muted); border-radius:0; }
 .ts-root .ts-card-style-option[data-style="paper"] > .ts-card-style-swatch::before {
@@ -192,17 +192,17 @@
   border:1px solid var(--text-muted); border-radius:3px; background:var(--background-primary); transform:rotate(-12deg); pointer-events:none;
 }
 .ts-root .ts-card-style-option[data-style="index"] > .ts-card-style-swatch {
-  border-left:3px solid var(--ts-card-heading-color,var(--interactive-accent)); border-radius:2px;
+  border-radius:0; background:linear-gradient(90deg,var(--ts-card-heading-color,var(--ts-accent,var(--interactive-accent))) 0 3px,var(--background-primary) 3px);
 }
 .ts-root .ts-card-style-option[data-style="index"] > .ts-card-style-swatch > i:first-child {
-  height:3px; background:var(--ts-card-heading-color,var(--interactive-accent));
+  height:3px; background:var(--ts-card-heading-color,var(--ts-accent,var(--interactive-accent)));
 }
 .ts-root .ts-card-style-option[data-style="sticky"] > .ts-card-style-swatch {
-  border-radius:1px 1px 4px 1px; background:color-mix(in srgb,var(--ts-card-heading-color,var(--interactive-accent)) 20%,var(--background-primary));
+  border-radius:1px 1px 4px 1px; background:color-mix(in srgb,var(--ts-card-heading-color,var(--ts-accent,var(--interactive-accent))) 20%,var(--background-primary));
 }
 .ts-root .ts-card-style-option[data-style="sticky"] > .ts-card-style-swatch::after {
   content:''; position:absolute; top:0; right:0; width:7px; height:7px;
-  background:var(--ts-card-heading-color,var(--interactive-accent)); opacity:.5; clip-path:polygon(0 0,100% 100%,0 100%);
+  background:var(--ts-card-heading-color,var(--ts-accent,var(--interactive-accent))); opacity:.5; clip-path:polygon(0 0,100% 100%,0 100%);
 }
 @container ts-card-style-picker (max-width:440px) {
   .ts-root .ts-card-style-picker > .ts-card-style-option { grid-column:span 2; }
@@ -223,9 +223,8 @@
 
 /* Text has no separate filename heading. A painted top band uses the same
    palette without adding a title or changing content/editor measurements. */
-.ts-root .ts-main .ts-world > .ts-node.ts-text[data-card-style="band"]:not(.is-compact-fold):not(.ts-node-summary)::before {
-  content:''; position:absolute; inset:0 0 auto; height:6px; z-index:1; pointer-events:none;
-  border-radius:5px 5px 0 0; background:var(--ts-card-heading-color,var(--ts-tone));
+.ts-root .ts-main .ts-world > .ts-node.ts-text[data-card-style="band"]:not(.is-compact-fold):not(.ts-node-summary) {
+  background:linear-gradient(var(--ts-card-heading-color,var(--ts-tone)) 0 6px,var(--ts-styled-surface,var(--background-primary)) 6px)!important;
 }
 
 /* Only the chooser is editorial chrome. The six document styles above retain

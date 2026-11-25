@@ -390,3 +390,52 @@ test('card library kanban lays out as flex columns on a wash board with paper la
  assert.match(lane,/flex:1 0 270px/);
  assert.match(lane,/background:var\(--ts-e-paper\)/);
 });
+
+test('interactive status and category chips update properties in one click without toggling card selection',()=>{
+ const items=buildLibraryRecords([
+  {path:'Cards/Shade.md',title:'林荫',tags:['#城市'],properties:{thoughtspace_status:'inbox',thoughtspace_choice:'主张'}},
+ ],[],{options:['主张','证据']});
+ const root=new El(),statuses:string[]=[],choices:string[]=[],queries:LibraryViewQuery[]=[];
+ const view=mountCardLibrary(root,{
+  setQuery:next=>queries.push(next),place(){},open(){},unlink(){},
+  choiceOptions:['主张','证据'],
+  setStatus:(path,val)=>{statuses.push(`${path}:${val}`);return Promise.resolve();},
+  setChoice:(path,val)=>{choices.push(`${path}:${val}`);return Promise.resolve();},
+ });
+ view.update(items,emptyLibraryQuery());
+ labeled(root,'切换状态：林荫')!.onclick?.(undefined);
+ const panel=root.all().find(el=>el.cls==='ts-library-more-menu')!;
+ labeled(panel,'已完成')!.onclick?.(undefined);
+ assert.deepEqual(statuses,['Cards/Shade.md:done']);
+ labeled(root,'切换分类：林荫')!.onclick?.(undefined);
+ labeled(panel,'证据')!.onclick?.(undefined);
+ assert.deepEqual(choices,['Cards/Shade.md:证据']);
+ assert.deepEqual(queries,[]);
+});
+
+test('kanban lanes support collapsing and drag-and-drop status updates, plus English UI labels',()=>{
+ const items=records(),root=new El(),statuses:string[]=[];
+ const view=mountCardLibrary(root,{
+  setQuery(next){view.update(items,next);},place(){},open(){},unlink(){},
+  setStatus:(path,val)=>{statuses.push(`${path}:${val}`);return Promise.resolve();},
+  language:'en',
+ });
+ view.update(items,{...emptyLibraryQuery(),view:'kanban'});
+ assert.ok(labeled(root,'Search Card Library'));
+ assert.equal(root.all().find(el=>el.cls==='ts-db-count')?.textContent,'2 cards');
+ const inboxLane=root.all().find(el=>el.attrs['data-status']==='inbox')!;
+ const activeLane=root.all().find(el=>el.attrs['data-status']==='active')!;
+ const heatCard=inboxLane.all().find(el=>el.attrs['data-note-path']==='Cards/Heat.md')!;
+ assert.equal(heatCard.attrs.draggable,'true');
+ heatCard.emit('dragstart',{});
+ activeLane.emit('dragover',{preventDefault(){}});
+ assert.equal(activeLane.attrs['data-drop-target'],'true');
+ activeLane.emit('drop',{preventDefault(){}});
+ assert.equal(activeLane.attrs['data-drop-target'],undefined);
+ assert.deepEqual(statuses,['Cards/Heat.md:active']);
+ const collapseBtn=inboxLane.all().find(el=>el.cls==='ts-db-lane-toggle')!;
+ assert.equal(collapseBtn.attrs['aria-expanded'],'true');
+ collapseBtn.onclick?.(undefined);
+ assert.equal(collapseBtn.attrs['aria-expanded'],'false');
+ assert.match(inboxLane.cls,/\bis-collapsed\b/);
+});

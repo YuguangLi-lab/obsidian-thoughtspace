@@ -3,12 +3,13 @@
 .ts-root {
   --ts-card-surface-line:color-mix(in srgb,var(--background-modifier-border) 84%,var(--text-muted) 16%);
   --ts-card-chip-line:color-mix(in srgb,var(--background-modifier-border) 70%,transparent);
-  --ts-card-chip-wash:color-mix(in srgb,var(--background-secondary) 45%,transparent);
-  --ts-card-surface-shadow:0 1px 2px color-mix(in srgb,var(--background-modifier-box-shadow,#000) 16%,transparent),0 4px 12px color-mix(in srgb,var(--background-modifier-box-shadow,#000) 10%,transparent);
+  --ts-card-chip-wash:color-mix(in srgb,var(--background-secondary) 52%,transparent);
+  --ts-card-surface-shadow:inset 0 1px 0 rgb(255 255 255 / .65),0 1px 2px color-mix(in srgb,var(--background-modifier-box-shadow,#000) 14%,transparent),0 6px 18px color-mix(in srgb,var(--background-modifier-box-shadow,#000) 9%,transparent);
 }
 .theme-dark .ts-root {
+  --ts-card-surface-line:color-mix(in srgb,var(--background-modifier-border) 88%,rgb(255 255 255 / .18) 12%);
   --ts-card-chip-line:color-mix(in srgb,var(--background-modifier-border) 88%,transparent);
-  --ts-card-surface-shadow:0 1px 3px color-mix(in srgb,var(--background-modifier-box-shadow,#000) 28%,transparent),0 4px 12px color-mix(in srgb,var(--background-modifier-box-shadow,#000) 18%,transparent);
+  --ts-card-surface-shadow:inset 0 1px 0 rgb(255 255 255 / .055),0 2px 6px rgb(0 0 0 / .38),0 10px 26px rgb(0 0 0 / .28);
 }
 
 /* Border widths/styles remain model-owned; explicit border colors win. */
@@ -43,20 +44,20 @@
 }
 .ts-root .ts-node.ts-card > .ts-card-meta > :is(.ts-tag,.ts-state-pill,.ts-source-trigger) {
   display:inline-flex; align-items:center; gap:4px; min-width:0; max-width:100%;
-  padding:2px 7px; border:1px solid transparent; border-radius:3px;
+  padding:2px 8px; border:1px solid transparent; border-radius:999px;
   background:transparent; box-shadow:none; font-family:var(--font-interface);
-  font-size:10px!important; font-weight:400; line-height:1.6;
+  font-size:11px!important; font-weight:500; line-height:1.45;
 }
 .ts-root .ts-node.ts-card > .ts-card-meta > .ts-tag {
   display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  color:var(--text-muted)!important; text-decoration:none!important;
+  background:var(--ts-card-chip-wash); border-color:color-mix(in srgb,var(--text-muted) 12%,transparent); color:var(--text-muted)!important; text-decoration:none!important;
 }
 .ts-root .ts-node.ts-card > .ts-card-meta > .ts-state-pill {
-  flex:none; white-space:nowrap;
+  flex:none; white-space:nowrap; background:var(--ts-card-chip-wash); border-color:color-mix(in srgb,currentColor 14%,transparent);
 }
 .ts-root .ts-node.ts-card > .ts-card-meta > .ts-state-pill::before { flex:none; }
-.ts-root .ts-node.ts-card > .ts-card-meta > .ts-state-active { color:var(--ts-accent); }
-.ts-root .ts-node.ts-card > .ts-card-meta > .ts-state-done { color:var(--text-success,var(--color-green)); }
+.ts-root .ts-node.ts-card > .ts-card-meta > .ts-state-active { color:var(--ts-accent); background:color-mix(in srgb,var(--ts-accent) 9%,transparent); }
+.ts-root .ts-node.ts-card > .ts-card-meta > .ts-state-done { color:var(--text-success,var(--color-green)); background:color-mix(in srgb,var(--text-success,var(--color-green)) 9%,transparent); }
 .ts-root .ts-node.ts-card > .ts-card-meta > .ts-source-trigger {
   width:24px; height:24px; min-height:0; margin-right:0; color:var(--text-muted);
 }
@@ -87,7 +88,10 @@
   background:var(--ts-object-active); color:var(--ts-accent);
 }
 .ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-card-quick-preview {
-  border-left:1px solid var(--ts-object-line); border-radius:0 5px 5px 0;
+  position:relative; margin-inline-start:3px; border-radius:5px;
+}
+.ts-root .ts-node:is(.ts-card,.ts-text) > .ts-card-actions .ts-card-quick-preview::before {
+  content:''; position:absolute; inset-inline-start:-3px; top:5px; bottom:5px; width:1px; background:var(--ts-object-line); pointer-events:none;
 }
 .ts-root .ts-node.ts-document-compact .ts-compact-actions {
   opacity:0; visibility:hidden; pointer-events:none; transition:opacity 120ms ease,visibility 0s linear 120ms;
@@ -146,8 +150,27 @@
 
 .ts-root .ts-node.ts-card > .ts-card-preview.is-empty-document { overflow:hidden; }
 
+/* Thin hover-reveal scrollbars and soft bottom truncation fade keep warm paper cards clean. */
+.ts-root .ts-node > :is(.ts-card-preview,.ts-text-body) {
+  scrollbar-width:thin; scrollbar-color:transparent transparent;
+}
+.ts-root .ts-node > :is(.ts-card-preview,.ts-text-body)::-webkit-scrollbar { width:4px; height:4px; }
+.ts-root .ts-node > :is(.ts-card-preview,.ts-text-body)::-webkit-scrollbar-track { background:transparent; }
+.ts-root .ts-node > :is(.ts-card-preview,.ts-text-body)::-webkit-scrollbar-thumb { border-radius:999px; background:transparent; }
+.ts-root .ts-node:is(:hover,:focus-within,.is-selected) > :is(.ts-card-preview,.ts-text-body) {
+  scrollbar-color:color-mix(in srgb,var(--ts-e-ink,var(--text-muted)) 22%,transparent) transparent;
+}
+.ts-root .ts-node:is(:hover,:focus-within,.is-selected) > :is(.ts-card-preview,.ts-text-body)::-webkit-scrollbar-thumb {
+  background:color-mix(in srgb,var(--ts-e-ink,var(--text-muted)) 22%,transparent);
+}
+.ts-root .ts-node.ts-card:not(.is-inline-editing):has(> .ts-card-reading-footer:not([hidden])) > .ts-card-preview:not(.is-empty-document) {
+  -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 18px),transparent 100%);
+  mask-image:linear-gradient(to bottom,#000 calc(100% - 18px),transparent 100%);
+}
+
 /* Reading actions are chrome, while document typography, backgrounds and
    metadata insets continue to belong to the saved card appearance. */
-.ts-root .ts-node > .ts-card-reading-footer > .ts-card-reading-affordance { background:var(--ts-e-sheet,var(--background-primary)); color:var(--ts-e-muted,var(--text-muted)); border-color:var(--ts-e-line,var(--background-modifier-border)); }
+.ts-root .ts-node > .ts-card-reading-footer > .ts-card-reading-affordance { border-radius:999px; padding:4px 11px; background:var(--ts-e-sheet,var(--background-primary)); color:var(--ts-e-muted,var(--text-muted)); border-color:var(--ts-e-line,var(--background-modifier-border)); box-shadow:0 2px 6px rgb(52 46 40 / .08); transition:background-color 140ms ease,color 140ms ease,border-color 140ms ease; }
+.theme-dark .ts-root .ts-node > .ts-card-reading-footer > .ts-card-reading-affordance { box-shadow:0 2px 8px rgb(0 0 0 / .28); }
 .ts-root .ts-node > .ts-card-reading-footer > .ts-card-reading-affordance:active:not(:disabled) { background:var(--ts-e-wash,var(--background-modifier-hover)); box-shadow:inset 0 0 0 1px var(--ts-accent); }
 .ts-root .ts-node[data-touch-controls=true] > .ts-card-reading-footer > .ts-card-reading-affordance { height:44px; min-height:44px; padding-inline:12px; touch-action:manipulation; }

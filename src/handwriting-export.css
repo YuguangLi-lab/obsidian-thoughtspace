@@ -6,9 +6,9 @@
 .ts-handwriting-export-modal p,.ts-handwriting-export-modal [role=status] {overflow-wrap:anywhere}
 .ts-handwriting-export-modal {display:flex;flex-direction:column;width:min(520px,100%)}
 .ts-handwriting-export-modal .modal-content {flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain}
-.ts-handwriting-export-title {margin:0 28px 8px 0;font-size:23px;font-weight:600;letter-spacing:-.025em;line-height:1.35}
-.ts-handwriting-export-intro {margin:0 0 24px;color:var(--text-muted);font-size:13px;line-height:1.65}
-.ts-handwriting-export-section {padding:20px 0;border-top:1px solid var(--background-modifier-border)}
+.ts-handwriting-export-title {margin:0 28px 8px 0;font-family:var(--ts-e-serif,var(--font-interface));font-size:24px;font-weight:600;letter-spacing:-.015em;line-height:1.35}
+.ts-handwriting-export-intro {margin:0 0 24px;color:var(--ts-e-muted,var(--text-muted));font-size:13px;line-height:1.65}
+.ts-handwriting-export-section {padding:20px 0;border-top:1px solid var(--ts-e-line,var(--background-modifier-border))}
 .ts-handwriting-export-section h3 {margin:0 0 10px;font-size:12px;line-height:1.4;font-weight:600;color:var(--text-muted)}
 .ts-handwriting-export-filename,.ts-handwriting-export-target {margin:0;color:var(--text-normal);font-size:15px;line-height:1.6}
 .ts-handwriting-export-help {margin:8px 0 0;color:var(--text-muted);font-size:12px;line-height:1.65}

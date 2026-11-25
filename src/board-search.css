@@ -1,18 +1,22 @@
 /* Search has one query, an explicit scope, and a separate result viewport.
    Native theme tokens keep the workbench at home in light and dark vaults. */
 .ts-ui-modal.ts-board-search {
+  --ts-search-line: var(--ts-e-line, var(--background-modifier-border));
+  --ts-search-active: color-mix(in srgb, var(--ts-accent) 7%, var(--ts-e-sheet, var(--background-primary)));
   width: min(960px, calc(100vw - 32px)); max-width: 960px;
   height: min(780px, calc(100dvh - 48px)); max-height: calc(100dvh - 24px);
-  padding: 0 !important; border-radius: 12px !important;
-  background: var(--background-primary) !important;
+  padding: 0 !important; border-radius: 14px !important;
+  background: var(--ts-e-sheet, var(--background-primary)) !important;
   container: ts-search-panel / inline-size;
 }
 .ts-ui-modal.ts-board-search .modal-title {
+  display: flex; flex: none; flex-direction: column; align-items: flex-start;
   margin: 0; padding: 20px 52px 16px 24px; gap: 4px;
-  font-size: 18px; line-height: 1.4; letter-spacing: 0;
+  font-family: var(--ts-e-serif, var(--font-interface));
+  font-size: 22px; font-weight: 600; line-height: 1.4; letter-spacing: -.01em;
 }
 .ts-ui-modal.ts-board-search .modal-title .ts-board-search-scope {
-  max-width: 100%; color: var(--text-muted); font-size: 12px;
+  max-width: 100%; color: var(--ts-e-muted, var(--text-muted)); font-family: var(--font-interface); font-size: 12px; font-weight: 400;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .ts-ui-modal.ts-board-search .modal-content {
@@ -20,19 +24,28 @@
   min-width: 0; min-height: 0; margin: 0; padding: 0; overflow: hidden;
 }
 .ts-ui-modal.ts-board-search .ts-board-search-bar {
-  flex: none; margin: 0 24px 18px; padding: 5px 6px;
-  min-height: 44px; border-radius: 8px; background: var(--background-primary);
-  border: 1px solid var(--background-modifier-border);
+  display: flex; align-items: center; gap: 6px;
+  flex: none; margin: 0 24px 18px; padding: 4px 8px;
+  min-height: 40px; border-radius: 8px; background: var(--ts-e-paper, var(--background-primary));
+  border: 1px solid var(--ts-search-line);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
 }
-.ts-ui-modal.ts-board-search .ts-board-search-bar > input[type=search] { height: 34px; font-size: 14px; }
-.ts-ui-modal.ts-board-search .ts-board-search-bar > button { width: 30px; min-width: 30px; height: 30px; padding: 6px; }
+.ts-ui-modal.ts-board-search .ts-board-search-bar:focus-within {
+  border-color: var(--ts-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ts-accent) 12%, transparent);
+}
+.ts-ui-modal.ts-board-search .ts-board-search-bar > span { display: flex; flex: 0 0 16px; color: var(--ts-e-muted, var(--text-muted)); }
+.ts-ui-modal.ts-board-search .ts-board-search-bar > span svg { width: 16px; height: 16px; }
+.ts-ui-modal.ts-board-search .ts-board-search-bar > input[type=search] { flex: 1 1 auto; width: 0; min-width: 0; height: 32px; border: 0 !important; background: transparent !important; box-shadow: none !important; appearance: none; -webkit-appearance: none; font-size: 13.5px; color: var(--ts-e-ink, var(--text-normal)); }
+.ts-ui-modal.ts-board-search .ts-board-search-bar > input[type=search]:focus { outline: none !important; }
+.ts-ui-modal.ts-board-search .ts-board-search-bar > button { width: 30px; min-width: 30px; height: 30px; padding: 6px; border: 0; border-radius: 6px; background: transparent; box-shadow: none; color: var(--ts-e-muted, var(--text-muted)); }
 .ts-ui-modal.ts-board-search .ts-board-search-workbench {
   display: grid; grid-template-columns: 194px minmax(0, 1fr); flex: 1 1 auto;
   min-width: 0; min-height: 0; border-top: 1px solid var(--ts-search-line);
 }
 .ts-ui-modal.ts-board-search .ts-board-search-refine {
-  min-width: 0; min-height: 0; padding: 14px 16px;
-  background: var(--background-secondary); border-inline-end: 1px solid var(--ts-search-line);
+  min-width: 0; min-height: 0; padding: 16px;
+  background: color-mix(in srgb, var(--ts-e-wash, var(--background-secondary)) 55%, var(--ts-e-sheet, var(--background-primary))); border-inline-end: 1px solid var(--ts-search-line);
   overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
 }
 .ts-ui-modal.ts-board-search :is(.ts-board-search-refine, .ts-board-search-options) > h3 {
@@ -56,7 +69,7 @@
   display: flex; align-items: center; gap: 8px; min-width: 0;
   margin-top: 14px; color: var(--text-normal); font-size: 12px; line-height: 1.6;
 }
-.ts-ui-modal.ts-board-search .ts-board-search-fulltext input[type=checkbox] { flex: none; margin: 0; }
+.ts-ui-modal.ts-board-search .ts-board-search-fulltext input[type=checkbox] { flex: none; margin: 0; accent-color: var(--ts-accent); }
 .ts-ui-modal.ts-board-search .ts-board-search-index-status {
   margin-top: 5px; padding: 0; font-size: 11px; line-height: 1.5; color: var(--text-muted);
 }
@@ -76,12 +89,12 @@
 .ts-ui-modal.ts-board-search .ts-board-search-saved-status[data-state=success],
 .ts-ui-modal.ts-board-search .ts-board-search-saved-status[data-state=error],
 .ts-ui-modal.ts-board-search .ts-board-search-saved-status[data-state=warning] {
-  padding: 5px 7px; border-inline-start: 2px solid var(--ts-accent); border-radius: 3px;
+  padding: 5px 8px; border: 1px solid color-mix(in srgb, var(--ts-accent) 28%, var(--ts-search-line)); border-radius: 6px;
   background: color-mix(in srgb, var(--ts-accent) 6%, var(--background-primary));
   color: var(--text-normal);
 }
-.ts-ui-modal.ts-board-search .ts-board-search-saved-status[data-state=error] { border-inline-start-color: var(--text-error); background: var(--background-modifier-error); color: var(--text-error); }
-.ts-ui-modal.ts-board-search .ts-board-search-saved-status[data-state=warning] { border-inline-start-color: var(--text-muted); background: var(--background-primary); }
+.ts-ui-modal.ts-board-search .ts-board-search-saved-status[data-state=error] { border-color: color-mix(in srgb, var(--text-error) 35%, transparent); background: var(--background-modifier-error); color: var(--text-error); }
+.ts-ui-modal.ts-board-search .ts-board-search-saved-status[data-state=warning] { border-color: var(--ts-search-line); background: var(--background-primary); }
 .ts-ui-modal.ts-board-search .ts-board-search-review { max-width: 90px; min-width: 66px; height: 28px; padding-inline: 6px; color: var(--text-muted); font-size: 11px; }
 .ts-ui-modal.ts-board-search .ts-board-search-saved > summary:hover { background: var(--background-modifier-hover); color: var(--ts-accent); }
 .ts-ui-modal.ts-board-search :is(.ts-board-search-saved summary,.ts-board-search-saved input,.ts-board-search-saved button,.ts-board-search-saved select,.ts-board-search-review):focus-visible { outline: 2px solid var(--ts-accent); outline-offset: 2px; }
@@ -91,10 +104,10 @@
 .ts-ui-modal.ts-board-search .ts-board-search-options {
   flex: none; margin: 0 6px 10px; gap: 8px; align-items: center; min-width: 0;
 }
-.ts-ui-modal.ts-board-search .ts-board-search-options > span { font-size: 11px; color: var(--text-muted); }
+.ts-ui-modal.ts-board-search .ts-board-search-options > span { font-size: 12px; color: var(--text-muted); }
 .ts-ui-modal.ts-board-search .ts-board-search-results {
   flex: 1 1 auto; min-width: 0; min-height: 0; padding: 0 3px 4px;
-  border-top: 0; overflow-y: auto; overflow-x: hidden; scroll-padding-block: 4px;
+  border: 0; border-radius: 0; background: transparent; overflow-y: auto; overflow-x: hidden; scroll-padding-block: 4px;
 }
 .ts-ui-modal.ts-board-search .ts-board-search-row {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start;
@@ -112,7 +125,7 @@
 }
 .ts-ui-modal.ts-board-search .ts-board-search-heading { grid-template-columns: 16px minmax(0, 1fr) auto; gap: 8px; }
 .ts-ui-modal.ts-board-search .ts-board-search-heading strong { font-size: 14px; font-weight: 600; line-height: 1.55; overflow-wrap: anywhere; }
-.ts-ui-modal.ts-board-search .ts-board-search-heading small { padding: 1px 5px; margin-top: 2px; font-size: 10px; background: var(--background-secondary); }
+.ts-ui-modal.ts-board-search .ts-board-search-heading small { padding: 1px 6px; margin-top: 2px; font-size: 11px; border-radius: 4px; background: var(--background-secondary); }
 .ts-ui-modal.ts-board-search .ts-board-search-excerpt { margin: 6px 0 0 24px; color: var(--text-normal); font-size: 12px; line-height: 1.75; opacity: .82; }
 .ts-ui-modal.ts-board-search .ts-board-search-meta { margin: 8px 0 0 24px; min-width: 0; }
 .ts-ui-modal.ts-board-search .ts-board-search-location { margin: 0; font-size: 11px; line-height: 1.6; color: var(--text-muted); }
@@ -129,11 +142,11 @@
   border-top: 1px solid var(--ts-search-line); background: var(--background-primary);
 }
 .ts-ui-modal.ts-board-search .ts-board-search-shortcuts { display: flex; flex-wrap: wrap; gap: 5px 12px; min-width: 0; }
-.ts-ui-modal.ts-board-search .ts-board-search-shortcuts > span { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; line-height: 1.5; }
+.ts-ui-modal.ts-board-search .ts-board-search-shortcuts > span { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; line-height: 1.5; }
 .ts-ui-modal.ts-board-search .ts-board-search-shortcuts kbd {
-  padding: 2px 4px; color: var(--text-muted); border: 1px solid var(--ts-search-line);
-  border-radius: 3px; background: var(--background-secondary); font-family: var(--font-interface);
-  font-size: 10px; line-height: 1.4; box-shadow: none;
+  padding: 2px 5px; color: var(--text-muted); border: 1px solid var(--ts-search-line);
+  border-radius: 4px; background: var(--ts-e-paper, var(--background-secondary)); font-family: var(--font-interface);
+  font-size: 11px; line-height: 1.4; box-shadow: 0 1px 0 var(--ts-search-line);
 }
 .ts-ui-modal.ts-board-search .ts-board-search-footer > button { flex: none; margin-inline-start: auto; min-height: 32px; padding: 6px 10px; }
 .ts-ui-modal.ts-board-search .ts-board-search-empty {

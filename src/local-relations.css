@@ -229,7 +229,8 @@
 .ts-local-relations-group[data-kind=siblings]>summary::after{content:none}
 .ts-local-relations-neighbors{padding-left:0;gap:5px}
 .ts-local-relations-neighbor{display:grid;grid-template-columns:minmax(0,1fr) 24px;gap:3px;align-items:start}
-.ts-local-relations-neighbor>button[data-relation-kind]{height:28px;min-height:28px;border:1px solid var(--ts-e-line);border-radius:999px;padding:4px 12px;white-space:nowrap;text-align:center;overflow:hidden;text-overflow:ellipsis;background:var(--ts-e-paper);font-size:var(--font-ui-small)}
+.ts-local-relations-neighbor>button[data-relation-kind]{height:28px;min-height:28px;border:1px solid var(--ts-e-line);border-radius:999px;padding:4px 12px;white-space:nowrap;text-align:center;overflow:hidden;text-overflow:ellipsis;background:var(--ts-e-paper);box-shadow:0 1px 2px rgb(52 46 40 / .04);font-size:var(--font-ui-small);transition:background-color 140ms ease,border-color 140ms ease,color 140ms ease}
+.ts-local-relations-neighbor>button[data-relation-kind]:hover:not(:disabled){border-color:color-mix(in srgb,var(--ts-accent,var(--ts-e-editorial)) 38%,var(--ts-e-line));background:var(--ts-e-wash)}
 .ts-local-relations-neighbor>button[data-relation-kind]>span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ts-local-relations-neighbor>button[data-relation-kind]:active{background:var(--ts-e-wash);border-color:var(--ts-accent,var(--ts-e-editorial));color:var(--ts-accent,var(--ts-e-editorial))}
 .ts-local-relations-proof{margin:0;min-width:0;background:transparent;grid-column:2}

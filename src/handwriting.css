@@ -87,9 +87,10 @@
 /* Toolbar and paper are separate surfaces: authored ink and the writing paper
    retain their exact color/coordinate model in both host themes. */
 .ts-handwriting-toolbar,.ts-handwriting-footer,.ts-handwriting-popover,.ts-handwriting-selection-actions { background:var(--ts-e-sheet,var(--background-primary)); border-color:var(--ts-e-line,var(--background-modifier-border)); }
-.ts-handwriting .ts-handwriting-button { border-radius:6px; color:var(--ts-e-muted,var(--text-muted)); }
+.ts-handwriting .ts-handwriting-button { border-radius:8px; color:var(--ts-e-muted,var(--text-muted)); cursor:pointer; transition:background-color 140ms ease,color 140ms ease; }
 .ts-handwriting .ts-handwriting-button:active:not(:disabled) { background:var(--ts-e-wash,var(--background-modifier-hover)); box-shadow:inset 0 0 0 1px var(--ts-accent); }
-.ts-handwriting .ts-handwriting-button[aria-pressed=true]:not(.ts-handwriting-color) { background:var(--ts-e-wash,var(--background-modifier-hover)); box-shadow:inset 0 -2px var(--ts-accent); color:var(--ts-accent); }
+.ts-handwriting .ts-handwriting-button[aria-pressed=true]:not(.ts-handwriting-color) { background:color-mix(in srgb,var(--ts-accent) 9%,var(--ts-e-sheet,var(--background-primary))); box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ts-accent) 26%,transparent); color:var(--ts-accent); font-weight:600; }
+.ts-handwriting-pen-preview { border-radius:5px; }
 .ts-handwriting-summary,.ts-handwriting-footer,.ts-handwriting-panel-heading,.ts-handwriting-width { color:var(--ts-e-muted,var(--text-muted)); }
 .ts-handwriting-current-tool { color:var(--ts-e-ink,var(--text-normal)); font-weight:600; }
 .ts-handwriting-width { border-top-color:var(--ts-e-line,var(--background-modifier-border)); }

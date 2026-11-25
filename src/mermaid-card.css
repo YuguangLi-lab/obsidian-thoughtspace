@@ -11,8 +11,8 @@
 .ts-mermaid-editor-pane > .ts-mermaid-editor-label:not(label) { flex: none; margin-bottom: 8px; }
 .ts-mermaid-editor textarea.ts-mermaid-editor-source,
 .ts-mermaid-editor-preview {
-  width: 100%; min-height: 300px; height: min(48vh, 440px); border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-m); background: var(--background-primary); padding: 14px; overflow: auto;
+  width: 100%; min-height: 300px; height: min(48vh, 440px); border: 1px solid var(--ts-e-line, var(--background-modifier-border));
+  border-radius: 10px; background: var(--ts-e-paper, var(--background-primary)); padding: 14px; overflow: auto;
 }
 .ts-mermaid-editor textarea.ts-mermaid-editor-source { resize: vertical; font-family: var(--font-monospace); font-size: var(--font-smaller); line-height: 1.6; tab-size: 4; font-weight: var(--font-normal); }
 .ts-mermaid-editor-preview { font-weight: var(--font-normal); }

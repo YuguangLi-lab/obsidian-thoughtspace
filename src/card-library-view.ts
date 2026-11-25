@@ -2,6 +2,8 @@ import {libraryTypeNames,type LibraryCardType} from './card-library-model';
 import {statuses} from './database';
 import {highlightLocation,highlightReturnLabel} from './highlight-note';
 import {createLibraryCardFilter,emptyLibraryQuery,libraryBoardChoices,libraryKanban,libraryStatusLabel,libraryTable,libraryTagChoices,uncategorizedChoice,type LibraryCardRecord,type LibraryLayout,type LibraryPlacement,type LibraryViewQuery} from './card-property-views';
+import {cardLibraryLabels} from './ui-i18n';
+import type {SettingsLanguage} from './settings-preferences';
 
 export interface LibraryElementOptions {text?:string;cls?:string;value?:string;attr?:Record<string,string>}
 export interface LibraryElement {
@@ -29,20 +31,18 @@ export interface LibraryViewHandlers {
  jump?(path:string):void;
  choiceOptions?:readonly string[];
  setChoice?(path:string,value:string):Promise<void>;
+ language?:SettingsLanguage;
 }
 export interface LibraryViewState {indexing?:boolean;limitNote?:string}
 /** The modal must forward every library action. A rejected action stays visible to the caller. */
 export function libraryModalHandlers(host:Omit<LibraryViewHandlers,'setQuery'>,setQuery:(next:LibraryViewQuery)=>void,notice:(error:unknown)=>void,refresh:()=>void):LibraryViewHandlers{
  const report=(run:()=>unknown)=>Promise.resolve().then(run).then(()=>refresh()).catch(error=>{notice(error);refresh();});
  const now=(run:()=>unknown)=>{try{run();refresh();}catch(error){notice(error);}};
- return {setQuery,place:path=>now(()=>host.place(path)),open:path=>{void Promise.resolve().then(()=>host.open(path)).catch(notice);},unlink:path=>now(()=>host.unlink(path)),setStatus:host.setStatus?(path,status)=>report(()=>host.setStatus!(path,status)):undefined,locate:host.locate?placement=>{void report(()=>host.locate!(placement));}:undefined,jump:host.jump?path=>{void report(()=>host.jump!(path));}:undefined,setChoice:host.setChoice?(path,value)=>report(()=>host.setChoice!(path,value)):undefined,choiceOptions:host.choiceOptions,searchUnindexed:host.searchUnindexed?path=>report(()=>host.searchUnindexed!(path)):undefined};
+ return {setQuery,place:path=>now(()=>host.place(path)),open:path=>{void Promise.resolve().then(()=>host.open(path)).catch(notice);},unlink:path=>now(()=>host.unlink(path)),setStatus:host.setStatus?(path,status)=>report(()=>host.setStatus!(path,status)):undefined,locate:host.locate?placement=>{void report(()=>host.locate!(placement));}:undefined,jump:host.jump?path=>{void report(()=>host.jump!(path));}:undefined,setChoice:host.setChoice?(path,value)=>report(()=>host.setChoice!(path,value)):undefined,choiceOptions:host.choiceOptions,searchUnindexed:host.searchUnindexed?path=>report(()=>host.searchUnindexed!(path)):undefined,language:host.language};
 }
-const layouts:readonly [LibraryLayout,string][]=[['list','列表'],['table','表格'],['kanban','看板']];
-const types:readonly [''|LibraryCardType,string][]=[['','全部类型'],['note','笔记'],['pdf','PDF'],['image','图片'],['audio','音频'],['video','视频']];
 const filterKeys=['type','tag','board','status','choice'] as const;
 type FilterKey=typeof filterKeys[number];
 type Options=readonly (readonly [string,string])[];
-const filterLabels:Record<FilterKey,string>={type:'卡片类型',tag:'标签',board:'白板',status:'状态',choice:'分类'};
 const focusKey=(...parts:string[])=>JSON.stringify(parts);
 const dom=(el:LibraryElement)=>el as unknown as HTMLElement;
 function button(parent:LibraryElement,label:string,run:()=>void,cls='',attrs:Record<string,string>={}){
@@ -69,67 +69,53 @@ function selectOptions(parent:LibraryElement,label:string,options:Options,value:
 function jumpAction(record:LibraryCardRecord,handlers:LibraryViewHandlers){
  return record.highlight&&handlers.jump?{label:highlightReturnLabel(record.highlight),run:()=>handlers.jump!(record.path)}:undefined;
 }
-function moreActions(panel:LibraryElement,record:LibraryCardRecord,handlers:LibraryViewHandlers){
- panel.createDiv({cls:'ts-library-more-heading',text:record.title,attr:{title:record.title}});
- const options=panel.createDiv('ts-library-more-actions');
- const jump=jumpAction(record,handlers);
- if(jump)button(options,'放置到当前白板',()=>handlers.place(record.path));
- if(record.placements.length===1&&handlers.locate)button(options,'在白板中打开',()=>handlers.locate!(record.placements[0]));
- else if(record.placements.length>1&&handlers.locate){
-  const totals=new Map<string,number>(),seen=new Map<string,number>();
-  for(const place of record.placements)totals.set(place.boardTitle,(totals.get(place.boardTitle)||0)+1);
-  const menu=selectOptions(options,'所在白板 '+record.title,[['','选择白板'],...record.placements.map((place,index)=>{
-   const n=(seen.get(place.boardTitle)||0)+1;seen.set(place.boardTitle,n);
-   return [String(index),totals.get(place.boardTitle)!>1?place.boardTitle+' · '+n:place.boardTitle] as const;
-  })],'',value=>{
-   if(!/^\d+$/.test(value))return;
-   const place=record.placements[Number(value)];
-   if(place)handlers.locate!(place);
-   menu.value='';
-  });
- }
- if(record.indexIncomplete&&handlers.searchUnindexed)button(options,'查找其余白板',()=>{void handlers.searchUnindexed!(record.path);});
- if(handlers.setStatus)selectOptions(options,'状态 '+record.title,Object.entries(statuses),record.status in statuses?record.status:'inbox',value=>{void handlers.setStatus!(record.path,value);});
- if(handlers.choiceOptions?.length&&handlers.setChoice)selectOptions(options,'分类 '+record.title,[['','未分类'],...handlers.choiceOptions.map(option=>[option,option] as const)],record.choice,value=>{void handlers.setChoice!(record.path,value);});
- button(options,'从白板移除引用',()=>handlers.unlink(record.path),'ts-library-unlink');
-}
 
 /** Keep search and filters mounted: IME input, caret, and keyboard focus survive result updates. */
 export function mountCardLibrary(root:LibraryElement,handlers:LibraryViewHandlers){
  root.empty();
+ const lang=handlers.language??'zh-CN',i18n=cardLibraryLabels(lang);
+ const layouts:readonly [LibraryLayout,string][]=[['list',i18n.views.list],['table',i18n.views.table],['kanban',i18n.views.kanban]];
+ const types:readonly [''|LibraryCardType,string][]=[['',i18n.allTypes],['note',i18n.typeNames.note],['pdf',i18n.typeNames.pdf],['image',i18n.typeNames.image],['audio',i18n.typeNames.audio],['video',i18n.typeNames.video]];
+ const statusEntries:readonly (readonly [string,string])[]=lang==='en'?Object.keys(statuses).map((k):readonly [string,string]=>[k,i18n.statusNames[k]??statuses[k as keyof typeof statuses]]):Object.entries(statuses);
+ const statusLabel=(status:string)=>lang==='en'?(i18n.statusNames[status]??libraryStatusLabel(status)):libraryStatusLabel(status);
+ const typeLabel=(type:LibraryCardType)=>lang==='en'?i18n.typeNames[type]:libraryTypeNames[type];
+
  let query=emptyLibraryQuery(),composing=false,optionRecords:readonly LibraryCardRecord[]|undefined,optionLabels:Record<FilterKey,Options>;
- let filterCards=createLibraryCardFilter([]),moreAnchor:LibraryElement|undefined;
+ let filterCards=createLibraryCardFilter([]),moreAnchor:LibraryElement|undefined,draggedPath:string|undefined;
  let shownCount=0,renderedIndexing=false,selected=new Set<string>();
+ const collapsedLanes=new Set<string>();
  const selectionRows=new Map<string,{row:LibraryElement;control:LibraryElement;baseClass:string}>();
  const positions=new Map<LibraryLayout,{top:number;left:number}>();
+
  const header=root.createDiv('ts-library-header');
  const searchRow=header.createDiv('ts-library-search-row');
- const search=searchRow.createEl('input',{cls:'ts-library-search-input',attr:{type:'search','aria-label':'搜索卡片库',placeholder:'搜索标题、标签、属性或白板…'}});
+ const search=searchRow.createEl('input',{cls:'ts-library-search-input',attr:{type:'search','aria-label':i18n.searchAria,placeholder:i18n.searchPlaceholder}});
  const submitSearch=()=>{if(!composing&&search.value!==query.query)handlers.setQuery({...query,query:search.value});};
  search.addEventListener('input',event=>{if(!(event as InputEvent).isComposing)submitSearch();});
  search.addEventListener('compositionstart',()=>{composing=true;});
  search.addEventListener('compositionend',()=>{composing=false;submitSearch();});
  search.onchange=submitSearch;
- const tabs=searchRow.createDiv({cls:'ts-db-tabs',attr:{role:'group','aria-label':'卡片库视图'}});
+ const tabs=searchRow.createDiv({cls:'ts-db-tabs',attr:{role:'group','aria-label':i18n.viewsGroupAria}});
  const switches=layouts.map(([view,label])=>[view,button(tabs,label,()=>{if(query.view!==view)handlers.setQuery({...query,view});})] as const);
  const refinements=header.createEl('details',{cls:'ts-library-filters'});
- const summary=refinements.createEl('summary',{cls:'ts-library-filters-summary',text:'筛选'});
+ const summary=refinements.createEl('summary',{cls:'ts-library-filters-summary',text:i18n.filterSummary(0)});
  const fields=refinements.createDiv('ts-library-filter-fields');
  const filterOptions=new Map<FilterKey,LibraryElement>();
  for(const key of filterKeys){
   if(key==='choice'&&!handlers.choiceOptions?.length)continue;
   const field=fields.createEl('label',{cls:'ts-library-filter-field'});
-  field.createSpan({text:filterLabels[key]});
-  const control=select(field,filterLabels[key],'',value=>handlers.setQuery({...query,[key]:value}));
+  field.createSpan({text:i18n.filters[key]});
+  const control=select(field,i18n.filters[key],'',value=>handlers.setQuery({...query,[key]:value}));
   filterOptions.set(key,control);
  }
  const chips=header.createDiv({cls:'ts-library-active-filters',attr:{hidden:''}});
  const summaryLine=root.createDiv('ts-library-summary-line');
  const count=summaryLine.createDiv({cls:'ts-db-count',attr:{role:'status'}});
  const indexStatus=summaryLine.createDiv({cls:'ts-library-index-status',attr:{role:'status',hidden:''}});
- const results=root.createDiv({cls:'ts-db-results ts-library-results',attr:{'data-library-view':query.view,tabindex:'0','aria-label':'卡片库结果'}});
- const panel=root.createDiv({cls:'ts-library-more-menu',attr:{popover:'auto',role:'dialog','aria-label':'卡片操作',hidden:''}});
+ const results=root.createDiv({cls:'ts-db-results ts-library-results',attr:{'data-library-view':query.view,tabindex:'0','aria-label':i18n.resultsAria}});
+ const panel=root.createDiv({cls:'ts-library-more-menu',attr:{popover:'auto',role:'dialog','aria-label':i18n.actionsDialogAria,hidden:''}});
  const popover=dom(panel),surface=dom(results);
+
  function closeMore(returnFocus=false){
   const anchor=moreAnchor;moreAnchor=undefined;
   anchor?.setAttribute('aria-expanded','false');
@@ -144,18 +130,19 @@ export function mountCardLibrary(root:LibraryElement,handlers:LibraryViewHandler
   if((event as KeyboardEvent).key==='Escape'){event.preventDefault();event.stopPropagation();closeMore(true);}
  });
  results.addEventListener('scroll',()=>{if(moreAnchor)closeMore();});
- function showMore(record:LibraryCardRecord,anchor:LibraryElement){
+
+ function openPopoverAt(anchor:LibraryElement,ariaLabel:string,populate:()=>void){
   const alreadyOpen=moreAnchor===anchor;
   closeMore();
   if(alreadyOpen)return;
   panel.empty();
-  moreActions(panel,record,handlers);
-  panel.setAttribute('aria-label','卡片操作：'+record.title);
+  populate();
+  panel.setAttribute('aria-label',ariaLabel);
   moreAnchor=anchor;
   anchor.setAttribute('aria-expanded','true');
   if(typeof popover.showPopover!=='function'){
    panel.removeAttribute('popover');panel.removeAttribute('hidden');
-   button(panel,'收起操作',()=>closeMore(true),'ts-library-filter-reset');
+   button(panel,i18n.collapseActions,()=>closeMore(true),'ts-library-filter-reset');
    popover.querySelector?.<HTMLElement>('button,select')?.focus({preventScroll:true});
    return;
   }
@@ -170,11 +157,52 @@ export function mountCardLibrary(root:LibraryElement,handlers:LibraryViewHandler
   popover.style.setProperty('--ts-library-menu-top',top+'px');
   popover.querySelector<HTMLElement>('button,select')?.focus({preventScroll:true});
  }
+
+ function moreActions(record:LibraryCardRecord){
+  panel.createDiv({cls:'ts-library-more-heading',text:record.title,attr:{title:record.title}});
+  const options=panel.createDiv('ts-library-more-actions');
+  const jump=jumpAction(record,handlers);
+  if(jump)button(options,i18n.placeOnBoard,()=>handlers.place(record.path));
+  if(record.placements.length===1&&handlers.locate)button(options,i18n.openInBoard,()=>handlers.locate!(record.placements[0]));
+  else if(record.placements.length>1&&handlers.locate){
+   const totals=new Map<string,number>(),seen=new Map<string,number>();
+   for(const place of record.placements)totals.set(place.boardTitle,(totals.get(place.boardTitle)||0)+1);
+   const menu=selectOptions(options,i18n.boardPickerAria(record.title),[['',i18n.chooseBoard],...record.placements.map((place,index)=>{
+    const n=(seen.get(place.boardTitle)||0)+1;seen.set(place.boardTitle,n);
+    return [String(index),totals.get(place.boardTitle)!>1?place.boardTitle+' · '+n:place.boardTitle] as const;
+   })],'',value=>{
+    if(!/^\d+$/.test(value))return;
+    const place=record.placements[Number(value)];
+    if(place)handlers.locate!(place);
+    menu.value='';
+   });
+  }
+  if(record.indexIncomplete&&handlers.searchUnindexed)button(options,i18n.searchRemainingBoards,()=>{void handlers.searchUnindexed!(record.path);});
+  if(handlers.setStatus)selectOptions(options,i18n.statusPickerAria(record.title),statusEntries,record.status in statuses?record.status:'inbox',value=>{void handlers.setStatus!(record.path,value);});
+  if(handlers.choiceOptions?.length&&handlers.setChoice)selectOptions(options,i18n.choicePickerAria(record.title),[['',i18n.uncategorized],...handlers.choiceOptions.map(option=>[option,option] as const)],record.choice,value=>{void handlers.setChoice!(record.path,value);});
+  button(options,i18n.unlinkFromBoard,()=>handlers.unlink(record.path),'ts-library-unlink');
+ }
+
+ function showMore(record:LibraryCardRecord,anchor:LibraryElement){
+  openPopoverAt(anchor,i18n.cardActionsAria(record.title),()=>moreActions(record));
+ }
+
+ function showQuickPicker(anchor:LibraryElement,heading:string,ariaLabel:string,choices:Options,current:string,pick:(value:string)=>void){
+  openPopoverAt(anchor,ariaLabel,()=>{
+   panel.createDiv({cls:'ts-library-more-heading',text:heading,attr:{title:heading}});
+   const list=panel.createDiv('ts-library-more-actions');
+   for(const [val,text] of choices){
+    const active=val===current;
+    button(list,text,()=>{closeMore(true);if(!active)pick(val);},active?'ts-library-quick-option is-active':'ts-library-quick-option',{'aria-pressed':String(active)});
+   }
+  });
+ }
+
  function recordActions(parent:LibraryElement,record:LibraryCardRecord){
   const row=parent.createDiv('ts-library-card-actions');
-  const main=jumpAction(record,handlers)??{label:'放置到当前白板',run:()=>handlers.place(record.path)};
+  const main=jumpAction(record,handlers)??{label:i18n.placeOnBoard,run:()=>handlers.place(record.path)};
   button(row,main.label,main.run,'ts-library-main-action',{'data-library-focus':focusKey(record.path,'primary'),title:main.label});
-  const more=button(row,'⋯',()=>showMore(record,more),'ts-library-more-trigger',{'aria-label':'更多操作：'+record.title,'aria-haspopup':'dialog','aria-expanded':'false','data-library-focus':focusKey(record.path,'more'),title:'更多操作'});
+  const more=button(row,'⋯',()=>showMore(record,more),'ts-library-more-trigger',{'aria-label':i18n.moreActionsAria(record.title),'aria-haspopup':'dialog','aria-expanded':'false','data-library-focus':focusKey(record.path,'more'),title:i18n.moreActionsTitle});
  }
  function reset(){
   handlers.setQuery({...emptyLibraryQuery(),view:query.view,selected:query.selected});
@@ -188,27 +216,27 @@ export function mountCardLibrary(root:LibraryElement,handlers:LibraryViewHandler
   }
   if(optionRecords!==records){
    optionRecords=records;filterCards=createLibraryCardFilter(records);
-   optionLabels={type:types,tag:[['','全部标签'],...libraryTagChoices(records).map(tag=>[tag,'#'+tag] as const)],board:[['','全部白板'],...libraryBoardChoices(records).map(board=>[board.path,board.title] as const)],status:[['','全部状态'],...Object.entries(statuses)],choice:[['','全部分类'],[uncategorizedChoice,'未分类'],...(handlers.choiceOptions??[]).map(option=>[option,option] as const)]};
+   optionLabels={type:types,tag:[['',i18n.allTags],...libraryTagChoices(records).map(tag=>[tag,'#'+tag] as const)],board:[['',i18n.allBoards],...libraryBoardChoices(records).map(board=>[board.path,board.title] as const)],status:[['',i18n.allStatuses],...statusEntries],choice:[['',i18n.allChoices],[uncategorizedChoice,i18n.uncategorized],...(handlers.choiceOptions??[]).map(option=>[option,option] as const)]};
    for(const [key,control] of filterOptions)setOptions(control,optionLabels[key],query[key]);
   }
   for(const [key,control] of filterOptions)if(control.value!==query[key])control.value=query[key];
   const active=filterKeys.filter(key=>!!query[key]);
-  summary.textContent=active.length?'筛选 · '+active.length:'筛选';
+  summary.textContent=i18n.filterSummary(active.length);
   chips.empty();
   if(active.length||query.query){
    for(const key of active){
     const value=query[key],label=optionLabels[key].find(([v])=>v===value)?.[1]??value;
-    button(chips,filterLabels[key]+'：'+label+' ×',()=>handlers.setQuery({...query,[key]:''}),'ts-library-filter-chip',{'aria-label':'清除'+filterLabels[key]+'：'+label,'data-library-focus':focusKey('filter',key)});
+    button(chips,i18n.filters[key]+(lang==='en'?': ':'：')+label+' ×',()=>handlers.setQuery({...query,[key]:''}),'ts-library-filter-chip',{'aria-label':i18n.clearFilterAria(i18n.filters[key],label),'data-library-focus':focusKey('filter',key)});
    }
-   if(query.query)button(chips,'搜索：'+query.query+' ×',()=>handlers.setQuery({...query,query:''}),'ts-library-filter-chip',{'aria-label':'清除搜索','data-library-focus':focusKey('filter','search')});
-   button(chips,'清除全部',reset,'ts-library-filter-reset',{'data-library-focus':focusKey('filter','reset')});
+   if(query.query)button(chips,i18n.searchChip(query.query),()=>handlers.setQuery({...query,query:''}),'ts-library-filter-chip',{'aria-label':i18n.clearSearchAria,'data-library-focus':focusKey('filter','search')});
+   button(chips,i18n.clearAll,reset,'ts-library-filter-reset',{'aria-label':i18n.clearAll,'data-library-focus':focusKey('filter','reset')});
    chips.removeAttribute('hidden');
   }else chips.setAttribute('hidden','');
  }
  function paintSummary(state:LibraryViewState){
-  const label=shownCount+' 张卡片'+(query.selected.length?' · 已选 '+query.selected.length:'');
+  const label=i18n.cardCount(shownCount,query.selected.length);
   if(count.textContent!==label)count.textContent=label;
-  const indexText=state.indexing?'正在索引白板引用…':state.limitNote??'';
+  const indexText=state.indexing?i18n.indexingStatus:state.limitNote??'';
   if(indexStatus.textContent!==indexText){
    indexStatus.textContent=indexText;
    if(indexText)indexStatus.removeAttribute('hidden');
@@ -226,8 +254,6 @@ export function mountCardLibrary(root:LibraryElement,handlers:LibraryViewHandler
  }
  function update(records:readonly LibraryCardRecord[],next:LibraryViewQuery,state:LibraryViewState={}){
   const indexing=state.indexing===true,nextSelection=new Set(next.selected);
-  // A selection does not change the result set. Keep the live row, focus,
-  // scroll and filter controls, and only paint rows whose selection changed.
   if(optionRecords===records&&renderedIndexing===indexing&&query.view===next.view&&query.query===next.query&&filterKeys.every(key=>query[key]===next[key])){
    query={...next};
    for(const path of selected)if(!nextSelection.has(path))patchSelection(path,false);
@@ -237,7 +263,6 @@ export function mountCardLibrary(root:LibraryElement,handlers:LibraryViewHandler
    return;
   }
   const doc=surface.ownerDocument,active=doc?.activeElement as HTMLElement|undefined;
-  // An asynchronous index refresh should restore the specific row control, not focus the modal.
   const menuAnchor=moreAnchor&&active&&popover.contains(active)?dom(moreAnchor):undefined;
   const focus=(menuAnchor??active)?.getAttribute('data-library-focus');
   const contained=active&&dom(root).contains(active);
@@ -256,8 +281,8 @@ export function mountCardLibrary(root:LibraryElement,handlers:LibraryViewHandler
   results.setAttribute('data-library-view',query.view);
   if(!shown.length){
    const empty=results.createDiv({cls:'ts-sidebar-empty ts-library-empty'});
-   empty.createDiv({text:query.choice===uncategorizedChoice?'没有符合条件的未分类卡片。':records.length?'没有匹配的卡片。':'还没有卡片。'});
-   if(query.query||filterKeys.some(key=>query[key]))button(empty,'清除筛选',reset,'ts-library-filter-reset',{'data-library-focus':focusKey('filter','empty-reset')});
+   empty.createDiv({text:query.choice===uncategorizedChoice?i18n.emptyUncategorized:records.length?i18n.emptyFiltered:i18n.emptyLibrary});
+   if(query.query||filterKeys.some(key=>query[key]))button(empty,i18n.clearFilters,reset,'ts-library-filter-reset',{'data-library-focus':focusKey('filter','empty-reset')});
   }else paintResults(shown,indexing);
   if(doc){
    const position=positions.get(query.view);
@@ -280,17 +305,17 @@ export function mountCardLibrary(root:LibraryElement,handlers:LibraryViewHandler
   };};
   const selectCard=(row:LibraryElement,parent:LibraryElement,record:LibraryCardRecord,baseClass:string)=>{
    const {path,title}=record;
-   const control=button(parent,'',()=>toggle(path),'ts-library-select',{'aria-label':'选择卡片：'+title,'aria-pressed':'false','data-library-focus':focusKey(path,'select')});
+   const control=button(parent,'',()=>toggle(path),'ts-library-select',{'aria-label':i18n.selectCardAria(title),'aria-pressed':'false','data-library-focus':focusKey(path,'select')});
    selectionRows.set(path,{row,control,baseClass});
    if(selected.has(path))patchSelection(path,true);
   };
-  const openCard=(parent:LibraryElement,record:LibraryCardRecord)=>button(parent,record.title,()=>{void handlers.open(record.path);},'ts-library-title',{'aria-label':'打开源卡片：'+record.title,title:record.title,'data-library-focus':focusKey(record.path,'open')});
-  const category=(record:LibraryCardRecord)=>handlers.choiceOptions?.length?record.choice||'未分类':'';
+  const openCard=(parent:LibraryElement,record:LibraryCardRecord)=>button(parent,record.title,()=>{void handlers.open(record.path);},'ts-library-title',{'aria-label':i18n.openSourceAria(record.title),title:record.title,'data-library-focus':focusKey(record.path,'open')});
+  const category=(record:LibraryCardRecord)=>handlers.choiceOptions?.length?record.choice||i18n.uncategorized:'';
   if(query.view==='table'){
    const byPath=new Map(shown.map(record=>[record.path,record]));
    const table=libraryTable(shown,!!handlers.choiceOptions?.length,indexing);
    const grid=results.createEl('table',{cls:'ts-db-table'}),head=grid.createEl('thead').createEl('tr');
-   for(const column of [...table.columns,'操作'])head.createEl('th',{text:column,attr:{scope:'col'}});
+   for(const column of [...table.columns,i18n.actionColumn])head.createEl('th',{text:column,attr:{scope:'col'}});
    const body=grid.createEl('tbody');
    for(const row of table.rows){
     const record=byPath.get(row.path)!;
@@ -304,18 +329,38 @@ export function mountCardLibrary(root:LibraryElement,handlers:LibraryViewHandler
   }
   const card=(parent:LibraryElement,record:LibraryCardRecord,kanban=false)=>{
    const row=parent.createDiv({cls:'ts-library-card',attr:{'data-note-path':record.path}});bindSelect(row,record.path);
+   if(kanban&&handlers.setStatus){
+    row.setAttribute('draggable','true');
+    row.addEventListener('dragstart',event=>{
+     draggedPath=record.path;
+     const transfer=(event as DragEvent).dataTransfer;
+     transfer?.setData('text/plain',record.path);
+     if(transfer)transfer.effectAllowed='move';
+    });
+    row.addEventListener('dragend',()=>{draggedPath=undefined;});
+   }
    const info=row.createDiv('ts-library-card-info'),title=info.createDiv('ts-library-title-group');
    selectCard(row,title,record,'ts-library-card');openCard(title,record);
    const detail=info.createDiv(kanban?'ts-library-tags':'ts-library-excerpt');
-   if(!kanban)detail.createSpan({cls:'ts-library-chip ts-library-status-chip',text:libraryStatusLabel(record.status),attr:{'data-status':record.status}});
+   if(!kanban){
+    const sText=statusLabel(record.status),currentStatus=record.status in statuses?record.status:'inbox';
+    if(handlers.setStatus){
+     const chip=button(detail,sText,()=>showQuickPicker(chip,record.title,i18n.quickStatusAria(record.title),statusEntries,currentStatus,val=>{void handlers.setStatus!(record.path,val);}),'ts-library-chip ts-library-status-chip is-interactive',{'data-status':record.status,'aria-label':i18n.quickStatusAria(record.title),'aria-haspopup':'dialog','aria-expanded':'false','data-library-focus':focusKey(record.path,'status-chip')});
+    }else detail.createSpan({cls:'ts-library-chip ts-library-status-chip',text:sText,attr:{'data-status':record.status}});
+   }
    const choice=category(record);
-   if(choice)detail.createSpan({cls:'ts-library-chip',text:choice});
-   const boardNames=record.boards.map(board=>board.title).join('、');
-   const boardText=indexing&&!boardNames?'':record.indexIncomplete?(boardNames?boardNames+' · 其余白板未索引':'引用位置未索引完'):boardNames||'未放置在白板';
-   const meta=[libraryTypeNames[record.type],record.highlight?highlightLocation(record.highlight):'',boardText,record.tags.join(' ')].filter(Boolean).join(' · ');
+   if(choice){
+    if(handlers.setChoice&&handlers.choiceOptions?.length){
+     const choiceOpts:Options=[['',i18n.uncategorized],...handlers.choiceOptions.map(o=>[o,o] as const)];
+     const chip=button(detail,choice,()=>showQuickPicker(chip,record.title,i18n.quickChoiceAria(record.title),choiceOpts,record.choice,val=>{void handlers.setChoice!(record.path,val);}),'ts-library-chip ts-library-choice-chip is-interactive',{'aria-label':i18n.quickChoiceAria(record.title),'aria-haspopup':'dialog','aria-expanded':'false','data-library-focus':focusKey(record.path,'choice-chip')});
+    }else detail.createSpan({cls:'ts-library-chip',text:choice});
+   }
+   const boardNames=record.boards.map(board=>board.title).join(lang==='en'?', ':'、');
+   const boardText=indexing&&!boardNames?'':record.indexIncomplete?(boardNames?boardNames+' · '+i18n.restUnindexed:i18n.indexIncomplete):boardNames||i18n.unplaced;
+   const meta=[typeLabel(record.type),record.highlight?highlightLocation(record.highlight):'',boardText,record.tags.join(' ')].filter(Boolean).join(' · ');
    if(meta)detail.createSpan({cls:'ts-library-card-meta-text',text:meta,attr:{title:meta}});
    if(!kanban&&Object.keys(record.custom).length){
-    const properties=Object.entries(record.custom).map(([key,value])=>key+'：'+value).join('  ');
+    const properties=Object.entries(record.custom).map(([key,value])=>key+(lang==='en'?': ':'：')+value).join('  ');
     info.createDiv({cls:'ts-library-path',text:properties,attr:{title:properties}});
    }
    recordActions(row,record);
@@ -323,8 +368,32 @@ export function mountCardLibrary(root:LibraryElement,handlers:LibraryViewHandler
   if(query.view==='kanban'){
    const board=results.createDiv('ts-db-kanban');
    for(const column of libraryKanban(shown)){
-    const lane=board.createDiv({cls:'ts-db-lane',attr:{'data-status':column.id}});
-    lane.createDiv({cls:'ts-db-lane-title',text:column.label+' · '+column.cards.length});
+    const isCollapsed=collapsedLanes.has(column.id);
+    const lane=board.createDiv({cls:isCollapsed?'ts-db-lane is-collapsed':'ts-db-lane',attr:{'data-status':column.id}});
+    const headingText=(lang==='en'?statusLabel(column.id):column.label)+' · '+column.cards.length;
+    const laneHead=lane.createDiv('ts-db-lane-title');
+    laneHead.createSpan({cls:'ts-db-lane-dot',attr:{'data-status':column.id,'aria-hidden':'true'}});
+    const laneBtn=button(laneHead,headingText,()=>{
+     const nextCollapsed=!collapsedLanes.has(column.id);
+     if(nextCollapsed)collapsedLanes.add(column.id);else collapsedLanes.delete(column.id);
+     lane.setAttribute('class',nextCollapsed?'ts-db-lane is-collapsed':'ts-db-lane');
+     laneBtn.setAttribute('aria-expanded',String(!nextCollapsed));
+     laneBtn.setAttribute('aria-label',i18n.laneToggleAria(headingText,!nextCollapsed));
+    },'ts-db-lane-toggle',{'aria-expanded':String(!isCollapsed),'aria-label':i18n.laneToggleAria(headingText,!isCollapsed),'data-library-focus':focusKey('lane',column.id)});
+    if(handlers.setStatus){
+     lane.addEventListener('dragover',event=>{
+      if(!draggedPath)return;
+      (event as DragEvent).preventDefault?.();
+      lane.setAttribute('data-drop-target','true');
+     });
+     lane.addEventListener('dragleave',()=>{lane.removeAttribute('data-drop-target');});
+     lane.addEventListener('drop',event=>{
+      (event as DragEvent).preventDefault?.();
+      lane.removeAttribute('data-drop-target');
+      const path=draggedPath;draggedPath=undefined;
+      if(path)void handlers.setStatus!(path,column.id);
+     });
+    }
     for(const record of column.cards)card(lane,record,true);
    }
   }else for(const record of shown)card(results,record);

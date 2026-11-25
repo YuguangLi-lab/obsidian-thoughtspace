@@ -15,13 +15,14 @@ class Element {
 }
 const fixture=()=>{const card=new Element(),title=new Element('研究材料'),preview=new Element(),heading=new Element('研究材料');preview.headings=[heading];return{card,title,preview,heading};};
 
-test('compact card titles are opt-in, persisted, portable and restored by card preference reset',()=>{
- assert.equal(cleanPluginSettings({}).compactDuplicateCardTitles,false);
+test('compact card titles are enabled by default, persisted when opted out, portable and restored by card preference reset',()=>{
+ assert.equal(cleanPluginSettings({}).compactDuplicateCardTitles,true);
+ assert.equal(cleanPluginSettings({compactDuplicateCardTitles:false}).compactDuplicateCardTitles,false);
  assert.equal(cleanPluginSettings({compactDuplicateCardTitles:true}).compactDuplicateCardTitles,true);
- for(const invalid of [null,'true',1,[],{}])assert.equal(cleanPluginSettings({compactDuplicateCardTitles:invalid}).compactDuplicateCardTitles,false);
- const settings=cleanPluginSettings({compactDuplicateCardTitles:true});
- assert.equal(parseSettingsProfile(exportSettingsProfile(settings)).compactDuplicateCardTitles,true);
- resetSettingsCategory(settings,'cards');assert.equal(settings.compactDuplicateCardTitles,false);
+ for(const invalid of [null,'false',0,[],{}])assert.equal(cleanPluginSettings({compactDuplicateCardTitles:invalid}).compactDuplicateCardTitles,true);
+ const settings=cleanPluginSettings({compactDuplicateCardTitles:false});
+ assert.equal(parseSettingsProfile(exportSettingsProfile(settings)).compactDuplicateCardTitles,false);
+ resetSettingsCategory(settings,'cards');assert.equal(settings.compactDuplicateCardTitles,true);
 });
 test('only the exact displayed first H1 text matches; distinct aliases and case keep the full title',()=>{
  assert.equal(compactCardTitleMatches('研究材料','研究材料',true),true);
