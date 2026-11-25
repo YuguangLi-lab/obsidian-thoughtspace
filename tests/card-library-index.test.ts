@@ -62,7 +62,7 @@ test('failed files remain in the retry list in input order and do not stop succe
  assert.deepEqual(await retry,{boards:failures.map(board),failed:[]});
 });
 
-test('a superseded modal releases read slots as they finish and never returns a partial index',async()=>{
+test('a superseded modal drops its slots immediately and never returns a partial index',async()=>{
  const oldFiles=paths(12,'旧版'),newFiles=paths(5,'新版'),io=deferredReader(),scan=createLibraryBoardReader(io.read);
  let current=true;
  const old=scan(oldFiles,()=>current);
@@ -71,20 +71,50 @@ test('a superseded modal releases read slots as they finish and never returns a 
  current=false;
  const latest=scan(newFiles,()=>true);
  await turn();
- assert.deepEqual([...io.pending.keys()],oldFiles.slice(0,4));
- io.settle(oldFiles[2],true);
+ assert.deepEqual(io.started,[...oldFiles.slice(0,4),...newFiles.slice(0,4)]);
+ io.settle(oldFiles[0]);
  await turn();
- assert.deepEqual(io.started,[...oldFiles.slice(0,4),newFiles[0]]);
- for(const path of [oldFiles[3],oldFiles[1],oldFiles[0]])io.settle(path);
+ assert.deepEqual(io.started,[...oldFiles.slice(0,4),...newFiles.slice(0,4)]);
+ io.settle(newFiles[0]);
  await turn();
+ assert.equal(io.started.at(-1),newFiles[4]);
  assert.equal(await old,undefined);
  while(io.pending.size){
   for(const path of [...io.pending.keys()].reverse())io.settle(path);
   await turn();
  }
- assert.equal(io.peak(),4);
+ const fresh=[...io.pending.keys()].filter(path=>newFiles.includes(path));
+ assert.ok(fresh.length<=4);
  assert.deepEqual(io.started,[...oldFiles.slice(0,4),...newFiles]);
  assert.deepEqual(await latest,{boards:newFiles.map(board),failed:[]});
+});
+
+test('a reopen after cancel starts without waiting on stale reads',async()=>{
+ const oldFiles=paths(8,'旧版'),newFiles=paths(6,'新版'),io=deferredReader(),scan=createLibraryBoardReader(io.read);
+ let current=true;
+ const old=scan(oldFiles,()=>current);
+ await turn();
+ current=false;
+ const latest=scan(newFiles,()=>true);
+ await turn();
+ assert.deepEqual(io.started,[...oldFiles.slice(0,4),...newFiles.slice(0,4)]);
+ assert.equal([...io.pending.keys()].filter(path=>newFiles.includes(path)).length,4);
+ io.settle(oldFiles[1]);
+ io.settle(oldFiles[2],true);
+ await turn();
+ assert.equal([...io.pending.keys()].filter(path=>newFiles.includes(path)).length,4);
+ assert.equal(io.started.filter(path=>newFiles.includes(path)).length,4);
+ io.settle(newFiles[3]);
+ await turn();
+ assert.equal(io.started.filter(path=>newFiles.includes(path)).length,5);
+ assert.equal([...io.pending.keys()].filter(path=>newFiles.includes(path)).length,4);
+ while(io.pending.size){
+  for(const path of [...io.pending.keys()])io.settle(path);
+  await turn();
+ }
+ assert.equal(await old,undefined);
+ assert.deepEqual(await latest,{boards:newFiles.map(board),failed:[]});
+ assert.deepEqual(io.started.filter(path=>oldFiles.includes(path)),oldFiles.slice(0,4));
 });
 
 test('a modal that closes before readers start never issues a read',async()=>{
