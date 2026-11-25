@@ -23,7 +23,12 @@ export class BoardSearchModal extends Modal{
  private button(el:HTMLElement,label:string,icon:string,run:()=>unknown){const b=el.createEl('button',{attr:{'aria-label':label,title:label}});setIcon(b,icon);b.onclick=()=>this.run(run);return b;}
  onOpen(){this.closed=false;themeSurface(this.modalEl);this.modalEl.addClass('ts-board-search');this.viewport?.();this.viewport=bindMobileViewport(this.modalEl);this.titleEl.setText('搜索白板');this.titleEl.createEl('small',{cls:'ts-board-search-scope',text:this.host.title,attr:{title:this.host.title}});
   const bar=this.contentEl.createDiv({cls:'ts-board-search-bar',attr:{role:'search','aria-label':'搜索当前白板'}});setIcon(bar.createSpan({attr:{'aria-hidden':'true'}}),'search');this.input=bar.createEl('input',{type:'search',attr:{placeholder:'标题、文本、#标签、分组或文件路径…','aria-label':'搜索白板内容'}});
-  this.input.oninput=()=>{this.cancelQuery();this.clearButton.disabled=!this.hasFilters();this.timer=this.contentEl.win.setTimeout(()=>{this.timer=undefined;this.reset();},90);};this.input.onkeydown=e=>this.keydown(e);
+  let composing=false;
+  const scheduleQuery=()=>{this.cancelQuery();this.clearButton.disabled=!this.hasFilters();this.timer=this.contentEl.win.setTimeout(()=>{this.timer=undefined;this.reset();},90);};
+  this.input.oninput=(e?:Event)=>{if(composing||(e as InputEvent|undefined)?.isComposing){this.cancelQuery();this.clearButton.disabled=!this.hasFilters();return;}scheduleQuery();};
+  this.input.addEventListener?.('compositionstart',()=>{composing=true;this.cancelQuery();});
+  this.input.addEventListener?.('compositionend',()=>{composing=false;scheduleQuery();});
+  this.input.onkeydown=e=>this.keydown(e);
   this.clearButton=this.button(bar,'清除关键词与筛选','x',()=>this.clearFilters());this.clearButton.addClass('ts-board-search-clear','ts-board-search-filter-reset');
   this.button(bar,'刷新搜索索引','refresh-cw',()=>this.refresh());
   const disclosure=this.contentEl.createEl('button',{cls:'ts-board-search-refine-toggle',text:'筛选与清单',attr:{type:'button','aria-expanded':'false','aria-label':'展开或收起搜索筛选与材料清单'}});

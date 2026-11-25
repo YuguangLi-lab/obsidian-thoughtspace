@@ -65,7 +65,7 @@
 .ts-brain-top-actions { display:flex; gap:6px; margin-left:auto; }
 .ts-brain-stage { position:relative; flex:1; min-height:0; overflow:hidden; touch-action:none; background:radial-gradient(ellipse at 50% 46%,color-mix(in srgb,var(--ts-accent,var(--interactive-accent)) 3%,transparent),transparent 66%); cursor:grab; }
 .ts-brain-stage.is-panning { cursor:grabbing; }
-.ts-brain-scene { position:absolute; top:0; left:0; transform-origin:0 0; }
+.ts-brain-scene { position:absolute; top:0; left:0; transform-origin:0 0; will-change:transform; }
 .ts-brain-links { position:absolute; top:0; left:0; overflow:visible; pointer-events:none; }
 .ts-brain-links path { fill:none; stroke:var(--brain-line); stroke-width:1.2; stroke-linecap:round; stroke-linejoin:round; vector-effect:non-scaling-stroke; }
 .ts-brain-links marker path { fill:var(--brain-line); stroke:none; }

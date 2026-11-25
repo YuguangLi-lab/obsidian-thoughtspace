@@ -4,13 +4,13 @@ Collect research material, connect ideas, and shape long-form writing inside Obs
 
 **English** · [简体中文](README.zh-CN.md)
 
-**1.3.54 · Obsidian 1.13.7+ · MIT**
+**1.3.55 · Obsidian 1.13.7+ · MIT**
 
 **[Complete English guide](docs/USER-GUIDE.md) · [中文完整教程](docs/USER-GUIDE.zh-CN.md) · [Install or update](#install-or-update) · [Ten-minute start](docs/USER-GUIDE.md#quick-start) · [Latest release](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/latest)**
 
 ---
 
-## Highlights (up to 1.3.54)
+## Highlights (up to 1.3.55)
 
 - **Unified Warm-Paper & Charcoal Visual System**: Calm `#f8f5ef` warm-white paper surfaces in light mode and low-saturation charcoal (`#18191b` / `#222326` / `#323339`) in dark mode, with vector paper grain, quiet save indicators, hover-reveal thin card scrollbars, and automatic duplicate H1 card-title compaction.
 - **Card Library (List · Table · Kanban)**: Browse vault cards with instant IME-safe search, multi-facet removable filter chips, sticky-column tables, collapsible responsive Kanban lanes with drag-and-drop status updates, and one-click status/category (`thoughtspace_choice`) chips. Supports both English and Chinese interfaces.

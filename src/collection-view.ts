@@ -103,7 +103,7 @@ export interface CollectionBrowseLocation {page:number;scroll:number;focus?:HTML
 export class CollectionView extends ItemView {
  private alive=false;private stateEpoch=0;private navigationEpoch=0;private listEpoch=0;private renderEpoch=0;
  private records:readonly CollectionRecord[]=[];private filter:CollectionFilter='all';private tag='';private query='';private page=0;
- private preparing=true;private choosing=false;private submitting=false;private composing=false;private indexBusy=false;private stale=false;
+ private preparing=true;private choosing=false;private submitting=false;private composing=false;private tagComposing=false;private indexBusy=false;private stale=false;
  private unsubscribe?:()=>void;private unbindViewport?:()=>void;private observer?:IntersectionObserver;
  private cards:CardPreview[]=[];private readQueue:CardPreview[]=[];private activeReads=0;
  private root?:HTMLElement;private main?:HTMLElement;private nav?:HTMLElement;private tagsList?:HTMLElement;private backdrop?:HTMLButtonElement;
@@ -114,7 +114,7 @@ export class CollectionView extends ItemView {
  private drawerButton?:HTMLButtonElement;private refreshButton?:HTMLButtonElement;private feed?:HTMLElement;private feedStatus?:HTMLElement;private pagination?:HTMLElement;
  private allButton?:HTMLButtonElement;private unplacedButton?:HTMLButtonElement;private tagHeading?:HTMLElement;private liveMessage='';private draftMessage='';
  private submitHotkey?:KeymapEventHandler;
- private located?:{id:string;createdAt:string;origin:CollectionBrowseLocation};private membershipEpoch=0;private membershipTimer?:ReturnType<typeof setTimeout>;
+ private located?:{id:string;createdAt:string;origin:CollectionBrowseLocation};private membershipEpoch=0;private membershipTimer?:number;private membershipTimerWindow?:Window;
  private restoreEpoch=0;private backgroundRefreshEpoch?:number;
  private heatmap?:CollectionHeatmapView;private attachmentBrowser?:CollectionAttachmentBrowser;
  private noteExport?:CollectionNoteExportModal;
@@ -207,7 +207,7 @@ export class CollectionView extends ItemView {
    if(kind==='batches'){void this.loadBatchReports();return;}
    this.syncDraft();
    if(kind==='filters'){void this.loadSavedFilters();return;}
-   if(kind==='records'){if(!this.batchRunning)this.clearSelection(false);this.stale=true;this.syncRefresh();if(this.searchBusy||this.searchTimer)this.cancelSearch('记录有更新，请重新搜索。');this.membershipEpoch++;if(this.membershipTimer)clearTimeout(this.membershipTimer);this.membershipTimer=setTimeout(()=>{this.membershipTimer=undefined;void this.refreshMembership();},80);}
+   if(kind==='records'){if(!this.batchRunning)this.clearSelection(false);this.stale=true;this.syncRefresh();if(this.searchBusy||this.searchTimer)this.cancelSearch('记录有更新，请重新搜索。');this.membershipEpoch++;if(this.membershipTimer!==undefined)this.membershipTimerWindow?.clearTimeout(this.membershipTimer);this.membershipTimer=undefined;this.membershipTimerWindow=undefined;const win=this.contentEl.ownerDocument.defaultView;if(win&&!win.closed){this.membershipTimerWindow=win;this.membershipTimer=win.setTimeout(()=>{this.membershipTimer=undefined;this.membershipTimerWindow=undefined;void this.refreshMembership();},80);}}
   });
   this.syncDraft();
   const stateEpoch=this.stateEpoch;
@@ -218,8 +218,8 @@ export class CollectionView extends ItemView {
  async onClose(){
   this.batchStopRequested=true;this.batchEpoch++;this.savedEpoch++;this.historyEpoch++;this.alive=false;this.dismissDuplicate();this.stateEpoch++;this.navigationEpoch++;this.listEpoch++;this.renderEpoch++;this.restoreEpoch++;
   this.cancelSearch();
-  this.bodyResizeObserver?.disconnect();this.bodyResizeObserver=undefined;
-  if(this.membershipTimer)clearTimeout(this.membershipTimer);this.membershipTimer=undefined;this.membershipEpoch++;
+  this.bodyResizeObserver?.disconnect();this.bodyResizeObserver=undefined;this.composing=false;this.tagComposing=false;
+  if(this.membershipTimer!==undefined)this.membershipTimerWindow?.clearTimeout(this.membershipTimer);this.membershipTimer=undefined;this.membershipTimerWindow=undefined;this.membershipEpoch++;
   this.unsubscribe?.();this.unsubscribe=undefined;this.unbindViewport?.();this.unbindViewport=undefined;
   this.attachmentBrowser?.close();this.attachmentBrowser=undefined;this.noteExport?.close();this.noteExport=undefined;this.review=undefined;this.heatmap?.destroy();this.heatmap=undefined;
   if(this.submitHotkey)this.scope?.unregister(this.submitHotkey);this.submitHotkey=undefined;
@@ -603,6 +603,8 @@ export class CollectionView extends ItemView {
   const tags=extras.createEl('label',{cls:'ts-collection-field'});tags.createSpan({text:'标签'});
   this.tagInput=tags.createEl('input',{type:'text',attr:{'aria-label':'记录标签',placeholder:'#想法 #阅读/摘录','data-collection-tags':'true',maxlength:'1000'}});
   this.tagInput.oninput=()=>this.patch({tags:this.tagInput!.value});
+  this.tagInput.addEventListener?.('compositionstart',()=>{this.tagComposing=true;});
+  this.tagInput.addEventListener?.('compositionend',()=>{this.tagComposing=false;this.patch({tags:this.tagInput!.value});});
   this.tagInput.addEventListener('blur',()=>{void this.flushDraft();});
   const attachmentArea=extras.createDiv('ts-collection-attachment-area');
   this.attachButton=this.button(attachmentArea,'引用已有附件','attachment',()=>{void this.chooseAttachment();},'paperclip');
@@ -633,7 +635,7 @@ export class CollectionView extends ItemView {
   if(!this.composing&&this.bodyInput.value!==draft.body)this.bodyInput.value=draft.body;
   this.fitBodyInput();
   this.bodyInput.disabled=disabled;
-  if(this.tagInput){if(this.tagInput.value!==draft.tags)this.tagInput.value=draft.tags;this.tagInput.disabled=disabled;}
+  if(this.tagInput){if(!this.tagComposing&&this.tagInput.value!==draft.tags)this.tagInput.value=draft.tags;this.tagInput.disabled=disabled;}
   if(this.attachButton)this.attachButton.disabled=disabled;
   if(this.targetButton)this.targetButton.disabled=targetDisabled;
   if(this.clearTarget){this.clearTarget.hidden=!draft.target&&!(draft.locked&&!draft.targetLocked);this.clearTarget.disabled=targetDisabled;}
@@ -710,7 +712,7 @@ export class CollectionView extends ItemView {
   this.button(panel,'取消','duplicate-cancel',()=>{this.dismissDuplicate();this.submitting=false;this.syncDraft();},'x');
  }
  private async submit(approval?:string){
-  if(this.composing||this.submitButton?.disabled||this.submitting||!this.current())return;
+  if(this.composing||this.tagComposing||this.submitButton?.disabled||this.submitting||!this.current())return;
   const base=this.invocation(),stamp=this.draftStamp();this.dismissDuplicate();const epoch=this.duplicateEpoch,current=()=>base()&&epoch===this.duplicateEpoch&&this.draftStamp()===stamp;this.submitting=true;this.liveMessage='';this.syncDraft();
   try{
    if(this.host.checkDuplicates&&!this.host.draft().locked&&approval!==stamp){
@@ -762,7 +764,7 @@ export class CollectionView extends ItemView {
   });
  }
  private handleSubmitHotkey(event:KeyboardEvent):boolean {
-  if(event.defaultPrevented||event.isComposing||Reflect.get(event,'keyCode')===229||this.composing||event.repeat||event.key!=='Enter'||!(event.metaKey||event.ctrlKey)||event.altKey||event.shiftKey)return false;
+  if(event.defaultPrevented||event.isComposing||Reflect.get(event,'keyCode')===229||this.composing||this.tagComposing||event.repeat||event.key!=='Enter'||!(event.metaKey||event.ctrlKey)||event.altKey||event.shiftKey)return false;
   const doc=this.contentEl.ownerDocument,composer=this.root?.querySelector('.ts-collection-composer');
   if(!this.current()||this.app.workspace.activeLeaf!==this.leaf||!composer||!composer.contains(doc.activeElement)||!this.root?.getClientRects().length)return false;
   if(event.view&&event.view!==doc.defaultView||event.target&&event.target!==doc.body&&!composer.contains(event.target as Node))return false;

@@ -386,7 +386,7 @@ export class HandwritingView {
   this.stage.dataset.inkSourcePoints=String(points);let index=0,projected=0;this.rendering=large;this.syncStatus();this.updateSelectionActions();
   const current=()=>{
    const value=this.snapshot();if(generation!==this.renderGeneration||this.renderBasis!==next||!value||this.owner!==next.owner||this.root.ownerDocument.defaultView!==this.win||this.win.closed||!this.root.isConnected||value.key!==next.owner.key||value.board!==next.owner.board||value.board.ink!==next.ink||!sameViewport(this.viewport(value),viewport)||this.selected.join('\0')!==selection||this.selectionDelta.x!==dx||this.selectionDelta.y!==dy)return false;
-   const freshClip=visibleInkWorldRect(this.stage.getBoundingClientRect(),viewport,this.actionViewport());
+   const freshRect=this.renderFrame===undefined?rect:this.stage.getBoundingClientRect(),freshClip=visibleInkWorldRect(freshRect,viewport,this.actionViewport());
    return !clip&&!freshClip||!!clip&&!!freshClip&&['x','y','width','height'].every(key=>Reflect.get(clip,key)===Reflect.get(freshClip,key));
   };
   const batch=()=>{

@@ -382,44 +382,73 @@ export function mountMediaCard(host: HTMLElement, options: MediaCardOptions): Me
     const video = current as HTMLVideoElement;
     return Number.isFinite(video.videoWidth) && video.videoWidth > 0 && Number.isFinite(video.videoHeight) && video.videoHeight > 0;
   };
+  let lastPlayLabel = '', lastPosText = '', lastFrameKey = '', lastLoopPressed = '', lastFullPressed = '', lastPipPressed = '';
   const refresh = () => {
-    const playing = !!media && !media.paused;
-    paintButton(togglePlayback, playing ? '暂停' : '播放', playing ? 'pause' : 'play');
-    togglePlayback.setAttribute('aria-label', playing ? '暂停' : '播放');
-    togglePlayback.title = playing ? '暂停' : '播放';
-    position.textContent = timestamp(state.time);
-    position.setAttribute('aria-label', `当前位置 ${timestamp(state.time)}`);
-    if (!editingTime && doc.activeElement !== timeInput) timeInput.value = preciseTimestamp(state.time);
+    const playing = !!media && !media.paused, playLabel = playing ? '暂停' : '播放';
+    paintButton(togglePlayback, playLabel, playing ? 'pause' : 'play');
+    if (lastPlayLabel !== playLabel) {
+      lastPlayLabel = playLabel;
+      togglePlayback.setAttribute('aria-label', playLabel);
+      togglePlayback.title = playLabel;
+    }
+    const posText = timestamp(state.time);
+    if (lastPosText !== posText) {
+      lastPosText = posText;
+      position.textContent = posText;
+      position.setAttribute('aria-label', `当前位置 ${posText}`);
+    }
+    if (!editingTime && doc.activeElement !== timeInput) {
+      const precise = preciseTimestamp(state.time);
+      if (timeInput.value !== precise) timeInput.value = precise;
+    }
+    const rateValue = String(state.rate);
     if (rates.includes(state.rate as typeof rates[number])) {
       customRateOption?.remove(); customRateOption = undefined;
-    } else if (customRateOption?.value !== String(state.rate)) {
+    } else if (customRateOption?.value !== rateValue) {
       customRateOption?.remove();
       customRateOption = element('option', undefined, `${state.rate}×`);
-      customRateOption.value = String(state.rate);
+      customRateOption.value = rateValue;
       rate.append(customRateOption);
     }
-    rate.value = String(state.rate);
+    if (rate.value !== rateValue) rate.value = rateValue;
     capture.disabled = !metadataReady || options.captureEnabled === false || !!frameTask;
     if (frameButton) {
       frameButton.disabled = options.captureEnabled === false || !!frameTask || !pendingFrame&&!validFrame();
-      paintButton(frameButton, frameTask ? '正在截图…' : pendingFrame?'重试保存截图':'截取画面', 'camera');frameButton.setAttribute('aria-label',pendingFrame?'重试保存截图':'截取当前视频画面并记录时间点');
-      frameButton.setAttribute('aria-busy', String(!!frameTask));
+      const frameAria = pendingFrame ? '重试保存截图' : '截取当前视频画面并记录时间点', frameBusy = String(!!frameTask), frameKey = `${frameAria}|${frameBusy}`;
+      paintButton(frameButton, frameTask ? '正在截图…' : pendingFrame?'重试保存截图':'截取画面', 'camera');
+      if (lastFrameKey !== frameKey) {
+        lastFrameKey = frameKey;
+        frameButton.setAttribute('aria-label', frameAria);
+        frameButton.setAttribute('aria-busy', frameBusy);
+      }
     }
     backward.disabled = !metadataReady;
     forward.disabled = !metadataReady;
     loop.disabled = !metadataReady;
+    const loopPressed = String(loopB !== undefined);
     paintButton(loop, loopB !== undefined ? '关闭循环' : loopA !== undefined ? '设为 B 点' : '循环 A/B', 'repeat-2');
-    loop.setAttribute('aria-pressed', String(loopB !== undefined));
+    if (lastLoopPressed !== loopPressed) {
+      lastLoopPressed = loopPressed;
+      loop.setAttribute('aria-pressed', loopPressed);
+    }
     if (fullscreen) {
       fullscreen.disabled = !metadataReady || !!presentationTask || doc.fullscreenEnabled === false || typeof card.requestFullscreen !== 'function';
-      paintButton(fullscreen, doc.fullscreenElement === card ? '退出全屏' : '全屏', doc.fullscreenElement === card ? 'minimize' : 'maximize');
-      fullscreen.setAttribute('aria-pressed', String(doc.fullscreenElement === card));
+      const isFull = doc.fullscreenElement === card, fullPressed = String(isFull);
+      paintButton(fullscreen, isFull ? '退出全屏' : '全屏', isFull ? 'minimize' : 'maximize');
+      if (lastFullPressed !== fullPressed) {
+        lastFullPressed = fullPressed;
+        fullscreen.setAttribute('aria-pressed', fullPressed);
+      }
     }
     if (pip) {
       const video = media as HTMLVideoElement | undefined;
       pip.disabled = !!presentationTask || !validFrame() || !doc.pictureInPictureEnabled || typeof video?.requestPictureInPicture !== 'function' || video.disablePictureInPicture;
-      paintButton(pip, video && doc.pictureInPictureElement === video ? '退出画中画' : '画中画', 'picture-in-picture-2');
-      pip.setAttribute('aria-pressed', String(!!video && doc.pictureInPictureElement === video));
+      const isPip = !!video && doc.pictureInPictureElement === video, pipPressed = String(isPip);
+      paintButton(pip, isPip ? '退出画中画' : '画中画', 'picture-in-picture-2');
+      if (lastPipPressed !== pipPressed) {
+        lastPipPressed = pipPressed;
+        pip.setAttribute('aria-pressed', pipPressed);
+      }
     }
   };
   const exitPresentation = (current: HTMLMediaElement, exitSharedCard = true) => {

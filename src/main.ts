@@ -3192,7 +3192,7 @@ class BoardView extends FileView {
   private brainObjectEpoch=0;
   private brainRelationCreating=false;
   private mindmapFileIds=new WeakMap<TFile,number>();private mindmapFileSequence=0;
-  private nodeScopes=new Map<string,Component>(); private nodeKeys=new Map<string,string>(); private previewQueue=new RenderQueue(); private pdfPreviewQueue=new RenderQueue(2); private renderFrame=0; private viewportOnlyRender=true; private mapKey=''; private mapViewport?:()=>void; private mapRefresh?:(board:Board)=>boolean; private cameraGeomKey?:string; private cameraZoom=Number.NaN; private stageClientRect?:{left:number;top:number;right:number;bottom:number}; private boardTreeCache?:{stamp:string;result:{graph:Map<string,string[]>;errors:Set<string>}}; private connectSide?:Side; private selected = new Set<string>(); private selectedEdge?: string;
+  private nodeScopes=new Map<string,Component>(); private nodeKeys=new Map<string,string>(); private previewQueue=new RenderQueue(); private pdfPreviewQueue=new RenderQueue(2); private renderFrame=0; private viewportOnlyRender=true; private mapKey=''; private mapViewport?:()=>void; private mapRefresh?:(board:Board)=>boolean; private cameraGeomKey?:string; private cameraZoom=Number.NaN; private backgroundStyleKey=''; private backgroundRoot?:HTMLElement; private cameraEdgesCache?:{owner:Session;edges:Board['edges'];length:number;epoch:number;stamp:string}; private formatContextActive?:()=>boolean; private stageClientRect?:{left:number;top:number;right:number;bottom:number}; private boardTreeCache?:{stamp:string;result:{graph:Map<string,string[]>;errors:Set<string>}}; private connectSide?:Side; private selected = new Set<string>(); private selectedEdge?: string;
   private batchFormatTarget:'nodes'|'edges'='nodes';private batchEdgeScope:SelectionEdgeScope='internal';
   private mode: 'select' | 'connect' = 'select'; private connectFrom?: string; private connectButton?: HTMLButtonElement;
   private tab: 'library' | 'boards' | 'tasks' | 'outline' = 'boards'; private query = '';private sidebarQueries=new Map<string,string>(); private tag = ''; private sidebarRun = 0;private sidebarContentKey='';
@@ -3267,10 +3267,10 @@ class BoardView extends FileView {
     if(overview){menu.addSeparator();menu.addItem(i=>i.setTitle(overview.getAttribute('aria-label')||'白板总览').setIcon('map').setDisabled(owner.blocked||overview.disabled).onClick(()=>{if(current()&&this.overviewToggle===overview&&overview.isConnected&&overview.ownerDocument===doc&&!overview.disabled)overview.click();}));}
     const rect=anchor.getBoundingClientRect();menu.showAtPosition({x:rect.left,y:Math.max(12,rect.top-300)},doc);
   }
-  private chooseObjects(){const owner=this.session;if(!owner)return;const m=new Modal(this.app);themeSurface(m.modalEl);m.modalEl.addClass('ts-object-filter-modal');m.titleEl.setText('筛选白板对象');const draft={...this.objectFilter};const controls=m.contentEl.createDiv('ts-object-filter-controls');const query=controls.createEl('input',{type:'search',value:draft.query,attr:{placeholder:'搜索内容或笔记路径','aria-label':'对象内容筛选'}});query.oninput=()=>draft.query=query.value;
+  private chooseObjects(){const owner=this.session;if(!owner)return;const m=new Modal(this.app);themeSurface(m.modalEl);m.modalEl.addClass('ts-object-filter-modal');m.titleEl.setText('筛选白板对象');const draft={...this.objectFilter};const controls=m.contentEl.createDiv('ts-object-filter-controls');const query=controls.createEl('input',{type:'search',value:draft.query,attr:{placeholder:'搜索内容或笔记路径','aria-label':'对象内容筛选'}});let queryComposing=false;query.oninput=(e?:Event)=>{if(!queryComposing&&!(e as InputEvent|undefined)?.isComposing)draft.query=query.value;};query.addEventListener?.('compositionstart',()=>{queryComposing=true;});query.addEventListener?.('compositionend',()=>{queryComposing=false;draft.query=query.value;});
     const kind=controls.createEl('select',{attr:{'aria-label':'对象类型'}});for(const [value,text]of Object.entries({'':'全部类型',card:'笔记卡片',text:'文本',image:'图片',pdf:'PDF',audio:'音频',video:'视频',board:'子白板',section:'分组'}))kind.createEl('option',{value,text});kind.value=draft.kind;kind.onchange=()=>draft.kind=kind.value;
     const color=controls.createEl('select',{attr:{'aria-label':'对象颜色'}});color.createEl('option',{value:'',text:'全部颜色'});for(const value of colors)color.createEl('option',{value,text:colorNames[value]});color.value=draft.color;color.onchange=()=>draft.color=color.value;
-    button(m.contentEl,'应用筛选','filter',()=>{this.requireOwner(owner);this.objectFilter=draft;this.renderBoard();m.close();});button(m.contentEl,'清除筛选','x',()=>{this.requireOwner(owner);this.objectFilter={kind:'',color:'',query:''};this.renderBoard();m.close();});m.open();}
+    button(m.contentEl,'应用筛选','filter',()=>{this.requireOwner(owner);draft.query=query.value;this.objectFilter=draft;this.renderBoard();m.close();});button(m.contentEl,'清除筛选','x',()=>{this.requireOwner(owner);this.objectFilter={kind:'',color:'',query:''};this.renderBoard();m.close();});m.open();}
   private updateObjectFilter(){if(!this.session)return;const active=Object.values(this.objectFilter).some(Boolean);this.filterMatches=active?filterObjects(this.session.board.nodes,this.objectFilter):undefined;this.filterBadge?.toggleClass('is-visible',active);if(this.filterBadge){this.filterBadge.empty();if(active){this.filterBadge.createSpan({text:`匹配 ${this.filterMatches!.size} / ${this.session.board.nodes.length}`});button(this.filterBadge,'选择匹配','check-check',()=>{this.selected=new Set(this.filterMatches);this.contextOpen=false;this.updateSelection();});button(this.filterBadge,'清除对象筛选','x',()=>{this.objectFilter={kind:'',color:'',query:''};this.renderBoard();});}}for(const[id,el]of this.positions)el.toggleClass('is-filtered-out',!!this.filterMatches&&!this.filterMatches.has(id));}
   pasteTexts(text:string,split=true){const owner=this.requireOwner(),position=this.point(),lines=split?textBatch(text):[text];if(!text.trim())return;if(text.length>100000)throw Error('一次最多粘贴 100,000 个字符');const nodes=lines.map((text,i)=>{const n:Card={id:uid(),kind:'text',text,x:position.x,y:position.y,width:240,height:60,color:'slate',fontSize:this.plugin.settings.defaultTextSize};fitTextNode(n,this.contentEl);return n;});let y=position.y;for(const n of nodes){n.y=y;y+=n.height+24;}owner.change(b=>{b.version=3;b.nodes.push(...nodes);});this.selected=new Set(nodes.map(n=>n.id));this.updateSelection();}
   private pdfQuotePrompt(initial=''){
@@ -3580,7 +3580,7 @@ class BoardView extends FileView {
     if(this.renderFrame)return;
     this.renderFrame=(this.contentEl?.ownerDocument?.defaultView||window).requestAnimationFrame(()=>{this.renderFrame=0;const only=this.viewportOnlyRender;this.viewportOnlyRender=true;this.renderBoard(only);});
   }
-  private clearNodes(){this.cardControlContext?.clear();this.linkedContentMenu?.hide();this.linkedContentMenu=undefined;this.connectionCandidates=[];this.connectionIndex=undefined;this.connectionGeometryKey='';this.cameraGeomKey=undefined;this.stageClientRect=undefined;(this.contentEl?.ownerDocument?.defaultView||window).cancelAnimationFrame(this.renderFrame);this.renderFrame=0;this.viewportOnlyRender=true;this.relationBar?.remove();this.relationBar=undefined;this.nodeFitQueue.cancel();this.pendingFits.clear();this.deferredCardFits.clear();this.previewQueue.clear();this.pdfPreviewQueue.clear();this.nodeScopes.forEach(s=>s.unload());this.nodeScopes.clear();this.mediaPlayers.clear();this.mediaStates.clear();this.mediaIdentities.clear();this.onlineBoardPlayers.clear();this.onlineBoardStates.clear();this.nodeKeys.clear();this.positions.forEach(e=>e.remove());this.positions.clear();this.cardControlRequests.clear();this.endpointPorts.clear();this.mapKey='';this.mapRefresh=undefined;this.mapViewport=undefined;this.edgeLayer?.clear();}
+  private clearNodes(){this.cardControlContext?.clear();this.linkedContentMenu?.hide();this.linkedContentMenu=undefined;this.connectionCandidates=[];this.connectionIndex=undefined;this.connectionGeometryKey='';this.cameraGeomKey=undefined;this.cameraEdgesCache=undefined;this.backgroundStyleKey='';this.stageClientRect=undefined;(this.contentEl?.ownerDocument?.defaultView||window).cancelAnimationFrame(this.renderFrame);this.renderFrame=0;this.viewportOnlyRender=true;this.relationBar?.remove();this.relationBar=undefined;this.nodeFitQueue.cancel();this.pendingFits.clear();this.deferredCardFits.clear();this.previewQueue.clear();this.pdfPreviewQueue.clear();this.nodeScopes.forEach(s=>s.unload());this.nodeScopes.clear();this.mediaPlayers.clear();this.mediaStates.clear();this.mediaIdentities.clear();this.onlineBoardPlayers.clear();this.onlineBoardStates.clear();this.nodeKeys.clear();this.positions.forEach(e=>e.remove());this.positions.clear();this.cardControlRequests.clear();this.endpointPorts.clear();this.mapKey='';this.mapRefresh=undefined;this.mapViewport=undefined;this.edgeLayer?.clear();}
   constructor(leaf: WorkspaceLeaf, private plugin: ThoughtSpace) {
     super(leaf);this.scope=new Scope(this.app.scope);
     const search=(event:KeyboardEvent)=>{
@@ -3747,19 +3747,23 @@ class BoardView extends FileView {
     setIcon(searchBox.createSpan('ts-sidebar-search-icon'),'search');
     const search = searchBox.createEl('input', { cls: 'ts-search', type: 'search', placeholder: '搜索白板…', attr: { 'aria-label': '搜索卡片、白板或任务' } });
     const clear=button(searchBox,'清除搜索','x',()=>{search.value='';search.dispatchEvent(new Event('input'));search.focus();},'ts-icon-button ts-search-clear');clear.hidden=true;
-    search.oninput = () => { this.query = search.value.toLocaleLowerCase();clear.hidden=!search.value; this.renderSidebar(); };
+    let sidebarSearchComposing=false;
+    const applySidebarSearch=()=>{this.query=search.value.toLocaleLowerCase();clear.hidden=!search.value;this.renderSidebar();};
+    search.oninput = (e?:Event) => { clear.hidden=!search.value; if(!sidebarSearchComposing&&!(e as InputEvent|undefined)?.isComposing)applySidebarSearch(); };
+    search.addEventListener?.('compositionstart',()=>{sidebarSearchComposing=true;});
+    search.addEventListener?.('compositionend',()=>{sidebarSearchComposing=false;applySidebarSearch();});
     search.onkeydown=e=>{if(!e.isComposing&&e.keyCode!==229&&!e.altKey&&!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&e.key==='Escape'&&search.value){e.preventDefault();e.stopPropagation();clear.click();}};
     this.list = this.sidebar.createDiv({cls:'ts-library',attr:{id:sidebarPanelId,role:'tabpanel','aria-labelledby':sidebarPanelId+'-tab-'+this.tab}});
     search.title='↓ 进入结果 · ↑ 从末项开始 · Esc 清除搜索';
     this.register(sidebarSearchNavigation(search,this.list,()=>!this.closed&&!this.sidebarTimer&&this.list.getAttribute('aria-busy')!=='true'));
     const main = body.createDiv('ts-main ts-board-layout');
     const formatbar=main.createDiv('ts-floating-formatbar');
-    const contextHost=formatbar.createDiv('ts-card-context');
+    const contextHost=formatbar.createDiv('ts-card-context');this.formatContextActive=()=>!contextHost.hidden;
     const cardContext=new CardControlContext(contextHost,()=>{this.refreshSelectionChrome?.();this.scheduleRender(true);});this.cardControlContext=cardContext;
     this.refreshCardControlContext=()=>this.syncCardControlContext();
     this.register(toolbarNavigation(contextHost.querySelector<HTMLElement>('.ts-card-context-actions')!));
     this.registerDomEvent(contextHost,'keydown',e=>{if(e.key==='Escape'&&!e.isComposing&&e.keyCode!==229&&!e.defaultPrevented&&!this.closed&&!this.closing&&this.session&&contextHost.isConnected&&contextHost.contains(root.ownerDocument.activeElement)){e.preventDefault();e.stopPropagation();this.stage.focus({preventScroll:true});}});
-    this.register(()=>{cardContext.dispose();if(this.cardControlContext===cardContext){this.cardControlContext=undefined;this.refreshCardControlContext=undefined;}});
+    this.register(()=>{cardContext.dispose();if(this.cardControlContext===cardContext){this.cardControlContext=undefined;this.refreshCardControlContext=undefined;this.formatContextActive=undefined;}});
     const heading=formatbar.createDiv({cls:'ts-format-heading',attr:{role:'toolbar','aria-label':'对象与编辑模式'}});this.selectionHeading=heading;
     this.register(toolbarNavigation(heading));this.register(installToolbarWheel(heading));
     const formatRow=formatbar.createDiv('ts-format-row');
@@ -5392,9 +5396,11 @@ class BoardView extends FileView {
   }
   private applyBoardBackground(){
     const root=this.contentEl;if(!root?.style)return;
-    const preferences=boardBackground(this.session?.board,this.plugin.settings);root.dataset.background=preferences.canvasBackground;
-    root.style.setProperty('--ts-paper-color',paperBaseColor(preferences));root.style.setProperty('--ts-paper-texture',String(preferences.paperTexture/100));
-    const resource=this.plugin.backgroundImageResource(preferences.backgroundImagePath);
+    const preferences=boardBackground(this.session?.board,this.plugin.settings),paperColor=paperBaseColor(preferences),resource=this.plugin.backgroundImageResource(preferences.backgroundImagePath);
+    const key=[preferences.canvasBackground,paperColor,preferences.paperTexture,resource||'',preferences.backgroundImageFit,preferences.backgroundImageOpacity].join('\0');
+    if(this.backgroundRoot===root&&this.backgroundStyleKey===key&&root.dataset.background===preferences.canvasBackground)return;
+    this.backgroundRoot=root;this.backgroundStyleKey=key;root.dataset.background=preferences.canvasBackground;
+    root.style.setProperty('--ts-paper-color',paperColor);root.style.setProperty('--ts-paper-texture',String(preferences.paperTexture/100));
     root.style.setProperty('--ts-background-image',resource?`url(${JSON.stringify(resource)})`:'none');root.style.setProperty('--ts-background-image-fit',preferences.backgroundImageFit==='tile'?'auto':preferences.backgroundImageFit);root.style.setProperty('--ts-background-image-repeat',preferences.backgroundImageFit==='tile'?'repeat':'no-repeat');root.style.setProperty('--ts-background-image-opacity',String(preferences.backgroundImageOpacity/100));
   }
   private renderBoard(viewportOnly=false) {
@@ -5433,11 +5439,16 @@ class BoardView extends FileView {
     // The title editor marks its card. Offscreen drafts stay mounted without a per-card query.
     const editingTitles=new Set<string>();for(const[id,el]of this.positions)if(el.classList.contains('is-editing-card-title'))editingTitles.add(id);
     if(editingTitles.size)for(const node of b.nodes)if(editingTitles.has(node.id)&&!live.has(node.id)){visible.push(node);live.add(node.id);}
-    let cameraGeom=`${v.zoom}|${this.plugin.settings.previewLimit}|${[...this.selected].sort().join(',')}|`,sameMembers=live.size===this.positions.size;
+    let sameMembers=live.size===this.positions.size;
     if(sameMembers)for(const id of live)if(!this.positions.has(id)){sameMembers=false;break;}
-    cameraGeom+=cullNodes.length+'|';
+    const cachedEdges=viewportOnly?this.cameraEdgesCache:undefined;
+    let edgesStamp:string;
+    if(cachedEdges&&cachedEdges.owner===this.session&&cachedEdges.edges===b.edges&&cachedEdges.length===b.edges.length&&cachedEdges.epoch===this.session.contentEpoch)edgesStamp=cachedEdges.stamp;
+    else{edgesStamp='';for(const edge of b.edges)edgesStamp+=`${edge.id}:${edge.from}:${edge.to}|`;this.cameraEdgesCache={owner:this.session,edges:b.edges,length:b.edges.length,epoch:this.session.contentEpoch,stamp:edgesStamp};}
+    const selectedKey=this.selected.size>1?[...this.selected].sort().join(','):this.selected.size===1?this.selected.values().next().value:'';
+    let cameraGeom=`${v.zoom}|${this.plugin.settings.previewLimit}|${selectedKey}|${cullNodes.length}|`;
     for(const node of visible)cameraGeom+=`${node.id}:${node.x}:${node.y}:${node.width}:${node.height}:${node.branchFolded?1:0}:${node.sectionFolded?1:0}|`;
-    for(const edge of b.edges)cameraGeom+=`${edge.id}:${edge.from}:${edge.to}|`;
+    cameraGeom+=edgesStamp;
     if(viewportOnly&&sameMembers&&this.cameraZoom===v.zoom&&this.cameraGeomKey===cameraGeom){
       if(!this.mapKey)this.renderMinimap(branchRender);else this.mapViewport?.();
       this.syncMinimapAvoidance();this.reserveVisibleCardControls();this.syncPortTabStops?.();
@@ -6935,7 +6946,8 @@ class BoardView extends FileView {
       if(g.resize===n.id||(!g.resize&&g.idSet.has(n.id))){const el = this.positions.get(n.id); if (el) this.positionNode({...live,...dragGeometry(n,!!g.resize)}, el);}
     }
     const pdfNode=!g.pan&&!g.resize&&g.ids.length===1?b.nodes.find(n=>n.id===g.ids[0]&&n.pdfExcerpt):undefined,previousPdfLanding=this.pdfGestureLanding;this.pdfGestureLanding=pdfNode?pdfBranchLanding(b,this.point(e.clientX,e.clientY),new Set(g.ids)):undefined;if(this.pdfGestureLanding)this.showMaterialLanding(e.clientX,e.clientY,true,this.pdfGestureLanding);else if(previousPdfLanding)this.clearMaterialLanding();
-    this.syncMinimapAvoidance();this.reserveVisibleCardControls();this.refreshSelectionChrome?.();
+    this.syncMinimapAvoidance();this.reserveVisibleCardControls();
+    if(this.selected.size===1&&(this.appearanceExpanded||!!this.inlineTarget||!!this.formatContextActive?.()))this.refreshSelectionChrome?.();
     // Only connections and a visible grid landing consume projected drag geometry.
     // Keep edge rendering active even without an overlay so stale rows/ports clear.
     const base=this.inlineLayout&&this.inlineTarget?{...this.inlineLayout,viewport:b.viewport}:b,landingIds=g.resize||g.guides?.length||e.altKey?undefined:g.idSet;

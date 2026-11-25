@@ -807,3 +807,26 @@ test('desktop focus retains its record preference until narrowing selects the li
 test('a hidden restored media leaf normalizes focused playback only after it acquires a narrow width',async()=>{
  const f=fixture(),v=f.view();v.contentEl.clientWidth=0;await v.setState({file:f.a.path,focusPlayer:true,recordPanel:'compose'});assert.equal(v.getState().recordPanel,'compose');const input=v.input,player=v.player;v.contentEl.clientWidth=360;v.onResize();assert.equal(v.getState().recordPanel,'player');assert.equal(v.getState().focusPlayer,true);assert.equal(v.input,input);assert.equal(v.player,player);assert.equal(f.mounts.length,1);await v.onClose();
 });
+
+test('composer divider drag caches bounds, coalesces layout saves until release, and clears on lostpointercapture',async()=>{
+ const f=fixture(),v=f.view();f.setRead(async()=>({entries:[{id:'1',time:1,text:'东京地铁',line:1},{id:'2',time:2,text:'大阪步行',line:2}]}));await v.setState({file:f.a.path});
+ const layout=v.contentEl.querySelector('.ts-media-workspace__layout') as Element,divider=v.contentEl.querySelector('.ts-media-workspace__composer-divider') as Element&{onpointerdown:(e:any)=>void;onpointermove:(e:any)=>void;onlostpointercapture:(e:any)=>void};
+ let layoutRectReads=0;layout.getBoundingClientRect=()=>{layoutRectReads++;return{left:0,right:800,top:100,bottom:600,width:800,height:500};};
+ const savesBefore=f.layoutSaves;
+ divider.onpointerdown({button:0,pointerId:7,clientY:300,preventDefault(){}});
+ assert.equal(layoutRectReads,1);
+ divider.onpointermove({pointerId:7,clientY:350});
+ divider.onpointermove({pointerId:7,clientY:400});
+ assert.equal(layoutRectReads,1,'pointermove reuses cached layout bounds without synchronous reflow');
+ assert.equal(v.getState().composerRatio,60);
+ assert.equal(f.layoutSaves,savesBefore,'pointermove does not spam requestSaveLayout per pixel');
+ divider.onlostpointercapture({pointerId:7});
+ assert.equal(f.layoutSaves,savesBefore+1);
+ divider.onpointermove({pointerId:7,clientY:200});
+ assert.equal(v.getState().composerRatio,60,'lostpointercapture ends resize cleanly');
+ v.searchInput.dispatch('compositionstart');v.searchInput.value='dongjing';v.searchInput.oninput({isComposing:true});
+ assert.equal(rows(v).length,2,'raw IME composition syllables do not filter timeline prematurely');
+ v.searchInput.value='东京';v.searchInput.dispatch('compositionend');
+ assert.equal(rows(v).length,1);
+ await v.onClose();
+});

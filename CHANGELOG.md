@@ -1,5 +1,19 @@
 # 更新记录
 
+## 1.3.55
+
+### 交互稳定性修复与 60–120fps 高刷流畅度优化
+
+- **全工作台中文/日文输入法（IME）组字保护**：为空间总览、独立脑图、白板全局搜索、阅读桌、媒体工作区时间轴、独立关系面板（关系筛选、标题树、连线目标、中心选择器）、整理白板预览查找、白板侧栏检索及收集页 `#标签` 输入框补齐 `compositionstart` / `compositionend` 与 `isComposing` 守卫，杜绝敲击未上屏拼音时提前重建列表、重读预览或误触提交。
+- **拖拽、指针捕获与多窗口生命周期修复**：修复媒体工作区分隔条在系统手势或切窗丢失指针捕获（`lostpointercapture`）后保持拖拽状态的漏洞；修复卡片库看板与写作台在拖拽经过内部子元素时误清高亮（`dragleave` 冒泡）以及看板同状态泳道松手重复写盘的问题；修复收集页在独立弹出窗口（Popout Window）下使用全局定时器导致的跨窗口生命周期问题。
+- **白板平移缩放与拖拽热路径零回流提速**：对 `applyBoardBackground` 增加背景键值记忆化缓存，平移/缩放帧不再重复改写根容器 CSS 变量触发全树样式重算；为平移帧引入按版本纪元缓存的连线拓扑快照并省去单选/空选数组排序；卡片拖拽仅在展开单选格式面板、原位编辑或激活控制条时才调度避让测量；为手写画布与独立脑图补齐 GPU 合成层提示（`will-change: transform`），并对音视频播放 `timeupdate` 实施差量 DOM 更新。白板数据格式保持第 3 版不变。
+
+### English
+
+- **Comprehensive CJK IME Composition Guards**: Added `compositionstart` / `compositionend` and `isComposing` guards across Space Hub, Brain Board, Board Search, Reading Desk, Media Workspace timeline search, Local Relations (neighbor, heading, target, and center pickers), Layout Planner preview search, Whiteboard sidebar/object filters, and Collection `#tag` inputs so raw IME syllables never trigger premature DOM rebuilds, Markdown reloads, or accidental submissions.
+- **Pointer Capture, Drag-and-Drop & Popout Window Fixes**: Fixed a stuck-resize bug on the Media Workspace split divider by tracking `pointerId` and handling `lostpointercapture`; fixed premature drop-target unhighlighting when dragging across child elements in Card Library Kanban lanes and Writing Studio, and skipped redundant disk writes when dropping a card back onto its own status lane; bound Collection membership timers to the owning document window for popout safety.
+- **60–120fps Pan, Zoom & Drag Smoothness**: Memoized `applyBoardBackground` to eliminate full-subtree style recalculations during camera pan/zoom frames; cached edge stamps across viewport-only camera frames; avoided synchronous `getBoundingClientRect` layout thrashing during card drags, layout preview panning, and media divider resizing; added `will-change: transform` compositor hints for handwriting and brain scenes; and diffed `timeupdate` DOM updates during media playback. Board format remains version 3.
+
 ## 1.3.54
 
 ### 全界面纸感视觉精修、对比度升级与启动减负

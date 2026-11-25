@@ -930,3 +930,17 @@ for(const reason of ['closed','external focus','blur','inactive pane','desktop']
  const f=shortToolsFixture();f.toggle.click();const button=action(f.el,'zoom-in');button.focus();f.tools.clientHeight=40;f.tools.scrollTop=19;button.getBoundingClientRect=()=>({x:0,y:300,left:0,right:44,top:300,bottom:344,width:44,height:44});
  if(reason==='closed')f.view.toggleTools(false);if(reason==='external focus')f.root.createEl('input').focus();if(reason==='blur')f.doc.focused=false;if(reason==='inactive pane')f.host.isActive=()=>false;if(reason==='desktop'){f.shell.clientHeight=600;f.view.syncToolsLayout();}button.dispatch('focusin');assert.equal(f.tools.scrollTop,19);assert.equal(f.saves.length,0);assert.equal(f.viewports.length,0);
 });
+
+test('brain search input defers filtering during IME composition and applies committed text on compositionend',()=>{
+ const f=fixture(),input=f.el.querySelector('input')!;
+ input.focus();
+ assert.equal(f.view.query,'');
+ input.dispatch('compositionstart');
+ input.value='biaoti';
+ input.dispatch('input',{isComposing:true});
+ assert.equal(f.view.query,'','IME pinyin composition does not overwrite committed query prematurely');
+ input.value='Notes/c.md';
+ input.dispatch('compositionend');
+ assert.equal(f.view.query,'Notes/c.md');
+ assert.deepEqual(f.view.searchIds,['c']);
+});

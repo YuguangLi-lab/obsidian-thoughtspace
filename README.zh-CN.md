@@ -4,13 +4,13 @@
 
 [English](README.md) · **简体中文**
 
-**1.3.54 · Obsidian 1.13.7+ · MIT**
+**1.3.55 · Obsidian 1.13.7+ · MIT**
 
 **[完整中文教程](docs/USER-GUIDE.zh-CN.md) · [Complete English guide](docs/USER-GUIDE.md) · [安装与更新](#安装或更新) · [十分钟上手](docs/USER-GUIDE.zh-CN.md#quick-start) · [下载最新版 Release](https://github.com/YuguangLi-lab/obsidian-thoughtspace/releases/latest)**
 
 ---
 
-## 核心特性（已更新至 1.3.54）
+## 核心特性（已更新至 1.3.55）
 
 - **暖白纸面与低饱和炭灰视觉体系**：浅色采用柔和暖白 `#f8f5ef` 与无偏色矢量纸纹，深色采用低饱和炭灰层级（面板 `#18191b` / 页面 `#222326` / 浮层 `#323339`）；配备静默保存状态点、卡片悬停细微滚动条、底部阅读渐隐遮罩，并默认折叠与正文首行 H1 重复的卡片外壳标题。
 - **卡片库（列表 · 表格 · 响应式看板）**：从左侧功能区图标首项或侧栏「卡片」页一键打开。支持中文输入法友好的实时检索、单项可清除筛选胶囊、首列固定表格、带状态色点与分区折叠的多列响应式看板，支持直接点击状态/分类（`thoughtspace_choice`）标签快捷修改或跨状态泳道拖拽更新，并支持中英双语界面。

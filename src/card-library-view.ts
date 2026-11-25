@@ -81,7 +81,7 @@ export function mountCardLibrary(root:LibraryElement,handlers:LibraryViewHandler
  const typeLabel=(type:LibraryCardType)=>lang==='en'?i18n.typeNames[type]:libraryTypeNames[type];
 
  let query=emptyLibraryQuery(),composing=false,optionRecords:readonly LibraryCardRecord[]|undefined,optionLabels:Record<FilterKey,Options>;
- let filterCards=createLibraryCardFilter([]),moreAnchor:LibraryElement|undefined,draggedPath:string|undefined;
+ let filterCards=createLibraryCardFilter([]),moreAnchor:LibraryElement|undefined,draggedPath:string|undefined,draggedStatus:string|undefined;
  let shownCount=0,renderedIndexing=false,selected=new Set<string>();
  const collapsedLanes=new Set<string>();
  const selectionRows=new Map<string,{row:LibraryElement;control:LibraryElement;baseClass:string}>();
@@ -333,11 +333,12 @@ export function mountCardLibrary(root:LibraryElement,handlers:LibraryViewHandler
     row.setAttribute('draggable','true');
     row.addEventListener('dragstart',event=>{
      draggedPath=record.path;
+     draggedStatus=record.status in statuses?record.status:'inbox';
      const transfer=(event as DragEvent).dataTransfer;
      transfer?.setData('text/plain',record.path);
      if(transfer)transfer.effectAllowed='move';
     });
-    row.addEventListener('dragend',()=>{draggedPath=undefined;});
+    row.addEventListener('dragend',()=>{draggedPath=undefined;draggedStatus=undefined;});
    }
    const info=row.createDiv('ts-library-card-info'),title=info.createDiv('ts-library-title-group');
    selectCard(row,title,record,'ts-library-card');openCard(title,record);
@@ -386,12 +387,16 @@ export function mountCardLibrary(root:LibraryElement,handlers:LibraryViewHandler
       (event as DragEvent).preventDefault?.();
       lane.setAttribute('data-drop-target','true');
      });
-     lane.addEventListener('dragleave',()=>{lane.removeAttribute('data-drop-target');});
+     lane.addEventListener('dragleave',event=>{
+      const related=(event as DragEvent|undefined)?.relatedTarget as Node|null|undefined,hostEl=dom(lane);
+      if(related&&typeof hostEl.contains==='function'&&hostEl.contains(related))return;
+      lane.removeAttribute('data-drop-target');
+     });
      lane.addEventListener('drop',event=>{
       (event as DragEvent).preventDefault?.();
       lane.removeAttribute('data-drop-target');
-      const path=draggedPath;draggedPath=undefined;
-      if(path)void handlers.setStatus!(path,column.id);
+      const path=draggedPath,status=draggedStatus;draggedPath=undefined;draggedStatus=undefined;
+      if(path&&status!==column.id)void handlers.setStatus!(path,column.id);
      });
     }
     for(const record of column.cards)card(lane,record,true);

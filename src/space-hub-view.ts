@@ -48,7 +48,12 @@ export class SpaceHubModal extends Modal {
     this.scopeTitle=headingCopy.createEl('h3',{text:'全部白板'});this.scopeCount=headingCopy.createSpan('ts-hub-scope-count');
     const actions=heading.createDiv('ts-hub-quick');this.action(actions,'收集笔记','plus',()=>{this.close();this.host.capture();},'is-primary');this.action(actions,'新建白板','panels-top-left',()=>{this.close();this.host.createBoard();});
     const tools=workspace.createDiv('ts-hub-tools'),searchField=tools.createDiv('ts-hub-search-field');setIcon(searchField.createSpan(),'search');
-    this.search=searchField.createEl('input',{type:'search',attr:{placeholder:'搜索标题、路径、#标签…','aria-label':'搜索空间总览',maxlength:'200'}});this.search.oninput=()=>{this.filter.query=this.search.value;this.page=0;this.renderResults();};
+    this.search=searchField.createEl('input',{type:'search',attr:{placeholder:'搜索标题、路径、#标签…','aria-label':'搜索空间总览',maxlength:'200'}});
+    let searchComposing=false;
+    const applySearch=()=>{if(this.filter.query===this.search.value)return;this.filter.query=this.search.value;this.page=0;this.renderResults();};
+    this.search.oninput=(event?:Event)=>{if(!searchComposing&&!(event as InputEvent|undefined)?.isComposing)applySearch();};
+    this.search.addEventListener?.('compositionstart',()=>{searchComposing=true;});
+    this.search.addEventListener?.('compositionend',()=>{searchComposing=false;applySearch();});
     const filterDisclosure=tools.createEl('details',{cls:'ts-hub-filter-disclosure'});filterDisclosure.createEl('summary',{text:'筛选与排序'});const filters=filterDisclosure.createDiv('ts-hub-filters');
     const tagLabel=filters.createEl('label',{text:'标签'});this.tag=tagLabel.createEl('select',{attr:{'aria-label':'按标签筛选'}});this.tag.onchange=()=>{this.filter.tag=this.tag.value;this.page=0;this.renderResults();};
     const sortLabel=filters.createEl('label',{text:'排序'});this.sort=sortLabel.createEl('select',{attr:{'aria-label':'总览排序'}});for(const[v,t]of [['updated','最近修改'],['title','名称排序'],['size','内容 / 使用次数']])this.sort.createEl('option',{value:v,text:t});this.sort.onchange=()=>{this.filter.sort=this.sort.value as HubFilter['sort'];this.page=0;this.renderResults();};
